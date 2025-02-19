@@ -1,0 +1,13 @@
+Target dependency graph (5 targets)
+Target 'install' in project 'obs-plugintemplate'
+➜ Explicit dependency on target 'ALL_BUILD' in project 'obs-plugintemplate'
+Target 'ALL_BUILD' in project 'obs-plugintemplate'
+➜ Explicit dependency on target 'plugin-support' in project 'obs-plugintemplate'
+➜ Explicit dependency on target 'obs-plugintemplate' in project 'obs-plugintemplate'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'obs-plugintemplate'
+Target 'obs-plugintemplate' in project 'obs-plugintemplate'
+➜ Explicit dependency on target 'plugin-support' in project 'obs-plugintemplate'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'obs-plugintemplate'
+Target 'plugin-support' in project 'obs-plugintemplate'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'obs-plugintemplate'
+Target 'ZERO_CHECK' in project 'obs-plugintemplate' (no dependencies)
