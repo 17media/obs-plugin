@@ -8,6 +8,7 @@ CMakeCache.txt
 CMakeScripts/
 cmake_install.cmake
 install_manifest.txt
+cmake/.CMakeBuildNumber
 
 # IDE files
 .vscode/
@@ -62,3 +63,6 @@ ui_*.h
 # Cache files
 .cache/
 ccache/
+
+# Dependencies
+.deps/
