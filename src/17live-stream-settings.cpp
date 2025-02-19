@@ -3,6 +3,10 @@
 #include <QMessageBox>
 #include <QSettings>
 #include "17live-api.hpp"
+#include <obs-frontend-api.h> // Include the header for frontend API
+#include <QDateTime>
+
+extern obs_module_t *obs_get_module(void);
 
 SeventeenLiveStreamSettings::SeventeenLiveStreamSettings(QWidget *parent)
     : QDialog(parent)
@@ -12,15 +16,19 @@ SeventeenLiveStreamSettings::SeventeenLiveStreamSettings(QWidget *parent)
     loadSettings();
 }
 
+void SeventeenLiveStreamSettingsRegisterCallback([[maybe_unused]] void *private_data)
+{
+    auto settings = new SeventeenLiveStreamSettings();
+    settings->setAttribute(Qt::WA_DeleteOnClose);
+    settings->show();
+}
+
 void SeventeenLiveStreamSettings::Register()
 {
     obs_frontend_add_tools_menu_item(
         "17LIVE Settings",
-        []() {
-            auto settings = new SeventeenLiveStreamSettings();
-            settings->setAttribute(Qt::WA_DeleteOnClose);
-            settings->show();
-        });
+        (obs_frontend_cb)SeventeenLiveStreamSettingsRegisterCallback,
+        nullptr);
 }
 
 void SeventeenLiveStreamSettings::setupUi()
@@ -195,4 +203,10 @@ void SeventeenLiveStreamSettings::updateStreamKey()
     saveSettings();
 
     QMessageBox::information(this, "Success", "New stream key generated successfully!");
+}
+
+void SeventeenLiveStreamSettings::onStreamKeyGenerated(const QString &key)
+{
+    streamKeyEdit->setText(key);
+    saveSettings();
 }

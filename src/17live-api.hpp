@@ -1,8 +1,6 @@
 #pragma once
 #include <QObject>
 #include <QString>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <memory>
 
 class SeventeenLiveAPI : public QObject {
@@ -33,9 +31,6 @@ private:
     SeventeenLiveAPI(const SeventeenLiveAPI&) = delete;
     SeventeenLiveAPI& operator=(const SeventeenLiveAPI&) = delete;
 
-    void handleNetworkReply(QNetworkReply *reply);
-
-    std::unique_ptr<QNetworkAccessManager> networkManager;
     QString authToken;
     QString currentStreamId;
     bool authenticated;

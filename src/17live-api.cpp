@@ -1,37 +1,87 @@
 #include <obs-module.h>
+#include <QDateTime>
 #include "17live-api.hpp"
 
-// Basic implementation of the 17LIVE API interface
+SeventeenLiveAPI& SeventeenLiveAPI::getInstance()
+{
+    static SeventeenLiveAPI instance;
+    return instance;
+}
 
-bool SeventeenLiveAPI::Initialize()
+SeventeenLiveAPI::SeventeenLiveAPI()
+    : authenticated(false)
 {
     blog(LOG_INFO, "Initializing 17LIVE API");
+}
+
+bool SeventeenLiveAPI::authenticate(const QString &username, const QString &password)
+{
+    blog(LOG_INFO, "Authenticating user: %s (%s)", username.toUtf8().constData(), password.toUtf8().constData());
+    // TODO: Implement actual authentication
+    authenticated = true;
+    authToken = QString("dummy_token_%1").arg(username);
     return true;
 }
 
-void SeventeenLiveAPI::Shutdown()
+void SeventeenLiveAPI::logout()
 {
-    blog(LOG_INFO, "Shutting down 17LIVE API");
+    blog(LOG_INFO, "Logging out user");
+    authenticated = false;
+    authToken.clear();
+    if (!currentStreamId.isEmpty()) {
+        disconnectFromChat();
+    }
 }
 
-bool SeventeenLiveAPI::Connect(const std::string& streamKey)
+bool SeventeenLiveAPI::isAuthenticated() const
 {
-    blog(LOG_INFO, "Connecting to 17LIVE with stream key: %s", streamKey.c_str());
+    return authenticated;
+}
+
+bool SeventeenLiveAPI::updateStreamSettings(const QString &title, const QString &hashtags)
+{
+    if (!authenticated) {
+        blog(LOG_WARNING, "Cannot update stream settings: Not authenticated");
+        return false;
+    }
+
+    blog(LOG_INFO, "Updating stream settings - Title: %s, Hashtags: %s",
+         title.toUtf8().constData(),
+         hashtags.toUtf8().constData());
     return true;
 }
 
-void SeventeenLiveAPI::Disconnect()
+QString SeventeenLiveAPI::generateStreamKey()
 {
-    blog(LOG_INFO, "Disconnecting from 17LIVE");
+    if (!authenticated) {
+        blog(LOG_WARNING, "Cannot generate stream key: Not authenticated");
+        return QString();
+    }
+
+    QString streamKey = QString("dummy_stream_key_%1").arg(QDateTime::currentSecsSinceEpoch());
+    blog(LOG_INFO, "Generated stream key: %s", streamKey.toUtf8().constData());
+    emit streamKeyGenerated(streamKey);
+    return streamKey;
 }
 
-bool SeventeenLiveAPI::IsConnected() const
+bool SeventeenLiveAPI::connectToChat(const QString &streamId)
 {
-    return false; // Dummy implementation
-}
+    if (!authenticated) {
+        blog(LOG_WARNING, "Cannot connect to chat: Not authenticated");
+        return false;
+    }
 
-bool SeventeenLiveAPI::SendMessage(const std::string& message)
-{
-    blog(LOG_INFO, "Sending message to 17LIVE: %s", message.c_str());
+    currentStreamId = streamId;
+    blog(LOG_INFO, "Connecting to chat for stream: %s", streamId.toUtf8().constData());
+    emit chatConnectionStateChanged(true);
     return true;
+}
+
+void SeventeenLiveAPI::disconnectFromChat()
+{
+    if (!currentStreamId.isEmpty()) {
+        blog(LOG_INFO, "Disconnecting from chat");
+        currentStreamId.clear();
+        emit chatConnectionStateChanged(false);
+    }
 }
