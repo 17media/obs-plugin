@@ -210,3 +210,14 @@ void SeventeenLiveStreamSettings::onStreamKeyGenerated(const QString &key)
     streamKeyEdit->setText(key);
     saveSettings();
 }
+
+// 添加新的方法
+void SeventeenLiveStreamSettings::openChatWindow()
+{
+    QString chatPath = QString("file://") + obs_get_module_data_path(obs_get_module()) + "/chat/index.html";
+    auto chatWindow = new SeventeenLiveChatWindow(chatPath);
+    chatWindow->show();
+}
+
+// 删除或注释掉原来的 onCreateBrowserSourceClicked 方法
+// void SeventeenLiveStreamSettings::onCreateBrowserSourceClicked() { ... }

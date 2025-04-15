@@ -6,6 +6,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <memory>
+#include "17live-chat-window.hpp"
 
 class SeventeenLiveStreamSettings : public QDialog {
     Q_OBJECT
@@ -17,6 +18,7 @@ public:
     static void Register();
 
 private slots:
+    void openChatWindow();
     void onLoginClicked();
     void onSaveSettings();
     void onStreamKeyGenerated(const QString &key);
