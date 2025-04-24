@@ -66,3 +66,5 @@ ccache/
 
 # Dependencies
 .deps/
+
+dist/

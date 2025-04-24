@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16...3.26)
+cmake_minimum_required(VERSION 3.28...3.30)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
 
@@ -22,34 +22,18 @@ if(ENABLE_FRONTEND_API)
 endif()
 
 if(ENABLE_QT)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets Qt6::WebEngineWidgets)
+  find_package(Qt6 COMPONENTS Widgets Core)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
   target_compile_options(
-    ${CMAKE_PROJECT_NAME} PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header
-                                  -Wno-comma>)
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header -Wno-comma>
+  )
   set_target_properties(
     ${CMAKE_PROJECT_NAME}
-    PROPERTIES AUTOMOC ON
-               AUTOUIC ON
-               AUTORCC ON)
+    PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON
+  )
 endif()
 
-# Set source files
-set(obs_17live_SOURCES
-    src/plugin-main.cpp
-    src/17live-stream-settings.cpp
-    src/17live-chat-dock.cpp
-    src/17live-api.cpp)
-
-# Set header files
-set(obs_17live_HEADERS
-    src/17live-stream-settings.hpp
-    src/17live-api.hpp
-)
-
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
-    src/plugin-main.cpp
-    src/17live-stream-settings.cpp
-    src/17live-api.cpp
-)
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
