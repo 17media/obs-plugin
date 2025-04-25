@@ -2,6 +2,7 @@
 #include <QMainWindow>
 
 #include "SeventeenLiveMenuManager.hpp"
+#include "SeventeenLiveAuth.hpp"
 
 namespace seventeenlive {
 
@@ -29,6 +30,8 @@ SeventeenLiveCoreManager::SeventeenLiveCoreManager(QMainWindow* mainWindow)
 {
     // 构造函数中初始化 menuManager
     menuManager = std::make_unique<SeventeenLiveMenuManager>(mainWindow);
+    // connect menuManager's loginClicked signal to handleLoginClicked slot
+    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::loginClicked, this, &SeventeenLiveCoreManager::handleLoginClicked);
 }
 
 SeventeenLiveCoreManager::~SeventeenLiveCoreManager()
@@ -91,6 +94,13 @@ std::string SeventeenLiveCoreManager::getConfig(const std::string& key, const st
 SeventeenLiveMenuManager* SeventeenLiveCoreManager::getMenuManager() const
 {
     return menuManager.get();
+}
+
+bool SeventeenLiveCoreManager::handleLoginClicked()
+{
+    // call SeventeenLiveAuth::Login
+    bool ret = SeventeenLiveAuth::Login(mainWindow);
+    return ret;
 }
 
 } // namespace seventeenlive

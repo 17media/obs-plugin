@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QObject>
 #include <memory>
 #include <string>
 #include <map>
@@ -19,7 +20,9 @@ class SeventeenLiveMenuManager;
  * 该类采用单例模式设计，作为管理全部17live插件的控制中心。
  * 负责插件的初始化、配置管理、资源分配等核心功能。
  */
-class SeventeenLiveCoreManager {
+class SeventeenLiveCoreManager : public QObject {
+    Q_OBJECT
+
 public:
     /**
      * @brief 获取SeventeenLiveCoreManager的单例实例
@@ -71,6 +74,8 @@ public:
      * @return SeventeenLiveMenuManager* 菜单管理器指针
      */
     SeventeenLiveMenuManager* getMenuManager() const;
+
+    bool handleLoginClicked();
 
     // 禁止拷贝构造和赋值操作
     SeventeenLiveCoreManager(const SeventeenLiveCoreManager&) = delete;
