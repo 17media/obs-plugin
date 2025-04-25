@@ -30,15 +30,25 @@ public:
     void cleanup();
 
 signals:
+    void chatRoomClicked();
+    void settingsClicked();
+    void broadcastClicked();
+    void helpClicked();
     void loginClicked();
     void logoutClicked();
     void checkUpdateClicked();
 
+
 private:
     QMainWindow* mainWindow;
     QMenu* menu;
-    QAction* loginAction;
+    QMenu* dockSubMenu;
+    QAction* chatRoomAction;
+    QAction* settingsAction;
+    QAction* broadcastAction;
+    QAction* helpAction;
     QAction* checkUpdateAction;
+    QAction* loginAction;
     bool isLoggedIn;
 
 };
