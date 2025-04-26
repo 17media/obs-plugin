@@ -1,8 +1,13 @@
+#include <obs-module.h>
+#include <plugin-support.h>
+
 #include "LoginDialog.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPixmap>
 #include <QStyle>
+
+#include "api/SeventeenLiveApiWrappers.hpp"
 
 namespace seventeenlive {
 
@@ -88,7 +93,21 @@ void LoginDialog::handleLogin()
         return;
     }
     
-    // TODO: 实现实际的登录逻辑
+    // 创建API包装器实例
+    SeventeenLiveApiWrappers apiWrapper;
+    SeventeenLiveLoginData loginData;
+    
+    // 调用登录接口
+    if (!apiWrapper.Login(usernameEdit->text(), passwordEdit->text(), loginData)) {
+        errorLabel->setText(tr("登录失败：") + apiWrapper.getLastErrorMessage());
+        errorLabel->setVisible(true);
+        return;
+    }
+
+    // log access token
+    obs_log(LOG_INFO, "access token: %s", loginData.accessToken.toStdString().c_str());
+    
+    // 登录成功
     accept();
 }
 

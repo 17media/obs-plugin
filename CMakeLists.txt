@@ -16,6 +16,9 @@ add_library(${CMAKE_PROJECT_NAME} MODULE)
 find_package(libobs REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
 
+find_package(CURL REQUIRED)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE CURL::libcurl)
+
 if(ENABLE_FRONTEND_API)
   find_package(obs-frontend-api REQUIRED)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::obs-frontend-api)
@@ -34,11 +37,29 @@ if(ENABLE_QT)
   )
 endif()
 
+# 添加 json11 依赖
+add_subdirectory(deps/json11)
+# 添加 wrappers 依赖
+add_subdirectory(deps/wrappers)
+
+# 设置 json11 的头文件包含路径
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
+)
+
+# 链接 json11, wrappers 库
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE json11 wrappers)
+
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/17live/SeventeenLiveCoreManager.cpp
                                              src/17live/SeventeenLiveMenuManager.cpp
                                              src/17live/SeventeenLiveAuth.cpp
                                              src/17live/LoginDialog.cpp
+                                             src/17live/api/SeventeenLiveApiWrappers.cpp
+                                             src/17live/utility/RemoteTextThread.cpp
                                              resources.qrc)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
