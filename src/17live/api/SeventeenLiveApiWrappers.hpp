@@ -106,6 +106,7 @@ class SeventeenLiveApiWrappers : public QObject {
 
 public:
   SeventeenLiveApiWrappers();
+  SeventeenLiveApiWrappers(std::string token_);
   
   bool Login(const QString &username, const QString &password, SeventeenLiveLoginData &loginData);
 

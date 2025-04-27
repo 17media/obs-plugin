@@ -5,18 +5,28 @@
 #include <QLabel>
 #include <QPushButton>
 
+
 namespace seventeenlive {
 
-class LoginDialog : public QDialog {
+struct SeventeenLiveLoginData;
+
+class SeventeenLiveLoginDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit LoginDialog(QWidget* parent = nullptr);
-    ~LoginDialog();
+    explicit SeventeenLiveLoginDialog(QWidget* parent = nullptr);
+    ~SeventeenLiveLoginDialog();
 
 private:
     void setupUi();
     void handleLogin();
+
+signals:
+    /**
+     * @brief 登录成功信号
+     * @param loginData 登录信息
+     */
+    void loginSuccess(const SeventeenLiveLoginData& loginData);
 
 private:
     QLabel* titleLabel;

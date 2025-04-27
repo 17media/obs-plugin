@@ -1,7 +1,7 @@
 #include <obs-module.h>
 #include <plugin-support.h>
 
-#include "LoginDialog.hpp"
+#include "SeventeenLiveLoginDialog.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPixmap>
@@ -9,9 +9,11 @@
 
 #include "api/SeventeenLiveApiWrappers.hpp"
 
+#include "moc_SeventeenLiveLoginDialog.cpp"
+
 namespace seventeenlive {
 
-LoginDialog::LoginDialog(QWidget* parent)
+SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent)
     : QDialog(parent)
 {
     setupUi();
@@ -19,11 +21,11 @@ LoginDialog::LoginDialog(QWidget* parent)
     setFixedSize(400, 600);
 }
 
-LoginDialog::~LoginDialog()
+SeventeenLiveLoginDialog::~SeventeenLiveLoginDialog()
 {
 }
 
-void LoginDialog::setupUi()
+void SeventeenLiveLoginDialog::setupUi()
 {
     auto mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(20);
@@ -60,7 +62,7 @@ void LoginDialog::setupUi()
     loginButton = new QPushButton(tr("登録"), this);
     loginButton->setMinimumHeight(40);
     loginButton->setStyleSheet("background-color: red; color: white; border: none; border-radius: 5px;");
-    connect(loginButton, &QPushButton::clicked, this, &LoginDialog::handleLogin);
+    connect(loginButton, &QPushButton::clicked, this, &SeventeenLiveLoginDialog::handleLogin);
     mainLayout->addWidget(loginButton);
 
     // 忘记密码链接
@@ -85,7 +87,7 @@ void LoginDialog::setupUi()
     mainLayout->addWidget(disclaimerLabel);
 }
 
-void LoginDialog::handleLogin()
+void SeventeenLiveLoginDialog::handleLogin()
 {
     // 验证逻辑
     if (usernameEdit->text().isEmpty() || passwordEdit->text().isEmpty()) {
@@ -103,6 +105,13 @@ void LoginDialog::handleLogin()
         errorLabel->setVisible(true);
         return;
     }
+
+    obs_log(LOG_INFO, "login success");
+    obs_log(LOG_INFO, "userID: %s", loginData.userInfo.userID.toStdString().c_str());
+    obs_log(LOG_INFO, "displayName: %s", loginData.userInfo.displayName.toStdString().c_str());
+    obs_log(LOG_INFO, "roomID: %d", loginData.userInfo.roomID);
+
+    emit loginSuccess(loginData);
 
     // log access token
     obs_log(LOG_INFO, "access token: %s", loginData.accessToken.toStdString().c_str());

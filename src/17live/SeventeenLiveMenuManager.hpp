@@ -3,6 +3,7 @@
 #include <QMenu>
 #include <QAction>
 #include <memory>
+#include <QString>
 
 // 前向声明
 class QMainWindow;
@@ -23,7 +24,7 @@ public:
      */
     bool initialize();
 
-    void updateLoginStatus(bool logged);
+    void updateLoginStatus(bool logged, QString username = "");
     void checkUpdate();
     void handleLogin();
     void handleLogout();

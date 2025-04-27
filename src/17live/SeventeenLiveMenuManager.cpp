@@ -53,10 +53,18 @@ SeventeenLiveMenuManager::~SeventeenLiveMenuManager()
 {
 }
 
-void SeventeenLiveMenuManager::updateLoginStatus(bool logged)
+void SeventeenLiveMenuManager::updateLoginStatus(bool logged, QString username)
 {
     isLoggedIn = logged;
-    loginAction->setText(isLoggedIn ? obs_module_text("Menu.SignOut") : obs_module_text("Menu.SignIn"));
+    QString text = QString::fromStdString(obs_module_text("Menu.SignIn"));
+    if (isLoggedIn) {
+        if (username.isEmpty()) {
+            text = QString::fromStdString(obs_module_text("Menu.SignOut"));
+        } else {
+            text = username + ": " + QString::fromStdString(obs_module_text("Menu.SignOut"));
+        }
+    }
+    loginAction->setText(text);
     
     if (isLoggedIn) {
         disconnect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogin);

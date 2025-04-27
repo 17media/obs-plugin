@@ -14,12 +14,16 @@ using namespace json11;
 
 namespace seventeenlive {
 
+extern const char* service;
+
 #define SEVENTEENLIVE_API_URL "https://sta-wap-api.17app.co"
 
 // 登录接口: SEVENTEENLIVE_API_URL + "/api/v1/auth/loginAction"
 #define SEVENTEENLIVE_LOGIN_URL SEVENTEENLIVE_API_URL "/api/v1/auth/loginAction"
 
-SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() {}
+SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
+
+SeventeenLiveApiWrappers::SeventeenLiveApiWrappers(std::string token_) : token(token_) {}
 
 bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *content_type, std::string request_type,
   const char *data, Json &json_out, long *error_code, int data_size, bool token_required)
@@ -110,29 +114,42 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
 		return false;
 	}
   obs_log(LOG_INFO, "Login success");
-
+  obs_log(LOG_INFO, "Login data: %s", json_out.dump().c_str());
+    
   // transform string json_out["data"] to Json
   Json json_out_data = Json::parse(json_out["data"].string_value(), error);
-
-
-  // check if json_out_data contains "result" key
-  auto items = json_out_data.object_items();
-  if (items.find("result") == items.end()) {
-    // check if json_out_data "result" equal to "fail"
-  	if (json_out_data["result"].string_value() == "fail") {
-  		lastErrorMessage = QString(json_out_data["message"].string_value().c_str());
-  		return false;
-  	}
-
-    // TODO: handle other cases
-    obs_log(LOG_WARNING, "Unknown login result: %s", json_out_data.dump().c_str());
+  if (!error.empty()) {
+    obs_log(LOG_ERROR, "Failed to parse login response data: %s", error.c_str());
     return false;
   }
 
-  loginData.accessToken = QString(json_out_data["accessToken"].string_value().c_str());
-  // TODO: handle other information
+  // check if json_out_data contains "result" key
+  auto items = json_out_data.object_items();
+  if (items.find("result") != items.end()) {
+    if (json_out_data["result"].string_value() == "fail") {
+      lastErrorMessage = QString::fromStdString(json_out_data["message"].string_value());
+      return false;
+    }
+  } else {
+    obs_log(LOG_WARNING, "Login response missing result field: %s", json_out_data.dump().c_str());
+    return false;
+  }
 
-	return loginData.accessToken.isEmpty() ? false : true;
+  // Check for required fields
+  if (!json_out_data["jwtAccessToken"].is_string() || json_out_data["jwtAccessToken"].string_value().empty()) {
+    obs_log(LOG_ERROR, "Login response missing jwtAccessToken");
+    return false;
+  }
+
+  loginData.jwtAccessToken = QString::fromStdString(json_out_data["jwtAccessToken"].string_value());
+  loginData.userInfo = SeventeenLiveUserInfo{};
+  loginData.userInfo.userID = QString::fromStdString(json_out_data["userInfo"]["userID"].string_value());
+  loginData.userInfo.displayName = QString::fromStdString(json_out_data["userInfo"]["displayName"].string_value());
+  loginData.userInfo.roomID = json_out_data["userInfo"]["roomID"].int_value();
+  
+  token = loginData.jwtAccessToken.toStdString();
+
+  return !loginData.jwtAccessToken.isEmpty();  
 }
 
 QString SeventeenLiveApiWrappers::md5(const QString& str)
