@@ -146,7 +146,7 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
   loginData.jwtAccessToken = QString::fromStdString(json_out_data["jwtAccessToken"].string_value());
   loginData.userInfo = SeventeenLiveUserInfo{};
   loginData.userInfo.userID = QString::fromStdString(json_out_data["userInfo"]["userID"].string_value());
-  loginData.userInfo.displayName = QString::fromStdString(json_out_data["userInfo"]["displayName"].string_value());
+  loginData.userInfo.displayName = QString::fromStdString(json_out_data["userInfo"]["openID"].string_value());
   loginData.userInfo.roomID = json_out_data["userInfo"]["roomID"].int_value();
   
   token = loginData.jwtAccessToken.toStdString();
