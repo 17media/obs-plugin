@@ -4,6 +4,7 @@
 
 #include <QFile>
 #include <QMimeDatabase>
+#include <QUrl>
 
 #include <obs-module.h>
 #include "plugin-support.h"
@@ -20,6 +21,8 @@ extern const char* service;
 
 // 登录接口: SEVENTEENLIVE_API_URL + "/api/v1/auth/loginAction"
 #define SEVENTEENLIVE_LOGIN_URL SEVENTEENLIVE_API_URL "/api/v1/auth/loginAction"
+
+#define SEVENTEENLIVE_APIGATEWAY_URL SEVENTEENLIVE_API_URL "/apiGateWay"
 
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
 
@@ -154,11 +157,74 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
   return !loginData.jwtAccessToken.isEmpty();  
 }
 
+bool SeventeenLiveApiWrappers::SeventeenLiveApiWrappers::GetSelfInfo()
+{
+  return false;
+}
+  
+bool SeventeenLiveApiWrappers::CommonRequest(const std::string action)
+{
+  lastErrorMessage.clear();
+
+	const QByteArray url = SEVENTEENLIVE_APIGATEWAY_URL;
+  
+  const Json data = Json::object{
+    {"nonce", "nonce-17live-" + std::to_string(getCurrentTimestampMs())},
+    {"action", action},
+  };
+  
+  // 将 JSON 转换为字符串并进行 URL 编码
+  std::string jsonStr = data.dump();
+  QString encodedData = QUrl::toPercentEncoding(QString::fromStdString(jsonStr));
+  
+  // 构建最终的 post data
+  std::string postData = "cypher=0_v2&data=" + encodedData.toStdString();
+  
+
+  std::string error;
+	Json json_out;
+	if (!InsertCommand(url, "application/x-www-form-urlencoded", "", postData.c_str(), json_out)) {
+		return false;
+	}
+  obs_log(LOG_INFO, "apiGateWay success");
+  obs_log(LOG_INFO, "apiGateWay data: %s", json_out.dump().c_str());
+    
+  // transform string json_out["data"] to Json
+  Json json_out_data = Json::parse(json_out["data"].string_value(), error);
+  if (!error.empty()) {
+    obs_log(LOG_ERROR, "Failed to parse apiGateWay response data: %s", error.c_str());
+    return false;
+  }
+
+  // check if json_out_data contains "result" key
+  auto items = json_out_data.object_items();
+  if (items.find("result") != items.end()) {
+    if (json_out_data["result"].string_value() == "fail") {
+      lastErrorMessage = QString::fromStdString(json_out_data["message"].string_value());
+      return false;
+    }
+  } else {
+    obs_log(LOG_WARNING, "apiGateWay response missing result field: %s", json_out_data.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out.dump().c_str());
+    return false;
+  }
+
+  return true;
+}
+
 QString SeventeenLiveApiWrappers::md5(const QString& str)
 {
   QByteArray input = str.toUtf8();
   QByteArray hash = QCryptographicHash::hash(input, QCryptographicHash::Md5);
   return QString(hash.toHex());
+}
+
+// 添加生成毫秒时间戳的函数
+int64_t SeventeenLiveApiWrappers::getCurrentTimestampMs()
+{
+    auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 }
 
 } // namespace seventeenlive
