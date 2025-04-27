@@ -17,7 +17,7 @@ SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent)
     : QDialog(parent)
 {
     setupUi();
-    setWindowTitle(tr("登録"));
+    setWindowTitle(obs_module_text("Auth.SignIn"));
     setFixedSize(400, 600);
 }
 
@@ -40,13 +40,13 @@ void SeventeenLiveLoginDialog::setupUi()
 
     // 用户名输入框
     usernameEdit = new QLineEdit(this);
-    usernameEdit->setPlaceholderText(tr("用戶名"));
+    usernameEdit->setPlaceholderText(obs_module_text("Auth.Username"));
     usernameEdit->setMinimumHeight(40);
     mainLayout->addWidget(usernameEdit);
 
     // 密码输入框
     passwordEdit = new QLineEdit(this);
-    passwordEdit->setPlaceholderText(tr("密碼"));
+    passwordEdit->setPlaceholderText(obs_module_text("Auth.Password"));
     passwordEdit->setEchoMode(QLineEdit::Password);
     passwordEdit->setMinimumHeight(40);
     mainLayout->addWidget(passwordEdit);
@@ -54,25 +54,31 @@ void SeventeenLiveLoginDialog::setupUi()
     // 错误提示
     errorLabel = new QLabel(this);
     errorLabel->setStyleSheet("color: red;");
-    errorLabel->setText(tr("用戶名或密碼不正確"));
+    errorLabel->setText(obs_module_text("Auth.Error01"));
     errorLabel->setVisible(false);
     mainLayout->addWidget(errorLabel);
 
     // 登录按钮
-    loginButton = new QPushButton(tr("登録"), this);
+    loginButton = new QPushButton(obs_module_text("Auth.SignIn"), this);
     loginButton->setMinimumHeight(40);
     loginButton->setStyleSheet("background-color: red; color: white; border: none; border-radius: 5px;");
     connect(loginButton, &QPushButton::clicked, this, &SeventeenLiveLoginDialog::handleLogin);
     mainLayout->addWidget(loginButton);
 
     // 忘记密码链接
-    forgotPasswordLabel = new QLabel("<a href='#'>忘記密碼？</a>", this);
+    // TODO: set real link to forgot password page
+    QString forgotPasswordLinkTemplate = obs_module_text("Auth.ForgotPassword");
+    QString forgotPasswordLink = forgotPasswordLinkTemplate.arg("#");
+    forgotPasswordLabel = new QLabel(forgotPasswordLink, this);
     forgotPasswordLabel->setAlignment(Qt::AlignRight);
     forgotPasswordLabel->setOpenExternalLinks(true);
     mainLayout->addWidget(forgotPasswordLabel);
 
     // 注册新用户链接
-    registerLabel = new QLabel("<a href='#'>註冊新用戶</a>", this);
+    // TODO: set real link to register page
+    QString registerLinkTemplate = obs_module_text("Auth.Register");
+    QString registerLink = registerLinkTemplate.arg("#");
+    registerLabel = new QLabel(registerLink, this);
     registerLabel->setAlignment(Qt::AlignCenter);
     registerLabel->setOpenExternalLinks(true);
     mainLayout->addWidget(registerLabel);
@@ -80,7 +86,7 @@ void SeventeenLiveLoginDialog::setupUi()
     mainLayout->addStretch();
 
     // 免责声明
-    disclaimerLabel = new QLabel(tr("請提高警覺：17LIVE 不會以任何分期付款失敗等名義要求您提供帳戶資訊、金ATM操作或提供信用卡等資料。"), this);
+    disclaimerLabel = new QLabel(obs_module_text("Auth.Hint01"), this);
     disclaimerLabel->setWordWrap(true);
     disclaimerLabel->setAlignment(Qt::AlignCenter);
     disclaimerLabel->setStyleSheet("color: gray; font-size: 12px;");
@@ -101,7 +107,9 @@ void SeventeenLiveLoginDialog::handleLogin()
     
     // 调用登录接口
     if (!apiWrapper.Login(usernameEdit->text(), passwordEdit->text(), loginData)) {
-        errorLabel->setText(tr("登录失败：") + apiWrapper.getLastErrorMessage());
+        QString errorMessageTemplate = obs_module_text("Auth.Error02");
+        QString errorMessage = errorMessageTemplate.arg(apiWrapper.getLastErrorMessage());
+        errorLabel->setText(errorMessage);
         errorLabel->setVisible(true);
         return;
     }

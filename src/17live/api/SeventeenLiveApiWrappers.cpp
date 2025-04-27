@@ -132,12 +132,14 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
     }
   } else {
     obs_log(LOG_WARNING, "Login response missing result field: %s", json_out_data.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out.dump().c_str());
     return false;
   }
 
   // Check for required fields
   if (!json_out_data["jwtAccessToken"].is_string() || json_out_data["jwtAccessToken"].string_value().empty()) {
     obs_log(LOG_ERROR, "Login response missing jwtAccessToken");
+    lastErrorMessage = QString::fromStdString(json_out.dump().c_str());
     return false;
   }
 
