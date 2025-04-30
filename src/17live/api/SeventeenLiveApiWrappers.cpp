@@ -6,6 +6,7 @@
 #include <QMimeDatabase>
 #include <QUrl>
 
+
 #include <obs-module.h>
 #include "plugin-support.h"
 
@@ -95,7 +96,14 @@ bool SeventeenLiveApiWrappers::InsertCommand(const char *url, const char *conten
     
     // The existence of an error implies non-success even if the HTTP status code disagrees.
     success = false;
+  } else if (json_out.object_items().find("errorCode")!= json_out.object_items().end()) {
+    obs_log(LOG_ERROR, "17Live API error:\n\tHTTP status: %ld\n\tURL: %s\n\tJSON: %s", error_code, url, json_out.dump().c_str());
+
+    lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " + QString::fromStdString(json_out["errorMessage"].string_value());
+    // The existence of an error implies non-success even if the HTTP status code disagrees.
+    success = false;
   }
+
   return success;
 }
 
@@ -149,7 +157,8 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
   loginData.jwtAccessToken = QString::fromStdString(json_out_data["jwtAccessToken"].string_value());
   loginData.userInfo = SeventeenLiveUserInfo{};
   loginData.userInfo.userID = QString::fromStdString(json_out_data["userInfo"]["userID"].string_value());
-  loginData.userInfo.displayName = QString::fromStdString(json_out_data["userInfo"]["openID"].string_value());
+  loginData.userInfo.openID = QString::fromStdString(json_out_data["userInfo"]["openID"].string_value());
+  loginData.userInfo.displayName = QString::fromStdString(json_out_data["userInfo"]["displayName"].string_value());
   loginData.userInfo.roomID = json_out_data["userInfo"]["roomID"].int_value();
   
   token = loginData.jwtAccessToken.toStdString();
@@ -157,12 +166,28 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
   return !loginData.jwtAccessToken.isEmpty();  
 }
 
-bool SeventeenLiveApiWrappers::SeventeenLiveApiWrappers::GetSelfInfo()
+bool SeventeenLiveApiWrappers::SeventeenLiveApiWrappers::GetSelfInfo(SeventeenLiveLoginData &loginData)
 {
-  return false;
+  Json json_out;
+  if (!CommonRequest("getSelfInfo", json_out))
+    return false;
+
+  // check if json_out_data contains "openID"
+  auto items = json_out.object_items();
+  if (items.find("openID")== items.end()) {
+    obs_log(LOG_ERROR, "GetSelfInfo response missing openID field: %s", json_out.dump().c_str());
+    lastErrorMessage = "GetSelfInfo response missing openID field";
+    return false;
+  }
+
+  loginData.userInfo.openID = QString::fromStdString(json_out["openID"].string_value());
+  loginData.userInfo.displayName = QString::fromStdString(json_out["displayName"].string_value());
+  loginData.userInfo.roomID = json_out["roomID"].int_value();
+  loginData.userInfo.userID = QString::fromStdString(json_out["userID"].string_value());
+  return true;
 }
   
-bool SeventeenLiveApiWrappers::CommonRequest(const std::string action)
+bool SeventeenLiveApiWrappers::CommonRequest(const std::string action, Json &json_out)
 {
   lastErrorMessage.clear();
 
@@ -182,30 +207,25 @@ bool SeventeenLiveApiWrappers::CommonRequest(const std::string action)
   
 
   std::string error;
-	Json json_out;
-	if (!InsertCommand(url, "application/x-www-form-urlencoded", "", postData.c_str(), json_out)) {
+	Json json_out_resp;
+	
+	if (!InsertCommand(url, "application/x-www-form-urlencoded", "", postData.c_str(), json_out_resp)) {
 		return false;
 	}
   obs_log(LOG_INFO, "apiGateWay success");
-  obs_log(LOG_INFO, "apiGateWay data: %s", json_out.dump().c_str());
-    
-  // transform string json_out["data"] to Json
-  Json json_out_data = Json::parse(json_out["data"].string_value(), error);
-  if (!error.empty()) {
-    obs_log(LOG_ERROR, "Failed to parse apiGateWay response data: %s", error.c_str());
+
+  // Check if exist errorCode field
+  if (json_out_resp.object_items().find("errorCode")!= json_out_resp.object_items().end()) {
+  	obs_log(LOG_ERROR, "apiGateWay error: %s", json_out_resp.dump().c_str());
+    // lastErrorMessage = errorCode + errorMessage
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
     return false;
   }
-
-  // check if json_out_data contains "result" key
-  auto items = json_out_data.object_items();
-  if (items.find("result") != items.end()) {
-    if (json_out_data["result"].string_value() == "fail") {
-      lastErrorMessage = QString::fromStdString(json_out_data["message"].string_value());
-      return false;
-    }
-  } else {
-    obs_log(LOG_WARNING, "apiGateWay response missing result field: %s", json_out_data.dump().c_str());
-    lastErrorMessage = QString::fromStdString(json_out.dump().c_str());
+    
+  // transform string json_out["data"] to Json
+  json_out = Json::parse(json_out_resp["data"].string_value(), error);
+  if (!error.empty()) {
+    obs_log(LOG_ERROR, "Failed to parse apiGateWay response data: %s", error.c_str());
     return false;
   }
 
@@ -226,5 +246,7 @@ int64_t SeventeenLiveApiWrappers::getCurrentTimestampMs()
     auto duration = now.time_since_epoch();
     return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 }
+
+
 
 } // namespace seventeenlive

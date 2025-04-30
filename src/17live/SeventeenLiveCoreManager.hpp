@@ -92,6 +92,8 @@ public:
      */
     void handleLoginSuccess(const SeventeenLiveLoginData& userData);
 
+    void handleLogoutClicked();
+
 private:
     // 私有构造函数，确保只能通过getInstance方法获取实例
     explicit SeventeenLiveCoreManager(QMainWindow* mainWindow);
@@ -118,6 +120,9 @@ private:
     std::unique_ptr<SeventeenLiveMenuManager> menuManager;
 
     std::unique_ptr<SeventeenLiveApiWrappers> apiWrapper;
+
+    // 检查登录状态是否有效的函数
+    bool checkLoginStatus();
 };
 
 } // namespace seventeenlive

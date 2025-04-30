@@ -64,19 +64,22 @@ bool SeventeenLiveCoreManager::initialize()
     }
   
     const char* jwtTokenChar = config_get_string(config, service, "JwtToken");
-    const char* userIdChar = config_get_string(config, service, "UserID");
-    const char* displayNameChar = config_get_string(config, service, "DisplayName");
     
-    std::string userId = userIdChar ? userIdChar : "";
-    std::string displayName = displayNameChar ? displayNameChar : "";
     std::string jwtToken = jwtTokenChar? jwtTokenChar : "";
     
+    bool isLogin = false;
+
     if (!jwtToken.empty()) {
         apiWrapper = std::make_unique<SeventeenLiveApiWrappers>(jwtTokenChar);
-    } else {
+
+        isLogin = checkLoginStatus();
+    } 
+    
+    // if not login, reinitialize apiWrapper
+    if (!isLogin) {
         apiWrapper = std::make_unique<SeventeenLiveApiWrappers>();
     }
-    
+
     // 初始化菜单管理器
     menuManager = std::make_unique<SeventeenLiveMenuManager>(mainWindow);
     if (!menuManager) {
@@ -86,8 +89,20 @@ bool SeventeenLiveCoreManager::initialize()
     // connect menuManager's loginClicked signal to handleLoginClicked slot
     QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::loginClicked, this, &SeventeenLiveCoreManager::handleLoginClicked);
 
-    if (!jwtToken.empty()) {
-        menuManager->updateLoginStatus(true, QString::fromStdString(displayName));
+    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::logoutClicked, this, &SeventeenLiveCoreManager::handleLogoutClicked);
+
+    if (isLogin) {
+        const char* openIdChar = config_get_string(config, service, "OpenID");
+        const char* displayNameChar = config_get_string(config, service, "DisplayName");
+        
+        std::string openId = openIdChar ? openIdChar : "";
+        std::string displayName = displayNameChar ? displayNameChar : "";
+
+        std::string username = displayName;
+        if (username.empty()) {
+            username = openId;
+        }
+        menuManager->updateLoginStatus(true, QString::fromStdString(username));
     }
 
     initialized = true;
@@ -144,7 +159,7 @@ bool SeventeenLiveCoreManager::handleLoginClicked()
 
 void SeventeenLiveCoreManager::handleLoginSuccess(const SeventeenLiveLoginData& loginData)
 {
-    obs_log(LOG_DEBUG, "Login successful!");
+    obs_log(LOG_INFO, "handleLoginSuccess");
 
     // 将登录信息存储到本地
     config_t *config = obs_frontend_get_global_config();
@@ -155,15 +170,17 @@ void SeventeenLiveCoreManager::handleLoginSuccess(const SeventeenLiveLoginData& 
     
     // 转换为std::string并保持引用
     std::string userID = loginData.userInfo.userID.toStdString();
+    std::string openID = loginData.userInfo.openID.toStdString();
     std::string displayName = loginData.userInfo.displayName.toStdString();
     std::string jwtToken = loginData.jwtAccessToken.toStdString();
     
     config_set_string(config, service, "UserID", userID.c_str());
+    config_set_string(config, service, "OpenID", openID.c_str());
     config_set_string(config, service, "DisplayName", displayName.c_str());
     config_set_string(config, service, "JwtToken", jwtToken.c_str());
     config_set_uint(config, service, "RoomID", loginData.userInfo.roomID);
 
-    if (!config_save(config)) {
+    if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save config");
         return;
     }
@@ -171,7 +188,54 @@ void SeventeenLiveCoreManager::handleLoginSuccess(const SeventeenLiveLoginData& 
     obs_log(LOG_DEBUG, "Login data saved to config.");
 
     // 更新菜单
-    menuManager->updateLoginStatus(true, loginData.userInfo.displayName);
+    QString username = loginData.userInfo.displayName;
+    if (username.isEmpty()) {
+        username = loginData.userInfo.openID;
+    }
+    menuManager->updateLoginStatus(true, username);
+}
+
+void SeventeenLiveCoreManager::handleLogoutClicked()
+{
+    // 重置登录状态
+    menuManager->updateLoginStatus(false, "");
+    // 重置配置
+    config_t *config = obs_frontend_get_global_config();
+    if (!config) {
+        obs_log(LOG_ERROR, "Failed to get global config");
+        return;
+    }
+    config_set_string(config, service, "UserID", "");
+    config_set_string(config, service, "OpenID", "");
+    config_set_string(config, service, "DisplayName", "");
+    config_set_string(config, service, "JwtToken", "");
+    config_set_uint(config, service, "RoomID", 0);
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save config");
+    }
+}
+
+bool SeventeenLiveCoreManager::checkLoginStatus()
+{
+    // call apiWrapper->GetSelfInfo()
+    SeventeenLiveLoginData loginData;
+    if (apiWrapper->GetSelfInfo(loginData)) {
+        return true;
+    }
+    
+    // reset config
+    config_t *config = obs_frontend_get_global_config();
+    if (!config) {
+        obs_log(LOG_ERROR, "Failed to get global config");
+        return false;
+    }
+    config_set_string(config, service, "UserID", "");
+    config_set_string(config, service, "OpenID", "");
+    config_set_string(config, service, "DisplayName", "");
+    config_set_string(config, service, "JwtToken", "");
+    config_set_uint(config, service, "RoomID", 0);
+
+    return false;
 }
 
 } // namespace seventeenlive

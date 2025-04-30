@@ -9,6 +9,8 @@
 #include <QStringList>
 #include <QObject>
 
+using namespace json11;
+
 namespace seventeenlive {
 
 struct SeventeenLiveAPIResponse {
@@ -94,6 +96,19 @@ struct SeventeenLiveLoginData {
   bool newbieGuidanceFocusMissionEnable;
 };
 
+/* struct for json data
+{
+  "errorCode": 7,
+  "errorMessage": "token invalid",
+  "errorTitle": ""
+}
+*/
+struct SeventeenLiveError {
+  int errorCode;
+  QString errorMessage;
+  QString errorTitle;
+};
+
 class SeventeenLiveApiWrappers : public QObject {
   Q_OBJECT
 
@@ -110,9 +125,9 @@ public:
   
   bool Login(const QString &username, const QString &password, SeventeenLiveLoginData &loginData);
 
-  bool GetSelfInfo();
+  bool GetSelfInfo(SeventeenLiveLoginData &loginData);
 
-  bool CommonRequest(const std::string action);
+  bool CommonRequest(const std::string action, Json &json_out);
 
   /**
    * @brief 对字符串进行MD5加密

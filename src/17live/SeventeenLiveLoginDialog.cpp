@@ -95,6 +95,8 @@ void SeventeenLiveLoginDialog::setupUi()
 
 void SeventeenLiveLoginDialog::handleLogin()
 {
+    obs_log(LOG_INFO, "SeventeenLiveLoginDialog::handle login");
+    
     // 验证逻辑
     if (usernameEdit->text().isEmpty() || passwordEdit->text().isEmpty()) {
         errorLabel->setVisible(true);
