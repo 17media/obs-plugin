@@ -128,4 +128,40 @@ void SeventeenLiveConfigManager::clearLoginData()
 
 }
 
+QByteArray SeventeenLiveConfigManager::getDockState()
+{
+  if (!initialized) {
+    return QByteArray();
+  }
+
+  if (!config) {
+    return QByteArray();
+  }
+
+  const char* dockStateChar = config_get_string(config, service, "DockState");
+  if (!dockStateChar) {
+      return QByteArray();
+  }
+
+  return QByteArray(dockStateChar);
 }
+
+bool SeventeenLiveConfigManager::setDockState(const QByteArray &state)
+{
+  if (!initialized) {
+    return false;
+  }
+  if (!config) {
+    return false;
+  }
+
+  config_set_string(config, service, "DockState", state.toStdString().c_str());
+  if (config_save(config) < 0) {
+    obs_log(LOG_ERROR, "Failed to save config");
+    return false;
+  }
+    
+  return true;
+}
+
+} // namespace seventeenlive

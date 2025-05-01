@@ -1,0 +1,112 @@
+#include "SeventeenLiveStreamingDock.hpp"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QFormLayout>
+#include <QGroupBox>
+
+namespace seventeenlive {
+
+SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent)
+    : QDockWidget(tr("設定"), parent)
+{
+    setupUi();
+    createConnections();
+}
+
+SeventeenLiveStreamingDock::~SeventeenLiveStreamingDock() = default;
+
+void SeventeenLiveStreamingDock::setupUi()
+{
+    QWidget *container = new QWidget(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(container);
+    
+    // 标题输入
+    QFormLayout *formLayout = new QFormLayout();
+    titleEdit = new QLineEdit();
+    formLayout->addRow(tr("標題 (必填)"), titleEdit);
+    
+    // 类别选择
+    categoryCombo = new QComboBox();
+    formLayout->addRow(tr("類別"), categoryCombo);
+    
+    // 标签区域
+    QHBoxLayout *tagLayout = new QHBoxLayout();
+    tagEdit = new QLineEdit();
+    addTagButton = new QPushButton(tr("Add"));
+    tagLayout->addWidget(tagEdit);
+    tagLayout->addWidget(addTagButton);
+    formLayout->addRow(tr("標籤"), tagLayout);
+    
+    mainLayout->addLayout(formLayout);
+    
+    // 开播格式
+    QGroupBox *streamFormatGroup = new QGroupBox(tr("開播格式"));
+    QHBoxLayout *formatLayout = new QHBoxLayout(streamFormatGroup);
+    normalStreamRadio = new QRadioButton(tr("標準播出"));
+    verticalStreamRadio = new QRadioButton(tr("縱式播出"));
+    formatLayout->addWidget(normalStreamRadio);
+    formatLayout->addWidget(verticalStreamRadio);
+    mainLayout->addWidget(streamFormatGroup);
+    
+    // 活动相关
+    activityCombo = new QComboBox();
+    formLayout->addRow(tr("活動"), activityCombo);
+    
+    customActivityCombo = new QComboBox();
+    formLayout->addRow(tr("自訂活動 (選填)"), customActivityCombo);
+    
+    viewerLimitCombo = new QComboBox();
+    formLayout->addRow(tr("觀眾限定觀看"), viewerLimitCombo);
+    
+    // 开关选项
+    archiveStreamCheck = new QCheckBox(tr("典藏直播"));
+    archiveStreamCheck->setToolTip(tr("儲存直播內容7天，並且只有您本人可以觀看。\n(限制：不超過8小時，PK/群聊內容皆不支持。)"));
+    mainLayout->addWidget(archiveStreamCheck);
+    
+    autoPreviewCheck = new QCheckBox(tr("自動發布預覽"));
+    autoPreviewCheck->setToolTip(tr("自動以影片的方式設定在個人頁面「如何收看」。\n17LIVE app的頁面也編輯該頁面的相關內容（如標題、標籤等）。"));
+    mainLayout->addWidget(autoPreviewCheck);
+    
+    // 剪辑身份
+    clipIdentityCombo = new QComboBox();
+    formLayout->addRow(tr("允許直播剪輯身份"), clipIdentityCombo);
+    
+    // 虚拟主播选项
+    virtualStreamerCheck = new QCheckBox(tr("是，我是虛擬主播。"));
+    mainLayout->addWidget(virtualStreamerCheck);
+    
+    // 底部按钮
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    createStreamButton = new QPushButton(tr("建立直播"));
+    createAndStartButton = new QPushButton(tr("建立直播並開始推流"));
+    createAndStartButton->setStyleSheet("background-color: red; color: white;");
+    buttonLayout->addWidget(createStreamButton);
+    buttonLayout->addWidget(createAndStartButton);
+    mainLayout->addLayout(buttonLayout);
+    
+    setWidget(container);
+}
+
+void SeventeenLiveStreamingDock::createConnections()
+{
+    connect(addTagButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onAddTagClicked);
+    connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
+    connect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateAndStartStreamClicked);
+}
+
+void SeventeenLiveStreamingDock::onAddTagClicked()
+{
+    // TODO: 实现添加标签的逻辑
+}
+
+void SeventeenLiveStreamingDock::onCreateStreamClicked()
+{
+    // TODO: 实现创建直播的逻辑
+}
+
+void SeventeenLiveStreamingDock::onCreateAndStartStreamClicked()
+{
+    // TODO: 实现创建并开始直播的逻辑
+}
+
+} // namespace seventeenlive

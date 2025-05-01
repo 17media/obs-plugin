@@ -2,6 +2,8 @@
 
 #include <util/config-file.h>
 
+#include <QByteArray>
+
 namespace seventeenlive {
 
 struct SeventeenLiveLoginData;
@@ -14,6 +16,10 @@ public:
   bool getLoginData(SeventeenLiveLoginData &loginData);
   bool setLoginData(const SeventeenLiveLoginData &loginData);
   void clearLoginData();
+
+  QByteArray getDockState();
+  bool setDockState(const QByteArray &state);
+
   
 private:
   bool initialized = false;

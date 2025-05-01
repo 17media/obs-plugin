@@ -20,6 +20,8 @@ class SeventeenLiveConfigManager;
 
 struct SeventeenLiveLoginData;
 
+class SeventeenLiveStreamingDock;
+
 /**
  * @brief SeventeenLiveCoreManager 类是17live插件的核心管理类
  * 
@@ -96,6 +98,8 @@ public:
 
     void handleLogoutClicked();
 
+    void handleStreamingClicked();
+
 private:
     // 私有构造函数，确保只能通过getInstance方法获取实例
     explicit SeventeenLiveCoreManager(QMainWindow* mainWindow);
@@ -119,14 +123,20 @@ private:
     bool initialized;
 
     std::unique_ptr<SeventeenLiveConfigManager> configManager;
-    
+
     // 菜单管理器
     std::unique_ptr<SeventeenLiveMenuManager> menuManager;
 
     std::unique_ptr<SeventeenLiveApiWrappers> apiWrapper;
 
+    // Streaming Dock load status
+    bool streamingDockFirstLoad = true;
+
     // 检查登录状态是否有效的函数
     bool checkLoginStatus();
+
+    SeventeenLiveStreamingDock* streamingDock{nullptr};
+    void saveDockState();
 };
 
 } // namespace seventeenlive

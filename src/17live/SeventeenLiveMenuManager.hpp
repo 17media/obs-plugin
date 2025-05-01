@@ -33,7 +33,7 @@ public:
 signals:
     void chatRoomClicked();
     void settingsClicked();
-    void broadcastClicked();
+    void streamingClicked();
     void helpClicked();
     void loginClicked();
     void logoutClicked();

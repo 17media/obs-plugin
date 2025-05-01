@@ -59,6 +59,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/17live/api/SeventeenLiveApiWrappers.cpp
                                              src/17live/SeventeenLiveMenuManager.cpp
                                              src/17live/SeventeenLiveLoginDialog.cpp
+                                             src/17live/SeventeenLiveStreamingDock.cpp
                                              src/17live/utility/RemoteTextThread.cpp
                                              resources.qrc)
 

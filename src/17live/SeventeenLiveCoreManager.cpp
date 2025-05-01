@@ -6,6 +6,7 @@
 #include "SeventeenLiveConfigManager.hpp"
 
 #include "SeventeenLiveLoginDialog.hpp"
+#include "SeventeenLiveStreamingDock.hpp"
 
 #include "plugin-support.h"
 
@@ -91,6 +92,8 @@ bool SeventeenLiveCoreManager::initialize()
 
     QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::logoutClicked, this, &SeventeenLiveCoreManager::handleLogoutClicked);
 
+    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::streamingClicked, this, &SeventeenLiveCoreManager::handleStreamingClicked);
+
     if (isLogin) {
         QString openId = loginData.userInfo.openID;
         QString displayName = loginData.userInfo.displayName;
@@ -111,6 +114,8 @@ void SeventeenLiveCoreManager::shutdown()
     if (!initialized) {
         return;
     }
+
+    saveDockState();
 
     // 清理菜单管理器资源
     if (menuManager) {
@@ -164,6 +169,37 @@ void SeventeenLiveCoreManager::handleLogoutClicked()
     configManager->clearLoginData();
 }
 
+void SeventeenLiveCoreManager::handleStreamingClicked()
+{
+    QSize size = mainWindow->size();
+    QPoint pos = mainWindow->pos();
+
+    // 创建并显示流媒体窗口
+    SeventeenLiveStreamingDock* streamingDock = new SeventeenLiveStreamingDock(mainWindow);
+
+    streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
+
+    streamingDock->setFloating(true);
+    streamingDock->move(pos.x() + size.width() - streamingDock->width() - 50, pos.y() - 50);
+
+    if (streamingDockFirstLoad) {
+        streamingDock->setVisible(true);
+        streamingDockFirstLoad = false;
+    } else {
+        streamingDock->setVisible(!streamingDock->isVisible());
+        
+        QByteArray dockState = configManager->getDockState();
+        if (mainWindow->isVisible())
+            mainWindow->restoreState(dockState);
+    }
+
+    this->streamingDock = streamingDock;
+
+    // 连接关闭信号到主窗口的槽函数
+    connect(streamingDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
+}
+
 bool SeventeenLiveCoreManager::checkLoginStatus()
 {
     // call apiWrapper->GetSelfInfo()
@@ -176,6 +212,14 @@ bool SeventeenLiveCoreManager::checkLoginStatus()
     // TODO: update loginData: displayName
 
     return true;
+}
+
+void SeventeenLiveCoreManager::saveDockState()
+{
+    if (mainWindow && streamingDock) {
+        QByteArray state = mainWindow->saveState();
+        configManager->setDockState(state);
+    }
 }
 
 } // namespace seventeenlive
