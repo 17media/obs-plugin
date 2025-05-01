@@ -4,10 +4,12 @@
 #include <QFormLayout>
 #include <QGroupBox>
 
+#include "moc_SeventeenLiveStreamingDock.cpp"
+
 namespace seventeenlive {
 
-SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent)
-    : QDockWidget(tr("設定"), parent)
+SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent, const SeventeenLiveRoomInfo &roomInfo_)
+    : QDockWidget(tr("設定"), parent), roomInfo(roomInfo_)
 {
     setupUi();
     createConnections();
@@ -46,11 +48,29 @@ void SeventeenLiveStreamingDock::setupUi()
     verticalStreamRadio = new QRadioButton(tr("縱式播出"));
     formatLayout->addWidget(normalStreamRadio);
     formatLayout->addWidget(verticalStreamRadio);
+    if (roomInfo.landscape) {
+        normalStreamRadio->setChecked(true);
+    } else {
+        verticalStreamRadio->setChecked(true);
+    }
     mainLayout->addWidget(streamFormatGroup);
     
     // 活动相关
     activityCombo = new QComboBox();
+    // 添加一个默认选项
+    activityCombo->addItem(tr("無特定"), -1);
+    
+    // 从roomInfo.eventList添加活动选项
+    for (const auto& event : roomInfo.eventList) {
+        QString eventName = event.name;
+        if (eventName.isEmpty()) {
+            eventName = tr("活動 ") + QString::number(event.ID);
+        }
+        activityCombo->addItem(eventName, event.ID);
+    }
+    
     formLayout->addRow(tr("活動"), activityCombo);
+    
     
     customActivityCombo = new QComboBox();
     formLayout->addRow(tr("自訂活動 (選填)"), customActivityCombo);
@@ -61,14 +81,31 @@ void SeventeenLiveStreamingDock::setupUi()
     // 开关选项
     archiveStreamCheck = new QCheckBox(tr("典藏直播"));
     archiveStreamCheck->setToolTip(tr("儲存直播內容7天，並且只有您本人可以觀看。\n(限制：不超過8小時，PK/群聊內容皆不支持。)"));
+    archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
     mainLayout->addWidget(archiveStreamCheck);
     
     autoPreviewCheck = new QCheckBox(tr("自動發布預覽"));
     autoPreviewCheck->setToolTip(tr("自動以影片的方式設定在個人頁面「如何收看」。\n17LIVE app的頁面也編輯該頁面的相關內容（如標題、標籤等）。"));
+    autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
     mainLayout->addWidget(autoPreviewCheck);
+    
+    // 预览设置
+//    QGroupBox *previewGroup = new QGroupBox(tr("預覽設定"));
+//    QFormLayout *previewLayout = new QFormLayout(previewGroup);    
     
     // 剪辑身份
     clipIdentityCombo = new QComboBox();
+    clipIdentityCombo->addItem(tr("關閉"), 0);
+    clipIdentityCombo->addItem(tr("所有人"), 1);
+    clipIdentityCombo->addItem(tr("粉絲"), 2);
+    
+    // 设置为不可编辑
+    clipIdentityCombo->setEditable(false);
+    
+    // 设置默认值
+    int clipPermission = roomInfo.archiveConfig.clipPermission;
+    clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(clipPermission));
+    
     formLayout->addRow(tr("允許直播剪輯身份"), clipIdentityCombo);
     
     // 虚拟主播选项

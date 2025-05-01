@@ -3,111 +3,13 @@
 #include "json11.hpp"
 
 #include <QString>
-#include <QList>
-#include <QVariant>
-#include <QVariantMap>
-#include <QStringList>
 #include <QObject>
+
+#include "SeventeenLiveModels.hpp"
 
 using namespace json11;
 
 namespace seventeenlive {
-
-struct SeventeenLiveAPIResponse {
-  QString key;
-  QString data;
-};
-
-struct SeventeenLiveAPIResult {
-  QString result;
-  QString message;
-};
-
-struct SeventeenLiveUserInfo {
-  QString userID;
-  QString openID;
-  QString displayName;
-  QString name;
-  QString bio;
-  QString picture;
-  QString website;
-  int followerCount;
-  int followingCount;
-  int receivedLikeCount;
-  int likeCount;
-  int isFollowing;
-  int isNotif;
-  int isBlocked;
-  qint64 followTime;
-  qint64 followRequestTime;
-  qint64 roomID;
-  QString privacyMode;
-  int ballerLevel;
-  int postCount;
-  int isCelebrity;
-  int baller;
-  int level;
-  int followPrivacyMode;
-  QString revenueShareIndicator;
-  int clanStatus;
-  QStringList badgeInfo;
-  QString region;
-  int hideAllPointToLeaderboard;
-  int enableShop;
-  QVariantMap monthlyVIPBadges;
-  qint64 lastLiveTimestamp;
-  qint64 lastCreateLiveTimestamp;
-  QString lastLiveRegion;
-  QStringList loyaltyInfo;
-  bool streamerRecapEnable;
-  int gloryroadMode;
-  QStringList lastUsedHashtags;
-  bool newbieDisplayAllGiftTabsToast;
-  int avatarOnboardingPhase;
-  bool isUnderaged;
-  QStringList levelBadges;
-  int isEmailVerified;
-  QString extIDAppleTransfer;
-  QString commentShadowColor;
-  bool isFreePrivateMsgEnabled;
-  bool isVliverOnlyModeEnabled;
-};
-
-struct SeventeenLiveAutoEnter {
-  bool autoEnter;
-  qint64 liveStreamID;
-};
-
-struct SeventeenLiveLoginData {
-  SeventeenLiveUserInfo userInfo;
-  QString message;
-  QString result;
-  QString refreshToken;
-  QString jwtAccessToken;
-  QString accessToken;
-  int giftModuleState;
-  QString word;
-  QString abtestNewbieFocus;
-  QString abtestNewbieGuidance;
-  QString abtestNewbieGuide;
-  bool showRecommend;
-  SeventeenLiveAutoEnter autoEnterLive;
-  int newbieEnhanceGuidanceStyle;
-  bool newbieGuidanceFocusMissionEnable;
-};
-
-/* struct for json data
-{
-  "errorCode": 7,
-  "errorMessage": "token invalid",
-  "errorTitle": ""
-}
-*/
-struct SeventeenLiveError {
-  int errorCode;
-  QString errorMessage;
-  QString errorTitle;
-};
 
 class SeventeenLiveApiWrappers : public QObject {
   Q_OBJECT
@@ -126,6 +28,7 @@ public:
   bool Login(const QString &username, const QString &password, SeventeenLiveLoginData &loginData);
 
   bool GetSelfInfo(SeventeenLiveLoginData &loginData);
+  bool GetRoomInfo(const qint64 roomID, SeventeenLiveRoomInfo &roomInfo);
 
   bool CommonRequest(const std::string action, Json &json_out);
 

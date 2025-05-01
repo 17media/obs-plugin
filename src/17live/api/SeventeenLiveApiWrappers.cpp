@@ -25,6 +25,8 @@ extern const char* service;
 
 #define SEVENTEENLIVE_APIGATEWAY_URL SEVENTEENLIVE_API_URL "/apiGateWay"
 
+#define SEVENTEENLIVE_GET_ROOM_INFO_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1/info"
+
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
 
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers(std::string token_) : token(token_) {}
@@ -41,14 +43,21 @@ bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *con
     obs_log(LOG_DEBUG, "17Live API command data: %s", data);
 #endif
 
+  std::vector<std::string> headers;
+
   if (token_required && token.empty())
     return false;
+
+  if (token_required)
+    headers.push_back("Authorization: Bearer " + token);
+
+  headers.push_back("Devicetype: WEB");
 
   std::string output;
   std::string error;
   // Increase timeout by the time it takes to transfer `data_size` at 1 Mbps
   int timeout = 60 + data_size / 125000;
-  bool success = GetRemoteFile(url, output, error, &httpStatusCode, content_type,request_type, data, {"Authorization: Bearer " + token}, nullptr, timeout, false, data_size);
+  bool success = GetRemoteFile(url, output, error, &httpStatusCode, content_type,request_type, data, headers, nullptr, timeout, false, data_size);
   if (error_code)
     *error_code = httpStatusCode;
 
@@ -226,6 +235,32 @@ bool SeventeenLiveApiWrappers::CommonRequest(const std::string action, Json &jso
   json_out = Json::parse(json_out_resp["data"].string_value(), error);
   if (!error.empty()) {
     obs_log(LOG_ERROR, "Failed to parse apiGateWay response data: %s", error.c_str());
+    return false;
+  }
+
+  return true;
+}
+
+
+bool SeventeenLiveApiWrappers::GetRoomInfo(const qint64 roomID, SeventeenLiveRoomInfo &roomInfo)
+{
+  lastErrorMessage.clear();
+
+  // 构建请求URL
+  QString urlStr = QString(SEVENTEENLIVE_GET_ROOM_INFO_URL).arg(roomID);
+  QByteArray url = urlStr.toUtf8();
+
+  Json json_out;
+  if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out, 0, true)) {
+    return false;
+  }
+  obs_log(LOG_INFO, "GetRoomInfo success");
+  obs_log(LOG_INFO, "Room info data: %s", json_out.dump().c_str());
+
+  // 使用 JsonToSeventeenLiveRoomInfo 函数解析数据到结构体
+  if (!JsonToSeventeenLiveRoomInfo(json_out, roomInfo)) {
+    obs_log(LOG_ERROR, "Failed to parse room info data");
+    lastErrorMessage = "Failed to parse room info data";
     return false;
   }
 

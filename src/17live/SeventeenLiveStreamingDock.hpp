@@ -9,13 +9,15 @@
 #include <QCheckBox>
 #include <QLabel>
 
+#include "api/SeventeenLiveModels.hpp"
+
 namespace seventeenlive {
 
 class SeventeenLiveStreamingDock : public QDockWidget {
     Q_OBJECT
 
 public:
-    explicit SeventeenLiveStreamingDock(QWidget *parent = nullptr);
+    explicit SeventeenLiveStreamingDock(QWidget *parent = nullptr, const SeventeenLiveRoomInfo &roomInfo = SeventeenLiveRoomInfo());
     ~SeventeenLiveStreamingDock();
 
 private:
@@ -49,6 +51,8 @@ private:
     // 底部按钮
     QPushButton *createStreamButton;
     QPushButton *createAndStartButton;
+
+    SeventeenLiveRoomInfo roomInfo;
 
 private slots:
     void onAddTagClicked();
