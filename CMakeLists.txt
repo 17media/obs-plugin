@@ -55,9 +55,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE json11 wrappers)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/17live/SeventeenLiveCoreManager.cpp
+                                             src/17Live/SeventeenLiveConfigManager.cpp
+                                             src/17live/api/SeventeenLiveApiWrappers.cpp
                                              src/17live/SeventeenLiveMenuManager.cpp
                                              src/17live/SeventeenLiveLoginDialog.cpp
-                                             src/17live/api/SeventeenLiveApiWrappers.cpp
                                              src/17live/utility/RemoteTextThread.cpp
                                              resources.qrc)
 

@@ -16,6 +16,8 @@ class SeventeenLiveMenuManager;
 
 class SeventeenLiveApiWrappers;
 
+class SeventeenLiveConfigManager;
+
 struct SeventeenLiveLoginData;
 
 /**
@@ -116,6 +118,8 @@ private:
     // 初始化标志
     bool initialized;
 
+    std::unique_ptr<SeventeenLiveConfigManager> configManager;
+    
     // 菜单管理器
     std::unique_ptr<SeventeenLiveMenuManager> menuManager;
 

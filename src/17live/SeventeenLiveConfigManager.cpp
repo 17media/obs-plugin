@@ -1,0 +1,131 @@
+#include "SeventeenLiveConfigManager.hpp"
+
+#include <obs-module.h>
+#include <util/config-file.h>
+#include <QDir>
+#include <QFile>
+#include <QString>
+#include "plugin-support.h"
+
+#include "api/SeventeenLiveApiWrappers.hpp"
+
+namespace seventeenlive {
+
+const char* service = "SeventeenLive";
+
+#define CONFIG_PATH ".17Live"
+#define CONFIG_NAME "config.ini"
+
+SeventeenLiveConfigManager::SeventeenLiveConfigManager(): initialized(false) {}
+bool SeventeenLiveConfigManager::initialize()
+{
+  // 防止重复初始化
+  if (initialized) {
+    return true;
+  }
+
+  // 当前用户的home目录下的.17Live目录，采用Qt的方式获取
+  QString homeDir = QDir::homePath();
+  QString configDir = homeDir + "/" + CONFIG_PATH;
+  QDir dir(configDir);
+  // 如果目录不存在，创建目录
+  if (!dir.exists()) {
+    if (!dir.mkpath(configDir)) {
+      obs_log(LOG_ERROR, "Failed to create config directory");
+      return false;
+    }
+  }
+
+  // 配置文件路径
+  QString configFilePath = configDir + "/" + CONFIG_NAME;
+
+  int ret = config_open(&config, configFilePath.toStdString().c_str(), CONFIG_OPEN_ALWAYS);
+  if (ret != CONFIG_SUCCESS) {
+    obs_log(LOG_ERROR, "Failed to open config file");
+    return false;
+  }
+
+  initialized = true;
+
+  return true;
+}
+
+bool SeventeenLiveConfigManager::getLoginData(SeventeenLiveLoginData &loginData)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  if (!config) {
+    return false;
+  }
+
+  const char* jwtTokenChar = config_get_string(config, service, "JwtToken");
+  const char* openIdChar = config_get_string(config, service, "OpenID");
+  const char* displayNameChar = config_get_string(config, service, "DisplayName");
+    
+  std::string jwtToken = jwtTokenChar? jwtTokenChar : "";
+  std::string openId = openIdChar? openIdChar : "";
+  std::string displayName = displayNameChar? displayNameChar : "";
+
+  
+  loginData.jwtAccessToken = QString::fromStdString(jwtToken);
+  loginData.userInfo.openID = QString::fromStdString(openId);
+  loginData.userInfo.displayName = QString::fromStdString(displayName);
+  loginData.userInfo.roomID = config_get_uint(config, service, "RoomID");
+  
+  return true;
+}
+
+bool SeventeenLiveConfigManager::setLoginData(const SeventeenLiveLoginData &loginData)
+{
+  if (!initialized) {
+    return false;
+  }
+  if (!config) {
+    return false;
+  }
+    
+  // 转换为std::string并保持引用
+  std::string userID = loginData.userInfo.userID.toStdString();
+  std::string openID = loginData.userInfo.openID.toStdString();
+  std::string displayName = loginData.userInfo.displayName.toStdString();
+  std::string jwtToken = loginData.jwtAccessToken.toStdString();
+    
+  config_set_string(config, service, "UserID", userID.c_str());
+  config_set_string(config, service, "OpenID", openID.c_str());
+  config_set_string(config, service, "DisplayName", displayName.c_str());
+  config_set_string(config, service, "JwtToken", jwtToken.c_str());
+  config_set_uint(config, service, "RoomID", loginData.userInfo.roomID);
+
+  if (config_save(config) < 0) {
+    obs_log(LOG_ERROR, "Failed to save config");
+    return false;
+  }
+
+  obs_log(LOG_DEBUG, "Login data saved to config.");
+
+  return true;
+}
+
+void SeventeenLiveConfigManager::clearLoginData()
+{
+  if (!initialized) {
+    return;
+  }
+  if (!config) {
+    return;
+  }
+
+  config_set_string(config, service, "UserID", "");
+  config_set_string(config, service, "OpenID", "");
+  config_set_string(config, service, "DisplayName", "");
+  config_set_string(config, service, "JwtToken", "");
+  config_set_uint(config, service, "RoomID", 0);
+  if (config_save(config) < 0) {
+      obs_log(LOG_ERROR, "Failed to save config");
+  }
+
+}
+
+}
