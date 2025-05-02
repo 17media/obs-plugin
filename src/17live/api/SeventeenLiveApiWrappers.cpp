@@ -306,27 +306,21 @@ bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &reques
   std::string postData = requestData.dump();
 
   std::string error;
-	Json json_out_resp;
+	Json json_out;
 	
-	if (!InsertCommand(url, "application/json", "", postData.c_str(), json_out_resp)) {
+	if (!InsertCommand(url, "application/json", "", postData.c_str(), json_out)) {
 		return false;
 	}
   obs_log(LOG_INFO, "CreateRtmp success");
 
   // Check if exist errorCode field
-  if (json_out_resp.object_items().find("errorCode")!= json_out_resp.object_items().end()) {
-  	obs_log(LOG_ERROR, "CreateRtmp error: %s", json_out_resp.dump().c_str());
+  if (json_out.object_items().find("errorCode")!= json_out.object_items().end()) {
+  	obs_log(LOG_ERROR, "CreateRtmp error: %s", json_out.dump().c_str());
     // lastErrorMessage = errorCode + errorMessage
-    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+    lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " + QString::fromStdString(json_out["errorMessage"].string_value());
     return false;
   }
 
-  // transform string json_out["data"] to Json
-  Json json_out = Json::parse(json_out_resp["data"].string_value(), error);
-  if (!error.empty()) {
-    obs_log(LOG_ERROR, "Failed to parse CreateRtmp response data: %s", error.c_str());
-    return false;
-  }
   if (!JsonToSeventeenLiveRtmpResponse(json_out, response)) {
     obs_log(LOG_ERROR, "Failed to convert response to struct");
     lastErrorMessage = "Failed to convert response to struct";

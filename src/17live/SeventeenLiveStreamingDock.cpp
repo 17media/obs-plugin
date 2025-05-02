@@ -175,7 +175,7 @@ void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     request.hashtags = tagEdit->text().split(",");
     request.landscape = normalStreamRadio->isChecked();
     request.streamerType = roomInfo.streamerType;
-    request.subtabID = categoryCombo->currentText();
+    request.subtabID = "newbie"; // TODO: categoryCombo->currentData().toString();
     request.archiveConfig.autoRecording = archiveStreamCheck->isChecked();
     request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
     request.archiveConfig.clipPermission = clipIdentityCombo->currentData().toInt();
