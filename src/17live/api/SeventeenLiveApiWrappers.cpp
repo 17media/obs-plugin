@@ -330,17 +330,22 @@ bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &reques
   return true;
 }
 
-bool SeventeenLiveApiWrappers::StartStream(const std::string &liveStreamID)
+bool SeventeenLiveApiWrappers::StartStream(const std::string &liveStreamID, const std::string &userID)
 {
   obs_log(LOG_INFO, "StartStream start");
   lastErrorMessage.clear();
   QString urlStr = QString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
     QByteArray url = urlStr.toUtf8();
 
+  Json requestData = Json::object{
+    {"userID", userID},
+  };
+  std::string postData = requestData.dump();
+
   std::string error;
 	Json json_out_resp;
 
-	if (!InsertCommand(url.constData(), "application/json", "PATCH", nullptr, json_out_resp)) {
+	if (!InsertCommand(url.constData(), "application/json", "PATCH", postData.c_str(), json_out_resp)) {
     obs_log(LOG_ERROR, "StartStream error: %s", json_out_resp.dump().c_str());
     lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
 		return false;
@@ -368,16 +373,24 @@ bool SeventeenLiveApiWrappers::EnableStreamArchive(const std::string &liveStream
   return true;
 }
 
-bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID)
+bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID, const SeventeenLiveCloseLiveRequest &request)
 {
   obs_log(LOG_INFO, "StopStream start");
   lastErrorMessage.clear();
   QString urlStr = QString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
     QByteArray url = urlStr.toUtf8();
+
+  Json requestData;
+  if (!SeventeenLiveCloseLiveRequestToJson(request, requestData)) {
+    obs_log(LOG_ERROR, "Failed to convert request to JSON");
+    lastErrorMessage = "Failed to convert request to JSON";
+    return false;
+  }
+  std::string postData = requestData.dump();
     
   std::string error;
 	Json json_out_resp;
-	if (!InsertCommand(url.constData(), "application/json", "DELETE", nullptr, json_out_resp)) {
+	if (!InsertCommand(url.constData(), "application/json", "DELETE", postData.c_str(), json_out_resp)) {
     obs_log(LOG_ERROR, "StopStream error: %s", json_out_resp.dump().c_str());
     lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
 		return false;

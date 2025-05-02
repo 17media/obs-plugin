@@ -137,6 +137,7 @@ private:
 
     // current streaming info
     std::string currLiveStreamID;
+    std::string currUserID;
 
     // 检查登录状态是否有效的函数
     bool checkLoginStatus();

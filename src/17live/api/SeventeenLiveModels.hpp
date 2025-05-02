@@ -317,4 +317,12 @@ namespace seventeenlive {
 
   bool JsonToSeventeenLiveRtmpResponse(const Json &json, SeventeenLiveRtmpResponse &response);
 
+  // 关闭直播请求结构体
+  struct SeventeenLiveCloseLiveRequest {
+    QString userID;
+    QString reason;
+  };
+
+  bool SeventeenLiveCloseLiveRequestToJson(const SeventeenLiveCloseLiveRequest &request, Json &json);
+
 } // namespace seventeenlive

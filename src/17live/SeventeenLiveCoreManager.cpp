@@ -250,36 +250,25 @@ void SeventeenLiveCoreManager::handleCreateStreamClicked(const SeventeenLiveRtmp
         return;
     }
 
-    QString baseUrl;
-    QString params;
+    QString streamUrl;
+    QString streamKey;
 
-    int questionIndex = response.rtmpURL.indexOf("?");
+    int questionIndex = response.rtmpURL.indexOf(request.userID + "?");
     if (questionIndex != -1) {
-        baseUrl = response.rtmpURL.left(questionIndex);
-        params = response.rtmpURL.mid(questionIndex + 1);
+        streamUrl = response.rtmpURL.left(questionIndex - 1);
+        streamKey = response.rtmpURL.mid(questionIndex);
     } else {
         obs_log(LOG_ERROR, "Failed to parse stream url");
         return;
     }
-    QString idParam;
-    int idparamIndex = params.indexOf("&");
-    if (idparamIndex != -1) {
-        idParam = params.left(idparamIndex);
-    } else {
-        obs_log(LOG_ERROR, "Failed to parse stream id");
-        return;
-    }
-
-    QString id = idParam.mid(idParam.indexOf("=") + 1);
-    QString streamUrl = baseUrl.left(baseUrl.length() - id.length());
-    QString streamKey = params.mid(params.indexOf("=") + 1);
-
+    
     obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
     obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
 
     configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
 
     currLiveStreamID = response.liveStreamID.toStdString();
+    currUserID = request.userID.toStdString();
 
     streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::Live);
 }
@@ -298,7 +287,7 @@ void SeventeenLiveCoreManager::handleCreateAndStartStreamClicked(const Seventeen
         return;
     }
 
-    if (!apiWrapper->StartStream(liveStreamID)) {
+    if (!apiWrapper->StartStream(liveStreamID, currUserID)) {
         obs_log(LOG_ERROR, "Failed to start stream");
         return;
     }
@@ -320,13 +309,8 @@ void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, c
     }
 
     // 获取OBS服务
-    obs_service_t *service = obs_frontend_get_streaming_service();
-    if (!service) {
-        obs_log(LOG_ERROR, "Failed to get streaming service");
-        obs_output_release(streamOutput);
-        return;
-    }
-
+    obs_service_t* service = obs_service_create("rtmp_custom", "default_service", NULL, NULL);
+    
     // 设置流媒体URL和密钥
     obs_data_t *settings = obs_service_get_settings(service);
     obs_data_set_string(settings, "server", streamUrl.c_str());
@@ -336,8 +320,12 @@ void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, c
     obs_service_update(service, settings);
     obs_data_release(settings);
 
+    obs_frontend_set_streaming_service(service);
+
     // 将服务应用到输出
     obs_output_set_service(streamOutput, service);
+
+    obs_frontend_save_streaming_service();
 
     // 开始推流
     if (!obs_output_start(streamOutput)) {
@@ -346,13 +334,15 @@ void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, c
         if (error) {
             obs_log(LOG_ERROR, "Error: %s", error);
         }
+        obs_output_release(streamOutput);
     } else {
         obs_log(LOG_INFO, "Streaming started successfully");
     }
 
     // 释放资源
-    obs_output_release(streamOutput);
     obs_service_release(service);
+
+    obs_frontend_save();
 }
 
 void SeventeenLiveCoreManager::handleStopStreamingClicked()
@@ -362,7 +352,11 @@ void SeventeenLiveCoreManager::handleStopStreamingClicked()
 
     stopStreaming();
 
-    if (!apiWrapper->StopStream(currLiveStreamID)) {
+    SeventeenLiveCloseLiveRequest request;
+    request.reason = "normalEnd";
+    request.userID = QString::fromStdString(currUserID);
+
+    if (!apiWrapper->StopStream(currLiveStreamID, request)) {
         obs_log(LOG_ERROR, "Failed to stop stream");
         return;
     }
@@ -387,6 +381,11 @@ void SeventeenLiveCoreManager::stopStreaming()
 {
     // 处理停止流的逻辑
     obs_log(LOG_INFO, "stopStreaming");
+
+    if (!obs_frontend_streaming_active()) {
+        obs_log(LOG_ERROR, "Streaming is not active");
+        return;
+    }
 
     // 获取OBS输出
     obs_output_t *streamOutput = obs_frontend_get_streaming_output();

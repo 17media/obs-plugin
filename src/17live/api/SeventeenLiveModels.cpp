@@ -252,4 +252,14 @@ bool JsonToSeventeenLiveRtmpResponse(const Json &json, SeventeenLiveRtmpResponse
     return true;
 }
 
+bool SeventeenLiveCloseLiveRequestToJson(const SeventeenLiveCloseLiveRequest &request, Json &json)
+{
+    json = Json::object{
+        {"reason", request.reason.toStdString()},
+        {"userID", request.userID.toStdString()}
+    };
+
+    return true;
+}
+
 } // namespace seventeenlive
