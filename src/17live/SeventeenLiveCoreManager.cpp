@@ -274,7 +274,7 @@ void SeventeenLiveCoreManager::handleCreateStreamClicked(const SeventeenLiveRtmp
     obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
     obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
 
-    configManager->setStreamingInfo(streamUrl.toStdString(), streamKey.toStdString());
+    configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
 }
 
 void SeventeenLiveCoreManager::handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request)
@@ -285,20 +285,23 @@ void SeventeenLiveCoreManager::handleCreateAndStartStreamClicked(const Seventeen
     handleCreateStreamClicked(request);
 
     // 开始流
-    startStreaming();
-}
-
-void SeventeenLiveCoreManager::startStreaming()
-{
-    // 处理开始流的逻辑
-    obs_log(LOG_INFO, "startStreaming");
-    
-    // 获取流媒体信息
-    std::string streamUrl, streamKey;
-    if (!configManager->getStreamingInfo(streamUrl, streamKey)) {
-        obs_log(LOG_ERROR, "Failed to get streaming info");
+    std::string liveStreamID, streamUrl, streamKey;
+    if (!configManager->getStreamingInfo(liveStreamID, streamUrl, streamKey)) {
+        obs_log(LOG_ERROR, "Failed to get live stream id");
         return;
     }
+
+    if (!apiWrapper->StartStream(liveStreamID)) {
+        obs_log(LOG_ERROR, "Failed to start stream");
+        return;
+    }
+    startStreaming(liveStreamID, streamUrl, streamKey);
+}
+
+void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey)
+{
+    // 处理开始流的逻辑
+    obs_log(LOG_INFO, "startStreaming %s", liveStreamID.c_str());
 
     // 获取OBS输出
     obs_output_t *streamOutput = obs_frontend_get_streaming_output();

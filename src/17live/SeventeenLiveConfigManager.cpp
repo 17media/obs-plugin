@@ -164,26 +164,31 @@ bool SeventeenLiveConfigManager::setDockState(const QByteArray &state)
   return true;
 }
 
-void SeventeenLiveConfigManager::setStreamingInfo(const std::string &streamUrl,
+bool SeventeenLiveConfigManager::setStreamingInfo(const std::string &liveStreamID, const std::string &streamUrl,
   const std::string &streamKey)
 {
   if (!initialized) {
-    return;
+    return false;
   }
 
   if (!config) {
-    return;
+    return false;
   }
 
+  config_set_string(config, service, "LiveStreamID", liveStreamID.c_str());
   config_set_string(config, service, "StreamUrl", streamUrl.c_str());
   config_set_string(config, service, "StreamKey", streamKey.c_str());
 
   if (config_save(config) < 0) {
     obs_log(LOG_ERROR, "Failed to save config");
+    return false;
   }
+
+  return true;
 }
-bool SeventeenLiveConfigManager::getStreamingInfo(std::string &streamUrl,
- std::string &streamKey)
+bool SeventeenLiveConfigManager::getStreamingInfo(std::string &liveStreamID,
+  std::string &streamUrl,
+  std::string &streamKey)
 {
   if (!initialized) {
     return false;
@@ -192,30 +197,20 @@ bool SeventeenLiveConfigManager::getStreamingInfo(std::string &streamUrl,
   if (!config) {
     return false;
   }
+  const char* liveStreamIDChar = config_get_string(config, service, "LiveStreamID");
   const char* streamUrlChar = config_get_string(config, service, "StreamUrl");
   const char* streamKeyChar = config_get_string(config, service, "StreamKey");
-  if (!streamUrlChar || !streamKeyChar) {
+  if (!liveStreamIDChar || !streamUrlChar || !streamKeyChar) {
     return false;
   }
+  liveStreamID = liveStreamIDChar;
   streamUrl = streamUrlChar;
   streamKey = streamKeyChar;
   return true;
 }
 bool SeventeenLiveConfigManager::clearStreamingInfo()
 {
-  if (!initialized) {
-    return false;
-  }
-  if (!config) {
-    return false;
-  } 
-  config_set_string(config, service, "StreamUrl", "");
-  config_set_string(config, service, "StreamKey", "");
-  if (config_save(config) < 0) {
-    obs_log(LOG_ERROR, "Failed to save config");
-    return false;
-  }
-  return true;
+  return setStreamingInfo("", "", "");
 }
 
 void SeventeenLiveConfigManager::setStreamingPullUrl(const std::string &streamPullUrl)

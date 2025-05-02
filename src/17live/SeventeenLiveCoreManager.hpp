@@ -143,7 +143,7 @@ private:
 
     void handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request);
     void handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request);
-    void startStreaming();
+    void startStreaming(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey);
 };
 
 } // namespace seventeenlive

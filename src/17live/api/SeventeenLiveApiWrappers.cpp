@@ -29,6 +29,10 @@ extern const char* service;
 
 #define SEVENTEENLIVE_CREATE_RTMP_URL SEVENTEENLIVE_API_URL "/api/v1/rtmp"
 
+#define SEVENTEENLIVE_STREAM_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1"
+
+#define SEVENTEENLIVE_ARCHIVE_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1/archive/recording?enable=%2"
+
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
 
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers(std::string token_) : token(token_) {}
@@ -287,7 +291,7 @@ int64_t SeventeenLiveApiWrappers::getCurrentTimestampMs()
 bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &request, SeventeenLiveRtmpResponse &response)
 {
   obs_log(LOG_INFO, "CreateRtmp start");
-  
+
   lastErrorMessage.clear();
 
   const QByteArray url = SEVENTEENLIVE_CREATE_RTMP_URL;
@@ -329,6 +333,63 @@ bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &reques
     return false;
   }
 
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::StartStream(const std::string &liveStreamID)
+{
+  obs_log(LOG_INFO, "StartStream start");
+  lastErrorMessage.clear();
+  QString urlStr = QString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
+    QByteArray url = urlStr.toUtf8();
+
+  std::string error;
+	Json json_out_resp;
+
+	if (!InsertCommand(url.constData(), "application/json", "PATCH", nullptr, json_out_resp)) {
+    obs_log(LOG_ERROR, "StartStream error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
+  obs_log(LOG_INFO, "StartStream success");
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::EnableStreamArchive(const std::string &liveStreamID, int enableArchive)
+{
+  obs_log(LOG_INFO, "EnableStreamArchive start");
+  lastErrorMessage.clear();
+  QString urlStr = QString(SEVENTEENLIVE_ARCHIVE_URL).arg(liveStreamID.c_str(), enableArchive);
+    QByteArray url = urlStr.toUtf8();
+    
+  std::string error;
+	Json json_out_resp;
+	if (!InsertCommand(url.constData(), "application/json", "", nullptr, json_out_resp)) {
+    obs_log(LOG_ERROR, "EnableStreamArchive error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+  obs_log(LOG_INFO, "EnableStreamArchive success");
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID)
+{
+  obs_log(LOG_INFO, "StopStream start");
+  lastErrorMessage.clear();
+  QString urlStr = QString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
+    QByteArray url = urlStr.toUtf8();
+    
+  std::string error;
+	Json json_out_resp;
+	if (!InsertCommand(url.constData(), "application/json", "DELETE", nullptr, json_out_resp)) {
+    obs_log(LOG_ERROR, "StopStream error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
+  obs_log(LOG_INFO, "StopStream success");
   return true;
 }
 

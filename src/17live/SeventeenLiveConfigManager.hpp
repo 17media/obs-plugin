@@ -17,16 +17,18 @@ public:
   bool setLoginData(const SeventeenLiveLoginData &loginData);
   void clearLoginData();
 
-  void setStreamingInfo(const std::string &streamUrl,
-                         const std::string &streamKey);
-  bool getStreamingInfo(std::string &streamUrl,
+  bool setStreamingInfo(const std::string &liveStreamID,
+                        const std::string &streamUrl,
+                        const std::string &streamKey);
+  bool getStreamingInfo(std::string &liveStreamID,
+                        std::string &streamUrl,
                         std::string &streamKey);
   bool clearStreamingInfo();
 
   void setStreamingPullUrl(const std::string &streamPullUrl);
   bool getStreamingPullUrl(std::string &streamPullUrl);
   void clearStreamingPullUrl();
-  
+
   QByteArray getDockState();
   bool setDockState(const QByteArray &state);
 

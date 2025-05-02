@@ -30,6 +30,9 @@ public:
   bool GetSelfInfo(SeventeenLiveLoginData &loginData);
   bool GetRoomInfo(const qint64 roomID, SeventeenLiveRoomInfo &roomInfo);
   bool CreateRtmp(const SeventeenLiveRtmpRequest &request, SeventeenLiveRtmpResponse &response);
+  bool StartStream(const std::string &liveStreamID);
+  bool EnableStreamArchive(const std::string &liveStreamID, int enableArchive);
+  bool StopStream(const std::string &liveStreamID);
 
   bool CommonRequest(const std::string action, Json &json_out);
 
