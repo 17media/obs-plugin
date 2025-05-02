@@ -138,12 +138,35 @@ void SeventeenLiveStreamingDock::onAddTagClicked()
 
 void SeventeenLiveStreamingDock::onCreateStreamClicked()
 {
-    // TODO: 实现创建直播的逻辑
+    SeventeenLiveRtmpRequest request;
+    gatherRtmpRequest(request);
+
+    emit createStreamClicked(request);
 }
 
 void SeventeenLiveStreamingDock::onCreateAndStartStreamClicked()
 {
-    // TODO: 实现创建并开始直播的逻辑
+    SeventeenLiveRtmpRequest request;
+    gatherRtmpRequest(request);
+
+    emit createAndStartStreamClicked(request);
+}
+
+void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
+{
+    request.userID = roomInfo.userID;
+    request.caption = titleEdit->text();
+    request.device = "OBS";
+    int eventID = activityCombo->currentData().toInt();
+    request.eventID = eventID;
+    request.hashtags = tagEdit->text().split(",");
+    request.landscape = normalStreamRadio->isChecked();
+    request.streamerType = roomInfo.streamerType;
+    request.subtabID = categoryCombo->currentText();
+    request.archiveConfig.autoRecording = archiveStreamCheck->isChecked();
+    request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
+    request.archiveConfig.clipPermission = clipIdentityCombo->currentData().toInt();
+    request.vliverInfo.vliverModel = virtualStreamerCheck->isChecked();
 }
 
 } // namespace seventeenlive

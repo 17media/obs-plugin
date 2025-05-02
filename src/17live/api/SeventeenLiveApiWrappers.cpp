@@ -27,6 +27,8 @@ extern const char* service;
 
 #define SEVENTEENLIVE_GET_ROOM_INFO_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1/info"
 
+#define SEVENTEENLIVE_CREATE_RTMP_URL SEVENTEENLIVE_API_URL "/api/v1/rtmp"
+
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
 
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers(std::string token_) : token(token_) {}
@@ -280,6 +282,54 @@ int64_t SeventeenLiveApiWrappers::getCurrentTimestampMs()
     auto now = std::chrono::system_clock::now();
     auto duration = now.time_since_epoch();
     return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+}
+
+bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &request, SeventeenLiveRtmpResponse &response)
+{
+  obs_log(LOG_INFO, "CreateRtmp start");
+  
+  lastErrorMessage.clear();
+
+  const QByteArray url = SEVENTEENLIVE_CREATE_RTMP_URL;
+
+  Json requestData;
+  if (!SeventeenLiveRtmpRequestToJson(request, requestData)) {
+    obs_log(LOG_ERROR, "Failed to convert request to JSON");
+    lastErrorMessage = "Failed to convert request to JSON";
+    return false;
+  }
+
+  std::string postData = requestData.dump();
+
+  std::string error;
+	Json json_out_resp;
+	
+	if (!InsertCommand(url, "application/json", "", postData.c_str(), json_out_resp)) {
+		return false;
+	}
+  obs_log(LOG_INFO, "CreateRtmp success");
+
+  // Check if exist errorCode field
+  if (json_out_resp.object_items().find("errorCode")!= json_out_resp.object_items().end()) {
+  	obs_log(LOG_ERROR, "CreateRtmp error: %s", json_out_resp.dump().c_str());
+    // lastErrorMessage = errorCode + errorMessage
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+    return false;
+  }
+
+  // transform string json_out["data"] to Json
+  Json json_out = Json::parse(json_out_resp["data"].string_value(), error);
+  if (!error.empty()) {
+    obs_log(LOG_ERROR, "Failed to parse CreateRtmp response data: %s", error.c_str());
+    return false;
+  }
+  if (!JsonToSeventeenLiveRtmpResponse(json_out, response)) {
+    obs_log(LOG_ERROR, "Failed to convert response to struct");
+    lastErrorMessage = "Failed to convert response to struct";
+    return false;
+  }
+
+  return true;
 }
 
 

@@ -22,6 +22,9 @@ struct SeventeenLiveLoginData;
 
 class SeventeenLiveStreamingDock;
 
+struct SeventeenLiveRtmpRequest;
+
+
 /**
  * @brief SeventeenLiveCoreManager 类是17live插件的核心管理类
  * 
@@ -137,6 +140,10 @@ private:
 
     SeventeenLiveStreamingDock* streamingDock{nullptr};
     void saveDockState();
+
+    void handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request);
+    void handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request);
+    void startStreaming();
 };
 
 } // namespace seventeenlive

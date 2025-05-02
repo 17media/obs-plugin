@@ -171,11 +171,23 @@ void SeventeenLiveCoreManager::handleLogoutClicked()
 
 void SeventeenLiveCoreManager::handleStreamingClicked()
 {
+    SeventeenLiveLoginData loginData;
+    if (!configManager->getLoginData(loginData)) {
+        obs_log(LOG_ERROR, "Failed to get login data");
+        return;
+    }
+
+    SeventeenLiveRoomInfo roomInfo;
+    if (!apiWrapper->GetRoomInfo(loginData.userInfo.roomID, roomInfo)) {
+        obs_log(LOG_ERROR, "Failed to get self room info");
+        return;
+    }
+
     QSize size = mainWindow->size();
     QPoint pos = mainWindow->pos();
 
     // 创建并显示流媒体窗口
-    SeventeenLiveStreamingDock* streamingDock = new SeventeenLiveStreamingDock(mainWindow);
+    SeventeenLiveStreamingDock* streamingDock = new SeventeenLiveStreamingDock(mainWindow, roomInfo);
 
     streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
@@ -196,6 +208,8 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
 
     this->streamingDock = streamingDock;
 
+    connect(streamingDock, &SeventeenLiveStreamingDock::createStreamClicked, this, &SeventeenLiveCoreManager::handleCreateStreamClicked);
+    connect(streamingDock, &SeventeenLiveStreamingDock::createAndStartStreamClicked, this, &SeventeenLiveCoreManager::handleCreateAndStartStreamClicked);
     // 连接关闭信号到主窗口的槽函数
     connect(streamingDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
 }
@@ -220,6 +234,113 @@ void SeventeenLiveCoreManager::saveDockState()
         QByteArray state = mainWindow->saveState();
         configManager->setDockState(state);
     }
+}
+
+void SeventeenLiveCoreManager::handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request)
+{
+    // 处理创建流的逻辑
+    obs_log(LOG_INFO, "handleCreateStreamClicked");
+
+    SeventeenLiveRtmpResponse response;
+    if (!apiWrapper->CreateRtmp(request, response)) {
+        obs_log(LOG_ERROR, "Failed to create stream");
+        return;
+    }
+
+    QString baseUrl;
+    QString params;
+
+    int questionIndex = response.rtmpURL.indexOf("?");
+    if (questionIndex != -1) {
+        baseUrl = response.rtmpURL.left(questionIndex);
+        params = response.rtmpURL.mid(questionIndex + 1);
+    } else {
+        obs_log(LOG_ERROR, "Failed to parse stream url");
+        return;
+    }
+    QString idParam;
+    int idparamIndex = params.indexOf("&");
+    if (idparamIndex != -1) {
+        idParam = params.left(idparamIndex);
+    } else {
+        obs_log(LOG_ERROR, "Failed to parse stream id");
+        return;
+    }
+
+    QString id = idParam.mid(idParam.indexOf("=") + 1);
+    QString streamUrl = baseUrl.left(baseUrl.length() - id.length());
+    QString streamKey = params.mid(params.indexOf("=") + 1);
+
+    obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
+    obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
+
+    configManager->setStreamingInfo(streamUrl.toStdString(), streamKey.toStdString());
+}
+
+void SeventeenLiveCoreManager::handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request)
+{
+    // 处理创建并开始流的逻辑
+    obs_log(LOG_INFO, "handleCreateAndStartStreamClicked");
+
+    handleCreateStreamClicked(request);
+
+    // 开始流
+    startStreaming();
+}
+
+void SeventeenLiveCoreManager::startStreaming()
+{
+    // 处理开始流的逻辑
+    obs_log(LOG_INFO, "startStreaming");
+    
+    // 获取流媒体信息
+    std::string streamUrl, streamKey;
+    if (!configManager->getStreamingInfo(streamUrl, streamKey)) {
+        obs_log(LOG_ERROR, "Failed to get streaming info");
+        return;
+    }
+
+    // 获取OBS输出
+    obs_output_t *streamOutput = obs_frontend_get_streaming_output();
+    if (!streamOutput) {
+        obs_log(LOG_ERROR, "Failed to get streaming output");
+        return;
+    }
+
+    // 获取OBS服务
+    obs_service_t *service = obs_frontend_get_streaming_service();
+    if (!service) {
+        obs_log(LOG_ERROR, "Failed to get streaming service");
+        obs_output_release(streamOutput);
+        return;
+    }
+
+    // 设置流媒体URL和密钥
+    obs_data_t *settings = obs_service_get_settings(service);
+    obs_data_set_string(settings, "server", streamUrl.c_str());
+    obs_data_set_string(settings, "key", streamKey.c_str());
+    
+    // 应用设置
+    obs_service_update(service, settings);
+    obs_data_release(settings);
+
+    // 将服务应用到输出
+    obs_output_set_service(streamOutput, service);
+
+    // 开始推流
+    if (!obs_output_start(streamOutput)) {
+        obs_log(LOG_ERROR, "Failed to start streaming");
+        const char* error = obs_output_get_last_error(streamOutput);
+        if (error) {
+            obs_log(LOG_ERROR, "Error: %s", error);
+        }
+    } else {
+        obs_log(LOG_INFO, "Streaming started successfully");
+    }
+
+    // 释放资源
+    obs_output_release(streamOutput);
+    obs_service_release(service);
 }
 
 } // namespace seventeenlive

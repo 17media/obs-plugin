@@ -29,6 +29,7 @@ public:
 
   bool GetSelfInfo(SeventeenLiveLoginData &loginData);
   bool GetRoomInfo(const qint64 roomID, SeventeenLiveRoomInfo &roomInfo);
+  bool CreateRtmp(const SeventeenLiveRtmpRequest &request, SeventeenLiveRtmpResponse &response);
 
   bool CommonRequest(const std::string action, Json &json_out);
 

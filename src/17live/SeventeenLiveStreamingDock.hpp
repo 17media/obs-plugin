@@ -54,10 +54,17 @@ private:
 
     SeventeenLiveRoomInfo roomInfo;
 
+signals:
+    void createStreamClicked(const SeventeenLiveRtmpRequest &request);
+    void createAndStartStreamClicked(const SeventeenLiveRtmpRequest &request);
+
 private slots:
     void onAddTagClicked();
     void onCreateStreamClicked();
     void onCreateAndStartStreamClicked();
+
+private:
+    void gatherRtmpRequest(SeventeenLiveRtmpRequest &request);
 };
 
 } // namespace seventeenlive

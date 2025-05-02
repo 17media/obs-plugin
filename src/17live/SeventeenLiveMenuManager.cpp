@@ -23,10 +23,10 @@ SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
         emit chatRoomClicked();
     });
 
-    settingsAction = dockSubMenu->addAction(obs_module_text("Menu.Settings"));
-    connect(settingsAction, &QAction::triggered, this, [this](){
-        emit settingsClicked();
-    });
+    // settingsAction = dockSubMenu->addAction(obs_module_text("Menu.Settings"));
+    // connect(settingsAction, &QAction::triggered, this, [this](){
+    //     emit settingsClicked();
+    // });
 
     broadcastAction = dockSubMenu->addAction(obs_module_text("Menu.Broadcast"));
     connect(broadcastAction, &QAction::triggered, this, [this](){

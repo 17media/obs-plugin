@@ -164,4 +164,102 @@ bool SeventeenLiveConfigManager::setDockState(const QByteArray &state)
   return true;
 }
 
+void SeventeenLiveConfigManager::setStreamingInfo(const std::string &streamUrl,
+  const std::string &streamKey)
+{
+  if (!initialized) {
+    return;
+  }
+
+  if (!config) {
+    return;
+  }
+
+  config_set_string(config, service, "StreamUrl", streamUrl.c_str());
+  config_set_string(config, service, "StreamKey", streamKey.c_str());
+
+  if (config_save(config) < 0) {
+    obs_log(LOG_ERROR, "Failed to save config");
+  }
+}
+bool SeventeenLiveConfigManager::getStreamingInfo(std::string &streamUrl,
+ std::string &streamKey)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  if (!config) {
+    return false;
+  }
+  const char* streamUrlChar = config_get_string(config, service, "StreamUrl");
+  const char* streamKeyChar = config_get_string(config, service, "StreamKey");
+  if (!streamUrlChar || !streamKeyChar) {
+    return false;
+  }
+  streamUrl = streamUrlChar;
+  streamKey = streamKeyChar;
+  return true;
+}
+bool SeventeenLiveConfigManager::clearStreamingInfo()
+{
+  if (!initialized) {
+    return false;
+  }
+  if (!config) {
+    return false;
+  } 
+  config_set_string(config, service, "StreamUrl", "");
+  config_set_string(config, service, "StreamKey", "");
+  if (config_save(config) < 0) {
+    obs_log(LOG_ERROR, "Failed to save config");
+    return false;
+  }
+  return true;
+}
+
+void SeventeenLiveConfigManager::setStreamingPullUrl(const std::string &streamPullUrl)
+{
+  if (!initialized) {
+    return;
+  }
+  if (!config) {
+    return;
+  }
+  config_set_string(config, service, "StreamPullUrl", streamPullUrl.c_str());
+  if (config_save(config) < 0) {
+    obs_log(LOG_ERROR, "Failed to save config");
+  }
+}
+  
+bool SeventeenLiveConfigManager::getStreamingPullUrl(std::string &streamPullUrl)
+{
+  if (!initialized) {
+    return false;
+  }
+  if (!config) {
+    return false;
+  }
+  const char* streamPullUrlChar = config_get_string(config, service, "StreamPullUrl");
+  if (!streamPullUrlChar) {
+    return false;
+  }
+  streamPullUrl = streamPullUrlChar;
+  return true;
+}
+  
+void SeventeenLiveConfigManager::clearStreamingPullUrl()
+{
+  if (!initialized) {
+    return;
+  }
+  if (!config) {
+    return;
+  }
+  config_set_string(config, service, "StreamPullUrl", "");
+  if (config_save(config) < 0) {
+    obs_log(LOG_ERROR, "Failed to save config");
+  }
+} 
+
 } // namespace seventeenlive
