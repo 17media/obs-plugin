@@ -20,7 +20,7 @@ public:
     explicit SeventeenLiveStreamingDock(QWidget *parent = nullptr, const SeventeenLiveRoomInfo &roomInfo = SeventeenLiveRoomInfo());
     ~SeventeenLiveStreamingDock();
 
-    void updateStreamingStatus(bool streaming);
+    void updateStreamingStatus(SeventeenLiveStreamingStatus status);
 
 private:
     void setupUi();
@@ -71,6 +71,8 @@ private slots:
 
 private:
     void gatherRtmpRequest(SeventeenLiveRtmpRequest &request);
+    void updateLiveButton(bool isLive);
+    void updateStreamingButton(bool isStreaming);
 };
 
 } // namespace seventeenlive

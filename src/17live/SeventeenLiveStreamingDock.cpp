@@ -182,29 +182,53 @@ void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     request.vliverInfo.vliverModel = virtualStreamerCheck->isChecked();
 }
 
-void SeventeenLiveStreamingDock::updateStreamingStatus(bool streaming)
-{
-    obs_log(LOG_INFO, "updateStreamingStatus: %d", streaming);
-    if (streaming) {
-        obs_log(LOG_INFO, "start streaming");
+void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
+{   
+    obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
+    if (isLive) {
         // change createStreamButton text to "停止直播"
         createStreamButton->setText(tr("停止直播"));
         disconnect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
         connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopStreamingClicked);
+    } else {
+        // change createStreamButton text to "建立直播"
+        createStreamButton->setText(tr("建立直播"));
+        disconnect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopStreamingClicked);
+        connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
+    }
+}
+
+void SeventeenLiveStreamingDock::updateStreamingButton(bool isStreaming)
+{
+    obs_log(LOG_INFO, "updateStreamingButton: %d", isStreaming);
+    if (isStreaming) {
         // change createAndStartButton text to "停止推流"
         createAndStartButton->setText(tr("停止推流"));
         disconnect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateAndStartStreamClicked);
         connect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopPushStreamingClicked);
     } else {
-        obs_log(LOG_INFO, "stop streaming");
-        // change createStreamButton text to "建立直播"
-        createStreamButton->setText(tr("建立直播"));
-        disconnect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopStreamingClicked);
-        connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
         // change createAndStartButton text to "建立直播並開始推流"
         createAndStartButton->setText(tr("建立直播並開始推流"));
         disconnect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopPushStreamingClicked);
         connect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateAndStartStreamClicked);
+    }
+}
+void SeventeenLiveStreamingDock::updateStreamingStatus(SeventeenLiveStreamingStatus status)
+{
+    obs_log(LOG_INFO, "updateStreamingStatus: %d", static_cast<int>(status));
+    switch (status) {
+        case SeventeenLiveStreamingStatus::NotStarted:
+            updateLiveButton(false);
+            updateStreamingButton(false);
+            break;
+        case SeventeenLiveStreamingStatus::Live:
+            updateLiveButton(true);
+            updateStreamingButton(false);
+            break;
+        case SeventeenLiveStreamingStatus::Streaming:
+            updateLiveButton(true);
+            updateStreamingButton(true);
+            break;
     }
 }
 

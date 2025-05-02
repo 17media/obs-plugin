@@ -280,6 +280,8 @@ void SeventeenLiveCoreManager::handleCreateStreamClicked(const SeventeenLiveRtmp
     configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
 
     currLiveStreamID = response.liveStreamID.toStdString();
+
+    streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::Live);
 }
 
 void SeventeenLiveCoreManager::handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request)
@@ -301,6 +303,8 @@ void SeventeenLiveCoreManager::handleCreateAndStartStreamClicked(const Seventeen
         return;
     }
     startStreaming(liveStreamID, streamUrl, streamKey);
+
+    streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::Streaming);
 }
 
 void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey)
@@ -366,6 +370,8 @@ void SeventeenLiveCoreManager::handleStopStreamingClicked()
     configManager->clearStreamingInfo();
 
     currLiveStreamID = "";
+
+    streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::NotStarted);
 }
 
 void SeventeenLiveCoreManager::handleStopPushStreamingClicked()
@@ -373,6 +379,8 @@ void SeventeenLiveCoreManager::handleStopPushStreamingClicked()
     // 处理停止推流的逻辑
     obs_log(LOG_INFO, "handleStopPushStreamingClicked");
     stopStreaming();
+
+    streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::Live);
 }
 
 void SeventeenLiveCoreManager::stopStreaming()

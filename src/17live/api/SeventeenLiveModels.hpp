@@ -11,6 +11,13 @@ using namespace json11;
 
 namespace seventeenlive {
 
+  // 定义当前的直播状态，包括未开播、开播中、推流中
+  enum class SeventeenLiveStreamingStatus {
+    NotStarted,
+    Live,
+    Streaming
+  };
+
   struct SeventeenLiveAPIResponse {
     QString key;
     QString data;
