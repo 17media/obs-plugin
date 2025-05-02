@@ -20,6 +20,8 @@ public:
     explicit SeventeenLiveStreamingDock(QWidget *parent = nullptr, const SeventeenLiveRoomInfo &roomInfo = SeventeenLiveRoomInfo());
     ~SeventeenLiveStreamingDock();
 
+    void updateStreamingStatus(bool streaming);
+
 private:
     void setupUi();
     void createConnections();
@@ -57,11 +59,15 @@ private:
 signals:
     void createStreamClicked(const SeventeenLiveRtmpRequest &request);
     void createAndStartStreamClicked(const SeventeenLiveRtmpRequest &request);
+    void stopStreamingClicked();
+    void stopPushStreamingClicked();
 
 private slots:
     void onAddTagClicked();
     void onCreateStreamClicked();
     void onCreateAndStartStreamClicked();
+    void onStopStreamingClicked();
+    void onStopPushStreamingClicked();
 
 private:
     void gatherRtmpRequest(SeventeenLiveRtmpRequest &request);

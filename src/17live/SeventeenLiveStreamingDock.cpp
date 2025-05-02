@@ -4,6 +4,9 @@
 #include <QFormLayout>
 #include <QGroupBox>
 
+#include <obs-module.h>
+#include "plugin-support.h"
+
 #include "moc_SeventeenLiveStreamingDock.cpp"
 
 namespace seventeenlive {
@@ -152,6 +155,16 @@ void SeventeenLiveStreamingDock::onCreateAndStartStreamClicked()
     emit createAndStartStreamClicked(request);
 }
 
+void SeventeenLiveStreamingDock::onStopStreamingClicked()
+{
+    emit stopStreamingClicked();
+}
+
+void SeventeenLiveStreamingDock::onStopPushStreamingClicked()
+{
+    emit stopPushStreamingClicked();
+}
+
 void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
 {
     request.userID = roomInfo.userID;
@@ -167,6 +180,32 @@ void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
     request.archiveConfig.clipPermission = clipIdentityCombo->currentData().toInt();
     request.vliverInfo.vliverModel = virtualStreamerCheck->isChecked();
+}
+
+void SeventeenLiveStreamingDock::updateStreamingStatus(bool streaming)
+{
+    obs_log(LOG_INFO, "updateStreamingStatus: %d", streaming);
+    if (streaming) {
+        obs_log(LOG_INFO, "start streaming");
+        // change createStreamButton text to "停止直播"
+        createStreamButton->setText(tr("停止直播"));
+        disconnect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
+        connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopStreamingClicked);
+        // change createAndStartButton text to "停止推流"
+        createAndStartButton->setText(tr("停止推流"));
+        disconnect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateAndStartStreamClicked);
+        connect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopPushStreamingClicked);
+    } else {
+        obs_log(LOG_INFO, "stop streaming");
+        // change createStreamButton text to "建立直播"
+        createStreamButton->setText(tr("建立直播"));
+        disconnect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopStreamingClicked);
+        connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
+        // change createAndStartButton text to "建立直播並開始推流"
+        createAndStartButton->setText(tr("建立直播並開始推流"));
+        disconnect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopPushStreamingClicked);
+        connect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateAndStartStreamClicked);
+    }
 }
 
 } // namespace seventeenlive

@@ -135,6 +135,9 @@ private:
     // Streaming Dock load status
     bool streamingDockFirstLoad = true;
 
+    // current streaming info
+    std::string currLiveStreamID;
+
     // 检查登录状态是否有效的函数
     bool checkLoginStatus();
 
@@ -144,6 +147,9 @@ private:
     void handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request);
     void handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request);
     void startStreaming(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey);
+    void handleStopStreamingClicked();
+    void handleStopPushStreamingClicked();
+    void stopStreaming();
 };
 
 } // namespace seventeenlive

@@ -210,8 +210,11 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
 
     connect(streamingDock, &SeventeenLiveStreamingDock::createStreamClicked, this, &SeventeenLiveCoreManager::handleCreateStreamClicked);
     connect(streamingDock, &SeventeenLiveStreamingDock::createAndStartStreamClicked, this, &SeventeenLiveCoreManager::handleCreateAndStartStreamClicked);
+    connect(streamingDock, &SeventeenLiveStreamingDock::stopStreamingClicked, this, &SeventeenLiveCoreManager::handleStopStreamingClicked);
+    connect(streamingDock, &SeventeenLiveStreamingDock::stopPushStreamingClicked, this, &SeventeenLiveCoreManager::handleStopPushStreamingClicked);
     // 连接关闭信号到主窗口的槽函数
     connect(streamingDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
+
 }
 
 bool SeventeenLiveCoreManager::checkLoginStatus()
@@ -275,6 +278,8 @@ void SeventeenLiveCoreManager::handleCreateStreamClicked(const SeventeenLiveRtmp
     obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
 
     configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
+
+    currLiveStreamID = response.liveStreamID.toStdString();
 }
 
 void SeventeenLiveCoreManager::handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request)
@@ -344,6 +349,48 @@ void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, c
     // 释放资源
     obs_output_release(streamOutput);
     obs_service_release(service);
+}
+
+void SeventeenLiveCoreManager::handleStopStreamingClicked()
+{
+    // 处理停止流的逻辑
+    obs_log(LOG_INFO, "handleStopStreamingClicked");
+
+    stopStreaming();
+
+    if (!apiWrapper->StopStream(currLiveStreamID)) {
+        obs_log(LOG_ERROR, "Failed to stop stream");
+        return;
+    }
+
+    configManager->clearStreamingInfo();
+
+    currLiveStreamID = "";
+}
+
+void SeventeenLiveCoreManager::handleStopPushStreamingClicked()
+{
+    // 处理停止推流的逻辑
+    obs_log(LOG_INFO, "handleStopPushStreamingClicked");
+    stopStreaming();
+}
+
+void SeventeenLiveCoreManager::stopStreaming()
+{
+    // 处理停止流的逻辑
+    obs_log(LOG_INFO, "stopStreaming");
+
+    // 获取OBS输出
+    obs_output_t *streamOutput = obs_frontend_get_streaming_output();
+    if (!streamOutput) {
+        obs_log(LOG_ERROR, "Failed to get streaming output");
+        return;
+    }
+    // 停止推流
+    obs_output_stop(streamOutput);
+    // 释放资源
+    obs_output_release(streamOutput);
+
 }
 
 } // namespace seventeenlive
