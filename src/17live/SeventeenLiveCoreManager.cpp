@@ -233,10 +233,11 @@ bool SeventeenLiveCoreManager::checkLoginStatus()
 
 void SeventeenLiveCoreManager::saveDockState()
 {
-    if (mainWindow && streamingDock) {
-        QByteArray state = mainWindow->saveState();
-        configManager->setDockState(state);
-    }
+    // TODO: error here, to be fixed
+    // if (mainWindow && streamingDock) {
+    //     QByteArray state = mainWindow->saveState();
+    //     configManager->setDockState(state);
+    // }
 }
 
 void SeventeenLiveCoreManager::handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request)
