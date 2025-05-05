@@ -301,18 +301,13 @@ void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, c
     // 处理开始流的逻辑
     obs_log(LOG_INFO, "startStreaming %s", liveStreamID.c_str());
 
-    // 获取OBS输出
-    obs_output_t *streamOutput = obs_frontend_get_streaming_output();
-    if (!streamOutput) {
-        obs_log(LOG_ERROR, "Failed to get streaming output");
-        return;
-    }
-
     // 获取OBS服务
     obs_service_t* service = obs_service_create("rtmp_custom", "default_service", NULL, NULL);
     
     // 设置流媒体URL和密钥
     obs_data_t *settings = obs_service_get_settings(service);
+    obs_log(LOG_INFO, "streamUrl: %s", streamUrl.c_str());
+    obs_log(LOG_INFO, "streamKey: %s", streamKey.c_str());
     obs_data_set_string(settings, "server", streamUrl.c_str());
     obs_data_set_string(settings, "key", streamKey.c_str());
     
@@ -322,27 +317,14 @@ void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, c
 
     obs_frontend_set_streaming_service(service);
 
-    // 将服务应用到输出
-    obs_output_set_service(streamOutput, service);
-
     obs_frontend_save_streaming_service();
 
-    // 开始推流
-    if (!obs_output_start(streamOutput)) {
-        obs_log(LOG_ERROR, "Failed to start streaming");
-        const char* error = obs_output_get_last_error(streamOutput);
-        if (error) {
-            obs_log(LOG_ERROR, "Error: %s", error);
-        }
-        obs_output_release(streamOutput);
-    } else {
-        obs_log(LOG_INFO, "Streaming started successfully");
-    }
+    obs_frontend_streaming_start();
+
+    obs_log(LOG_INFO, "Streaming started");
 
     // 释放资源
     obs_service_release(service);
-
-    obs_frontend_save();
 }
 
 void SeventeenLiveCoreManager::handleStopStreamingClicked()
@@ -387,17 +369,7 @@ void SeventeenLiveCoreManager::stopStreaming()
         return;
     }
 
-    // 获取OBS输出
-    obs_output_t *streamOutput = obs_frontend_get_streaming_output();
-    if (!streamOutput) {
-        obs_log(LOG_ERROR, "Failed to get streaming output");
-        return;
-    }
-    // 停止推流
-    obs_output_stop(streamOutput);
-    // 释放资源
-    obs_output_release(streamOutput);
-
+    obs_frontend_streaming_stop();
 }
 
 } // namespace seventeenlive

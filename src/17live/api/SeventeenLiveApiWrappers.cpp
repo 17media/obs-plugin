@@ -261,7 +261,7 @@ bool SeventeenLiveApiWrappers::GetRoomInfo(const qint64 roomID, SeventeenLiveRoo
     return false;
   }
   obs_log(LOG_INFO, "GetRoomInfo success");
-  obs_log(LOG_INFO, "Room info data: %s", json_out.dump().c_str());
+  // obs_log(LOG_INFO, "Room info data: %s", json_out.dump().c_str());
 
   // 使用 JsonToSeventeenLiveRoomInfo 函数解析数据到结构体
   if (!JsonToSeventeenLiveRoomInfo(json_out, roomInfo)) {
@@ -311,7 +311,9 @@ bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &reques
 	if (!InsertCommand(url, "application/json", "", postData.c_str(), json_out)) {
 		return false;
 	}
+
   obs_log(LOG_INFO, "CreateRtmp success");
+  obs_log(LOG_INFO, "rtmp info %s", json_out.dump().c_str());
 
   // Check if exist errorCode field
   if (json_out.object_items().find("errorCode")!= json_out.object_items().end()) {
