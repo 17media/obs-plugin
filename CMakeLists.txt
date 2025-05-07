@@ -37,6 +37,10 @@ if(ENABLE_QT)
   )
 endif()
 
+# 添加CEF支持
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+find_package(CEF REQUIRED)
+
 # 添加 json11 依赖
 add_subdirectory(deps/json11)
 # 添加 wrappers 依赖
@@ -48,20 +52,27 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
+    ${CEF_ROOT_DIR}
 )
 
 # 链接 json11, wrappers 库
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE json11 wrappers)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
+  json11 
+  wrappers
+  ${CEF_LIBRARY_RELEASE}
+  ${CEF_LIBRARY_WRAPPER_RELEASE}
+)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/17live/SeventeenLiveCoreManager.cpp
                                              src/17live/SeventeenLiveConfigManager.cpp
                                              src/17live/api/SeventeenLiveModels.cpp
+                                             src/17live/utility/RemoteTextThread.cpp
                                              src/17live/api/SeventeenLiveApiWrappers.cpp
                                              src/17live/SeventeenLiveMenuManager.cpp
                                              src/17live/SeventeenLiveLoginDialog.cpp
                                              src/17live/SeventeenLiveStreamingDock.cpp
-                                             src/17live/utility/RemoteTextThread.cpp
+                                             src/17live/SeventeenLiveChatDock.cpp
                                              resources.qrc)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})

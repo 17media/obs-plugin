@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+        
+        #message-container {
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        
+        .message .username {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        .message .content {
+            word-break: break-all;
+        }
+        
+        #input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            background-color: #2d2d2d;
+        }
+        
+        #message-input {
+            width: calc(100% - 20px);
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            background-color: #3d3d3d;
+            color: #ffffff;
+        }
+        
+        #message-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="message-container"></div>
+    <div id="input-container">
+        <input type="text" id="message-input" placeholder="发送消息...">
+    </div>
+    
+    <script>
+        const messageContainer = document.getElementById('message-container');
+        const messageInput = document.getElementById('message-input');
+        
+        // 添加消息到列表
+        function addMessage(username, content, color) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            const usernameSpan = document.createElement('span');
+            usernameSpan.className = 'username';
+            usernameSpan.style.color = color;
+            usernameSpan.textContent = username;
+            
+            const contentSpan = document.createElement('span');
+            contentSpan.className = 'content';
+            contentSpan.textContent = content;
+            
+            messageDiv.appendChild(usernameSpan);
+            messageDiv.appendChild(contentSpan);
+            
+            messageContainer.appendChild(messageDiv);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+        
+        // 处理消息输入
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && this.value.trim()) {
+                // 这里可以添加发送消息的逻辑
+                addMessage('User', this.value.trim(), '#ffffff');
+                this.value = '';
+            }
+        });
+        
+        // 测试数据
+        addMessage('snuggle2', 'sent 10 snacks', '#00ff00');
+        addMessage('Brian', '@abelteng hi', '#4169e1');
+        addMessage('abelteng', 'hello world', '#ffd700');
+    </script>
+</body>
+</html>
