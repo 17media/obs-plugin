@@ -7,16 +7,22 @@
 
 #include "SeventeenLiveLoginDialog.hpp"
 #include "SeventeenLiveStreamingDock.hpp"
+#include "SeventeenLiveChatDock.hpp"
 
 #include "plugin-support.h"
-
+#include <obs-module.h>
 #include <obs-frontend-api.h>
 
 #include "json11.hpp"
 
+#include "components/sl-browser-app.hpp"
+
 using namespace json11;
+using namespace std;
 
 namespace seventeenlive {
+
+static CefRefPtr<BrowserApp> app;
 
 // 初始化静态成员变量
 SeventeenLiveCoreManager* SeventeenLiveCoreManager::instance = nullptr;
@@ -94,6 +100,8 @@ bool SeventeenLiveCoreManager::initialize()
 
     QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::streamingClicked, this, &SeventeenLiveCoreManager::handleStreamingClicked);
 
+    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::chatRoomClicked, this, &SeventeenLiveCoreManager::handleChatRoomClicked);
+
     if (isLogin) {
         QString openId = loginData.userInfo.openID;
         QString displayName = loginData.userInfo.displayName;
@@ -104,6 +112,25 @@ bool SeventeenLiveCoreManager::initialize()
         }
         menuManager->updateLoginStatus(true, username);
     }
+
+    // 初始化CEF
+#ifdef _WIN32
+	CefMainArgs args;
+#else
+	/* On non-windows platforms, ie macOS, we'll want to pass thru flags to
+	 * CEF */
+	struct obs_cmdline_args cmdline_args = obs_get_cmdline_args();
+	CefMainArgs args(cmdline_args.argc, cmdline_args.argv);
+#endif
+
+    CefSettings settings;
+    settings.no_sandbox = true;
+    settings.multi_threaded_message_loop = true;
+    settings.log_severity = LOGSEVERITY_INFO;
+    // settings.log_file = obs_module_file("obs-17live-browser.log");
+
+    app = new BrowserApp();
+    CefInitialize(args, settings, app, nullptr);
 
     initialized = true;
     return true;
@@ -121,6 +148,9 @@ void SeventeenLiveCoreManager::shutdown()
     if (menuManager) {
         menuManager->cleanup();
     }
+
+    // 清理CEF
+    CefShutdown();
 
     initialized = false;
 }
@@ -371,6 +401,37 @@ void SeventeenLiveCoreManager::stopStreaming()
     }
 
     obs_frontend_streaming_stop();
+}
+
+void SeventeenLiveCoreManager::handleChatRoomClicked()
+{
+    obs_log(LOG_INFO, "handleChatRoomClicked");
+
+    QSize size = mainWindow->size();
+    QPoint pos = mainWindow->pos();
+
+    // 创建并显示流媒体窗口
+    SeventeenLiveChatDock* chatDock = new SeventeenLiveChatDock(mainWindow);
+
+    chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
+
+    chatDock->setFloating(true);
+    chatDock->move(pos.x() + size.width() - chatDock->width() - 50, pos.y() - 50);
+
+    if (chatDockFirstLoad) {
+        chatDock->setVisible(true);
+        chatDockFirstLoad = false;
+    } else {
+        chatDock->setVisible(!chatDock->isVisible());
+        
+        QByteArray dockState = configManager->getDockState();
+        if (mainWindow->isVisible())
+            mainWindow->restoreState(dockState);
+    }
+
+
+
 }
 
 } // namespace seventeenlive

@@ -134,6 +134,7 @@ private:
 
     // Streaming Dock load status
     bool streamingDockFirstLoad = true;
+    bool chatDockFirstLoad = true;
 
     // current streaming info
     std::string currLiveStreamID;
@@ -151,6 +152,7 @@ private:
     void handleStopStreamingClicked();
     void handleStopPushStreamingClicked();
     void stopStreaming();
+    void handleChatRoomClicked();
 };
 
 } // namespace seventeenlive

@@ -2,10 +2,20 @@
 #include <QUrl>
 #include "plugin-support.h"
 #include "qt-wrappers.hpp"
+#include "components/QCefWidget.hpp"
+#include <obs-module.h>
+
 
 namespace seventeenlive {
 
-// ... existing code ...
+SeventeenLiveChatDock::SeventeenLiveChatDock(QWidget* parent)
+    : QDockWidget(tr("Chat Room"), parent)
+{
+    // 构造函数实现
+    setupUi();
+}
+
+SeventeenLiveChatDock::~SeventeenLiveChatDock() = default;
 
 void SeventeenLiveChatDock::setupUi()
 {
@@ -25,7 +35,7 @@ void SeventeenLiveChatDock::initializeWebEngine()
     QString htmlPath = QString("file:///%1/17live/html/chat/index.html").arg(obs_get_module_data_path(obs_current_module()));
     
     // 加载html文件
-    webView->setURL(QUrl(htmlPath));
+    webView->loadUrl(htmlPath);
     
     // 将CEF视图添加到布局中
     layout->addWidget(webView.get());

@@ -4,9 +4,10 @@
 #include <QVBoxLayout>
 #include <memory>
 #include <obs-frontend-api.h>
-#include "utility/cef-headers.hpp"  // 替换为CEF头文件
 
 namespace seventeenlive {
+
+class QCefWidget;
 
 class SeventeenLiveChatDock : public QDockWidget {
     Q_OBJECT
