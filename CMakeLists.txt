@@ -50,6 +50,7 @@ add_subdirectory(deps/wrappers)
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
     ${CEF_ROOT_DIR}
@@ -69,7 +70,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/17live/api/SeventeenLiveModels.cpp
                                              src/17live/utility/RemoteTextThread.cpp
                                              src/17live/api/SeventeenLiveApiWrappers.cpp
-                                             src/17live/components/sl-browser-app.cpp
+                                             deps/signal-restore.cpp
+                                             src/17live/browser/sl-browser-app.cpp
                                              src/17live/components/CefHandler.cpp
                                              src/17live/components/QCefWidget.cpp
                                              src/17live/SeventeenLiveMenuManager.cpp

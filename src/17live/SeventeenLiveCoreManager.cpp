@@ -1,3 +1,5 @@
+#include <obs-frontend-api.h>
+
 #include "SeventeenLiveCoreManager.hpp"
 #include <QMainWindow>
 
@@ -11,18 +13,13 @@
 
 #include "plugin-support.h"
 #include <obs-module.h>
-#include <obs-frontend-api.h>
 
 #include "json11.hpp"
-
-#include "components/sl-browser-app.hpp"
 
 using namespace json11;
 using namespace std;
 
 namespace seventeenlive {
-
-static CefRefPtr<BrowserApp> app;
 
 // 初始化静态成员变量
 SeventeenLiveCoreManager* SeventeenLiveCoreManager::instance = nullptr;
@@ -62,6 +59,8 @@ bool SeventeenLiveCoreManager::initialize()
     if (initialized) {
         return true;
     }
+
+    // os_event_init(&cef_started_event, OS_EVENT_TYPE_MANUAL);
 
     // 初始化配置管理器
     configManager = std::make_unique<SeventeenLiveConfigManager>();
@@ -113,25 +112,6 @@ bool SeventeenLiveCoreManager::initialize()
         menuManager->updateLoginStatus(true, username);
     }
 
-    // 初始化CEF
-#ifdef _WIN32
-	CefMainArgs args;
-#else
-	/* On non-windows platforms, ie macOS, we'll want to pass thru flags to
-	 * CEF */
-	struct obs_cmdline_args cmdline_args = obs_get_cmdline_args();
-	CefMainArgs args(cmdline_args.argc, cmdline_args.argv);
-#endif
-
-    CefSettings settings;
-    settings.no_sandbox = true;
-    settings.multi_threaded_message_loop = true;
-    settings.log_severity = LOGSEVERITY_INFO;
-    // settings.log_file = obs_module_file("obs-17live-browser.log");
-
-    app = new BrowserApp();
-    CefInitialize(args, settings, app, nullptr);
-
     initialized = true;
     return true;
 }
@@ -149,8 +129,7 @@ void SeventeenLiveCoreManager::shutdown()
         menuManager->cleanup();
     }
 
-    // 清理CEF
-    CefShutdown();
+    // os_event_destroy(cef_started_event);
 
     initialized = false;
 }
