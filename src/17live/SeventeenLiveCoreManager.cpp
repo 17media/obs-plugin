@@ -407,31 +407,42 @@ void SeventeenLiveCoreManager::handleChatRoomClicked()
 {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
-    QSize size = mainWindow->size();
-    QPoint pos = mainWindow->pos();
+    static SeventeenLiveChatDock* chatDock = nullptr;
+    
+    // 如果聊天窗口不存在或已被销毁，则创建新的
+    if (!chatDock || !chatDock->isVisible()) {
+        QSize size = mainWindow->size();
+        QPoint pos = mainWindow->pos();
 
-    // 创建并显示流媒体窗口
-    SeventeenLiveChatDock* chatDock = new SeventeenLiveChatDock(mainWindow);
+        // 创建并显示聊天窗口
+        chatDock = new SeventeenLiveChatDock(mainWindow);
 
-    chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
+        chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
 
-    chatDock->setFloating(true);
-    chatDock->move(pos.x() + size.width() - chatDock->width() - 50, pos.y() - 50);
-
-    if (chatDockFirstLoad) {
-        chatDock->setVisible(true);
-        chatDockFirstLoad = false;
+        chatDock->setFloating(true);
+        chatDock->move(pos.x() + size.width() - chatDock->width() - 50, pos.y() - 50);
+        
+        // 首次加载时直接显示
+        if (chatDockFirstLoad) {
+            chatDock->setVisible(true);
+            chatDockFirstLoad = false;
+        } else {
+            // 恢复之前的停靠状态
+            QByteArray dockState = configManager->getDockState();
+            if (mainWindow->isVisible() && !dockState.isEmpty())
+                mainWindow->restoreState(dockState);
+            else
+                chatDock->setVisible(true);
+        }
     } else {
+        // 如果窗口已存在，则切换其可见性
         chatDock->setVisible(!chatDock->isVisible());
         
-        QByteArray dockState = configManager->getDockState();
+        // 保存当前的停靠状态
         if (mainWindow->isVisible())
-            mainWindow->restoreState(dockState);
+            configManager->setDockState(mainWindow->saveState());
     }
-
-
-
 }
 
 } // namespace seventeenlive

@@ -5,13 +5,11 @@
 #include "components/QCefWidget.hpp"
 #include <obs-module.h>
 
-
 namespace seventeenlive {
 
 SeventeenLiveChatDock::SeventeenLiveChatDock(QWidget* parent)
-    : QDockWidget(tr("Chat Room"), parent)
+    : QDockWidget(tr("留言"), parent)
 {
-    // 构造函数实现
     setupUi();
 }
 
@@ -21,6 +19,7 @@ void SeventeenLiveChatDock::setupUi()
 {
     containerWidget = new QWidget(this);
     layout = new QVBoxLayout(containerWidget);
+    layout->setContentsMargins(0, 0, 0, 0);
     setWidget(containerWidget);
     
     initializeWebEngine();

@@ -3,7 +3,8 @@
 #include <QDockWidget>
 #include <QVBoxLayout>
 #include <memory>
-#include <obs-frontend-api.h>
+
+class QWidget;
 
 namespace seventeenlive {
 
@@ -21,9 +22,9 @@ private:
     void initializeWebEngine();
 
 private:
-    QWidget* containerWidget;
-    QVBoxLayout* layout;
-    std::unique_ptr<QCefWidget> webView;  // 使用QCefWidget替换QWebView
+    QWidget* containerWidget = nullptr;
+    QVBoxLayout* layout = nullptr;
+    std::unique_ptr<QCefWidget> webView;
 };
 
 } // namespace seventeenlive

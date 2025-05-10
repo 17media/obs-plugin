@@ -1,45 +1,31 @@
 #pragma once
 
 // #include <include/cef_client.h>
+// #include <include/cef_life_span_handler.h>
 #include "cef-headers.hpp"
-#include <QObject>
 
 namespace seventeenlive {
 
-class CefHandler : 
-    public QObject,
-    public CefClient,
-    public CefLifeSpanHandler,
-    public CefDisplayHandler,
-    public CefLoadHandler {
-    Q_OBJECT
+class QCefWidget;
 
+class CefHandler : public CefClient, public CefLifeSpanHandler {
 public:
-    explicit CefHandler(QObject* parent = nullptr);
-
-    // fetch browser
-    CefRefPtr<CefBrowser> GetBrowser() { return browser_; }
+    explicit CefHandler(QCefWidget* widget);
     
-    // CefClient接口
-    virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
-    virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
-
-    // CefLifeSpanHandler接口
-    virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
-    virtual void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
-
-    // CefDisplayHandler接口
-    virtual void OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
-                                    bool isLoading,
-                                    bool canGoBack,
-                                    bool canGoForward) override;
-
-signals:
-    void loadingStateChanged(bool isLoading);
-
+    // CefClient 方法
+    CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
+    
+    // CefLifeSpanHandler 方法
+    void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
+    
+    // 获取浏览器实例
+    CefRefPtr<CefBrowser> GetBrowser() const { return browser_; }
+    
 private:
+    QCefWidget* widget_;
     CefRefPtr<CefBrowser> browser_;
-
+    
+    // 实现 CefBase 的引用计数
     IMPLEMENT_REFCOUNTING(CefHandler);
 };
 

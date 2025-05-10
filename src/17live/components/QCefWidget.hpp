@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <memory>
+#include <QString>
 #include "CefHandler.hpp"
 
 namespace seventeenlive {
@@ -14,15 +15,13 @@ public:
     ~QCefWidget();
 
     void loadUrl(const QString& url);
-    void reload();
-    void stopLoading();
+    WId getWindowHandle() const;
+    void onBrowserCreated(); // 新增：浏览器创建完成的回调
 
 protected:
-    // 重写Qt事件
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
-    WId getWindowHandle() const;
 
 private:
     void initializeCef();
@@ -31,6 +30,7 @@ private:
 private:
     std::unique_ptr<CefHandler> handler_;
     bool browserCreated_ = false;
+    QString pendingUrl_; // 新增：保存待加载的URL
 };
 
 } // namespace seventeenlive
