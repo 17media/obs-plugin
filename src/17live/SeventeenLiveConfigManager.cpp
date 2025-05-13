@@ -312,7 +312,13 @@ bool SeventeenLiveConfigManager::getConfigStreamer(SeventeenLiveConfigStreamerRe
   QTextStream in(&file);
   QString jsonString = in.readAll();
   file.close();
-  JsonToSeventeenLiveConfigStreamerResponse(jsonString.toStdString(), response);
+  std::string error;
+  Json json = Json::parse(jsonString.toStdString(), error);
+  if (!error.empty()) {
+    obs_log(LOG_ERROR, "Failed to parse config_streamer.json: %s", error.c_str());
+    return false;
+  }
+  JsonToSeventeenLiveConfigStreamerResponse(json, response);
   
   return true;
 }

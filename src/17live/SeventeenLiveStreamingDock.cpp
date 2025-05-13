@@ -41,6 +41,7 @@ void SeventeenLiveStreamingDock::setupUi()
     formLayout->addRow(tr("類別"), categoryCombo);
     SeventeenLiveConfigStreamerResponse response;
     configManager->getConfigStreamer(response);
+    obs_log(LOG_INFO, "subtabs size: %d", response.subtabs.size());
     for (const auto& subtab : response.subtabs) {
         categoryCombo->addItem(subtab.displayName, subtab.ID);
     }
@@ -76,6 +77,7 @@ void SeventeenLiveStreamingDock::setupUi()
     activityCombo->addItem(tr("無特定"), -1);
     
     // 从roomInfo.eventList添加活动选项
+    obs_log(LOG_INFO, "eventList size: %d", roomInfo.eventList.size());
     for (const auto& event : roomInfo.eventList) {
         QString eventName = event.name;
         if (eventName.isEmpty()) {
