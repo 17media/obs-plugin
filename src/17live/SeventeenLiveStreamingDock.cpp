@@ -18,7 +18,7 @@
 namespace seventeenlive {
 
 SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent, const SeventeenLiveRoomInfo &roomInfo_, SeventeenLiveApiWrappers *apiWrapper_, SeventeenLiveConfigManager *configManager_)
-    : QDockWidget(tr("設定"), parent), roomInfo(roomInfo_), apiWrapper(apiWrapper_), configManager(configManager_) 
+    : QDockWidget(obs_module_text("Live.Settings"), parent), roomInfo(roomInfo_), apiWrapper(apiWrapper_), configManager(configManager_) 
 {
     setupUi();
     createConnections();
@@ -34,11 +34,11 @@ void SeventeenLiveStreamingDock::setupUi()
     // 标题输入
     QFormLayout *formLayout = new QFormLayout();
     titleEdit = new QLineEdit();
-    formLayout->addRow(tr("標題 (必填)"), titleEdit);
+    formLayout->addRow(obs_module_text("Live.Settings.Title"), titleEdit);
     
     // 类别选择
     categoryCombo = new QComboBox();
-    formLayout->addRow(tr("類別"), categoryCombo);
+    formLayout->addRow(obs_module_text("Live.Settings.Category"), categoryCombo);
     SeventeenLiveConfigStreamerResponse response;
     configManager->getConfigStreamer(response);
     obs_log(LOG_INFO, "subtabs size: %d", response.subtabs.size());
@@ -50,18 +50,18 @@ void SeventeenLiveStreamingDock::setupUi()
     // 标签区域
     QHBoxLayout *tagLayout = new QHBoxLayout();
     tagEdit = new QLineEdit();
-    addTagButton = new QPushButton(tr("Add"));
+    addTagButton = new QPushButton(obs_module_text("Live.Settings.AddTag"));
     tagLayout->addWidget(tagEdit);
     tagLayout->addWidget(addTagButton);
-    formLayout->addRow(tr("標籤"), tagLayout);
+    formLayout->addRow(obs_module_text("Live.Settings.Tags"), tagLayout);
     
     mainLayout->addLayout(formLayout);
     
     // 开播格式
-    QGroupBox *streamFormatGroup = new QGroupBox(tr("開播格式"));
+    QGroupBox *streamFormatGroup = new QGroupBox(obs_module_text("Live.Settings.Layout"));
     QHBoxLayout *formatLayout = new QHBoxLayout(streamFormatGroup);
-    normalStreamRadio = new QRadioButton(tr("標準播出"));
-    verticalStreamRadio = new QRadioButton(tr("縱式播出"));
+    normalStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Landscape"));
+    verticalStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Portrait"));
     formatLayout->addWidget(normalStreamRadio);
     formatLayout->addWidget(verticalStreamRadio);
     if (roomInfo.landscape) {
@@ -74,19 +74,19 @@ void SeventeenLiveStreamingDock::setupUi()
     // 活动相关
     activityCombo = new QComboBox();
     // 添加一个默认选项
-    activityCombo->addItem(tr("無特定"), -1);
+    activityCombo->addItem(obs_module_text("Live.Settings.Event.None"), -1);
     
     // 从roomInfo.eventList添加活动选项
     obs_log(LOG_INFO, "eventList size: %d", roomInfo.eventList.size());
     for (const auto& event : roomInfo.eventList) {
         QString eventName = event.name;
         if (eventName.isEmpty()) {
-            eventName = tr("活動 ") + QString::number(event.ID);
+            continue; // Skip if name is empty or null
         }
         activityCombo->addItem(eventName, event.ID);
     }
     
-    formLayout->addRow(tr("活動"), activityCombo);
+    formLayout->addRow(obs_module_text("Live.Settings.Event"), activityCombo);
     
     
     // customActivityCombo = new QComboBox();
@@ -96,13 +96,13 @@ void SeventeenLiveStreamingDock::setupUi()
     // formLayout->addRow(tr("觀眾限定觀看"), viewerLimitCombo);
     
     // 开关选项
-    archiveStreamCheck = new QCheckBox(tr("典藏直播"));
-    archiveStreamCheck->setToolTip(tr("儲存直播內容7天，並且只有您本人可以觀看。\n(限制：不超過8小時，PK/群聊內容皆不支持。)"));
+    archiveStreamCheck = new QCheckBox(obs_module_text("Live.Settings.Archive.Record"));
+    archiveStreamCheck->setToolTip(obs_module_text("Live.Settings.Archive.Record.Tip"));
     archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
     mainLayout->addWidget(archiveStreamCheck);
     
-    autoPreviewCheck = new QCheckBox(tr("自動發布預覽"));
-    autoPreviewCheck->setToolTip(tr("自動以影片的方式設定在個人頁面「如何收看」。\n17LIVE app的頁面也編輯該頁面的相關內容（如標題、標籤等）。"));
+    autoPreviewCheck = new QCheckBox(obs_module_text("Live.Settings.Archive.AutoPublish"));
+    autoPreviewCheck->setToolTip(obs_module_text("Live.Settings.Archive.AutoPublish.Tip"));
     autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
     mainLayout->addWidget(autoPreviewCheck);
     
@@ -125,16 +125,16 @@ void SeventeenLiveStreamingDock::setupUi()
     int clipPermission = roomInfo.archiveConfig.clipPermission;
     clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(clipPermission));
     
-    formLayout->addRow(tr("允許直播剪輯身份"), clipIdentityCombo);
+    formLayout->addRow(obs_module_text("Live.Settings.Archive.ClipPermission"), clipIdentityCombo);
     
     // 虚拟主播选项
-    virtualStreamerCheck = new QCheckBox(tr("是，我是虛擬主播。"));
+    virtualStreamerCheck = new QCheckBox(obs_module_text("Live.Settings.VirtualLiver"));
     mainLayout->addWidget(virtualStreamerCheck);
     
     // 底部按钮
     QHBoxLayout *buttonLayout = new QHBoxLayout();
-    saveConfigButton = new QPushButton(tr("存儲設定"));
-    createLiveButton = new QPushButton(tr("開始直播"));
+    saveConfigButton = new QPushButton(obs_module_text("Live.Settings.Save"));
+    createLiveButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
     createLiveButton->setStyleSheet("background-color: red; color: white;");
     buttonLayout->addWidget(saveConfigButton);
     buttonLayout->addWidget(createLiveButton);
@@ -294,12 +294,12 @@ void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
     obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
     if (isLive) {
         // change text to "停止直播"
-        createLiveButton->setText(tr("停止直播"));
+        createLiveButton->setText(obs_module_text("Live.Settings.StopLive"));
         disconnect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onDeleteLiveClicked);
     } else {
         // change text to "建立直播"
-        createLiveButton->setText(tr("開始直播"));
+        createLiveButton->setText(obs_module_text("Live.Settings.StartLive"));
         disconnect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onDeleteLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
     }
