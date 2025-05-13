@@ -96,17 +96,6 @@ public:
     SeventeenLiveCoreManager(const SeventeenLiveCoreManager&) = delete;
     SeventeenLiveCoreManager& operator=(const SeventeenLiveCoreManager&) = delete;
 
-    /**
-     * @brief 处理登录成功的槽函数
-     * 
-     * @param userData 登录成功后返回的用户数据
-     */
-    void handleLoginSuccess(const SeventeenLiveLoginData& userData);
-
-    void handleLogoutClicked();
-
-    void handleStreamingClicked();
-
 private:
     // 私有构造函数，确保只能通过getInstance方法获取实例
     explicit SeventeenLiveCoreManager(QMainWindow* mainWindow);
@@ -136,27 +125,34 @@ private:
 
     std::unique_ptr<SeventeenLiveApiWrappers> apiWrapper;
 
-    // Streaming Dock load status
-    bool streamingDockFirstLoad = true;
-    bool chatDockFirstLoad = true;
+    /**
+     * @brief 处理登录成功的槽函数
+     * 
+     * @param userData 登录成功后返回的用户数据
+     */
+    void handleLoginSuccess(const SeventeenLiveLoginData& userData);
 
-    // current streaming info
-    std::string currLiveStreamID;
-    std::string currUserID;
+    void handleLogoutClicked();
 
     // 检查登录状态是否有效的函数
     bool checkLoginStatus();
-
+    
+    // Streaming Dock load status
+    bool streamingDockFirstLoad = true;
     SeventeenLiveStreamingDock* streamingDock{nullptr};
-    void saveDockState();
+    void handleStreamingClicked();
+    
+    // void handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request);
+    // void handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request);
+    // void startStreaming(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey);
+    // void handleStopStreamingClicked();
+    // void handleStopPushStreamingClicked();
+    // void stopStreaming();
 
-    void handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request);
-    void handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request);
-    void startStreaming(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey);
-    void handleStopStreamingClicked();
-    void handleStopPushStreamingClicked();
-    void stopStreaming();
+    bool chatDockFirstLoad = true;
     void handleChatRoomClicked();
+
+    void saveDockState();
 };
 
 } // namespace seventeenlive

@@ -29,6 +29,8 @@ public:
   bool getStreamingPullUrl(std::string &streamPullUrl);
   void clearStreamingPullUrl();
 
+  bool getConfigValue(const std::string &key, std::string &value);
+
   QByteArray getDockState();
   bool setDockState(const QByteArray &state);
 

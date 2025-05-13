@@ -50,6 +50,23 @@ bool SeventeenLiveConfigManager::initialize()
   return true;
 }
 
+bool SeventeenLiveConfigManager::getConfigValue(const std::string &key, std::string &value)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  if (!config) {
+    return false;
+  }
+
+  const char* valueChar = config_get_string(config, service, key.c_str());
+  if (!valueChar) {
+    return false;
+  }
+  value = valueChar;
+  return true;
+}
 bool SeventeenLiveConfigManager::getLoginData(SeventeenLiveLoginData &loginData)
 {
   if (!initialized) {

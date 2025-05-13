@@ -5,14 +5,18 @@
 #include <QGroupBox>
 
 #include <obs-module.h>
+#include <obs-frontend-api.h>
 #include "plugin-support.h"
+
+#include "api/SeventeenLiveApiWrappers.hpp"
+#include "SeventeenLiveConfigManager.hpp"
 
 #include "moc_SeventeenLiveStreamingDock.cpp"
 
 namespace seventeenlive {
 
-SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent, const SeventeenLiveRoomInfo &roomInfo_)
-    : QDockWidget(tr("設定"), parent), roomInfo(roomInfo_)
+SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent, const SeventeenLiveRoomInfo &roomInfo_, SeventeenLiveApiWrappers *apiWrapper_, SeventeenLiveConfigManager *configManager_)
+    : QDockWidget(tr("設定"), parent), roomInfo(roomInfo_), apiWrapper(apiWrapper_), configManager(configManager_) 
 {
     setupUi();
     createConnections();
@@ -75,11 +79,11 @@ void SeventeenLiveStreamingDock::setupUi()
     formLayout->addRow(tr("活動"), activityCombo);
     
     
-    customActivityCombo = new QComboBox();
-    formLayout->addRow(tr("自訂活動 (選填)"), customActivityCombo);
+    // customActivityCombo = new QComboBox();
+    // formLayout->addRow(tr("自訂活動 (選填)"), customActivityCombo);
     
-    viewerLimitCombo = new QComboBox();
-    formLayout->addRow(tr("觀眾限定觀看"), viewerLimitCombo);
+    // viewerLimitCombo = new QComboBox();
+    // formLayout->addRow(tr("觀眾限定觀看"), viewerLimitCombo);
     
     // 开关选项
     archiveStreamCheck = new QCheckBox(tr("典藏直播"));
@@ -117,11 +121,11 @@ void SeventeenLiveStreamingDock::setupUi()
     
     // 底部按钮
     QHBoxLayout *buttonLayout = new QHBoxLayout();
-    createStreamButton = new QPushButton(tr("建立直播"));
-    createAndStartButton = new QPushButton(tr("建立直播並開始推流"));
-    createAndStartButton->setStyleSheet("background-color: red; color: white;");
-    buttonLayout->addWidget(createStreamButton);
-    buttonLayout->addWidget(createAndStartButton);
+    saveConfigButton = new QPushButton(tr("存儲設定"));
+    createLiveButton = new QPushButton(tr("開始直播"));
+    createLiveButton->setStyleSheet("background-color: red; color: white;");
+    buttonLayout->addWidget(saveConfigButton);
+    buttonLayout->addWidget(createLiveButton);
     mainLayout->addLayout(buttonLayout);
     
     setWidget(container);
@@ -130,8 +134,8 @@ void SeventeenLiveStreamingDock::setupUi()
 void SeventeenLiveStreamingDock::createConnections()
 {
     connect(addTagButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onAddTagClicked);
-    connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
-    connect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateAndStartStreamClicked);
+    connect(saveConfigButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onSaveConfigClicked);
+    connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
 }
 
 void SeventeenLiveStreamingDock::onAddTagClicked()
@@ -139,30 +143,121 @@ void SeventeenLiveStreamingDock::onAddTagClicked()
     // TODO: 实现添加标签的逻辑
 }
 
-void SeventeenLiveStreamingDock::onCreateStreamClicked()
+void SeventeenLiveStreamingDock::onSaveConfigClicked()
 {
     SeventeenLiveRtmpRequest request;
     gatherRtmpRequest(request);
 
-    emit createStreamClicked(request);
+    // TODO: 实现保存配置的逻辑
 }
 
-void SeventeenLiveStreamingDock::onCreateAndStartStreamClicked()
+void SeventeenLiveStreamingDock::onCreateLiveClicked()
 {
+    obs_log(LOG_INFO, "onCreateLiveClicked");
+
+    // 创建直播
     SeventeenLiveRtmpRequest request;
     gatherRtmpRequest(request);
 
-    emit createAndStartStreamClicked(request);
+    SeventeenLiveRtmpResponse response;
+    if (!apiWrapper->CreateRtmp(request, response)) {
+        obs_log(LOG_ERROR, "Failed to create stream");
+        return;
+    }
+
+    QString streamUrl;
+    QString streamKey;
+
+    int questionIndex = response.rtmpURL.indexOf(request.userID + "?");
+    if (questionIndex != -1) {
+        streamUrl = response.rtmpURL.left(questionIndex - 1);
+        streamKey = response.rtmpURL.mid(questionIndex);
+    } else {
+        obs_log(LOG_ERROR, "Failed to parse stream url");
+        return;
+    }
+    
+    obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
+    obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
+
+    configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
+
+    saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
+
+    // 开始直播
+    if (!apiWrapper->StartStream(response.liveStreamID.toStdString(), request.userID.toStdString())) {
+        obs_log(LOG_ERROR, "Failed to start stream");
+        return;
+    }
+
+    updateLiveStatus(SeventeenLiveStreamingStatus::Live);
 }
 
-void SeventeenLiveStreamingDock::onStopStreamingClicked()
+void SeventeenLiveStreamingDock::onDeleteLiveClicked()
 {
-    emit stopStreamingClicked();
+    obs_log(LOG_INFO, "onDeleteLiveClicked");
+
+    // 处理停止流的逻辑
+    stopStreaming();
+
+    std::string currUserID;
+    std::string currLiveStreamID;
+    configManager->getConfigValue("UserID", currUserID);
+    configManager->getConfigValue("LiveStreamID", currLiveStreamID);
+
+    // 发送关闭直播请求
+    SeventeenLiveCloseLiveRequest request;
+    request.reason = "normalEnd";
+    request.userID = QString::fromStdString(currUserID);
+
+    if (!apiWrapper->StopStream(currLiveStreamID, request)) {
+        obs_log(LOG_ERROR, "Failed to stop stream");
+        return;
+    }
+
+    configManager->clearStreamingInfo();
+
+    updateLiveStatus(SeventeenLiveStreamingStatus::NotStarted);
 }
 
-void SeventeenLiveStreamingDock::onStopPushStreamingClicked()
+void SeventeenLiveStreamingDock::saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey)
 {
-    emit stopPushStreamingClicked();
+    // 处理开始流的逻辑
+    obs_log(LOG_INFO, "saveStreamingSettings %s", liveStreamID.c_str());
+
+    // 获取OBS服务
+    obs_service_t* service = obs_service_create("rtmp_custom", "default_service", NULL, NULL);
+    
+    // 设置流媒体URL和密钥
+    obs_data_t *settings = obs_service_get_settings(service);
+    obs_log(LOG_INFO, "streamUrl: %s", streamUrl.c_str());
+    obs_log(LOG_INFO, "streamKey: %s", streamKey.c_str());
+    obs_data_set_string(settings, "server", streamUrl.c_str());
+    obs_data_set_string(settings, "key", streamKey.c_str());
+    
+    // 应用设置
+    obs_service_update(service, settings);
+    obs_data_release(settings);
+
+    obs_frontend_set_streaming_service(service);
+
+    obs_frontend_save_streaming_service();
+
+    // 释放资源
+    obs_service_release(service);
+}
+
+void SeventeenLiveStreamingDock::stopStreaming()
+{
+    // 处理停止流的逻辑
+    obs_log(LOG_INFO, "stopStreaming");
+
+    if (!obs_frontend_streaming_active()) {
+        obs_log(LOG_INFO, "Streaming is not active");
+        return;
+    }
+
+    obs_frontend_streaming_stop();
 }
 
 void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
@@ -186,50 +281,23 @@ void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
 {   
     obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
     if (isLive) {
-        // change createStreamButton text to "停止直播"
-        createStreamButton->setText(tr("停止直播"));
-        disconnect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
-        connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopStreamingClicked);
+        // change text to "停止直播"
+        createLiveButton->setText(tr("停止直播"));
+        disconnect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
+        connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onDeleteLiveClicked);
     } else {
-        // change createStreamButton text to "建立直播"
-        createStreamButton->setText(tr("建立直播"));
-        disconnect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopStreamingClicked);
-        connect(createStreamButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateStreamClicked);
+        // change text to "建立直播"
+        createLiveButton->setText(tr("開始直播"));
+        disconnect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onDeleteLiveClicked);
+        connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
     }
 }
 
-void SeventeenLiveStreamingDock::updateStreamingButton(bool isStreaming)
+void SeventeenLiveStreamingDock::updateLiveStatus(SeventeenLiveStreamingStatus status)
 {
-    obs_log(LOG_INFO, "updateStreamingButton: %d", isStreaming);
-    if (isStreaming) {
-        // change createAndStartButton text to "停止推流"
-        createAndStartButton->setText(tr("停止推流"));
-        disconnect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateAndStartStreamClicked);
-        connect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopPushStreamingClicked);
-    } else {
-        // change createAndStartButton text to "建立直播並開始推流"
-        createAndStartButton->setText(tr("建立直播並開始推流"));
-        disconnect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onStopPushStreamingClicked);
-        connect(createAndStartButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateAndStartStreamClicked);
-    }
-}
-void SeventeenLiveStreamingDock::updateStreamingStatus(SeventeenLiveStreamingStatus status)
-{
-    obs_log(LOG_INFO, "updateStreamingStatus: %d", static_cast<int>(status));
-    switch (status) {
-        case SeventeenLiveStreamingStatus::NotStarted:
-            updateLiveButton(false);
-            updateStreamingButton(false);
-            break;
-        case SeventeenLiveStreamingStatus::Live:
-            updateLiveButton(true);
-            updateStreamingButton(false);
-            break;
-        case SeventeenLiveStreamingStatus::Streaming:
-            updateLiveButton(true);
-            updateStreamingButton(true);
-            break;
-    }
+    obs_log(LOG_INFO, "updateLiveStatus: %d", static_cast<int>(status));
+
+    updateLiveButton(status == SeventeenLiveStreamingStatus::Live);
 }
 
 } // namespace seventeenlive
