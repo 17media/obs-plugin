@@ -1,16 +1,15 @@
 #include "SeventeenLiveApiWrappers.hpp"
 
-#include "../utility/RemoteTextThread.hpp"
-
 #include <QFile>
 #include <QMimeDatabase>
 #include <QUrl>
+#include <QCryptographicHash>
 
+#include "../utility/RemoteTextThread.hpp"
+#include "../utility/Common.hpp"
 
 #include <obs-module.h>
 #include "plugin-support.h"
-
-#include <QCryptographicHash>
 
 using namespace json11;
 
@@ -18,6 +17,7 @@ namespace seventeenlive {
 
 extern const char* service;
 
+// TODO: 17live API URL
 #define SEVENTEENLIVE_API_URL "https://sta-wap-api.17app.co"
 
 // 登录接口: SEVENTEENLIVE_API_URL + "/api/v1/auth/loginAction"
@@ -136,7 +136,7 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
   // TODO: language
   // const char *obs_get_locale(void)
 	const Json data = Json::object{
-    {"language", "TW"},
+    {"language", GetCurrentLanguage()},
     {"openID", username.toStdString()},
     {"password", md5(password).toStdString()},
   };

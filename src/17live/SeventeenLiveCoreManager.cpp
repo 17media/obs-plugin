@@ -1,18 +1,18 @@
-#include <obs-frontend-api.h>
-
 #include "SeventeenLiveCoreManager.hpp"
 #include <QMainWindow>
 
 #include "SeventeenLiveMenuManager.hpp"
 #include "api/SeventeenLiveApiWrappers.hpp"
 #include "SeventeenLiveConfigManager.hpp"
-
 #include "SeventeenLiveLoginDialog.hpp"
 #include "SeventeenLiveStreamingDock.hpp"
 #include "SeventeenLiveChatDock.hpp"
+#include "utility/Common.hpp"
+#include "utility/Meta.hpp"
 
-#include "plugin-support.h"
 #include <obs-module.h>
+#include <obs-frontend-api.h>
+#include "plugin-support.h"
 
 #include "json11.hpp"
 
@@ -113,6 +113,12 @@ bool SeventeenLiveCoreManager::initialize()
 
         // 登录成功后，加载配置
         loadConfigStreamer();
+
+        // 加载meta data
+        if (!LoadMetaData()) {
+            obs_log(LOG_ERROR, "Failed to load meta data");
+            return false;
+        }
     }
 
     initialized = true;
@@ -435,7 +441,7 @@ void SeventeenLiveCoreManager::loadConfigStreamer()
         return;
     }
 
-    std::string language = "TW";
+    std::string language = GetCurrentLanguage();
 
     SeventeenLiveConfigStreamerResponse response;
     if (!apiWrapper->GetConfigStreamer(region, language, response)) {

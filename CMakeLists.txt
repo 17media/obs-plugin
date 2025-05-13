@@ -69,6 +69,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/17live/SeventeenLiveConfigManager.cpp
                                              src/17live/api/SeventeenLiveModels.cpp
                                              src/17live/utility/RemoteTextThread.cpp
+                                             src/17live/utility/Common.cpp
+                                             src/17live/utility/Meta.cpp
                                              src/17live/api/SeventeenLiveApiWrappers.cpp
                                              deps/signal-restore.cpp
                                              src/17live/browser/sl-browser-app.cpp

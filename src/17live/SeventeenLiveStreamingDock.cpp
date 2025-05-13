@@ -1,4 +1,5 @@
 #include "SeventeenLiveStreamingDock.hpp"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -8,6 +9,7 @@
 #include <obs-frontend-api.h>
 #include "plugin-support.h"
 
+#include "utility/Meta.hpp"
 #include "api/SeventeenLiveApiWrappers.hpp"
 #include "SeventeenLiveConfigManager.hpp"
 
@@ -108,9 +110,11 @@ void SeventeenLiveStreamingDock::setupUi()
     
     // 剪辑身份
     clipIdentityCombo = new QComboBox();
-    clipIdentityCombo->addItem(tr("關閉"), 0);
-    clipIdentityCombo->addItem(tr("所有人"), 1);
-    clipIdentityCombo->addItem(tr("粉絲"), 2);
+    QList<SeventeenLiveMetaValueLabel> clipIdentityList;
+    getMetaValueLabelList("ClipPermissions", clipIdentityList);
+    for (const auto& item : clipIdentityList) {
+        clipIdentityCombo->addItem(item.label, item.value);
+    }
     
     // 设置为不可编辑
     clipIdentityCombo->setEditable(false);
@@ -276,7 +280,7 @@ void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     request.hashtags = tagEdit->text().split(",");
     request.landscape = normalStreamRadio->isChecked();
     request.streamerType = roomInfo.streamerType;
-    request.subtabID = "newbie"; // TODO: categoryCombo->currentData().toString();
+    request.subtabID = categoryCombo->currentData().toString();
     request.archiveConfig.autoRecording = archiveStreamCheck->isChecked();
     request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
     request.archiveConfig.clipPermission = clipIdentityCombo->currentData().toInt();
