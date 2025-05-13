@@ -33,19 +33,28 @@ void SeventeenLiveStreamingDock::setupUi()
     
     // 标题输入
     QFormLayout *formLayout = new QFormLayout();
+    // 设置为纵向布局，标签在字段上方
+    formLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    // 设置标签左对齐
+    formLayout->setLabelAlignment(Qt::AlignLeft);
+    // 设置字段增长方式
+    formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    
     titleEdit = new QLineEdit();
     formLayout->addRow(obs_module_text("Live.Settings.Title"), titleEdit);
     
     // 类别选择
     categoryCombo = new QComboBox();
-    formLayout->addRow(obs_module_text("Live.Settings.Category"), categoryCombo);
+    
     SeventeenLiveConfigStreamerResponse response;
     configManager->getConfigStreamer(response);
-    obs_log(LOG_INFO, "subtabs size: %d", response.subtabs.size());
+    
     for (const auto& subtab : response.subtabs) {
         categoryCombo->addItem(subtab.displayName, subtab.ID);
     }
     categoryCombo->setCurrentIndex(0);
+
+    formLayout->addRow(obs_module_text("Live.Settings.Category"), categoryCombo);
     
     // 标签区域
     QHBoxLayout *tagLayout = new QHBoxLayout();
@@ -54,7 +63,7 @@ void SeventeenLiveStreamingDock::setupUi()
     tagLayout->addWidget(tagEdit);
     tagLayout->addWidget(addTagButton);
     formLayout->addRow(obs_module_text("Live.Settings.Tags"), tagLayout);
-    
+
     mainLayout->addLayout(formLayout);
     
     // 开播格式
@@ -69,13 +78,21 @@ void SeventeenLiveStreamingDock::setupUi()
     } else {
         verticalStreamRadio->setChecked(true);
     }
+    
     mainLayout->addWidget(streamFormatGroup);
     
     // 活动相关
+    QVBoxLayout *eventContainer = new QVBoxLayout();
+    
+    // 标题
+    QLabel *eventLabel = new QLabel(obs_module_text("Live.Settings.Event"));
+    eventContainer->addWidget(eventLabel);
+        
+    // 下拉框
     activityCombo = new QComboBox();
     // 添加一个默认选项
     activityCombo->addItem(obs_module_text("Live.Settings.Event.None"), -1);
-    
+        
     // 从roomInfo.eventList添加活动选项
     obs_log(LOG_INFO, "eventList size: %d", roomInfo.eventList.size());
     for (const auto& event : roomInfo.eventList) {
@@ -85,30 +102,71 @@ void SeventeenLiveStreamingDock::setupUi()
         }
         activityCombo->addItem(eventName, event.ID);
     }
+    eventContainer->addWidget(activityCombo);
+        
+    // 创建提示 Label 并靠右对齐
+    QHBoxLayout *hintLayout = new QHBoxLayout();
+    QLabel *hintLabel = new QLabel(obs_module_text("Live.Settings.Event.Tip"));
+    hintLabel->setStyleSheet("color: gray; font-size: 12px;");
+    hintLayout->addStretch(); // 添加弹性空间，使提示文字靠右
+    hintLayout->addWidget(hintLabel);
+    eventContainer->addLayout(hintLayout);
+        
+    mainLayout->addLayout(eventContainer);
+
     
-    formLayout->addRow(obs_module_text("Live.Settings.Event"), activityCombo);
+    // 开关选项 - 修改为Switch组件
+    QHBoxLayout *archiveLayout = new QHBoxLayout();
+    QVBoxLayout *archiveLabelLayout = new QVBoxLayout();
     
+    // 左侧标题和提示信息
+    QLabel *archiveLabel = new QLabel(obs_module_text("Live.Settings.Archive.Record"));
+    QLabel *archiveTip = new QLabel(obs_module_text("Live.Settings.Archive.Record.Tip"));
+    archiveTip->setStyleSheet("color: gray; font-size: 12px;");
     
-    // customActivityCombo = new QComboBox();
-    // formLayout->addRow(tr("自訂活動 (選填)"), customActivityCombo);
+    archiveLabelLayout->addWidget(archiveLabel);
+    archiveLabelLayout->addWidget(archiveTip);
+    archiveLabelLayout->setSpacing(2); // 调整标题和提示之间的间距
     
-    // viewerLimitCombo = new QComboBox();
-    // formLayout->addRow(tr("觀眾限定觀看"), viewerLimitCombo);
-    
-    // 开关选项
-    archiveStreamCheck = new QCheckBox(obs_module_text("Live.Settings.Archive.Record"));
-    archiveStreamCheck->setToolTip(obs_module_text("Live.Settings.Archive.Record.Tip"));
+    // 右侧Switch组件
+    archiveStreamCheck = new QCheckBox();
     archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
-    mainLayout->addWidget(archiveStreamCheck);
     
-    autoPreviewCheck = new QCheckBox(obs_module_text("Live.Settings.Archive.AutoPublish"));
-    autoPreviewCheck->setToolTip(obs_module_text("Live.Settings.Archive.AutoPublish.Tip"));
+    // 将左右两部分添加到水平布局中
+    archiveLayout->addLayout(archiveLabelLayout);
+    archiveLayout->addStretch(); // 添加弹性空间，使Switch靠右
+    archiveLayout->addWidget(archiveStreamCheck);
+    
+    mainLayout->addLayout(archiveLayout);
+    
+    // 同样修改自动预览选项
+    QHBoxLayout *previewLayout = new QHBoxLayout();
+    QVBoxLayout *previewLabelLayout = new QVBoxLayout();
+    
+    QLabel *previewLabel = new QLabel(obs_module_text("Live.Settings.Archive.AutoPublish"));
+    QLabel *previewTip = new QLabel(obs_module_text("Live.Settings.Archive.AutoPublish.Tip"));
+    previewTip->setStyleSheet("color: gray; font-size: 12px;");
+    
+    previewLabelLayout->addWidget(previewLabel);
+    previewLabelLayout->addWidget(previewTip);
+    previewLabelLayout->setSpacing(2);
+    
+    autoPreviewCheck = new QCheckBox();
     autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
-    mainLayout->addWidget(autoPreviewCheck);
     
-    // 预览设置
-//    QGroupBox *previewGroup = new QGroupBox(tr("預覽設定"));
-//    QFormLayout *previewLayout = new QFormLayout(previewGroup);    
+    previewLayout->addLayout(previewLabelLayout);
+    previewLayout->addStretch();
+    previewLayout->addWidget(autoPreviewCheck);
+    
+    mainLayout->addLayout(previewLayout);
+
+    QVBoxLayout *clipLayout = new QVBoxLayout();
+    QLabel *clipLabel = new QLabel(obs_module_text("Live.Settings.Archive.ClipPermission"));
+    clipLayout->addWidget(clipLabel);
+
+    QLabel *clipTip = new QLabel(obs_module_text("Live.Settings.Archive.ClipPermission.Tip"));
+    clipTip->setStyleSheet("color: gray; font-size: 12px;");
+    clipLayout->addWidget(clipTip);
     
     // 剪辑身份
     clipIdentityCombo = new QComboBox();
@@ -125,15 +183,33 @@ void SeventeenLiveStreamingDock::setupUi()
     int clipPermission = roomInfo.archiveConfig.clipPermission;
     clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(clipPermission));
     
-    formLayout->addRow(obs_module_text("Live.Settings.Archive.ClipPermission"), clipIdentityCombo);
+    clipLayout->addWidget(clipIdentityCombo);
+    clipLayout->setSpacing(2);
+
+    mainLayout->addLayout(clipLayout);
+    
     
     // 虚拟主播选项
+    QVBoxLayout *vliverLayout = new QVBoxLayout();
+
+    QLabel *vliverLabel = new QLabel(obs_module_text("Live.Settings.VirtualLiver.Title"));
+    vliverLayout->addWidget(vliverLabel);
+
+    QLabel *vliverTip = new QLabel(obs_module_text("Live.Settings.VirtualLiver.Tip"));
+    vliverTip->setStyleSheet("color: gray; font-size: 12px;");
+    vliverLayout->addWidget(vliverTip);
+
     virtualStreamerCheck = new QCheckBox(obs_module_text("Live.Settings.VirtualLiver"));
-    mainLayout->addWidget(virtualStreamerCheck);
+    vliverLayout->addWidget(virtualStreamerCheck);
     
+    vliverLayout->setSpacing(2);
+
+    mainLayout->addLayout(vliverLayout);
+
     // 底部按钮
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     saveConfigButton = new QPushButton(obs_module_text("Live.Settings.Save"));
+    saveConfigButton->setStyleSheet("background-color: red; color: white;");
     createLiveButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
     createLiveButton->setStyleSheet("background-color: red; color: white;");
     buttonLayout->addWidget(saveConfigButton);
