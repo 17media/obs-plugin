@@ -1,12 +1,10 @@
 #include "QCefWidget.hpp"
 #include <QResizeEvent>
-// #include <include/cef_browser.h>
-// #include <include/cef_app.h>
+#include "CefHandler.hpp"
 #include "plugin-support.h"
 #include <obs-module.h>
 
 namespace seventeenlive {
-
 QCefWidget::QCefWidget(QWidget* parent)
     : QWidget(parent)
 {

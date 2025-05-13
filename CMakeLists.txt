@@ -72,8 +72,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/17live/api/SeventeenLiveApiWrappers.cpp
                                              deps/signal-restore.cpp
                                              src/17live/browser/sl-browser-app.cpp
-                                             src/17live/components/CefHandler.cpp
-                                             src/17live/components/QCefWidget.cpp
+                                             src/17live/browser/CefHandler.cpp
+                                             src/17live/browser/QCefWidget.cpp
                                              src/17live/SeventeenLiveMenuManager.cpp
                                              src/17live/SeventeenLiveLoginDialog.cpp
                                              src/17live/SeventeenLiveStreamingDock.cpp

@@ -3,9 +3,10 @@
 #include <QWidget>
 #include <memory>
 #include <QString>
-#include "CefHandler.hpp"
 
 namespace seventeenlive {
+
+class CefHandler;
 
 class QCefWidget : public QWidget {
     Q_OBJECT

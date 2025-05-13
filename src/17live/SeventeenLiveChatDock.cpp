@@ -2,7 +2,7 @@
 #include <QUrl>
 #include "plugin-support.h"
 #include "qt-wrappers.hpp"
-#include "components/QCefWidget.hpp"
+#include "browser/QCefWidget.hpp"
 #include <obs-module.h>
 
 namespace seventeenlive {

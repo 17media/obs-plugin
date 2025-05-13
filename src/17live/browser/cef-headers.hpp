@@ -27,6 +27,7 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
+#include <include/base/cef_callback.h>
 #include <include/cef_app.h>
 #include <include/cef_base.h>
 #include <include/cef_task.h>
@@ -34,12 +35,16 @@
 #include <include/cef_parser.h>
 #include <include/cef_scheme.h>
 #include <include/cef_version.h>
+#include "include/views/cef_browser_view.h"
+#include "include/views/cef_window.h"
+#include "include/wrapper/cef_closure_task.h"
 #include <include/cef_render_process_handler.h>
 #include <include/cef_request_context_handler.h>
 #include <include/cef_jsdialog_handler.h>
 #if defined(__APPLE__)
 #include "include/wrapper/cef_library_loader.h"
 #endif
+#include "include/wrapper/cef_helpers.h"
 
 #if CHROME_VERSION_BUILD >= 4430
 #define ENABLE_WASHIDDEN 1
