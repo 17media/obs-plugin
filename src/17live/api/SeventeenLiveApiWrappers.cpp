@@ -33,12 +33,14 @@ extern const char* service;
 
 #define SEVENTEENLIVE_ARCHIVE_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1/archive/recording?enable=%2"
 
+#define SEVENTEENLIVE_GET_CONFIG_STREAMER_URL SEVENTEENLIVE_API_URL "/api/v1/liveStreams/config/streamer"
+
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
 
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers(std::string token_) : token(token_) {}
 
 bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *content_type, std::string request_type,
-  const char *data, Json &json_out, long *error_code, int data_size, bool token_required)
+  const char *data, Json &json_out, long *error_code, int data_size, bool token_required, const std::vector<std::string> extraHeaders)
 {
   long httpStatusCode = 0;
 
@@ -58,6 +60,10 @@ bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *con
     headers.push_back("Authorization: Bearer " + token);
 
   headers.push_back("Devicetype: WEB");
+
+  for (const auto &header : extraHeaders) {
+    headers.push_back(header);
+  }
 
   std::string output;
   std::string error;
@@ -90,11 +96,11 @@ bool SeventeenLiveApiWrappers::UpdateAccessToken()
   return false;
 }
 
-bool SeventeenLiveApiWrappers::InsertCommand(const char *url, const char *content_type, std::string request_type, const char *data, Json &json_out, int data_size, bool token_required)
+bool SeventeenLiveApiWrappers::InsertCommand(const char *url, const char *content_type, std::string request_type, const char *data, Json &json_out, int data_size, bool token_required, const std::vector<std::string> extraHeaders)
 {
   long error_code;
   std::string error;
-  bool success = TryInsertCommand(url, content_type, request_type, data, json_out, &error_code, data_size, token_required);
+  bool success = TryInsertCommand(url, content_type, request_type, data, json_out, &error_code, data_size, token_required, extraHeaders);
 
   if (error_code == 401) {
     // Attempt to update access token and try again
@@ -169,13 +175,9 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
     return false;
   }
 
-  loginData.jwtAccessToken = QString::fromStdString(json_out_data["jwtAccessToken"].string_value());
-  loginData.userInfo = SeventeenLiveUserInfo{};
-  loginData.userInfo.userID = QString::fromStdString(json_out_data["userInfo"]["userID"].string_value());
-  loginData.userInfo.openID = QString::fromStdString(json_out_data["userInfo"]["openID"].string_value());
-  loginData.userInfo.displayName = QString::fromStdString(json_out_data["userInfo"]["displayName"].string_value());
-  loginData.userInfo.roomID = json_out_data["userInfo"]["roomID"].int_value();
-  
+  JsonToSeventeenLiveLoginData(json_out_data, loginData);
+
+  // save token to next call
   token = loginData.jwtAccessToken.toStdString();
 
   return !loginData.jwtAccessToken.isEmpty();  
@@ -380,7 +382,7 @@ bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID, const
   obs_log(LOG_INFO, "StopStream start");
   lastErrorMessage.clear();
   QString urlStr = QString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
-    QByteArray url = urlStr.toUtf8();
+  QByteArray url = urlStr.toUtf8();
 
   Json requestData;
   if (!SeventeenLiveCloseLiveRequestToJson(request, requestData)) {
@@ -402,6 +404,36 @@ bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID, const
   return true;
 }
 
+bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamerResponse &response)
+{
+  obs_log(LOG_INFO, "GetConfigStreamer");
+
+  lastErrorMessage.clear();
+  QString urlStr = QString(SEVENTEENLIVE_GET_CONFIG_STREAMER_URL);
+  QByteArray url = urlStr.toUtf8();
+
+  std::vector<std::string> extraHeaders = {
+  	"Userselectedregion: " + region,
+    "Language: " + language
+  };
+  
+  std::string error;
+	Json json_out_resp;
+	if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true, extraHeaders)) {
+    obs_log(LOG_ERROR, "GetConfigStreamer error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
+  if (!JsonToSeventeenLiveConfigStreamerResponse(json_out_resp, response)) {
+    obs_log(LOG_ERROR, "Failed to convert response to struct");
+    lastErrorMessage = "Failed to convert response to struct";
+    return false;
+  }
+
+  obs_log(LOG_INFO, "GetConfigStreamer success");
+  return true;
+}
 
 
 } // namespace seventeenlive

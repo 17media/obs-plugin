@@ -15,10 +15,10 @@ class SeventeenLiveApiWrappers : public QObject {
   Q_OBJECT
 
   bool TryInsertCommand(const char *url, const char *content_type, std::string request_type, const char *data,
-      json11::Json &ret, long *error_code = nullptr, int data_size = 0, bool token_required = true);
+      json11::Json &ret, long *error_code = nullptr, int data_size = 0, bool token_required = true, const std::vector<std::string> extraHeaders = {});
   bool UpdateAccessToken();
   bool InsertCommand(const char *url, const char *content_type, std::string request_type, const char *data,
-   json11::Json &ret, int data_size = 0, bool token_required = true);
+   json11::Json &ret, int data_size = 0, bool token_required = true, const std::vector<std::string> extraHeaders = {});
 
 
 public:
@@ -28,13 +28,16 @@ public:
   bool Login(const QString &username, const QString &password, SeventeenLiveLoginData &loginData);
 
   bool GetSelfInfo(SeventeenLiveLoginData &loginData);
+  bool CommonRequest(const std::string action, Json &json_out);
+
   bool GetRoomInfo(const qint64 roomID, SeventeenLiveRoomInfo &roomInfo);
   bool CreateRtmp(const SeventeenLiveRtmpRequest &request, SeventeenLiveRtmpResponse &response);
   bool StartStream(const std::string &liveStreamID, const std::string &userID);
   bool EnableStreamArchive(const std::string &liveStreamID, int enableArchive);
   bool StopStream(const std::string &liveStreamID, const SeventeenLiveCloseLiveRequest &request);
 
-  bool CommonRequest(const std::string action, Json &json_out);
+  bool GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamerResponse &response);
+  
 
   /**
    * @brief 对字符串进行MD5加密

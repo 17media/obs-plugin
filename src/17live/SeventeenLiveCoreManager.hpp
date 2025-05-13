@@ -153,6 +153,8 @@ private:
     void handleChatRoomClicked();
 
     void saveDockState();
+
+    void loadConfigStreamer();
 };
 
 } // namespace seventeenlive

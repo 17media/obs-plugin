@@ -8,6 +8,8 @@ namespace seventeenlive {
 
 struct SeventeenLiveLoginData;
 
+struct SeventeenLiveConfigStreamerResponse;
+
 class SeventeenLiveConfigManager {
 public:
   SeventeenLiveConfigManager();
@@ -31,6 +33,9 @@ public:
 
   bool getConfigValue(const std::string &key, std::string &value);
 
+  bool setConfigStreamer(const SeventeenLiveConfigStreamerResponse &response);
+  bool getConfigStreamer(SeventeenLiveConfigStreamerResponse &response);
+
   QByteArray getDockState();
   bool setDockState(const QByteArray &state);
 
@@ -39,6 +44,8 @@ private:
   bool initialized = false;
 
   config_t* config = nullptr;
+
+  std::string configPath;
 };
 
 }

@@ -110,6 +110,9 @@ bool SeventeenLiveCoreManager::initialize()
             username = openId;
         }
         menuManager->updateLoginStatus(true, username);
+
+        // 登录成功后，加载配置
+        loadConfigStreamer();
     }
 
     initialized = true;
@@ -422,6 +425,25 @@ void SeventeenLiveCoreManager::handleChatRoomClicked()
         if (mainWindow->isVisible())
             configManager->setDockState(mainWindow->saveState());
     }
+}
+
+void SeventeenLiveCoreManager::loadConfigStreamer()
+{
+    std::string region;
+    if (!configManager->getConfigValue("Region", region)) {
+        obs_log(LOG_ERROR, "Failed to get region");
+        return;
+    }
+
+    std::string language = "TW";
+
+    SeventeenLiveConfigStreamerResponse response;
+    if (!apiWrapper->GetConfigStreamer(region, language, response)) {
+        obs_log(LOG_ERROR, "Failed to get config streamer");
+        return;
+    }
+
+    configManager->setConfigStreamer(response);
 }
 
 } // namespace seventeenlive

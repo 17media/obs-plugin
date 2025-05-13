@@ -100,6 +100,8 @@ namespace seventeenlive {
     int newbieEnhanceGuidanceStyle;
     bool newbieGuidanceFocusMissionEnable;
   };
+
+  bool JsonToSeventeenLiveLoginData(const Json &json, SeventeenLiveLoginData &loginData);
   
   /* struct for json data
   {
@@ -324,5 +326,60 @@ namespace seventeenlive {
   };
 
   bool SeventeenLiveCloseLiveRequestToJson(const SeventeenLiveCloseLiveRequest &request, Json &json);
+
+  // 活动标签结构体
+  struct SeventeenLiveEventTag {
+    QString ID;
+    QString name;
+  };
+
+  // 活动事件结构体
+  struct SeventeenLiveEventItem {
+    qint64 ID;
+    QString name;
+    QString bannerURL;
+    QString descriptionURL;
+    QStringList tagIDs;
+    qint64 endTime;
+  };
+
+  // 活动事件列表结构体
+  struct SeventeenLiveEventList {
+    QList<SeventeenLiveEventItem> events;
+    bool notEligibleForAllEvents;
+    int promotionIndex;
+    QList<SeventeenLiveEventTag> tags;
+    QString instructionURL;
+  };
+
+  // 自定义活动结构体
+  struct SeventeenLiveCustomEvent {
+    qint64 endTime;
+    int status;
+  };
+
+  // 盲盒抽奖结构体
+  struct SeventeenLiveBoxGacha {
+    bool previousSettingStatus;
+    QString availableEventID;
+  };
+
+  // 子标签结构体
+  struct SeventeenLiveSubtab {
+    QString displayName;
+    QString ID;
+  };
+
+  // 配置流媒体响应结构体
+  struct SeventeenLiveConfigStreamerResponse {
+    SeventeenLiveEventList event;
+    SeventeenLiveCustomEvent customEvent;
+    SeventeenLiveBoxGacha boxGacha;
+    QList<SeventeenLiveSubtab> subtabs;
+  };
+
+  // 解析JSON到SeventeenLiveConfigStreamerResponse结构体的函数声明
+  bool JsonToSeventeenLiveConfigStreamerResponse(const Json &json, SeventeenLiveConfigStreamerResponse &response);
+  bool SeventeenLiveConfigStreamerResponseToJson(const SeventeenLiveConfigStreamerResponse &response, Json &json);
 
 } // namespace seventeenlive

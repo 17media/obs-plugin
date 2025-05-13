@@ -37,6 +37,12 @@ void SeventeenLiveStreamingDock::setupUi()
     // 类别选择
     categoryCombo = new QComboBox();
     formLayout->addRow(tr("類別"), categoryCombo);
+    SeventeenLiveConfigStreamerResponse response;
+    configManager->getConfigStreamer(response);
+    for (const auto& subtab : response.subtabs) {
+        categoryCombo->addItem(subtab.displayName, subtab.ID);
+    }
+    categoryCombo->setCurrentIndex(0);
     
     // 标签区域
     QHBoxLayout *tagLayout = new QHBoxLayout();

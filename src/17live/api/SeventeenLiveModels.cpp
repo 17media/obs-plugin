@@ -6,6 +6,143 @@ using namespace json11;
 
 namespace seventeenlive {
 
+bool JsonToSeventeenLiveLoginData(const Json &json, SeventeenLiveLoginData &loginData)
+{
+    if (!json.is_object()) {
+        return false;
+    }
+
+    // 处理用户信息
+    const auto& userInfoJson = json["userInfo"];
+    if (userInfoJson.is_object()) {
+        // 基本用户信息
+        loginData.userInfo.userID = QString::fromStdString(userInfoJson["userID"].string_value());
+        loginData.userInfo.openID = QString::fromStdString(userInfoJson["openID"].string_value());
+        loginData.userInfo.displayName = QString::fromStdString(userInfoJson["displayName"].string_value());
+        loginData.userInfo.name = QString::fromStdString(userInfoJson["name"].string_value());
+        loginData.userInfo.bio = QString::fromStdString(userInfoJson["bio"].string_value());
+        loginData.userInfo.picture = QString::fromStdString(userInfoJson["picture"].string_value());
+        loginData.userInfo.website = QString::fromStdString(userInfoJson["website"].string_value());
+        
+        // 计数信息
+        loginData.userInfo.followerCount = userInfoJson["followerCount"].int_value();
+        loginData.userInfo.followingCount = userInfoJson["followingCount"].int_value();
+        loginData.userInfo.receivedLikeCount = userInfoJson["receivedLikeCount"].int_value();
+        loginData.userInfo.likeCount = userInfoJson["likeCount"].int_value();
+        
+        // 关注状态
+        loginData.userInfo.isFollowing = userInfoJson["isFollowing"].int_value();
+        loginData.userInfo.isNotif = userInfoJson["isNotif"].int_value();
+        loginData.userInfo.isBlocked = userInfoJson["isBlocked"].int_value();
+        loginData.userInfo.followTime = userInfoJson["followTime"].int_value();
+        loginData.userInfo.followRequestTime = userInfoJson["followRequestTime"].int_value();
+        
+        // 房间和隐私设置
+        loginData.userInfo.roomID = userInfoJson["roomID"].int_value();
+        loginData.userInfo.privacyMode = QString::fromStdString(userInfoJson["privacyMode"].string_value());
+        loginData.userInfo.followPrivacyMode = userInfoJson["followPrivacyMode"].int_value();
+        
+        // 等级和状态信息
+        loginData.userInfo.ballerLevel = userInfoJson["ballerLevel"].int_value();
+        loginData.userInfo.postCount = userInfoJson["postCount"].int_value();
+        loginData.userInfo.isCelebrity = userInfoJson["isCelebrity"].int_value();
+        loginData.userInfo.baller = userInfoJson["baller"].int_value();
+        loginData.userInfo.level = userInfoJson["level"].int_value();
+        
+        // 其他属性
+        loginData.userInfo.revenueShareIndicator = QString::fromStdString(userInfoJson["revenueShareIndicator"].string_value());
+        loginData.userInfo.clanStatus = userInfoJson["clanStatus"].int_value();
+        loginData.userInfo.region = QString::fromStdString(userInfoJson["region"].string_value());
+        loginData.userInfo.hideAllPointToLeaderboard = userInfoJson["hideAllPointToLeaderboard"].int_value();
+        loginData.userInfo.enableShop = userInfoJson["enableShop"].int_value();
+        
+        // 时间戳信息
+        loginData.userInfo.lastLiveTimestamp = userInfoJson["lastLiveTimestamp"].int_value();
+        loginData.userInfo.lastCreateLiveTimestamp = userInfoJson["lastCreateLiveTimestamp"].int_value();
+        loginData.userInfo.lastLiveRegion = QString::fromStdString(userInfoJson["lastLiveRegion"].string_value());
+        
+        // 布尔值属性
+        loginData.userInfo.streamerRecapEnable = userInfoJson["streamerRecapEnable"].bool_value();
+        loginData.userInfo.newbieDisplayAllGiftTabsToast = userInfoJson["newbieDisplayAllGiftTabsToast"].bool_value();
+        loginData.userInfo.isUnderaged = userInfoJson["isUnderaged"].bool_value();
+        loginData.userInfo.isFreePrivateMsgEnabled = userInfoJson["isFreePrivateMsgEnabled"].bool_value();
+        loginData.userInfo.isVliverOnlyModeEnabled = userInfoJson["isVliverOnlyModeEnabled"].bool_value();
+        
+        // 整数属性
+        loginData.userInfo.gloryroadMode = userInfoJson["gloryroadMode"].int_value();
+        loginData.userInfo.avatarOnboardingPhase = userInfoJson["avatarOnboardingPhase"].int_value();
+        loginData.userInfo.isEmailVerified = userInfoJson["isEmailVerified"].int_value();
+        
+        // 字符串属性
+        loginData.userInfo.extIDAppleTransfer = QString::fromStdString(userInfoJson["extIDAppleTransfer"].string_value());
+        loginData.userInfo.commentShadowColor = QString::fromStdString(userInfoJson["commentShadowColor"].string_value());
+        
+        // 数组属性
+        if (userInfoJson["badgeInfo"].is_array()) {
+            for (const auto& badge : userInfoJson["badgeInfo"].array_items()) {
+                loginData.userInfo.badgeInfo.append(QString::fromStdString(badge.string_value()));
+            }
+        }
+        
+        if (userInfoJson["loyaltyInfo"].is_array()) {
+            for (const auto& loyalty : userInfoJson["loyaltyInfo"].array_items()) {
+                loginData.userInfo.loyaltyInfo.append(QString::fromStdString(loyalty.string_value()));
+            }
+        }
+        
+        if (userInfoJson["lastUsedHashtags"].is_array()) {
+            for (const auto& hashtag : userInfoJson["lastUsedHashtags"].array_items()) {
+                loginData.userInfo.lastUsedHashtags.append(QString::fromStdString(hashtag.string_value()));
+            }
+        }
+        
+        if (userInfoJson["levelBadges"].is_array()) {
+            for (const auto& badge : userInfoJson["levelBadges"].array_items()) {
+                loginData.userInfo.levelBadges.append(QString::fromStdString(badge.string_value()));
+            }
+        }
+        
+        // 对象属性 - monthlyVIPBadges
+        // 注意：这里假设QVariantMap可以直接从JSON对象构建，实际实现可能需要调整
+        if (userInfoJson["monthlyVIPBadges"].is_object()) {
+            // 这里需要根据实际情况处理monthlyVIPBadges
+            // 简单示例：
+            // const auto& badges = userInfoJson["monthlyVIPBadges"].object_items();
+            // for (const auto& pair : badges) {
+            //     loginData.userInfo.monthlyVIPBadges.insert(QString::fromStdString(pair.first), QVariant::fromValue(pair.second));
+            // }
+        }
+    }
+    
+    // 处理基本响应信息
+    loginData.message = QString::fromStdString(json["message"].string_value());
+    loginData.result = QString::fromStdString(json["result"].string_value());
+    loginData.refreshToken = QString::fromStdString(json["refreshToken"].string_value());
+    loginData.jwtAccessToken = QString::fromStdString(json["jwtAccessToken"].string_value());
+    loginData.accessToken = QString::fromStdString(json["accessToken"].string_value());
+    loginData.giftModuleState = json["giftModuleState"].int_value();
+    loginData.word = QString::fromStdString(json["word"].string_value());
+    
+    // 处理A/B测试相关字段
+    loginData.abtestNewbieFocus = QString::fromStdString(json["abtestNewbieFocus"].string_value());
+    loginData.abtestNewbieGuidance = QString::fromStdString(json["abtestNewbieGuidance"].string_value());
+    loginData.abtestNewbieGuide = QString::fromStdString(json["abtestNewbieGuide"].string_value());
+    
+    // 处理推荐和新手引导相关字段
+    loginData.showRecommend = json["showRecommend"].bool_value();
+    loginData.newbieEnhanceGuidanceStyle = json["newbieEnhanceGuidanceStyle"].int_value();
+    loginData.newbieGuidanceFocusMissionEnable = json["newbieGuidanceFocusMissionEnable"].bool_value();
+    
+    // 处理自动进入直播相关字段
+    const auto& autoEnterJson = json["autoEnterLive"];
+    if (autoEnterJson.is_object()) {
+        // 注意：JSON中字段名为"auto"，但结构体中字段名为"autoEnter"
+        loginData.autoEnterLive.autoEnter = autoEnterJson["auto"].bool_value();
+        loginData.autoEnterLive.liveStreamID = autoEnterJson["liveStreamID"].int_value();
+    }
+    
+    return true;
+}
 bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomInfo)
 {
     if (!json.is_object()) {
@@ -257,6 +394,157 @@ bool SeventeenLiveCloseLiveRequestToJson(const SeventeenLiveCloseLiveRequest &re
     json = Json::object{
         {"reason", request.reason.toStdString()},
         {"userID", request.userID.toStdString()}
+    };
+
+    return true;
+}
+
+bool JsonToSeventeenLiveConfigStreamerResponse(const Json &json, SeventeenLiveConfigStreamerResponse &response) {
+    if (!json.is_object()) {
+      return false;
+    }
+  
+    // 解析event部分
+    if (json["event"].is_object()) {
+      const auto &eventJson = json["event"];
+      
+      // 解析events数组
+      if (eventJson["events"].is_array()) {
+        const auto &eventsArray = eventJson["events"].array_items();
+        for (const auto &eventItem : eventsArray) {
+          SeventeenLiveEventItem item;
+          item.ID = eventItem["ID"].int_value();
+          item.name = QString::fromStdString(eventItem["name"].string_value());
+          item.bannerURL = QString::fromStdString(eventItem["bannerURL"].string_value());
+          item.descriptionURL = QString::fromStdString(eventItem["descriptionURL"].string_value());
+          item.endTime = eventItem["endTime"].int_value();
+          
+          // 解析tagIDs数组
+          if (eventItem["tagIDs"].is_array()) {
+            const auto &tagIDsArray = eventItem["tagIDs"].array_items();
+            for (const auto &tagID : tagIDsArray) {
+              item.tagIDs.append(QString::fromStdString(tagID.string_value()));
+            }
+          }
+          
+          response.event.events.append(item);
+        }
+      }
+      
+      response.event.notEligibleForAllEvents = eventJson["notEligibleForAllEvents"].bool_value();
+      response.event.promotionIndex = eventJson["promotionIndex"].int_value();
+      response.event.instructionURL = QString::fromStdString(eventJson["instructionURL"].string_value());
+      
+      // 解析tags数组
+      if (eventJson["tags"].is_array()) {
+        const auto &tagsArray = eventJson["tags"].array_items();
+        for (const auto &tagItem : tagsArray) {
+          SeventeenLiveEventTag tag;
+          tag.ID = QString::fromStdString(tagItem["ID"].string_value());
+          tag.name = QString::fromStdString(tagItem["name"].string_value());
+          response.event.tags.append(tag);
+        }
+      }
+    }
+    
+    // 解析customEvent部分
+    if (json["customEvent"].is_object()) {
+      const auto &customEventJson = json["customEvent"];
+      response.customEvent.endTime = customEventJson["endTime"].int_value();
+      response.customEvent.status = customEventJson["status"].int_value();
+    }
+    
+    // 解析boxGacha部分
+    if (json["boxGacha"].is_object()) {
+      const auto &boxGachaJson = json["boxGacha"];
+      response.boxGacha.previousSettingStatus = boxGachaJson["previousSettingStatus"].bool_value();
+      response.boxGacha.availableEventID = QString::fromStdString(boxGachaJson["availableEventID"].string_value());
+    }
+    
+    // 解析subtabs数组
+    if (json["subtabs"].is_array()) {
+      const auto &subtabsArray = json["subtabs"].array_items();
+      for (const auto &subtabItem : subtabsArray) {
+        SeventeenLiveSubtab subtab;
+        subtab.displayName = QString::fromStdString(subtabItem["displayName"].string_value());
+        subtab.ID = QString::fromStdString(subtabItem["ID"].string_value());
+        response.subtabs.append(subtab);
+      }
+    }
+    
+    return true;
+}
+
+bool SeventeenLiveConfigStreamerResponseToJson(const SeventeenLiveConfigStreamerResponse &response, Json &json)
+{
+    // 创建 event 部分
+    std::vector<Json> eventsArray;
+    for (const auto &event : response.event.events) {
+        // 创建 tagIDs 数组
+        std::vector<Json> tagIDsArray;
+        for (const QString &tagID : event.tagIDs) {
+            tagIDsArray.push_back(Json(tagID.toStdString()));
+        }
+
+        // 创建单个事件对象
+        Json eventJson = Json::object{
+            {"ID", static_cast<int>(event.ID)},
+            {"name", event.name.toStdString()},
+            {"bannerURL", event.bannerURL.toStdString()},
+            {"descriptionURL", event.descriptionURL.toStdString()},
+            {"tagIDs", tagIDsArray},
+            {"endTime", static_cast<int>(event.endTime)}
+        };
+        eventsArray.push_back(eventJson);
+    }
+
+    // 创建 tags 数组
+    std::vector<Json> tagsArray;
+    for (const auto &tag : response.event.tags) {
+        Json tagJson = Json::object{
+            {"ID", tag.ID.toStdString()},
+            {"name", tag.name.toStdString()}
+        };
+        tagsArray.push_back(tagJson);
+    }
+
+    // 创建 event 对象
+    Json eventJson = Json::object{
+        {"events", eventsArray},
+        {"notEligibleForAllEvents", response.event.notEligibleForAllEvents},
+        {"promotionIndex", response.event.promotionIndex},
+        {"tags", tagsArray},
+        {"instructionURL", response.event.instructionURL.toStdString()}
+    };
+
+    // 创建 customEvent 对象
+    Json customEventJson = Json::object{
+        {"endTime", static_cast<int>(response.customEvent.endTime)},
+        {"status", response.customEvent.status}
+    };
+
+    // 创建 boxGacha 对象
+    Json boxGachaJson = Json::object{
+        {"previousSettingStatus", response.boxGacha.previousSettingStatus},
+        {"availableEventID", response.boxGacha.availableEventID.toStdString()}
+    };
+
+    // 创建 subtabs 数组
+    std::vector<Json> subtabsArray;
+    for (const auto &subtab : response.subtabs) {
+        Json subtabJson = Json::object{
+            {"displayName", subtab.displayName.toStdString()},
+            {"ID", subtab.ID.toStdString()}
+        };
+        subtabsArray.push_back(subtabJson);
+    }
+
+    // 创建主 JSON 对象
+    json = Json::object{
+        {"event", eventJson},
+        {"customEvent", customEventJson},
+        {"boxGacha", boxGachaJson},
+        {"subtabs", subtabsArray}
     };
 
     return true;

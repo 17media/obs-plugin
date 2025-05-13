@@ -39,6 +39,8 @@ bool SeventeenLiveConfigManager::initialize()
   // 配置文件路径
   QString configFilePath = configDir + "/" + CONFIG_NAME;
 
+  configPath = configDir.toStdString();
+
   int ret = config_open(&config, configFilePath.toStdString().c_str(), CONFIG_OPEN_ALWAYS);
   if (ret != CONFIG_SUCCESS) {
     obs_log(LOG_ERROR, "Failed to open config file");
@@ -108,11 +110,13 @@ bool SeventeenLiveConfigManager::setLoginData(const SeventeenLiveLoginData &logi
   std::string openID = loginData.userInfo.openID.toStdString();
   std::string displayName = loginData.userInfo.displayName.toStdString();
   std::string jwtToken = loginData.jwtAccessToken.toStdString();
+  std::string region = loginData.userInfo.region.toStdString();
     
   config_set_string(config, service, "UserID", userID.c_str());
   config_set_string(config, service, "OpenID", openID.c_str());
   config_set_string(config, service, "DisplayName", displayName.c_str());
   config_set_string(config, service, "JwtToken", jwtToken.c_str());
+  config_set_string(config, service, "Region", region.c_str());
   config_set_uint(config, service, "RoomID", loginData.userInfo.roomID);
 
   if (config_save(config) < 0) {
@@ -272,6 +276,46 @@ void SeventeenLiveConfigManager::clearStreamingPullUrl()
   if (config_save(config) < 0) {
     obs_log(LOG_ERROR, "Failed to save config");
   }
-} 
+}
+
+bool SeventeenLiveConfigManager::setConfigStreamer(const SeventeenLiveConfigStreamerResponse &response)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  QString configStreamerFile = QString::fromStdString(configPath) + "/" + "config_streamer.json";
+  QFile file(configStreamerFile);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    return false;
+  }
+  QTextStream out(&file);
+  Json json_data;
+  SeventeenLiveConfigStreamerResponseToJson(response, json_data);
+  out << QString::fromStdString(json_data.dump());
+  file.close();
+
+  return true;
+}
+
+bool SeventeenLiveConfigManager::getConfigStreamer(SeventeenLiveConfigStreamerResponse &response)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  QString configStreamerFile = QString::fromStdString(configPath) + "/" + "config_streamer.json";
+  QFile file(configStreamerFile);
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    return false;
+  }
+  QTextStream in(&file);
+  QString jsonString = in.readAll();
+  file.close();
+  JsonToSeventeenLiveConfigStreamerResponse(jsonString.toStdString(), response);
+  
+  return true;
+}
+
 
 } // namespace seventeenlive
