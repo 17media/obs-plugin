@@ -72,7 +72,7 @@ private slots:
     // void onStopPushStreamingClicked();
 
 private:
-    void gatherRtmpRequest(SeventeenLiveRtmpRequest &request);
+    bool gatherRtmpRequest(SeventeenLiveRtmpRequest &request);
     void populateRtmpRequest(const SeventeenLiveRtmpRequest &request);
     void updateLiveButton(bool isLive);
 

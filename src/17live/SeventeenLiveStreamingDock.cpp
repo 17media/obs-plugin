@@ -42,8 +42,11 @@ void SeventeenLiveStreamingDock::setupUi()
     // 设置字段增长方式
     formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
+    QLabel* titleLabel = new QLabel();
+    titleLabel->setText(QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>").arg(obs_module_text("Live.Settings.Title")));
+
     titleEdit = new QLineEdit();
-    formLayout->addRow(obs_module_text("Live.Settings.Title"), titleEdit);
+    formLayout->addRow(titleLabel, titleEdit);
     
     // 类别选择
     categoryCombo = new QComboBox();
@@ -56,7 +59,10 @@ void SeventeenLiveStreamingDock::setupUi()
     }
     categoryCombo->setCurrentIndex(0);
 
-    formLayout->addRow(obs_module_text("Live.Settings.Category"), categoryCombo);
+    QLabel* categoryLabel = new QLabel();
+    categoryLabel->setText(QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>").arg(obs_module_text("Live.Settings.Category")));
+
+    formLayout->addRow(categoryLabel, categoryCombo);
     
     // 标签区域
     QHBoxLayout *tagLayout = new QHBoxLayout();
@@ -233,7 +239,10 @@ void SeventeenLiveStreamingDock::onAddTagClicked()
 void SeventeenLiveStreamingDock::onSaveConfigClicked()
 {
     SeventeenLiveRtmpRequest request;
-    gatherRtmpRequest(request);
+    if (!gatherRtmpRequest(request)) {
+        obs_log(LOG_ERROR, "Failed to gather rtmp request");
+        return;
+    }
 
     SeventeenLiveStreamInfo streamInfo;
     streamInfo.categoryName = categoryCombo->currentText();
@@ -258,7 +267,10 @@ void SeventeenLiveStreamingDock::onCreateLiveClicked()
 
     // 创建直播
     SeventeenLiveRtmpRequest request;
-    gatherRtmpRequest(request);
+    if (!gatherRtmpRequest(request)) {
+        obs_log(LOG_ERROR, "Failed to gather rtmp request");
+        return;
+    }
 
     startStreaming(request);
 }
@@ -415,8 +427,21 @@ void SeventeenLiveStreamingDock::populateRtmpRequest(const SeventeenLiveRtmpRequ
     virtualStreamerCheck->setChecked(request.vliverInfo.vliverModel);
 }
 
-void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
+bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
 {
+    obs_log(LOG_INFO, "gatherRtmpRequest");
+    QString caption = titleEdit->text();
+    if (caption.isEmpty()) {
+        // 弹出提示框, 提示用户输入标题
+        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"), obs_module_text("Live.Settings.Save.Title.Empty"));
+        return false;
+    }
+    QString subtabID = categoryCombo->currentData().toString();
+    if (subtabID.isEmpty()) {
+        // 弹出提示框, 提示用户选择分类
+        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"), obs_module_text("Live.Settings.Save.Category.Empty"));
+        return false;
+    }
     request.userID = roomInfo.userID;
     request.caption = titleEdit->text();
     request.device = "OBS";
@@ -430,6 +455,8 @@ void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
     request.archiveConfig.clipPermission = clipIdentityCombo->currentData().toInt();
     request.vliverInfo.vliverModel = virtualStreamerCheck->isChecked();
+
+    return true;
 }
 
 void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
