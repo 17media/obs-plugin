@@ -2,5 +2,7 @@
 <RCC version="1.0">
     <qresource prefix="/">
         <file>resources/17live-logo.svg</file>
+        <file>resources/edit.svg</file>
+        <file>resources/delete.svg</file>
     </qresource>
 </RCC>

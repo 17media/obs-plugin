@@ -34,12 +34,12 @@ signals:
     void chatRoomClicked();
     void settingsClicked();
     void streamingClicked();
+    void liveListClicked();
     void helpClicked();
     void loginClicked();
     void logoutClicked();
     void checkUpdateClicked();
-
-
+    
 private:
     QMainWindow* mainWindow;
     QMenu* menu;
@@ -47,6 +47,7 @@ private:
     QAction* chatRoomAction;
     QAction* settingsAction;
     QAction* broadcastAction;
+    QAction* liveListAction;
     QAction* helpAction;
     QAction* checkUpdateAction;
     QAction* loginAction;

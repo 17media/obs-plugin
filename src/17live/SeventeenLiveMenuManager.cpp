@@ -32,6 +32,11 @@ SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
     connect(broadcastAction, &QAction::triggered, this, [this](){
         emit streamingClicked();
     });
+
+    liveListAction = dockSubMenu->addAction(obs_module_text("Menu.LiveList"));
+    connect(liveListAction, &QAction::triggered, this, [this](){
+        emit liveListClicked();
+    });
     
     menu->addSeparator();
 

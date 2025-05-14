@@ -1,20 +1,22 @@
 #include "SeventeenLiveCoreManager.hpp"
 #include <QMainWindow>
 
+#include <obs-module.h>
+#include <obs-frontend-api.h>
+#include "plugin-support.h"
+
+#include "json11.hpp"
+
 #include "SeventeenLiveMenuManager.hpp"
 #include "api/SeventeenLiveApiWrappers.hpp"
 #include "SeventeenLiveConfigManager.hpp"
 #include "SeventeenLiveLoginDialog.hpp"
 #include "SeventeenLiveStreamingDock.hpp"
 #include "SeventeenLiveChatDock.hpp"
+#include "SeventeenLiveStreamListDock.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
 
-#include <obs-module.h>
-#include <obs-frontend-api.h>
-#include "plugin-support.h"
-
-#include "json11.hpp"
 
 using namespace json11;
 using namespace std;
@@ -100,6 +102,8 @@ bool SeventeenLiveCoreManager::initialize()
     QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::streamingClicked, this, &SeventeenLiveCoreManager::handleStreamingClicked);
 
     QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::chatRoomClicked, this, &SeventeenLiveCoreManager::handleChatRoomClicked);
+
+    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::liveListClicked, this, &SeventeenLiveCoreManager::handleLiveListClicked);
 
     if (isLogin) {
         QString openId = loginData.userInfo.openID;
@@ -233,6 +237,36 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
     // 连接关闭信号到主窗口的槽函数
     connect(streamingDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
 
+}
+
+void SeventeenLiveCoreManager::handleLiveListClicked()
+{
+    obs_log(LOG_INFO, "handleLiveListClicked");
+
+    if (!liveListDock) {
+        QSize size = mainWindow->size();
+        QPoint pos = mainWindow->pos();
+
+        // 创建并显示流媒体窗口
+        liveListDock = new SeventeenLiveStreamListDock(mainWindow, configManager.get());
+
+        liveListDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        mainWindow->addDockWidget(Qt::RightDockWidgetArea, liveListDock);
+
+        liveListDock->setFloating(true);
+        liveListDock->move(pos.x() + size.width() - liveListDock->width() - 50, pos.y() - 50);
+
+        liveListDock->setVisible(true);
+    } else {
+        liveListDock->setVisible(!liveListDock->isVisible());
+        
+        QByteArray dockState = configManager->getDockState();
+        if (mainWindow->isVisible())
+            mainWindow->restoreState(dockState);
+    }
+
+    // 连接关闭信号到主窗口的槽函数
+    connect(liveListDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
 }
 
 bool SeventeenLiveCoreManager::checkLoginStatus()

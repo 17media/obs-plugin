@@ -26,6 +26,8 @@ struct SeventeenLiveLoginData;
 
 class SeventeenLiveStreamingDock;
 
+class SeventeenLiveStreamListDock;
+
 struct SeventeenLiveRtmpRequest;
 
 
@@ -151,6 +153,10 @@ private:
 
     bool chatDockFirstLoad = true;
     void handleChatRoomClicked();
+
+    bool liveListDockFirstLoad = true;
+    SeventeenLiveStreamListDock* liveListDock{nullptr};
+    void handleLiveListClicked();
 
     void saveDockState();
 
