@@ -10,6 +10,8 @@
 
 namespace seventeenlive {
 
+struct SeventeenLiveRtmpRequest;
+
 class SeventeenLiveStreamListDock : public QDockWidget {
     Q_OBJECT
 
@@ -19,12 +21,16 @@ public:
         QString category;
         QDateTime startTime;
         QString streamId;
+        SeventeenLiveRtmpRequest request;
     };
 
     SeventeenLiveStreamListDock(QWidget *parent, SeventeenLiveConfigManager *configManager_);
     ~SeventeenLiveStreamListDock();
 
     void refreshStreamList();
+
+signals:
+    void startLiveClicked(const SeventeenLiveRtmpRequest& request);
 
 private slots:
     void onEditStreamClicked(QListWidgetItem* item, const StreamInfo& info);

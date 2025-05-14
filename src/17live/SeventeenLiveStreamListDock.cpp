@@ -144,6 +144,7 @@ void SeventeenLiveStreamListDock::refreshStreamList()
       info.category = item.categoryName;
       info.startTime = item.createdAt;
       info.streamId = item.streamUuid;
+      info.request = item.request;
 
       QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
       updateStreamItem(widgetItem, info);
@@ -166,7 +167,13 @@ void SeventeenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWi
 
 void SeventeenLiveStreamListDock::onStartLiveClicked()
 {
-    // TODO: 实现开始直播的逻辑
+    // 获取当前选择的list item
+    QListWidgetItem* item = streamList->currentItem();
+    if (item) {
+        // 获取item的信息
+        StreamInfo info = item->data(Qt::UserRole).value<StreamInfo>();
+        emit startLiveClicked(info.request);
+    }
 }
 
 } // namespace seventeenlive

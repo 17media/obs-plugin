@@ -260,6 +260,21 @@ void SeventeenLiveStreamingDock::onCreateLiveClicked()
     SeventeenLiveRtmpRequest request;
     gatherRtmpRequest(request);
 
+    startStreaming(request);
+}
+
+void SeventeenLiveStreamingDock::createLiveWithRequest(const SeventeenLiveRtmpRequest &request)
+{
+    obs_log(LOG_INFO, "createLiveWithRequest");
+
+    populateRtmpRequest(request);
+    startStreaming(request);
+}
+
+void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& request)
+{
+    obs_log(LOG_INFO, "startStreaming");
+
     SeventeenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {
         obs_log(LOG_ERROR, "Failed to create stream");
@@ -361,6 +376,43 @@ void SeventeenLiveStreamingDock::stopStreaming()
     obs_frontend_streaming_stop();
 }
 
+void SeventeenLiveStreamingDock::populateRtmpRequest(const SeventeenLiveRtmpRequest &request)
+{
+    // 注意：userID 和 streamerType 一般不可编辑，只展示在界面或保持同步
+    roomInfo.userID = request.userID;
+    roomInfo.streamerType = request.streamerType;
+
+    titleEdit->setText(request.caption);
+    
+    // 如果你的 activityCombo 是用 setItemData 设置的 eventID，这里要查找对应索引
+    int eventIndex = activityCombo->findData(QVariant(request.eventID));
+    if (eventIndex >= 0) {
+        activityCombo->setCurrentIndex(eventIndex);
+    }
+
+    tagEdit->setText(request.hashtags.join(","));
+
+    if (request.landscape) {
+        normalStreamRadio->setChecked(true);
+    } else {
+        verticalStreamRadio->setChecked(true);
+    }
+
+    int categoryIndex = categoryCombo->findData(QVariant(request.subtabID));
+    if (categoryIndex >= 0) {
+        categoryCombo->setCurrentIndex(categoryIndex);
+    }
+
+    archiveStreamCheck->setChecked(request.archiveConfig.autoRecording);
+    autoPreviewCheck->setChecked(request.archiveConfig.autoPublish);
+
+    int clipIndex = clipIdentityCombo->findData(QVariant(request.archiveConfig.clipPermission));
+    if (clipIndex >= 0) {
+        clipIdentityCombo->setCurrentIndex(clipIndex);
+    }
+
+    virtualStreamerCheck->setChecked(request.vliverInfo.vliverModel);
+}
 void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
 {
     request.userID = roomInfo.userID;

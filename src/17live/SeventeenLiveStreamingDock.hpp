@@ -25,6 +25,7 @@ public:
     ~SeventeenLiveStreamingDock();
 
     void updateLiveStatus(SeventeenLiveStreamingStatus status);
+    void createLiveWithRequest(const SeventeenLiveRtmpRequest &request);
 
 private:
     void setupUi();
@@ -72,10 +73,13 @@ private slots:
 
 private:
     void gatherRtmpRequest(SeventeenLiveRtmpRequest &request);
+    void populateRtmpRequest(const SeventeenLiveRtmpRequest &request);
     void updateLiveButton(bool isLive);
 
     void saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey);
     void stopStreaming();
+
+    void startStreaming(const SeventeenLiveRtmpRequest& request);
 
     SeventeenLiveApiWrappers *apiWrapper = nullptr;
     SeventeenLiveConfigManager *configManager = nullptr;
