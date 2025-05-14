@@ -334,7 +334,21 @@ bool SeventeenLiveConfigManager::saveLiveConfig(const SeventeenLiveStreamInfo &s
   std::vector<SeventeenLiveStreamInfo> streamInfoList;
   loadAllLiveConfig(streamInfoList);
 
-  streamInfoList.push_back(streamInfo);
+  bool found = false;
+
+  for (auto& info : streamInfoList) {
+    if (info.streamUuid == streamInfo.streamUuid) {
+        // 用新的 streamInfo 替换
+        info = streamInfo;
+        found = true;
+        break;
+    }
+  }
+
+  if (!found) {
+    streamInfoList.push_back(streamInfo);
+  }
+
   // 最多保存10条
   if (streamInfoList.size() > 10) {
     streamInfoList.erase(streamInfoList.begin());

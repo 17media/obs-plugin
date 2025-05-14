@@ -248,8 +248,12 @@ void SeventeenLiveStreamingDock::onSaveConfigClicked()
     streamInfo.categoryName = categoryCombo->currentText();
     streamInfo.createdAt = QDateTime::currentDateTime();
     streamInfo.request = request;
-    streamInfo.streamUuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
-
+    if (!currentInfoUuid.isEmpty()) {
+        streamInfo.streamUuid = currentInfoUuid;
+    } else {
+        streamInfo.streamUuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    }
+    
     if (!configManager->saveLiveConfig(streamInfo)) {
         obs_log(LOG_ERROR, "Failed to save stream info");
         return;
@@ -282,6 +286,13 @@ void SeventeenLiveStreamingDock::createLiveWithRequest(const SeventeenLiveRtmpRe
     populateRtmpRequest(request);
 
     startStreaming(request);
+}
+
+void SeventeenLiveStreamingDock::editLiveWithInfo(const SeventeenLiveStreamInfo &info)
+{
+    obs_log(LOG_INFO, "editLiveWithInfo");
+    populateRtmpRequest(info.request);
+    currentInfoUuid = info.streamUuid;
 }
 
 void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& request)

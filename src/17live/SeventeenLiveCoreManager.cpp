@@ -273,6 +273,12 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
         }
     });
 
+    connect(liveListDock, &SeventeenLiveStreamListDock::editLiveClicked, this, [this] (const SeventeenLiveStreamInfo& info) {
+        if (streamingDock) {
+            streamingDock->editLiveWithInfo(info);
+        }
+    });
+
     // 连接关闭信号到主窗口的槽函数
     connect(liveListDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
 }

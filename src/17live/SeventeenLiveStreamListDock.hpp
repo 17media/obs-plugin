@@ -12,17 +12,12 @@ namespace seventeenlive {
 
 struct SeventeenLiveRtmpRequest;
 
+struct SeventeenLiveStreamInfo;
+
 class SeventeenLiveStreamListDock : public QDockWidget {
     Q_OBJECT
 
 public:
-    struct StreamInfo {
-        QString title;
-        QString category;
-        QDateTime startTime;
-        QString streamId;
-        SeventeenLiveRtmpRequest request;
-    };
 
     SeventeenLiveStreamListDock(QWidget *parent, SeventeenLiveConfigManager *configManager_);
     ~SeventeenLiveStreamListDock();
@@ -31,16 +26,17 @@ public:
 
 signals:
     void startLiveClicked(const SeventeenLiveRtmpRequest& request);
+    void editLiveClicked(const SeventeenLiveStreamInfo& info);
 
 private slots:
-    void onEditStreamClicked(QListWidgetItem* item, const StreamInfo& info);
-    void onDeleteStreamClicked(QListWidgetItem* item, const StreamInfo& info);
+    void onEditStreamClicked(QListWidgetItem* item, const SeventeenLiveStreamInfo& info);
+    void onDeleteStreamClicked(QListWidgetItem* item, const SeventeenLiveStreamInfo& info);
     void onStartLiveClicked();
     
 private:
     void setupUi();
     void createConnections();
-    void updateStreamItem(QListWidgetItem* item, const StreamInfo& info);
+    void updateStreamItem(QListWidgetItem* item, const SeventeenLiveStreamInfo& info);
 
     QListWidget *streamList;
     QPushButton *startLiveButton;

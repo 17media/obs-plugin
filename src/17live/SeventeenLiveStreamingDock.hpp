@@ -26,6 +26,7 @@ public:
 
     void updateLiveStatus(SeventeenLiveStreamingStatus status);
     void createLiveWithRequest(const SeventeenLiveRtmpRequest &request);
+    void editLiveWithInfo(const SeventeenLiveStreamInfo &info);
 
 private:
     void setupUi();
@@ -83,6 +84,8 @@ private:
 
     SeventeenLiveApiWrappers *apiWrapper = nullptr;
     SeventeenLiveConfigManager *configManager = nullptr;
+
+    QString currentInfoUuid = "";
 };
 
 } // namespace seventeenlive

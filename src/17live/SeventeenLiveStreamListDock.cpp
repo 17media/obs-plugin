@@ -9,6 +9,8 @@
 #include <obs-frontend-api.h>
 #include "plugin-support.h"
 
+#include "moc_SeventeenLiveStreamListDock.cpp"
+
 namespace seventeenlive {
 
 SeventeenLiveStreamListDock::SeventeenLiveStreamListDock(QWidget *parent,  SeventeenLiveConfigManager *configManager_)
@@ -66,7 +68,7 @@ void SeventeenLiveStreamListDock::createConnections()
     connect(startLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamListDock::onStartLiveClicked);
 }
 
-void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const StreamInfo& info)
+void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const SeventeenLiveStreamInfo& info)
 {
     QFrame* frame = new QFrame();
     frame->setMinimumHeight(60);
@@ -80,13 +82,13 @@ void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const 
     QVBoxLayout* leftLayout = new QVBoxLayout();
     leftLayout->setAlignment(Qt::AlignVCenter);
 
-    QLabel* titleLabel = new QLabel(info.title);
+    QLabel* titleLabel = new QLabel(info.request.caption);
     titleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 14px;");
 
-    QLabel* categoryLabel = new QLabel(info.category);
+    QLabel* categoryLabel = new QLabel(info.categoryName);
     categoryLabel->setStyleSheet("color: #aaaaaa; font-size: 12px;");
 
-    QLabel* timeLabel = new QLabel(info.startTime.toString("yyyy-MM-dd hh:mm:ss"));
+    QLabel* timeLabel = new QLabel(info.createdAt.toString("yyyy-MM-dd hh:mm:ss"));
     timeLabel->setStyleSheet("color: #888888; font-size: 12px;");
 
     leftLayout->addWidget(titleLabel);
@@ -139,14 +141,7 @@ void SeventeenLiveStreamListDock::refreshStreamList()
     
     std::vector<SeventeenLiveStreamInfo> streamInfoList;
     configManager->loadAllLiveConfig(streamInfoList);
-    for (const auto& item : streamInfoList) {
-      StreamInfo info;
-      info.title = item.request.caption;
-      info.category = item.categoryName;
-      info.startTime = item.createdAt;
-      info.streamId = item.streamUuid;
-      info.request = item.request;
-
+    for (const auto& info : streamInfoList) {
       QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
       widgetItem->setData(Qt::UserRole, QVariant::fromValue(info));
       updateStreamItem(widgetItem, info);
@@ -154,16 +149,17 @@ void SeventeenLiveStreamListDock::refreshStreamList()
 
 }
 
-void SeventeenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const StreamInfo& info)
+void SeventeenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const SeventeenLiveStreamInfo& info)
 {
-    // TODO: 实现编辑直播的逻辑
+    obs_log(LOG_INFO, "onEditStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
+    emit editLiveClicked(info);
 }
 
-void SeventeenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item, const StreamInfo& info)
+void SeventeenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item, const SeventeenLiveStreamInfo& info)
 {
-    obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.title.toStdString().c_str(), info.streamId.toStdString().c_str());
+    obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
 
-    configManager->removeLiveConfig(info.streamId.toStdString());
+    configManager->removeLiveConfig(info.streamUuid.toStdString());
     refreshStreamList();
 }
 
@@ -173,7 +169,7 @@ void SeventeenLiveStreamListDock::onStartLiveClicked()
     QListWidgetItem* item = streamList->currentItem();
     if (item) {
         // 获取item的信息
-        StreamInfo info = item->data(Qt::UserRole).value<StreamInfo>();
+        SeventeenLiveStreamInfo info = item->data(Qt::UserRole).value<SeventeenLiveStreamInfo>();
         emit startLiveClicked(info.request);
     }
 }
