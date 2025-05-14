@@ -342,6 +342,70 @@ bool SeventeenLiveRtmpRequestToJson(const SeventeenLiveRtmpRequest &request, Jso
     return true;
 }
 
+bool JsonToSeventeenLiveRtmpRequest(const Json &json, SeventeenLiveRtmpRequest &request)
+{
+    if (!json.is_object()) {
+        return false;
+    }
+    // 基本信息
+    request.userID = QString::fromStdString(json["userID"].string_value());
+    request.caption = QString::fromStdString(json["caption"].string_value());
+    request.device = QString::fromStdString(json["device"].string_value());
+    request.eventID = json["eventID"].int_value();
+    // hashtags
+    const auto& hashtagsJson = json["hashtags"];
+    if (hashtagsJson.is_array()) {
+        for (const auto& tagJson : hashtagsJson.array_items()) {
+            request.hashtags.append(QString::fromStdString(tagJson.string_value()));
+        }
+    }
+    request.landscape = json["landscape"].bool_value();
+    request.streamerType = json["streamerType"].int_value();
+    request.subtabID = QString::fromStdString(json["subtabID"].string_value());
+    // archiveConfig
+    const auto& archiveConfigJson = json["archiveConfig"];
+    if (archiveConfigJson.is_object()) {
+        request.archiveConfig.autoRecording = archiveConfigJson["autoRecording"].bool_value();
+        request.archiveConfig.autoPublish = archiveConfigJson["autoPublish"].bool_value();
+        request.archiveConfig.clipPermission = archiveConfigJson["clipPermission"].int_value();
+    }
+    // vliverInfo
+    const auto& vliverInfoJson = json["vliverInfo"];
+    if (vliverInfoJson.is_object()) {
+        request.vliverInfo.vliverModel = vliverInfoJson["vliverModel"].int_value();
+    }
+    return true;
+}
+
+bool SeventeenLiveStreamInfoToJson(const SeventeenLiveStreamInfo &streamInfo, Json &json)
+{
+    Json jsonRequest;
+    if (!SeventeenLiveRtmpRequestToJson(streamInfo.request, jsonRequest)) {
+        return false;
+    }
+    json = Json::object{
+        {"request", jsonRequest},
+        {"categoryName", streamInfo.categoryName.toStdString()},
+        {"createdAt", streamInfo.createdAt.toString(Qt::ISODate).toStdString()}
+    };
+    return true;
+}
+
+bool JsonToSeventeenLiveStreamInfo(const Json &json, SeventeenLiveStreamInfo &streamInfo)
+{
+    if (!json.is_object()) {
+        return false;
+    }
+    // 基本信息
+    streamInfo.categoryName = QString::fromStdString(json["categoryName"].string_value());
+    streamInfo.createdAt = QDateTime::fromString(QString::fromStdString(json["createdAt"].string_value()), Qt::ISODate);
+    // 处理 request 对象
+    if (!JsonToSeventeenLiveRtmpRequest(json["request"], streamInfo.request)) {
+        return false;
+    }
+    return true;
+}
+
 bool JsonToSeventeenLiveRtmpResponse(const Json &json, SeventeenLiveRtmpResponse &response)
 {
     if (!json.is_object()) {

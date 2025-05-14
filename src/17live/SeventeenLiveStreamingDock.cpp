@@ -90,18 +90,15 @@ void SeventeenLiveStreamingDock::setupUi()
         
     // 下拉框
     activityCombo = new QComboBox();
-    // 添加一个默认选项
-    activityCombo->addItem(obs_module_text("Live.Settings.Event.None"), -1);
-        
-    // 从roomInfo.eventList添加活动选项
-    obs_log(LOG_INFO, "eventList size: %d", roomInfo.eventList.size());
-    for (const auto& event : roomInfo.eventList) {
+    
+    for (const auto& event : response.event.events) {
         QString eventName = event.name;
         if (eventName.isEmpty()) {
             continue; // Skip if name is empty or null
         }
         activityCombo->addItem(eventName, event.ID);
     }
+    activityCombo->setCurrentIndex(0);
     eventContainer->addWidget(activityCombo);
         
     // 创建提示 Label 并靠右对齐

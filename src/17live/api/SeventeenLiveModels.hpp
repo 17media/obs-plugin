@@ -4,6 +4,7 @@
 #include <QVariantMap>
 #include <QList>
 #include <QStringList>
+#include <QDateTime>
 
 #include "json11.hpp"
 
@@ -297,6 +298,17 @@ namespace seventeenlive {
   };
 
   bool SeventeenLiveRtmpRequestToJson(const SeventeenLiveRtmpRequest &request, Json &json);
+  bool JsonToSeventeenLiveRtmpRequest(const Json &json, SeventeenLiveRtmpRequest &request);
+
+  struct SeventeenLiveStreamInfo {
+    SeventeenLiveRtmpRequest request;
+    QString categoryName;
+    QDateTime createdAt;
+  };
+
+  bool SeventeenLiveStreamInfoToJson(const SeventeenLiveStreamInfo &streamInfo, Json &json);
+  bool JsonToSeventeenLiveStreamInfo(const Json &json, SeventeenLiveStreamInfo &streamInfo);
+
 
   // 成就值状态结构体
   struct SeventeenLiveAchievementValueState {
