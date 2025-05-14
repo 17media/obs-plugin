@@ -268,6 +268,7 @@ void SeventeenLiveStreamingDock::createLiveWithRequest(const SeventeenLiveRtmpRe
     obs_log(LOG_INFO, "createLiveWithRequest");
 
     populateRtmpRequest(request);
+
     startStreaming(request);
 }
 
@@ -413,6 +414,7 @@ void SeventeenLiveStreamingDock::populateRtmpRequest(const SeventeenLiveRtmpRequ
 
     virtualStreamerCheck->setChecked(request.vliverInfo.vliverModel);
 }
+
 void SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
 {
     request.userID = roomInfo.userID;

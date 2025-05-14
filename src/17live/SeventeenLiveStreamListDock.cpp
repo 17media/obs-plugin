@@ -125,6 +125,7 @@ void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const 
 
     item->setSizeHint(frame->sizeHint());
     streamList->setItemWidget(item, frame);
+
     connect(editButton, &QPushButton::clicked, this, [this, item, info]() {
         this->onEditStreamClicked(item, info);
     });
@@ -147,6 +148,7 @@ void SeventeenLiveStreamListDock::refreshStreamList()
       info.request = item.request;
 
       QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
+      widgetItem->setData(Qt::UserRole, QVariant::fromValue(info));
       updateStreamItem(widgetItem, info);
     }
 
