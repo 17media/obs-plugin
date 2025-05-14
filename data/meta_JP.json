@@ -1,23 +1,23 @@
 {
   "ClipPermissions": [
     {
-      "value": 0,
+      "value": "0",
       "label": "閉じる"
     },
     {
-      "value": 1,
+      "value": "1",
       "label": "あなたのアシスタント"
     },
     {
-      "value": 2,
+      "value": "2",
       "label": "あなたのアーミー"
     },
     {
-      "value": 3,
+      "value": "3",
       "label": "あなたのフォロワー"
     },
     {
-      "value": 4,
+      "value": "4",
       "label": "すべてのユーザー\""
     }
   ]
