@@ -27,16 +27,14 @@ public:
     void refreshStreamList();
 
 private slots:
-    void onEditStreamClicked();
-    void onDeleteStreamClicked();
+    void onEditStreamClicked(QListWidgetItem* item, const StreamInfo& info);
+    void onDeleteStreamClicked(QListWidgetItem* item, const StreamInfo& info);
     void onStartLiveClicked();
     
 private:
     void setupUi();
     void createConnections();
     void updateStreamItem(QListWidgetItem* item, const StreamInfo& info);
-
-    void showEvent(QShowEvent* event) override;
 
     QListWidget *streamList;
     QPushButton *startLiveButton;

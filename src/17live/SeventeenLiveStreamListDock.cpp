@@ -125,14 +125,12 @@ void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const 
 
     item->setSizeHint(frame->sizeHint());
     streamList->setItemWidget(item, frame);
-
-    // 保存item引用方式：用 sender() 获取按钮并追溯 item 是更安全做法
-    // connect(editButton, &QPushButton::clicked, this, [this, item]() {
-    //     this->onEditStreamClicked(item);
-    // });
-    // connect(deleteButton, &QPushButton::clicked, this, [this, item]() {
-    //     this->onDeleteStreamClicked(item);
-    // });
+    connect(editButton, &QPushButton::clicked, this, [this, item, info]() {
+        this->onEditStreamClicked(item, info);
+    });
+    connect(deleteButton, &QPushButton::clicked, this, [this, item, info]() {
+        this->onDeleteStreamClicked(item, info);
+    });
 }
 void SeventeenLiveStreamListDock::refreshStreamList()
 {
@@ -153,26 +151,22 @@ void SeventeenLiveStreamListDock::refreshStreamList()
 
 }
 
-void SeventeenLiveStreamListDock::onEditStreamClicked()
+void SeventeenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const StreamInfo& info)
 {
     // TODO: 实现编辑直播的逻辑
 }
 
-void SeventeenLiveStreamListDock::onDeleteStreamClicked()
+void SeventeenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item, const StreamInfo& info)
 {
-    // TODO: 实现删除直播的逻辑
+    obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.title.toStdString().c_str(), info.streamId.toStdString().c_str());
+
+    configManager->removeLiveConfig(info.streamId.toStdString());
+    refreshStreamList();
 }
 
 void SeventeenLiveStreamListDock::onStartLiveClicked()
 {
     // TODO: 实现开始直播的逻辑
-}
-
-void SeventeenLiveStreamListDock::showEvent(QShowEvent* event)
-{
-    QDockWidget::showEvent(event);  // 调用父类处理
-    
-    refreshStreamList();
 }
 
 } // namespace seventeenlive

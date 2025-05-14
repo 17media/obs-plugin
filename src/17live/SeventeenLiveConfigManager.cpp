@@ -335,25 +335,11 @@ bool SeventeenLiveConfigManager::saveLiveConfig(const SeventeenLiveStreamInfo &s
   loadAllLiveConfig(streamInfoList);
 
   streamInfoList.push_back(streamInfo);
+  // 最多保存10条
   if (streamInfoList.size() > 10) {
     streamInfoList.erase(streamInfoList.begin());
   }
-  std::vector<Json> json_array = Json::array();
-  for (const auto& item : streamInfoList) {
-    Json json_item;
-    SeventeenLiveStreamInfoToJson(item, json_item);
-    json_array.push_back(json_item);
-  }
-  Json json_data = Json(json_array);
-
-  QString liveListFile = QString::fromStdString(configPath) + "/" + "live_list.json";
-  QFile file(liveListFile);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-    return false;
-  }
-  QTextStream out(&file);
-  out << QString::fromStdString(json_data.dump());
-  file.close();
+  saveAllLiveConfig(streamInfoList);
   return true;
 }
   
@@ -389,6 +375,49 @@ bool SeventeenLiveConfigManager::loadAllLiveConfig(std::vector<SeventeenLiveStre
     streamInfo.push_back(info);
   }
 
+  return true;
+}
+
+bool SeventeenLiveConfigManager::saveAllLiveConfig(const std::vector<SeventeenLiveStreamInfo> &streamInfoList)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  std::vector<Json> json_array = Json::array();
+  for (const auto& item : streamInfoList) {
+    Json json_item;
+    SeventeenLiveStreamInfoToJson(item, json_item);
+    json_array.push_back(json_item);
+  }
+  Json json_data = Json(json_array);
+  QString liveListFile = QString::fromStdString(configPath) + "/" + "live_list.json";
+  QFile file(liveListFile);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    return false;
+  }
+  QTextStream out(&file);
+  out << QString::fromStdString(json_data.dump());
+  file.close();
+  return true;
+}
+
+bool SeventeenLiveConfigManager::removeLiveConfig(const std::string &streamUuid)
+{ 
+  if (!initialized) {
+    return false;
+  }
+  std::vector<SeventeenLiveStreamInfo> streamInfoList;
+  loadAllLiveConfig(streamInfoList);
+  for (auto it = streamInfoList.begin(); it != streamInfoList.end(); ++it) {
+    if (it->streamUuid.toStdString() == streamUuid) {
+      streamInfoList.erase(it);
+      break;
+    }
+  }
+
+  saveAllLiveConfig(streamInfoList);
+  
   return true;
 }
 

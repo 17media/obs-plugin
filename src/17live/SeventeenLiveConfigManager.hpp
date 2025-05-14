@@ -40,6 +40,8 @@ public:
 
   bool saveLiveConfig(const SeventeenLiveStreamInfo &streamInfo);
   bool loadAllLiveConfig(std::vector<SeventeenLiveStreamInfo> &streamInfo);
+  bool saveAllLiveConfig(const std::vector<SeventeenLiveStreamInfo> &streamInfo);
+  bool removeLiveConfig(const std::string &streamUuid);
 
   QByteArray getDockState();
   bool setDockState(const QByteArray &state);
