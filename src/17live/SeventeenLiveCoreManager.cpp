@@ -230,10 +230,12 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
             mainWindow->restoreState(dockState);
     }
 
-    // connect(streamingDock, &SeventeenLiveStreamingDock::createStreamClicked, this, &SeventeenLiveCoreManager::handleCreateStreamClicked);
-    // connect(streamingDock, &SeventeenLiveStreamingDock::createAndStartStreamClicked, this, &SeventeenLiveCoreManager::handleCreateAndStartStreamClicked);
-    // connect(streamingDock, &SeventeenLiveStreamingDock::stopStreamingClicked, this, &SeventeenLiveCoreManager::handleStopStreamingClicked);
-    // connect(streamingDock, &SeventeenLiveStreamingDock::stopPushStreamingClicked, this, &SeventeenLiveCoreManager::handleStopPushStreamingClicked);
+    connect(streamingDock, &SeventeenLiveStreamingDock::streamInfoSaved, this, [this] () {
+        if (liveListDock) {
+            liveListDock->refreshStreamList();
+        }
+    });
+    
     // 连接关闭信号到主窗口的槽函数
     connect(streamingDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
 

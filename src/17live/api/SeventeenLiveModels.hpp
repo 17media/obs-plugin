@@ -304,6 +304,7 @@ namespace seventeenlive {
     SeventeenLiveRtmpRequest request;
     QString categoryName;
     QDateTime createdAt;
+    QString streamUuid;
   };
 
   bool SeventeenLiveStreamInfoToJson(const SeventeenLiveStreamInfo &streamInfo, Json &json);

@@ -386,7 +386,8 @@ bool SeventeenLiveStreamInfoToJson(const SeventeenLiveStreamInfo &streamInfo, Js
     json = Json::object{
         {"request", jsonRequest},
         {"categoryName", streamInfo.categoryName.toStdString()},
-        {"createdAt", streamInfo.createdAt.toString(Qt::ISODate).toStdString()}
+        {"createdAt", streamInfo.createdAt.toString(Qt::ISODate).toStdString()},
+        {"streamUuid", streamInfo.streamUuid.toStdString()}
     };
     return true;
 }
@@ -399,6 +400,7 @@ bool JsonToSeventeenLiveStreamInfo(const Json &json, SeventeenLiveStreamInfo &st
     // 基本信息
     streamInfo.categoryName = QString::fromStdString(json["categoryName"].string_value());
     streamInfo.createdAt = QDateTime::fromString(QString::fromStdString(json["createdAt"].string_value()), Qt::ISODate);
+    streamInfo.streamUuid = QString::fromStdString(json["streamUuid"].string_value());
     // 处理 request 对象
     if (!JsonToSeventeenLiveRtmpRequest(json["request"], streamInfo.request)) {
         return false;

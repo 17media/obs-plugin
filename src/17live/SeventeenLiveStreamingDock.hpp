@@ -60,11 +60,8 @@ private:
 
     SeventeenLiveRoomInfo roomInfo;
 
-// signals:
-//     void createStreamClicked(const SeventeenLiveRtmpRequest &request);
-//     void createLiveClicked(const SeventeenLiveRtmpRequest &request);
-//     void stopStreamingClicked();
-//     void stopPushStreamingClicked();
+signals:
+    void streamInfoSaved();
 
 private slots:
     void onAddTagClicked();

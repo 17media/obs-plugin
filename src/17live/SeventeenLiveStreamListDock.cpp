@@ -138,15 +138,19 @@ void SeventeenLiveStreamListDock::refreshStreamList()
 {
     streamList->clear();
     
-    // TODO: 从API获取直播列表
-    // 这里添加一些测试数据
-    StreamInfo testInfo;
-    testInfo.title = "测试直播";
-    testInfo.category = "游戏";
-    testInfo.startTime = QDateTime::currentDateTime();
-    
-    QListWidgetItem* item = new QListWidgetItem(streamList);
-    updateStreamItem(item, testInfo);
+    std::vector<SeventeenLiveStreamInfo> streamInfoList;
+    configManager->loadAllLiveConfig(streamInfoList);
+    for (const auto& item : streamInfoList) {
+      StreamInfo info;
+      info.title = item.request.caption;
+      info.category = item.categoryName;
+      info.startTime = item.createdAt;
+      info.streamId = item.streamUuid;
+
+      QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
+      updateStreamItem(widgetItem, info);
+    }
+
 }
 
 void SeventeenLiveStreamListDock::onEditStreamClicked()
@@ -162,6 +166,13 @@ void SeventeenLiveStreamListDock::onDeleteStreamClicked()
 void SeventeenLiveStreamListDock::onStartLiveClicked()
 {
     // TODO: 实现开始直播的逻辑
+}
+
+void SeventeenLiveStreamListDock::showEvent(QShowEvent* event)
+{
+    QDockWidget::showEvent(event);  // 调用父类处理
+    
+    refreshStreamList();
 }
 
 } // namespace seventeenlive

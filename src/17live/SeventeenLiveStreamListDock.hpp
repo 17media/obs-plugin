@@ -24,16 +24,19 @@ public:
     SeventeenLiveStreamListDock(QWidget *parent, SeventeenLiveConfigManager *configManager_);
     ~SeventeenLiveStreamListDock();
 
+    void refreshStreamList();
+
 private slots:
     void onEditStreamClicked();
     void onDeleteStreamClicked();
     void onStartLiveClicked();
-    void refreshStreamList();
-
+    
 private:
     void setupUi();
     void createConnections();
     void updateStreamItem(QListWidgetItem* item, const StreamInfo& info);
+
+    void showEvent(QShowEvent* event) override;
 
     QListWidget *streamList;
     QPushButton *startLiveButton;
