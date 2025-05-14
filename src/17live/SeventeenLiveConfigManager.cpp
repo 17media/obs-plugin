@@ -323,5 +323,73 @@ bool SeventeenLiveConfigManager::getConfigStreamer(SeventeenLiveConfigStreamerRe
   return true;
 }
 
+bool SeventeenLiveConfigManager::saveLiveConfig(const SeventeenLiveStreamInfo &streamInfo)
+{
+    obs_log(LOG_INFO, "Saving live config to live_info.json");
+
+  if (!initialized) {
+    return false;
+  }
+
+  std::vector<SeventeenLiveStreamInfo> streamInfoList;
+  loadAllLiveConfig(streamInfoList);
+
+  streamInfoList.push_back(streamInfo);
+  if (streamInfoList.size() > 10) {
+    streamInfoList.erase(streamInfoList.begin());
+  }
+  std::vector<Json> json_array = Json::array();
+  for (const auto& item : streamInfoList) {
+    Json json_item;
+    SeventeenLiveStreamInfoToJson(item, json_item);
+    json_array.push_back(json_item);
+  }
+  Json json_data = Json(json_array);
+
+  QString liveListFile = QString::fromStdString(configPath) + "/" + "live_list.json";
+  QFile file(liveListFile);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    return false;
+  }
+  QTextStream out(&file);
+  out << QString::fromStdString(json_data.dump());
+  file.close();
+  return true;
+}
+  
+bool SeventeenLiveConfigManager::loadAllLiveConfig(std::vector<SeventeenLiveStreamInfo> &streamInfo)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  QString liveListFile = QString::fromStdString(configPath) + "/" + "live_list.json";
+  QFile file(liveListFile);
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    return false;
+  }
+  QTextStream in(&file);
+  QString jsonString = in.readAll();
+  file.close();
+  std::string error;
+  Json json = Json::parse(jsonString.toStdString(), error);
+  if (!error.empty()) {
+    obs_log(LOG_ERROR, "Failed to parse live_list.json: %s", error.c_str());
+    return false;
+  }
+  
+  if (!json.is_array()) {
+    obs_log(LOG_ERROR, "live_list.json is not an array");
+    return false;
+  }
+
+  for (const auto& item : json.array_items()) {
+    SeventeenLiveStreamInfo info;
+    JsonToSeventeenLiveStreamInfo(item, info);
+    streamInfo.push_back(info);
+  }
+
+  return true;
+}
 
 } // namespace seventeenlive

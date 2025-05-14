@@ -4,6 +4,7 @@
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QMessageBox>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -233,7 +234,18 @@ void SeventeenLiveStreamingDock::onSaveConfigClicked()
     SeventeenLiveRtmpRequest request;
     gatherRtmpRequest(request);
 
-    // TODO: 实现保存配置的逻辑
+    SeventeenLiveStreamInfo streamInfo;
+    streamInfo.categoryName = categoryCombo->currentText();
+    streamInfo.createdAt = QDateTime::currentDateTime();
+    streamInfo.request = request;
+
+    if (!configManager->saveLiveConfig(streamInfo)) {
+        obs_log(LOG_ERROR, "Failed to save stream info");
+        return;
+    }
+
+    // 弹出提示框说明保存成功
+    QMessageBox::information(this, obs_module_text("Live.Settings.Save.Title"), obs_module_text("Live.Settings.Save.Success"));
 }
 
 void SeventeenLiveStreamingDock::onCreateLiveClicked()

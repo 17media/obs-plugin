@@ -10,6 +10,8 @@ struct SeventeenLiveLoginData;
 
 struct SeventeenLiveConfigStreamerResponse;
 
+struct SeventeenLiveStreamInfo;
+
 class SeventeenLiveConfigManager {
 public:
   SeventeenLiveConfigManager();
@@ -35,6 +37,9 @@ public:
 
   bool setConfigStreamer(const SeventeenLiveConfigStreamerResponse &response);
   bool getConfigStreamer(SeventeenLiveConfigStreamerResponse &response);
+
+  bool saveLiveConfig(const SeventeenLiveStreamInfo &streamInfo);
+  bool loadAllLiveConfig(std::vector<SeventeenLiveStreamInfo> &streamInfo);
 
   QByteArray getDockState();
   bool setDockState(const QByteArray &state);
