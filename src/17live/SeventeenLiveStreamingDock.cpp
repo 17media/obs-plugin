@@ -172,7 +172,7 @@ void SeventeenLiveStreamingDock::setupUi()
     QList<SeventeenLiveMetaValueLabel> clipIdentityList;
     getMetaValueLabelList("ClipPermissions", clipIdentityList);
     for (const auto& item : clipIdentityList) {
-        clipIdentityCombo->addItem(item.label, item.value);
+        clipIdentityCombo->addItem(item.label, item.value.toInt());
     }
     
     // 设置为不可编辑
