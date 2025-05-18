@@ -450,6 +450,7 @@ void SeventeenLiveCoreManager::handleChatRoomClicked()
 
         // 创建并显示聊天窗口
         chatDock = new SeventeenLiveChatDock(mainWindow);
+        chatDock->resize(400, 600); // 设置初始大小为 400px 宽, 600px 高
 
         chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);

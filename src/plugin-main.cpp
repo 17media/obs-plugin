@@ -44,7 +44,10 @@ using namespace std;
 
 static thread manager_thread;
 static bool manager_initialized = false;
+static bool cef_initialized = false;
 os_event_t *cef_started_event = nullptr;
+
+extern bool cef_initialized;
 
 #ifdef ENABLE_BROWSER_QT_LOOP
 extern MessageObject messageObject;
@@ -61,6 +64,9 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 static CefRefPtr<BrowserApp> browserApp;
 bool InitializeCef()
 {
+	if (cef_initialized)
+		return true;
+
   obs_log(LOG_INFO, "初始化 CEF 环境");
 
 	struct obs_cmdline_args cmdline_args = obs_get_cmdline_args();
@@ -132,23 +138,28 @@ bool InitializeCef()
 	}
 
   obs_log(LOG_INFO, "CEF 初始化成功");
-
+	
+	cef_initialized = true;
 	os_event_signal(cef_started_event);
+	
   return true;
 }
 
 void ShutdownCef()
 {
+	if (!cef_initialized) return;
+
   obs_log(LOG_INFO, "正在清理 CEF 环境");
   
-	// 关闭 CEF
-  CefShutdown();
-
   // 释放全局 browserApp 引用
   if (browserApp) {
     browserApp = nullptr;
   }
+
+	// 关闭 CEF
+  CefShutdown();
     
+	cef_initialized = false;
   obs_log(LOG_INFO, "CEF 环境已清理完成");
 }
 

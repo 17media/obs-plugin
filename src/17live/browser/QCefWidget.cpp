@@ -7,8 +7,19 @@
 QCefWidget::QCefWidget(QWidget* parent)
     : QWidget(parent)
 {
-    setAttribute(Qt::WA_NativeWindow);
-    setAttribute(Qt::WA_DontCreateNativeAncestors);
+	setAttribute(Qt::WA_PaintOnScreen);
+	setAttribute(Qt::WA_StaticContents);
+	setAttribute(Qt::WA_NoSystemBackground);
+	setAttribute(Qt::WA_OpaquePaintEvent);
+	setAttribute(Qt::WA_DontCreateNativeAncestors);
+	setAttribute(Qt::WA_NativeWindow);
+
+	setFocusPolicy(Qt::ClickFocus);
+
+#ifndef __APPLE__
+	window = new QWindow();
+	window->setFlags(Qt::FramelessWindowHint);
+#endif
     
     handler_ = std::make_unique<CefHandler>(this);
     initializeCef();
@@ -16,7 +27,19 @@ QCefWidget::QCefWidget(QWidget* parent)
 
 QCefWidget::~QCefWidget()
 {
-    // CEF清理代码
+    if (handler_) {
+        CefRefPtr<CefBrowser> browser = handler_->GetBrowser();
+        if (browser) {
+            CefRefPtr<CefBrowserHost> host = browser->GetHost();
+            if (host) {
+                // 请求关闭浏览器，false表示非强制关闭，允许浏览器执行清理操作
+                host->CloseBrowser(false);
+            }
+        }
+    }
+    // handler_ (std::unique_ptr) 会在 QCefWidget 销毁时自动删除，
+    // 其析构函数（如果CefHandler有）应该处理CefClient和CefLifeSpanHandler等资源的释放。
+    // CefLifeSpanHandler::OnBeforeClose() 是实际进行浏览器对象销毁的地方。
 }
 
 void QCefWidget::initializeCef()
@@ -98,14 +121,20 @@ void QCefWidget::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
     if (handler_ && handler_->GetBrowser()) {
+#ifdef Q_OS_WIN
         CefWindowHandle hwnd = handler_->GetBrowser()->GetHost()->GetWindowHandle();
         if (hwnd) {
-            // 调整CEF浏览器窗口大小
-//            SetWindowPos(hwnd, nullptr,
-//                        0, 0, width(), height(),
-//                        SWP_NOZORDER);
-            obs_log(LOG_INFO, "resize trigger");
+            // 调整CEF浏览器窗口大小 (Windows specific)
+           SetWindowPos(hwnd, nullptr,
+                       0, 0, width(), height(),
+                       SWP_NOZORDER);
+            // obs_log(LOG_INFO, "resize trigger for Windows");
         }
+#else
+        // 通知CEF浏览器窗口大小已更改 (macOS, Linux, etc.)
+        handler_->GetBrowser()->GetHost()->WasResized();
+        // obs_log(LOG_INFO, "resize trigger for non-Windows");
+#endif
     }
 }
 

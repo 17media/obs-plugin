@@ -1,22 +1,31 @@
 #include "sl-browser-app.hpp"
 
+#include <thread>
+
 #ifdef ENABLE_BROWSER_QT_LOOP
 #include <util/base.h>
 #include <util/platform.h>
 #include <util/threading.h>
 #include <QTimer>
 #endif
+
+#include <obs-module.h>
+
+#include "cef-headers.hpp"
+
+#include "plugin-support.h"
+
+// extern bool cef_initialized;
+// extern os_event_t *cef_started_event;
 BrowserApp::BrowserApp() = default;
 
 void BrowserApp::OnContextInitialized() {
-    // 浏览器进程初始化完成后的回调
-    // 这里可以执行一些初始化操作
+    CEF_REQUIRE_UI_THREAD();
+    // if (cef_started_event)
+    //     os_event_signal(cef_started_event);
+    // cef_initialized = true;
+    obs_log(LOG_INFO, "CEF context initialized.");
 }
-
-// CefRefPtr<CefClient> BrowserApp::GetDefaultClient() {
-//     // Called when a new browser window is created via Chrome style UI.
-//     return SimpleHandler::GetInstance();
-// }
 
 #ifdef ENABLE_BROWSER_QT_LOOP
 Q_DECLARE_METATYPE(MessageTask);

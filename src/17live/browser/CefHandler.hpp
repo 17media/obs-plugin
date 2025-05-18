@@ -5,7 +5,7 @@
 class QCefWidget;
 
 class CefHandler : public CefClient,
-                      public CefLifeSpanHandler
+                  public CefLifeSpanHandler
 {
 public:
   explicit CefHandler(QCefWidget* widget);
@@ -25,8 +25,6 @@ public:
   CefRefPtr<CefBrowser> GetBrowser() const { return browser_; }
 
 private:
-
-  bool is_closing_ = false;
   
   QCefWidget* widget_;
   CefRefPtr<CefBrowser> browser_;
