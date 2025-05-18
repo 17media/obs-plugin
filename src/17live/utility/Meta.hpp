@@ -9,8 +9,6 @@
 
 using namespace json11;
 
-namespace seventeenlive {
-
 // 剪辑权限项结构体
 struct SeventeenLiveMetaValueLabel {
   QString value;
@@ -59,5 +57,3 @@ bool JsonToSeventeenLiveMetaData(const Json &json, SeventeenLiveMetaData &metaDa
 Json SeventeenLiveMetaDataToJson(const SeventeenLiveMetaData &metaData);
 
 bool getMetaValueLabelList(const QString &key, QList<SeventeenLiveMetaValueLabel> &result);
-
-}  // namespace seventeenlive

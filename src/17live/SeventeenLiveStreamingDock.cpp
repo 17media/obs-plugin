@@ -17,8 +17,6 @@
 
 #include "moc_SeventeenLiveStreamingDock.cpp"
 
-namespace seventeenlive {
-
 SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent, const SeventeenLiveRoomInfo &roomInfo_, SeventeenLiveApiWrappers *apiWrapper_, SeventeenLiveConfigManager *configManager_)
     : QDockWidget(obs_module_text("Live.Settings"), parent), roomInfo(roomInfo_), apiWrapper(apiWrapper_), configManager(configManager_) 
 {
@@ -492,5 +490,3 @@ void SeventeenLiveStreamingDock::updateLiveStatus(SeventeenLiveStreamingStatus s
 
     updateLiveButton(status == SeventeenLiveStreamingStatus::Live);
 }
-
-} // namespace seventeenlive

@@ -8,8 +8,6 @@
 #include "api/SeventeenLiveApiWrappers.hpp"
 #include "SeventeenLiveConfigManager.hpp"
 
-namespace seventeenlive {
-
 struct SeventeenLiveRtmpRequest;
 
 struct SeventeenLiveStreamInfo;
@@ -43,5 +41,3 @@ private:
     SeventeenLiveApiWrappers *apiWrapper;
     SeventeenLiveConfigManager *configManager;
 };
-
-} // namespace seventeenlive

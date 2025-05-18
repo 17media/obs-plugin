@@ -4,8 +4,6 @@
 #include <memory>
 #include <QString>
 
-namespace seventeenlive {
-
 class CefHandler;
 
 class QCefWidget : public QWidget {
@@ -33,5 +31,3 @@ private:
     bool browserCreated_ = false;
     QString pendingUrl_; // 新增：保存待加载的URL
 };
-
-} // namespace seventeenlive

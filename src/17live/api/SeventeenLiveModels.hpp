@@ -10,8 +10,6 @@
 
 using namespace json11;
 
-namespace seventeenlive {
-
   // 定义当前的直播状态，包括未开播、开播中、推流中
   enum class SeventeenLiveStreamingStatus {
     NotStarted,
@@ -394,5 +392,3 @@ namespace seventeenlive {
   // 解析JSON到SeventeenLiveConfigStreamerResponse结构体的函数声明
   bool JsonToSeventeenLiveConfigStreamerResponse(const Json &json, SeventeenLiveConfigStreamerResponse &response);
   bool SeventeenLiveConfigStreamerResponseToJson(const SeventeenLiveConfigStreamerResponse &response, Json &json);
-
-} // namespace seventeenlive

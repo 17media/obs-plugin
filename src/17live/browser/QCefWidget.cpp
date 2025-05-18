@@ -4,7 +4,6 @@
 #include "plugin-support.h"
 #include <obs-module.h>
 
-namespace seventeenlive {
 QCefWidget::QCefWidget(QWidget* parent)
     : QWidget(parent)
 {
@@ -43,14 +42,17 @@ void QCefWidget::createBrowser()
     CefBrowserSettings browser_settings;
     CefString url;  // 空URL，加载空白页面
 
-    CefBrowserHost::CreateBrowser(
+    if (!CefBrowserHost::CreateBrowser(
         window_info,
         handler_.get(),
         url,
         browser_settings,
         nullptr,
         nullptr
-    );
+    )) {
+        obs_log(LOG_ERROR, "Failed to create CEF browser");
+        return;
+    }
 
     browserCreated_ = true;
     obs_log(LOG_INFO, "Browser creation initiated");
@@ -118,5 +120,3 @@ void QCefWidget::hideEvent(QHideEvent* event)
     QWidget::hideEvent(event);
     // 你可以在这里添加自己的逻辑
 }
-
-} // namespace seventeenlive

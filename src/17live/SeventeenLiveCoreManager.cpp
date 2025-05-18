@@ -21,8 +21,6 @@
 using namespace json11;
 using namespace std;
 
-namespace seventeenlive {
-
 // 初始化静态成员变量
 SeventeenLiveCoreManager* SeventeenLiveCoreManager::instance = nullptr;
 std::mutex SeventeenLiveCoreManager::instanceMutex;
@@ -499,5 +497,3 @@ void SeventeenLiveCoreManager::loadConfigStreamer()
 
     configManager->setConfigStreamer(response);
 }
-
-} // namespace seventeenlive

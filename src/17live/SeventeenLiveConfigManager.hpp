@@ -4,8 +4,6 @@
 
 #include <QByteArray>
 
-namespace seventeenlive {
-
 struct SeventeenLiveLoginData;
 
 struct SeventeenLiveConfigStreamerResponse;
@@ -54,5 +52,3 @@ private:
 
   std::string configPath;
 };
-
-}

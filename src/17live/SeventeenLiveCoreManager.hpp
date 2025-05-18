@@ -11,8 +11,6 @@
 // 前向声明
 class QMainWindow;
 
-namespace seventeenlive {
-
 class BrowserApp;
 
 // 前向声明 SeventeenLiveMenuManager 类
@@ -162,5 +160,3 @@ private:
 
     void loadConfigStreamer();
 };
-
-} // namespace seventeenlive

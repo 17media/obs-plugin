@@ -9,8 +9,6 @@
 
 #include "api/SeventeenLiveApiWrappers.hpp"
 
-namespace seventeenlive {
-
 const char* service = "SeventeenLive";
 
 #define CONFIG_PATH ".17Live"
@@ -434,5 +432,3 @@ bool SeventeenLiveConfigManager::removeLiveConfig(const std::string &streamUuid)
   
   return true;
 }
-
-} // namespace seventeenlive

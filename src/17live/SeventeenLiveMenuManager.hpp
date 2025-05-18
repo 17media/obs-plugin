@@ -4,11 +4,7 @@
 #include <QAction>
 #include <memory>
 #include <QString>
-
-// 前向声明
-class QMainWindow;
-
-namespace seventeenlive {
+#include <QMainWindow>
 
 class SeventeenLiveMenuManager : public QObject {
     Q_OBJECT
@@ -52,7 +48,5 @@ private:
     QAction* checkUpdateAction;
     QAction* loginAction;
     bool isLoggedIn;
-
-};
 
 };

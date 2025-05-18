@@ -11,8 +11,6 @@
 
 #include "moc_SeventeenLiveStreamListDock.cpp"
 
-namespace seventeenlive {
-
 SeventeenLiveStreamListDock::SeventeenLiveStreamListDock(QWidget *parent,  SeventeenLiveConfigManager *configManager_)
     : QDockWidget(obs_module_text("Live.StreamList"), parent), configManager(configManager_)
 {
@@ -173,5 +171,3 @@ void SeventeenLiveStreamListDock::onStartLiveClicked()
         emit startLiveClicked(info.request);
     }
 }
-
-} // namespace seventeenlive

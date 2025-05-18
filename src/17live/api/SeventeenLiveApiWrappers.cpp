@@ -13,8 +13,6 @@
 
 using namespace json11;
 
-namespace seventeenlive {
-
 extern const char* service;
 
 // TODO: 17live API URL
@@ -263,7 +261,7 @@ bool SeventeenLiveApiWrappers::GetRoomInfo(const qint64 roomID, SeventeenLiveRoo
     return false;
   }
   obs_log(LOG_INFO, "GetRoomInfo success");
-  // obs_log(LOG_INFO, "Room info data: %s", json_out.dump().c_str());
+  obs_log(LOG_INFO, "Room info data: %s", json_out.dump().c_str());
 
   // 使用 JsonToSeventeenLiveRoomInfo 函数解析数据到结构体
   if (!JsonToSeventeenLiveRoomInfo(json_out, roomInfo)) {
@@ -434,6 +432,3 @@ bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const
   obs_log(LOG_INFO, "GetConfigStreamer success");
   return true;
 }
-
-
-} // namespace seventeenlive

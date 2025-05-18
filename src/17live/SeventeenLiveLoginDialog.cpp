@@ -11,8 +11,6 @@
 
 #include "moc_SeventeenLiveLoginDialog.cpp"
 
-namespace seventeenlive {
-
 SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent)
     : QDialog(parent)
 {
@@ -129,5 +127,3 @@ void SeventeenLiveLoginDialog::handleLogin()
     // 登录成功
     accept();
 }
-
-} // namespace seventeenlive

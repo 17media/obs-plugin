@@ -21,6 +21,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <util/threading.h>
 #include <util/platform.h>
 #include <util/util.hpp>
+#include <thread>
 
 #ifdef _WIN32
 // #include <util/windows/ComPtr.hpp>
@@ -28,7 +29,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 // #include <dxgi1_2.h>
 // #include <d3d11.h>
 #else
-#include "signal-restore.hpp"
+#include "browser/signal-restore.hpp"
 #endif
 
 #include <QMainWindow>
@@ -39,30 +40,23 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "17live/SeventeenLiveCoreManager.hpp"
 #include "browser/sl-browser-app.hpp"
 
-using namespace seventeenlive;
 using namespace std;
+
+static thread manager_thread;
+static bool manager_initialized = false;
+os_event_t *cef_started_event = nullptr;
+
+#ifdef ENABLE_BROWSER_QT_LOOP
+extern MessageObject messageObject;
+#endif
+
+#ifdef ENABLE_BROWSER_QT_LOOP
+#include <QApplication>
+#include <QThread>
+#endif
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
-
-
-os_event_t *cef_started_event = nullptr;
-
-bool obs_module_load(void)
-{
-	obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
-
-	/* Load CEF at runtime as required on macOS */
-	CefScopedLibraryLoader library_loader;
-	if (!library_loader.LoadInMain()) {
-		obs_log(LOG_ERROR, "Failed to load CEF library");
-		return false;
-	}
-
-	obs_log(LOG_INFO, "[%s] loaded successfully (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
-
-	return true;
-}
 
 static CefRefPtr<BrowserApp> browserApp;
 bool InitializeCef()
@@ -127,30 +121,116 @@ bool InitializeCef()
 
 	browserApp = new BrowserApp();
     
+	BackupSignalHandlers();
 	bool success = CefInitialize(args, settings, browserApp, nullptr);
+	RestoreSignalHandlers();
+
 	if (!success) {
 //		blog(LOG_ERROR, "[obs-17live-browser]: CEF failed to initialize. Exit code: %d", CefGetExitCode());
-        blog(LOG_ERROR, "[obs-17live-browser]: CEF failed to initialize.");
+    blog(LOG_ERROR, "[obs-17live-browser]: CEF failed to initialize.");
 		return false;
 	}
 
   obs_log(LOG_INFO, "CEF 初始化成功");
+
+	os_event_signal(cef_started_event);
   return true;
 }
 
 void ShutdownCef()
 {
   obs_log(LOG_INFO, "正在清理 CEF 环境");
-    
+  
+	// 关闭 CEF
+  CefShutdown();
+
   // 释放全局 browserApp 引用
   if (browserApp) {
     browserApp = nullptr;
   }
     
-  // 关闭 CEF
-  CefShutdown();
-    
   obs_log(LOG_INFO, "CEF 环境已清理完成");
+}
+
+static void BrowserShutdown(void)
+{
+#if !ENABLE_LOCAL_FILE_URL_SCHEME
+	CefClearSchemeHandlerFactories();
+#endif
+#ifdef ENABLE_BROWSER_QT_LOOP
+	while (messageObject.ExecuteNextBrowserTask())
+		;
+	CefDoMessageLoopWork();
+#endif
+	ShutdownCef();
+	browserApp = nullptr;
+}
+
+#ifndef ENABLE_BROWSER_QT_LOOP
+static void BrowserManagerThread(void)
+{
+	InitializeCef();
+	CefRunMessageLoop();
+	ShutdownCef();
+}
+#endif
+
+extern "C" EXPORT void obs_browser_initialize(void)
+{
+	if (!os_atomic_set_bool(&manager_initialized, true)) {
+#ifdef ENABLE_BROWSER_QT_LOOP
+		InitializeCef();
+#else
+		manager_thread = thread(BrowserManagerThread);
+#endif
+	}
+}
+
+class BrowserTask : public CefTask {
+public:
+	std::function<void()> task;
+
+	inline BrowserTask(std::function<void()> task_) : task(task_) {}
+	virtual void Execute() override
+	{
+#ifdef ENABLE_BROWSER_QT_LOOP
+		/* you have to put the tasks on the Qt event queue after this
+		 * call otherwise the CEF message pump may stop functioning
+		 * correctly, it's only supposed to take 10ms max */
+		QMetaObject::invokeMethod(&messageObject, "ExecuteTask", Qt::QueuedConnection,
+					  Q_ARG(MessageTask, task));
+#else
+		task();
+#endif
+	}
+
+	IMPLEMENT_REFCOUNTING(BrowserTask);
+};
+bool QueueCEFTask([[maybe_unused]] std::function<void()> task)
+{
+	return CefPostTask(TID_UI, CefRefPtr<BrowserTask>(new BrowserTask(task)));
+}
+
+bool obs_module_load(void)
+{
+	obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
+
+#ifdef ENABLE_BROWSER_QT_LOOP
+	qRegisterMetaType<MessageTask>("MessageTask");
+#endif
+
+	os_event_init(&cef_started_event, OS_EVENT_TYPE_MANUAL);
+
+	/* Load CEF at runtime as required on macOS */
+	CefScopedLibraryLoader library_loader;
+	if (!library_loader.LoadInMain()) {
+		obs_log(LOG_ERROR, "Failed to load CEF library");
+		return false;
+	}
+
+	obs_log(LOG_INFO, "[%s] loaded successfully (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
+
+	return true;
 }
 
 void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] void *data)
@@ -173,7 +253,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 	
 		// 初始化SeventeenLiveCoreManager
 		try {
-			auto& manager = seventeenlive::SeventeenLiveCoreManager::getInstance(mainWindow);
+			auto& manager = SeventeenLiveCoreManager::getInstance(mainWindow);
 			if (!manager.initialize()) {
 				obs_log(LOG_ERROR, "SeventeenLiveCoreManager初始化失败");
 				isRunning = false;
@@ -186,11 +266,12 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 			return;
 		}
 
-		if (!InitializeCef()) {
-			obs_log(LOG_ERROR, "CEF 初始化失败");
-			isRunning = false;
-			return;
-		}
+		// if (!InitializeCef()) {
+		// 	obs_log(LOG_ERROR, "CEF 初始化失败");
+		// 	isRunning = false;
+		// 	return;
+		// }
+		obs_browser_initialize();
 
 		obs_log(LOG_INFO, "[obs-17live]: init done");
 		break;
@@ -210,14 +291,23 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 
 		// 释放SeventeenLiveCoreManager资源
 		try {
-			auto& manager = seventeenlive::SeventeenLiveCoreManager::getInstance();
+			auto& manager = SeventeenLiveCoreManager::getInstance();
 			manager.shutdown();
 			obs_log(LOG_INFO, "SeventeenLiveCoreManager资源已释放");
 		} catch (const std::exception& e) {
 			obs_log(LOG_ERROR, "SeventeenLiveCoreManager释放资源异常: %s", e.what());
 		}
 
-		ShutdownCef();
+#ifdef ENABLE_BROWSER_QT_LOOP
+	BrowserShutdown();
+#else
+	if (manager_thread.joinable()) {
+		if (!QueueCEFTask([]() { CefQuitMessageLoop(); }))
+			blog(LOG_DEBUG, "[obs-browser]: Failed to post CefQuit task to loop");
+
+		manager_thread.join();
+	}
+#endif
 	
 		obs_log(LOG_INFO, "[obs-17live]: shutdown complete");
 		break;
@@ -235,4 +325,6 @@ MODULE_EXPORT void obs_module_post_load(void)
 void obs_module_unload(void)
 {   
 	obs_log(LOG_INFO, "[obs-17live] plugin unloaded");
+
+	os_event_destroy(cef_started_event);
 }

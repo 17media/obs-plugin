@@ -9,8 +9,6 @@
 
 using namespace json11;
 
-namespace seventeenlive {
-
 class SeventeenLiveApiWrappers : public QObject {
   Q_OBJECT
 
@@ -64,5 +62,3 @@ protected:
 private:
   QString lastErrorMessage;
 };
-
-} // namespace seventeenlive

@@ -5,9 +5,6 @@
 #include <QLabel>
 #include <QPushButton>
 
-
-namespace seventeenlive {
-
 struct SeventeenLiveLoginData;
 
 class SeventeenLiveLoginDialog : public QDialog {
@@ -38,5 +35,3 @@ private:
     QLabel* registerLabel;
     QLabel* disclaimerLabel;
 };
-
-} // namespace seventeenlive

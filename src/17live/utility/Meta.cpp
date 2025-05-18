@@ -17,8 +17,6 @@ using namespace json11;
 
 using namespace std;
 
-namespace seventeenlive {
-
 // 全局meta数据，在程序启动时加载
 SeventeenLiveMetaData metaData;
 bool JsonToSeventeenLiveMetaData(const Json &json, SeventeenLiveMetaData &metaData)
@@ -188,5 +186,3 @@ bool getMetaValueLabelList(const QString &key, QList<SeventeenLiveMetaValueLabel
 
     return false;
 }
-
-} // namespace seventeenlive

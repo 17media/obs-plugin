@@ -11,8 +11,6 @@
 
 #include "api/SeventeenLiveModels.hpp"
 
-namespace seventeenlive {
-
 class SeventeenLiveApiWrappers;
 
 class SeventeenLiveConfigManager;
@@ -87,5 +85,3 @@ private:
 
     QString currentInfoUuid = "";
 };
-
-} // namespace seventeenlive

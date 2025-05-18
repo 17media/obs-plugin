@@ -6,8 +6,6 @@
 
 class QWidget;
 
-namespace seventeenlive {
-
 class QCefWidget;
 
 class SeventeenLiveChatDock : public QDockWidget {
@@ -26,5 +24,3 @@ private:
     QVBoxLayout* layout = nullptr;
     std::unique_ptr<QCefWidget> webView;
 };
-
-} // namespace seventeenlive

@@ -1,12 +1,10 @@
 #include <obs-module.h>
 
 #include "SeventeenLiveMenuManager.hpp"
-#include <QMainWindow>
 #include <QMenuBar>
 
 #include "moc_SeventeenLiveMenuManager.cpp"
 
-namespace seventeenlive {
 SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
     : mainWindow(parent), isLoggedIn(false)
 {
@@ -114,5 +112,3 @@ void SeventeenLiveMenuManager::cleanup()
     loginAction = nullptr;
     checkUpdateAction = nullptr;
 }
-
-} // namespace seventeenlive

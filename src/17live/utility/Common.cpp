@@ -2,8 +2,6 @@
 
 #include <obs.h>
 
-namespace seventeenlive {
-
 std::string GetCurrentLanguage() {
   const char *locale = obs_get_locale();
   if (strcmp(locale, "ja-JP") == 0) {
@@ -14,5 +12,3 @@ std::string GetCurrentLanguage() {
     return "US";
   }
 }
-
-} // namespace seventeenlive
