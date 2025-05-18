@@ -31,7 +31,7 @@ void SeventeenLiveChatDock::initializeWebEngine()
     webView = std::make_unique<QCefWidget>(containerWidget);
     
     // 获取html文件的路径
-    QString htmlPath = QString("file:///%1/17live/html/chat/index.html").arg(obs_get_module_data_path(obs_current_module()));
+    QString htmlPath = QString("file:///%1/html/chat/index.html").arg(obs_get_module_data_path(obs_current_module()));
     
     // 加载html文件
     webView->loadUrl(htmlPath);
