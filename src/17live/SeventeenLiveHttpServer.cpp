@@ -52,6 +52,9 @@ SeventeenLiveHttpServer::SeventeenLiveHttpServer(const std::string& host, int po
         std::filesystem::path full_base_path = std::filesystem::path(module_data_path) / base_dir_relative_to_module_data;
         base_dir_ = full_base_path.string();
     }
+    // TODO: base_dir_ 应加上 chat 目录
+    base_dir_ = base_dir_ + "/chat";
+
     blog(LOG_INFO, "[17Live HTTP Server] Base directory set to: %s", base_dir_.c_str());
 }
 
@@ -108,10 +111,26 @@ bool SeventeenLiveHttpServer::start() {
 
     // 在新线程中启动服务器，以避免阻塞主线程
     server_thread_ = std::make_unique<std::thread>([this]() {
-        blog(LOG_INFO, "[17Live HTTP Server] Starting server on %s:%d", host_.c_str(), port_);
-        if (!svr_.listen(host_.c_str(), port_)) {
-            blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d", host_.c_str(), port_);
-            running_ = false; // 确保状态正确
+        if (port_ == 0) {
+            // Bind to any available port if port_ is 0
+            port_ = svr_.bind_to_any_port(host_.c_str());
+            if (port_ < 0) { // bind_to_any_port returns -1 on failure
+                 blog(LOG_ERROR, "[17Live HTTP Server] Failed to bind to any port on %s", host_.c_str());
+                 running_ = false;
+                 return;
+            }
+            blog(LOG_INFO, "[17Live HTTP Server] Bound to %s:%d", host_.c_str(), port_);
+            if (!svr_.listen_after_bind()) {
+                blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d after bind", host_.c_str(), port_);
+                running_ = false;
+            }
+        } else {
+            // Listen on the specified port
+            blog(LOG_INFO, "[17Live HTTP Server] Starting server on %s:%d", host_.c_str(), port_);
+            if (!svr_.listen(host_.c_str(), port_)) {
+                blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d", host_.c_str(), port_);
+                running_ = false; // 确保状态正确
+            }
         }
     });
     
@@ -157,4 +176,11 @@ bool SeventeenLiveHttpServer::is_running() const {
     // 但是，如果listen在另一个线程中失败，这个状态可能不会立即更新。
     // 我们的 running_ 成员旨在提供一个更直接的控制状态。
     return running_ && svr_.is_running();
+}
+
+int SeventeenLiveHttpServer::getPort() const {
+    if (running_) {
+        return port_;
+    }
+    return -1; // Or some other indicator that the server is not running or port is not set
 }

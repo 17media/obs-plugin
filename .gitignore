@@ -68,3 +68,4 @@ ccache/
 .deps/
 
 dist/
+data/html/

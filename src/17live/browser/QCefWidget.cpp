@@ -60,8 +60,18 @@ void QCefWidget::createBrowser()
 #ifdef Q_OS_WIN
     window_info.SetAsChild(getWindowHandle(), {0, 0, width(), height()});
 #else
+    // 设置宽度和高度，确保width最少为376px，height最少为600px
+    int width = 376;
+    int height = 600;
+    if (parent->width() > width) {
+        width = parent->width();
+    }
+    if (parent->height() > height) {
+        height = parent->height();
+    }
+
     // macOS 环境下需要进行类型转换
-    window_info.SetAsChild(reinterpret_cast<void*>(getWindowHandle()), {0, 0, parent->width(), parent->height()});
+    window_info.SetAsChild(reinterpret_cast<void*>(getWindowHandle()), {0, 0, width, height});
 #endif
 
     CefBrowserSettings browser_settings;

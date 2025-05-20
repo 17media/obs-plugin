@@ -26,6 +26,8 @@ class SeventeenLiveStreamingDock;
 
 class SeventeenLiveStreamListDock;
 
+class SeventeenLiveChatDock;
+
 struct SeventeenLiveRtmpRequest;
 
 class SeventeenLiveHttpServer;
@@ -152,6 +154,7 @@ private:
     // void handleStopPushStreamingClicked();
     // void stopStreaming();
 
+    SeventeenLiveChatDock* chatDock{nullptr};
     bool chatDockFirstLoad = true;
     void handleChatRoomClicked();
 

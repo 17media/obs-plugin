@@ -12,7 +12,7 @@ class SeventeenLiveChatDock : public QDockWidget {
     Q_OBJECT
 
 public:
-    explicit SeventeenLiveChatDock(QWidget* parent = nullptr);
+    explicit SeventeenLiveChatDock(QWidget* parent = nullptr, int port = 0);
     ~SeventeenLiveChatDock();
 
 private:
@@ -23,4 +23,5 @@ private:
     QWidget* containerWidget = nullptr;
     QVBoxLayout* layout = nullptr;
     QCefWidget* webView;
+    int port;
 };

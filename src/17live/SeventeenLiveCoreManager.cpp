@@ -63,7 +63,7 @@ bool SeventeenLiveCoreManager::initialize()
 
     // 初始化并启动 HTTP 服务器
     // "html" 是相对于 obs_get_module_data_path() 的路径
-    httpServer_ = std::make_unique<SeventeenLiveHttpServer>("localhost", 3001, "html");
+    httpServer_ = std::make_unique<SeventeenLiveHttpServer>("localhost", 0, "html");
     if (!httpServer_->start()) {
         blog(LOG_ERROR, "[17Live Core] Failed to start HTTP server.");
         // 根据需求决定是否因为 HTTP 服务器启动失败而中断整个初始化
@@ -454,38 +454,51 @@ void SeventeenLiveCoreManager::handleChatRoomClicked()
     static SeventeenLiveChatDock* chatDock = nullptr;
     
     // 如果聊天窗口不存在或已被销毁，则创建新的
-    if (!chatDock || !chatDock->isVisible()) {
+    if (!chatDock) {
         QSize size = mainWindow->size();
         QPoint pos = mainWindow->pos();
 
-        // 创建并显示聊天窗口
-        chatDock = new SeventeenLiveChatDock(mainWindow);
-        chatDock->resize(378, 800); // 设置初始大小为 400px 宽, 600px 高
-
-        chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
-
-        chatDock->setFloating(true);
-        chatDock->move(pos.x() + size.width() - chatDock->width() - 50, pos.y() - 50);
+        // 创建聊天窗口
+        chatDock = new SeventeenLiveChatDock(mainWindow, httpServer_->getPort());
         
-        // 首次加载时直接显示
-        if (chatDockFirstLoad) {
-            chatDock->setVisible(true);
-            chatDockFirstLoad = false;
-        } else {
-            // 恢复之前的停靠状态
-            QByteArray dockState = configManager->getDockState();
-            if (mainWindow->isVisible() && !dockState.isEmpty())
-                mainWindow->restoreState(dockState);
-            else
-                chatDock->setVisible(true);
-        }
+        // 先设置为浮动窗口，避免添加到dock area后无法调整大小
+        chatDock->setFloating(true);
+        
+        // 设置允许的停靠区域
+        chatDock->setAllowedAreas(Qt::RightDockWidgetArea|Qt::LeftDockWidgetArea);
+        
+        // 设置初始大小
+        chatDock->resize(378, 600);
+        
+        // 设置初始位置 - 在主窗口右侧
+        chatDock->move(pos.x() + size.width() - chatDock->width() - 50, pos.y() + 50);
+        
+        // 添加到主窗口，但保持浮动状态
+        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
+        
+        // 确保窗口可见
+        chatDock->setVisible(true);
+        chatDockFirstLoad = false;
+        
+        // 连接窗口关闭信号，以便在用户关闭窗口时正确处理
+        QObject::connect(chatDock, &QDockWidget::visibilityChanged, [=](bool visible) {
+            if (mainWindow->isVisible() && visible) {
+                // 保存当前的停靠状态
+                configManager->setDockState(mainWindow->saveState());
+            }
+        });
     } else {
         // 如果窗口已存在，则切换其可见性
         chatDock->setVisible(!chatDock->isVisible());
         
+        // 如果变为可见，确保它在前台显示
+        if (chatDock->isVisible()) {
+            chatDock->raise();
+            chatDock->activateWindow();
+        }
+        
         // 保存当前的停靠状态
-        if (mainWindow->isVisible())
+        if (mainWindow->isVisible() && chatDock->isVisible())
             configManager->setDockState(mainWindow->saveState());
     }
 }
