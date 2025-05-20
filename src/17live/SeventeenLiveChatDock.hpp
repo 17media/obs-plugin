@@ -17,10 +17,10 @@ public:
 
 private:
     void setupUi();
-    void initializeWebEngine();
+    void initializeWebEngine(const QString &htmlPath);
 
 private:
     QWidget* containerWidget = nullptr;
     QVBoxLayout* layout = nullptr;
-    std::unique_ptr<QCefWidget> webView;
+    QCefWidget* webView;
 };

@@ -14,30 +14,17 @@ SeventeenLiveChatDock::~SeventeenLiveChatDock() = default;
 
 void SeventeenLiveChatDock::setupUi()
 {
-    containerWidget = new QWidget(this);
-    layout = new QVBoxLayout(containerWidget);
-    layout->setContentsMargins(0, 0, 0, 0);
-    setWidget(containerWidget);
-    
-    initializeWebEngine();
+    // No need for a containerWidget or layout if webView will be the central widget.
+    initializeWebEngine("http://localhost:3000");
 }
 
-void SeventeenLiveChatDock::initializeWebEngine()
+void SeventeenLiveChatDock::initializeWebEngine(const QString &htmlPath)
 {
-    // 创建CEF视图
-    webView = std::make_unique<QCefWidget>(containerWidget);
-    
-    // 获取html文件的路径
-    // QString htmlPath = QString("file:///%1/html/chat/index.html").arg(obs_get_module_data_path(obs_current_module()));
-    QString htmlPath = QString("http://localhost:3000");
-    // obs_log(LOG_INFO, "htmlPath: %s", htmlPath.toStdString().c_str());
-    
-    // 加载html文件
+    if (!webView) {
+        webView = new QCefWidget(this);
+        webView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        setWidget(webView); // Set webView as the central widget of the QDockWidget
+    }
     webView->loadUrl(htmlPath);
 
-    // 设置CEF视图的大小策略为可扩展，以确保它能填满布局
-    webView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    
-    // 将CEF视图添加到布局中
-    layout->addWidget(webView.get());
 }

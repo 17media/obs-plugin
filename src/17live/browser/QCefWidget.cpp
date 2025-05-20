@@ -53,13 +53,15 @@ void QCefWidget::initializeCef()
 void QCefWidget::createBrowser()
 {
     CefWindowInfo window_info;
-    
+
+    QWidget* parent = parentWidget();
+
     // 针对不同操作系统进行不同处理
 #ifdef Q_OS_WIN
     window_info.SetAsChild(getWindowHandle(), {0, 0, width(), height()});
 #else
     // macOS 环境下需要进行类型转换
-    window_info.SetAsChild(reinterpret_cast<void*>(getWindowHandle()), {0, 0, width(), height()});
+    window_info.SetAsChild(reinterpret_cast<void*>(getWindowHandle()), {0, 0, parent->width(), parent->height()});
 #endif
 
     CefBrowserSettings browser_settings;
