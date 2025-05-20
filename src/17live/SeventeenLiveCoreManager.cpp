@@ -16,6 +16,7 @@
 #include "SeventeenLiveStreamListDock.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
+#include "SeventeenLiveHttpServer.hpp"
 
 
 using namespace json11;
@@ -60,7 +61,16 @@ bool SeventeenLiveCoreManager::initialize()
         return true;
     }
 
-    // os_event_init(&cef_started_event, OS_EVENT_TYPE_MANUAL);
+    // 初始化并启动 HTTP 服务器
+    // "html" 是相对于 obs_get_module_data_path() 的路径
+    httpServer_ = std::make_unique<SeventeenLiveHttpServer>("localhost", 3001, "html");
+    if (!httpServer_->start()) {
+        blog(LOG_ERROR, "[17Live Core] Failed to start HTTP server.");
+        // 根据需求决定是否因为 HTTP 服务器启动失败而中断整个初始化
+        // return false; 
+    } else {
+        blog(LOG_INFO, "[17Live Core] HTTP server started successfully.");
+    }
 
     // 初始化配置管理器
     configManager = std::make_unique<SeventeenLiveConfigManager>();

@@ -28,6 +28,7 @@ class SeventeenLiveStreamListDock;
 
 struct SeventeenLiveRtmpRequest;
 
+class SeventeenLiveHttpServer;
 
 /**
  * @brief SeventeenLiveCoreManager 类是17live插件的核心管理类
@@ -124,6 +125,8 @@ private:
     std::unique_ptr<SeventeenLiveMenuManager> menuManager;
 
     std::unique_ptr<SeventeenLiveApiWrappers> apiWrapper;
+
+    std::unique_ptr<SeventeenLiveHttpServer> httpServer_;
 
     /**
      * @brief 处理登录成功的槽函数

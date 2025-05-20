@@ -15,7 +15,7 @@ SeventeenLiveChatDock::~SeventeenLiveChatDock() = default;
 void SeventeenLiveChatDock::setupUi()
 {
     // No need for a containerWidget or layout if webView will be the central widget.
-    initializeWebEngine("http://localhost:3000");
+    initializeWebEngine("http://localhost:3001");
 }
 
 void SeventeenLiveChatDock::initializeWebEngine(const QString &htmlPath)
