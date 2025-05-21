@@ -7,6 +7,22 @@
 
 #include "SeventeenLiveModels.hpp"
 
+
+// for local http server proxy request
+/*
+{
+  "action": "getAblyToken",
+  "params": {
+    ...
+  },
+}
+*/
+
+#define ACTION_GETABLYTOKEN "getAblyToken"
+#define ACTION_GETGIFTTABS "getGiftTabs"
+#define ACTION_GETGIFTS "getGifts"
+
+
 using namespace json11;
 
 class SeventeenLiveApiWrappers : public QObject {
@@ -33,8 +49,10 @@ public:
   bool StartStream(const std::string &liveStreamID, const std::string &userID);
   bool EnableStreamArchive(const std::string &liveStreamID, int enableArchive);
   bool StopStream(const std::string &liveStreamID, const SeventeenLiveCloseLiveRequest &request);
-
   bool GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamerResponse &response);
+  bool GetAblyToken(const std::string &liveStreamID, Json &response);
+  bool GetGiftTabs(const std::string &liveStreamID, const std::string language, Json &response);
+  bool GetGifts(const std::string language, Json &response);
   
 
   /**

@@ -70,28 +70,20 @@ public:
     QMainWindow* getMainWindow() const;
 
     /**
-     * @brief 设置配置项
-     * 
-     * @param key 配置键
-     * @param value 配置值
-     */
-    void setConfig(const std::string& key, const std::string& value);
-
-    /**
-     * @brief 获取配置项
-     * 
-     * @param key 配置键
-     * @param defaultValue 默认值
-     * @return std::string 配置值
-     */
-    std::string getConfig(const std::string& key, const std::string& defaultValue = "");
-
-    /**
      * @brief 获取菜单管理器
      * 
      * @return SeventeenLiveMenuManager* 菜单管理器指针
      */
     SeventeenLiveMenuManager* getMenuManager() const;
+    
+    /**
+     * @brief 获取API包装器
+     * 
+     * @return SeventeenLiveApiWrappers* API包装器指针
+     */
+    SeventeenLiveApiWrappers* getApiWrapper() const;
+
+    SeventeenLiveConfigManager* getConfigManager() const;
 
     bool handleLoginClicked();
 

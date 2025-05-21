@@ -344,6 +344,16 @@ using namespace json11;
     QString name;
   };
 
+  // Ably Token响应结构体
+  struct SeventeenLiveAblyTokenResponse {
+    int provider;
+    QString token;
+    QStringList channels;
+  };
+
+  bool JsonToSeventeenLiveAblyTokenResponse(const Json &json, SeventeenLiveAblyTokenResponse &response);
+  bool SeventeenLiveAblyTokenResponseToJson(const SeventeenLiveAblyTokenResponse &response, Json &json);
+
   // 活动事件结构体
   struct SeventeenLiveEventItem {
     qint64 ID;

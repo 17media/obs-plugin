@@ -621,3 +621,55 @@ bool SeventeenLiveConfigStreamerResponseToJson(const SeventeenLiveConfigStreamer
 
     return true;
 }
+
+bool JsonToSeventeenLiveAblyTokenResponse(const Json &json, SeventeenLiveAblyTokenResponse &response) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    // 解析 provider 字段
+    if (json["provider"].is_number()) {
+        response.provider = json["provider"].int_value();
+    } else {
+        return false;
+    }
+
+    // 解析 token 字段
+    if (json["token"].is_string()) {
+        response.token = QString::fromStdString(json["token"].string_value());
+    } else {
+        return false;
+    }
+
+    // 解析 channels 数组
+    if (json["channels"].is_array()) {
+        const auto &channelsArray = json["channels"].array_items();
+        response.channels.clear();
+        for (const auto &channel : channelsArray) {
+            if (channel.is_string()) {
+                response.channels.append(QString::fromStdString(channel.string_value()));
+            }
+        }
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+bool SeventeenLiveAblyTokenResponseToJson(const SeventeenLiveAblyTokenResponse &response, Json &json) {
+    // 创建 channels 数组
+    std::vector<Json> channelsArray;
+    for (const QString &channel : response.channels) {
+        channelsArray.push_back(Json(channel.toStdString()));
+    }
+
+    // 创建主 JSON 对象
+    json = Json::object{
+        {"provider", response.provider},
+        {"token", response.token.toStdString()},
+        {"channels", channelsArray}
+    };
+
+    return true;
+}

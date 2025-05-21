@@ -33,6 +33,12 @@ extern const char* service;
 
 #define SEVENTEENLIVE_GET_CONFIG_STREAMER_URL SEVENTEENLIVE_API_URL "/api/v1/liveStreams/config/streamer"
 
+#define SEVENTEENLIVE_GET_ABLY_TOKEN_URL SEVENTEENLIVE_API_URL "/api/v1/messenger/token?type=3&roomID=%1"
+
+#define SEVENTEENLIVE_GET_GIFTTABS_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1/giftTabs?filter=0"
+
+#define SEVENTEENLIVE_GET_GIFTS_URL SEVENTEENLIVE_API_URL "/api/v1/gifts"
+
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
 
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers(std::string token_) : token(token_) {}
@@ -430,5 +436,67 @@ bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const
   }
 
   obs_log(LOG_INFO, "GetConfigStreamer success");
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json &json_out)
+{
+  obs_log(LOG_INFO, "GetAblyToken");
+  lastErrorMessage.clear();
+  QString urlStr = QString(SEVENTEENLIVE_GET_ABLY_TOKEN_URL).arg(liveStreamID.c_str());
+  QByteArray url = urlStr.toUtf8();
+
+  if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out, 0, true)) {
+    obs_log(LOG_ERROR, "GetAblyToken error: %s", json_out.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " + QString::fromStdString(json_out["errorMessage"].string_value());
+    return false;
+  }
+  
+  obs_log(LOG_INFO, "GetAblyToken success: %s", json_out.dump().c_str());
+  
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::GetGiftTabs(const std::string &liveStreamID, const std::string language, Json &json_out_resp)
+{
+  obs_log(LOG_INFO, "GetGiftTabs");
+  
+  lastErrorMessage.clear();
+  
+  QString urlStr = QString(SEVENTEENLIVE_GET_GIFTTABS_URL).arg(liveStreamID.c_str());
+  QByteArray url = urlStr.toUtf8();
+  
+  std::vector<std::string> extraHeaders = {
+    "Language: " + language
+  };
+
+  if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true, extraHeaders)) {
+    obs_log(LOG_ERROR, "GetConfigStreamer error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::GetGifts(const std::string language, Json &json_out_resp)
+{
+  obs_log(LOG_INFO, "GetGifts");
+
+  lastErrorMessage.clear();
+
+  QString urlStr = QString(SEVENTEENLIVE_GET_GIFTS_URL);
+  QByteArray url = urlStr.toUtf8();
+
+  std::vector<std::string> extraHeaders = {
+    "Language: " + language
+  };
+
+  if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true, extraHeaders)) {
+    obs_log(LOG_ERROR, "GetConfigStreamer error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
   return true;
 }

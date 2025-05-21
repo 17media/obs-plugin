@@ -4,7 +4,13 @@
 #include <vector>
 #include <obs-module.h>
 
+#include "json11.hpp"
+
 #include "plugin-support.h"
+
+#include "SeventeenLiveCoreManager.hpp"
+#include "SeventeenLiveConfigManager.hpp"
+#include "api/SeventeenLiveApiWrappers.hpp"
 
 // 获取模块数据路径的辅助函数
 std::string get_obs_module_data_path_str() {
@@ -105,6 +111,101 @@ bool SeventeenLiveHttpServer::start() {
 
     svr_.Get("/ping", [](const httplib::Request & /*req*/, httplib::Response &res) {
         res.set_content("PONG", "text/plain");
+    });
+
+    // 添加 /lapi 路由，处理 API 请求
+    svr_.Post("/lapi", [](const httplib::Request &req, httplib::Response &res) {
+        obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi");
+        
+        // 设置响应头
+        res.set_header("Content-Type", "application/json");
+        
+        // 获取 SeventeenLiveCoreManager 实例
+        auto &coreManager = SeventeenLiveCoreManager::getInstance();
+        
+        // 解析请求体中的 JSON 数据
+        std::string error;
+        json11::Json requestJson = json11::Json::parse(req.body, error);
+        
+        if (!error.empty()) {
+            // JSON 解析错误
+            json11::Json errorResponse = json11::Json::object {
+                {"success", json11::Json(false)},
+                {"error", json11::Json("Invalid JSON: " + error)}
+            };
+            res.set_content(errorResponse.dump(), "application/json");
+            return;
+        }
+        
+        // 获取请求的 action
+        std::string action = requestJson["action"].string_value();
+        
+        if (action.empty()) {
+            // 缺少 action 参数
+            json11::Json errorResponse = json11::Json::object{
+                {"success", false},
+                {"error", "Missing 'action' parameter"}
+            };
+            res.set_content(errorResponse.dump(), "application/json");
+            return;
+        }
+        
+        // 调用 API 并返回结果
+        json11::Json apiResult;
+        bool success = false;
+        
+        try {
+            // 获取 apiWrapper 实例
+            auto apiWrapper = coreManager.getApiWrapper();
+            auto configManager = coreManager.getConfigManager();
+            
+            if (!apiWrapper) {
+                // API Wrapper 未初始化
+                json11::Json errorResponse = json11::Json::object{
+                    {"success", false},
+                    {"error", "API not initialized"}
+                };
+                res.set_content(errorResponse.dump(), "application/json");
+                return;
+            }
+            
+            // 根据 action 调用相应的 API 函数
+            if (action == ACTION_GETABLYTOKEN) {
+                std::string roomID;
+                configManager->getConfigValue("RoomID", roomID);
+                success = apiWrapper->GetAblyToken(roomID, apiResult);
+            } else {
+                // 不支持的 action
+                json11::Json errorResponse = json11::Json::object{
+                    {"success", false},
+                    {"error", "Unsupported action: " + action}
+                };
+                res.set_content(errorResponse.dump(), "application/json");
+                return;
+            }
+
+            if (!success) {
+                // API 调用失败
+                json11::Json errorResponse = json11::Json::object{
+                    {"success", json11::Json(false)},
+                    {"error", json11::Json(apiWrapper->getLastErrorMessage().toStdString())}
+                };
+                res.set_content(errorResponse.dump(), "application/json");
+                return;
+            }
+            
+            // 构建响应
+            json11::Json response = apiResult;
+            
+            res.set_content(response.dump(), "application/json");
+        } catch (const std::exception &e) {
+            // 处理异常
+            json11::Json errorResponse = json11::Json::object{
+                {"success", false},
+                {"error", std::string("Exception: ") + e.what()}
+            };
+            res.set_content(errorResponse.dump(), "application/json");
+        }
     });
 
     // 在新线程中启动服务器，以避免阻塞主线程

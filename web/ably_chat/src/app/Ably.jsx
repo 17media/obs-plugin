@@ -17,15 +17,44 @@ const jwtToken = process.env.NEXT_PUBLIC_JWT_TOKEN;
 
 const MsgType_COMMENT = 3; // 一般留言訊息
 
-async function getAblyTokenFromServer(roomID, jwtToken) {
+// async function getAblyTokenFromServer(roomID, jwtToken) {
     
-    const url = `${apiUrl}/api/v1/messenger/token?type=3&roomID=${encodeURIComponent(roomID)}`;
+//     const url = `${apiUrl}/api/v1/messenger/token?type=3&roomID=${encodeURIComponent(roomID)}`;
+//     try {
+//         const res = await fetch(url, {
+//         method: "GET",
+//         headers: {
+//             "Authorization": 'Bearer ' + jwtToken,
+//         }
+//         });
+
+//         if (!res.ok) {
+//             throw new Error(`Invalid status code: ${res.status}`);
+//         }
+
+//         const resBody = await res.json();
+
+//         // 结构示例：{ provider: 3, token: "xxxx" }
+//         return resBody.token;
+//     } catch (err) {
+//         console.error("Failed to get Ably token:", err);
+//         throw err;
+//     }
+// }
+
+async function getAblyTokenFromServer() {
+    
+    const url = `/lapi`;
+    const data = {
+        action: 'getAblyToken',
+    }
     try {
         const res = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": 'Bearer ' + jwtToken,
-        }
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
         });
 
         if (!res.ok) {
@@ -33,8 +62,7 @@ async function getAblyTokenFromServer(roomID, jwtToken) {
         }
 
         const resBody = await res.json();
-
-        // 结构示例：{ provider: 3, token: "xxxx" }
+        console.log(resBody);
         return resBody.token;
     } catch (err) {
         console.error("Failed to get Ably token:", err);
@@ -55,8 +83,8 @@ export default function AblyComponent() {
             ],
 
             authCallback: async (data, cb) => {
-                const token = await getAblyTokenFromServer(roomID, jwtToken);
-                // const token = await getAblyToken();
+                // const token = await getAblyTokenFromServer(roomID, jwtToken);
+                const token = await getAblyTokenFromServer();
                 cb(null, token);
             },
         })

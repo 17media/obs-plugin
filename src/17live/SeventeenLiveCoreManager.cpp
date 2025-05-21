@@ -165,6 +165,16 @@ SeventeenLiveMenuManager* SeventeenLiveCoreManager::getMenuManager() const
     return menuManager.get();
 }
 
+SeventeenLiveApiWrappers* SeventeenLiveCoreManager::getApiWrapper() const
+{
+    return apiWrapper.get();
+}
+
+SeventeenLiveConfigManager* SeventeenLiveCoreManager::getConfigManager() const
+{
+    return configManager.get();
+}
+
 bool SeventeenLiveCoreManager::handleLoginClicked()
 {
     SeventeenLiveLoginDialog dialog(mainWindow);
