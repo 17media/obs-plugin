@@ -3,7 +3,7 @@
 #include <obs-module.h>
 
 SeventeenLiveChatDock::SeventeenLiveChatDock(QWidget* parent, int port_)
-    : QDockWidget(tr("留言"), parent), port(port_)
+    : QDockWidget(obs_module_text("ChatRoom.Title"), parent), port(port_)
 {
     setAttribute(Qt::WA_NativeWindow);  // 有利于嵌入 CEF 子窗口
     webView.reset(new QCefWidget(this));
