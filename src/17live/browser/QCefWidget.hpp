@@ -4,6 +4,8 @@
 #include <memory>
 #include <QString>
 
+#include "cef-headers.hpp"
+
 class CefHandler;
 
 class QCefWidget : public QWidget {
@@ -28,6 +30,7 @@ private:
 
 private:
     std::unique_ptr<CefHandler> handler_;
+    CefRefPtr<CefBrowser> cefBrowser_;
     bool browserCreated_ = false;
     QString pendingUrl_; // 新增：保存待加载的URL
 };

@@ -1,10 +1,7 @@
 #pragma once
 
 #include <QDockWidget>
-#include <QVBoxLayout>
-#include <memory>
-
-class QWidget;
+#include <QScopedPointer>
 
 class QCefWidget;
 
@@ -13,15 +10,12 @@ class SeventeenLiveChatDock : public QDockWidget {
 
 public:
     explicit SeventeenLiveChatDock(QWidget* parent = nullptr, int port = 0);
-    ~SeventeenLiveChatDock();
+    ~SeventeenLiveChatDock() override;
 
 private:
-    void setupUi();
     void initializeWebEngine(const QString &htmlPath);
 
 private:
-    QWidget* containerWidget = nullptr;
-    QVBoxLayout* layout = nullptr;
-    QCefWidget* webView;
-    int port;
+    QScopedPointer<QCefWidget> webView;
+    int port = 0;
 };

@@ -1,30 +1,20 @@
 #include "SeventeenLiveChatDock.hpp"
-#include <QUrl>
-#include "plugin-support.h"
-#include "qt-wrappers.hpp"
 #include "browser/QCefWidget.hpp"
 #include <obs-module.h>
+
 SeventeenLiveChatDock::SeventeenLiveChatDock(QWidget* parent, int port_)
     : QDockWidget(tr("留言"), parent), port(port_)
 {
-    setupUi();
+    setAttribute(Qt::WA_NativeWindow);  // 有利于嵌入 CEF 子窗口
+    webView.reset(new QCefWidget(this));
+    setWidget(webView.data());  // 设置为 dock 的主控件
+    initializeWebEngine("http://localhost:" + QString::number(port));
 }
 
 SeventeenLiveChatDock::~SeventeenLiveChatDock() = default;
 
-void SeventeenLiveChatDock::setupUi()
-{
-    // No need for a containerWidget or layout if webView will be the central widget.
-    initializeWebEngine("http://localhost:" + QString::number(port));
-}
-
 void SeventeenLiveChatDock::initializeWebEngine(const QString &htmlPath)
 {
-    if (!webView) {
-        webView = new QCefWidget(this);
-        webView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        setWidget(webView); // Set webView as the central widget of the QDockWidget
-    }
-    webView->loadUrl(htmlPath);
-
+    if (webView)
+        webView->loadUrl(htmlPath);
 }
