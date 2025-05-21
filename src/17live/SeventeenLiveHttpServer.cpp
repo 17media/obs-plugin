@@ -52,8 +52,6 @@ SeventeenLiveHttpServer::SeventeenLiveHttpServer(const std::string& host, int po
         std::filesystem::path full_base_path = std::filesystem::path(module_data_path) / base_dir_relative_to_module_data;
         base_dir_ = full_base_path.string();
     }
-    // TODO: base_dir_ 应加上 chat 目录
-    base_dir_ = base_dir_ + "/chat";
 
     blog(LOG_INFO, "[17Live HTTP Server] Base directory set to: %s", base_dir_.c_str());
 }

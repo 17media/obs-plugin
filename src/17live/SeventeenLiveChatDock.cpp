@@ -8,7 +8,7 @@ SeventeenLiveChatDock::SeventeenLiveChatDock(QWidget* parent, int port_)
     setAttribute(Qt::WA_NativeWindow);  // 有利于嵌入 CEF 子窗口
     webView.reset(new QCefWidget(this));
     setWidget(webView.data());  // 设置为 dock 的主控件
-    initializeWebEngine("http://localhost:" + QString::number(port));
+    initializeWebEngine(QString("http://localhost:%1/chat").arg(QString::number(port)));
 }
 
 SeventeenLiveChatDock::~SeventeenLiveChatDock() = default;
