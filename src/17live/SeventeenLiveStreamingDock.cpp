@@ -334,11 +334,14 @@ void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& 
     QMessageBox msgBox;
     msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
     msgBox.setText(obs_module_text("Live.Settings.StartStreaming.Tip"));
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    msgBox.setDefaultButton(QMessageBox::Yes);
     
-    int ret = msgBox.exec();
-    if (ret == QMessageBox::Yes) {
+    // 使用本地化的按钮文本
+    QPushButton *yesButton = msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
+    /* QPushButton *noButton = */ msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
+    msgBox.setDefaultButton(yesButton);
+    
+    msgBox.exec();
+    if (msgBox.clickedButton() == yesButton) {
         // 启动OBS串流
         obs_frontend_streaming_start();
     }
