@@ -191,7 +191,7 @@ void SeventeenLiveStreamListDock::refreshStreamList()
         // 显示空列表提示和跳转按钮
         showEmptyListMessage();
         // 禁用开始直播按钮，因为没有可选择的直播
-        startLiveButton->setEnabled(false);
+        startLiveButton->setVisible(false);
     } else {
         // 有直播信息，正常显示列表
         for (const auto& info : streamInfoList) {
@@ -200,7 +200,7 @@ void SeventeenLiveStreamListDock::refreshStreamList()
             updateStreamItem(widgetItem, info);
         }
         // 启用开始直播按钮
-        startLiveButton->setEnabled(true);
+        startLiveButton->setVisible(true);
     }
 }
 
