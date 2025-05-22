@@ -35,6 +35,7 @@ private:
     void setupUi();
     void createConnections();
     void updateStreamItem(QListWidgetItem* item, const SeventeenLiveStreamInfo& info);
+    void showEmptyListMessage();
 
     QListWidget *streamList;
     QPushButton *startLiveButton;

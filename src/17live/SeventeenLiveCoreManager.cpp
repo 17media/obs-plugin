@@ -286,9 +286,11 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
     }
 
     connect(liveListDock, &SeventeenLiveStreamListDock::startLiveClicked, this, [this] (const SeventeenLiveRtmpRequest& request) {
-        if (streamingDock) {
-            streamingDock->createLiveWithRequest(request);
+        if (!streamingDock) {
+            handleStreamingClicked();
         }
+
+        streamingDock->createLiveWithRequest(request);
     });
 
     connect(liveListDock, &SeventeenLiveStreamListDock::editLiveClicked, this, [this] (const SeventeenLiveStreamInfo& info) {

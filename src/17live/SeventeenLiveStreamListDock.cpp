@@ -133,18 +133,75 @@ void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const 
         this->onDeleteStreamClicked(item, info);
     });
 }
+void SeventeenLiveStreamListDock::showEmptyListMessage()
+{
+    // 创建提示信息和跳转按钮的容器
+    QWidget* emptyContainer = new QWidget();
+    QVBoxLayout* emptyLayout = new QVBoxLayout(emptyContainer);
+    emptyLayout->setAlignment(Qt::AlignCenter);
+    emptyLayout->setContentsMargins(20, 40, 20, 40);
+    emptyLayout->setSpacing(20);
+    
+    // 添加提示信息
+    QLabel* emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
+    emptyLabel->setStyleSheet("color: #aaaaaa; font-size: 14px; text-align: center;");
+    emptyLabel->setAlignment(Qt::AlignCenter);
+    emptyLabel->setWordWrap(true);
+    
+    // 添加跳转按钮
+    QPushButton* goToStreamingButton = new QPushButton(obs_module_text("Live.StreamList.GoToStreaming"));
+    goToStreamingButton->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #4a86e8;"
+        "    color: white;"
+        "    border-radius: 4px;"
+        "    padding: 8px 16px;"
+        "    font-size: 13px;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #5a96f8;"
+        "}"
+    );
+    goToStreamingButton->setCursor(Qt::PointingHandCursor);
+    
+    // 连接按钮点击信号
+    connect(goToStreamingButton, &QPushButton::clicked, this, [this]() {
+        // 发送信号，通知需要打开开始直播面板
+        emit startLiveClicked(SeventeenLiveRtmpRequest());
+    });
+    
+    // 添加到布局
+    emptyLayout->addWidget(emptyLabel);
+    emptyLayout->addWidget(goToStreamingButton);
+    
+    // 创建一个列表项并设置自定义小部件
+    QListWidgetItem* emptyItem = new QListWidgetItem(streamList);
+    emptyItem->setSizeHint(emptyContainer->sizeHint());
+    streamList->setItemWidget(emptyItem, emptyContainer);
+}
+
 void SeventeenLiveStreamListDock::refreshStreamList()
 {
     streamList->clear();
     
     std::vector<SeventeenLiveStreamInfo> streamInfoList;
     configManager->loadAllLiveConfig(streamInfoList);
-    for (const auto& info : streamInfoList) {
-      QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
-      widgetItem->setData(Qt::UserRole, QVariant::fromValue(info));
-      updateStreamItem(widgetItem, info);
+    
+    if (streamInfoList.empty()) {
+        // 显示空列表提示和跳转按钮
+        showEmptyListMessage();
+        // 禁用开始直播按钮，因为没有可选择的直播
+        startLiveButton->setEnabled(false);
+    } else {
+        // 有直播信息，正常显示列表
+        for (const auto& info : streamInfoList) {
+            QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
+            widgetItem->setData(Qt::UserRole, QVariant::fromValue(info));
+            updateStreamItem(widgetItem, info);
+        }
+        // 启用开始直播按钮
+        startLiveButton->setEnabled(true);
     }
-
 }
 
 void SeventeenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const SeventeenLiveStreamInfo& info)
