@@ -329,6 +329,19 @@ void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& 
     }
 
     updateLiveStatus(SeventeenLiveStreamingStatus::Live);
+    
+    // 询问是否同时开始串流
+    QMessageBox msgBox;
+    msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
+    msgBox.setText(obs_module_text("Live.Settings.StartStreaming.Tip"));
+    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    msgBox.setDefaultButton(QMessageBox::Yes);
+    
+    int ret = msgBox.exec();
+    if (ret == QMessageBox::Yes) {
+        // 启动OBS串流
+        obs_frontend_streaming_start();
+    }
 }
 
 void SeventeenLiveStreamingDock::onDeleteLiveClicked()
