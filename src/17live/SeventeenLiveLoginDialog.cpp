@@ -6,6 +6,7 @@
 #include <QHBoxLayout>
 #include <QPixmap>
 #include <QStyle>
+#include <QMessageBox>
 
 #include "api/SeventeenLiveApiWrappers.hpp"
 
@@ -123,6 +124,9 @@ void SeventeenLiveLoginDialog::handleLogin()
 
     // log access token
     obs_log(LOG_INFO, "access token: %s", loginData.accessToken.toStdString().c_str());
+    
+    // 显示登录成功消息框
+    QMessageBox::information(this, obs_module_text("Auth.LoginSuccess"), QString(obs_module_text("Auth.LoginSuccess.Tip")).arg(loginData.userInfo.openID));
     
     // 登录成功
     accept();
