@@ -6,8 +6,6 @@
 #include <map>
 #include <mutex>
 
-#include "browser/cef-headers.hpp"
-
 // 前向声明
 class QMainWindow;
 

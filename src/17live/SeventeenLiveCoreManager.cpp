@@ -12,11 +12,12 @@
 #include "SeventeenLiveConfigManager.hpp"
 #include "SeventeenLiveLoginDialog.hpp"
 #include "SeventeenLiveStreamingDock.hpp"
-#include "SeventeenLiveChatDock.hpp"
 #include "SeventeenLiveStreamListDock.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
 #include "SeventeenLiveHttpServer.hpp"
+
+#include "cef-view.hpp"
 
 
 using namespace json11;
@@ -458,61 +459,13 @@ void SeventeenLiveCoreManager::saveDockState()
 
 //     obs_frontend_streaming_stop();
 // }
-
 void SeventeenLiveCoreManager::handleChatRoomClicked()
 {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
-    static SeventeenLiveChatDock* chatDock = nullptr;
-    
-    // 如果聊天窗口不存在或已被销毁，则创建新的
-    if (!chatDock) {
-        QSize size = mainWindow->size();
-        QPoint pos = mainWindow->pos();
-
-        // 创建聊天窗口
-        chatDock = new SeventeenLiveChatDock(mainWindow, httpServer_->getPort());
-        
-        // 先设置为浮动窗口，避免添加到dock area后无法调整大小
-        chatDock->setFloating(true);
-        
-        // 设置允许的停靠区域
-        chatDock->setAllowedAreas(Qt::RightDockWidgetArea|Qt::LeftDockWidgetArea);
-        
-        // 设置初始大小
-        chatDock->resize(378, 600);
-        
-        // 设置初始位置 - 在主窗口右侧
-        chatDock->move(pos.x() + size.width() - chatDock->width() - 50, pos.y() + 50);
-        
-        // 添加到主窗口，但保持浮动状态
-        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
-        
-        // 确保窗口可见
-        chatDock->setVisible(true);
-        chatDockFirstLoad = false;
-        
-        // 连接窗口关闭信号，以便在用户关闭窗口时正确处理
-        QObject::connect(chatDock, &QDockWidget::visibilityChanged, [=](bool visible) {
-            if (mainWindow->isVisible() && visible) {
-                // 保存当前的停靠状态
-                configManager->setDockState(mainWindow->saveState());
-            }
-        });
-    } else {
-        // 如果窗口已存在，则切换其可见性
-        chatDock->setVisible(!chatDock->isVisible());
-        
-        // 如果变为可见，确保它在前台显示
-        if (chatDock->isVisible()) {
-            chatDock->raise();
-            chatDock->activateWindow();
-        }
-        
-        // 保存当前的停靠状态
-        if (mainWindow->isVisible() && chatDock->isVisible())
-            configManager->setDockState(mainWindow->saveState());
-    }
+    QString chatUrl = QString("http://localhost:%1/chat/").arg(QString::number(httpServer_->getPort()));
+    obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
+    cef_view_open_url(chatUrl.toStdString().c_str());
 }
 
 void SeventeenLiveCoreManager::loadConfigStreamer()

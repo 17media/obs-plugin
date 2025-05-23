@@ -86,18 +86,13 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/17live/utility/Common.cpp
                                              src/17live/utility/Meta.cpp
                                              src/17live/api/SeventeenLiveApiWrappers.cpp
-                                             deps/signal-restore.cpp
-                                             src/17live/browser/sl-browser-app.cpp
-                                             src/17live/browser/CefHandler.cpp
-                                             src/17live/browser/QCefWidget.cpp
+                                             src/17live/cef-view.cpp
                                              src/17live/SeventeenLiveMenuManager.cpp
                                              src/17live/SeventeenLiveLoginDialog.cpp
                                              src/17live/SeventeenLiveStreamingDock.cpp
-                                             src/17live/SeventeenLiveChatDock.cpp
                                              src/17live/SeventeenLiveStreamListDock.cpp
                                              src/17live/SeventeenLiveHttpServer.cpp
                                              resources.qrc)
 
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_BROWSER_SHARED_TEXTURE ENABLE_BROWSER_QT_LOOP)
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wno-deprecated-builtins)
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
