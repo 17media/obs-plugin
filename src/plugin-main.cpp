@@ -24,6 +24,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <thread>
 
 #include <QMainWindow>
+#include <QLabel>
+#include <QStatusBar>
 
 #if defined(__APPLE__)
 #include "include/wrapper/cef_library_loader.h"
@@ -75,6 +77,9 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 			isRunning = false;
 			return;
 		}
+
+		QLabel *label = new QLabel(QString("%1 [%2]").arg(PLUGIN_NAME, PLUGIN_VERSION), mainWindow);
+    mainWindow->statusBar()->addWidget(label);
 	
 		// 初始化SeventeenLiveCoreManager
 		try {
