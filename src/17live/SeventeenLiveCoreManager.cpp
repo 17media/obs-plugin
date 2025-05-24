@@ -1,5 +1,6 @@
 #include "SeventeenLiveCoreManager.hpp"
 #include <QMainWindow>
+#include <QDesktopServices>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -113,6 +114,11 @@ bool SeventeenLiveCoreManager::initialize()
     QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::chatRoomClicked, this, &SeventeenLiveCoreManager::handleChatRoomClicked);
 
     QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::liveListClicked, this, &SeventeenLiveCoreManager::handleLiveListClicked);
+
+    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::checkUpdateClicked, this, [this] () {
+        QUrl url = QUrl(obs_module_text("Menu.CheckUpdate.Url"), QUrl::TolerantMode);
+	    QDesktopServices::openUrl(url);
+    });
 
     if (isLogin) {
         QString openId = loginData.userInfo.openID;
@@ -327,138 +333,6 @@ void SeventeenLiveCoreManager::saveDockState()
     // }
 }
 
-// void SeventeenLiveCoreManager::handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request)
-// {
-//     // 处理创建流的逻辑
-//     obs_log(LOG_INFO, "handleCreateStreamClicked");
-
-//     SeventeenLiveRtmpResponse response;
-//     if (!apiWrapper->CreateRtmp(request, response)) {
-//         obs_log(LOG_ERROR, "Failed to create stream");
-//         return;
-//     }
-
-//     QString streamUrl;
-//     QString streamKey;
-
-//     int questionIndex = response.rtmpURL.indexOf(request.userID + "?");
-//     if (questionIndex != -1) {
-//         streamUrl = response.rtmpURL.left(questionIndex - 1);
-//         streamKey = response.rtmpURL.mid(questionIndex);
-//     } else {
-//         obs_log(LOG_ERROR, "Failed to parse stream url");
-//         return;
-//     }
-    
-//     obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
-//     obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
-
-//     configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
-
-//     currLiveStreamID = response.liveStreamID.toStdString();
-//     currUserID = request.userID.toStdString();
-
-//     streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::Live);
-// }
-
-// void SeventeenLiveCoreManager::handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request)
-// {
-//     // 处理创建并开始流的逻辑
-//     obs_log(LOG_INFO, "handleCreateAndStartStreamClicked");
-
-//     handleCreateStreamClicked(request);
-
-//     // 开始流
-//     std::string liveStreamID, streamUrl, streamKey;
-//     if (!configManager->getStreamingInfo(liveStreamID, streamUrl, streamKey)) {
-//         obs_log(LOG_ERROR, "Failed to get live stream id");
-//         return;
-//     }
-
-//     if (!apiWrapper->StartStream(liveStreamID, currUserID)) {
-//         obs_log(LOG_ERROR, "Failed to start stream");
-//         return;
-//     }
-//     startStreaming(liveStreamID, streamUrl, streamKey);
-
-//     streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::Streaming);
-// }
-
-// void SeventeenLiveCoreManager::startStreaming(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey)
-// {
-//     // 处理开始流的逻辑
-//     obs_log(LOG_INFO, "startStreaming %s", liveStreamID.c_str());
-
-//     // 获取OBS服务
-//     obs_service_t* service = obs_service_create("rtmp_custom", "default_service", NULL, NULL);
-    
-//     // 设置流媒体URL和密钥
-//     obs_data_t *settings = obs_service_get_settings(service);
-//     obs_log(LOG_INFO, "streamUrl: %s", streamUrl.c_str());
-//     obs_log(LOG_INFO, "streamKey: %s", streamKey.c_str());
-//     obs_data_set_string(settings, "server", streamUrl.c_str());
-//     obs_data_set_string(settings, "key", streamKey.c_str());
-    
-//     // 应用设置
-//     obs_service_update(service, settings);
-//     obs_data_release(settings);
-
-//     obs_frontend_set_streaming_service(service);
-
-//     obs_frontend_save_streaming_service();
-
-//     obs_frontend_streaming_start();
-
-//     obs_log(LOG_INFO, "Streaming started");
-
-//     // 释放资源
-//     obs_service_release(service);
-// }
-
-// void SeventeenLiveCoreManager::handleStopStreamingClicked()
-// {
-//     // 处理停止流的逻辑
-//     obs_log(LOG_INFO, "handleStopStreamingClicked");
-
-//     stopStreaming();
-
-//     SeventeenLiveCloseLiveRequest request;
-//     request.reason = "normalEnd";
-//     request.userID = QString::fromStdString(currUserID);
-
-//     if (!apiWrapper->StopStream(currLiveStreamID, request)) {
-//         obs_log(LOG_ERROR, "Failed to stop stream");
-//         return;
-//     }
-
-//     configManager->clearStreamingInfo();
-
-//     currLiveStreamID = "";
-
-//     streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::NotStarted);
-// }
-
-// void SeventeenLiveCoreManager::handleStopPushStreamingClicked()
-// {
-//     // 处理停止推流的逻辑
-//     obs_log(LOG_INFO, "handleStopPushStreamingClicked");
-//     stopStreaming();
-
-//     streamingDock->updateStreamingStatus(SeventeenLiveStreamingStatus::Live);
-// }
-
-// void SeventeenLiveCoreManager::stopStreaming()
-// {
-//     // 处理停止流的逻辑
-//     obs_log(LOG_INFO, "stopStreaming");
-
-//     if (!obs_frontend_streaming_active()) {
-//         obs_log(LOG_ERROR, "Streaming is not active");
-//         return;
-//     }
-
-//     obs_frontend_streaming_stop();
-// }
 void SeventeenLiveCoreManager::handleChatRoomClicked()
 {
     obs_log(LOG_INFO, "handleChatRoomClicked");

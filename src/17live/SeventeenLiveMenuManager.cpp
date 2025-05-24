@@ -2,6 +2,8 @@
 
 #include "SeventeenLiveMenuManager.hpp"
 #include <QMenuBar>
+#include <QUrl>
+#include <QDesktopServices>
 
 #include "moc_SeventeenLiveMenuManager.cpp"
 
@@ -21,11 +23,6 @@ SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
         emit chatRoomClicked();
     });
 
-    // settingsAction = dockSubMenu->addAction(obs_module_text("Menu.Settings"));
-    // connect(settingsAction, &QAction::triggered, this, [this](){
-    //     emit settingsClicked();
-    // });
-
     broadcastAction = dockSubMenu->addAction(obs_module_text("Menu.Broadcast"));
     connect(broadcastAction, &QAction::triggered, this, [this](){
         emit streamingClicked();
@@ -40,6 +37,12 @@ SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
 
     // common menu
     helpAction = menu->addAction(obs_module_text("Menu.Help"));
+
+    connect(helpAction, &QAction::triggered, this, [this](){
+        // open url obs_module_text("Menu.Help.Url");
+	    QUrl url = QUrl(obs_module_text("Menu.Help.Url"), QUrl::TolerantMode);
+	    QDesktopServices::openUrl(url);
+    });
 
     // 创建检查更新菜单项
     checkUpdateAction = menu->addAction(obs_module_text("Menu.CheckUpdate"));
