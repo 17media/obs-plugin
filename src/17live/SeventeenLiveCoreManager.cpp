@@ -242,7 +242,6 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
 
     streamingDock->setFloating(true);
-    streamingDock->move(pos.x() + size.width() - streamingDock->width() - 50, pos.y() - 50);
 
     if (streamingDockFirstLoad) {
         streamingDock->setVisible(true);
@@ -281,7 +280,6 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, liveListDock);
 
         liveListDock->setFloating(true);
-        liveListDock->move(pos.x() + size.width() - liveListDock->width() - 50, pos.y() - 50);
 
         liveListDock->setVisible(true);
     } else {
