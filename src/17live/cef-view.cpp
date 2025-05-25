@@ -342,7 +342,8 @@ static void cef_view_show_window(const char *url) {
 
 #if defined(OS_WIN)
     // On Windows, provide the parent window handle
-    window_info.SetAsChild((HWND)cef_window->winId(), RECT{0, 0, 1024, 768});
+    CefRect rect(0, 0, 378, 600);
+    window_info.SetAsChild((HWND)cef_window->winId(), rect);
 #elif defined(OS_MAC)
     // On macOS, you might embed CEF into an NSView. For a top-level window, this is different.
     // If using Qt, Qt handles the NSView creation. We pass the view's handle.
