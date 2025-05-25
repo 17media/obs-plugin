@@ -1,6 +1,6 @@
 /*
-Plugin Name
-Copyright (C) <Year> <Developer> <Email Address>
+OBS 17Live Plugin
+Copyright (C) 2023-2024 17Live Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
+
+// 本文件整合了plugin-support功能，使用PLUGIN_NAME和PLUGIN_VERSION常量以及obs_log函数
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>

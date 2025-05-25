@@ -46,7 +46,7 @@ add_subdirectory(deps/json11)
 # 添加 wrappers 依赖
 add_subdirectory(deps/wrappers)
 
-# 设置 json11 的头文件包含路径
+# 设置头文件包含路径
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
@@ -54,6 +54,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
     ${CEF_ROOT_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/src # 用于找到生成的plugin-support.c
 )
 
 # 链接 json11, wrappers 库
@@ -78,7 +79,11 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 #   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 # endif()
 
+# 配置plugin-support.c文件
+configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
+
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
+                                             src/plugin-support.c
                                              src/17live/SeventeenLiveCoreManager.cpp
                                              src/17live/SeventeenLiveConfigManager.cpp
                                              src/17live/api/SeventeenLiveModels.cpp
@@ -102,3 +107,22 @@ endif()
 
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+
+# 添加测试目标
+option(BUILD_TESTS "Build test applications" OFF)
+if(BUILD_TESTS)
+  # 添加测试可执行文件
+  add_executable(test_plugin_main test/test_plugin_main.c)
+  
+  # 设置测试目标的包含目录
+  target_include_directories(test_plugin_main PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_BINARY_DIR}/src
+  )
+  
+  # 如果需要，可以链接其他库
+  # target_link_libraries(test_plugin_main PRIVATE ...)
+  
+  # 添加测试命令
+  add_test(NAME test_plugin_main COMMAND test_plugin_main)
+endif()
