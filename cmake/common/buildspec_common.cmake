@@ -124,11 +124,18 @@ function(_check_dependencies)
     if(dependency STREQUAL cef AND NOT ENABLE_BROWSER)
       continue()
     endif()
-    if(dependency STREQUAL cef AND arch STREQUAL universal)
+    if(dependency STREQUAL cef AND arch STREQUAL universal AND OS_MACOS)
       set(orig_arch ${arch})
       # TODO: set arm64 as default arch
       set(arch "arm64")
       set(platform macos-${arch})
+    endif()
+    
+    # For Windows platform, set arch to x64 for CEF dependency
+    if(dependency STREQUAL cef AND OS_WINDOWS)
+      set(orig_arch ${arch})
+      set(arch "x64")
+      set(platform windows-${arch})
     endif()
 
     # cmake-format: off
