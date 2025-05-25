@@ -88,6 +88,7 @@ else()
 endif()
 
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL Windows)
+  # Windows特定的CEF配置
   find_library(
     CEF_IMPLIB_RELEASE
     NAMES cef.lib libcef.lib
