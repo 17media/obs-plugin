@@ -97,9 +97,10 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL Windows)
     DOC "Chromium Embedded Framework import library location"
   )
 
-  find_program(
+  # 在Windows上，我们需要查找导入库(.lib)而不是DLL文件
+  find_library(
     CEF_LIBRARY_RELEASE
-    NAMES cef.dll libcef.dll
+    NAMES cef libcef
     NO_DEFAULT_PATH
     PATHS "${CEF_ROOT_DIR}" "${CEF_ROOT_DIR}/Release"
     DOC "Chromium Embedded Framework library location"
@@ -211,21 +212,31 @@ if(NOT TARGET CEF::Wrapper)
 endif()
 
 if(NOT TARGET CEF::Library)
-  if(IS_ABSOLUTE "${CEF_LIBRARY_RELEASE}")
+  if(CMAKE_HOST_SYSTEM_NAME STREQUAL Windows)
+    # 在Windows平台上，使用SHARED库类型并正确设置导入库
+    add_library(CEF::Library SHARED IMPORTED)
     if(DEFINED CEF_IMPLIB_RELEASE)
-      if(CEF_IMPLIB_RELEASE STREQUAL CEF_LIBRARY_RELEASE)
-        add_library(CEF::Library STATIC IMPORTED)
-      else()
-        add_library(CEF::Library SHARED IMPORTED)
-        set_property(TARGET CEF::Library PROPERTY IMPORTED_IMPLIB_RELEASE "${CEF_IMPLIB_RELEASE}")
+      set_property(TARGET CEF::Library PROPERTY IMPORTED_IMPLIB_RELEASE "${CEF_IMPLIB_RELEASE}")
+      # 如果找到了DLL文件，设置IMPORTED_LOCATION
+      if(EXISTS "${CEF_ROOT_DIR}/Release/libcef.dll")
+        set_property(TARGET CEF::Library PROPERTY IMPORTED_LOCATION_RELEASE "${CEF_ROOT_DIR}/Release/libcef.dll")
+      elseif(EXISTS "${CEF_ROOT_DIR}/libcef.dll")
+        set_property(TARGET CEF::Library PROPERTY IMPORTED_LOCATION_RELEASE "${CEF_ROOT_DIR}/libcef.dll")
       endif()
     else()
-      add_library(CEF::Library UNKNOWN IMPORTED)
+      # 如果没有找到导入库，使用STATIC类型
+      add_library(CEF::Library STATIC IMPORTED)
+      set_property(TARGET CEF::Library PROPERTY IMPORTED_LOCATION_RELEASE "${CEF_LIBRARY_RELEASE}")
     endif()
-    set_property(TARGET CEF::Library PROPERTY IMPORTED_LOCATION_RELEASE "${CEF_LIBRARY_RELEASE}")
   else()
-    add_library(CEF::Library INTERFACE IMPORTED)
-    set_property(TARGET CEF::Library PROPERTY IMPORTED_LIBNAME_RELEASE "${CEF_LIBRARY_RELEASE}")
+    # 非Windows平台的处理
+    if(IS_ABSOLUTE "${CEF_LIBRARY_RELEASE}")
+      add_library(CEF::Library UNKNOWN IMPORTED)
+      set_property(TARGET CEF::Library PROPERTY IMPORTED_LOCATION_RELEASE "${CEF_LIBRARY_RELEASE}")
+    else()
+      add_library(CEF::Library INTERFACE IMPORTED)
+      set_property(TARGET CEF::Library PROPERTY IMPORTED_LIBNAME_RELEASE "${CEF_LIBRARY_RELEASE}")
+    endif()
   endif()
 
   set_property(TARGET CEF::Library APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CEF_INCLUDE_DIR}" "${CEF_ROOT_DIR}")

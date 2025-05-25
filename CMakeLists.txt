@@ -13,6 +13,16 @@ include(helpers)
 
 add_library(${CMAKE_PROJECT_NAME} MODULE)
 
+# 设置Windows平台下的运行时库为静态链接(/MT)，以匹配CEF库
+if(OS_WINDOWS)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE 
+    $<$<CONFIG:Release>:/MT>
+    $<$<CONFIG:RelWithDebInfo>:/MT>
+    $<$<CONFIG:Debug>:/MTd>
+  )
+endif()
+
 find_package(libobs REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
 
@@ -61,8 +71,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
   json11 
   wrappers
-  ${CEF_LIBRARY_RELEASE}
-  ${CEF_LIBRARY_WRAPPER_RELEASE}
+  CEF::Library
+  CEF::Wrapper
   Threads::Threads # For cpp-httplib
 )
 
@@ -102,11 +112,53 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
 if (MSVC)
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE /wd4996)
 else()
-  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wno-deprecated-builtins)
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wno-deprecated-builtins)
 endif()
 
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+
+# Windows平台特定的CEF配置
+if(OS_WINDOWS)
+  # 添加Windows平台特定的编译定义
+  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+    NOMINMAX
+    WIN32_LEAN_AND_MEAN
+    _CRT_SECURE_NO_WARNINGS
+  )
+  
+  # # 添加自定义命令，在构建后复制CEF的DLL文件到输出目录
+  # add_custom_command(
+  #   TARGET ${CMAKE_PROJECT_NAME}
+  #   POST_BUILD
+  #   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+  #     "${CEF_ROOT_DIR}/Release/libcef.dll"
+  #     "$<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>"
+  #   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+  #     "${CEF_ROOT_DIR}/Release/chrome_elf.dll"
+  #     "$<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>"
+  #   COMMAND ${CMAKE_COMMAND} -E copy_directory
+  #     "${CEF_ROOT_DIR}/Release/resources"
+  #     "$<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/resources"
+  #   COMMAND ${CMAKE_COMMAND} -E copy_directory
+  #     "${CEF_ROOT_DIR}/Release/locales"
+  #     "$<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/locales"
+  #   COMMENT "Copying CEF binaries to output directory"
+  # )
+endif()
+
+# macOS平台特定的CEF配置
+if(OS_MACOS)
+  # 添加自定义命令，复制CEF framework到应用程序包
+  add_custom_command(
+    TARGET ${CMAKE_PROJECT_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      "${CEF_ROOT_DIR}/Chromium Embedded Framework.framework"
+      "$<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/../Frameworks/Chromium Embedded Framework.framework"
+    COMMENT "Copying CEF framework to app bundle"
+  )
+endif()
 
 # 添加测试目标
 option(BUILD_TESTS "Build test applications" OFF)

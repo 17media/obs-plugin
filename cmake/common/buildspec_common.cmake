@@ -128,14 +128,14 @@ function(_check_dependencies)
       set(orig_arch ${arch})
       # TODO: set arm64 as default arch
       set(arch "arm64")
-      set(platform macos-${arch})
+      # set(platform macos-${arch})
     endif()
     
     # For Windows platform, set arch to x64 for CEF dependency
     if(dependency STREQUAL cef AND OS_WINDOWS)
       set(orig_arch ${arch})
       set(arch "x64")
-      set(platform windows-${arch})
+      # set(platform windows-${arch})
     endif()
 
     # cmake-format: off
@@ -231,6 +231,8 @@ function(_check_dependencies)
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}/${destination}")
     elseif(dependency STREQUAL qt6)
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}/${destination}")
+
+      message(STATUS "qt6 root directory: ${dependencies_dir}/${destination}")
     elseif(dependency STREQUAL obs-studio)
       set(_obs_version ${version})
       set(_obs_destination "${destination}")
