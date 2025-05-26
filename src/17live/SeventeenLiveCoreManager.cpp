@@ -221,39 +221,52 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
 {
     obs_log(LOG_INFO, "handleStreamingClicked");
 
-    SeventeenLiveLoginData loginData;
-    if (!configManager->getLoginData(loginData)) {
-        obs_log(LOG_ERROR, "Failed to get login data");
-        return;
-    }
+    if (!streamingDock) {
+        SeventeenLiveLoginData loginData;
+        if (!configManager->getLoginData(loginData)) {
+            obs_log(LOG_ERROR, "Failed to get login data");
+            return;
+        }
 
-    SeventeenLiveRoomInfo roomInfo;
-    if (!apiWrapper->GetRoomInfo(loginData.userInfo.roomID, roomInfo)) {
-        obs_log(LOG_ERROR, "Failed to get self room info");
-        return;
-    }
+        SeventeenLiveRoomInfo roomInfo;
+        if (!apiWrapper->GetRoomInfo(loginData.userInfo.roomID, roomInfo)) {
+            obs_log(LOG_ERROR, "Failed to get self room info");
+            return;
+        }
 
-//    QSize size = mainWindow->size();
-//    QPoint pos = mainWindow->pos();
+        // 创建并显示流媒体窗口
+        streamingDock = new SeventeenLiveStreamingDock(mainWindow, roomInfo, apiWrapper.get(), configManager.get());
 
-    // 创建并显示流媒体窗口
-    streamingDock = new SeventeenLiveStreamingDock(mainWindow, roomInfo, apiWrapper.get(), configManager.get());
+        streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
 
-    streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
-
-    streamingDock->setFloating(true);
-
-    if (streamingDockFirstLoad) {
+        streamingDock->setFloating(true);
         streamingDock->setVisible(true);
-        streamingDockFirstLoad = false;
+
+        connect(streamingDock, &SeventeenLiveStreamingDock::streamInfoSaved, this, [this] () {
+            if (liveListDock) {
+                liveListDock->refreshStreamList();
+            }
+        });
+
+        connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+                                            visible,
+                                            liveListDock && liveListDock->isVisible());
+        });
+        
+        // 连接关闭信号到主窗口的槽函数
+        connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
+            saveDockState();
+        });
     } else {
         streamingDock->setVisible(!streamingDock->isVisible());
-        
+
         QByteArray dockState = configManager->getDockState();
         if (mainWindow->isVisible())
             mainWindow->restoreState(dockState);
     }
+
 
     // 更新菜单项勾选状态
     if (menuManager) {
@@ -262,23 +275,6 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
                                         liveListDock && liveListDock->isVisible());
     }
 
-    connect(streamingDock, &SeventeenLiveStreamingDock::streamInfoSaved, this, [this] () {
-        if (liveListDock) {
-            liveListDock->refreshStreamList();
-        }
-    });
-    
-    // 连接关闭信号到主窗口的槽函数
-    connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
-        saveDockState();
-        // 更新菜单项勾选状态
-        if (menuManager) {
-            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
-                                            false,
-                                            liveListDock && liveListDock->isVisible());
-        }
-    });
-
 }
 
 void SeventeenLiveCoreManager::handleLiveListClicked()
@@ -286,10 +282,7 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
     obs_log(LOG_INFO, "handleLiveListClicked");
 
     if (!liveListDock) {
-//        QSize size = mainWindow->size();
-//        QPoint pos = mainWindow->pos();
 
-        // 创建并显示流媒体窗口
         liveListDock = new SeventeenLiveStreamListDock(mainWindow, configManager.get());
 
         liveListDock->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -298,6 +291,32 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
         liveListDock->setFloating(true);
 
         liveListDock->setVisible(true);
+
+        connect(liveListDock, &SeventeenLiveStreamListDock::startLiveClicked, this, [this] (const SeventeenLiveRtmpRequest& request) {
+            if (!streamingDock) {
+                handleStreamingClicked();
+            }
+    
+            streamingDock->createLiveWithRequest(request);
+        });
+    
+        connect(liveListDock, &SeventeenLiveStreamListDock::editLiveClicked, this, [this] (const SeventeenLiveStreamInfo& info) {
+            if (streamingDock) {
+                streamingDock->editLiveWithInfo(info);
+            }
+        });
+
+        // dock 关闭时，取消菜单项的勾选状态
+        connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+                                            streamingDock && streamingDock->isVisible(),
+                                            visible);
+        });
+    
+        // 连接关闭信号到主窗口的槽函数
+        connect(liveListDock, &QDockWidget::destroyed, this, [this]() {
+            saveDockState();
+        });
     } else {
         liveListDock->setVisible(!liveListDock->isVisible());
         
@@ -312,31 +331,6 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
                                         streamingDock && streamingDock->isVisible(),
                                         liveListDock && liveListDock->isVisible());
     }
-
-    connect(liveListDock, &SeventeenLiveStreamListDock::startLiveClicked, this, [this] (const SeventeenLiveRtmpRequest& request) {
-        if (!streamingDock) {
-            handleStreamingClicked();
-        }
-
-        streamingDock->createLiveWithRequest(request);
-    });
-
-    connect(liveListDock, &SeventeenLiveStreamListDock::editLiveClicked, this, [this] (const SeventeenLiveStreamInfo& info) {
-        if (streamingDock) {
-            streamingDock->editLiveWithInfo(info);
-        }
-    });
-
-    // 连接关闭信号到主窗口的槽函数
-    connect(liveListDock, &QDockWidget::destroyed, this, [this]() {
-        saveDockState();
-        // 更新菜单项勾选状态
-        if (menuManager) {
-            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
-                                            streamingDock && streamingDock->isVisible(),
-                                            false);
-        }
-    });
 }
 
 bool SeventeenLiveCoreManager::checkLoginStatus()
@@ -360,22 +354,25 @@ void SeventeenLiveCoreManager::saveDockState()
     //     QByteArray state = mainWindow->saveState();
     //     configManager->setDockState(state);
     // }
-    
-    // 更新菜单项勾选状态
-    if (menuManager) {
-        menuManager->updateDockVisibility(cef_window && cef_window->isVisible(), 
-                                        streamingDock && streamingDock->isVisible(),
-                                        liveListDock && liveListDock->isVisible());
-    }
 }
 
 void SeventeenLiveCoreManager::handleChatRoomClicked()
 {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
-    QString chatUrl = QString("http://localhost:%1/chat/").arg(QString::number(httpServer_->getPort()));
-    obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
-    cef_view_open_url(chatUrl.toStdString().c_str());
+    if (!cef_window) { 
+        QString chatUrl = QString("http://localhost:%1/chat/").arg(QString::number(httpServer_->getPort()));
+        obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
+        cef_view_open_url(chatUrl.toStdString().c_str());
+
+        connect(cef_window, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            menuManager->updateDockVisibility(visible,
+                                            streamingDock && streamingDock->isVisible(),
+                                            liveListDock && liveListDock->isVisible());
+        });
+    } else {
+        cef_window->setVisible(!cef_window->isVisible());
+    }
     
     // 更新聊天室可见状态（CEF 视图打开时视为可见）
     if (menuManager) {

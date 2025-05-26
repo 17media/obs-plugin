@@ -118,13 +118,20 @@ void SeventeenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool b
     isLiveListVisible = liveListVisible;
     
     // 更新菜单项勾选状态
-    chatRoomAction->setCheckable(true);
-    broadcastAction->setCheckable(true);
-    liveListAction->setCheckable(true);
-    
-    chatRoomAction->setChecked(isChatRoomVisible);
-    broadcastAction->setChecked(isBroadcastVisible);
-    liveListAction->setChecked(isLiveListVisible);
+    if (chatRoomAction) {
+        chatRoomAction->setCheckable(true);
+        chatRoomAction->setChecked(isChatRoomVisible);
+    }
+
+    if (broadcastAction) {
+        broadcastAction->setCheckable(true);    
+        broadcastAction->setChecked(isBroadcastVisible);
+    }
+
+    if (liveListAction) {
+        liveListAction->setCheckable(true);    
+        liveListAction->setChecked(isLiveListVisible);
+    }
 }
 
 void SeventeenLiveMenuManager::updateMenuItemsEnabled()
