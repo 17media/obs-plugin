@@ -128,7 +128,7 @@ function(_check_dependencies)
       set(orig_arch ${arch})
       # TODO: set arm64 as default arch
       set(arch "arm64")
-      # set(platform macos-${arch})
+      set(platform macos-${arch})
     endif()
     
     # For Windows platform, set arch to x64 for CEF dependency
