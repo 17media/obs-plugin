@@ -1,7 +1,6 @@
 #include "SeventeenLiveStreamingDock.hpp"
 
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QMessageBox>
@@ -63,12 +62,26 @@ void SeventeenLiveStreamingDock::setupUi()
     formLayout->addRow(categoryLabel, categoryCombo);
     
     // 标签区域
-    QHBoxLayout *tagLayout = new QHBoxLayout();
+    QVBoxLayout *tagContainer = new QVBoxLayout();
+    
+    // 输入框和添加按钮
+    QHBoxLayout *tagInputLayout = new QHBoxLayout();
     tagEdit = new QLineEdit();
+    tagEdit->setPlaceholderText(obs_module_text("Live.Settings.Tags.Placeholder"));
     addTagButton = new QPushButton(obs_module_text("Live.Settings.AddTag"));
-    tagLayout->addWidget(tagEdit);
-    tagLayout->addWidget(addTagButton);
-    formLayout->addRow(obs_module_text("Live.Settings.Tags"), tagLayout);
+    tagInputLayout->addWidget(tagEdit);
+    tagInputLayout->addWidget(addTagButton);
+    tagContainer->addLayout(tagInputLayout);
+    
+    // 标签显示区域
+    tagsContainer = new QWidget();
+    tagsLayout = new QHBoxLayout(tagsContainer);
+    tagsLayout->setContentsMargins(0, 5, 0, 0);
+    tagsLayout->setSpacing(5);
+    tagsLayout->setAlignment(Qt::AlignLeft);
+    tagContainer->addWidget(tagsContainer);
+    
+    formLayout->addRow(obs_module_text("Live.Settings.Tags"), tagContainer);
 
     mainLayout->addLayout(formLayout);
     
@@ -224,14 +237,94 @@ void SeventeenLiveStreamingDock::setupUi()
 
 void SeventeenLiveStreamingDock::createConnections()
 {
+    // 标签相关连接
     connect(addTagButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onAddTagClicked);
+    connect(tagEdit, &QLineEdit::returnPressed, this, &SeventeenLiveStreamingDock::onTagEnterPressed);
+    
+    // 其他按钮连接
     connect(saveConfigButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onSaveConfigClicked);
     connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
 }
 
 void SeventeenLiveStreamingDock::onAddTagClicked()
 {
-    // TODO: 实现添加标签的逻辑
+    QString tag = tagEdit->text().trimmed();
+    if (!tag.isEmpty()) {
+        addTag(tag);
+        tagEdit->clear();
+    }
+}
+
+void SeventeenLiveStreamingDock::onTagEnterPressed()
+{
+    onAddTagClicked(); // 复用添加标签的逻辑
+}
+
+void SeventeenLiveStreamingDock::onRemoveTagClicked()
+{
+    // 获取发送信号的按钮
+    QPushButton *removeButton = qobject_cast<QPushButton*>(sender());
+    if (!removeButton) return;
+    
+    // 获取标签文本（存储在按钮的属性中）
+    QString tag = removeButton->property("tag").toString();
+    
+    // 从列表中移除标签
+    tagsList.removeOne(tag);
+    
+    // 更新标签显示
+    updateTagsFromList();
+}
+
+void SeventeenLiveStreamingDock::addTag(const QString &tag)
+{
+    // 检查标签是否已存在
+    if (!tagsList.contains(tag)) {
+        tagsList.append(tag);
+        updateTagsFromList();
+    }
+}
+
+void SeventeenLiveStreamingDock::updateTagsFromList()
+{
+    // 清除现有标签显示
+    QLayoutItem *child;
+    while ((child = tagsLayout->takeAt(0)) != nullptr) {
+        if (child->widget()) {
+            child->widget()->deleteLater();
+        }
+        delete child;
+    }
+    
+    // 重新创建标签显示
+    for (const QString &tag : tagsList) {
+        // 创建标签容器
+        QWidget *tagWidget = new QWidget();
+        tagWidget->setStyleSheet("background-color: #3D3D3D; border-radius: 4px; padding: 2px;");
+        
+        QHBoxLayout *tagWidgetLayout = new QHBoxLayout(tagWidget);
+        tagWidgetLayout->setContentsMargins(5, 2, 5, 2);
+        tagWidgetLayout->setSpacing(3);
+        
+        // 创建标签文本
+        QLabel *tagLabel = new QLabel("#" + tag);
+        tagLabel->setStyleSheet("color: white;");
+        
+        // 创建删除按钮
+        QPushButton *removeButton = new QPushButton("x");
+        removeButton->setProperty("tag", tag);
+        removeButton->setFixedSize(16, 16);
+        removeButton->setStyleSheet("QPushButton { background-color: transparent; color: white; border: none; font-size: 12px; } QPushButton:hover { color: red; }");
+        connect(removeButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onRemoveTagClicked);
+        
+        tagWidgetLayout->addWidget(tagLabel);
+        tagWidgetLayout->addWidget(removeButton);
+        
+        tagsLayout->addWidget(tagWidget);
+    }
+    
+    // 添加弹性空间，使标签靠左对齐
+    tagsLayout->addStretch();
 }
 
 void SeventeenLiveStreamingDock::onSaveConfigClicked()
@@ -428,7 +521,11 @@ void SeventeenLiveStreamingDock::populateRtmpRequest(const SeventeenLiveRtmpRequ
         activityCombo->setCurrentIndex(eventIndex);
     }
 
-    tagEdit->setText(request.hashtags.join(","));
+    // 清空并重新加载标签列表
+    tagsList.clear();
+    tagsList = request.hashtags;
+    updateTagsFromList();
+    tagEdit->clear();
 
     if (request.landscape) {
         normalStreamRadio->setChecked(true);
@@ -472,7 +569,7 @@ bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     request.device = "OBS";
     int eventID = activityCombo->currentData().toInt();
     request.eventID = eventID;
-    request.hashtags = tagEdit->text().split(",");
+    request.hashtags = tagsList;
     request.landscape = normalStreamRadio->isChecked();
     request.streamerType = roomInfo.streamerType;
     request.subtabID = categoryCombo->currentData().toString();

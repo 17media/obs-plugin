@@ -8,6 +8,7 @@
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QLabel>
+#include <QHBoxLayout>
 
 #include "api/SeventeenLiveModels.hpp"
 
@@ -38,6 +39,9 @@ private:
     // 标签区域
     QLineEdit *tagEdit;
     QPushButton *addTagButton;
+    QWidget *tagsContainer; // 用于显示标签的容器
+    QHBoxLayout *tagsLayout; // 标签容器的布局
+    QList<QString> tagsList; // 存储当前的标签列表
     
     // 开播格式
     QRadioButton *normalStreamRadio;
@@ -65,6 +69,8 @@ signals:
 
 private slots:
     void onAddTagClicked();
+    void onTagEnterPressed();
+    void onRemoveTagClicked();
     void onCreateLiveClicked();
     void onDeleteLiveClicked();
     void onSaveConfigClicked();
@@ -79,6 +85,10 @@ private:
     void stopStreaming();
 
     void startStreaming(const SeventeenLiveRtmpRequest& request);
+    
+    // 标签相关函数
+    void addTag(const QString &tag);
+    void updateTagsFromList();
 
     SeventeenLiveApiWrappers *apiWrapper = nullptr;
     SeventeenLiveConfigManager *configManager = nullptr;
