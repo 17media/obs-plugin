@@ -232,8 +232,8 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
         return;
     }
 
-    QSize size = mainWindow->size();
-    QPoint pos = mainWindow->pos();
+//    QSize size = mainWindow->size();
+//    QPoint pos = mainWindow->pos();
 
     // 创建并显示流媒体窗口
     streamingDock = new SeventeenLiveStreamingDock(mainWindow, roomInfo, apiWrapper.get(), configManager.get());
@@ -270,8 +270,8 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
     obs_log(LOG_INFO, "handleLiveListClicked");
 
     if (!liveListDock) {
-        QSize size = mainWindow->size();
-        QPoint pos = mainWindow->pos();
+//        QSize size = mainWindow->size();
+//        QPoint pos = mainWindow->pos();
 
         // 创建并显示流媒体窗口
         liveListDock = new SeventeenLiveStreamListDock(mainWindow, configManager.get());
