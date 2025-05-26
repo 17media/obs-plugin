@@ -24,8 +24,6 @@ class SeventeenLiveStreamingDock;
 
 class SeventeenLiveStreamListDock;
 
-class SeventeenLiveChatDock;
-
 struct SeventeenLiveRtmpRequest;
 
 class SeventeenLiveHttpServer;
@@ -136,16 +134,7 @@ private:
     bool streamingDockFirstLoad = true;
     SeventeenLiveStreamingDock* streamingDock{nullptr};
     void handleStreamingClicked();
-    
-    // void handleCreateStreamClicked(const SeventeenLiveRtmpRequest &request);
-    // void handleCreateAndStartStreamClicked(const SeventeenLiveRtmpRequest &request);
-    // void startStreaming(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey);
-    // void handleStopStreamingClicked();
-    // void handleStopPushStreamingClicked();
-    // void stopStreaming();
 
-    SeventeenLiveChatDock* chatDock{nullptr};
-    bool chatDockFirstLoad = true;
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;

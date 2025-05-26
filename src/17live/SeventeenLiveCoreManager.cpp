@@ -20,6 +20,7 @@
 
 #include "cef-view.hpp"
 
+extern QDockWidget *cef_window;
 
 using namespace json11;
 using namespace std;
@@ -254,6 +255,13 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
             mainWindow->restoreState(dockState);
     }
 
+    // 更新菜单项勾选状态
+    if (menuManager) {
+        menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+                                        streamingDock && streamingDock->isVisible(),
+                                        liveListDock && liveListDock->isVisible());
+    }
+
     connect(streamingDock, &SeventeenLiveStreamingDock::streamInfoSaved, this, [this] () {
         if (liveListDock) {
             liveListDock->refreshStreamList();
@@ -261,7 +269,15 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
     });
     
     // 连接关闭信号到主窗口的槽函数
-    connect(streamingDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
+    connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
+        saveDockState();
+        // 更新菜单项勾选状态
+        if (menuManager) {
+            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+                                            false,
+                                            liveListDock && liveListDock->isVisible());
+        }
+    });
 
 }
 
@@ -290,6 +306,13 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
             mainWindow->restoreState(dockState);
     }
 
+    // 更新菜单项勾选状态
+    if (menuManager) {
+        menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+                                        streamingDock && streamingDock->isVisible(),
+                                        liveListDock && liveListDock->isVisible());
+    }
+
     connect(liveListDock, &SeventeenLiveStreamListDock::startLiveClicked, this, [this] (const SeventeenLiveRtmpRequest& request) {
         if (!streamingDock) {
             handleStreamingClicked();
@@ -305,7 +328,15 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
     });
 
     // 连接关闭信号到主窗口的槽函数
-    connect(liveListDock, &QDockWidget::destroyed, this, &SeventeenLiveCoreManager::saveDockState);
+    connect(liveListDock, &QDockWidget::destroyed, this, [this]() {
+        saveDockState();
+        // 更新菜单项勾选状态
+        if (menuManager) {
+            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+                                            streamingDock && streamingDock->isVisible(),
+                                            false);
+        }
+    });
 }
 
 bool SeventeenLiveCoreManager::checkLoginStatus()
@@ -329,6 +360,13 @@ void SeventeenLiveCoreManager::saveDockState()
     //     QByteArray state = mainWindow->saveState();
     //     configManager->setDockState(state);
     // }
+    
+    // 更新菜单项勾选状态
+    if (menuManager) {
+        menuManager->updateDockVisibility(cef_window && cef_window->isVisible(), 
+                                        streamingDock && streamingDock->isVisible(),
+                                        liveListDock && liveListDock->isVisible());
+    }
 }
 
 void SeventeenLiveCoreManager::handleChatRoomClicked()
@@ -338,6 +376,13 @@ void SeventeenLiveCoreManager::handleChatRoomClicked()
     QString chatUrl = QString("http://localhost:%1/chat/").arg(QString::number(httpServer_->getPort()));
     obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
     cef_view_open_url(chatUrl.toStdString().c_str());
+    
+    // 更新聊天室可见状态（CEF 视图打开时视为可见）
+    if (menuManager) {
+        menuManager->updateDockVisibility(true, 
+                                        streamingDock && streamingDock->isVisible(), 
+                                        liveListDock && liveListDock->isVisible());
+    }
 }
 
 void SeventeenLiveCoreManager::loadConfigStreamer()

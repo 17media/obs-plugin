@@ -25,6 +25,12 @@ public:
     void handleLogin();
     void handleLogout();
     void cleanup();
+    
+    // 更新 dock 窗口可见状态
+    void updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible);
+    
+    // 更新菜单项启用状态
+    void updateMenuItemsEnabled();
 
 signals:
     void chatRoomClicked();
@@ -48,5 +54,10 @@ private:
     QAction* checkUpdateAction;
     QAction* loginAction;
     bool isLoggedIn;
+    
+    // Dock 窗口可见状态
+    bool isChatRoomVisible;
+    bool isBroadcastVisible;
+    bool isLiveListVisible;
 
 };

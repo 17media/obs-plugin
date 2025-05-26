@@ -8,7 +8,7 @@
 #include "moc_SeventeenLiveMenuManager.cpp"
 
 SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
-    : mainWindow(parent), isLoggedIn(false)
+    : mainWindow(parent), isLoggedIn(false), isChatRoomVisible(false), isBroadcastVisible(false), isLiveListVisible(false)
 {
     // 创建17Live菜单
     menu = mainWindow->menuBar()->addMenu(obs_module_text("17Live"));
@@ -53,6 +53,17 @@ SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
     // 创建登录菜单项
     loginAction = menu->addAction(obs_module_text("Menu.SignIn"));
     connect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogin);
+    
+    // 初始化菜单项启用状态
+    updateMenuItemsEnabled();
+    
+    // 初始化菜单项勾选状态
+    chatRoomAction->setCheckable(true);
+    broadcastAction->setCheckable(true);
+    liveListAction->setCheckable(true);
+    chatRoomAction->setChecked(false);
+    broadcastAction->setChecked(false);
+    liveListAction->setChecked(false);
 }
 
 SeventeenLiveMenuManager::~SeventeenLiveMenuManager()
@@ -79,6 +90,9 @@ void SeventeenLiveMenuManager::updateLoginStatus(bool logged, QString username)
         disconnect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogout);
         connect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogin);
     }
+    
+    // 更新菜单项启用状态
+    updateMenuItemsEnabled();
 }
 
 void SeventeenLiveMenuManager::handleLogin()
@@ -94,6 +108,31 @@ void SeventeenLiveMenuManager::handleLogout()
 void SeventeenLiveMenuManager::checkUpdate()
 {
     emit checkUpdateClicked();
+}
+
+void SeventeenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible)
+{
+    // 更新可见状态变量
+    isChatRoomVisible = chatRoomVisible;
+    isBroadcastVisible = broadcastVisible;
+    isLiveListVisible = liveListVisible;
+    
+    // 更新菜单项勾选状态
+    chatRoomAction->setCheckable(true);
+    broadcastAction->setCheckable(true);
+    liveListAction->setCheckable(true);
+    
+    chatRoomAction->setChecked(isChatRoomVisible);
+    broadcastAction->setChecked(isBroadcastVisible);
+    liveListAction->setChecked(isLiveListVisible);
+}
+
+void SeventeenLiveMenuManager::updateMenuItemsEnabled()
+{
+    // 根据登录状态更新菜单项启用状态
+    chatRoomAction->setEnabled(isLoggedIn);
+    broadcastAction->setEnabled(isLoggedIn);
+    liveListAction->setEnabled(isLoggedIn);
 }
 
 void SeventeenLiveMenuManager::cleanup()

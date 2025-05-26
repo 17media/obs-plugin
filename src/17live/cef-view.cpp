@@ -44,7 +44,7 @@ static void cef_view_show_window(const char *url);
 // Global CEF browser instance and window
 static CefRefPtr<CefBrowser> cef_browser_instance;
 // static QMainWindow *cef_window = nullptr;
-static QDockWidget *cef_window = nullptr;
+QDockWidget *cef_window = nullptr;
 static bool cef_initialized = false;
 static os_event_t *cef_started_event = nullptr;
 
