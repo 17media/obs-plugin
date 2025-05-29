@@ -15,6 +15,8 @@ import useComment from './hooks';
 import Box from './Box';
 import GiftItem from './GiftItem';
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 import {
     BD_WHITE,
     DEFAULT_COMMENT_BG_COLOR,
@@ -179,7 +181,7 @@ const Chat = ({
                     {
                         isAiCohost && (
                             <SVG 
-                                src={'/images/ig_AIBaby_background.svg' } 
+                                src={`${basePath}/images/ig_AIBaby_background.svg`} 
                                 width={16}
                                 height={16}
                                 style={{
