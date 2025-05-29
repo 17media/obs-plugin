@@ -21,9 +21,10 @@ import {
     MsgType_AI_COHOST_MESSAGE, 
 } from '@/lib/constants';
 
-// import giftdata from './chat_new_gift_2.json';
-// import comment from './chat_message.json';
-// import newjoin from './chat_new_join.json';
+import giftdata from './chat_new_gift_2.json';
+import comment from './chat_message.json';
+import newjoin from './chat_new_join.json';
+import aicohost from './chat_ai_cohost.json';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 const jwtToken = process.env.NEXT_PUBLIC_JWT_TOKEN;
@@ -92,18 +93,35 @@ async function getAblyTokenFromServer() {
 const prepareIndexedChat = (message) => {
     const id = shortid.generate();
     
-    if (message.type === MsgType_NEW_GIFT) {
+    if (message.type === MsgType_NEW_GIFT 
+        || message.type === MsgType_NEW_LUCKYBAG) {
         const { displayUser, barrage, ...restGift } = message?.giftMsg;
-        const content = getGiftByID(restGift.giftID);
+        const gift = getGiftByID(restGift.giftID);
         const indexedGift = fromJS({
            ...restGift,
            ...displayUser,
             barrage,
             id,
             messageType: message.type,
-            content,
+            gift,
         });
         return indexedGift; // Return the gift message
+    } else if (message.type === MsgType_AI_COHOST_MESSAGE) {
+        const { commentTxt } = message?.aiCohostMsg;
+        const indexedChat = fromJS({
+            content: commentTxt,
+            comment: {
+                textColor: "#333333",
+            },
+            displayName: "AI 助理",
+            name: {
+                textColor: "#527fff",
+            },
+            backgroundColor: "#FFFFFFE6",
+            id,
+            messageType: message.type,
+        });
+        return indexedChat; // Return the AI cohost message
     }
 
     const { displayUser, barrage, ...restChat } = message?.commentMsg;
@@ -123,13 +141,14 @@ export default function AblyComponent() {
     useEffect(() => {
         // 初次加载时获取礼物信息
         getGifts();
-        // setTimeout(() => {
-        //     setChatList([
-        //         prepareIndexedChat(comment),
-        //         prepareIndexedChat(newjoin),
-        //         prepareIndexedChat(giftdata),
-        //     ]);
-        // }, 1000);
+        setTimeout(() => {
+            setChatList([
+                // prepareIndexedChat(comment),
+                // prepareIndexedChat(newjoin),
+                // prepareIndexedChat(giftdata),
+                prepareIndexedChat(aicohost),
+            ]);
+        }, 1000);
         
         const ably = new Ably.Realtime({
             environment: '17media',
@@ -162,11 +181,12 @@ export default function AblyComponent() {
                     const indexedChat = prepareIndexedChat(decodeMessage);
                     setChatList(prevChatList => [...prevChatList, indexedChat]);
                 }
-            } else if (decodeMessage?.type === MsgType_NEW_GIFT) { 
-                const indexedGift = prepareIndexedGift(decodeMessage);
-                setChatList(prevChatList => [...prevChatList, indexedGift]);
-            } else if (decodeMessage?.type === MsgType_NEW_LUCKYBAG) {
-                console.log("new lucky bag: ", decodeMessage);
+            } else if (decodeMessage?.type === MsgType_NEW_GIFT 
+                || decodeMessage?.type === MsgType_NEW_LUCKYBAG
+                || decodeMessage?.type === MsgType_AI_COHOST_MESSAGE
+            ) { 
+                const indexedChat = prepareIndexedGift(decodeMessage);
+                setChatList(prevChatList => [...prevChatList, indexedChat]);
             }
         });
 

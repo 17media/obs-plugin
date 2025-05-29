@@ -119,3 +119,4 @@ web/ably_chat/src/app/chat_message.json
 web/ably_chat/src/app/chat_new_gift_2.json
 web/ably_chat/src/app/chat_new_join.json
 web/ably_chat/src/app/gifts.js
+web/ably_chat/src/app/chat_ai_cohost.json

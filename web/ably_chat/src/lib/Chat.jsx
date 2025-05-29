@@ -42,6 +42,20 @@ const MultilineDesktop = styled(Multiline)`
     color: ${({color}) => color};
 `;
 
+const renderMessageContent = (messageType, content, gift = null) => {
+    switch (messageType) {
+        case MsgType_COMMENT:
+        case MsgType_JOIN_ROOM:
+        case MsgType_AI_COHOST_MESSAGE:
+            return content;
+        case MsgType_NEW_GIFT:
+        case MsgType_NEW_LUCKYBAG:
+            return <GiftItem giftInfo={gift} />;
+        default:
+            return null;
+    }
+};
+
 // Note: image/svg should assigned with a fixed width for comment frame calculation
 const Chat = ({
                   id,
@@ -69,6 +83,7 @@ const Chat = ({
                   middleBadge,
                   topRightBadge,
                   asideLiveWidth,
+                  gift,
               }) => {
     const {
         commentRef,
@@ -96,12 +111,14 @@ const Chat = ({
     const hasUserDecoration = !isDefaultBackgroundColor;
     const textShadowColor = mapCommentShadowColor(commentShadowColor);
 
+    const isAiCohost = messageType === MsgType_AI_COHOST_MESSAGE;
     const userType = getUserType(
         {
             isGuardian,
             isVIP,
             userID,
             isSystem: false,
+            isAiCohost,
         },
         streamerInfo
     );
@@ -158,6 +175,21 @@ const Chat = ({
                         </Box>
                     )}
 
+                    {/* AI Cohost 頭像 */}
+                    {
+                        isAiCohost && (
+                            <SVG 
+                                src={'/images/ig_AIBaby_background.svg' } 
+                                width={16}
+                                height={16}
+                                style={{
+                                    clipPath: 'circle(50%)',
+                                    marginRight: 8,
+                                }}
+                            />
+                        )
+                    }
+
                     <ChatUserNameWithNameCard
                         isStreamer={isStreamer}
                         level={level}
@@ -193,11 +225,7 @@ const Chat = ({
                     <MultilineDesktop
                         color={hasUserDecoration ? textColor : userTypeColor}
                     >
-                        {messageType === MsgType_COMMENT || messageType === MsgType_JOIN_ROOM || messageType === MsgType_AI_COHOST_MESSAGE ? (
-                            content
-                        ) : (
-                            <GiftItem giftInfo={ content }/>    
-                        )}
+                        {renderMessageContent(messageType, content, gift)}
                     </MultilineDesktop>
 
                     {/* 右上徽章 */}
