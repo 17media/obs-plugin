@@ -498,5 +498,7 @@ bool SeventeenLiveApiWrappers::GetGifts(const std::string language, Json &json_o
 		return false;
 	}
 
+  obs_log(LOG_INFO, "GetGifts success %d", json_out_resp["gifts"].array_items().size());
+
   return true;
 }

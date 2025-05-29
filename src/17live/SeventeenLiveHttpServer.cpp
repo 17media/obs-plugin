@@ -174,6 +174,10 @@ bool SeventeenLiveHttpServer::start() {
                 std::string roomID;
                 configManager->getConfigValue("RoomID", roomID);
                 success = apiWrapper->GetAblyToken(roomID, apiResult);
+            } else if (action == ACTION_GETGIFTS) {
+                std::string language;
+                configManager->getConfigValue("Region", language);
+                success = apiWrapper->GetGifts(language, apiResult);
             } else {
                 // 不支持的 action
                 json11::Json errorResponse = json11::Json::object{

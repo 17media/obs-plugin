@@ -12,6 +12,7 @@ import { getChatProps } from '@/util/getChatProps';
 import { ChatListWrapper } from '@/lib/ChatListWrapper';
 import { roomID, userID } from './config';
 import { getGifts, getGiftByID } from './gifts';
+import { getAblyTokenFromServer } from './auth';
 
 import { 
     MsgType_COMMENT, 
@@ -25,70 +26,6 @@ import giftdata from './chat_new_gift_2.json';
 import comment from './chat_message.json';
 import newjoin from './chat_new_join.json';
 import aicohost from './chat_ai_cohost.json';
-
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-const jwtToken = process.env.NEXT_PUBLIC_JWT_TOKEN;
-
-async function getAblyTokenFromServerByRoomID(roomID, jwtToken) {
-    
-    const url = `${apiUrl}/api/v1/messenger/token?type=3&roomID=${encodeURIComponent(roomID)}`;
-    try {
-        const res = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": 'Bearer ' + jwtToken,
-        }
-        });
-
-        if (!res.ok) {
-            throw new Error(`Invalid status code: ${res.status}`);
-        }
-
-        const resBody = await res.json();
-
-        // 结构示例：{ provider: 3, token: "xxxx" }
-        return resBody.token;
-    } catch (err) {
-        console.error("Failed to get Ably token:", err);
-        throw err;
-    }
-}
-
-async function getAblyTokenFromServer() {
-    if (process.env.NODE_ENV === 'development') {
-        // In development, call getAblyTokenFromServerByRoomID
-        // You might need to pass roomID and jwtToken if they are not globally available
-        // or adjust how they are accessed within this function.
-        // Assuming roomID and jwtToken are accessible here as defined in the file scope
-        return await getAblyTokenFromServerByRoomID(roomID, jwtToken);
-    } else {
-        // In production, execute the original logic
-        const url = `/lapi`;
-        const data = {
-            action: 'getAblyToken',
-        }
-        try {
-            const res = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!res.ok) {
-                throw new Error(`Invalid status code: ${res.status}`);
-            }
-
-            const resBody = await res.json();
-            console.log(resBody);
-            return resBody.token;
-        } catch (err) {
-            console.error("Failed to get Ably token:", err);
-            throw err;
-        }
-    }
-}
 
 const prepareIndexedChat = (message) => {
     const id = shortid.generate();
@@ -141,14 +78,14 @@ export default function AblyComponent() {
     useEffect(() => {
         // 初次加载时获取礼物信息
         getGifts();
-        setTimeout(() => {
-            setChatList([
-                // prepareIndexedChat(comment),
-                // prepareIndexedChat(newjoin),
-                // prepareIndexedChat(giftdata),
-                prepareIndexedChat(aicohost),
-            ]);
-        }, 1000);
+        // setTimeout(() => {
+        //     setChatList([
+        //         // prepareIndexedChat(comment),
+        //         // prepareIndexedChat(newjoin),
+        //         // prepareIndexedChat(giftdata),
+        //         prepareIndexedChat(aicohost),
+        //     ]);
+        // }, 1000);
         
         const ably = new Ably.Realtime({
             environment: '17media',
@@ -185,7 +122,7 @@ export default function AblyComponent() {
                 || decodeMessage?.type === MsgType_NEW_LUCKYBAG
                 || decodeMessage?.type === MsgType_AI_COHOST_MESSAGE
             ) { 
-                const indexedChat = prepareIndexedGift(decodeMessage);
+                const indexedChat = prepareIndexedChat(decodeMessage);
                 setChatList(prevChatList => [...prevChatList, indexedChat]);
             }
         });

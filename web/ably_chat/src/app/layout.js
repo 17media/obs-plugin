@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'Ably test',
-  description: 'Ably test',
+  title: '17Live Chatroom',
+  description: 'chatroom for 17Live',
 };
 
 export default function RootLayout({ children }) {
