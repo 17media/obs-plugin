@@ -13,6 +13,7 @@ import ChatWrapper from './ChatWrapper';
 import InnerWrapper from './InnerWrapper';
 import useComment from './hooks';
 import Box from './Box';
+import GiftItem from './GiftItem';
 
 import {
     BD_WHITE,
@@ -22,6 +23,11 @@ import {
     REACTION_TYPE,
     USER_GUARDIAN,
     USER_STREAMER,
+    MsgType_COMMENT,
+    MsgType_NEW_GIFT,
+    MsgType_NEW_LUCKYBAG,
+    MsgType_JOIN_ROOM,
+    MsgType_AI_COHOST_MESSAGE,
 } from './constants';
 import {
     getUserType,
@@ -187,7 +193,11 @@ const Chat = ({
                     <MultilineDesktop
                         color={hasUserDecoration ? textColor : userTypeColor}
                     >
-                        {content}
+                        {messageType === MsgType_COMMENT || messageType === MsgType_JOIN_ROOM || messageType === MsgType_AI_COHOST_MESSAGE ? (
+                            content
+                        ) : (
+                            <GiftItem giftInfo={ content }/>    
+                        )}
                     </MultilineDesktop>
 
                     {/* 右上徽章 */}

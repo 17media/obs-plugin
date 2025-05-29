@@ -187,3 +187,9 @@ export const mapCheckingLevelImage = {
     7: 'ig-bg-checking-golden.png',
     8: 'ig-bg-checking-black.png',
 };
+
+export const MsgType_COMMENT = 3; // 一般留言訊息
+export const MsgType_NEW_GIFT =13; // 送禮動畫訊息
+export const MsgType_JOIN_ROOM = 18; // 觀眾進入直播間訊息
+export const MsgType_NEW_LUCKYBAG = 32; // 隨機禮訊息
+export const MsgType_AI_COHOST_MESSAGE = 120; // AI 主持人訊息
