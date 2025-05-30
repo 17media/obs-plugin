@@ -65,6 +65,25 @@ bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *con
 
   headers.push_back("Devicetype: WEB");
 
+  // add plugin version
+  headers.push_back("version: " + std::string(PLUGIN_VERSION));
+
+  // add OS version
+  headers.push_back("OSVersion: " + GetCurrentOSVersion());
+
+  // add HW
+  headers.push_back("hardware: " + GetCurrentOS());
+
+  headers.push_back("deviceName: OBSPlugin");
+  headers.push_back("deviceModel: OBSPlugin");
+
+  headers.push_back("deviceId: " + GetCurrentPlatformUUID());
+
+  // debug output headers
+  for (const auto &header : headers) {
+    obs_log(LOG_DEBUG, "17Live API command header: %s", header.c_str());
+  }
+
   for (const auto &header : extraHeaders) {
     headers.push_back(header);
   }
