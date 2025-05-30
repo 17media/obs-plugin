@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { useTranslations } from 'next-intl';
-import {getTranslations, setRequestLocale} from 'next-intl/server';
 
 import * as Ably from 'ably';
 import shortid from 'shortid';
@@ -32,7 +31,7 @@ import comment from './chat_message.json';
 import newjoin from './chat_new_join.json';
 import aicohost from './chat_ai_cohost.json';
 
-export default function AblyComponent({ locale }) {
+export default function AblyComponent() {
 
     const [chatList, setChatList] = useState([]);
 
@@ -131,14 +130,14 @@ export default function AblyComponent({ locale }) {
             return;
         }
 
-        setTimeout(() => {
-            setChatList([
-                prepareIndexedChat(comment),
-                prepareIndexedChat(newjoin),
-                prepareIndexedChat(giftdata),
-                prepareIndexedChat(aicohost),
-            ]);
-        }, 1000);
+        // setTimeout(() => {
+        //     setChatList([
+        //         prepareIndexedChat(comment),
+        //         prepareIndexedChat(newjoin),
+        //         prepareIndexedChat(giftdata),
+        //         prepareIndexedChat(aicohost),
+        //     ]);
+        // }, 1000);
 
         const ably = new Ably.Realtime({
             environment: '17media',
