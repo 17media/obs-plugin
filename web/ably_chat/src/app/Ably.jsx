@@ -22,6 +22,7 @@ import {
     MsgType_NEW_LUCKYBAG, 
     MsgType_JOIN_ROOM,
     MsgType_AI_COHOST_MESSAGE, 
+    DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
 } from '@/lib/constants';
 
 import giftdata from './chat_new_gift_2.json';
@@ -66,9 +67,17 @@ const prepareIndexedChat = (message, streamerInfo = null) => {
     }
 
     const { displayUser, barrage, ...restChat } = message?.commentMsg;
+    const { isStreamer } = displayUser;
+    let restChat1 = restChat;
+    if (isStreamer) {
+        restChat1 = {
+            ...restChat,
+            backgroundColor: DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
+        }
+    }
 
     const indexedChat = fromJS({
-        ...restChat,
+        ...restChat1,
         ...displayUser,
         barrage,
         id,

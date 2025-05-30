@@ -147,6 +147,10 @@ export const DEFAULT_COMMENT_BG_COLOR = '#28232D59';
 export const DEFAULT_STREAMER_COMMENT_BG_COLOR = '#00A38EB3';
 export const DEFAULT_GUARDIAN_COMMENT_BG_COLOR = '#1DCBE4B3';
 
+export const DEFAULT_STREAMER_COMMENT_BG_COLOR_1 = '#33CEB0B3'; // hardcode 綠透底
+export const DEFAULT_GUARDIAN_COMMENT_BG_COLOR_1 = '#42F1F6CC'; // hardcode 藍透底
+export const DEFAULT_VIP_COMMENT_BG_COLOR_1 = '#FF15D3B3'; // hardcode 桃透底
+
 /**
  * user types
  */
