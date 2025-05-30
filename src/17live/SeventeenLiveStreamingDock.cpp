@@ -546,7 +546,7 @@ void SeventeenLiveStreamingDock::populateRtmpRequest(const SeventeenLiveRtmpRequ
         clipIdentityCombo->setCurrentIndex(clipIndex);
     }
 
-    virtualStreamerCheck->setChecked(request.vliverInfo.vliverModel);
+    virtualStreamerCheck->setChecked(request.vliverInfo.vliverModel == 3);
 }
 
 bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
@@ -576,7 +576,7 @@ bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     request.archiveConfig.autoRecording = archiveStreamCheck->isChecked();
     request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
     request.archiveConfig.clipPermission = clipIdentityCombo->currentData().toInt();
-    request.vliverInfo.vliverModel = virtualStreamerCheck->isChecked();
+    request.vliverInfo.vliverModel = virtualStreamerCheck->isChecked() ? 3 : 0;
 
     return true;
 }
