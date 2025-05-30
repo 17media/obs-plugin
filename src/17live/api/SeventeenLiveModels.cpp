@@ -238,6 +238,8 @@ bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomIn
             roomInfo.userInfo.adsOn = userInfoJson["adsOn"].int_value();
             roomInfo.userInfo.experience = userInfoJson["experience"].int_value();
             roomInfo.userInfo.deviceType = QString::fromStdString(userInfoJson["deviceType"].string_value());
+            roomInfo.userInfo.picture = QString::fromStdString(userInfoJson["picture"].string_value());
+
 
             // 荣耀之路信息
             const auto& gloryroadInfoJson = userInfoJson["gloryroadInfo"];
@@ -308,6 +310,162 @@ bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomIn
     }
 
     return true;
+}
+
+bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &json) {
+    try {
+        Json::object jsonObject;
+
+        // 基本信息
+        jsonObject["userID"] = roomInfo.userID.toStdString();
+        jsonObject["streamerType"] = roomInfo.streamerType;
+        jsonObject["streamType"] = roomInfo.streamType.toStdString();
+        jsonObject["status"] = roomInfo.status;
+        jsonObject["caption"] = roomInfo.caption.toStdString();
+        jsonObject["thumbnail"] = roomInfo.thumbnail.toStdString();
+
+        // RTMP URLs
+        Json::array rtmpUrlsArray;
+        for (const auto& rtmpUrl : roomInfo.rtmpUrls) {
+            Json::object rtmpUrlJson;
+            rtmpUrlJson["provider"] = rtmpUrl.provider;
+            rtmpUrlJson["streamType"] = rtmpUrl.streamType.toStdString();
+            rtmpUrlJson["url"] = rtmpUrl.url.toStdString();
+            rtmpUrlJson["urlLowQuality"] = rtmpUrl.urlLowQuality.toStdString();
+            rtmpUrlJson["webUrl"] = rtmpUrl.webUrl.toStdString();
+            rtmpUrlJson["webUrlLowQuality"] = rtmpUrl.webUrlLowQuality.toStdString();
+            rtmpUrlJson["urlHighQuality"] = rtmpUrl.urlHighQuality.toStdString();
+            rtmpUrlJson["weight"] = rtmpUrl.weight;
+            rtmpUrlJson["throttle"] = rtmpUrl.throttle;
+            rtmpUrlsArray.push_back(rtmpUrlJson);
+        }
+        jsonObject["rtmpUrls"] = rtmpUrlsArray;
+
+        // Pull URLs Info
+        Json::object pullUrlsInfoObject;
+        pullUrlsInfoObject["seqNo"] = roomInfo.pullURLsInfo.seqNo;
+        Json::array pullRtmpUrlsArray;
+        for (const auto& rtmpUrl : roomInfo.pullURLsInfo.rtmpURLs) {
+            Json::object rtmpUrlJson;
+            rtmpUrlJson["provider"] = rtmpUrl.provider;
+            rtmpUrlJson["streamType"] = rtmpUrl.streamType.toStdString();
+            rtmpUrlJson["url"] = rtmpUrl.url.toStdString();
+            rtmpUrlJson["urlLowQuality"] = rtmpUrl.urlLowQuality.toStdString();
+            rtmpUrlJson["webUrl"] = rtmpUrl.webUrl.toStdString();
+            rtmpUrlJson["webUrlLowQuality"] = rtmpUrl.webUrlLowQuality.toStdString();
+            rtmpUrlJson["urlHighQuality"] = rtmpUrl.urlHighQuality.toStdString();
+            rtmpUrlJson["weight"] = rtmpUrl.weight;
+            rtmpUrlJson["throttle"] = rtmpUrl.throttle;
+            pullRtmpUrlsArray.push_back(rtmpUrlJson);
+        }
+        pullUrlsInfoObject["rtmpURLs"] = pullRtmpUrlsArray;
+        jsonObject["pullURLsInfo"] = pullUrlsInfoObject;
+
+        // 直播信息
+        jsonObject["allowCallin"] = roomInfo.allowCallin;
+        jsonObject["restreamerOpenID"] = roomInfo.restreamerOpenID.toStdString();
+        jsonObject["streamID"] = roomInfo.streamID.toStdString();
+        jsonObject["liveStreamID"] = roomInfo.liveStreamID;
+        jsonObject["endTime"] = roomInfo.endTime;
+        jsonObject["beginTime"] = roomInfo.beginTime;
+        jsonObject["receivedLikeCount"] = roomInfo.receivedLikeCount;
+        jsonObject["duration"] = roomInfo.duration;
+        jsonObject["viewerCount"] = roomInfo.viewerCount;
+        jsonObject["totalViewTime"] = roomInfo.totalViewTime;
+        jsonObject["liveViewerCount"] = roomInfo.liveViewerCount;
+        jsonObject["audioOnly"] = roomInfo.audioOnly;
+        jsonObject["locationName"] = roomInfo.locationName.toStdString();
+        jsonObject["coverPhoto"] = roomInfo.coverPhoto.toStdString();
+        jsonObject["latitude"] = roomInfo.latitude;
+        jsonObject["longitude"] = roomInfo.longitude;
+
+        // 房间设置
+        jsonObject["shareLocation"] = roomInfo.shareLocation;
+        jsonObject["followerOnlyChat"] = roomInfo.followerOnlyChat;
+        jsonObject["chatAvailable"] = roomInfo.chatAvailable;
+        jsonObject["replayCount"] = roomInfo.replayCount;
+        jsonObject["replayAvailable"] = roomInfo.replayAvailable;
+        jsonObject["numberOfChunks"] = roomInfo.numberOfChunks;
+        jsonObject["canSendGift"] = roomInfo.canSendGift;
+
+        // 用户信息
+        Json::object userInfoObject;
+        userInfoObject["userID"] = roomInfo.userInfo.userID.toStdString();
+        userInfoObject["openID"] = roomInfo.userInfo.openID.toStdString();
+        userInfoObject["displayName"] = roomInfo.userInfo.displayName.toStdString();
+        userInfoObject["gender"] = roomInfo.userInfo.gender.toStdString();
+        userInfoObject["isChoice"] = roomInfo.userInfo.isChoice;
+        userInfoObject["isInternational"] = roomInfo.userInfo.isInternational;
+        userInfoObject["adsOn"] = roomInfo.userInfo.adsOn;
+        userInfoObject["experience"] = roomInfo.userInfo.experience;
+        userInfoObject["deviceType"] = roomInfo.userInfo.deviceType.toStdString();
+        userInfoObject["picture"] = roomInfo.userInfo.picture.toStdString();
+
+        // 荣耀之路信息
+        Json::object gloryroadInfoObject;
+        gloryroadInfoObject["point"] = roomInfo.userInfo.gloryroadInfo.point;
+        gloryroadInfoObject["level"] = roomInfo.userInfo.gloryroadInfo.level;
+        gloryroadInfoObject["iconURL"] = roomInfo.userInfo.gloryroadInfo.iconURL.toStdString();
+        gloryroadInfoObject["badgeIconURL"] = roomInfo.userInfo.gloryroadInfo.badgeIconURL.toStdString();
+        userInfoObject["gloryroadInfo"] = gloryroadInfoObject;
+        jsonObject["userInfo"] = userInfoObject;
+
+        // 其他设置
+        jsonObject["landscape"] = roomInfo.landscape;
+        jsonObject["mute"] = roomInfo.mute;
+        jsonObject["birthdayState"] = roomInfo.birthdayState;
+        jsonObject["dayBeforeBirthday"] = roomInfo.dayBeforeBirthday;
+        jsonObject["achievementValue"] = roomInfo.achievementValue;
+        jsonObject["mediaMessageReadState"] = roomInfo.mediaMessageReadState;
+        jsonObject["region"] = roomInfo.region.toStdString();
+        jsonObject["device"] = roomInfo.device.toStdString();
+
+        // 活动列表
+        Json::array eventListArray;
+        for (const auto& eventInfo : roomInfo.eventList) {
+            Json::object eventJson;
+            eventJson["ID"] = eventInfo.ID;
+            eventJson["type"] = eventInfo.type;
+            eventJson["icon"] = eventInfo.icon.toStdString();
+            eventJson["endTime"] = eventInfo.endTime;
+            eventJson["showTimer"] = eventInfo.showTimer;
+            eventJson["name"] = eventInfo.name.toStdString();
+            eventJson["URL"] = eventInfo.URL.toStdString();
+            eventJson["pageSize"] = eventInfo.pageSize;
+            eventJson["webViewTitle"] = eventInfo.webViewTitle.toStdString();
+
+            Json::array iconsArray;
+            for (const auto& icon : eventInfo.icons) {
+                Json::object iconJson;
+                iconJson["language"] = icon.language.toStdString();
+                iconJson["value"] = icon.value.toStdString();
+                iconsArray.push_back(iconJson);
+            }
+            eventJson["icons"] = iconsArray;
+            eventListArray.push_back(eventJson);
+        }
+        jsonObject["eventList"] = eventListArray;
+
+        // 存档配置
+        Json::object archiveConfigObject;
+        archiveConfigObject["autoRecording"] = roomInfo.archiveConfig.autoRecording;
+        archiveConfigObject["autoPublish"] = roomInfo.archiveConfig.autoPublish;
+        archiveConfigObject["clipPermission"] = roomInfo.archiveConfig.clipPermission;
+        archiveConfigObject["clipPermissionDownload"] = roomInfo.archiveConfig.clipPermissionDownload;
+        jsonObject["archiveConfig"] = archiveConfigObject;
+
+        // 存档ID和游戏跑马灯设置
+        jsonObject["archiveID"] = roomInfo.archiveID.toStdString();
+        jsonObject["hideGameMarquee"] = roomInfo.hideGameMarquee;
+
+        json = Json(jsonObject);
+        return true;
+
+    } catch (const std::exception& e) {
+        // 您可以在这里添加日志记录，例如使用 obs_log
+        // obs_log(LOG_ERROR, "[obs-17live]: SeventeenLiveRoomInfoToJson error: %s", e.what());
+        return false;
+    }
 }
 
 bool SeventeenLiveRtmpRequestToJson(const SeventeenLiveRtmpRequest &request, Json &json)

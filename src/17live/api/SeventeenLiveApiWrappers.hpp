@@ -21,6 +21,7 @@
 #define ACTION_GETABLYTOKEN "getAblyToken"
 #define ACTION_GETGIFTTABS "getGiftTabs"
 #define ACTION_GETGIFTS "getGifts"
+#define ACTION_GETROOMINFO "getRoomInfo"
 
 
 using namespace json11;

@@ -178,6 +178,15 @@ bool SeventeenLiveHttpServer::start() {
                 std::string language;
                 configManager->getConfigValue("Region", language);
                 success = apiWrapper->GetGifts(language, apiResult);
+            } else if (action == ACTION_GETROOMINFO) {
+                SeventeenLiveLoginData loginData;
+                configManager->getLoginData(loginData);
+
+                SeventeenLiveRoomInfo roomInfo;
+                success = apiWrapper->GetRoomInfo(loginData.userInfo.roomID, roomInfo);
+                if (success) {
+                    SeventeenLiveRoomInfoToJson(roomInfo, apiResult);
+                }
             } else {
                 // 不支持的 action
                 json11::Json errorResponse = json11::Json::object{

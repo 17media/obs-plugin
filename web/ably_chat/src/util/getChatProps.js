@@ -24,6 +24,7 @@ export const getChatProps = chat => {
         levelBadges: chat.get('levelBadges'),
         isGuardian: chat.get('isGuardian'),
         isVIP: chat.get('isVIP'),
+        isStreamer: chat.get('isStreamer'),
         isSendAll: chat.get('isSendAll'),
         type: chat.get('type'),
         checkingLevel: chat.get('checkinLevel'),
@@ -46,5 +47,6 @@ export const getChatProps = chat => {
         prefixBadges: chat.get('prefixBadges'),
         middleBadge: chat.getIn(['middleBadge', 'URL']),
         topRightBadge: chat.getIn(['topRightBadge', 'URL']),
+        streamerInfo: chat.get('streamerInfo'),
     };
 };

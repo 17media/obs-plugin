@@ -10,9 +10,11 @@ import Chat from '@/lib/Chat';
 import { getAblyDecodeData } from '@/util/getAblyDecodeData';
 import { getChatProps } from '@/util/getChatProps';
 import { ChatListWrapper } from '@/lib/ChatListWrapper';
-import { roomID, userID } from './config';
-import { getGifts, getGiftByID } from './gifts';
-import { getAblyTokenFromServer } from './auth';
+import { getAblyTokenFromServer,
+    getGifts,
+    getGiftByID,
+    getRoomInfo
+} from '../api';
 
 import { 
     MsgType_COMMENT, 
@@ -27,9 +29,9 @@ import comment from './chat_message.json';
 import newjoin from './chat_new_join.json';
 import aicohost from './chat_ai_cohost.json';
 
-const prepareIndexedChat = (message) => {
+const prepareIndexedChat = (message, streamerInfo = null) => {
     const id = shortid.generate();
-    
+
     if (message.type === MsgType_NEW_GIFT 
         || message.type === MsgType_NEW_LUCKYBAG) {
         const { displayUser, barrage, ...restGift } = message?.giftMsg;
@@ -41,6 +43,7 @@ const prepareIndexedChat = (message) => {
             id,
             messageType: message.type,
             gift,
+            streamerInfo,
         });
         return indexedGift; // Return the gift message
     } else if (message.type === MsgType_AI_COHOST_MESSAGE) {
@@ -57,6 +60,7 @@ const prepareIndexedChat = (message) => {
             backgroundColor: "#FFFFFFE6",
             id,
             messageType: message.type,
+            streamerInfo,
         });
         return indexedChat; // Return the AI cohost message
     }
@@ -69,24 +73,57 @@ const prepareIndexedChat = (message) => {
         barrage,
         id,
         messageType: message.type,
+        streamerInfo,
     });
     return indexedChat;
 }
 export default function AblyComponent() {
     const [chatList, setChatList] = useState([]);
 
+    const [roomID, setRoomID] = useState('');
+    const [userID, setUserID] = useState('');
+
+    const [roomInfo, setRoomInfo] = useState(null);
+
     useEffect(() => {
-        // 初次加载时获取礼物信息
-        getGifts();
-        // setTimeout(() => {
-        //     setChatList([
-        //         // prepareIndexedChat(comment),
-        //         // prepareIndexedChat(newjoin),
-        //         // prepareIndexedChat(giftdata),
-        //         prepareIndexedChat(aicohost),
-        //     ]);
-        // }, 1000);
+        const fetchInitialData = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomIDFromUrl = urlParams.get('roomID');
+            const userIDFromUrl = urlParams.get('userID');
+            if (roomIDFromUrl) {
+                setRoomID(roomIDFromUrl);
+            }
+            if (userIDFromUrl) {
+                setUserID(userIDFromUrl);
+            }
+
+            try {
+                const roomInfo = await getRoomInfo();
+                setRoomInfo(roomInfo);
+
+                // 初次加载时获取礼物信息
+                await getGifts();
+            } catch (error) {
+                console.error("Error fetching initial data:", error);
+            }
+        };
+        fetchInitialData();
+    }, []);
         
+    useEffect(() => {
+        if (!roomID || !userID) {
+            return;
+        }
+
+        setTimeout(() => {
+            setChatList([
+                prepareIndexedChat(comment),
+                prepareIndexedChat(newjoin),
+                prepareIndexedChat(giftdata),
+                prepareIndexedChat(aicohost),
+            ]);
+        }, 1000);
+
         const ably = new Ably.Realtime({
             environment: '17media',
             fallbackHosts: [
@@ -96,7 +133,7 @@ export default function AblyComponent() {
             ],
 
             authCallback: async (data, cb) => {
-                const token = await getAblyTokenFromServer();
+                const token = await getAblyTokenFromServer(roomID);
                 cb(null, token);
             },
         })
@@ -104,6 +141,7 @@ export default function AblyComponent() {
 
         channel.subscribe((message) => {
             const decodeMessage = getAblyDecodeData(message);
+            const streamerInfo = roomInfo.userInfo;
 
             if (decodeMessage?.type === MsgType_COMMENT 
                 || decodeMessage?.type === MsgType_JOIN_ROOM
@@ -115,14 +153,14 @@ export default function AblyComponent() {
                     (chat.displayUser.userID &&
                         chat.displayUser.userID === userID)
                 ) {
-                    const indexedChat = prepareIndexedChat(decodeMessage);
+                    const indexedChat = prepareIndexedChat(decodeMessage, streamerInfo);
                     setChatList(prevChatList => [...prevChatList, indexedChat]);
                 }
             } else if (decodeMessage?.type === MsgType_NEW_GIFT 
                 || decodeMessage?.type === MsgType_NEW_LUCKYBAG
                 || decodeMessage?.type === MsgType_AI_COHOST_MESSAGE
             ) { 
-                const indexedChat = prepareIndexedChat(decodeMessage);
+                const indexedChat = prepareIndexedChat(decodeMessage, streamerInfo);
                 setChatList(prevChatList => [...prevChatList, indexedChat]);
             }
         });
@@ -131,7 +169,7 @@ export default function AblyComponent() {
         return () => {
             channel.unsubscribe();
         };
-    }, []);
+    }, [roomID, userID, roomInfo]);
 
     return (
         <ChatListWrapper>

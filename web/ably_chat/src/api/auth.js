@@ -1,5 +1,3 @@
-import { roomID, userID } from './config';
-
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 const jwtToken = process.env.NEXT_PUBLIC_JWT_TOKEN;
 async function getAblyTokenFromServerByRoomID(roomID, jwtToken) {
@@ -27,7 +25,7 @@ async function getAblyTokenFromServerByRoomID(roomID, jwtToken) {
   }
 }
 
-export async function getAblyTokenFromServer() {
+export async function getAblyTokenFromServer(roomID = '') {
   if (process.env.NODE_ENV === 'development') {
       // In development, call getAblyTokenFromServerByRoomID
       // You might need to pass roomID and jwtToken if they are not globally available

@@ -275,6 +275,7 @@ using namespace json11;
 
   // 将Json转换为SeventeenLiveRoomInfo结构体
   bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomInfo);
+  bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &json);
 
   // 虚拟主播信息结构体
   struct SeventeenLiveVliverInfo {

@@ -71,6 +71,7 @@ const Chat = ({
                   isGuardian,
                   isVIP,
                   isConcert,
+                  isStreamer,
                   streamerInfo,
                   type,
                   checkingLevel,
@@ -137,7 +138,7 @@ const Chat = ({
     }
 
     const hasTopRightBadge = !!topRightBadge;
-    const isStreamer = userType === USER_STREAMER;
+    // const isStreamer = userType === USER_STREAMER;
 
     return (
         <ChatWrapper>

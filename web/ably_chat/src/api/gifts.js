@@ -22,10 +22,6 @@ export async function getGifts() {
             console.error('Error loading gifts from local JSON:', error);
         }
     } else {
-        // 在生产环境中，你需要实现从服务器获取礼物信息的逻辑
-        // 例如: const giftsData = await fetch('/api/gifts').then(res => res.json());
-        // 然后同样处理 giftsData.gifts.forEach(gift => giftsMap.set(gift.giftID, gift));
-        // console.log('In production, implement fetching gifts from server here.');
         const url = `/lapi`;
         const data = {
             action: 'getGifts',

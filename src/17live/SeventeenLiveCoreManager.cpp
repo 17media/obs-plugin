@@ -361,7 +361,13 @@ void SeventeenLiveCoreManager::handleChatRoomClicked()
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
     if (!cef_window) { 
-        QString chatUrl = QString("http://localhost:%1/chat/").arg(QString::number(httpServer_->getPort()));
+        SeventeenLiveLoginData loginData;
+        if (!configManager->getLoginData(loginData)) {
+            obs_log(LOG_ERROR, "Failed to get login data");
+            return;
+        }
+
+        QString chatUrl = QString("http://localhost:%1/chat/?roomID=%2&userID=%3").arg(QString::number(httpServer_->getPort()), QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
         obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
         cef_view_open_url(chatUrl.toStdString().c_str());
 
