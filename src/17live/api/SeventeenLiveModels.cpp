@@ -343,7 +343,7 @@ bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &js
 
         // Pull URLs Info
         Json::object pullUrlsInfoObject;
-        pullUrlsInfoObject["seqNo"] = roomInfo.pullURLsInfo.seqNo;
+        pullUrlsInfoObject["seqNo"] = static_cast<int>(roomInfo.pullURLsInfo.seqNo);
         Json::array pullRtmpUrlsArray;
         for (const auto& rtmpUrl : roomInfo.pullURLsInfo.rtmpURLs) {
             Json::object rtmpUrlJson;
@@ -365,13 +365,13 @@ bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &js
         jsonObject["allowCallin"] = roomInfo.allowCallin;
         jsonObject["restreamerOpenID"] = roomInfo.restreamerOpenID.toStdString();
         jsonObject["streamID"] = roomInfo.streamID.toStdString();
-        jsonObject["liveStreamID"] = roomInfo.liveStreamID;
-        jsonObject["endTime"] = roomInfo.endTime;
-        jsonObject["beginTime"] = roomInfo.beginTime;
-        jsonObject["receivedLikeCount"] = roomInfo.receivedLikeCount;
+        jsonObject["liveStreamID"] = static_cast<int>(roomInfo.liveStreamID);
+        jsonObject["endTime"] = static_cast<int>(roomInfo.endTime);
+        jsonObject["beginTime"] = static_cast<int>(roomInfo.beginTime);
+        jsonObject["receivedLikeCount"] = static_cast<int>(roomInfo.receivedLikeCount);
         jsonObject["duration"] = roomInfo.duration;
         jsonObject["viewerCount"] = roomInfo.viewerCount;
-        jsonObject["totalViewTime"] = roomInfo.totalViewTime;
+        jsonObject["totalViewTime"] = static_cast<int>(roomInfo.totalViewTime);
         jsonObject["liveViewerCount"] = roomInfo.liveViewerCount;
         jsonObject["audioOnly"] = roomInfo.audioOnly;
         jsonObject["locationName"] = roomInfo.locationName.toStdString();
@@ -424,10 +424,10 @@ bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &js
         Json::array eventListArray;
         for (const auto& eventInfo : roomInfo.eventList) {
             Json::object eventJson;
-            eventJson["ID"] = eventInfo.ID;
+            eventJson["ID"] = static_cast<int>(eventInfo.ID);
             eventJson["type"] = eventInfo.type;
             eventJson["icon"] = eventInfo.icon.toStdString();
-            eventJson["endTime"] = eventInfo.endTime;
+            eventJson["endTime"] = static_cast<int>(eventInfo.endTime);
             eventJson["showTimer"] = eventInfo.showTimer;
             eventJson["name"] = eventInfo.name.toStdString();
             eventJson["URL"] = eventInfo.URL.toStdString();
