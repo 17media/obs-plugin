@@ -1,5 +1,8 @@
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD, PHASE_EXPORT } from 'next/constants.js';
 
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin({})
 /** @type {import('next').NextConfig} */
 const nextConfig = (phase, { defaultConfig }) => {
   const config = {
@@ -22,4 +25,4 @@ const nextConfig = (phase, { defaultConfig }) => {
   return config;
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

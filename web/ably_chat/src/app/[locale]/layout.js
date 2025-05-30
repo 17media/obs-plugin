@@ -1,0 +1,28 @@
+import { NextIntlClientProvider, hasLocale } from 'next-intl';
+import {getTranslations, setRequestLocale} from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { routing } from '@/i18n/routing';
+
+export const metadata = {
+  title: '17Live Chatroom',
+  description: 'chatroom for 17Live',
+};
+
+export default function RootLayout({ children, params: { locale } }) {
+
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
+  setRequestLocale(locale);
+
+  return (
+    <html lang="{locale}">
+      <body>
+        <NextIntlClientProvider>
+          {children}
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  );
+}

@@ -114,9 +114,9 @@ next-env.d.ts
 
 web/**/.idea
 web/**/.vscode
-web/ably_chat/public/get_gifts_response.json
-web/ably_chat/src/app/chat_message.json
-web/ably_chat/src/app/chat_new_gift_2.json
-web/ably_chat/src/app/chat_new_join.json
-web/ably_chat/src/app/chat_ai_cohost.json
-web/ably_chat/public/get_room_info_response.json
+get_gifts_response.json
+chat_message.json
+chat_new_gift_2.json
+chat_new_join.json
+chat_ai_cohost.json
+get_room_info_response.json

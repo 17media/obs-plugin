@@ -1,6 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
+import { useTranslations } from 'next-intl';
+import {getTranslations, setRequestLocale} from 'next-intl/server';
 
 import * as Ably from 'ably';
 import shortid from 'shortid';
@@ -14,7 +16,7 @@ import { getAblyTokenFromServer,
     getGifts,
     getGiftByID,
     getRoomInfo
-} from '../api';
+} from '../../api';
 
 import { 
     MsgType_COMMENT, 
@@ -30,69 +32,74 @@ import comment from './chat_message.json';
 import newjoin from './chat_new_join.json';
 import aicohost from './chat_ai_cohost.json';
 
-const prepareIndexedChat = (message, streamerInfo = null) => {
-    const id = shortid.generate();
+export default function AblyComponent({ locale }) {
 
-    if (message.type === MsgType_NEW_GIFT 
-        || message.type === MsgType_NEW_LUCKYBAG) {
-        const { displayUser, barrage, ...restGift } = message?.giftMsg;
-        const gift = getGiftByID(restGift.giftID);
-        const indexedGift = fromJS({
-           ...restGift,
-           ...displayUser,
-            barrage,
-            id,
-            messageType: message.type,
-            gift,
-            streamerInfo,
-        });
-        return indexedGift; // Return the gift message
-    } else if (message.type === MsgType_AI_COHOST_MESSAGE) {
-        const { commentTxt } = message?.aiCohostMsg;
-        const indexedChat = fromJS({
-            content: commentTxt,
-            comment: {
-                textColor: "#333333",
-            },
-            displayName: "AI 助理",
-            name: {
-                textColor: "#527fff",
-            },
-            backgroundColor: "#FFFFFFE6",
-            id,
-            messageType: message.type,
-            streamerInfo,
-        });
-        return indexedChat; // Return the AI cohost message
-    }
-
-    const { displayUser, barrage, ...restChat } = message?.commentMsg;
-    const { isStreamer } = displayUser;
-    let restChat1 = restChat;
-    if (isStreamer) {
-        restChat1 = {
-            ...restChat,
-            backgroundColor: DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
-        }
-    }
-
-    const indexedChat = fromJS({
-        ...restChat1,
-        ...displayUser,
-        barrage,
-        id,
-        messageType: message.type,
-        streamerInfo,
-    });
-    return indexedChat;
-}
-export default function AblyComponent() {
     const [chatList, setChatList] = useState([]);
 
     const [roomID, setRoomID] = useState('');
     const [userID, setUserID] = useState('');
 
     const [roomInfo, setRoomInfo] = useState(null);
+
+    const t = useTranslations('ChatPage');
+
+    const prepareIndexedChat = (message) => {
+        const id = shortid.generate();
+        const { streamerInfo } = roomInfo;
+
+        if (message.type === MsgType_NEW_GIFT 
+            || message.type === MsgType_NEW_LUCKYBAG) {
+            const { displayUser, barrage, ...restGift } = message?.giftMsg;
+            const gift = getGiftByID(restGift.giftID);
+            const indexedGift = fromJS({
+            ...restGift,
+            ...displayUser,
+                barrage,
+                id,
+                messageType: message.type,
+                gift,
+                streamerInfo,
+            });
+            return indexedGift; // Return the gift message
+        } else if (message.type === MsgType_AI_COHOST_MESSAGE) {
+            const { commentTxt } = message?.aiCohostMsg;
+            const indexedChat = fromJS({
+                content: commentTxt,
+                comment: {
+                    textColor: "#333333",
+                },
+                displayName: t('AI_COHOST'),
+                name: {
+                    textColor: "#527fff",
+                },
+                backgroundColor: "#FFFFFFE6",
+                id,
+                messageType: message.type,
+                streamerInfo,
+            });
+            return indexedChat; // Return the AI cohost message
+        }
+
+        const { displayUser, barrage, ...restChat } = message?.commentMsg;
+        const { isStreamer } = displayUser;
+        let restChat1 = restChat;
+        if (isStreamer) {
+            restChat1 = {
+                ...restChat,
+                backgroundColor: DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
+            }
+        }
+
+        const indexedChat = fromJS({
+            ...restChat1,
+            ...displayUser,
+            barrage,
+            id,
+            messageType: message.type,
+            streamerInfo,
+        });
+        return indexedChat;
+    }
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -124,14 +131,14 @@ export default function AblyComponent() {
             return;
         }
 
-        // setTimeout(() => {
-        //     setChatList([
-        //         prepareIndexedChat(comment),
-        //         prepareIndexedChat(newjoin),
-        //         prepareIndexedChat(giftdata),
-        //         prepareIndexedChat(aicohost),
-        //     ]);
-        // }, 1000);
+        setTimeout(() => {
+            setChatList([
+                prepareIndexedChat(comment),
+                prepareIndexedChat(newjoin),
+                prepareIndexedChat(giftdata),
+                prepareIndexedChat(aicohost),
+            ]);
+        }, 1000);
 
         const ably = new Ably.Realtime({
             environment: '17media',
@@ -169,7 +176,7 @@ export default function AblyComponent() {
                 || decodeMessage?.type === MsgType_NEW_LUCKYBAG
                 || decodeMessage?.type === MsgType_AI_COHOST_MESSAGE
             ) { 
-                const indexedChat = prepareIndexedChat(decodeMessage, streamerInfo);
+                const indexedChat = prepareIndexedChat(decodeMessage);
                 setChatList(prevChatList => [...prevChatList, indexedChat]);
             }
         });
