@@ -124,14 +124,14 @@ export default function AblyComponent() {
             return;
         }
 
-        setTimeout(() => {
-            setChatList([
-                prepareIndexedChat(comment),
-                prepareIndexedChat(newjoin),
-                prepareIndexedChat(giftdata),
-                prepareIndexedChat(aicohost),
-            ]);
-        }, 1000);
+        // setTimeout(() => {
+        //     setChatList([
+        //         prepareIndexedChat(comment),
+        //         prepareIndexedChat(newjoin),
+        //         prepareIndexedChat(giftdata),
+        //         prepareIndexedChat(aicohost),
+        //     ]);
+        // }, 1000);
 
         const ably = new Ably.Realtime({
             environment: '17media',
