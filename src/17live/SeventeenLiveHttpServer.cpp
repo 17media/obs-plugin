@@ -115,7 +115,7 @@ bool SeventeenLiveHttpServer::start() {
 
     // 添加 /lapi 路由，处理 API 请求
     svr_.Post("/lapi", [](const httplib::Request &req, httplib::Response &res) {
-        obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi");
+        // obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi");
         
         // 设置响应头
         res.set_header("Content-Type", "application/json");

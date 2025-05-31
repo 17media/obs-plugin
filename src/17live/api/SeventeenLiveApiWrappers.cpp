@@ -80,9 +80,9 @@ bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *con
   headers.push_back("deviceId: " + GetCurrentPlatformUUID());
 
   // debug output headers
-  for (const auto &header : headers) {
-    obs_log(LOG_INFO, "17Live API command header: %s", header.c_str());
-  }
+  // for (const auto &header : headers) {
+  //   obs_log(LOG_INFO, "17Live API command header: %s", header.c_str());
+  // }
 
   for (const auto &header : extraHeaders) {
     headers.push_back(header);
