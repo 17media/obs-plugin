@@ -1,5 +1,7 @@
 import Ably from './Ably';
-export default function Home() {
+import {setRequestLocale} from 'next-intl/server';
+export default function Home({params: {locale}}) {
+  setRequestLocale(locale);
   
   return (
       <div>

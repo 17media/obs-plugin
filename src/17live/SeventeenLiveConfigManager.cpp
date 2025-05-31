@@ -80,16 +80,22 @@ bool SeventeenLiveConfigManager::getLoginData(SeventeenLiveLoginData &loginData)
   const char* jwtTokenChar = config_get_string(config, service, "JwtToken");
   const char* openIdChar = config_get_string(config, service, "OpenID");
   const char* displayNameChar = config_get_string(config, service, "DisplayName");
+  const char* userIdChar = config_get_string(config, service, "UserID");
+  const char* regionChar = config_get_string(config, service, "Region");
     
   std::string jwtToken = jwtTokenChar? jwtTokenChar : "";
   std::string openId = openIdChar? openIdChar : "";
+  std::string userId = userIdChar? userIdChar : "";
   std::string displayName = displayNameChar? displayNameChar : "";
+  std::string region = regionChar? regionChar : "";
 
   
   loginData.jwtAccessToken = QString::fromStdString(jwtToken);
   loginData.userInfo.openID = QString::fromStdString(openId);
   loginData.userInfo.displayName = QString::fromStdString(displayName);
   loginData.userInfo.roomID = config_get_uint(config, service, "RoomID");
+  loginData.userInfo.userID = QString::fromStdString(userId);
+  loginData.userInfo.region = QString::fromStdString(region);
   
   return true;
 }

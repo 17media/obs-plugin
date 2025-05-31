@@ -1,28 +1,19 @@
-import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD, PHASE_EXPORT } from 'next/constants.js';
-
 import createNextIntlPlugin from 'next-intl/plugin';
 
-const withNextIntl = createNextIntlPlugin({})
-/** @type {import('next').NextConfig} */
-const nextConfig = (phase, { defaultConfig }) => {
-  const config = {
-    ...defaultConfig,
-  };
-
-  if (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT) {
-    config.output = 'export';
-    config.distDir = '../../data/html/chat';
-    config.basePath = '/chat';
+const withNextIntl = createNextIntlPlugin({
+  requestConfig: './src/i18n/request.js',
+  experimental: {
+    createMessagesDeclaration: './messages/en.json'
   }
+});
 
-  // For development, ensure output and distDir are not set or are default
-  // if (phase === PHASE_DEVELOPMENT_SERVER) {
-  //   // Next.js defaults handle this, but you can explicitly unset if needed
-  //   // delete config.output;
-  //   // delete config.distDir;
-  // }
+/** @type {import('next').NextConfig} */
+const nextConfig = {};
 
-  return config;
-};
+if ( process.env.NEXT_PUBLIC_MODE=== 'production' ) {
+  nextConfig.output = 'export';
+  nextConfig.distDir = '../../data/html/chat';
+  // nextConfig.basePath = '/chat';
+}
 
 export default withNextIntl(nextConfig);

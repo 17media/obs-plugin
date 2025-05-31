@@ -81,7 +81,7 @@ bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *con
 
   // debug output headers
   for (const auto &header : headers) {
-    obs_log(LOG_DEBUG, "17Live API command header: %s", header.c_str());
+    obs_log(LOG_INFO, "17Live API command header: %s", header.c_str());
   }
 
   for (const auto &header : extraHeaders) {

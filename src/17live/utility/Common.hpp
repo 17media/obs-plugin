@@ -11,3 +11,5 @@ std::string GetCurrentOS();
 std::string GetCurrentOSVersion();
 std::string GetCurrentPlatformUUID();
 std::string GetCurrentLanguage();
+std::string GetCurrentLocale();
+

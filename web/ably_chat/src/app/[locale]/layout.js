@@ -8,6 +8,9 @@ export const metadata = {
   description: 'chatroom for 17Live',
 };
 
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({locale}));
+}
 export default function RootLayout({ children, params: { locale } }) {
 
   if (!hasLocale(routing.locales, locale)) {

@@ -90,7 +90,7 @@ bool SeventeenLiveHttpServer::start() {
     // 默认提供 index.html
     svr_.Get("/", [this](const httplib::Request &req, httplib::Response &res) {
         obs_log(LOG_INFO, "[17Live HTTP Server] Handling request for %s", req.path.c_str());
-        std::filesystem::path path_obj = std::filesystem::path(base_dir_) / "chat" / "index.html";
+        std::filesystem::path path_obj = std::filesystem::path(base_dir_) / "index.html";
         std::string path_str = path_obj.string();
         
         if (!std::filesystem::exists(path_obj)){

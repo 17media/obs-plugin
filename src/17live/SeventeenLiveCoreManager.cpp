@@ -66,7 +66,7 @@ bool SeventeenLiveCoreManager::initialize()
 
     // 初始化并启动 HTTP 服务器
     // "html" 是相对于 obs_get_module_data_path() 的路径
-    httpServer_ = std::make_unique<SeventeenLiveHttpServer>("localhost", 0, "html");
+    httpServer_ = std::make_unique<SeventeenLiveHttpServer>("localhost", 0, "html/chat");
     if (!httpServer_->start()) {
         blog(LOG_ERROR, "[17Live Core] Failed to start HTTP server.");
         // 根据需求决定是否因为 HTTP 服务器启动失败而中断整个初始化
@@ -367,7 +367,12 @@ void SeventeenLiveCoreManager::handleChatRoomClicked()
             return;
         }
 
-        QString chatUrl = QString("http://localhost:%1/chat/?roomID=%2&userID=%3").arg(QString::number(httpServer_->getPort()), QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
+        std::string locale = GetCurrentLocale();
+
+        obs_log(LOG_INFO, "userID: %s", loginData.userInfo.userID.toStdString().c_str());
+
+        QString chatUrl = QString("http://localhost:%1/%2.html?roomID=%3&userID=%4")
+            .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale), QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
         obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
         cef_view_open_url(chatUrl.toStdString().c_str());
 

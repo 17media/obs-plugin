@@ -21,6 +21,17 @@ std::string GetCurrentLanguage() {
   }
 }
 
+std::string GetCurrentLocale() {
+  const char *locale = obs_get_locale();
+  if (strcmp(locale, "ja-JP") == 0) {
+    return "ja";
+  } else if (strcmp(locale, "zh-CN") == 0 || strcmp(locale, "zh-TW") == 0) {
+    return "zh";
+  } else {
+    return "en";
+  }
+}
+
 std::string GetCurrentOS() {
 #ifdef _WIN32
   return OS_WINDOWS;
