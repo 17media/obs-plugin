@@ -10,7 +10,7 @@
 
 using namespace json11;
 
-  // 定义当前的直播状态，包括未开播、开播中、推流中
+  // 定义当前的直播状态，包括未开播 0、直播创建好 1、开始直播 2
   enum class SeventeenLiveStreamingStatus {
     NotStarted,
     Live,
