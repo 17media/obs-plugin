@@ -1,6 +1,8 @@
 import Ably from './Ably';
 import {setRequestLocale} from 'next-intl/server';
-export default function Home({params: {locale}}) {
+export default async function Home({params}) {
+  const { locale } = await params;
+  
   setRequestLocale(locale);
   
   return (

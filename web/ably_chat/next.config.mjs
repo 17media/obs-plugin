@@ -10,7 +10,7 @@ const withNextIntl = createNextIntlPlugin({
 /** @type {import('next').NextConfig} */
 const nextConfig = {};
 
-if ( process.env.NEXT_PUBLIC_MODE=== 'production' ) {
+if ( process.env.NODE_ENV=== 'production' ) {
   nextConfig.output = 'export';
   nextConfig.distDir = '../../data/html/chat';
   // nextConfig.basePath = '/chat';
