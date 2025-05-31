@@ -12,32 +12,30 @@
 #include "plugin-support.h"
 
 using namespace json11;
+using namespace std;
 
 extern const char* service;
 
-// TODO: 17live API URL
-#define SEVENTEENLIVE_API_URL "https://sta-wap-api.17app.co"
-
 // 登录接口: SEVENTEENLIVE_API_URL + "/api/v1/auth/loginAction"
-#define SEVENTEENLIVE_LOGIN_URL SEVENTEENLIVE_API_URL "/api/v1/auth/loginAction"
+const string SEVENTEENLIVE_LOGIN_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/auth/loginAction";
 
-#define SEVENTEENLIVE_APIGATEWAY_URL SEVENTEENLIVE_API_URL "/apiGateWay"
+const string SEVENTEENLIVE_APIGATEWAY_URL = string(SEVENTEENLIVE_API_URL) + "/apiGateWay";
 
-#define SEVENTEENLIVE_GET_ROOM_INFO_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1/info"
+const string SEVENTEENLIVE_GET_ROOM_INFO_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1/info";
 
-#define SEVENTEENLIVE_CREATE_RTMP_URL SEVENTEENLIVE_API_URL "/api/v1/rtmp"
+const string SEVENTEENLIVE_CREATE_RTMP_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/rtmp";
 
-#define SEVENTEENLIVE_STREAM_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1"
+const string SEVENTEENLIVE_STREAM_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1";
 
-#define SEVENTEENLIVE_ARCHIVE_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1/archive/recording?enable=%2"
+const string SEVENTEENLIVE_ARCHIVE_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1/archive/recording?enable=%2";
 
-#define SEVENTEENLIVE_GET_CONFIG_STREAMER_URL SEVENTEENLIVE_API_URL "/api/v1/liveStreams/config/streamer"
+const string SEVENTEENLIVE_GET_CONFIG_STREAMER_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/liveStreams/config/streamer";
 
-#define SEVENTEENLIVE_GET_ABLY_TOKEN_URL SEVENTEENLIVE_API_URL "/api/v1/messenger/token?type=3&roomID=%1"
+const string SEVENTEENLIVE_GET_ABLY_TOKEN_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/messenger/token?type=3&roomID=%1";
 
-#define SEVENTEENLIVE_GET_GIFTTABS_URL SEVENTEENLIVE_API_URL "/api/v1/lives/%1/giftTabs?filter=0"
+const string SEVENTEENLIVE_GET_GIFTTABS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1/giftTabs?filter=0";
 
-#define SEVENTEENLIVE_GET_GIFTS_URL SEVENTEENLIVE_API_URL "/api/v1/gifts"
+const string SEVENTEENLIVE_GET_GIFTS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/gifts";
 
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
 
@@ -155,7 +153,7 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
 {
 	lastErrorMessage.clear();
 
-	const QByteArray url = SEVENTEENLIVE_LOGIN_URL;
+	const QByteArray url = SEVENTEENLIVE_LOGIN_URL.c_str();
   // TODO: language
   // const char *obs_get_locale(void)
 	const Json data = Json::object{
@@ -231,7 +229,7 @@ bool SeventeenLiveApiWrappers::CommonRequest(const std::string action, Json &jso
 {
   lastErrorMessage.clear();
 
-	const QByteArray url = SEVENTEENLIVE_APIGATEWAY_URL;
+	const QByteArray url = SEVENTEENLIVE_APIGATEWAY_URL.c_str();
   
   const Json data = Json::object{
     {"nonce", "nonce-17live-" + std::to_string(getCurrentTimestampMs())},
@@ -278,7 +276,7 @@ bool SeventeenLiveApiWrappers::GetRoomInfo(const qint64 roomID, SeventeenLiveRoo
   lastErrorMessage.clear();
 
   // 构建请求URL
-  QString urlStr = QString(SEVENTEENLIVE_GET_ROOM_INFO_URL).arg(roomID);
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_ROOM_INFO_URL).arg(roomID);
   QByteArray url = urlStr.toUtf8();
 
   Json json_out;
@@ -319,7 +317,7 @@ bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &reques
 
   lastErrorMessage.clear();
 
-  const QByteArray url = SEVENTEENLIVE_CREATE_RTMP_URL;
+  const QByteArray url = SEVENTEENLIVE_CREATE_RTMP_URL.c_str();
 
   Json requestData;
   if (!SeventeenLiveRtmpRequestToJson(request, requestData)) {
@@ -361,7 +359,7 @@ bool SeventeenLiveApiWrappers::StartStream(const std::string &liveStreamID, cons
 {
   obs_log(LOG_INFO, "StartStream start");
   lastErrorMessage.clear();
-  QString urlStr = QString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
     QByteArray url = urlStr.toUtf8();
 
   Json requestData = Json::object{
@@ -386,7 +384,7 @@ bool SeventeenLiveApiWrappers::EnableStreamArchive(const std::string &liveStream
 {
   obs_log(LOG_INFO, "EnableStreamArchive start");
   lastErrorMessage.clear();
-  QString urlStr = QString(SEVENTEENLIVE_ARCHIVE_URL).arg(liveStreamID.c_str(), enableArchive);
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_ARCHIVE_URL).arg(liveStreamID.c_str(), enableArchive);
     QByteArray url = urlStr.toUtf8();
     
   std::string error;
@@ -404,7 +402,7 @@ bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID, const
 {
   obs_log(LOG_INFO, "StopStream start");
   lastErrorMessage.clear();
-  QString urlStr = QString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
   QByteArray url = urlStr.toUtf8();
 
   Json requestData;
@@ -432,7 +430,7 @@ bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const
   obs_log(LOG_INFO, "GetConfigStreamer");
 
   lastErrorMessage.clear();
-  QString urlStr = QString(SEVENTEENLIVE_GET_CONFIG_STREAMER_URL);
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_CONFIG_STREAMER_URL);
   QByteArray url = urlStr.toUtf8();
 
   std::vector<std::string> extraHeaders = {
@@ -462,7 +460,7 @@ bool SeventeenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Jso
 {
   obs_log(LOG_INFO, "GetAblyToken");
   lastErrorMessage.clear();
-  QString urlStr = QString(SEVENTEENLIVE_GET_ABLY_TOKEN_URL).arg(liveStreamID.c_str());
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_ABLY_TOKEN_URL).arg(liveStreamID.c_str());
   QByteArray url = urlStr.toUtf8();
 
   if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out, 0, true)) {
@@ -482,7 +480,7 @@ bool SeventeenLiveApiWrappers::GetGiftTabs(const std::string &liveStreamID, cons
   
   lastErrorMessage.clear();
   
-  QString urlStr = QString(SEVENTEENLIVE_GET_GIFTTABS_URL).arg(liveStreamID.c_str());
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_GIFTTABS_URL).arg(liveStreamID.c_str());
   QByteArray url = urlStr.toUtf8();
   
   std::vector<std::string> extraHeaders = {
@@ -504,8 +502,7 @@ bool SeventeenLiveApiWrappers::GetGifts(const std::string language, Json &json_o
 
   lastErrorMessage.clear();
 
-  QString urlStr = QString(SEVENTEENLIVE_GET_GIFTS_URL);
-  QByteArray url = urlStr.toUtf8();
+    QByteArray url = SEVENTEENLIVE_GET_GIFTS_URL.c_str();
 
   std::vector<std::string> extraHeaders = {
     "Language: " + language

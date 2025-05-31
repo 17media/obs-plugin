@@ -80,7 +80,8 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 			return;
 		}
 
-		QLabel *label = new QLabel(QString("%1 [%2]").arg(PLUGIN_NAME, PLUGIN_VERSION), mainWindow);
+		// check SEVENTEENLIVE_API_URL == "https://wap-api.17app.co"
+		QLabel *label = new QLabel(QString("%1 [%2]%3").arg(PLUGIN_NAME, PLUGIN_VERSION, (strcmp(SEVENTEENLIVE_API_URL, "https://wap-api.17app.co") == 0 ? "" : " (development)")), mainWindow);
     mainWindow->statusBar()->addWidget(label);
 	
 		// 初始化SeventeenLiveCoreManager
