@@ -44,8 +44,9 @@ export default function AblyComponent() {
 
     const prepareIndexedChat = (message) => {
         const id = shortid.generate();
-        const { streamerInfo } = roomInfo;
-
+        const { userInfo } = roomInfo;
+        const streamerInfo = userInfo;
+        
         if (message.type === MsgType_NEW_GIFT 
             || message.type === MsgType_NEW_LUCKYBAG) {
             const { displayUser, barrage, ...restGift } = message?.giftMsg;
