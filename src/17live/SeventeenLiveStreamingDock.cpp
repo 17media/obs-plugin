@@ -376,7 +376,7 @@ void SeventeenLiveStreamingDock::createLiveWithRequest(const SeventeenLiveRtmpRe
 
     populateRtmpRequest(request);
 
-    if (request.title.isEmpty() || request.subtabID.isEmpty()) {
+    if (request.caption.isEmpty() || request.subtabID.isEmpty()) {
         return;
     }
 

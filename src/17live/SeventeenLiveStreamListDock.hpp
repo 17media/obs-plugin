@@ -39,6 +39,7 @@ private:
 
     QListWidget *streamList;
     QPushButton *startLiveButton;
+    QWidget *emptyContainer = nullptr;
     SeventeenLiveApiWrappers *apiWrapper;
     SeventeenLiveConfigManager *configManager;
 };

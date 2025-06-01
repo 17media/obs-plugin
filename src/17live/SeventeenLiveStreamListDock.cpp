@@ -135,28 +135,50 @@ void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const 
 }
 void SeventeenLiveStreamListDock::showEmptyListMessage()
 {
-    // 创建提示信息和跳转按钮的容器
-    QWidget* emptyContainer = new QWidget();
-    QVBoxLayout* emptyLayout = new QVBoxLayout(emptyContainer);
+    // 隐藏列表，显示空状态提示
+    streamList->setVisible(false);
+    
+    // 如果已经存在空状态容器，先删除
+    if (emptyContainer) {
+        emptyContainer->deleteLater();
+    }
+    
+    // 创建空状态容器
+    emptyContainer = new QWidget();
+    emptyContainer->setStyleSheet(
+        "QWidget {"
+        "    background-color: #1e1e1e;"
+        "    border-radius: 4px;"
+        "}"
+    );
+    
+    // 创建垂直布局
+    QVBoxLayout *emptyLayout = new QVBoxLayout(emptyContainer);
     emptyLayout->setAlignment(Qt::AlignCenter);
-    emptyLayout->setContentsMargins(20, 40, 20, 40);
     emptyLayout->setSpacing(20);
     
-    // 添加提示信息
-    QLabel* emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
-    emptyLabel->setStyleSheet("color: #aaaaaa; font-size: 14px; text-align: center;");
+    // 创建提示标签
+    QLabel *emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
     emptyLabel->setAlignment(Qt::AlignCenter);
-    emptyLabel->setWordWrap(true);
+    emptyLabel->setStyleSheet(
+        "QLabel {"
+        "    color: #888888;"
+        "    font-size: 16px;"
+        "    font-weight: bold;"
+        "}"
+    );
     
-    // 添加跳转按钮
-    QPushButton* goToStreamingButton = new QPushButton(obs_module_text("Live.StreamList.GoToStreaming"));
+    // 创建跳转到开始直播的按钮
+    QPushButton *goToStreamingButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
+    goToStreamingButton->setFixedSize(200, 40);
     goToStreamingButton->setStyleSheet(
         "QPushButton {"
-        "    background-color: #4a86e8;"
+        "    background-color: #4a90e2;"
         "    color: white;"
-        "    border-radius: 4px;"
-        "    padding: 8px 16px;"
-        "    font-size: 13px;"
+        "    border: none;"
+        "    border-radius: 6px;"
+        "    font-size: 14px;"
+        "    font-weight: bold;"
         "}"
         "QPushButton:hover {"
         "    background-color: #5a96f8;"
@@ -174,15 +196,22 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     emptyLayout->addWidget(emptyLabel);
     emptyLayout->addWidget(goToStreamingButton);
     
-    // 创建一个列表项并设置自定义小部件
-    QListWidgetItem* emptyItem = new QListWidgetItem(streamList);
-    emptyItem->setSizeHint(emptyContainer->sizeHint());
-    streamList->setItemWidget(emptyItem, emptyContainer);
+    // 将空状态容器添加到主布局中（替代列表）
+    QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout*>(widget()->layout());
+    if (mainLayout) {
+        mainLayout->insertWidget(0, emptyContainer); // 插入到列表位置
+    }
 }
 
 void SeventeenLiveStreamListDock::refreshStreamList()
 {
     streamList->clear();
+
+    if (emptyContainer) {
+        // 如果已经存在空状态容器，先删除
+        emptyContainer->deleteLater();
+        emptyContainer = nullptr;
+    }
     
     std::vector<SeventeenLiveStreamInfo> streamInfoList;
     configManager->loadAllLiveConfig(streamInfoList);
@@ -193,6 +222,8 @@ void SeventeenLiveStreamListDock::refreshStreamList()
         // 禁用开始直播按钮，因为没有可选择的直播
         startLiveButton->setVisible(false);
     } else {
+        streamList->setVisible(true);
+        
         // 有直播信息，正常显示列表
         for (const auto& info : streamInfoList) {
             QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
