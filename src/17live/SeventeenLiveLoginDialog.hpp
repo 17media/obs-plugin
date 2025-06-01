@@ -29,6 +29,7 @@ private:
     QLabel* titleLabel;
     QLineEdit* usernameEdit;
     QLineEdit* passwordEdit;
+    QPushButton* showPasswordButton;
     QPushButton* loginButton;
     QLabel* errorLabel;
     QLabel* forgotPasswordLabel;

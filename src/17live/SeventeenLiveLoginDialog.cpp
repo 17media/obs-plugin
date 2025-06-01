@@ -43,12 +43,60 @@ void SeventeenLiveLoginDialog::setupUi()
     usernameEdit->setMinimumHeight(40);
     mainLayout->addWidget(usernameEdit);
 
+    // 密码输入框容器
+    QWidget* passwordContainer = new QWidget(this);
+    QHBoxLayout* passwordLayout = new QHBoxLayout(passwordContainer);
+    passwordLayout->setContentsMargins(0, 0, 0, 0);
+    passwordLayout->setSpacing(0);
+    
     // 密码输入框
-    passwordEdit = new QLineEdit(this);
+    passwordEdit = new QLineEdit(passwordContainer);
     passwordEdit->setPlaceholderText(obs_module_text("Auth.Password"));
     passwordEdit->setEchoMode(QLineEdit::Password);
     passwordEdit->setMinimumHeight(40);
-    mainLayout->addWidget(passwordEdit);
+    passwordEdit->setStyleSheet(
+        "QLineEdit {"
+        "    border: 1px solid #ccc;"
+        "    border-radius: 5px 0 0 5px;"
+        "    padding: 0 10px;"
+        "}"
+    );
+    
+    // 显示/隐藏密码按钮
+    showPasswordButton = new QPushButton(passwordContainer);
+    showPasswordButton->setText("👁");
+    showPasswordButton->setFixedSize(40, 40);
+    showPasswordButton->setStyleSheet(
+        "QPushButton {"
+        "    border: 1px solid #ccc;"
+        "    border-left: none;"
+        "    border-radius: 0 5px 5px 0;"
+        "    background-color: #f5f5f5;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #e0e0e0;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #d0d0d0;"
+        "}"
+    );
+    
+    // 连接按钮点击事件
+    connect(showPasswordButton, &QPushButton::clicked, this, [this]() {
+        if (passwordEdit->echoMode() == QLineEdit::Password) {
+            passwordEdit->setEchoMode(QLineEdit::Normal);
+            showPasswordButton->setText("🙈");
+        } else {
+            passwordEdit->setEchoMode(QLineEdit::Password);
+            showPasswordButton->setText("👁");
+        }
+    });
+    
+    // 添加到布局
+    passwordLayout->addWidget(passwordEdit);
+    passwordLayout->addWidget(showPasswordButton);
+    
+    mainLayout->addWidget(passwordContainer);
 
     // 错误提示
     errorLabel = new QLabel(this);
