@@ -113,18 +113,14 @@ void SeventeenLiveLoginDialog::setupUi()
     mainLayout->addWidget(loginButton);
 
     // 忘记密码链接
-    // TODO: set real link to forgot password page
-    QString forgotPasswordLinkTemplate = obs_module_text("Auth.ForgotPassword");
-    QString forgotPasswordLink = forgotPasswordLinkTemplate.arg("#");
+    QString forgotPasswordLink = obs_module_text("Auth.ForgotPassword");
     forgotPasswordLabel = new QLabel(forgotPasswordLink, this);
     forgotPasswordLabel->setAlignment(Qt::AlignRight);
     forgotPasswordLabel->setOpenExternalLinks(true);
     mainLayout->addWidget(forgotPasswordLabel);
 
     // 注册新用户链接
-    // TODO: set real link to register page
-    QString registerLinkTemplate = obs_module_text("Auth.Register");
-    QString registerLink = registerLinkTemplate.arg("#");
+    QString registerLink = obs_module_text("Auth.Register");
     registerLabel = new QLabel(registerLink, this);
     registerLabel->setAlignment(Qt::AlignCenter);
     registerLabel->setOpenExternalLinks(true);
