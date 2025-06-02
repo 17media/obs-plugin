@@ -37,4 +37,5 @@ private:
     QLabel* disclaimerLabel;
     QLabel* passwordLabel;
     QPushButton* passwordQuestionButton;
+    QLabel* forgotPasswordLinkLabel;
 };
