@@ -4,6 +4,12 @@
 
 #include <cstdio> // For popen, pclose, fgets
 #include <array>  // For std::array
+#include <string> // For std::string
+
+#ifdef _WIN32
+#include <io.h>
+#include <process.h>
+#endif
 
 #ifdef __linux__
 #include <fstream> // For std::ifstream (Linux)
@@ -45,24 +51,40 @@ std::string GetCurrentOS() {
 }
 
 std::string ExecuteCommandAndGetOutput(const char* cmd) {
-    std::array<char, 128> buffer;
-    std::string result;
-    FILE* pipe = popen(cmd, "r");
-    if (!pipe) {
-        return "Error executing command";
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-        result += buffer.data();
-    }
-    pclose(pipe);
-    // Remove trailing newline characters if any
-    if (!result.empty() && result[result.length()-1] == '\n') {
-        result.erase(result.length()-1);
-    }
-    if (!result.empty() && result[result.length()-1] == '\r') {
-        result.erase(result.length()-1);
-    }
-    return result;
+  std::array<char, 128> buffer;
+  std::string result;
+  
+#ifdef _WIN32
+  // Windows平台使用_popen和_pclose
+  FILE* pipe = _popen(cmd, "r");
+#else
+  // macOS和Linux平台使用popen和pclose
+  FILE* pipe = popen(cmd, "r");
+#endif
+  
+  if (!pipe) {
+      return "Error executing command";
+  }
+  
+  while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+      result += buffer.data();
+  }
+  
+#ifdef _WIN32
+  _pclose(pipe);
+#else
+  pclose(pipe);
+#endif
+  
+  // Remove trailing newline characters if any
+  if (!result.empty() && result[result.length()-1] == '\n') {
+      result.erase(result.length()-1);
+  }
+  if (!result.empty() && result[result.length()-1] == '\r') {
+      result.erase(result.length()-1);
+  }
+  
+  return result;
 }
 
 std::string GetCurrentOSVersion() {
