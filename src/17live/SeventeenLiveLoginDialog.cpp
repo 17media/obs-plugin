@@ -12,8 +12,8 @@
 
 #include "moc_SeventeenLiveLoginDialog.cpp"
 
-SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent)
-    : QDialog(parent)
+SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent,  SeventeenLiveApiWrappers* apiWrapper_)
+    : QDialog(parent),  apiWrapper(apiWrapper_)
 {
     setupUi();
     setWindowTitle(obs_module_text("Auth.SignIn"));
@@ -237,9 +237,13 @@ void SeventeenLiveLoginDialog::setupUi()
         "    color: #FF6B6B;"
         "    font-size: 14px;"
         "    margin: 10px 0;"
+        "    min-height: 20px;"
         "}"
     );
     errorLabel->setVisible(false);
+    // 即使不可见也保留空间
+    errorLabel->setFixedHeight(20);
+    errorLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     mainLayout->addWidget(errorLabel);
 
     QWidget *loginContainer = new QWidget(this);
@@ -330,11 +334,10 @@ void SeventeenLiveLoginDialog::handleLogin()
     }
     
     // 创建API包装器实例
-    SeventeenLiveApiWrappers apiWrapper;
     SeventeenLiveLoginData loginData;
     
     // 调用登录接口
-    if (!apiWrapper.Login(usernameEdit->text(), passwordEdit->text(), loginData)) {
+    if (!apiWrapper->Login(usernameEdit->text(), passwordEdit->text(), loginData)) {
         // QString errorMessageTemplate = obs_module_text("Auth.Error02");
         // QString errorMessage = errorMessageTemplate.arg(apiWrapper.getLastErrorMessage());
         // errorLabel->setText(errorMessage);
@@ -342,15 +345,15 @@ void SeventeenLiveLoginDialog::handleLogin()
         return;
     }
 
-    obs_log(LOG_INFO, "login success");
-    obs_log(LOG_INFO, "userID: %s", loginData.userInfo.userID.toStdString().c_str());
-    obs_log(LOG_INFO, "displayName: %s", loginData.userInfo.displayName.toStdString().c_str());
-    obs_log(LOG_INFO, "roomID: %d", loginData.userInfo.roomID);
+    // obs_log(LOG_INFO, "login success");
+    // obs_log(LOG_INFO, "userID: %s", loginData.userInfo.userID.toStdString().c_str());
+    // obs_log(LOG_INFO, "displayName: %s", loginData.userInfo.displayName.toStdString().c_str());
+    // obs_log(LOG_INFO, "roomID: %d", loginData.userInfo.roomID);
 
     emit loginSuccess(loginData);
 
     // log access token
-    obs_log(LOG_INFO, "access token: %s", loginData.accessToken.toStdString().c_str());
+    // obs_log(LOG_INFO, "access token: %s", loginData.accessToken.toStdString().c_str());
     
     // 显示登录成功消息框
     QMessageBox::information(this, obs_module_text("Auth.LoginSuccess"), QString(obs_module_text("Auth.LoginSuccess.Tip")).arg(loginData.userInfo.openID));

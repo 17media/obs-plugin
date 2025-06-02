@@ -185,7 +185,7 @@ SeventeenLiveConfigManager* SeventeenLiveCoreManager::getConfigManager() const
 
 bool SeventeenLiveCoreManager::handleLoginClicked()
 {
-    SeventeenLiveLoginDialog dialog(mainWindow);
+    SeventeenLiveLoginDialog dialog(mainWindow, getApiWrapper());
 
     // 连接登录成功信号到主窗口的槽函数
     QObject::connect(&dialog, &SeventeenLiveLoginDialog::loginSuccess, this, &SeventeenLiveCoreManager::handleLoginSuccess);

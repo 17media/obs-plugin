@@ -281,10 +281,11 @@ bool SeventeenLiveApiWrappers::GetRoomInfo(const qint64 roomID, SeventeenLiveRoo
 
   Json json_out;
   if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out, 0, true)) {
+    obs_log(LOG_ERROR, "GetRoomInfo failed %s", json_out.dump().c_str());
+    lastErrorMessage = QString::fromStdString("GetRoomInfo failed %s").arg(json_out.dump().c_str()).toUtf8().constData();
+
     return false;
   }
-  obs_log(LOG_INFO, "GetRoomInfo success");
-  obs_log(LOG_INFO, "Room info data: %s", json_out.dump().c_str());
 
   // 使用 JsonToSeventeenLiveRoomInfo 函数解析数据到结构体
   if (!JsonToSeventeenLiveRoomInfo(json_out, roomInfo)) {

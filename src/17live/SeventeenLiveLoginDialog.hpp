@@ -7,11 +7,13 @@
 
 struct SeventeenLiveLoginData;
 
+class SeventeenLiveApiWrappers;
+
 class SeventeenLiveLoginDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit SeventeenLiveLoginDialog(QWidget* parent = nullptr);
+    explicit SeventeenLiveLoginDialog(QWidget* parent = nullptr, SeventeenLiveApiWrappers* apiWrapper_ = nullptr);
     ~SeventeenLiveLoginDialog();
 
 private:
@@ -38,4 +40,5 @@ private:
     QLabel* passwordLabel;
     QPushButton* passwordQuestionButton;
     QLabel* forgotPasswordLinkLabel;
+    SeventeenLiveApiWrappers* apiWrapper;
 };
