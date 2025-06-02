@@ -463,7 +463,7 @@ bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &js
 
     } catch (const std::exception& e) {
         // 您可以在这里添加日志记录，例如使用 obs_log
-        // obs_log(LOG_ERROR, "[obs-17live]: SeventeenLiveRoomInfoToJson error: %s", e.what());
+        obs_log(LOG_ERROR, "[obs-17live]: SeventeenLiveRoomInfoToJson error: %s", e.what());
         return false;
     }
 }
