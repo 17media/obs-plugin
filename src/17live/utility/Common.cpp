@@ -5,10 +5,13 @@
 #include <cstdio> // For popen, pclose, fgets
 #include <array>  // For std::array
 #include <string> // For std::string
+#include <algorithm>
+#include <cctype>
 
 #ifdef _WIN32
 #include <io.h>
 #include <process.h>
+#include <sstream>
 #endif
 
 #ifdef __linux__
@@ -154,16 +157,39 @@ std::string GetCurrentOSVersion() {
   return version;
 }
 
+// 去除字符串开头和结尾的空白字符（空格、\t、\n、\r等）
+std::string trim(const std::string& str) {
+  auto start = std::find_if_not(str.begin(), str.end(), [](int ch) {
+    return std::isspace(ch);
+  });
+
+  auto end = std::find_if_not(str.rbegin(), str.rend(), [](int ch) {
+    return std::isspace(ch);
+  }).base();
+
+  if (start >= end) {
+    return ""; // 全是空白字符
+  }
+
+  return std::string(start, end);
+}
+
 std::string GetCurrentPlatformUUID() {
 #if defined(__APPLE__)
   return ExecuteCommandAndGetOutput("ioreg -d2 -c IOPlatformExpertDevice | awk -F\\\" '/IOPlatformUUID/{print $(NF-1)}'");
 #elif defined(_WIN32)
-  // Windows UUID retrieval is more complex and often requires WMI or registry access.
-  // For example, using WMIC (might require admin privileges and parsing):
-  // return ExecuteCommandAndGetOutput("wmic csproduct get uuid");
-  // This will likely return a header and then the UUID on a new line.
-  // Proper parsing would be needed.
-  return "Windows UUID Not Implemented Yet";
+  std::string uuidStr = ExecuteCommandAndGetOutput("wmic csproduct get uuid");
+  // The output might contain extra lines, so we need to clean it up
+  std::stringstream ss(uuidStr);
+  std::string line;
+  while (std::getline(ss, line)) {
+
+      // Skip empty lines and the header line
+      if (!line.empty() && line.find("UUID") == std::string::npos) {
+          return trim(line); // Return the first non-empty line that's not the header
+      } 
+  }
+  return "Windows UUID Not Found";
 #elif defined(__linux__)
   // Linux can use /sys/class/dmi/id/product_uuid or dmidecode
   // std::ifstream uuidFile("/sys/class/dmi/id/product_uuid");
