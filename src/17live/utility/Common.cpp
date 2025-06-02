@@ -66,10 +66,14 @@ std::string ExecuteCommandAndGetOutput(const char* cmd) {
       return "Error executing command";
   }
   
-  while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-      result += buffer.data();
-  }
-  
+#ifdef _WIN32
+while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
+#else
+while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+#endif
+    result += buffer.data();
+}
+
 #ifdef _WIN32
   _pclose(pipe);
 #else
