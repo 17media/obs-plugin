@@ -35,4 +35,6 @@ private:
     QLabel* forgotPasswordLabel;
     QLabel* registerLabel;
     QLabel* disclaimerLabel;
+    QLabel* passwordLabel;
+    QPushButton* passwordQuestionButton;
 };
