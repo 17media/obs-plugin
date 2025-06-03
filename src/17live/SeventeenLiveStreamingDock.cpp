@@ -425,6 +425,13 @@ void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& 
         return;
     }
 
+    // archive
+    if (request.archiveConfig.autoRecording) {
+        if (!apiWrapper->EnableStreamArchive(response.liveStreamID.toStdString(), 1)) {
+            obs_log(LOG_ERROR, "Failed to enable archive %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
+        }
+    }
+
     updateLiveStatus(SeventeenLiveStreamingStatus::Live);
     
     // 询问是否同时开始串流
@@ -455,6 +462,11 @@ void SeventeenLiveStreamingDock::onDeleteLiveClicked()
     std::string currLiveStreamID;
     configManager->getConfigValue("UserID", currUserID);
     configManager->getConfigValue("LiveStreamID", currLiveStreamID);
+
+    // 关闭归档
+    if (!apiWrapper->EnableStreamArchive(currLiveStreamID, 0)) {
+        obs_log(LOG_ERROR, "Failed to disable archive %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
+    }
 
     // 发送关闭直播请求
     SeventeenLiveCloseLiveRequest request;
