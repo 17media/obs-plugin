@@ -26,10 +26,10 @@ import {
     DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
 } from '@/lib/constants';
 
-import giftdata from './chat_new_gift_2.json';
-import comment from './chat_message.json';
-import newjoin from './chat_new_join.json';
-import aicohost from './chat_ai_cohost.json';
+// import giftdata from './chat_new_gift_2.json';
+// import comment from './chat_message.json';
+// import newjoin from './chat_new_join.json';
+// import aicohost from './chat_ai_cohost.json';
 
 export default function AblyComponent() {
 
