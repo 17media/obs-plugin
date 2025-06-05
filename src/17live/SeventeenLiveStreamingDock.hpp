@@ -9,6 +9,7 @@
 #include <QCheckBox>
 #include <QLabel>
 #include <QHBoxLayout>
+#include <QProgressBar>
 
 #include "api/SeventeenLiveModels.hpp"
 
@@ -20,16 +21,18 @@ class SeventeenLiveStreamingDock : public QDockWidget {
     Q_OBJECT
 
 public:
-    explicit SeventeenLiveStreamingDock(QWidget *parent = nullptr, const SeventeenLiveRoomInfo &roomInfo = SeventeenLiveRoomInfo(), SeventeenLiveApiWrappers *apiWrapper = nullptr, SeventeenLiveConfigManager *configManager = nullptr);
+    explicit SeventeenLiveStreamingDock(QWidget *parent = nullptr, SeventeenLiveApiWrappers *apiWrapper = nullptr, SeventeenLiveConfigManager *configManager = nullptr);
     ~SeventeenLiveStreamingDock();
 
     void updateLiveStatus(SeventeenLiveStreamingStatus status);
     void createLiveWithRequest(const SeventeenLiveRtmpRequest &request);
     void editLiveWithInfo(const SeventeenLiveStreamInfo &info);
+    void loadRoomInfo(qint64 roomID);
 
 private:
     void setupUi();
     void createConnections();
+    void updateUIWithRoomInfo();
 
 private:
     // UI elements
@@ -62,7 +65,13 @@ private:
     QPushButton *saveConfigButton;
     QPushButton *createLiveButton;
 
+    // 加载状态UI
+    QWidget *loadingOverlay;
+    QProgressBar *loadingProgress;
+    QLabel *loadingLabel;
+
     SeventeenLiveRoomInfo roomInfo;
+    SeventeenLiveConfigStreamer configStreamer;
 
 signals:
     void streamInfoSaved();
@@ -94,4 +103,5 @@ private:
     SeventeenLiveConfigManager *configManager = nullptr;
 
     QString currentInfoUuid = "";
+    bool isLoading = false; // 标识是否正在加载中
 };

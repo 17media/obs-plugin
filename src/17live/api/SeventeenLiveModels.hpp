@@ -212,6 +212,12 @@ using namespace json11;
     int clipPermissionDownload;  // 新增字段
   };
 
+  // hashtag结构体
+  struct SeventeenLiveHashtag {
+    QString text;
+    bool isOfficial;
+  };
+
   // 主房间信息结构体
   struct SeventeenLiveRoomInfo {
     QString userID;
@@ -271,6 +277,8 @@ using namespace json11;
     SeventeenLiveArchiveConfig archiveConfig;  // 添加存档配置
     QString archiveID;                         // 添加存档ID
     bool hideGameMarquee;                      // 添加游戏跑马灯隐藏标志
+    QStringList subtabs;
+    QList<SeventeenLiveHashtag> lastUsedHashtags;
   };
 
   // 将Json转换为SeventeenLiveRoomInfo结构体
@@ -392,14 +400,19 @@ using namespace json11;
     QString ID;
   };
 
+  struct SeventeenLiveStreamState {
+    SeventeenLiveVliverInfo vliverInfo;
+  };
+
   // 配置流媒体响应结构体
-  struct SeventeenLiveConfigStreamerResponse {
+  struct SeventeenLiveConfigStreamer {
     SeventeenLiveEventList event;
     SeventeenLiveCustomEvent customEvent;
     SeventeenLiveBoxGacha boxGacha;
     QList<SeventeenLiveSubtab> subtabs;
+    SeventeenLiveStreamState lastStreamState;
   };
 
   // 解析JSON到SeventeenLiveConfigStreamerResponse结构体的函数声明
-  bool JsonToSeventeenLiveConfigStreamerResponse(const Json &json, SeventeenLiveConfigStreamerResponse &response);
-  bool SeventeenLiveConfigStreamerResponseToJson(const SeventeenLiveConfigStreamerResponse &response, Json &json);
+  bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStreamer &response);
+  bool SeventeenLiveConfigStreamerToJson(const SeventeenLiveConfigStreamer &response, Json &json);

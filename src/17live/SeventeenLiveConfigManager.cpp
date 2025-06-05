@@ -282,51 +282,6 @@ void SeventeenLiveConfigManager::clearStreamingPullUrl()
   }
 }
 
-bool SeventeenLiveConfigManager::setConfigStreamer(const SeventeenLiveConfigStreamerResponse &response)
-{
-  if (!initialized) {
-    return false;
-  }
-
-  QString configStreamerFile = QString::fromStdString(configPath) + "/" + "config_streamer.json";
-  QFile file(configStreamerFile);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-    return false;
-  }
-  QTextStream out(&file);
-  Json json_data;
-  SeventeenLiveConfigStreamerResponseToJson(response, json_data);
-  out << QString::fromStdString(json_data.dump());
-  file.close();
-
-  return true;
-}
-
-bool SeventeenLiveConfigManager::getConfigStreamer(SeventeenLiveConfigStreamerResponse &response)
-{
-  if (!initialized) {
-    return false;
-  }
-
-  QString configStreamerFile = QString::fromStdString(configPath) + "/" + "config_streamer.json";
-  QFile file(configStreamerFile);
-  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    return false;
-  }
-  QTextStream in(&file);
-  QString jsonString = in.readAll();
-  file.close();
-  std::string error;
-  Json json = Json::parse(jsonString.toStdString(), error);
-  if (!error.empty()) {
-    obs_log(LOG_ERROR, "Failed to parse config_streamer.json: %s", error.c_str());
-    return false;
-  }
-  JsonToSeventeenLiveConfigStreamerResponse(json, response);
-  
-  return true;
-}
-
 bool SeventeenLiveConfigManager::saveLiveConfig(const SeventeenLiveStreamInfo &streamInfo)
 {
     obs_log(LOG_INFO, "Saving live config to live_info.json");

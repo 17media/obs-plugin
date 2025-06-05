@@ -304,6 +304,23 @@ bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomIn
         // 存档ID和游戏跑马灯设置
         roomInfo.archiveID = QString::fromStdString(json["archiveID"].string_value());
         roomInfo.hideGameMarquee = json["hideGameMarquee"].bool_value();
+
+        const auto& subtabsJson = json["subtabs"];
+        if (subtabsJson.is_array()) {
+            for (const auto& subtabJson : subtabsJson.array_items()) {
+                roomInfo.subtabs.append(QString::fromStdString(subtabJson.string_value()));
+            }
+        }
+
+        const auto& lastUsedHashtagsJson = json["lastUsedHashtags"];
+        if (lastUsedHashtagsJson.is_array()) {
+            for (const auto& hashtagJson : lastUsedHashtagsJson.array_items()) {
+                SeventeenLiveHashtag hashtag;
+                hashtag.text = QString::fromStdString(hashtagJson["text"].string_value());
+                hashtag.isOfficial = hashtagJson["isOfficial"].bool_value();
+                roomInfo.lastUsedHashtags.append(hashtag);
+            }
+        }
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[obs-17live]: JsonToSeventeenLiveRoomInfo error: %s", e.what());
         return false;
@@ -457,6 +474,21 @@ bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &js
         // 存档ID和游戏跑马灯设置
         jsonObject["archiveID"] = roomInfo.archiveID.toStdString();
         jsonObject["hideGameMarquee"] = roomInfo.hideGameMarquee;
+
+        Json::array subtabsArray;
+        for (const auto& subtab : roomInfo.subtabs) {
+            subtabsArray.push_back(subtab.toStdString());
+        }
+        jsonObject["subtabs"] = subtabsArray;
+
+        Json::array lastUsedHashtagsArray;
+        for (const auto& hashtag : roomInfo.lastUsedHashtags) {
+            Json::object hashtagJson;
+            hashtagJson["text"] = hashtag.text.toStdString();
+            hashtagJson["isOfficial"] = hashtag.isOfficial;
+            lastUsedHashtagsArray.push_back(hashtagJson);
+        }
+        jsonObject["lastUsedHashtags"] = lastUsedHashtagsArray;
 
         json = Json(jsonObject);
         return true;
@@ -629,7 +661,7 @@ bool SeventeenLiveCloseLiveRequestToJson(const SeventeenLiveCloseLiveRequest &re
     return true;
 }
 
-bool JsonToSeventeenLiveConfigStreamerResponse(const Json &json, SeventeenLiveConfigStreamerResponse &response) {
+bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStreamer &response) {
     if (!json.is_object()) {
       return false;
     }
@@ -701,11 +733,22 @@ bool JsonToSeventeenLiveConfigStreamerResponse(const Json &json, SeventeenLiveCo
         response.subtabs.append(subtab);
       }
     }
+
+    if (json["lastStreamState"].is_object()) {
+        const auto &lastStreamStateJson = json["lastStreamState"];
+        SeventeenLiveStreamState lastStreamState;
+        if (json["lastStreamState"]["vliverInfo"].is_object()) {
+            SeventeenLiveVliverInfo vliverInfo;
+            vliverInfo.vliverModel = lastStreamStateJson["vliverInfo"]["vliverModel"].int_value();
+            lastStreamState.vliverInfo = vliverInfo;
+        }
+        response.lastStreamState = lastStreamState;
+    }
     
     return true;
 }
 
-bool SeventeenLiveConfigStreamerResponseToJson(const SeventeenLiveConfigStreamerResponse &response, Json &json)
+bool SeventeenLiveConfigStreamerToJson(const SeventeenLiveConfigStreamer &response, Json &json)
 {
     // 创建 event 部分
     std::vector<Json> eventsArray;
@@ -769,12 +812,19 @@ bool SeventeenLiveConfigStreamerResponseToJson(const SeventeenLiveConfigStreamer
         subtabsArray.push_back(subtabJson);
     }
 
+    Json lastStreamStateJson = Json::object{
+        {"vliverInfo", Json::object{
+            {"vliverModel", response.lastStreamState.vliverInfo.vliverModel}
+        }}
+    };
+
     // 创建主 JSON 对象
     json = Json::object{
         {"event", eventJson},
         {"customEvent", customEventJson},
         {"boxGacha", boxGachaJson},
-        {"subtabs", subtabsArray}
+        {"subtabs", subtabsArray},
+        {"lastStreamState", lastStreamStateJson}
     };
 
     return true;

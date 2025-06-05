@@ -50,7 +50,7 @@ public:
   bool StartStream(const std::string &liveStreamID, const std::string &userID);
   bool EnableStreamArchive(const std::string &liveStreamID, int enableArchive);
   bool StopStream(const std::string &liveStreamID, const SeventeenLiveCloseLiveRequest &request);
-  bool GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamerResponse &response);
+  bool GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamer &response);
   bool GetAblyToken(const std::string &liveStreamID, Json &response);
   bool GetGiftTabs(const std::string &liveStreamID, const std::string language, Json &response);
   bool GetGifts(const std::string language, Json &response);

@@ -131,9 +131,6 @@ bool SeventeenLiveCoreManager::initialize()
         }
         menuManager->updateLoginStatus(true, username);
 
-        // 登录成功后，加载配置
-        loadConfigStreamer();
-
         // 加载meta data
         if (!LoadMetaData()) {
             obs_log(LOG_ERROR, "Failed to load meta data");
@@ -228,14 +225,8 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
             return;
         }
 
-        SeventeenLiveRoomInfo roomInfo;
-        if (!apiWrapper->GetRoomInfo(loginData.userInfo.roomID, roomInfo)) {
-            obs_log(LOG_ERROR, "Failed to get self room info");
-            return;
-        }
-
         // 创建并显示流媒体窗口
-        streamingDock = new SeventeenLiveStreamingDock(mainWindow, roomInfo, apiWrapper.get(), configManager.get());
+        streamingDock = new SeventeenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
 
         streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
@@ -259,6 +250,8 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
         connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
             saveDockState();
         });
+
+        streamingDock->loadRoomInfo(loginData.userInfo.roomID);
     } else {
         streamingDock->setVisible(!streamingDock->isVisible());
 
@@ -391,23 +384,4 @@ void SeventeenLiveCoreManager::handleChatRoomClicked()
                                         streamingDock && streamingDock->isVisible(), 
                                         liveListDock && liveListDock->isVisible());
     }
-}
-
-void SeventeenLiveCoreManager::loadConfigStreamer()
-{
-    std::string region;
-    if (!configManager->getConfigValue("Region", region)) {
-        obs_log(LOG_ERROR, "Failed to get region");
-        return;
-    }
-
-    std::string language = GetCurrentLanguage();
-
-    SeventeenLiveConfigStreamerResponse response;
-    if (!apiWrapper->GetConfigStreamer(region, language, response)) {
-        obs_log(LOG_ERROR, "Failed to get config streamer");
-        return;
-    }
-
-    configManager->setConfigStreamer(response);
 }

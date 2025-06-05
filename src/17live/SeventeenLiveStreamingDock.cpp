@@ -5,6 +5,7 @@
 #include <QGroupBox>
 #include <QMessageBox>
 #include <QUuid>
+#include <QThread>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -13,11 +14,12 @@
 #include "utility/Meta.hpp"
 #include "api/SeventeenLiveApiWrappers.hpp"
 #include "SeventeenLiveConfigManager.hpp"
+#include "utility/Common.hpp"
 
 #include "moc_SeventeenLiveStreamingDock.cpp"
 
-SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent, const SeventeenLiveRoomInfo &roomInfo_, SeventeenLiveApiWrappers *apiWrapper_, SeventeenLiveConfigManager *configManager_)
-    : QDockWidget(obs_module_text("Live.Settings"), parent), roomInfo(roomInfo_), apiWrapper(apiWrapper_), configManager(configManager_) 
+SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent, SeventeenLiveApiWrappers *apiWrapper_, SeventeenLiveConfigManager *configManager_)
+    : QDockWidget(obs_module_text("Live.Settings"), parent), apiWrapper(apiWrapper_), configManager(configManager_) 
 {
     setupUi();
     createConnections();
@@ -29,6 +31,26 @@ void SeventeenLiveStreamingDock::setupUi()
 {
     QWidget *container = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
+
+    // 创建加载状态覆盖层
+    loadingOverlay = new QWidget(container);
+    loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 180);");
+    loadingOverlay->setVisible(false); // 初始不可见
+    
+    QVBoxLayout *overlayLayout = new QVBoxLayout(loadingOverlay);
+    overlayLayout->setAlignment(Qt::AlignCenter);
+    
+    loadingLabel = new QLabel(obs_module_text("Live.Settings.Loading"));
+    loadingLabel->setStyleSheet("color: white; font-size: 16px;");
+    loadingLabel->setAlignment(Qt::AlignCenter);
+    
+    loadingProgress = new QProgressBar();
+    loadingProgress->setRange(0, 0); // 设置为不确定进度
+    loadingProgress->setTextVisible(false);
+    loadingProgress->setFixedSize(200, 10);
+    
+    overlayLayout->addWidget(loadingLabel);
+    overlayLayout->addWidget(loadingProgress);
     
     // 标题输入
     QFormLayout *formLayout = new QFormLayout();
@@ -47,14 +69,6 @@ void SeventeenLiveStreamingDock::setupUi()
     
     // 类别选择
     categoryCombo = new QComboBox();
-    
-    SeventeenLiveConfigStreamerResponse response;
-    configManager->getConfigStreamer(response);
-    
-    for (const auto& subtab : response.subtabs) {
-        categoryCombo->addItem(subtab.displayName, subtab.ID);
-    }
-    categoryCombo->setCurrentIndex(0);
 
     QLabel* categoryLabel = new QLabel();
     categoryLabel->setText(QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>").arg(obs_module_text("Live.Settings.Category")));
@@ -90,13 +104,9 @@ void SeventeenLiveStreamingDock::setupUi()
     QHBoxLayout *formatLayout = new QHBoxLayout(streamFormatGroup);
     normalStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Landscape"));
     verticalStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Portrait"));
-    formatLayout->addWidget(normalStreamRadio);
     formatLayout->addWidget(verticalStreamRadio);
-    if (roomInfo.landscape) {
-        normalStreamRadio->setChecked(true);
-    } else {
-        verticalStreamRadio->setChecked(true);
-    }
+    formatLayout->addWidget(normalStreamRadio);
+    verticalStreamRadio->setChecked(true);
     
     mainLayout->addWidget(streamFormatGroup);
     
@@ -109,15 +119,6 @@ void SeventeenLiveStreamingDock::setupUi()
         
     // 下拉框
     activityCombo = new QComboBox();
-    
-    for (const auto& event : response.event.events) {
-        QString eventName = event.name;
-        if (eventName.isEmpty()) {
-            continue; // Skip if name is empty or null
-        }
-        activityCombo->addItem(eventName, event.ID);
-    }
-    activityCombo->setCurrentIndex(0);
     eventContainer->addWidget(activityCombo);
         
     // 创建提示 Label 并靠右对齐
@@ -146,7 +147,6 @@ void SeventeenLiveStreamingDock::setupUi()
     
     // 右侧Switch组件
     archiveStreamCheck = new QCheckBox();
-    archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
     
     // 将左右两部分添加到水平布局中
     archiveLayout->addLayout(archiveLabelLayout);
@@ -168,7 +168,6 @@ void SeventeenLiveStreamingDock::setupUi()
     previewLabelLayout->setSpacing(2);
     
     autoPreviewCheck = new QCheckBox();
-    autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
     
     previewLayout->addLayout(previewLabelLayout);
     previewLayout->addStretch();
@@ -195,10 +194,8 @@ void SeventeenLiveStreamingDock::setupUi()
     // 设置为不可编辑
     clipIdentityCombo->setEditable(false);
     
-    // 设置默认值
-    int clipPermission = roomInfo.archiveConfig.clipPermission;
-    clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(clipPermission));
-    
+    // 选中第一个选项
+    clipIdentityCombo->setCurrentIndex(0);
     clipLayout->addWidget(clipIdentityCombo);
     clipLayout->setSpacing(2);
 
@@ -233,6 +230,133 @@ void SeventeenLiveStreamingDock::setupUi()
     mainLayout->addLayout(buttonLayout);
     
     setWidget(container);
+
+    // 设置加载覆盖层大小和位置
+    loadingOverlay->setGeometry(container->rect());
+}
+
+// 添加新方法，用于加载房间信息
+void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
+{
+    // 显示加载状态
+    isLoading = true;
+    loadingOverlay->setVisible(true);
+    loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
+    
+    // 禁用所有控件
+    widget()->setEnabled(false);
+    
+    // TODO: 以下代码需要优化，建立Worker类，将API调用放在Worker类中，在Worker类中发送信号，在主线程中接收信号，更新UI
+    // 创建一个新线程来执行API调用，避免阻塞UI
+    QThread *thread = new QThread;
+    QObject *worker = new QObject;
+    worker->moveToThread(thread);
+    
+    connect(thread, &QThread::started, worker, [this, roomID, worker, thread]() {
+        // 在新线程中执行API调用
+        bool roomInfoSuccess = apiWrapper->GetRoomInfo(roomID, roomInfo);
+        
+        // 在同一线程中获取configStreamer信息
+        bool configStreamerSuccess = false;
+        std::string region;
+        if (configManager->getConfigValue("Region", region)) {
+            std::string language = GetCurrentLanguage();
+            configStreamerSuccess = apiWrapper->GetConfigStreamer(region, language, configStreamer);
+        }
+        
+        // 使用Qt::QueuedConnection确保在主线程中更新UI
+        QMetaObject::invokeMethod(this, [this, roomInfoSuccess, configStreamerSuccess]() {
+            // 隐藏加载状态
+            isLoading = false;
+            loadingOverlay->setVisible(false);
+            
+            // 启用所有控件
+            widget()->setEnabled(true);
+            
+            if (roomInfoSuccess) {
+                // 更新UI
+                updateUIWithRoomInfo();
+            } else {
+                // 显示错误消息
+                QMessageBox::warning(this, 
+                    obs_module_text("Live.Settings.Error"), 
+                    QString::fromStdString(obs_module_text("Live.Settings.LoadError")).arg(apiWrapper->getLastErrorMessage()));
+            }
+            
+            // 如果configStreamer获取失败，记录日志但不影响主流程
+            if (!configStreamerSuccess) {
+                obs_log(LOG_WARNING, "Failed to get config streamer in loadRoomInfo");
+            }
+        }, Qt::QueuedConnection);
+        
+        // 完成后清理
+        thread->quit();
+        worker->deleteLater();
+    });
+    
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
+    thread->start();
+}
+
+// 添加新方法，用于根据roomInfo更新UI
+void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
+{
+    // 类别
+    for (const auto& subtab : configStreamer.subtabs) {
+        categoryCombo->addItem(subtab.displayName, subtab.ID);
+    }
+    int currentCategoryIndex = 0;
+    if (roomInfo.subtabs.size() > 0) {
+        currentCategoryIndex = categoryCombo->findData(roomInfo.subtabs[0]);
+    }
+    categoryCombo->setCurrentIndex(currentCategoryIndex);
+
+    // tags
+    if (roomInfo.lastUsedHashtags.size() > 0) {
+        for (const auto& tag : roomInfo.lastUsedHashtags) {
+            addTag(tag.text);
+        }
+    }
+
+
+    // 活动
+    for (const auto& event : configStreamer.event.events) {
+        QString eventName = event.name;
+        if (eventName.isEmpty()) {
+            continue; // Skip if name is empty or null
+        }
+        activityCombo->addItem(eventName, event.ID);
+    }
+    int currentEventIndex = 0;
+    if (roomInfo.eventList.size() > 0) {
+        // find the type=2 event
+        for (int i = 0; i < roomInfo.eventList.size(); i++) {
+            if (roomInfo.eventList[i].type == 2) {
+                qint64 eventID = roomInfo.eventList[i].ID;
+                currentEventIndex = activityCombo->findData(eventID);
+                break;
+            }
+        }
+    }
+    activityCombo->setCurrentIndex(currentEventIndex);
+
+    // 设置开播格式
+    if (roomInfo.landscape) {
+        normalStreamRadio->setChecked(true);
+    } else {
+        verticalStreamRadio->setChecked(true);
+    }
+    
+    // 设置存档配置
+    archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
+    autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
+    
+    // 设置剪辑权限
+    int clipPermission = roomInfo.archiveConfig.clipPermission;
+    clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(clipPermission));
+
+    // 设置虚拟主播选项
+    virtualStreamerCheck->setChecked(configStreamer.lastStreamState.vliverInfo.vliverModel == 3);
 }
 
 void SeventeenLiveStreamingDock::createConnections()

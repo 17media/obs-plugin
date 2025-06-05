@@ -142,6 +142,4 @@ private:
     void handleLiveListClicked();
 
     void saveDockState();
-
-    void loadConfigStreamer();
 };

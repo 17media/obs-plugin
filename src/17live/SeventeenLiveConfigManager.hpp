@@ -6,8 +6,6 @@
 
 struct SeventeenLiveLoginData;
 
-struct SeventeenLiveConfigStreamerResponse;
-
 struct SeventeenLiveStreamInfo;
 
 class SeventeenLiveConfigManager {
@@ -32,9 +30,6 @@ public:
   void clearStreamingPullUrl();
 
   bool getConfigValue(const std::string &key, std::string &value);
-
-  bool setConfigStreamer(const SeventeenLiveConfigStreamerResponse &response);
-  bool getConfigStreamer(SeventeenLiveConfigStreamerResponse &response);
 
   bool saveLiveConfig(const SeventeenLiveStreamInfo &streamInfo);
   bool loadAllLiveConfig(std::vector<SeventeenLiveStreamInfo> &streamInfo);

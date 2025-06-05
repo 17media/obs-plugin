@@ -426,7 +426,7 @@ bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID, const
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamerResponse &response)
+bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamer &response)
 {
   obs_log(LOG_INFO, "GetConfigStreamer");
 
@@ -447,7 +447,7 @@ bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const
 		return false;
 	}
 
-  if (!JsonToSeventeenLiveConfigStreamerResponse(json_out_resp, response)) {
+  if (!JsonToSeventeenLiveConfigStreamer(json_out_resp, response)) {
     obs_log(LOG_ERROR, "Failed to convert response to struct");
     lastErrorMessage = "Failed to convert response to struct";
     return false;
