@@ -746,6 +746,7 @@ bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStre
     }
 
     response.hashtagSelectLimit = json["hashtagSelectLimit"].int_value();
+    response.armyOnly = json["armyOnly"].int_value();
     
     return true;
 }
@@ -827,7 +828,8 @@ bool SeventeenLiveConfigStreamerToJson(const SeventeenLiveConfigStreamer &respon
         {"boxGacha", boxGachaJson},
         {"subtabs", subtabsArray},
         {"lastStreamState", lastStreamStateJson},
-        {"hashtagSelectLimit", response.hashtagSelectLimit}
+        {"hashtagSelectLimit", response.hashtagSelectLimit},
+        {"armyOnly", response.armyOnly}
     };
 
     return true;
@@ -883,4 +885,178 @@ bool SeventeenLiveAblyTokenResponseToJson(const SeventeenLiveAblyTokenResponse &
     };
 
     return true;
+}
+
+bool JsonToSeventeenLiveUserInfo(const Json &json, SeventeenLiveUserInfo &userInfo)
+{
+    if (!json.is_object()) {
+        return false;
+    }
+
+    try {
+        SeventeenLiveOnliveInfo onliveInfo;
+        if (json["onliveInfo"].is_object()) { 
+            onliveInfo.premiumType = json["onliveInfo"]["premiumType"].int_value();
+        }
+        userInfo.onliveInfo = onliveInfo;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "Error parsing JSON: %s", e.what());
+        return false;
+    }
+
+    return true;
+}
+
+bool JsonToSeventeenLiveConfig(const Json &json, SeventeenLiveConfig &config)
+{
+    if (!json.is_object()) {
+        return false;
+    }
+
+    try {
+        // 处理addOns对象
+        const auto& addOnsJson = json["addOns"];
+        if (addOnsJson.is_object()) {
+            // 处理features对象
+            const auto& featuresJson = addOnsJson["features"];
+            if (featuresJson.is_object()) {
+                // 遍历features对象中的所有键值对
+                for (const auto& item : featuresJson.object_items()) {
+                    const std::string& key = item.first;
+                    const int value = item.second.int_value();
+                    config.addOns.features[QString::fromStdString(key)] = value;
+                }
+            }
+        }
+        return true;
+    } catch (const std::exception& e) {
+        // 记录错误日志
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToSeventeenLiveConfig error: %s", e.what());
+        return false;
+    }
+}
+
+bool SeventeenLiveConfigToJson(const SeventeenLiveConfig &config, Json &json)
+{
+    try {
+        // 创建features对象
+        Json::object featuresObject;
+        for (auto it = config.addOns.features.constBegin(); it != config.addOns.features.constEnd(); ++it) {
+            featuresObject[it.key().toStdString()] = it.value();
+        }
+
+        // 创建addOns对象
+        Json::object addOnsObject;
+        addOnsObject["features"] = featuresObject;
+
+        // 创建主JSON对象
+        Json::object jsonObject;
+        jsonObject["addOns"] = addOnsObject;
+
+        json = Json(jsonObject);
+        return true;
+    } catch (const std::exception& e) {
+        // 记录错误日志
+        obs_log(LOG_ERROR, "[obs-17live]: SeventeenLiveConfigToJson error: %s", e.what());
+        return false;
+    }
+}
+
+bool JsonToSeventeenLiveArmySubscriptionLevels(const Json &json, SeventeenLiveArmySubscriptionLevels &levels)
+{
+    if (!json.is_object()) {
+        return false;
+    }
+
+    try {
+        // 处理subscriptionLevels数组
+        const auto& subscriptionLevelsJson = json["subscriptionLevels"];
+        if (subscriptionLevelsJson.is_array()) {
+            levels.subscriptionLevels.clear();
+            
+            for (const auto& levelJson : subscriptionLevelsJson.array_items()) {
+                SeventeenLiveArmySubscriptionLevel level;
+                
+                // 解析基本字段
+                level.rank = levelJson["rank"].int_value();
+                level.subscribersAmount = levelJson["subscribersAmount"].int_value();
+                
+                // 解析i18nToken对象
+                const auto& i18nTokenJson = levelJson["i18nToken"];
+                if (i18nTokenJson.is_object()) {
+                    level.i18nToken.key = QString::fromStdString(i18nTokenJson["key"].string_value());
+                    
+                    // 解析params数组
+                    const auto& paramsJson = i18nTokenJson["params"];
+                    if (paramsJson.is_array()) {
+                        for (const auto& paramJson : paramsJson.array_items()) {
+                            SeventeenLiveI18nTokenParam param;
+                            param.value = QString::fromStdString(paramJson["value"].string_value());
+                            level.i18nToken.params.append(param);
+                        }
+                    }
+                }
+                
+                levels.subscriptionLevels.append(level);
+            }
+        }
+        
+        return true;
+    } catch (const std::exception& e) {
+        // 记录错误日志
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToSeventeenLiveArmySubscriptionLevels error: %s", e.what());
+        return false;
+    }
+}
+
+bool SeventeenLiveArmySubscriptionLevelsToJson(const SeventeenLiveArmySubscriptionLevels &levels, Json &json)
+{
+    try {
+        // 创建subscriptionLevels数组
+        std::vector<Json> subscriptionLevelsArray;
+        
+        for (const auto &level : levels.subscriptionLevels) {
+            // 创建params数组
+            std::vector<Json> paramsArray;
+            for (const auto &param : level.i18nToken.params) {
+                Json paramJson = Json::object{
+                    {"value", param.value.toStdString()}
+                };
+                paramsArray.push_back(paramJson);
+            }
+            
+            // 创建i18nToken对象
+            Json i18nTokenJson;
+            if (level.i18nToken.params.isEmpty()) {
+                i18nTokenJson = Json::object{
+                    {"key", level.i18nToken.key.toStdString()}
+                };
+            } else {
+                i18nTokenJson = Json::object{
+                    {"key", level.i18nToken.key.toStdString()},
+                    {"params", paramsArray}
+                };
+            }
+            
+            // 创建level对象
+            Json levelJson = Json::object{
+                {"rank", level.rank},
+                {"subscribersAmount", level.subscribersAmount},
+                {"i18nToken", i18nTokenJson}
+            };
+            
+            subscriptionLevelsArray.push_back(levelJson);
+        }
+        
+        // 创建主JSON对象
+        json = Json::object{
+            {"subscriptionLevels", subscriptionLevelsArray}
+        };
+        
+        return true;
+    } catch (const std::exception& e) {
+        // 记录错误日志
+        obs_log(LOG_ERROR, "[obs-17live]: SeventeenLiveArmySubscriptionLevelsToJson error: %s", e.what());
+        return false;
+    }
 }

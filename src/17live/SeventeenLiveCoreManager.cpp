@@ -138,8 +138,42 @@ bool SeventeenLiveCoreManager::initialize()
         }
     }
 
+    load17LiveConfig();
+
     initialized = true;
     return true;
+}
+
+void SeventeenLiveCoreManager::load17LiveConfig()
+{
+    // 在initialize方法中，在初始化configManager之后添加以下代码
+
+    // 异步获取配置
+    std::thread configThread([this]() {
+        // 获取当前区域和语言
+        SeventeenLiveLoginData loginData;
+        configManager->getLoginData(loginData);
+    
+        std::string region = loginData.userInfo.region.toStdString();
+        if (region.empty()) {
+            region = "TW"; // 默认区域
+        }
+    
+        std::string language = GetCurrentLanguage();
+    
+        // 调用API获取配置
+        json11::Json configJson;
+        if (apiWrapper->GetConfig(region, language, configJson)) {
+            // 保存配置
+            configManager->setConfig(configJson);
+            obs_log(LOG_INFO, "Config loaded successfully");
+        } else {
+            obs_log(LOG_ERROR, "Failed to load config from API");
+        }
+    });
+  
+    // 分离线程，让它在后台运行
+    configThread.detach(); 
 }
 
 void SeventeenLiveCoreManager::shutdown()

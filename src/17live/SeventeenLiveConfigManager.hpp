@@ -1,12 +1,13 @@
 #pragma once
 
 #include <util/config-file.h>
+#include "json11.hpp"
 
 #include <QByteArray>
 
-struct SeventeenLiveLoginData;
+#include "api/SeventeenLiveModels.hpp"
 
-struct SeventeenLiveStreamInfo;
+using namespace json11;
 
 class SeventeenLiveConfigManager {
 public:
@@ -39,6 +40,11 @@ public:
   QByteArray getDockState();
   bool setDockState(const QByteArray &state);
 
+  // 设置配置数据
+  bool setConfig(const Json &configData);
+  // 获取配置数据
+  bool getConfig(SeventeenLiveConfig &config);
+
   
 private:
   bool initialized = false;
@@ -46,4 +52,9 @@ private:
   config_t* config = nullptr;
 
   std::string configPath;
+
+  // 用于保存配置文件的互斥锁
+  std::mutex configMutex;
+  // 当前配置
+  SeventeenLiveConfig currentConfig;
 };

@@ -27,6 +27,10 @@ using namespace json11;
     QString message;
   };
   
+  struct SeventeenLiveOnliveInfo {
+    int premiumType;
+  };
+
   struct SeventeenLiveUserInfo {
     QString userID;
     QString openID;
@@ -75,7 +79,10 @@ using namespace json11;
     QString commentShadowColor;
     bool isFreePrivateMsgEnabled;
     bool isVliverOnlyModeEnabled;
+    SeventeenLiveOnliveInfo onliveInfo;
   };
+
+  bool JsonToSeventeenLiveUserInfo(const Json &json, SeventeenLiveUserInfo &userInfo);
   
   struct SeventeenLiveAutoEnter {
     bool autoEnter;
@@ -421,8 +428,58 @@ using namespace json11;
     QList<SeventeenLiveSubtab> subtabs;
     SeventeenLiveStreamState lastStreamState;
     int hashtagSelectLimit;
+    int armyOnly;
   };
 
   // 解析JSON到SeventeenLiveConfigStreamerResponse结构体的函数声明
   bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStreamer &response);
   bool SeventeenLiveConfigStreamerToJson(const SeventeenLiveConfigStreamer &response, Json &json);
+
+  // 附加组件结构体
+  struct SeventeenLiveAddOns {
+    QMap<QString, int> features;
+  };
+
+  // 配置结构体，用于处理如下的json数据：
+  // { 
+  //   "addOns": { 
+  //     "features": { 
+  //       "158": 1, 
+  //       "159": 0 
+  //     } 
+  //   } 
+  // }
+  struct SeventeenLiveConfig {
+    SeventeenLiveAddOns addOns;
+  };
+
+  // 解析JSON到SeventeenLiveConfig结构体的函数声明
+  bool JsonToSeventeenLiveConfig(const Json &json, SeventeenLiveConfig &config);
+  bool SeventeenLiveConfigToJson(const SeventeenLiveConfig &config, Json &json);
+
+// 国际化令牌参数结构体
+struct SeventeenLiveI18nTokenParam {
+  QString value;
+};
+
+// 国际化令牌结构体
+struct SeventeenLiveI18nToken {
+  QString key;
+  QList<SeventeenLiveI18nTokenParam> params;
+};
+
+// 军团订阅级别结构体
+struct SeventeenLiveArmySubscriptionLevel {
+  int rank;                      // 级别排名
+  int subscribersAmount;         // 订阅者数量
+  SeventeenLiveI18nToken i18nToken;  // 国际化令牌
+};
+
+// 军团订阅级别列表结构体
+struct SeventeenLiveArmySubscriptionLevels {
+  QList<SeventeenLiveArmySubscriptionLevel> subscriptionLevels;
+};
+
+// JSON转换函数声明
+bool JsonToSeventeenLiveArmySubscriptionLevels(const Json &json, SeventeenLiveArmySubscriptionLevels &levels);
+bool SeventeenLiveArmySubscriptionLevelsToJson(const SeventeenLiveArmySubscriptionLevels &levels, Json &json);

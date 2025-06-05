@@ -31,6 +31,12 @@ const string SEVENTEENLIVE_ARCHIVE_URL = string(SEVENTEENLIVE_API_URL) + "/api/v
 
 const string SEVENTEENLIVE_GET_CONFIG_STREAMER_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/liveStreams/config/streamer";
 
+const string SEVENTEENLIVE_GET_ARMYSUBSCRIPIONLEVELS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/army/subscriptionLVs";
+
+const string SEVENTEENLIVE_GET_CONFIG_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/config";
+
+const string SEVENTEENLIVE_GET_USERINFO_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/users/%1/info?onLive=1";
+
 const string SEVENTEENLIVE_GET_ABLY_TOKEN_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/messenger/token?type=3&roomID=%1";
 
 const string SEVENTEENLIVE_GET_GIFTTABS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1/giftTabs?filter=0";
@@ -453,7 +459,93 @@ bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const
     return false;
   }
 
-  obs_log(LOG_INFO, "GetConfigStreamer success");
+  // obs_log(LOG_INFO, "GetConfigStreamer success");
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::GetArmySubscriptionLevels(const std::string region, const std::string language, SeventeenLiveArmySubscriptionLevels &response)
+{
+  obs_log(LOG_INFO, "GetArmySubscriptionLevels");
+
+  lastErrorMessage.clear();
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_ARMYSUBSCRIPIONLEVELS_URL);
+  QByteArray url = urlStr.toUtf8();
+
+  std::vector<std::string> extraHeaders = {
+  	"Userselectedregion: " + region,
+    "Language: " + language
+  };
+  
+  std::string error;
+	Json json_out_resp;
+	if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true, extraHeaders)) {
+    obs_log(LOG_ERROR, "GetArmySubscriptionLevels error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
+  if (!JsonToSeventeenLiveArmySubscriptionLevels(json_out_resp, response)) {
+    obs_log(LOG_ERROR, "Failed to convert response to struct");
+    lastErrorMessage = "Failed to convert response to struct";
+    return false;
+  }
+
+  // obs_log(LOG_INFO, "GetConfigStreamer success");
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::GetConfig(const std::string region, const std::string language, Json &json_out_resp)
+{
+  obs_log(LOG_INFO, "GetConfig");
+
+  lastErrorMessage.clear();
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_CONFIG_URL);
+  QByteArray url = urlStr.toUtf8();
+
+  std::vector<std::string> extraHeaders = {
+  	"Userselectedregion: " + region,
+    "Language: " + language
+  };
+  
+  std::string error;
+
+	if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true, extraHeaders)) {
+    obs_log(LOG_ERROR, "GetConfig error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::GetUserInfo(const std::string userID, const std::string region, const std::string language, SeventeenLiveUserInfo &response)
+{
+  obs_log(LOG_INFO, "GetUserInfo");
+
+  lastErrorMessage.clear();
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_USERINFO_URL).arg(userID.c_str());
+  QByteArray url = urlStr.toUtf8();
+
+  std::vector<std::string> extraHeaders = {
+  	"Userselectedregion: " + region,
+    "Language: " + language
+  };
+  
+  std::string error;
+	Json json_out_resp;
+	if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true, extraHeaders)) {
+    obs_log(LOG_ERROR, "GetUserInfo error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
+  if (!JsonToSeventeenLiveUserInfo(json_out_resp, response)) {
+    obs_log(LOG_ERROR, "Failed to convert response to struct");
+    lastErrorMessage = "Failed to convert response to struct";
+    return false;
+  }
+
+  // obs_log(LOG_INFO, "GetUserInfo success");
   return true;
 }
 

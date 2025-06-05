@@ -139,47 +139,48 @@ void SeventeenLiveStreamingDock::setupUi()
     
     // 战队限定观看 - 可折叠部分
     // 1. 头部（标题和折叠按钮）
-    clanOnlyHeader = new QWidget();
-    clanOnlyHeaderLayout = new QHBoxLayout(clanOnlyHeader);
-    clanOnlyHeaderLayout->setContentsMargins(0, 10, 0, 10);
+    armyOnlyHeader = new QWidget();
+    armyOnlyHeaderLayout = new QHBoxLayout(armyOnlyHeader);
+    armyOnlyHeaderLayout->setContentsMargins(0, 10, 0, 10);
     
-    clanOnlyLabel = new QLabel(obs_module_text("Live.Settings.ClanOnly"));
-    clanOnlyToggleButton = new QPushButton();
-    clanOnlyToggleButton->setIcon(QIcon(":/resources/arrow-down.svg")); 
-    clanOnlyToggleButton->setStyleSheet("QPushButton { border: none; }");
-    clanOnlyToggleButton->setFixedSize(24, 24);
+    armyOnlyLabel = new QLabel(obs_module_text("Live.Settings.ArmyOnly"));
+    armyOnlyToggleButton = new QPushButton();
+    armyOnlyToggleButton->setIcon(QIcon(":/resources/arrow-down.svg")); 
+    armyOnlyToggleButton->setStyleSheet("QPushButton { border: none; }");
+    armyOnlyToggleButton->setFixedSize(24, 24);
+    armyOnlyToggleButton->setEnabled(false); // 禁用按钮
     
-    clanOnlyHeaderLayout->addWidget(clanOnlyLabel);
-    clanOnlyHeaderLayout->addStretch();
-    clanOnlyHeaderLayout->addWidget(clanOnlyToggleButton);
+    armyOnlyHeaderLayout->addWidget(armyOnlyLabel);
+    armyOnlyHeaderLayout->addStretch();
+    armyOnlyHeaderLayout->addWidget(armyOnlyToggleButton);
     
     // 2. 内容容器（默认隐藏）
-    clanOnlyContainer = new QWidget();
-    clanOnlyContainerLayout = new QVBoxLayout(clanOnlyContainer);
-    clanOnlyContainerLayout->setContentsMargins(20, 0, 0, 10); // 左侧缩进
+    armyOnlyContainer = new QWidget();
+    armyOnlyContainerLayout = new QVBoxLayout(armyOnlyContainer);
+    armyOnlyContainerLayout->setContentsMargins(20, 0, 0, 10); // 左侧缩进
     
     // 战队限定观看开关
-    QHBoxLayout *clanOnlyCheckLayout = new QHBoxLayout();
-    QLabel *clanOnlyCheckLabel = new QLabel(obs_module_text("Live.Settings.ClanOnly"));
-    clanOnlyCheck = new QCheckBox();
+    QHBoxLayout *armyOnlyCheckLayout = new QHBoxLayout();
+    QLabel *armyOnlyCheckLabel = new QLabel(obs_module_text("Live.Settings.ArmyOnly"));
+    armyOnlyCheck = new QCheckBox();
     
-    clanOnlyCheckLayout->addWidget(clanOnlyCheckLabel);
-    clanOnlyCheckLayout->addStretch();
-    clanOnlyCheckLayout->addWidget(clanOnlyCheck);
+    armyOnlyCheckLayout->addWidget(armyOnlyCheckLabel);
+    armyOnlyCheckLayout->addStretch();
+    armyOnlyCheckLayout->addWidget(armyOnlyCheck);
     
-    clanOnlyContainerLayout->addLayout(clanOnlyCheckLayout);
+    armyOnlyContainerLayout->addLayout(armyOnlyCheckLayout);
     
     // 用户条件
     QVBoxLayout *userConditionLayout = new QVBoxLayout();
     QLabel *userConditionLabel = new QLabel(obs_module_text("Live.Settings.UserCondition"));
     userConditionLayout->addWidget(userConditionLabel);
     
-    userConditionCombo = new QComboBox();
-    userConditionCombo->addItem(obs_module_text("Live.Settings.UserCondition.AllLevels"), 1);
-    userConditionCombo->setEditable(false);
-    userConditionLayout->addWidget(userConditionCombo);
+    requiredArmyRankCombo = new QComboBox();
+    // requiredArmyRankCombo->addItem(obs_module_text("Live.Settings.UserCondition.AllLevels"), 1);
+    requiredArmyRankCombo->setEditable(false);
+    userConditionLayout->addWidget(requiredArmyRankCombo);
     
-    clanOnlyContainerLayout->addLayout(userConditionLayout);
+    armyOnlyContainerLayout->addLayout(userConditionLayout);
     
     // 显示在热门页
     QHBoxLayout *showInHotPageLayout = new QHBoxLayout();
@@ -190,7 +191,7 @@ void SeventeenLiveStreamingDock::setupUi()
     showInHotPageLayout->addStretch();
     showInHotPageLayout->addWidget(showInHotPageCheck);
     
-    clanOnlyContainerLayout->addLayout(showInHotPageLayout);
+    armyOnlyContainerLayout->addLayout(showInHotPageLayout);
     
     // 开播通知
     QHBoxLayout *liveNotificationLayout = new QHBoxLayout();
@@ -201,15 +202,15 @@ void SeventeenLiveStreamingDock::setupUi()
     liveNotificationLayout->addStretch();
     liveNotificationLayout->addWidget(liveNotificationCheck);
     
-    clanOnlyContainerLayout->addLayout(liveNotificationLayout);
+    armyOnlyContainerLayout->addLayout(liveNotificationLayout);
     
     // 初始状态：折叠
-    clanOnlyContainer->setVisible(false);
-    clanOnlyExpanded = false;
+    armyOnlyContainer->setVisible(false);
+    armyOnlyExpanded = false;
     
     // 添加到主布局
-    broadcastModeLayout->addWidget(clanOnlyHeader);
-    broadcastModeLayout->addWidget(clanOnlyContainer);
+    broadcastModeLayout->addWidget(armyOnlyHeader);
+    broadcastModeLayout->addWidget(armyOnlyContainer);
     
     mainLayout->addLayout(broadcastModeLayout);
     
@@ -337,16 +338,22 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
         // 在新线程中执行API调用
         bool roomInfoSuccess = apiWrapper->GetRoomInfo(roomID, roomInfo);
         
-        // 在同一线程中获取configStreamer信息
-        bool configStreamerSuccess = false;
         std::string region;
-        if (configManager->getConfigValue("Region", region)) {
-            std::string language = GetCurrentLanguage();
-            configStreamerSuccess = apiWrapper->GetConfigStreamer(region, language, configStreamer);
-        }
+        configManager->getConfigValue("Region", region);
+        std::string language = GetCurrentLanguage();
+
+        std::string userID;
+        configManager->getConfigValue("UserID", userID);
+
+        // 在同一线程中获取configStreamer信息
+        bool configStreamerSuccess = apiWrapper->GetConfigStreamer(region, language, configStreamer);
+
+        bool userInfoSuccess = apiWrapper->GetUserInfo(userID, region, language, userInfo);
+
+        bool levelsSuccess = apiWrapper->GetArmySubscriptionLevels(region, language, levels);
         
         // 使用Qt::QueuedConnection确保在主线程中更新UI
-        QMetaObject::invokeMethod(this, [this, roomInfoSuccess, configStreamerSuccess]() {
+        QMetaObject::invokeMethod(this, [this, roomInfoSuccess, configStreamerSuccess, userInfoSuccess, levelsSuccess]() {
             // 隐藏加载状态
             isLoading = false;
             loadingOverlay->setVisible(false);
@@ -368,6 +375,14 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
             if (!configStreamerSuccess) {
                 obs_log(LOG_WARNING, "Failed to get config streamer in loadRoomInfo");
             }
+
+            if (!userInfoSuccess) {
+                obs_log(LOG_WARNING, "Failed to get user info in loadRoomInfo");
+            }
+
+            if (!levelsSuccess) {
+                obs_log(LOG_WARNING, "Failed to get army subscription levels in loadRoomInfo");
+            }
         }, Qt::QueuedConnection);
         
         // 完成后清理
@@ -382,6 +397,8 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
 // 添加新方法，用于根据roomInfo更新UI
 void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
 {
+    obs_log(LOG_INFO, "Updating UI with room info");
+
     hashtagSelectLimit = configStreamer.hashtagSelectLimit;
 
     // 类别
@@ -429,6 +446,13 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
     } else {
         verticalStreamRadio->setChecked(true);
     }
+
+    // 战队设定
+    armyOnlyHeader->setVisible(configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1);
+
+    if (configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1) {
+        updateRequiredArmyRankSelections();
+    }
     
     // 设置存档配置
     archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
@@ -442,6 +466,41 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
     virtualStreamerCheck->setChecked(configStreamer.lastStreamState.vliverInfo.vliverModel == 3);
 }
 
+void SeventeenLiveStreamingDock::updateRequiredArmyRankSelections()
+{
+    obs_log(LOG_INFO, "updateRequiredArmyRankSelections");
+
+    SeventeenLiveConfig config;
+    if (!configManager->getConfig(config)) {
+        return;
+    }
+
+    // 初始化Combo Items
+    requiredArmyRankCombo->clear();
+
+    // 遍历levels，添加到Combo Items
+    for (const auto& level : levels.subscriptionLevels) {
+        QString rankValueTemplate = QString("Live.Settings.Rank%1.%2").arg(QString::number(config.addOns.features["158"]), level.i18nToken.key);
+
+        if (level.i18nToken.key != "army_only_stream_level_setting_all_level") {
+            if (config.addOns.features["158"] == 0) {
+                QString rankTemplateValueName = obs_module_text(QString("Live.Settings.Rank0.army_rank_name_%1").arg(level.rank).toStdString().c_str());
+    
+                // string replace {name} in rankValueTemplate with rankTemplateValueName
+                rankValueTemplate = rankValueTemplate.replace("{name}", rankTemplateValueName);
+            } else if (config.addOns.features["158"] == 1) {
+                // string replace {value} in rankValueTemplate with
+                rankValueTemplate = rankValueTemplate.replace("{value}", level.i18nToken.params[0].value);
+            }
+        }
+        
+        // string replace {subscribersAmount} in rankValueTemplate with level.subscribersAmount
+        rankValueTemplate = rankValueTemplate.replace("{subscribersAmount}", QString::number(level.subscribersAmount));
+
+        requiredArmyRankCombo->addItem(rankValueTemplate, level.rank);
+    }
+}
+
 void SeventeenLiveStreamingDock::createConnections()
 {
     // 标签相关连接
@@ -453,20 +512,35 @@ void SeventeenLiveStreamingDock::createConnections()
     connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
 
     // 战队限定观看折叠/展开按钮
-    connect(clanOnlyToggleButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onClanOnlyToggleClicked);
+    connect(armyOnlyToggleButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onArmyOnlyToggleClicked);
+
+    connect(armyOnlyCheck, &QCheckBox::stateChanged, this, &SeventeenLiveStreamingDock::onArmyOnlyCheckChanged);
 }
 
-void SeventeenLiveStreamingDock::onClanOnlyToggleClicked()
+void SeventeenLiveStreamingDock::onArmyOnlyToggleClicked()
 {
-    clanOnlyExpanded = !clanOnlyExpanded;
-    clanOnlyContainer->setVisible(clanOnlyExpanded);
+    armyOnlyExpanded = !armyOnlyExpanded;
+    armyOnlyContainer->setVisible(armyOnlyExpanded);
     
     // 更新按钮图标
-    if (clanOnlyExpanded) {
-        clanOnlyToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
+    if (armyOnlyExpanded) {
+        armyOnlyToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
     } else {
-        clanOnlyToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
+        armyOnlyToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
     }
+}
+
+void SeventeenLiveStreamingDock::onArmyOnlyCheckChanged(int state)
+{
+    if (state == Qt::Checked) {
+        archiveStreamCheck->setChecked(false);
+        autoPreviewCheck->setChecked(false);
+        clipIdentityCombo->setCurrentIndex(0);
+    }
+
+    archiveStreamCheck->setEnabled(state != Qt::Checked);
+    autoPreviewCheck->setEnabled(state != Qt::Checked);
+    clipIdentityCombo->setEnabled(state != Qt::Checked);
 }
 
 void SeventeenLiveStreamingDock::onAddTagClicked()
@@ -782,11 +856,11 @@ void SeventeenLiveStreamingDock::populateRtmpRequest(const SeventeenLiveRtmpRequ
     }
 
     // 战队限定观看设置
-    clanOnlyCheck->setChecked(request.armyOnly.enable);
+    armyOnlyCheck->setChecked(request.armyOnly.enable);
     
-    int userConditionIndex = userConditionCombo->findData(QVariant(request.armyOnly.requiredArmyRank));
+    int userConditionIndex = requiredArmyRankCombo->findData(QVariant(request.armyOnly.requiredArmyRank));
     if (userConditionIndex >= 0) {
-        userConditionCombo->setCurrentIndex(userConditionIndex);
+        requiredArmyRankCombo->setCurrentIndex(userConditionIndex);
     }
     
     showInHotPageCheck->setChecked(request.armyOnly.showOnHotPage);
@@ -829,8 +903,8 @@ bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     request.subtabID = categoryCombo->currentData().toString();
 
     // 战队限定观看设置
-    request.armyOnly.enable = clanOnlyCheck->isChecked();
-    request.armyOnly.requiredArmyRank = userConditionCombo->currentData().toInt();
+    request.armyOnly.enable = armyOnlyCheck->isChecked();
+    request.armyOnly.requiredArmyRank = requiredArmyRankCombo->currentData().toInt();
     request.armyOnly.showOnHotPage = showInHotPageCheck->isChecked();
     request.armyOnly.armyOnlyPN = liveNotificationCheck->isChecked();
 

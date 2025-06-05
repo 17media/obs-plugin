@@ -33,6 +33,7 @@ private:
     void setupUi();
     void createConnections();
     void updateUIWithRoomInfo();
+    void updateRequiredArmyRankSelections();
 
 private:
     // UI elements
@@ -52,17 +53,17 @@ private:
 
     // 直播模式 - 战队限定观看
     QLabel *broadcastModeLabel;
-    QWidget *clanOnlyHeader;
-    QHBoxLayout *clanOnlyHeaderLayout;
-    QLabel *clanOnlyLabel;
-    QPushButton *clanOnlyToggleButton;
-    QWidget *clanOnlyContainer;
-    QVBoxLayout *clanOnlyContainerLayout;
-    QCheckBox *clanOnlyCheck;
-    QComboBox *userConditionCombo;
+    QWidget *armyOnlyHeader;
+    QHBoxLayout *armyOnlyHeaderLayout;
+    QLabel *armyOnlyLabel;
+    QPushButton *armyOnlyToggleButton;
+    QWidget *armyOnlyContainer;
+    QVBoxLayout *armyOnlyContainerLayout;
+    QCheckBox *armyOnlyCheck;
+    QComboBox *requiredArmyRankCombo;
     QCheckBox *showInHotPageCheck;
     QCheckBox *liveNotificationCheck;
-    bool clanOnlyExpanded;
+    bool armyOnlyExpanded;
     
     QComboBox *activityCombo;
     QComboBox *customActivityCombo;
@@ -86,6 +87,8 @@ private:
 
     SeventeenLiveRoomInfo roomInfo;
     SeventeenLiveConfigStreamer configStreamer;
+    SeventeenLiveUserInfo userInfo;
+    SeventeenLiveArmySubscriptionLevels levels;
 
 signals:
     void streamInfoSaved();
@@ -97,7 +100,8 @@ private slots:
     void onCreateLiveClicked();
     void onDeleteLiveClicked();
     void onSaveConfigClicked();
-    void onClanOnlyToggleClicked(); // 新增折叠/展开按钮点击事件
+    void onArmyOnlyToggleClicked(); // 新增折叠/展开按钮点击事件
+    void onArmyOnlyCheckChanged(int state); // armyOnlyCheck 状态改变时触发
 
 private:
     bool gatherRtmpRequest(SeventeenLiveRtmpRequest &request);

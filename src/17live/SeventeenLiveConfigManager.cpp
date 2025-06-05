@@ -3,6 +3,7 @@
 #include <obs-module.h>
 #include <util/config-file.h>
 #include <QDir>
+#include <fstream>
 #include <QFile>
 #include <QString>
 #include "plugin-support.h"
@@ -390,6 +391,84 @@ bool SeventeenLiveConfigManager::removeLiveConfig(const std::string &streamUuid)
   }
 
   saveAllLiveConfig(streamInfoList);
+  
+  return true;
+}
+
+bool SeventeenLiveConfigManager::setConfig(const Json &configData)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  std::lock_guard<std::mutex> lock(configMutex);
+  
+  std::string configJson = configData.dump();
+  
+  // 保存到配置文件
+  std::string configJsonPath = configPath + "/config_17live.json";
+  std::ofstream file(configJsonPath);
+  if (!file.is_open()) {
+    obs_log(LOG_ERROR, "Failed to open config file for writing");
+    return false;
+  }
+  
+  file << configJson;
+  file.close();
+  
+  obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
+  return true;
+}
+
+bool SeventeenLiveConfigManager::getConfig(SeventeenLiveConfig &config)
+{
+  if (!initialized) {
+    return false;
+  }
+  
+  std::lock_guard<std::mutex> lock(configMutex);
+  
+  // 尝试从文件读取配置
+  std::string configJsonPath = configPath + "/config_17live.json";
+  QFile file(QString::fromStdString(configJsonPath));
+  
+  if (!file.exists()) {
+    // 如果文件不存在，返回当前内存中的配置
+    config = currentConfig;
+    return true;
+  }
+  
+  if (!file.open(QIODevice::ReadOnly)) {
+    obs_log(LOG_ERROR, "Failed to open config file for reading");
+    return false;
+  }
+  
+  QByteArray jsonData = file.readAll();
+  file.close();
+  
+  if (jsonData.isEmpty()) {
+    // 如果文件为空，返回当前内存中的配置
+    config = currentConfig;
+    return true;
+  }
+  
+  // 解析JSON数据
+  std::string err;
+  Json jsonObj = Json::parse(jsonData.toStdString(), err);
+  
+  if (!err.empty()) {
+    obs_log(LOG_ERROR, "Failed to parse config JSON: %s", err.c_str());
+    return false;
+  }
+  
+  // 将JSON转换为SeventeenLiveConfig结构体
+  if (!JsonToSeventeenLiveConfig(jsonObj, config)) {
+    obs_log(LOG_ERROR, "Failed to convert JSON to config");
+    return false;
+  }
+  
+  // 更新当前配置
+  currentConfig = config;
   
   return true;
 }

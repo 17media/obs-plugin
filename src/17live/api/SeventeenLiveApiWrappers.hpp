@@ -54,6 +54,9 @@ public:
   bool GetAblyToken(const std::string &liveStreamID, Json &response);
   bool GetGiftTabs(const std::string &liveStreamID, const std::string language, Json &response);
   bool GetGifts(const std::string language, Json &response);
+  bool GetUserInfo(const std::string userID, const std::string region, const std::string language, SeventeenLiveUserInfo &response);
+  bool GetConfig(const std::string region, const std::string language, Json &response);
+  bool GetArmySubscriptionLevels(const std::string region, const std::string language, SeventeenLiveArmySubscriptionLevels &levels);
   
 
   /**
