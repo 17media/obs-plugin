@@ -4,6 +4,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QMessageBox>
+#include <QScrollArea>
 #include <QUuid>
 #include <QThread>
 
@@ -311,7 +312,18 @@ void SeventeenLiveStreamingDock::setupUi()
     buttonLayout->addWidget(createLiveButton);
     mainLayout->addLayout(buttonLayout);
     
-    setWidget(container);
+    // 创建滚动区域
+    QScrollArea *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true); // 允许内容调整大小
+    scrollArea->setWidget(container);
+    scrollArea->setFrameShape(QFrame::NoFrame); // 移除边框
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded); // 需要时显示垂直滚动条
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // 禁用水平滚动条
+    
+    // 设置最大高度（可以根据需要调整）
+    scrollArea->setMaximumHeight(800); // 设置最大高度为800像素
+    
+    setWidget(scrollArea); // 将滚动区域设置为dock的主要部件
 
     // 设置加载覆盖层大小和位置
     loadingOverlay->setGeometry(container->rect());
@@ -946,6 +958,9 @@ void SeventeenLiveStreamingDock::resizeEvent(QResizeEvent *event)
     
     // 更新加载覆盖层的大小和位置，使其始终覆盖整个容器
     if (loadingOverlay && widget()) {
-        loadingOverlay->setGeometry(widget()->rect());
+        QScrollArea *scrollArea = qobject_cast<QScrollArea*>(widget());
+        if (scrollArea && scrollArea->widget()) {
+            loadingOverlay->setGeometry(scrollArea->widget()->rect());
+        }
     }
 }
