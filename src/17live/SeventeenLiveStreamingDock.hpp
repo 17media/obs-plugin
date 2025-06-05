@@ -123,4 +123,7 @@ private:
 
     QString currentInfoUuid = "";
     bool isLoading = false; // 标识是否正在加载中
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 };

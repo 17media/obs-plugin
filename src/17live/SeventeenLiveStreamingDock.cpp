@@ -34,7 +34,8 @@ void SeventeenLiveStreamingDock::setupUi()
 
     // 创建加载状态覆盖层
     loadingOverlay = new QWidget(container);
-    loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 180);");
+    loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 120); backdrop-filter: blur(3px);");
+    loadingOverlay->setAttribute(Qt::WA_TranslucentBackground);
     loadingOverlay->setVisible(false); // 初始不可见
     
     QVBoxLayout *overlayLayout = new QVBoxLayout(loadingOverlay);
@@ -146,9 +147,8 @@ void SeventeenLiveStreamingDock::setupUi()
     armyOnlyLabel = new QLabel(obs_module_text("Live.Settings.ArmyOnly"));
     armyOnlyToggleButton = new QPushButton();
     armyOnlyToggleButton->setIcon(QIcon(":/resources/arrow-down.svg")); 
-    armyOnlyToggleButton->setStyleSheet("QPushButton { border: none; }");
+    armyOnlyToggleButton->setStyleSheet("QPushButton { border: none; background-color: transparent; }");
     armyOnlyToggleButton->setFixedSize(24, 24);
-    armyOnlyToggleButton->setEnabled(false); // 禁用按钮
     
     armyOnlyHeaderLayout->addWidget(armyOnlyLabel);
     armyOnlyHeaderLayout->addStretch();
@@ -397,7 +397,7 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
 // 添加新方法，用于根据roomInfo更新UI
 void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
 {
-    obs_log(LOG_INFO, "Updating UI with room info");
+    // obs_log(LOG_INFO, "Updating UI with room info");
 
     hashtagSelectLimit = configStreamer.hashtagSelectLimit;
 
@@ -451,6 +451,7 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
     armyOnlyHeader->setVisible(configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1);
 
     if (configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1) {
+        obs_log(LOG_INFO, "armyOnlyHeader->setVisible(true)");
         updateRequiredArmyRankSelections();
     }
     
@@ -468,7 +469,7 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
 
 void SeventeenLiveStreamingDock::updateRequiredArmyRankSelections()
 {
-    obs_log(LOG_INFO, "updateRequiredArmyRankSelections");
+    // obs_log(LOG_INFO, "updateRequiredArmyRankSelections");
 
     SeventeenLiveConfig config;
     if (!configManager->getConfig(config)) {
@@ -480,14 +481,14 @@ void SeventeenLiveStreamingDock::updateRequiredArmyRankSelections()
 
     // 遍历levels，添加到Combo Items
     for (const auto& level : levels.subscriptionLevels) {
-        QString rankValueTemplate = QString("Live.Settings.Rank%1.%2").arg(QString::number(config.addOns.features["158"]), level.i18nToken.key);
+        QString rankValueTemplate = obs_module_text(QString("Live.Settings.Rank%1.%2").arg(QString::number(config.addOns.features["158"]), level.i18nToken.key).toStdString().c_str());
 
         if (level.i18nToken.key != "army_only_stream_level_setting_all_level") {
             if (config.addOns.features["158"] == 0) {
-                QString rankTemplateValueName = obs_module_text(QString("Live.Settings.Rank0.army_rank_name_%1").arg(level.rank).toStdString().c_str());
+                QString name = obs_module_text(QString("Live.Settings.Rank0.army_rank_name_%1").arg(level.rank).toStdString().c_str());
     
                 // string replace {name} in rankValueTemplate with rankTemplateValueName
-                rankValueTemplate = rankValueTemplate.replace("{name}", rankTemplateValueName);
+                rankValueTemplate = rankValueTemplate.replace("{name}", name);
             } else if (config.addOns.features["158"] == 1) {
                 // string replace {value} in rankValueTemplate with
                 rankValueTemplate = rankValueTemplate.replace("{value}", level.i18nToken.params[0].value);
@@ -937,4 +938,14 @@ void SeventeenLiveStreamingDock::updateLiveStatus(SeventeenLiveStreamingStatus s
     obs_log(LOG_INFO, "updateLiveStatus: %d", static_cast<int>(status));
 
     updateLiveButton(status == SeventeenLiveStreamingStatus::Live);
+}
+
+void SeventeenLiveStreamingDock::resizeEvent(QResizeEvent *event)
+{
+    QDockWidget::resizeEvent(event);
+    
+    // 更新加载覆盖层的大小和位置，使其始终覆盖整个容器
+    if (loadingOverlay && widget()) {
+        loadingOverlay->setGeometry(widget()->rect());
+    }
 }
