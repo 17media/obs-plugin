@@ -744,6 +744,8 @@ bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStre
         }
         response.lastStreamState = lastStreamState;
     }
+
+    response.hashtagSelectLimit = json["hashtagSelectLimit"].int_value();
     
     return true;
 }
@@ -824,7 +826,8 @@ bool SeventeenLiveConfigStreamerToJson(const SeventeenLiveConfigStreamer &respon
         {"customEvent", customEventJson},
         {"boxGacha", boxGachaJson},
         {"subtabs", subtabsArray},
-        {"lastStreamState", lastStreamStateJson}
+        {"lastStreamState", lastStreamStateJson},
+        {"hashtagSelectLimit", response.hashtagSelectLimit}
     };
 
     return true;

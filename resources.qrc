@@ -8,5 +8,7 @@
         <file>resources/show-password.svg</file>
         <file>resources/hide-password.svg</file>
         <file>resources/question.svg</file>
+        <file>resources/arrow-down.svg</file>
+        <file>resources/arrow-up.svg</file>
     </qresource>
 </RCC>

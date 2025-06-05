@@ -49,6 +49,20 @@ private:
     // 开播格式
     QRadioButton *normalStreamRadio;
     QRadioButton *verticalStreamRadio;
+
+    // 直播模式 - 战队限定观看
+    QLabel *broadcastModeLabel;
+    QWidget *clanOnlyHeader;
+    QHBoxLayout *clanOnlyHeaderLayout;
+    QLabel *clanOnlyLabel;
+    QPushButton *clanOnlyToggleButton;
+    QWidget *clanOnlyContainer;
+    QVBoxLayout *clanOnlyContainerLayout;
+    QCheckBox *clanOnlyCheck;
+    QComboBox *userConditionCombo;
+    QCheckBox *showInHotPageCheck;
+    QCheckBox *liveNotificationCheck;
+    bool clanOnlyExpanded;
     
     QComboBox *activityCombo;
     QComboBox *customActivityCombo;
@@ -83,7 +97,7 @@ private slots:
     void onCreateLiveClicked();
     void onDeleteLiveClicked();
     void onSaveConfigClicked();
-    // void onStopPushStreamingClicked();
+    void onClanOnlyToggleClicked(); // 新增折叠/展开按钮点击事件
 
 private:
     bool gatherRtmpRequest(SeventeenLiveRtmpRequest &request);
@@ -98,6 +112,7 @@ private:
     // 标签相关函数
     void addTag(const QString &tag);
     void updateTagsFromList();
+    int hashtagSelectLimit = 2; // 最多可以添加的标签数量
 
     SeventeenLiveApiWrappers *apiWrapper = nullptr;
     SeventeenLiveConfigManager *configManager = nullptr;

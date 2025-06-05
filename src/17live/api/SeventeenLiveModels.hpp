@@ -290,6 +290,14 @@ using namespace json11;
     int vliverModel;
   };
 
+  // 战队设定
+  struct SeventeenLiveArmy {
+    bool armyOnlyPN;
+    bool enable;
+    int requiredArmyRank;
+    bool showOnHotPage;
+  };
+
   // RTMP请求结构体
   struct SeventeenLiveRtmpRequest {
     QString userID;
@@ -302,6 +310,7 @@ using namespace json11;
     QString subtabID;
     SeventeenLiveArchiveConfig archiveConfig;
     SeventeenLiveVliverInfo vliverInfo;
+    SeventeenLiveArmy armyOnly;
   };
 
   bool SeventeenLiveRtmpRequestToJson(const SeventeenLiveRtmpRequest &request, Json &json);
@@ -411,6 +420,7 @@ using namespace json11;
     SeventeenLiveBoxGacha boxGacha;
     QList<SeventeenLiveSubtab> subtabs;
     SeventeenLiveStreamState lastStreamState;
+    int hashtagSelectLimit;
   };
 
   // 解析JSON到SeventeenLiveConfigStreamerResponse结构体的函数声明
