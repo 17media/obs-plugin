@@ -327,7 +327,7 @@ void SeventeenLiveStreamingDock::setupUi()
 
     // 初始化loadingOverlay的大小和位置
     loadingOverlay->setGeometry(scrollArea->viewport()->rect());
-    loadingOverlay->raise(); // 确保覆盖层在最上层
+    // loadingOverlay->raise(); // 确保覆盖层在最上层
 }
 
 // 添加新方法，用于加载房间信息
@@ -336,7 +336,7 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
     // 显示加载状态
     isLoading = true;
     loadingOverlay->setVisible(true);
-    loadingOverlay->raise(); // 确保覆盖层在最上层
+    // loadingOverlay->raise(); // 确保覆盖层在最上层
     loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
     
     // 禁用所有控件
@@ -443,7 +443,6 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
     armyOnlyHeader->setVisible(configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1);
 
     if (configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1) {
-        obs_log(LOG_INFO, "armyOnlyHeader->setVisible(true)");
         updateRequiredArmyRankSelections();
     }
     
@@ -472,27 +471,32 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
         msgBox.exec();
         
         if (msgBox.clickedButton() == startLiveOnlyButton) {
-            if (roomInfo.rtmpUrls.size() > 0) {
-                QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
-                SeventeenLiveRtmpResponse  rtmpResponse;
-                if (apiWrapper->GetRtmpByProvider(provider.toStdString(), rtmpResponse)) { 
-                    rtmpResponse.liveStreamID = QString::number(roomInfo.liveStreamID);
-                    startLive(roomInfo.userInfo.userID.toStdString(),  rtmpResponse, roomInfo.archiveConfig.autoRecording);
-                } else {
-                    QMessageBox::warning(this,
-                        obs_module_text("Live.Settings.Error"),
-                        QString::fromStdString(obs_module_text("Live.Settings.GetRtmpError")).arg(apiWrapper->getLastErrorMessage()));
-                }
-            } else {
-                QMessageBox::warning(this,
-                    obs_module_text("Live.Settings.Error"),
-                    QString::fromStdString(obs_module_text("Live.Settings.GetRoomInfoError")).arg(apiWrapper->getLastErrorMessage()));
-            }
+            syncWithWeb(static_cast<SeventeenLiveStreamingStatus>(roomInfo.status));
         } else if (msgBox.clickedButton() == closeLiveButton) {
             closeLive();
         }
     } else if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Streaming)) {
-        // TODO: 直播中如何处理？
+        syncWithWeb(static_cast<SeventeenLiveStreamingStatus>(roomInfo.status));
+    }
+}
+
+void SeventeenLiveStreamingDock::syncWithWeb(SeventeenLiveStreamingStatus status)
+{
+    if (roomInfo.rtmpUrls.size() > 0) {
+        QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
+        SeventeenLiveRtmpResponse  rtmpResponse;
+        if (apiWrapper->GetRtmpByProvider(provider.toStdString(), rtmpResponse)) { 
+            rtmpResponse.liveStreamID = QString::number(roomInfo.liveStreamID);
+            startLive(roomInfo.userInfo.userID.toStdString(),  rtmpResponse, roomInfo.archiveConfig.autoRecording, status == SeventeenLiveStreamingStatus::Streaming);
+        } else {
+            QMessageBox::warning(this,
+                obs_module_text("Live.Settings.Error"),
+                QString::fromStdString(obs_module_text("Live.Settings.GetRtmpError")).arg(apiWrapper->getLastErrorMessage()));
+        }
+    } else {
+        QMessageBox::warning(this,
+            obs_module_text("Live.Settings.Error"),
+            QString::fromStdString(obs_module_text("Live.Settings.GetRoomInfoError")).arg(apiWrapper->getLastErrorMessage()));
     }
 }
 
@@ -775,7 +779,7 @@ void SeventeenLiveStreamingDock::createLive(const SeventeenLiveRtmpRequest& requ
     startLive(request.userID.toStdString(), response, request.archiveConfig.autoRecording);
 }
 
-void SeventeenLiveStreamingDock::startLive(const std::string userID, const SeventeenLiveRtmpResponse &response, bool autoRecording)
+void SeventeenLiveStreamingDock::startLive(const std::string userID, const SeventeenLiveRtmpResponse &response, bool autoRecording, bool skip)
 {
     QString streamUrl;
     QString streamKey;
@@ -801,13 +805,13 @@ void SeventeenLiveStreamingDock::startLive(const std::string userID, const Seven
     saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
 
     // 开始直播
-    if (!apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
+    if (!skip && !apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
         obs_log(LOG_ERROR, "Failed to start stream");
         return;
     }
 
     // archive
-    if (autoRecording) {
+    if (!skip && autoRecording) {
         if (!apiWrapper->EnableStreamArchive(response.liveStreamID.toStdString(), 1)) {
             obs_log(LOG_ERROR, "Failed to enable archive %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
         }
@@ -1049,7 +1053,7 @@ void SeventeenLiveStreamingDock::resizeEvent(QResizeEvent *event)
         if (scrollArea) {
             // 直接使用viewport的rect()，因为loadingOverlay的父部件已经是viewport
             loadingOverlay->setGeometry(QRect(0, 0, scrollArea->viewport()->width(), scrollArea->viewport()->height()));
-            loadingOverlay->raise(); // 确保覆盖层在最上层
+            // loadingOverlay->raise(); // 确保覆盖层在最上层
         }
     }
 }

@@ -113,8 +113,9 @@ private:
     void stopStreaming();
 
     void createLive(const SeventeenLiveRtmpRequest& request);
-    void startLive(const std::string userID, const SeventeenLiveRtmpResponse &response, bool autoRecording);
+    void startLive(const std::string userID, const SeventeenLiveRtmpResponse &response, bool autoRecording, bool skip = false);
     void closeLive();
+    void syncWithWeb(SeventeenLiveStreamingStatus status);
     
     // 标签相关函数
     void addTag(const QString &tag);
