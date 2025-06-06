@@ -417,19 +417,6 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
     for (const auto& subtab : configStreamer.subtabs) {
         categoryCombo->addItem(subtab.displayName, subtab.ID);
     }
-    int currentCategoryIndex = 0;
-    if (roomInfo.subtabs.size() > 0) {
-        currentCategoryIndex = categoryCombo->findData(roomInfo.subtabs[0]);
-    }
-    categoryCombo->setCurrentIndex(currentCategoryIndex);
-
-    // tags
-    if (roomInfo.lastUsedHashtags.size() > 0) {
-        for (const auto& tag : roomInfo.lastUsedHashtags) {
-            addTag(tag.text);
-        }
-    }
-
 
     // 活动
     for (const auto& event : configStreamer.event.events) {
@@ -439,18 +426,6 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
         }
         activityCombo->addItem(eventName, event.ID);
     }
-    int currentEventIndex = 0;
-    if (roomInfo.eventList.size() > 0) {
-        // find the type=2 event
-        for (int i = 0; i < roomInfo.eventList.size(); i++) {
-            if (roomInfo.eventList[i].type == 2) {
-                qint64 eventID = roomInfo.eventList[i].ID;
-                currentEventIndex = activityCombo->findData(eventID);
-                break;
-            }
-        }
-    }
-    activityCombo->setCurrentIndex(currentEventIndex);
 
     // 设置开播格式
     if (roomInfo.landscape) {
@@ -470,13 +445,12 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
     // 设置存档配置
     archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
     autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
-    
     // 设置剪辑权限
-    int clipPermission = roomInfo.archiveConfig.clipPermission;
-    clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(clipPermission));
+    clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(roomInfo.archiveConfig.clipPermission));
 
-    // 设置虚拟主播选项
-    virtualStreamerCheck->setChecked(configStreamer.lastStreamState.vliverInfo.vliverModel == 3);
+    if (roomInfo.status == SeventeenLiveStreamingStatus::Live) {
+    
+    }
 }
 
 void SeventeenLiveStreamingDock::updateRequiredArmyRankSelections()
@@ -514,6 +488,39 @@ void SeventeenLiveStreamingDock::updateRequiredArmyRankSelections()
     }
 }
 
+void SeventeenLiveStreamingDock::updateUIValues()
+{
+    int currentCategoryIndex = 0;
+    if (roomInfo.subtabs.size() > 0) {
+        obs_log(LOG_INFO, "Room info subtabs size: %d", roomInfo.subtabs[0]);
+        currentCategoryIndex = categoryCombo->findData(roomInfo.subtabs[0]);
+    }
+    categoryCombo->setCurrentIndex(currentCategoryIndex);
+
+    // tags
+    if (roomInfo.lastUsedHashtags.size() > 0) {
+        for (const auto& tag : roomInfo.lastUsedHashtags) {
+            addTag(tag.text);
+        }
+    }
+
+    int currentEventIndex = 0;
+    if (roomInfo.eventList.size() > 0) {
+        // find the type=2 event
+        for (int i = 0; i < roomInfo.eventList.size(); i++) {
+            if (roomInfo.eventList[i].type == 2) {
+                qint64 eventID = roomInfo.eventList[i].ID;
+                currentEventIndex = activityCombo->findData(eventID);
+                break;
+            }
+        }
+    }
+    activityCombo->setCurrentIndex(currentEventIndex);
+
+    // 设置虚拟主播选项
+    virtualStreamerCheck->setChecked(configStreamer.lastStreamState.vliverInfo.vliverModel == 3);
+}
+
 void SeventeenLiveStreamingDock::createConnections()
 {
     // 标签相关连接
@@ -549,6 +556,12 @@ void SeventeenLiveStreamingDock::onArmyOnlyCheckChanged(int state)
         archiveStreamCheck->setChecked(false);
         autoPreviewCheck->setChecked(false);
         clipIdentityCombo->setCurrentIndex(0);
+    } else {
+        // 设置存档配置
+        archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
+        autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
+        // 设置剪辑权限
+        clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(roomInfo.archiveConfig.clipPermission));
     }
 
     archiveStreamCheck->setEnabled(state != Qt::Checked);

@@ -34,6 +34,7 @@ private:
     void createConnections();
     void updateUIWithRoomInfo();
     void updateRequiredArmyRankSelections();
+    void updateUIValues();
 
 private:
     // UI elements
