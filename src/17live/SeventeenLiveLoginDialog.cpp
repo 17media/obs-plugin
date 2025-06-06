@@ -77,7 +77,6 @@ void SeventeenLiveLoginDialog::setupUi()
 
     // 用户名输入框
     usernameEdit = new QLineEdit(this);
-    usernameEdit->setPlaceholderText("name@company.com");
     usernameEdit->setMinimumHeight(40);
     usernameEdit->setStyleSheet(
         "QLineEdit {"
@@ -171,7 +170,6 @@ void SeventeenLiveLoginDialog::setupUi()
 
     // 密码输入框
     passwordEdit = new QLineEdit(passwordContainer);
-    passwordEdit->setPlaceholderText(obs_module_text("Auth.Password.Placeholder"));
     passwordEdit->setEchoMode(QLineEdit::Password);
     passwordEdit->setFixedHeight(36);
     passwordEdit->setStyleSheet(
