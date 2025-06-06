@@ -33,8 +33,18 @@ void SeventeenLiveStreamingDock::setupUi()
     QWidget *container = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
 
-    // 创建加载状态覆盖层
-    loadingOverlay = new QWidget(container);
+    // 创建滚动区域
+    QScrollArea *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true); // 允许内容调整大小
+    scrollArea->setFrameShape(QFrame::NoFrame); // 移除边框
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded); // 需要时显示垂直滚动条
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // 禁用水平滚动条
+    
+    // 设置最大高度（可以根据需要调整）
+    scrollArea->setMaximumHeight(800); // 设置最大高度为800像素
+    
+    // 创建加载状态覆盖层 - 注意这里将父部件改为scrollArea
+    loadingOverlay = new QWidget(scrollArea);
     loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 120);");
     loadingOverlay->setAttribute(Qt::WA_TranslucentBackground);
     loadingOverlay->setVisible(false); // 初始不可见
@@ -312,21 +322,12 @@ void SeventeenLiveStreamingDock::setupUi()
     buttonLayout->addWidget(createLiveButton);
     mainLayout->addLayout(buttonLayout);
     
-    // 创建滚动区域
-    QScrollArea *scrollArea = new QScrollArea(this);
-    scrollArea->setWidgetResizable(true); // 允许内容调整大小
-    scrollArea->setWidget(container);
-    scrollArea->setFrameShape(QFrame::NoFrame); // 移除边框
-    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded); // 需要时显示垂直滚动条
-    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // 禁用水平滚动条
-    
-    // 设置最大高度（可以根据需要调整）
-    scrollArea->setMaximumHeight(800); // 设置最大高度为800像素
-    
+    scrollArea->setWidget(container); // 将container设置为scrollArea的内容
     setWidget(scrollArea); // 将滚动区域设置为dock的主要部件
 
-    // 设置加载覆盖层大小和位置
-    loadingOverlay->setGeometry(container->rect());
+    // 初始化loadingOverlay的大小和位置
+    loadingOverlay->setGeometry(scrollArea->viewport()->rect());
+    loadingOverlay->raise(); // 确保覆盖层在最上层
 }
 
 // 添加新方法，用于加载房间信息
@@ -335,10 +336,14 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
     // 显示加载状态
     isLoading = true;
     loadingOverlay->setVisible(true);
+    loadingOverlay->raise(); // 确保覆盖层在最上层
     loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
     
     // 禁用所有控件
-    widget()->setEnabled(false);
+    QScrollArea *scrollArea = qobject_cast<QScrollArea*>(widget());
+    if (scrollArea && scrollArea->widget()) {
+        scrollArea->widget()->setEnabled(false);
+    }
     
     // TODO: 以下代码需要优化，建立Worker类，将API调用放在Worker类中，在Worker类中发送信号，在主线程中接收信号，更新UI
     // 创建一个新线程来执行API调用，避免阻塞UI
@@ -994,11 +999,12 @@ void SeventeenLiveStreamingDock::resizeEvent(QResizeEvent *event)
 {
     QDockWidget::resizeEvent(event);
     
-    // 更新加载覆盖层的大小和位置，使其始终覆盖整个容器
+    // 更新加载覆盖层的大小和位置，使其始终覆盖整个可见区域
     if (loadingOverlay && widget()) {
         QScrollArea *scrollArea = qobject_cast<QScrollArea*>(widget());
-        if (scrollArea && scrollArea->widget()) {
-            loadingOverlay->setGeometry(scrollArea->widget()->rect());
+        if (scrollArea) {
+            loadingOverlay->setGeometry(scrollArea->viewport()->rect());
+            loadingOverlay->raise(); // 确保覆盖层在最上层
         }
     }
 }
