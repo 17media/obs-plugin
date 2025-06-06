@@ -4,6 +4,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QFrame>
+#include <QTimer>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -17,6 +18,13 @@ SeventeenLiveStreamListDock::SeventeenLiveStreamListDock(QWidget *parent,  Seven
     setupUi();
     createConnections();
     refreshStreamList();
+
+    // 添加延迟初始化，确保界面元素尺寸已正确计算
+    QTimer::singleShot(0, this, [this]() {
+        if (emptyContainer && emptyContainer->isVisible()) {
+            emptyContainer->setGeometry(widget()->rect());
+        }
+    });
 }
 
 SeventeenLiveStreamListDock::~SeventeenLiveStreamListDock() = default;

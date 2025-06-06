@@ -7,6 +7,7 @@
 #include <QScrollArea>
 #include <QUuid>
 #include <QThread>
+#include <QTimer>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -325,9 +326,13 @@ void SeventeenLiveStreamingDock::setupUi()
     scrollArea->setWidget(container); // 将container设置为scrollArea的内容
     setWidget(scrollArea); // 将滚动区域设置为dock的主要部件
 
-    // 初始化loadingOverlay的大小和位置
-    loadingOverlay->setGeometry(scrollArea->viewport()->rect());
-    loadingOverlay->raise(); // 确保覆盖层在最上层
+    // 使用延迟处理，确保布局已经计算完成
+    QTimer::singleShot(0, this, [this, scrollArea]() {
+        if (loadingOverlay && scrollArea) {
+            loadingOverlay->setGeometry(QRect(0, 0, scrollArea->viewport()->width(), scrollArea->viewport()->height()));
+            loadingOverlay->raise(); // 确保覆盖层在最上层
+        }
+    });
 }
 
 // 添加新方法，用于加载房间信息
