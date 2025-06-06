@@ -183,6 +183,9 @@ void SeventeenLiveLoginDialog::setupUi()
         "    border-right: none;"
         "}"
     );
+
+    // 添加回车键处理，点击回车键相当于点击登录按钮
+    connect(passwordEdit, &QLineEdit::returnPressed, this, &SeventeenLiveLoginDialog::handleLogin);
     
     // 显示/隐藏密码按钮
     showPasswordButton = new QPushButton(passwordContainer);
@@ -239,9 +242,12 @@ void SeventeenLiveLoginDialog::setupUi()
         "}"
     );
     errorLabel->setVisible(false);
-    // 即使不可见也保留空间
-    errorLabel->setFixedHeight(20);
-    errorLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    // 修改：允许标签自动调整高度，但保持固定的最小高度
+    errorLabel->setMinimumHeight(20);
+    // 修改：允许标签在需要时垂直扩展
+    errorLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    // 修改：启用自动换行
+    errorLabel->setWordWrap(true);
     mainLayout->addWidget(errorLabel);
 
     QWidget *loginContainer = new QWidget(this);
