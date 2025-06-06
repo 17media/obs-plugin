@@ -448,67 +448,32 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
     // 设置剪辑权限
     clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(roomInfo.archiveConfig.clipPermission));
 
-    if (roomInfo.status == SeventeenLiveStreamingStatus::Live) {
+    if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Live)
+        || roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Streaming)) {
+        updateUIValues();
+    }
+
+    // TODO: 当web端已经开始直播后，应如何处理？
+    if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Live)) {
         // 添加用户提示框，询问用户接下来的操作
         QMessageBox msgBox(this);
         msgBox.setWindowTitle(obs_module_text("Live.Settings.LiveCreated"));
         msgBox.setText(obs_module_text("Live.Settings.LiveCreated.Tip"));
         
-        // 添加三个按钮选项
-        QPushButton *startLiveAndStreamButton = msgBox.addButton(obs_module_text("Live.Settings.StartLiveAndStream"), QMessageBox::ActionRole);
         QPushButton *startLiveOnlyButton = msgBox.addButton(obs_module_text("Live.Settings.StartLiveOnly"), QMessageBox::ActionRole);
         QPushButton *closeLiveButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive"), QMessageBox::ActionRole);
         
-        msgBox.setDefaultButton(startLiveAndStreamButton);
+        msgBox.setDefaultButton(startLiveOnlyButton);
         msgBox.exec();
         
-        std::string currUserID;
-        configManager->getConfigValue("UserID", currUserID);
-        
-        if (msgBox.clickedButton() == startLiveAndStreamButton) {
-            // 开始直播并推流
-            if (!apiWrapper->StartStream(roomInfo.liveStreamID.toStdString(), currUserID)) {
-                obs_log(LOG_ERROR, "Failed to start stream");
-                QMessageBox::warning(this, obs_module_text("Live.Settings.Error"), 
-                                    obs_module_text("Live.Settings.StartStreamError"));
-                return;
-            }
-            
-            // 启动OBS串流
-            obs_frontend_streaming_start();
-            
-            // 更新UI
-            updateUIValues();
-            updateLiveStatus(SeventeenLiveStreamingStatus::Live);
-        } 
-        else if (msgBox.clickedButton() == startLiveOnlyButton) {
-            // 仅开始直播
-            if (!apiWrapper->StartStream(roomInfo.liveStreamID.toStdString(), currUserID)) {
-                obs_log(LOG_ERROR, "Failed to start stream");
-                QMessageBox::warning(this, obs_module_text("Live.Settings.Error"), 
-                                    obs_module_text("Live.Settings.StartStreamError"));
-                return;
-            }
-            
-            // 更新UI
-            updateUIValues();
-            updateLiveStatus(SeventeenLiveStreamingStatus::Live);
-        }
-        else if (msgBox.clickedButton() == closeLiveButton) {
+        if (msgBox.clickedButton() == startLiveOnlyButton) {
+            onCreateLiveClicked();
+        } else if (msgBox.clickedButton() == closeLiveButton) {
             // 关闭直播
-            SeventeenLiveCloseLiveRequest request;
-            request.reason = "normalEnd";
-            request.userID = QString::fromStdString(currUserID);
-            
-            if (!apiWrapper->StopStream(roomInfo.liveStreamID.toStdString(), request)) {
-                obs_log(LOG_ERROR, "Failed to stop stream");
-                QMessageBox::warning(this, obs_module_text("Live.Settings.Error"), 
-                                    obs_module_text("Live.Settings.StopStreamError"));
-                return;
-            }
-            
-            updateLiveStatus(SeventeenLiveStreamingStatus::NotStarted);
+            // onDeleteLiveClicked();
         }
+    } else if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Streaming)) {
+        // TODO: 直播中如何处理？
     }
 }
 
@@ -549,35 +514,37 @@ void SeventeenLiveStreamingDock::updateRequiredArmyRankSelections()
 
 void SeventeenLiveStreamingDock::updateUIValues()
 {
-    int currentCategoryIndex = 0;
-    if (roomInfo.subtabs.size() > 0) {
-        obs_log(LOG_INFO, "Room info subtabs size: %d", roomInfo.subtabs[0]);
-        currentCategoryIndex = categoryCombo->findData(roomInfo.subtabs[0]);
-    }
-    categoryCombo->setCurrentIndex(currentCategoryIndex);
+    // 设置虚拟主播选项
+    virtualStreamerCheck->setChecked(configStreamer.lastStreamState.vliverInfo.vliverModel == 3);
 
-    // tags
-    if (roomInfo.lastUsedHashtags.size() > 0) {
+    if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Live)
+        || roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Streaming)) {
+        titleEdit->setText(roomInfo.caption);
+
+        int currentCategoryIndex = 0;
+        if (roomInfo.subtabs.size() > 0) {
+            currentCategoryIndex = categoryCombo->findData(roomInfo.subtabs[0]);
+        }
+        categoryCombo->setCurrentIndex(currentCategoryIndex);
+
+        // 将 roomInfo.lastUsedHashtags 添加到 hashtagEdit
         for (const auto& tag : roomInfo.lastUsedHashtags) {
             addTag(tag.text);
         }
-    }
 
-    int currentEventIndex = 0;
-    if (roomInfo.eventList.size() > 0) {
-        // find the type=2 event
-        for (int i = 0; i < roomInfo.eventList.size(); i++) {
-            if (roomInfo.eventList[i].type == 2) {
-                qint64 eventID = roomInfo.eventList[i].ID;
-                currentEventIndex = activityCombo->findData(eventID);
-                break;
+        int currentEventIndex = 0;
+        if (roomInfo.eventList.size() > 0) {
+            // find the type=2 event
+            for (int i = 0; i < roomInfo.eventList.size(); i++) {
+                if (roomInfo.eventList[i].type == 2) {
+                    qint64 eventID = roomInfo.eventList[i].ID;
+                    currentEventIndex = activityCombo->findData(eventID);
+                    break;
+                }
             }
         }
+        activityCombo->setCurrentIndex(currentEventIndex);
     }
-    activityCombo->setCurrentIndex(currentEventIndex);
-
-    // 设置虚拟主播选项
-    virtualStreamerCheck->setChecked(configStreamer.lastStreamState.vliverInfo.vliverModel == 3);
 }
 
 void SeventeenLiveStreamingDock::createConnections()
