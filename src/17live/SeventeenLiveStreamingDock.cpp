@@ -458,7 +458,7 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
         updateUIValues();
     }
 
-    // TODO: 当web端已经开始直播后，应如何处理？
+    // 当web端已经开始直播后，应如何处理
     if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Live)) {
         // 添加用户提示框，询问用户接下来的操作
         QMessageBox msgBox(this);
@@ -472,10 +472,23 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
         msgBox.exec();
         
         if (msgBox.clickedButton() == startLiveOnlyButton) {
-            onCreateLiveClicked();
+            if (roomInfo.rtmpUrls.size() > 0) {
+                QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
+                SeventeenLiveRtmpResponse  rtmpResponse;
+                if (apiWrapper->GetRtmpByProvider(provider.toStdString(), rtmpResponse)) { 
+                    startLive(roomInfo.userInfo.userID.toStdString(),  rtmpResponse, roomInfo.archiveConfig.autoRecording);
+                } else {
+                    QMessageBox::warning(this,
+                        obs_module_text("Live.Settings.Error"),
+                        QString::fromStdString(obs_module_text("Live.Settings.GetRtmpError")).arg(apiWrapper->getLastErrorMessage()));
+                }
+            } else {
+                QMessageBox::warning(this,
+                    obs_module_text("Live.Settings.Error"),
+                    QString::fromStdString(obs_module_text("Live.Settings.GetRoomInfoError")).arg(apiWrapper->getLastErrorMessage()));
+            }
         } else if (msgBox.clickedButton() == closeLiveButton) {
-            // 关闭直播
-            // onDeleteLiveClicked();
+            closeLive();
         }
     } else if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Streaming)) {
         // TODO: 直播中如何处理？
@@ -725,7 +738,7 @@ void SeventeenLiveStreamingDock::onCreateLiveClicked()
         return;
     }
 
-    startStreaming(request);
+    createLive(request);
 }
 
 void SeventeenLiveStreamingDock::createLiveWithRequest(const SeventeenLiveRtmpRequest &request)
@@ -738,7 +751,7 @@ void SeventeenLiveStreamingDock::createLiveWithRequest(const SeventeenLiveRtmpRe
         return;
     }
 
-    startStreaming(request);
+    createLive(request);
 }
 
 void SeventeenLiveStreamingDock::editLiveWithInfo(const SeventeenLiveStreamInfo &info)
@@ -748,9 +761,9 @@ void SeventeenLiveStreamingDock::editLiveWithInfo(const SeventeenLiveStreamInfo 
     currentInfoUuid = info.streamUuid;
 }
 
-void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& request)
+void SeventeenLiveStreamingDock::createLive(const SeventeenLiveRtmpRequest& request)
 {
-    obs_log(LOG_INFO, "startStreaming");
+    obs_log(LOG_INFO, "createLive");
 
     SeventeenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {
@@ -758,13 +771,22 @@ void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& 
         return;
     }
 
+    startLive(request.userID.toStdString(), response, request.archiveConfig.autoRecording);
+}
+
+void SeventeenLiveStreamingDock::startLive(const std::string userID, const SeventeenLiveRtmpResponse &response, bool autoRecording)
+{
     QString streamUrl;
     QString streamKey;
 
-    int questionIndex = response.rtmpURL.indexOf(request.userID + "?");
-    if (questionIndex != -1) {
-        streamUrl = response.rtmpURL.left(questionIndex - 1);
-        streamKey = response.rtmpURL.mid(questionIndex);
+    // 正则表达式 /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ 解析 response.rtmpURL
+    // 匹配到的第一个分组为 streamUrl，第二个分组为 streamKey
+    // 例如：rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
+    QRegularExpression re("(^.+://[^/]+/[^/]+)/(.+)$");
+    QRegularExpressionMatch match = re.match(response.rtmpURL);
+    if (match.hasMatch()) {
+        streamUrl = match.captured(1);
+        streamKey = match.captured(2);
     } else {
         obs_log(LOG_ERROR, "Failed to parse stream url");
         return;
@@ -778,13 +800,13 @@ void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& 
     saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
 
     // 开始直播
-    if (!apiWrapper->StartStream(response.liveStreamID.toStdString(), request.userID.toStdString())) {
+    if (!apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
         obs_log(LOG_ERROR, "Failed to start stream");
         return;
     }
 
     // archive
-    if (request.archiveConfig.autoRecording) {
+    if (autoRecording) {
         if (!apiWrapper->EnableStreamArchive(response.liveStreamID.toStdString(), 1)) {
             obs_log(LOG_ERROR, "Failed to enable archive %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
         }
@@ -828,7 +850,12 @@ void SeventeenLiveStreamingDock::onDeleteLiveClicked()
         // 用户取消了操作
         return;
     }
-    
+
+    closeLive();
+}
+
+void SeventeenLiveStreamingDock::closeLive()
+{   
     // 处理停止流的逻辑
     stopStreaming();
 

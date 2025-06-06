@@ -10,12 +10,38 @@
 
 using namespace json11;
 
-  // 定义当前的直播状态，包括未开播 0、直播创建好 1、开始直播 2
-  enum class SeventeenLiveStreamingStatus {
-    NotStarted,
-    Live,
-    Streaming
-  };
+// 定义当前的直播状态，包括未开播 0、直播创建好 1、开始直播 2
+enum class SeventeenLiveStreamingStatus {
+  NotStarted,
+  Live,
+  Streaming
+};
+
+// 通过索引获取Provider名称的函数
+static QString GetProviderNameByIndex(int index) {
+  switch (index) {
+    case 0: return "DEFAULT";
+    case 1: return "UCLOUD";
+    case 2: return "QINIU";
+    case 3: return "QCLOUD";
+    case 4: return "WANSU";
+    case 5: return "WANSU_LOW_LATENCY";
+    case 6: return "WANSU_SPECIFIED_IP";
+    case 7: return "SRS";
+    case 8: return "CHT";
+    case 9: return "AWS";
+    case 10: return "QINIU_AUTH";
+    case 11: return "WANSU_AUTH";
+    case 12: return "LIVE17";
+    case 13: return "WANSU_CDN";
+    case 14: return "GOOGLE_CDN";
+    case 15: return "AKAMAI_CDN";
+    case 16: return "CLOUDFRONT_CDN";
+    case 17: return "TENCENT";
+    case 18: return "LIVE17_AUTH";
+    default: return "UNKNOWN";
+  }
+}
 
   struct SeventeenLiveAPIResponse {
     QString key;

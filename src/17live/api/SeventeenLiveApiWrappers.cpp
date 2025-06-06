@@ -31,6 +31,8 @@ const string SEVENTEENLIVE_ARCHIVE_URL = string(SEVENTEENLIVE_API_URL) + "/api/v
 
 const string SEVENTEENLIVE_GET_CONFIG_STREAMER_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/liveStreams/config/streamer";
 
+const string SEVENTEENLIVE_GET_RTMP_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/rtmp?rtmp-provider=%1";
+
 const string SEVENTEENLIVE_GET_ARMYSUBSCRIPIONLEVELS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/army/subscriptionLVs";
 
 const string SEVENTEENLIVE_GET_CONFIG_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/config";
@@ -460,6 +462,31 @@ bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const
   }
 
   // obs_log(LOG_INFO, "GetConfigStreamer success");
+  return true;
+}
+
+bool SeventeenLiveApiWrappers::GetRtmpByProvider(const std::string provider, SeventeenLiveRtmpResponse &response)
+{
+  obs_log(LOG_INFO, "GetRtmpByProvider");
+
+  lastErrorMessage.clear();
+  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_RTMP_URL).arg(provider.c_str());
+  QByteArray url = urlStr.toUtf8();
+  
+  std::string error;
+	Json json_out_resp;
+	if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp)) {
+    obs_log(LOG_ERROR, "GetRtmpByProvider error: %s", json_out_resp.dump().c_str());
+    lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
+		return false;
+	}
+
+  if (!JsonToSeventeenLiveRtmpResponse(json_out_resp, response)) {
+    obs_log(LOG_ERROR, "Failed to convert response to struct");
+    lastErrorMessage = "Failed to convert response to struct";
+    return false;
+  }
+
   return true;
 }
 

@@ -57,7 +57,7 @@ public:
   bool GetUserInfo(const std::string userID, const std::string region, const std::string language, SeventeenLiveUserInfo &response);
   bool GetConfig(const std::string region, const std::string language, Json &response);
   bool GetArmySubscriptionLevels(const std::string region, const std::string language, SeventeenLiveArmySubscriptionLevels &levels);
-  
+  bool GetRtmpByProvider(const std::string provider, SeventeenLiveRtmpResponse &response);
 
   /**
    * @brief 对字符串进行MD5加密
