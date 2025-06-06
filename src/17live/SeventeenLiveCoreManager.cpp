@@ -243,6 +243,22 @@ void SeventeenLiveCoreManager::handleLoginSuccess(const SeventeenLiveLoginData& 
 
 void SeventeenLiveCoreManager::handleLogoutClicked()
 {
+    // 关闭所有 dock 窗口，避免登出后出现错误操作
+    if (streamingDock) {
+        streamingDock->close();
+        streamingDock = nullptr;
+    }
+    
+    if (liveListDock) {
+        liveListDock->close();
+        liveListDock = nullptr;
+    }
+    
+    // 关闭聊天室窗口（如果存在）
+    if (cef_window && cef_window->isVisible()) {
+        cef_window->close();
+    }
+    
     // 重置登录状态
     menuManager->updateLoginStatus(false, "");
     configManager->clearLoginData();
