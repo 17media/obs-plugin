@@ -813,6 +813,22 @@ void SeventeenLiveStreamingDock::onDeleteLiveClicked()
 {
     obs_log(LOG_INFO, "onDeleteLiveClicked");
 
+    // 添加确认对话框
+    QMessageBox msgBox;
+    msgBox.setWindowTitle(obs_module_text("Live.Settings.CloseLive"));
+    msgBox.setText(obs_module_text("Live.Settings.CloseLive.Confirm"));
+    
+    // 使用本地化的按钮文本
+    QPushButton *confirmButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Confirm.Button"), QMessageBox::YesRole);
+    QPushButton *cancelButton = msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
+    msgBox.setDefaultButton(cancelButton);
+    
+    msgBox.exec();
+    if (msgBox.clickedButton() != confirmButton) {
+        // 用户取消了操作
+        return;
+    }
+    
     // 处理停止流的逻辑
     stopStreaming();
 
