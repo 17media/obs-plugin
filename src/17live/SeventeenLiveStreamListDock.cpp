@@ -40,7 +40,12 @@ void SeventeenLiveStreamListDock::setupUi()
         "    padding: 2px;"
         "}"
         "QListWidget::item:selected {"
-        "    background-color: #3d3d3d;"
+        "    background-color: #4a90e2;"
+        "    border: 2px solid #6aa8ff;"
+        "    color: white;"
+        "}"
+        "QListWidget::item:hover:!selected {"
+        "    background-color: #454b5a;"
         "}"
     );
     mainLayout->addWidget(streamList);
