@@ -35,7 +35,7 @@ void SeventeenLiveStreamingDock::setupUi()
 
     // 创建加载状态覆盖层
     loadingOverlay = new QWidget(container);
-    loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 120); backdrop-filter: blur(3px);");
+    loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 120);");
     loadingOverlay->setAttribute(Qt::WA_TranslucentBackground);
     loadingOverlay->setVisible(false); // 初始不可见
     
@@ -785,7 +785,7 @@ void SeventeenLiveStreamingDock::startStreaming(const SeventeenLiveRtmpRequest& 
         }
     }
 
-    updateLiveStatus(SeventeenLiveStreamingStatus::Live);
+    updateLiveStatus(SeventeenLiveStreamingStatus::Streaming);
     
     // 询问是否同时开始串流
     QMessageBox msgBox;
@@ -815,11 +815,6 @@ void SeventeenLiveStreamingDock::onDeleteLiveClicked()
     std::string currLiveStreamID;
     configManager->getConfigValue("UserID", currUserID);
     configManager->getConfigValue("LiveStreamID", currLiveStreamID);
-
-    // 关闭归档
-    if (!apiWrapper->EnableStreamArchive(currLiveStreamID, 0)) {
-        obs_log(LOG_ERROR, "Failed to disable archive %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
-    }
 
     // 发送关闭直播请求
     SeventeenLiveCloseLiveRequest request;
@@ -970,15 +965,19 @@ bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
 
 void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
 {   
-    obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
+    // obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
     if (isLive) {
         // change text to "停止直播"
         createLiveButton->setText(obs_module_text("Live.Settings.StopLive"));
+        // 设置为绿色背景，表示当前正在直播
+        createLiveButton->setStyleSheet("background-color: green; color: white;");
         disconnect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onDeleteLiveClicked);
     } else {
         // change text to "建立直播"
         createLiveButton->setText(obs_module_text("Live.Settings.StartLive"));
+        // 设置为红色背景，表示当前未直播
+        createLiveButton->setStyleSheet("background-color: red; color: white;");
         disconnect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onDeleteLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
     }
@@ -986,9 +985,9 @@ void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
 
 void SeventeenLiveStreamingDock::updateLiveStatus(SeventeenLiveStreamingStatus status)
 {
-    obs_log(LOG_INFO, "updateLiveStatus: %d", static_cast<int>(status));
+    currentLiveStatus = status;
 
-    updateLiveButton(status == SeventeenLiveStreamingStatus::Live);
+    updateLiveButton(status != SeventeenLiveStreamingStatus::NotStarted);
 }
 
 void SeventeenLiveStreamingDock::resizeEvent(QResizeEvent *event)

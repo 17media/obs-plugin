@@ -124,6 +124,7 @@ private:
 
     QString currentInfoUuid = "";
     bool isLoading = false; // 标识是否正在加载中
+    SeventeenLiveStreamingStatus currentLiveStatus = SeventeenLiveStreamingStatus::NotStarted;
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
