@@ -476,6 +476,7 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
                 QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
                 SeventeenLiveRtmpResponse  rtmpResponse;
                 if (apiWrapper->GetRtmpByProvider(provider.toStdString(), rtmpResponse)) { 
+                    rtmpResponse.liveStreamID = QString::number(roomInfo.liveStreamID);
                     startLive(roomInfo.userInfo.userID.toStdString(),  rtmpResponse, roomInfo.archiveConfig.autoRecording);
                 } else {
                     QMessageBox::warning(this,
@@ -792,8 +793,8 @@ void SeventeenLiveStreamingDock::startLive(const std::string userID, const Seven
         return;
     }
     
-    obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
-    obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
+    // obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
+    // obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
 
     configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
 
