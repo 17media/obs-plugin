@@ -135,8 +135,9 @@ void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const 
 }
 void SeventeenLiveStreamListDock::showEmptyListMessage()
 {
-    // 隐藏列表，显示空状态提示
+    // 隐藏列表和开始直播按钮
     streamList->setVisible(false);
+    startLiveButton->setVisible(false);
     
     // 如果已经存在空状态容器，先删除
     if (emptyContainer) {
@@ -144,7 +145,7 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     }
     
     // 创建空状态容器
-    emptyContainer = new QWidget();
+    emptyContainer = new QWidget(widget());
     emptyContainer->setStyleSheet(
         "QWidget {"
         "    background-color: #1e1e1e;"
@@ -152,10 +153,14 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
         "}"
     );
     
+    // 设置空状态容器填充整个 Dock 区域
+    emptyContainer->setGeometry(widget()->rect());
+    
     // 创建垂直布局
     QVBoxLayout *emptyLayout = new QVBoxLayout(emptyContainer);
     emptyLayout->setAlignment(Qt::AlignCenter);
     emptyLayout->setSpacing(20);
+    emptyLayout->setContentsMargins(20, 20, 20, 20); // 添加边距使内容不贴边
     
     // 创建提示标签
     QLabel *emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
@@ -196,11 +201,16 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     emptyLayout->addWidget(emptyLabel);
     emptyLayout->addWidget(goToStreamingButton);
     
-    // 将空状态容器添加到主布局中（替代列表）
-    QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout*>(widget()->layout());
-    if (mainLayout) {
-        mainLayout->insertWidget(0, emptyContainer); // 插入到列表位置
-    }
+    // 显示空状态容器
+    emptyContainer->show();
+    emptyContainer->raise(); // 确保显示在最上层
+    
+    // 连接窗口大小变化信号，确保 emptyContainer 始终覆盖整个区域
+    connect(widget(), &QWidget::resized, this, [this]() {
+        if (emptyContainer && emptyContainer->isVisible()) {
+            emptyContainer->setGeometry(widget()->rect());
+        }
+    });
 }
 
 void SeventeenLiveStreamListDock::refreshStreamList()
