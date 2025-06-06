@@ -44,7 +44,7 @@ void SeventeenLiveStreamingDock::setupUi()
     scrollArea->setMaximumHeight(800); // 设置最大高度为800像素
     
     // 创建加载状态覆盖层 - 注意这里将父部件改为scrollArea
-    loadingOverlay = new QWidget(scrollArea);
+    loadingOverlay = new QWidget(scrollArea->viewport());
     loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 120);");
     loadingOverlay->setAttribute(Qt::WA_TranslucentBackground);
     loadingOverlay->setVisible(false); // 初始不可见
@@ -1003,7 +1003,8 @@ void SeventeenLiveStreamingDock::resizeEvent(QResizeEvent *event)
     if (loadingOverlay && widget()) {
         QScrollArea *scrollArea = qobject_cast<QScrollArea*>(widget());
         if (scrollArea) {
-            loadingOverlay->setGeometry(scrollArea->viewport()->rect());
+            // 直接使用viewport的rect()，因为loadingOverlay的父部件已经是viewport
+            loadingOverlay->setGeometry(QRect(0, 0, scrollArea->viewport()->width(), scrollArea->viewport()->height()));
             loadingOverlay->raise(); // 确保覆盖层在最上层
         }
     }
