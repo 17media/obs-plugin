@@ -376,11 +376,14 @@ bool SeventeenLiveCoreManager::checkLoginStatus()
 
 void SeventeenLiveCoreManager::saveDockState()
 {
-    // TODO: error here, to be fixed
-    // if (mainWindow && streamingDock) {
-    //     QByteArray state = mainWindow->saveState();
-    //     configManager->setDockState(state);
-    // }
+    if (!initialized || !mainWindow || !configManager) {
+        return;
+    }
+    
+    QByteArray state = mainWindow->saveState();
+    configManager->setDockState(state);
+    
+    obs_log(LOG_INFO, "Dock state saved successfully");
 }
 
 void SeventeenLiveCoreManager::handleChatRoomClicked()
