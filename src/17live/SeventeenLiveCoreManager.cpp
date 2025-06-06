@@ -327,6 +327,8 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
     if (!liveListDock) {
 
         liveListDock = new SeventeenLiveStreamListDock(mainWindow, configManager.get());
+        liveListDock->setMinimumWidth(300);
+        liveListDock->setMinimumHeight(400);
 
         liveListDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, liveListDock);

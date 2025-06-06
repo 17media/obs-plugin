@@ -160,6 +160,12 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     
     // 设置空状态容器填充整个 Dock 区域
     emptyContainer->setGeometry(widget()->rect());
+
+    // 创建布局管理器
+    QVBoxLayout *emptyLayout = new QVBoxLayout(emptyContainer);
+    emptyLayout->setAlignment(Qt::AlignCenter);
+    emptyLayout->setSpacing(20);
+    emptyLayout->setContentsMargins(20, 20, 20, 20);
     
     // 创建提示标签
     QLabel *emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
