@@ -209,13 +209,15 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     // 显示空状态容器
     emptyContainer->show();
     emptyContainer->raise(); // 确保显示在最上层
+}
+
+void SeventeenLiveStreamListDock::resizeEvent(QResizeEvent *event)
+{
+    QDockWidget::resizeEvent(event);
     
-    // 连接窗口大小变化信号，确保 emptyContainer 始终覆盖整个区域
-    connect(widget(), &QWidget::resized, this, [this]() {
-        if (emptyContainer && emptyContainer->isVisible()) {
-            emptyContainer->setGeometry(widget()->rect());
-        }
-    });
+    if (emptyContainer && emptyContainer->isVisible()) {
+        emptyContainer->setGeometry(widget()->rect());
+    }
 }
 
 void SeventeenLiveStreamListDock::refreshStreamList()

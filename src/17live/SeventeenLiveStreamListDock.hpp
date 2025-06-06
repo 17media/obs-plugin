@@ -22,6 +22,9 @@ public:
 
     void refreshStreamList();
 
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
 signals:
     void startLiveClicked(const SeventeenLiveRtmpRequest& request);
     void editLiveClicked(const SeventeenLiveStreamInfo& info);
