@@ -161,20 +161,17 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     // 设置空状态容器填充整个 Dock 区域
     emptyContainer->setGeometry(widget()->rect());
     
-    // 创建垂直布局
-    QVBoxLayout *emptyLayout = new QVBoxLayout(emptyContainer);
-    emptyLayout->setAlignment(Qt::AlignCenter);
-    emptyLayout->setSpacing(20);
-    emptyLayout->setContentsMargins(20, 20, 20, 20); // 添加边距使内容不贴边
-    
     // 创建提示标签
     QLabel *emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
     emptyLabel->setAlignment(Qt::AlignCenter);
+    emptyLabel->setWordWrap(true); // 添加文字换行
+    emptyLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred); // 允许水平方向扩展
     emptyLabel->setStyleSheet(
         "QLabel {"
         "    color: #888888;"
         "    font-size: 16px;"
         "    font-weight: bold;"
+        "    padding: 0 10px;"
         "}"
     );
     
@@ -196,6 +193,13 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     );
     goToStreamingButton->setCursor(Qt::PointingHandCursor);
     
+    // 创建按钮容器用于居中显示按钮
+    QWidget *buttonContainer = new QWidget();
+    QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
+    buttonLayout->setAlignment(Qt::AlignCenter);
+    buttonLayout->setContentsMargins(0, 0, 0, 0);
+    buttonLayout->addWidget(goToStreamingButton);
+    
     // 连接按钮点击信号
     connect(goToStreamingButton, &QPushButton::clicked, this, [this]() {
         // 发送信号，通知需要打开开始直播面板
@@ -204,7 +208,7 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     
     // 添加到布局
     emptyLayout->addWidget(emptyLabel);
-    emptyLayout->addWidget(goToStreamingButton);
+    emptyLayout->addWidget(buttonContainer); // 使用buttonContainer代替直接添加按钮
     
     // 显示空状态容器
     emptyContainer->show();
