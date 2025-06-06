@@ -327,7 +327,7 @@ void SeventeenLiveStreamingDock::setupUi()
 
     // 初始化loadingOverlay的大小和位置
     loadingOverlay->setGeometry(scrollArea->viewport()->rect());
-    // loadingOverlay->raise(); // 确保覆盖层在最上层
+    loadingOverlay->raise(); // 确保覆盖层在最上层
 }
 
 // 添加新方法，用于加载房间信息
@@ -336,7 +336,7 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
     // 显示加载状态
     isLoading = true;
     loadingOverlay->setVisible(true);
-    // loadingOverlay->raise(); // 确保覆盖层在最上层
+    loadingOverlay->raise(); // 确保覆盖层在最上层
     loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
     
     // 禁用所有控件
@@ -376,7 +376,10 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
             loadingOverlay->setVisible(false);
             
             // 启用所有控件
-            widget()->setEnabled(true);
+            QScrollArea *scrollArea = qobject_cast<QScrollArea*>(widget());
+            if (scrollArea && scrollArea->widget()) {
+                scrollArea->widget()->setEnabled(true);
+            }
             
             if (roomInfoSuccess) {
                 // 更新UI
@@ -1018,7 +1021,7 @@ bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
 
 void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
 {   
-    // obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
+    obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
     if (isLive) {
         // change text to "停止直播"
         createLiveButton->setText(obs_module_text("Live.Settings.StopLive"));
@@ -1053,7 +1056,7 @@ void SeventeenLiveStreamingDock::resizeEvent(QResizeEvent *event)
         if (scrollArea) {
             // 直接使用viewport的rect()，因为loadingOverlay的父部件已经是viewport
             loadingOverlay->setGeometry(QRect(0, 0, scrollArea->viewport()->width(), scrollArea->viewport()->height()));
-            // loadingOverlay->raise(); // 确保覆盖层在最上层
+            loadingOverlay->raise(); // 确保覆盖层在最上层
         }
     }
 }
