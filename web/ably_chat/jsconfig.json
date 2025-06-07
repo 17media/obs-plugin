@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "exclude": [
+    "public/**/*.json",
+    "src/app/[locale]/**/*.json"
+  ]
+}

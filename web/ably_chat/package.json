@@ -1,0 +1,35 @@
+{
+  "name": "ably-testing",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "ably": "^2.8.0",
+    "immutable": "^3.8.2",
+    "immutable-v4": "npm:immutable@4.0.0-rc.12",
+    "lodash": "^4.17.21",
+    "next": "15.3.2",
+    "next-intl": "^4.1.0",
+    "pako": "^1.0.6",
+    "polished": "^4.3.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-inlinesvg": "^4.2.0",
+    "rxjs": "^7.8.2",
+    "shortid": "^2.2.17",
+    "styled-components": "^6.1.18",
+    "styled-system": "^5.1.5"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.2",
+    "tailwindcss": "^4"
+  }
+}

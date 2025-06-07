@@ -119,6 +119,25 @@ function(_check_dependencies)
   # cmake-format: on
 
   foreach(dependency IN LISTS dependencies_list)
+    set(orig_arch "")
+
+    if(dependency STREQUAL cef AND NOT ENABLE_BROWSER)
+      continue()
+    endif()
+    if(dependency STREQUAL cef AND arch STREQUAL universal AND OS_MACOS)
+      set(orig_arch ${arch})
+      # TODO: set arm64 as default arch
+      set(arch "arm64")
+      set(platform macos-${arch})
+    endif()
+    
+    # For Windows platform, set arch to x64 for CEF dependency
+    if(dependency STREQUAL cef AND OS_WINDOWS)
+      set(orig_arch ${arch})
+      set(arch "x64")
+      # set(platform windows-${arch})
+    endif()
+
     # cmake-format: off
     string(JSON data GET ${dependency_data} ${dependency})
     string(JSON version GET ${data} version)
@@ -144,11 +163,19 @@ function(_check_dependencies)
       string(REPLACE "-REVISION" "" file "${file}")
     endif()
 
+    message(STATUS "dependency ${dependency} destination: ${destination}")
+
     set(skip FALSE)
     if(dependency STREQUAL prebuilt OR dependency STREQUAL qt6)
       _check_deps_version(${version})
 
       if(found)
+        set(skip TRUE)
+      endif()
+    elseif(dependency STREQUAL cef)
+      if(NOT ENABLE_BROWSER)
+        set(skip TRUE)
+      elseif(OBS_DEPENDENCY_${dependency}_${arch}_HASH STREQUAL ${hash} AND (CEF_ROOT_DIR AND EXISTS "${CEF_ROOT_DIR}"))
         set(skip TRUE)
       endif()
     endif()
@@ -159,6 +186,12 @@ function(_check_dependencies)
     endif()
 
     if(dependency STREQUAL obs-studio)
+      set(url ${url}/${file})
+    else()
+      set(url ${url}/${version}/${file})
+    endif()
+
+    if(dependency STREQUAL cef)
       set(url ${url}/${file})
     else()
       set(url ${url}/${version}/${file})
@@ -191,18 +224,31 @@ function(_check_dependencies)
       endif()
     endif()
 
+    message(STATUS "dependencies_dir: ${dependencies_dir}")
+    message(STATUS "destination: ${destination}")
+
     if(dependency STREQUAL prebuilt)
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}/${destination}")
     elseif(dependency STREQUAL qt6)
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}/${destination}")
+
+      message(STATUS "qt6 root directory: ${dependencies_dir}/${destination}")
     elseif(dependency STREQUAL obs-studio)
       set(_obs_version ${version})
       set(_obs_destination "${destination}")
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}")
+    elseif(dependency STREQUAL cef)
+      set(CEF_ROOT_DIR "${dependencies_dir}/${destination}" CACHE PATH "CEF root directory" FORCE)
+
+      message(STATUS "cef root directory: ${CEF_ROOT_DIR}")
 
     endif()
 
     message(STATUS "Setting up ${label} (${arch}) - done")
+
+    if(dependency STREQUAL cef)
+      set(arch ${orig_arch})
+    endif()
   endforeach()
 
   list(REMOVE_DUPLICATES CMAKE_PREFIX_PATH)

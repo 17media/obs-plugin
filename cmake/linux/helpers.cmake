@@ -29,9 +29,10 @@ function(set_target_properties_plugin target)
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/obs-plugins)
 
-  if(TARGET plugin-support)
-    target_link_libraries(${target} PRIVATE plugin-support)
-  endif()
+  # plugin-support已直接包含在主项目中，不再需要链接
+  # if(TARGET plugin-support)
+  #   target_link_libraries(${target} PRIVATE plugin-support)
+  # endif()
 
   target_install_resources(${target})
 
