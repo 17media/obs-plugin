@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include <util/config-file.h>
 #include "json11.hpp"
 
