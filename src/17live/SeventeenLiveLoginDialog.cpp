@@ -335,6 +335,7 @@ void SeventeenLiveLoginDialog::handleLogin()
     // 验证逻辑
     if (usernameEdit->text().isEmpty() || passwordEdit->text().isEmpty()) {
         errorLabel->setVisible(true);
+        adjustSize(); // resize dialog to fit error message
         return;
     }
     
@@ -347,6 +348,7 @@ void SeventeenLiveLoginDialog::handleLogin()
         // QString errorMessage = errorMessageTemplate.arg(apiWrapper.getLastErrorMessage());
         // errorLabel->setText(errorMessage);
         errorLabel->setVisible(true);
+        adjustSize(); // resize dialog to fit error message
         return;
     }
 
