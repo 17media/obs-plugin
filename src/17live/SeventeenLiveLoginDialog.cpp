@@ -171,12 +171,12 @@ void SeventeenLiveLoginDialog::setupUi()
     // 密码输入框
     passwordEdit = new QLineEdit(passwordContainer);
     passwordEdit->setEchoMode(QLineEdit::Password);
-    passwordEdit->setFixedHeight(36);
+    passwordEdit->setFixedHeight(40);
     passwordEdit->setStyleSheet(
         "QLineEdit {"
-        // "    border: 1px solid #DCDCDC;"
+        "    border: none;"
         "    border-radius: 2px 0 0 2px;"
-        "    padding: 0 10px;"
+        "    padding: 0 15px;"
         "}"
         "QLineEdit:focus {"
         "    border: 2px solid #4A90E2;"
@@ -197,18 +197,19 @@ void SeventeenLiveLoginDialog::setupUi()
     showPasswordButton->setFixedSize(40, 40);
     showPasswordButton->setStyleSheet(
         "QPushButton {"
-        // "    border: 1px solid #DCDCDC;"
+        "    border: none;"
         "    border-radius: 0 2px 2px 0;"
         // "    background-color: #f8f8f8;"
         "}"
         "QPushButton:hover {"
         // "    background-color: #e8e8e8;"
-        "    border: none;"
+        // "    border: none;"
         "}"
         "QPushButton:pressed {"
         // "    background-color: #d8d8d8;"
         "}"
     );
+    showPasswordButton->setFlat(true); // 去除按钮边框，和passwordEdit紧密相连
 
     passwordLayout->addWidget(passwordEdit);
     passwordLayout->addWidget(showPasswordButton);
