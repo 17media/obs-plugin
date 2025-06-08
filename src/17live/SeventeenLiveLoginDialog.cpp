@@ -17,7 +17,8 @@ SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent,  SeventeenLi
 {
     setupUi();
     setWindowTitle(obs_module_text("Auth.SignIn"));
-    setFixedSize(400, 600);
+    // setFixedSize(400, 600);
+    setFixedWidth(400);
 }
 
 SeventeenLiveLoginDialog::~SeventeenLiveLoginDialog()
@@ -180,6 +181,7 @@ void SeventeenLiveLoginDialog::setupUi()
         "}"
         "QLineEdit:focus {"
         "    border: 2px solid #4A90E2;"
+        // "    background-color: #2E2E2E;"
         "    border-right: none;"
         "}"
     );
@@ -197,7 +199,7 @@ void SeventeenLiveLoginDialog::setupUi()
     showPasswordButton->setFixedSize(40, 40);
     showPasswordButton->setStyleSheet(
         "QPushButton {"
-        "    border: none;"
+        // "    border: none;"
         "    border-radius: 0 2px 2px 0;"
         // "    background-color: #f8f8f8;"
         "}"
@@ -213,6 +215,8 @@ void SeventeenLiveLoginDialog::setupUi()
 
     passwordLayout->addWidget(passwordEdit);
     passwordLayout->addWidget(showPasswordButton);
+    // passwordLayout->setAlignment(Qt::AlignVCenter);
+    passwordLayout->setAlignment(Qt::AlignTop);
 
     mainLayout->addWidget(passwordContainer);
     
