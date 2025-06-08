@@ -277,7 +277,7 @@ void SeventeenLiveLoginDialog::setupUi()
     );
     connect(loginButton, &QPushButton::clicked, this, &SeventeenLiveLoginDialog::handleLogin);
 
-    QVBoxLayout *loginLeftLayout = new QVBoxLayout(loginContainer);
+    QVBoxLayout *loginLeftLayout = new QVBoxLayout();
     loginLeftLayout->setContentsMargins(0, 0, 0, 0);
 
     // 注册新用户链接
