@@ -45,7 +45,11 @@ const string SEVENTEENLIVE_GET_GIFTTABS_URL = string(SEVENTEENLIVE_API_URL) + "/
 
 const string SEVENTEENLIVE_GET_GIFTS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/gifts";
 
-SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {}
+SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {
+  currentOS = GetCurrentOS();
+  currentOSVersion = GetCurrentOSVersion();
+  currentPlatformUUID = GetCurrentPlatformUUID();
+}
 
 SeventeenLiveApiWrappers::SeventeenLiveApiWrappers(std::string token_) : token(token_) {}
 
@@ -75,15 +79,15 @@ bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *con
   headers.push_back("version: " + std::string(PLUGIN_VERSION));
 
   // add OS version
-  headers.push_back("OSVersion: " + GetCurrentOSVersion());
+  headers.push_back("OSVersion: " + currentOSVersion);
 
   // add HW
-  headers.push_back("hardware: " + GetCurrentOS());
+  headers.push_back("hardware: " + currentOS);
 
   headers.push_back("deviceName: OBSPlugin");
   headers.push_back("deviceModel: OBSPlugin");
 
-  headers.push_back("deviceId: " + GetCurrentPlatformUUID());
+  headers.push_back("deviceId: " + currentPlatformUUID);
 
   // debug output headers
   // for (const auto &header : headers) {
