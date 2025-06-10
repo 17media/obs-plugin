@@ -182,6 +182,18 @@ void SeventeenLiveCoreManager::shutdown()
         return;
     }
 
+    if (streamingDock) {
+        streamingDock->disconnect(this);
+    }
+
+    if (liveListDock) {
+        liveListDock->disconnect(this);
+    }
+
+    if (cef_window) {
+        cef_window->disconnect(this);
+    }
+
     saveDockState();
 
     // 清理菜单管理器资源
