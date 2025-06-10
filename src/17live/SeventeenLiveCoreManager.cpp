@@ -350,6 +350,8 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
         liveListDock->setVisible(true);
 
         connect(liveListDock, &SeventeenLiveStreamListDock::startLiveClicked, this, [this] (const SeventeenLiveRtmpRequest& request) {
+            // if streamingDock is not visible, show it
+            // in order to edit the live info item
             if (!streamingDock) {
                 handleStreamingClicked();
             }
