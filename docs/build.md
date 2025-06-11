@@ -32,16 +32,10 @@ Firstly install prerequisites based on [Build Instructions For Mac](https://gith
 * CMake 3.30 (minimum: CMake 3.28)
 * CCache 4.8 or newer (Optional)
 
-Then build the plugin for Apple Silicon:
+Then build the plugin, architecture will be automatically detected:
 
 ```bash
-cmake --preset macos-arm64
-```
-
-or for Intel:
-
-```bash
-cmake --preset macos-x86_64
+cmake --preset macos
 ```
 
 Then open the generated Xcode project. Build the plugin.
