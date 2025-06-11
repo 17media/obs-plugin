@@ -2,6 +2,16 @@
 
 This guide will walk you through the process of building the OBS 17LIVE plugin from source.
 
+## build chat room app first
+
+```bash
+cd web/ably_chat
+npm install
+npm run build
+```
+
+** Note: run `cmake --preset [macos|windows-x64]` every time you make changes to the chat room app. **
+
 ## Windows x64
 
 Firstly install prerequisites based on [Build Instructions For Windows](https://github.com/obsproject/obs-studio/wiki/build-instructions-for-windows).
