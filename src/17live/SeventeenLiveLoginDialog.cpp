@@ -17,7 +17,8 @@ SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent,  SeventeenLi
 {
     setupUi();
     setWindowTitle(obs_module_text("Auth.SignIn"));
-    setFixedSize(400, 600);
+    // setFixedSize(400, 600);
+    setFixedWidth(400);
 }
 
 SeventeenLiveLoginDialog::~SeventeenLiveLoginDialog()
@@ -171,15 +172,16 @@ void SeventeenLiveLoginDialog::setupUi()
     // 密码输入框
     passwordEdit = new QLineEdit(passwordContainer);
     passwordEdit->setEchoMode(QLineEdit::Password);
-    passwordEdit->setFixedHeight(36);
+    passwordEdit->setFixedHeight(40);
     passwordEdit->setStyleSheet(
         "QLineEdit {"
-        // "    border: 1px solid #DCDCDC;"
+        "    border: none;"
         "    border-radius: 2px 0 0 2px;"
-        "    padding: 0 10px;"
+        "    padding: 0 15px;"
         "}"
         "QLineEdit:focus {"
         "    border: 2px solid #4A90E2;"
+        // "    background-color: #2E2E2E;"
         "    border-right: none;"
         "}"
     );
@@ -197,21 +199,24 @@ void SeventeenLiveLoginDialog::setupUi()
     showPasswordButton->setFixedSize(40, 40);
     showPasswordButton->setStyleSheet(
         "QPushButton {"
-        // "    border: 1px solid #DCDCDC;"
+        // "    border: none;"
         "    border-radius: 0 2px 2px 0;"
         // "    background-color: #f8f8f8;"
         "}"
         "QPushButton:hover {"
         // "    background-color: #e8e8e8;"
-        "    border: none;"
+        // "    border: none;"
         "}"
         "QPushButton:pressed {"
         // "    background-color: #d8d8d8;"
         "}"
     );
+    showPasswordButton->setFlat(true); // 去除按钮边框，和passwordEdit紧密相连
 
     passwordLayout->addWidget(passwordEdit);
     passwordLayout->addWidget(showPasswordButton);
+    // passwordLayout->setAlignment(Qt::AlignVCenter);
+    passwordLayout->setAlignment(Qt::AlignTop);
 
     mainLayout->addWidget(passwordContainer);
     
@@ -276,7 +281,7 @@ void SeventeenLiveLoginDialog::setupUi()
     );
     connect(loginButton, &QPushButton::clicked, this, &SeventeenLiveLoginDialog::handleLogin);
 
-    QVBoxLayout *loginLeftLayout = new QVBoxLayout(loginContainer);
+    QVBoxLayout *loginLeftLayout = new QVBoxLayout();
     loginLeftLayout->setContentsMargins(0, 0, 0, 0);
 
     // 注册新用户链接
@@ -334,6 +339,7 @@ void SeventeenLiveLoginDialog::handleLogin()
     // 验证逻辑
     if (usernameEdit->text().isEmpty() || passwordEdit->text().isEmpty()) {
         errorLabel->setVisible(true);
+        adjustSize(); // resize dialog to fit error message
         return;
     }
     
@@ -346,6 +352,7 @@ void SeventeenLiveLoginDialog::handleLogin()
         // QString errorMessage = errorMessageTemplate.arg(apiWrapper.getLastErrorMessage());
         // errorLabel->setText(errorMessage);
         errorLabel->setVisible(true);
+        adjustSize(); // resize dialog to fit error message
         return;
     }
 

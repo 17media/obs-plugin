@@ -182,6 +182,18 @@ void SeventeenLiveCoreManager::shutdown()
         return;
     }
 
+    if (streamingDock) {
+        streamingDock->disconnect(this);
+    }
+
+    if (liveListDock) {
+        liveListDock->disconnect(this);
+    }
+
+    if (cef_window) {
+        cef_window->disconnect(this);
+    }
+
     saveDockState();
 
     // 清理菜单管理器资源
@@ -338,6 +350,8 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
         liveListDock->setVisible(true);
 
         connect(liveListDock, &SeventeenLiveStreamListDock::startLiveClicked, this, [this] (const SeventeenLiveRtmpRequest& request) {
+            // if streamingDock is not visible, show it
+            // in order to edit the live info item
             if (!streamingDock) {
                 handleStreamingClicked();
             }

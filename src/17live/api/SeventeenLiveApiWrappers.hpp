@@ -83,4 +83,8 @@ protected:
 
 private:
   QString lastErrorMessage;
+
+  std::string currentOS;
+  std::string currentOSVersion;
+  std::string currentPlatformUUID; 
 };

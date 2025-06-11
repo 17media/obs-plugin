@@ -127,7 +127,9 @@ function(_check_dependencies)
     if(dependency STREQUAL cef AND arch STREQUAL universal AND OS_MACOS)
       set(orig_arch ${arch})
       # TODO: set arm64 as default arch
-      set(arch "arm64")
+      # set(arch "arm64")
+      set(arch ${CMAKE_HOST_SYSTEM_PROCESSOR})
+      # message(STATUS "current arch (${arch})")
       set(platform macos-${arch})
     endif()
     
