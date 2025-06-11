@@ -21,7 +21,9 @@ Then build the plugin:
 cmake --preset windows-x64
 ```
 
-Then open the generated solution file in Visual Studio. Build the plugin.
+Then open the generated solution file `build_x64\obs-17live.sln` in Visual Studio. Build the plugin. 
+
+** Note: Release build is mandatory, because obs-studio does not support debug builds. **
 
 ## macOS
 
@@ -38,4 +40,4 @@ Then build the plugin, architecture will be automatically detected:
 cmake --preset macos
 ```
 
-Then open the generated Xcode project. Build the plugin.
+Then open the generated Xcode project `build_macos/obs-17live.xcodeproj`. Build the plugin.
