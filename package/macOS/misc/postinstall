@@ -1,0 +1,8 @@
+#!/bin/bash
+# postinstall script
+
+# 设置权限（确保插件文件可访问）
+chmod -R 755 /Applications/OBS.app/Contents/PlugIns
+
+# 如果需要做其他操作，可以在这里继续添加
+exit 0
