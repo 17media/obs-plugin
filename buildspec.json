@@ -24,11 +24,11 @@
             "label": "Pre-Built Qt6",
             "hashes": {
                 "macos": "9472224e6f927cd409f9c3fcb53389e3b80f613ca7c4b62c02fae51cf0b2f941",
-                "windows-x64": "78fc97d224830746719a2bc49a2a59795b2d23c05c06b06aff9e4d10e6c4e9ba"
+                "windows-x64": "cf6a5223bfea04dccec3bbfbdcdc964933404fc3eda9c3f374bc4ab8c98d8c7e"
             },
             "debugSymbols": {
                 "macos": "84d8e966d8473bdb9bdb562cbd4db4e75af9867158bc9e5fb177d09f11aaff69",
-                "windows-x64": "d3798f878f8ea80e1b0d3a03d8be4bbc780788bc106a7cba44ec82428fd1a9d1"
+                "windows-x64": "59deb7bc6d38984ca2e122a6a7e5660ee037d9219449ed101cc87aa5aa622b1f"
             }
         },
         "cef": {
