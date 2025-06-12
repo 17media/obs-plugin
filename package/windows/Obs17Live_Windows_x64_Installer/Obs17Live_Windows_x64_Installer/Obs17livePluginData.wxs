@@ -1,0 +1,392 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+    <Fragment>
+        <DirectoryRef Id="DATAFOLDER">
+            <Component Id="cmpH1caRiWg85GxUwbS9XlFol4qbcU" Guid="E21E01F3-E2AE-4702-9659-BE63450401AB">
+                <File Id="filz0JfNe6u6NGQrhZBIw8pK0HKD6A" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\meta_JP.json" />
+            </Component>
+            <Component Id="cmpPV3Wi603.D5KolZs_pNCSGs5UGg" Guid="998B0923-59F4-4E76-B943-6F468BE5F8ED">
+                <File Id="filEwSQp9GBmFrLQWTI3F5S.Homj5s" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\meta_TW.json" />
+            </Component>
+            <Component Id="cmprLiKzBKfckJ2RGOvt_K5aOw1NS4" Guid="03BA57A3-F344-48C1-ADDC-57AE0F75FE9B">
+                <File Id="filsxlpOjfChCtgLIB9.hg4L1f.WO4" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\meta_US.json" />
+            </Component>
+            <Directory Id="dirnlgqwT2TZA9GsfZ3941Yv8aXbcw" Name="html">
+                <Directory Id="dir_XwdzDxgnCjpBPQfonWShJer.YI" Name="chat">
+                    <Component Id="cmpF6BdIRfgAfvL1qR6IxOjIql92pI" Guid="67A66FDD-B69E-49B2-902C-372D2A2B8934">
+                        <File Id="filCylj7RlvAjTiUQTNfio18yK6XlE" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\404.html" />
+                    </Component>
+                    <Component Id="cmp5tlJGApSy2i5SayOxBEtGrkrtZM" Guid="9861F85B-A6BB-4E0C-A3A3-3E025CFF288F">
+                        <File Id="fil7Xq0dHKGlUsJVMBg2YJ3lQRtOyA" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\en.html" />
+                    </Component>
+                    <Component Id="cmpRR9fWgfggbn2aW3elIWeSJK0eYY" Guid="F2851A7D-791B-45EE-A81C-D3994E446C3A">
+                        <File Id="filTnhhI3J5_MIAOAe.SEraaqOwi7o" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\en.txt" />
+                    </Component>
+                    <Component Id="cmpznDi3mSTyIPYeRlwZzCLYcPsqh8" Guid="87BE970D-503F-4F7F-854A-BD2DBF40E281">
+                        <File Id="fil7JzvSLeC5dBJF3hCgwtNKWeJWHs" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\ja.html" />
+                    </Component>
+                    <Component Id="cmpuqZW1j3KMpkEX9UTISZfCy8ik0o" Guid="5DDED6A6-D976-4466-8D72-120992B44A0E">
+                        <File Id="filTX1DdfrBlkJRwpqmKMkMHeS4QHw" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\ja.txt" />
+                    </Component>
+                    <Component Id="cmpVrcrdSCted4END_nN8HyhMZUCes" Guid="E684D9C9-3858-4DF2-B145-A9DBC9FE5871">
+                        <File Id="filGIS3G_3.tsoPXQDPysoWwLtF8oo" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\zh.html" />
+                    </Component>
+                    <Component Id="cmpCXiU4bctsFuGb7fC5TZH4sPNVxM" Guid="C7004C34-93BC-4955-8488-E620E43B0E8D">
+                        <File Id="filabZ11Hj.FY3UqkVa9pSx3QXpxlw" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\zh.txt" />
+                    </Component>
+                    <Directory Id="dir1TVHjNQ_jgscSO1Ogr8ycb2xQGY" Name="images">
+                        <Component Id="cmppr1GSzDeoSuEkGIH9e7B1jR9BsQ" Guid="7E29AB42-9081-49CB-ACB5-4303E2E0A3D9">
+                            <File Id="filkbYjXfCYdlxiULzlq7wPjTFghrE" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\images\ig_AIBaby_background.svg" />
+                        </Component>
+                    </Directory>
+                    <Directory Id="dirhHknBwaHquxM5S0yowphAIn4WtI" Name="_next">
+                        <Directory Id="dirsOEtPI33m7aVvnzKcIFjOuh8hIA" Name="static">
+                            <Directory Id="diroK83R9SJIwtstNdMGexUp8YZrZg" Name="chunks">
+                                <Component Id="cmpqntViF_ZY9bWwRLnupGS9V6w9Mk" Guid="B94F8B3C-F22D-416D-A7CD-7C436CB9C497">
+                                    <File Id="filmxrsW7TosMHGaNGN0HZKZ22Kb14" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\122.8695147541cbf54a.js" />
+                                </Component>
+                                <Component Id="cmpin88.u4QQH3CFFFP0mPbLkMmTKQ" Guid="BB8BC6F3-55CE-4B8B-BCBF-7B4E5392B7E0">
+                                    <File Id="fil8XKlLsze0eGEhkV0dQNhsoYsHIg" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\136.3b3b725b5513b762.js" />
+                                </Component>
+                                <Component Id="cmpNBAWRgcmtD8v.LfGiGDfDKGKAZU" Guid="69AB0E2B-C18C-46FC-A122-BDBA1BFE22ED">
+                                    <File Id="fil..hhkns757eesLzHp9Lr1Dan6Zo" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\142.9e73e7e1beb4f0af.js" />
+                                </Component>
+                                <Component Id="cmpYDPiPpytUPyJ9TvQ9atB20QU6kE" Guid="7FCC800C-A85C-49FB-A2A3-8D6EC56B60BF">
+                                    <File Id="filXsp4AygiWbi_v_l9vecbvjG3RS8" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\148.cc5e1ee9f1cd168b.js" />
+                                </Component>
+                                <Component Id="cmputkwfhm0SGaxJ6ebfk0BCUOESkg" Guid="3360DE98-AF9A-4AFF-A5AA-7C80FC197D10">
+                                    <File Id="filv.W1ZfcXNogBYRdAGoivWGQUBkM" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\184.e8d987729de1f48f.js" />
+                                </Component>
+                                <Component Id="cmpFONypZJds2MtEhL760J7hopU6W8" Guid="9E31CC63-C72F-44D4-919F-4AF863C7CF85">
+                                    <File Id="filSIGX29_U6zpuvwQnlMAcySALgng" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\240.34a6edd38ec08063.js" />
+                                </Component>
+                                <Component Id="cmpiKZpA8HCgJo_yQXKt1AFCudt4sI" Guid="C4AACE1C-698F-4B95-9959-6B88AF9A79D0">
+                                    <File Id="filGW3OLCxr8u9c0zxUtIm1ZbFeBrk" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\269.c8c9817732b3351b.js" />
+                                </Component>
+                                <Component Id="cmpbNDzVvS.cFRXG2AY81fAO2mq1BQ" Guid="F9E32337-F59B-4C57-B637-BA5D1F5F737F">
+                                    <File Id="fildbBQoSmXagxGQBLnonHOnlHoua8" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\290.4ab5e5f583d7e977.js" />
+                                </Component>
+                                <Component Id="cmp2bLTazHT0V_zHfYSumbiePBJkGM" Guid="F4E57B76-3516-442F-BA2B-7494800E75F2">
+                                    <File Id="filxUS2pypwDG_c_9m025IADjSes5w" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\335.c1eff0412c274ec7.js" />
+                                </Component>
+                                <Component Id="cmphE.2.gIJzpOLnPznTjKylmpDD2U" Guid="642A029F-9357-42B0-B6FE-A69C806DBA83">
+                                    <File Id="filrTD5fX8DUOBd_LMj._6QBmhm85w" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\341.df3329d77a5faa19.js" />
+                                </Component>
+                                <Component Id="cmphtlAgmWYsm.TIPpailYfa52kfzc" Guid="1AF363E2-08EA-40C2-B54B-0BE04147A31F">
+                                    <File Id="filLMWtBlLKA0pLrIkMeH6vnRKqNns" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\39.b5b5d67dd8e8c25d.js" />
+                                </Component>
+                                <Component Id="cmpI6D_M0NFIqCN4TRVUeICMSKdXQo" Guid="57338595-68AF-4218-8AB7-3A3441F293ED">
+                                    <File Id="filSxWhkZ3SRiV5Tkjmu2FvHOqvh1Y" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\472.a3826d29d6854395.js" />
+                                </Component>
+                                <Component Id="cmpkXySdFs0OaAS6aXP7aH742ZAk_s" Guid="AB1239D9-B0E6-479C-BD12-1ADE125F5A1F">
+                                    <File Id="filEA2psy0SpI1BHS9.NSZktnMc1V0" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\475.0ce50b36f7d72f37.js" />
+                                </Component>
+                                <Component Id="cmpEWxd4UqNOQCrdXtH4sES8w3gIU0" Guid="A6A3CFDA-0FFF-4773-BDCA-CECAA4A78DCC">
+                                    <File Id="fil.DESPyJ2AIGBU3tIRU2r8dWQuUY" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\4bd1b696-70920878d6d745e2.js" />
+                                </Component>
+                                <Component Id="cmpx2IMqj_ouPkVb9Xwy1zi.78v_Gk" Guid="4E44626E-441E-41CC-8F55-1B02D8327415">
+                                    <File Id="filQXxkQRP29ai3Qm71X_E3IT6vNds" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\524.5b79051fdac01c85.js" />
+                                </Component>
+                                <Component Id="cmpKqjwKz7l_p5CeZijq50o509DE6M" Guid="9E0CF91A-9BB6-4B71-8881-CD9E45865BCE">
+                                    <File Id="fil8Y5X7qP4uEz2SehjE0dAy.empRw" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\566.f4fc3fdaea6fed29.js" />
+                                </Component>
+                                <Component Id="cmpngA8wgVDozwF0AWNtkALalq0QsE" Guid="DDC31B0D-8C47-4571-B0B6-33CA6543C2D2">
+                                    <File Id="filJLjw0Ac3szCaDYcMlk36dcmUMko" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\571.f5f2273e74bf7758.js" />
+                                </Component>
+                                <Component Id="cmpZt5H41TiTZ5sCcjnwDGtYR3D0ng" Guid="E268C30F-F2D9-4942-B7C7-3A44C4AF1AE3">
+                                    <File Id="filq06etGYuMkCvbSt_wjAXkAbeqao" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\579.fc47d9d9bf551f2d.js" />
+                                </Component>
+                                <Component Id="cmpz0dxYB8Ui7E58hKb8jJHqaYZ9ds" Guid="451DAC87-22D0-47F1-8F72-E1D738F030D8">
+                                    <File Id="fil_Znx3GA3lBkCQXqDYpAjpsN5XfI" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\633.11ae6586fd074f3a.js" />
+                                </Component>
+                                <Component Id="cmpCNrybvYcZyg9biOwDNCsOvTeJH8" Guid="910D7F14-1A6F-48E2-97EE-B365FC3C2BA9">
+                                    <File Id="filrt70AU2pJAwZTw7GL3inGc.clKo" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\653.c5bcbfb268851a48.js" />
+                                </Component>
+                                <Component Id="cmptdSYIkYNnp6Old1cUOra_lD1e.Q" Guid="381A1C20-8E37-44F2-88CB-F5BF71F743CF">
+                                    <File Id="filjoZnJwvQp0MnnSiaCIK9CmgxrZc" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\684-ac517d3f287680f3.js" />
+                                </Component>
+                                <Component Id="cmpfOXByGYq_.JVcWERO6aPhwuYKOM" Guid="4C3FDF3D-8479-425A-862F-8B75C849C79D">
+                                    <File Id="filt4lp6kDvEdxfMG7SjOWedGIsbDU" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\716.ccb71df9bf653540.js" />
+                                </Component>
+                                <Component Id="cmprokniBsdRNaegQJeh6oJOesiikc" Guid="DEA7F923-2FEB-4D04-BF00-865DC3E8C6B7">
+                                    <File Id="filaihvKAodkheXiKJI_Qw1rLA0zT4" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\745-33fac667cd4b6cbd.js" />
+                                </Component>
+                                <Component Id="cmpG4XzxApqwg3L6GFqFg6GYqe5j80" Guid="48089DBD-8BBC-4E96-90CD-1E9638320CA8">
+                                    <File Id="filwqyV0E_zcmlSaAjx0xexYiU5EX0" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\80.931553ab0bd82943.js" />
+                                </Component>
+                                <Component Id="cmp2TxOD6_crKjaue9eth.o6lVI2ys" Guid="FAEE9D53-EA84-487C-86F6-4FF741EC5233">
+                                    <File Id="filJBIM3_mjqxd6bb.uysp_MMmGaBc" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\826.cd970a3ffbd89326.js" />
+                                </Component>
+                                <Component Id="cmpx7qZassHyg300R6V.mnxv2V__6I" Guid="47E2CBA3-04FB-43BB-8A9D-D4A7BC1148DA">
+                                    <File Id="fil4qQGI2M0sNx4bTPmQme2B1dw.og" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\841.ad43e5e3964407b2.js" />
+                                </Component>
+                                <Component Id="cmpNPLoTkoXBKckMNBz7cUnH90WtOY" Guid="12B90598-86C6-417C-BF67-3E8B5471DB8F">
+                                    <File Id="fil9LwjsJrXR4wSXu9p8ugN.7_p1t4" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\849.adb5a5d9a47de711.js" />
+                                </Component>
+                                <Component Id="cmp.ihjyl8JD1V2ALI_vOPVJ.Vj15I" Guid="49905D71-9BCE-4258-8553-EE2AAD315B5A">
+                                    <File Id="filbiZbVHOVap1GZGV54g8nogw73UY" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\861.9463816cd04b2e15.js" />
+                                </Component>
+                                <Component Id="cmpxC8w8WxwlUlGLKbl_9yUBvCH1ss" Guid="2F3C2E2D-54A1-4494-B4CA-3A2AC69D3D54">
+                                    <File Id="filOMNtEcoKkizUaQFRK3Vc89I7bJQ" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\898.adbf6855cfa5338e.js" />
+                                </Component>
+                                <Component Id="cmplrBlfCcb5pRv9HzL72aIqOGztMQ" Guid="219C2804-3C1C-4513-BC64-4B770028E0EF">
+                                    <File Id="fild3aXIfOC7bbi3hVRgbc0XXG5kms" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\943.d0966dd47890f9b7.js" />
+                                </Component>
+                                <Component Id="cmp0IvXAyp1txnEOOr5nKhj1k446kg" Guid="00106274-9E62-47EC-B2AE-FC44DCD42D5E">
+                                    <File Id="filppTFBM0nwi_TUgzg6gVGVZ_Qsuo" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\96-739ba8cb410f0333.js" />
+                                </Component>
+                                <Component Id="cmpNwZIMXix4J4aOzeu89XtUH5ykgE" Guid="28D5D13A-8D91-49BF-B670-4089ABF15198">
+                                    <File Id="filGy7m.oLHSo.nSwT6NdVoPshELZQ" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\967.e040a6f711a526d4.js" />
+                                </Component>
+                                <Component Id="cmps6FgSoOmCUq4DlgVDuNiAPWAf9E" Guid="11723A26-13C0-4F78-989F-53FE8E4EFB32">
+                                    <File Id="filFY1IzNha8lcU22IU5rD4TuO1GPE" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\f6d0a8ec-6458b7e92ca6364d.js" />
+                                </Component>
+                                <Component Id="cmpm5mD6CsoPm494fN2z1rWz10bQUQ" Guid="55557950-1816-4C04-8A2E-908FE35EAC4A">
+                                    <File Id="fil8zuL9EbRdK.BrvXuDsF0qtcAzXA" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\framework-f593a28cde54158e.js" />
+                                </Component>
+                                <Component Id="cmpa3vNXtEUnvGAoeFmbp0RLUfD.QA" Guid="C53ABDD3-0F99-423D-8843-B9D2DB843637">
+                                    <File Id="filIcQIK_l.g3orWuzfKoMl8qwnnhU" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\main-0945b6f18dba43f4.js" />
+                                </Component>
+                                <Component Id="cmpbSZs31qZEo3G.ho8r6roe2kek2M" Guid="9B7FCA69-82A3-469F-BF21-3470C26A2FCF">
+                                    <File Id="filYGiKgPpwiXAAGBA1aN.zbbpBlAY" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\main-app-77724cf219638cc6.js" />
+                                </Component>
+                                <Component Id="cmpw5ijXL59v.uWD6zrlVlM17UlBtg" Guid="6D674258-706E-4772-8674-E5273443F526">
+                                    <File Id="filTyDO2pDX0gir2JYTY9QPWx8glmI" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\polyfills-42372ed130431b0a.js" />
+                                </Component>
+                                <Component Id="cmpYgutUUS04Eiuv9Xym._xq5vYHZw" Guid="10EE50C7-5B3B-4C79-9F06-73DDB520838F">
+                                    <File Id="fil37U8cYdovUZnXepGiBbBm9do4Ls" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\webpack-bb50ce9e5e789d5a.js" />
+                                </Component>
+                                <Directory Id="dir3wHo3_f5g3efGyosekpHIjykows" Name="app">
+                                    <Directory Id="dirVey1aa8Ev2AnZrlbzThPg7bpai8" Name="[locale]">
+                                        <Component Id="cmpE8tOSeJY4Psj0FLpJYA1TMToylE" Guid="D2475DD0-3CFC-4120-BEAC-595CC9FC1025">
+                                            <File Id="filyJVjNYXSp6XrINAWZxclLxGZtQM" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\app\[locale]\layout-907b45fa4f0c8f3f.js" />
+                                        </Component>
+                                        <Component Id="cmpcGWm5Ny_6xWgKi1mgHUU6JBuftY" Guid="5D25846F-C6FD-418D-9705-7B5000B490B3">
+                                            <File Id="filJAUbxTBW9GtrEl3BAWl3AuqJ2x8" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\app\[locale]\page-44f9d78252b9ae62.js" />
+                                        </Component>
+                                    </Directory>
+                                    <Directory Id="dirajlOklctmegz0j6WCmo0mRFR2Z8" Name="_not-found">
+                                        <Component Id="cmpwcI4nl6rKxvS5ulKFdhic7t31KQ" Guid="C07A1A17-3D51-410B-932F-92FAC3AEB455">
+                                            <File Id="filqvt5zXZFWuSPWSnKnGu3MnLdO6M" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\app\_not-found\page-29aac20e2378fa54.js" />
+                                        </Component>
+                                    </Directory>
+                                </Directory>
+                                <Directory Id="dir9A4j8Gqya1D8GwLqcBJnGshbrms" Name="pages">
+                                    <Component Id="cmpXiCd8qts1Wvs6oKtylR_4Zs1SSA" Guid="8BB55C5D-01FA-430B-81EA-32B31E33B202">
+                                        <File Id="filGqogUtjq4bFlW7hjx19.xsQXG3E" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\pages\_app-92f2aae776f86b9c.js" />
+                                    </Component>
+                                    <Component Id="cmpB307gXPij0c11cKPVVHiAnnVGc0" Guid="27C5D91B-BAC3-43E5-BA05-2CB584291170">
+                                        <File Id="filIcZhteNhVEgSVxmi4BTkpS1yXAc" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\chunks\pages\_error-71d2b6a7b832d02a.js" />
+                                    </Component>
+                                </Directory>
+                            </Directory>
+                            <Directory Id="dirN2rupVghi7xyBDrfY.kmiFqzbsw" Name="LcuF5qd8Aj2ZENS_qFfdy">
+                                <Component Id="cmpmqSX6EhQb2jROnONGaMGiQh9nko" Guid="FF0A4DCA-EF5E-4905-9566-27ABFF82127D">
+                                    <File Id="filerTVrPGzQPZe.5tXKg3nqCwvkns" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\LcuF5qd8Aj2ZENS_qFfdy\_buildManifest.js" />
+                                </Component>
+                                <Component Id="cmpOznV.Xmu8yrMzhJNAu6.O1tHB6s" Guid="6CDA83E4-6E0B-407C-B7AC-72799D1BADC1">
+                                    <File Id="filNliRi7r2oTnBFeMUZAyOx9QBK6o" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\LcuF5qd8Aj2ZENS_qFfdy\_ssgManifest.js" />
+                                </Component>
+                            </Directory>
+                            <Directory Id="dirc141ZyXhIXp12lqvJXZPKwB74UU" Name="media">
+                                <Component Id="cmprBuODXWh_PjZrt.rZONsyHGy3hA" Guid="F2D4C01F-967E-4F4B-8D0D-6229332B0105">
+                                    <File Id="filyuMs5f_R41912Fqjya.18T_jk7o" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-bdg-subs-m.3e8146ae.svg" />
+                                </Component>
+                                <Component Id="cmpmMpq7R1oOf.Ese7T94ii63wHTug" Guid="9AD45AAC-5A4F-4136-BBF9-1C0170E897F1">
+                                    <File Id="filZLxW5.Kmf601RIOFyhSPNvtOMu0" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-01.a66d9244.svg" />
+                                </Component>
+                                <Component Id="cmpiqk2zpxKrhmfxI53f6_ylynh0Hk" Guid="D35E2A7C-8232-4EDA-9EF4-1D41A3D46661">
+                                    <File Id="fil77a0Y5MF0e9VrUMUFAA5gMufGRY" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-02.4f2cafe5.svg" />
+                                </Component>
+                                <Component Id="cmpiY0RHiZunenjcF0u.yXs8b41Whg" Guid="7C17153A-BD18-48FE-BF68-5BEF6F458D80">
+                                    <File Id="filbt4ZKt7kkNKfASSagGZXjFrLOvw" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-03.70f2b455.svg" />
+                                </Component>
+                                <Component Id="cmp_dd_MQoB5V3sWbYgd.NpaAnTacY" Guid="11250486-584A-4755-B95B-40368F66267F">
+                                    <File Id="filTFK_q7gX8VHIFyyJynoNLJuSvWM" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-04.3130804a.svg" />
+                                </Component>
+                                <Component Id="cmp8UDhX6DXFAlLxYb8qzuJqLPm5.Y" Guid="0526103D-F527-4ABF-A9F2-C205D16408BB">
+                                    <File Id="fildb49dhDUpNAAec4iLaq3NQQ4qDU" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-05.aa15dec8.svg" />
+                                </Component>
+                                <Component Id="cmpVIxPauuURAi.tsN1AyzJ8sTtkVo" Guid="EB438B64-83C3-457D-82D7-A0BB7B7C2BF6">
+                                    <File Id="filLtOqJKGNlWcGdKxMdf0REUFrP98" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-06.bde76389.svg" />
+                                </Component>
+                                <Component Id="cmpDB68.BYLzb8H.aqHtaoPwcUImig" Guid="A341FB6F-F1F9-41EE-8B85-42CA0891DC93">
+                                    <File Id="filoUvyfgEfhRmgLjYtciKTzzDT7Hs" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-07.d429d412.svg" />
+                                </Component>
+                                <Component Id="cmp.eW.aggtKOxO1lUFJfvIqrQvyjU" Guid="29EE475A-2F8C-4EF9-9652-8045CF660F82">
+                                    <File Id="fil2anvuwtpFNM9fc8RNrHjidmlIoM" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-08.0cd997a9.svg" />
+                                </Component>
+                                <Component Id="cmpvQsoUtMvgnkHFw3YYP6Dl.EdKNE" Guid="EF914677-8CD1-4861-83F4-503A08BED321">
+                                    <File Id="filryhSlPkEm1BqZAJS_P3oX0CibJg" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-09.8922b420.svg" />
+                                </Component>
+                                <Component Id="cmpBl1QbNgIfiM2XvlQM7oVhLEC2mk" Guid="BB647CFC-8673-4FF0-B2ED-CBF9FB9D76CB">
+                                    <File Id="filM.noarzot__mvl4d6AzqhbfBbZk" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-10.3423c534.svg" />
+                                </Component>
+                                <Component Id="cmp2AOGgzY0o.62GESTlN00WeqU334" Guid="DECEF43E-6F71-4199-B090-8DA535B889DA">
+                                    <File Id="filfzhv8jz_mrQyQqpTMQPxEWPom94" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-12.0f7ef918.svg" />
+                                </Component>
+                                <Component Id="cmpA3oYDi4yoqqRK._B..35XkEZ5zI" Guid="2E386476-CDC8-448A-AAAE-4F53CD762580">
+                                    <File Id="filbMw9rBfCSW46PDZ3n.5ocQEiLyQ" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-13.866f77f9.svg" />
+                                </Component>
+                                <Component Id="cmpqiIJin_oQp2JUiTxfkUAEe2Gz4M" Guid="8516E453-7D9F-4821-95AD-0EFA710A3A09">
+                                    <File Id="filtKSEl1coMXoUbogXdU3SS1MXwHI" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-14.7025701e.svg" />
+                                </Component>
+                                <Component Id="cmpBWG8KQ8RNeGepsTbWVCRu6Sxbxc" Guid="67E11110-14F4-492C-873D-54D2C0980EBF">
+                                    <File Id="filEyhJ1ktYML36JN_FPVlDjPYcOaQ" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-15.22ee742c.svg" />
+                                </Component>
+                                <Component Id="cmpYW0sHtLaQ.nYAr30nXPaUZcOy8I" Guid="937DF9A3-7DEA-4FCC-998B-A39668608335">
+                                    <File Id="fil7riXsq0tqWCxeqyw9hx.IQlI27g" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-16.bf764d0a.svg" />
+                                </Component>
+                                <Component Id="cmpwnxpghLFNol9oSjfsYpFnj59DpQ" Guid="580296E9-AC83-4BCA-8A1F-4D2EAF29EB43">
+                                    <File Id="filbSH41maJN.VtZ9T0fTMs.9whyhQ" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-17.e4bd7565.svg" />
+                                </Component>
+                                <Component Id="cmpYVbDUhx6MZAzqIAQfekBKFwdJXw" Guid="4504AF28-6D6B-439C-A8A2-633566A2DF9C">
+                                    <File Id="filmNkWZ3L1E6uVnI79g6396Omy0ZY" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-18.7be28b3f.svg" />
+                                </Component>
+                                <Component Id="cmpmJsD.EvomrU5UJPRVFjgqrFXoqM" Guid="D349F0E8-51BA-42A2-A236-1A502190123E">
+                                    <File Id="filtnthlPwRNsJGbRrYLcfqKeyBYmM" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-19.5b7290d1.svg" />
+                                </Component>
+                                <Component Id="cmpVCYpSMFhSwZSAHoztYSAHixfJ8g" Guid="18878994-88E6-421E-9CCD-2A574004836F">
+                                    <File Id="fil4FcYf6giZP2NEb2h_PNo9FEuLok" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-20.450ff26f.svg" />
+                                </Component>
+                                <Component Id="cmpUEVtVP3lD5xyJuQjIPpX.rsenjs" Guid="DAFEDA80-5799-40F9-954A-FF97D4396C20">
+                                    <File Id="fil6oBgd9KuHceHXAAIJL2EGqze5.s" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-22.d5cc417c.svg" />
+                                </Component>
+                                <Component Id="cmpS3nxYiEVMgTf4T3aH.hJpS4DHVc" Guid="3E9D1C6E-0BC3-49FB-AC20-DFCDE0D02D20">
+                                    <File Id="filvyAV.PqcKC4e.HauLrjPM5nOTds" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-23.ea8a7448.svg" />
+                                </Component>
+                                <Component Id="cmpNwYSqeFPF3wNGBp422kXBIj120k" Guid="1581B0B7-745B-4CA6-AAF3-44DFEE7C4D68">
+                                    <File Id="filOTbZRcg3HtPBjhcKwXew7Z8r1rI" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-24.f45e1f3d.svg" />
+                                </Component>
+                                <Component Id="cmpKPp2o3K_AxTa2uTO76o09pzLkj8" Guid="AFC179EE-CF9A-4C80-927C-ADE07780AABB">
+                                    <File Id="fil_Lx7g53TOb.DyVucmG1ye4fCO_Q" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-25.5fca747f.svg" />
+                                </Component>
+                                <Component Id="cmpwWfsqLant9xtyGhqrGSgJf3GN8w" Guid="2B0B7B00-E691-47AE-840C-21C9E01235FF">
+                                    <File Id="fil1lIcPu_kQp70HtbsfxSzqNiLhko" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-26.8306ea3d.svg" />
+                                </Component>
+                                <Component Id="cmp0l0V5bGvG2kWO8bHh6Gq9CyOVKE" Guid="A21F78EA-17CF-43C3-95E4-6BCB46723F34">
+                                    <File Id="fila5Hz92TR7Y5MieVhXBEkcFKxQd4" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-27.82938534.svg" />
+                                </Component>
+                                <Component Id="cmpQ1KwJXG6GxRIJ_UGUMOh.z1dITg" Guid="AC2FAC92-003A-428E-A834-E78BA110507B">
+                                    <File Id="filY3vRAMozzMqZMdPKs.s9EJyi7ao" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-28.e1ef6f43.svg" />
+                                </Component>
+                                <Component Id="cmpGx9udB_mc1uhQzTVC1QvyWdcuZk" Guid="DBE5266C-681B-4E98-9D10-3B7E13D743C6">
+                                    <File Id="filSETtqenMfmn782kJT6qORDHh0Uc" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-default.71f79125.svg" />
+                                </Component>
+                                <Component Id="cmpfCMM4x2IuV8CHCw6bTJ2KK4QE_U" Guid="8B270FC4-D6BE-4301-8F1E-2955435BB32B">
+                                    <File Id="filMUpmqMhDY9zWu3SAbZa.KEIqf5g" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\html\chat\_next\static\media\ic-msg-guardian.b6284d25.svg" />
+                                </Component>
+                            </Directory>
+                        </Directory>
+                    </Directory>
+                </Directory>
+            </Directory>
+            <Directory Id="diroafhly1ciS9WV5tlcb5nkU399gw" Name="locale">
+                <Component Id="cmpGfbbuPTcI6xvUV5P95fGKDOuUVc" Guid="0A6764DC-A888-47FB-9121-3161A72A651F">
+                    <File Id="filIuCXwttcWNgw0ruP1l4DhQqRpDg" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\locale\en-US.ini" />
+                </Component>
+                <Component Id="cmp1DJWnmZgJRwPGYZ1lls5N4y29pk" Guid="CEA0013D-71F7-4EB0-8B89-B63E9099CF1B">
+                    <File Id="fil5cvShpZ43pJafNqoE3bJFF7gYFg" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\locale\ja-JP.ini" />
+                </Component>
+                <Component Id="cmpdthXrXRiAa_1ADL_WWRkWgwySZg" Guid="525B56DE-BFC7-491C-9D64-0E476BBAFBBB">
+                    <File Id="filLZbvjLNYmKSfC_j5x7F5sQd7VzQ" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\locale\zh-CN.ini" />
+                </Component>
+                <Component Id="cmpe4tZZzl7nplXvID2j37meXEu0yA" Guid="80B6B138-EDF3-4063-A9C2-EF1F9EB1ACA0">
+                    <File Id="filtd7Jl2yxvs3zOjexchILgRhO328" KeyPath="yes" Source="C:\Users\profi\yzz\obs-17live\data\locale\zh-TW.ini" />
+                </Component>
+            </Directory>
+        </DirectoryRef>
+    </Fragment>
+    <Fragment>
+        <ComponentGroup Id="Obs17livePluginData">
+            <ComponentRef Id="cmpH1caRiWg85GxUwbS9XlFol4qbcU" />
+            <ComponentRef Id="cmpPV3Wi603.D5KolZs_pNCSGs5UGg" />
+            <ComponentRef Id="cmprLiKzBKfckJ2RGOvt_K5aOw1NS4" />
+            <ComponentRef Id="cmpF6BdIRfgAfvL1qR6IxOjIql92pI" />
+            <ComponentRef Id="cmp5tlJGApSy2i5SayOxBEtGrkrtZM" />
+            <ComponentRef Id="cmpRR9fWgfggbn2aW3elIWeSJK0eYY" />
+            <ComponentRef Id="cmpznDi3mSTyIPYeRlwZzCLYcPsqh8" />
+            <ComponentRef Id="cmpuqZW1j3KMpkEX9UTISZfCy8ik0o" />
+            <ComponentRef Id="cmpVrcrdSCted4END_nN8HyhMZUCes" />
+            <ComponentRef Id="cmpCXiU4bctsFuGb7fC5TZH4sPNVxM" />
+            <ComponentRef Id="cmppr1GSzDeoSuEkGIH9e7B1jR9BsQ" />
+            <ComponentRef Id="cmpqntViF_ZY9bWwRLnupGS9V6w9Mk" />
+            <ComponentRef Id="cmpin88.u4QQH3CFFFP0mPbLkMmTKQ" />
+            <ComponentRef Id="cmpNBAWRgcmtD8v.LfGiGDfDKGKAZU" />
+            <ComponentRef Id="cmpYDPiPpytUPyJ9TvQ9atB20QU6kE" />
+            <ComponentRef Id="cmputkwfhm0SGaxJ6ebfk0BCUOESkg" />
+            <ComponentRef Id="cmpFONypZJds2MtEhL760J7hopU6W8" />
+            <ComponentRef Id="cmpiKZpA8HCgJo_yQXKt1AFCudt4sI" />
+            <ComponentRef Id="cmpbNDzVvS.cFRXG2AY81fAO2mq1BQ" />
+            <ComponentRef Id="cmp2bLTazHT0V_zHfYSumbiePBJkGM" />
+            <ComponentRef Id="cmphE.2.gIJzpOLnPznTjKylmpDD2U" />
+            <ComponentRef Id="cmphtlAgmWYsm.TIPpailYfa52kfzc" />
+            <ComponentRef Id="cmpI6D_M0NFIqCN4TRVUeICMSKdXQo" />
+            <ComponentRef Id="cmpkXySdFs0OaAS6aXP7aH742ZAk_s" />
+            <ComponentRef Id="cmpEWxd4UqNOQCrdXtH4sES8w3gIU0" />
+            <ComponentRef Id="cmpx2IMqj_ouPkVb9Xwy1zi.78v_Gk" />
+            <ComponentRef Id="cmpKqjwKz7l_p5CeZijq50o509DE6M" />
+            <ComponentRef Id="cmpngA8wgVDozwF0AWNtkALalq0QsE" />
+            <ComponentRef Id="cmpZt5H41TiTZ5sCcjnwDGtYR3D0ng" />
+            <ComponentRef Id="cmpz0dxYB8Ui7E58hKb8jJHqaYZ9ds" />
+            <ComponentRef Id="cmpCNrybvYcZyg9biOwDNCsOvTeJH8" />
+            <ComponentRef Id="cmptdSYIkYNnp6Old1cUOra_lD1e.Q" />
+            <ComponentRef Id="cmpfOXByGYq_.JVcWERO6aPhwuYKOM" />
+            <ComponentRef Id="cmprokniBsdRNaegQJeh6oJOesiikc" />
+            <ComponentRef Id="cmpG4XzxApqwg3L6GFqFg6GYqe5j80" />
+            <ComponentRef Id="cmp2TxOD6_crKjaue9eth.o6lVI2ys" />
+            <ComponentRef Id="cmpx7qZassHyg300R6V.mnxv2V__6I" />
+            <ComponentRef Id="cmpNPLoTkoXBKckMNBz7cUnH90WtOY" />
+            <ComponentRef Id="cmp.ihjyl8JD1V2ALI_vOPVJ.Vj15I" />
+            <ComponentRef Id="cmpxC8w8WxwlUlGLKbl_9yUBvCH1ss" />
+            <ComponentRef Id="cmplrBlfCcb5pRv9HzL72aIqOGztMQ" />
+            <ComponentRef Id="cmp0IvXAyp1txnEOOr5nKhj1k446kg" />
+            <ComponentRef Id="cmpNwZIMXix4J4aOzeu89XtUH5ykgE" />
+            <ComponentRef Id="cmps6FgSoOmCUq4DlgVDuNiAPWAf9E" />
+            <ComponentRef Id="cmpm5mD6CsoPm494fN2z1rWz10bQUQ" />
+            <ComponentRef Id="cmpa3vNXtEUnvGAoeFmbp0RLUfD.QA" />
+            <ComponentRef Id="cmpbSZs31qZEo3G.ho8r6roe2kek2M" />
+            <ComponentRef Id="cmpw5ijXL59v.uWD6zrlVlM17UlBtg" />
+            <ComponentRef Id="cmpYgutUUS04Eiuv9Xym._xq5vYHZw" />
+            <ComponentRef Id="cmpE8tOSeJY4Psj0FLpJYA1TMToylE" />
+            <ComponentRef Id="cmpcGWm5Ny_6xWgKi1mgHUU6JBuftY" />
+            <ComponentRef Id="cmpwcI4nl6rKxvS5ulKFdhic7t31KQ" />
+            <ComponentRef Id="cmpXiCd8qts1Wvs6oKtylR_4Zs1SSA" />
+            <ComponentRef Id="cmpB307gXPij0c11cKPVVHiAnnVGc0" />
+            <ComponentRef Id="cmpmqSX6EhQb2jROnONGaMGiQh9nko" />
+            <ComponentRef Id="cmpOznV.Xmu8yrMzhJNAu6.O1tHB6s" />
+            <ComponentRef Id="cmprBuODXWh_PjZrt.rZONsyHGy3hA" />
+            <ComponentRef Id="cmpmMpq7R1oOf.Ese7T94ii63wHTug" />
+            <ComponentRef Id="cmpiqk2zpxKrhmfxI53f6_ylynh0Hk" />
+            <ComponentRef Id="cmpiY0RHiZunenjcF0u.yXs8b41Whg" />
+            <ComponentRef Id="cmp_dd_MQoB5V3sWbYgd.NpaAnTacY" />
+            <ComponentRef Id="cmp8UDhX6DXFAlLxYb8qzuJqLPm5.Y" />
+            <ComponentRef Id="cmpVIxPauuURAi.tsN1AyzJ8sTtkVo" />
+            <ComponentRef Id="cmpDB68.BYLzb8H.aqHtaoPwcUImig" />
+            <ComponentRef Id="cmp.eW.aggtKOxO1lUFJfvIqrQvyjU" />
+            <ComponentRef Id="cmpvQsoUtMvgnkHFw3YYP6Dl.EdKNE" />
+            <ComponentRef Id="cmpBl1QbNgIfiM2XvlQM7oVhLEC2mk" />
+            <ComponentRef Id="cmp2AOGgzY0o.62GESTlN00WeqU334" />
+            <ComponentRef Id="cmpA3oYDi4yoqqRK._B..35XkEZ5zI" />
+            <ComponentRef Id="cmpqiIJin_oQp2JUiTxfkUAEe2Gz4M" />
+            <ComponentRef Id="cmpBWG8KQ8RNeGepsTbWVCRu6Sxbxc" />
+            <ComponentRef Id="cmpYW0sHtLaQ.nYAr30nXPaUZcOy8I" />
+            <ComponentRef Id="cmpwnxpghLFNol9oSjfsYpFnj59DpQ" />
+            <ComponentRef Id="cmpYVbDUhx6MZAzqIAQfekBKFwdJXw" />
+            <ComponentRef Id="cmpmJsD.EvomrU5UJPRVFjgqrFXoqM" />
+            <ComponentRef Id="cmpVCYpSMFhSwZSAHoztYSAHixfJ8g" />
+            <ComponentRef Id="cmpUEVtVP3lD5xyJuQjIPpX.rsenjs" />
+            <ComponentRef Id="cmpS3nxYiEVMgTf4T3aH.hJpS4DHVc" />
+            <ComponentRef Id="cmpNwYSqeFPF3wNGBp422kXBIj120k" />
+            <ComponentRef Id="cmpKPp2o3K_AxTa2uTO76o09pzLkj8" />
+            <ComponentRef Id="cmpwWfsqLant9xtyGhqrGSgJf3GN8w" />
+            <ComponentRef Id="cmp0l0V5bGvG2kWO8bHh6Gq9CyOVKE" />
+            <ComponentRef Id="cmpQ1KwJXG6GxRIJ_UGUMOh.z1dITg" />
+            <ComponentRef Id="cmpGx9udB_mc1uhQzTVC1QvyWdcuZk" />
+            <ComponentRef Id="cmpfCMM4x2IuV8CHCw6bTJ2KK4QE_U" />
+            <ComponentRef Id="cmpGfbbuPTcI6xvUV5P95fGKDOuUVc" />
+            <ComponentRef Id="cmp1DJWnmZgJRwPGYZ1lls5N4y29pk" />
+            <ComponentRef Id="cmpdthXrXRiAa_1ADL_WWRkWgwySZg" />
+            <ComponentRef Id="cmpe4tZZzl7nplXvID2j37meXEu0yA" />
+        </ComponentGroup>
+    </Fragment>
+</Wix>
