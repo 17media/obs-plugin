@@ -10,7 +10,7 @@ npm install
 npm run build
 ```
 
-** Note: run `cmake --preset [macos|windows-x64]` every time you make changes to the chat room app. **
+**Note: run `cmake --preset [macos|windows-x64]` every time you make changes to the chat room app.**
 
 ## Windows x64
 
@@ -33,7 +33,7 @@ cmake --preset windows-x64
 
 Then open the generated solution file `build_x64\obs-17live.sln` in Visual Studio. Build the plugin. 
 
-** Note: Release build is mandatory, because obs-studio does not support debug builds. **
+**Note: Release build is mandatory, because obs-studio does not support debug builds.**
 
 ## macOS
 
@@ -51,3 +51,12 @@ cmake --preset macos
 ```
 
 Then open the generated Xcode project `build_macos/obs-17live.xcodeproj`. Build the plugin.
+
+## production build
+
+To enable API url for production
+
+```bash
+cmake --preset macos-prod
+cmake --preset windows-x64-prod
+```

@@ -77,7 +77,7 @@
       "name": "windows-x64-prod",
       "inherits": ["windows-x64"],
       "cacheVariables": {
-        "SEVENTEENLIVE_API_URL": "https://sta-wap-api.17app.co"
+        "SEVENTEENLIVE_API_URL": "https://wap-api.17app.co"
       }
     },
     {
