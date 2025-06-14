@@ -47,6 +47,17 @@ if(ENABLE_QT)
   )
 endif()
 
+# 添加CEF支持
+# CEF_ROOT_DIR 应该已经在 defaults.cmake -> buildspec.cmake 中被设置
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+if(CEF_ROOT_DIR)
+  set(CEF_ROOT "${CEF_ROOT_DIR}")
+  message(STATUS "Using CEF_ROOT: ${CEF_ROOT}")
+else()
+  message(FATAL_ERROR "CEF_ROOT_DIR not set. Dependencies may not have been processed correctly.")
+endif()
+find_package(CEF REQUIRED)
+
 # 添加 json11 依赖
 add_subdirectory(deps/json11)
 # 添加 wrappers 依赖
@@ -62,17 +73,6 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CEF_ROOT_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}/src # 用于找到生成的plugin-support.c
 )
-
-# 添加CEF支持
-# CEF_ROOT_DIR 应该已经在 defaults.cmake -> buildspec.cmake 中被设置
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-if(CEF_ROOT_DIR)
-  set(CEF_ROOT "${CEF_ROOT_DIR}")
-  message(STATUS "Using CEF_ROOT: ${CEF_ROOT}")
-else()
-  message(FATAL_ERROR "CEF_ROOT_DIR not set. Dependencies may not have been processed correctly.")
-endif()
-find_package(CEF REQUIRED)
 
 # 链接 json11, wrappers 库
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
