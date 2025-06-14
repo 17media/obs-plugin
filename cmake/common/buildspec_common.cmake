@@ -94,7 +94,7 @@ function(_setup_obs_studio)
     COMMAND_ERROR_IS_FATAL ANY
     OUTPUT_QUIET
   )
-  message(STATUS "Build ${label} (Reelase - ${arch}) - done")
+  message(STATUS "Build ${label} (Release - ${arch}) - done")
 
   message(STATUS "Install ${label} (${arch})")
   execute_process(
@@ -123,6 +123,14 @@ function(_check_dependencies)
   string(JSON dependency_data GET ${buildspec} dependencies)
 
   foreach(dependency IN LISTS dependencies_list)
+    set(orig_arch ${arch})
+    set(orig_platform ${platform})
+
+    if(dependency STREQUAL cef AND OS_MACOS)
+      set(arch ${CMAKE_HOST_SYSTEM_PROCESSOR})
+      set(platform macos-${arch})
+    endif()
+
     string(JSON data GET ${dependency_data} ${dependency})
     string(JSON version GET ${data} version)
     string(JSON hash GET ${data} hashes ${platform})
@@ -170,7 +178,7 @@ function(_check_dependencies)
       continue()
     endif()
 
-    if(dependency STREQUAL obs-studio)
+    if(dependency STREQUAL obs-studio OR dependency STREQUAL cef)
       set(url ${url}/${file})
     else()
       set(url ${url}/${version}/${file})
@@ -214,9 +222,15 @@ function(_check_dependencies)
       set(_obs_version ${version})
       set(_obs_destination "${destination}")
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}")
+    elseif(dependency STREQUAL cef)
+      set(CEF_ROOT_DIR "${dependencies_dir}/${destination}" CACHE PATH "CEF root directory" FORCE)
+      message(STATUS "cef root directory: ${CEF_ROOT_DIR}")
     endif()
 
     message(STATUS "Setting up ${label} (${arch}) - done")
+
+    set(arch ${orig_arch})
+    set(platform ${orig_platform})
   endforeach()
 
   list(REMOVE_DUPLICATES CMAKE_PREFIX_PATH)
