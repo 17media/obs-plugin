@@ -402,7 +402,8 @@ bool SeventeenLiveApiWrappers::EnableStreamArchive(const std::string &liveStream
     
   std::string error;
 	Json json_out_resp;
-	if (!InsertCommand(url.constData(), "application/json", "", nullptr, json_out_resp)) {
+  // null post data, explicitly set request type as POST
+	if (!InsertCommand(url.constData(), "application/json", "POST", nullptr, json_out_resp)) {
     obs_log(LOG_ERROR, "EnableStreamArchive error: %s", json_out_resp.dump().c_str());
     lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " + QString::fromStdString(json_out_resp["errorMessage"].string_value());
 		return false;
