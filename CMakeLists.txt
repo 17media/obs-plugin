@@ -88,14 +88,6 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/cpp-httplib
 )
 
-# If OpenSSL support is needed for httplib, you'll need to find and link OpenSSL
-# option(WITH_OPENSSL "Enable OpenSSL for cpp-httplib" ON)
-# if(WITH_OPENSSL)
-#   find_package(OpenSSL REQUIRED)
-#   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-#   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
-# endif()
-
 # 配置plugin-support.c文件
 configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
 
