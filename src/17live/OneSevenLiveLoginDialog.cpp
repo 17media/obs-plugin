@@ -32,6 +32,8 @@ void OneSevenLiveLoginDialog::setupUi()
         "QDialog {"
         "    background-color: #000000;"
         "    color: white;"
+        "   font-family: 'Inter';"
+        "   font-style: normal;"
         "}"
     );
     
@@ -53,12 +55,22 @@ void OneSevenLiveLoginDialog::setupUi()
     loginTitleLabel->setAlignment(Qt::AlignLeft);
     loginTitleLabel->setStyleSheet(
         "QLabel {"
-        "    color: white;"
-        "    font-size: 24px;"
-        "    font-weight: bold;"
-        "    margin-bottom: 10px;"
+        "   font-family: 'Inter';"
+        "   font-style: normal;"
+        "   font-weight: 600;"
+        "   font-size: 32px;"
+        "   line-height: 40px;"
+// /* identical to box height, or 143% */
+// display: flex;
+// align-items: center;
+// letter-spacing: -0.02em;
+        "   color: #FFFFFF;"
         "}"
     );
+
+
+
+
     mainLayout->addWidget(loginTitleLabel);
     
     QWidget* idLabelContainer = new QWidget(this);
