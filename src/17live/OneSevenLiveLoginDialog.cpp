@@ -64,6 +64,7 @@ void OneSevenLiveLoginDialog::setupUi()
     QWidget* idLabelContainer = new QWidget(this);
     QHBoxLayout* idLabelLayout = new QHBoxLayout(idLabelContainer);
     idLabelLayout->setContentsMargins(0, 0, 0, 0);
+    idLabelLayout->setSpacing(0);
     
     QLabel* idLabel = new QLabel("ID", this);
     idLabel->setStyleSheet(
@@ -75,6 +76,8 @@ void OneSevenLiveLoginDialog::setupUi()
     );
     idLabelLayout->addWidget(idLabel);
     mainLayout->addWidget(idLabelContainer);
+
+    mainLayout->addSpacing(5);
 
     // Username input field
     usernameEdit = new QLineEdit(this);
