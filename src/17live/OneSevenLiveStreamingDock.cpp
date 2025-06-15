@@ -338,8 +338,10 @@ void OneSevenLiveStreamingDock::setupUi()
     saveConfigButton->setStyleSheet("background-color: red; color: white;");
     createLiveButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
     createLiveButton->setStyleSheet("background-color: red; color: white;");
-    buttonLayout->addWidget(saveConfigButton);
-    buttonLayout->addWidget(createLiveButton);
+    
+    // Set saveConfigButton width to half of createLiveButton
+    buttonLayout->addWidget(saveConfigButton, 1);
+    buttonLayout->addWidget(createLiveButton, 2);
     mainLayout->addLayout(buttonLayout);
     
     scrollArea->setWidget(container); // Set container as scrollArea content
