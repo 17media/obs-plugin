@@ -269,18 +269,20 @@ void OneSevenLiveCoreManager::handleLogoutClicked()
         QMessageBox msgBox;
         msgBox.setWindowTitle(obs_module_text("Logout.Warning.Title"));
         msgBox.setText(obs_module_text("Logout.Warning.Message"));
-        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-        msgBox.setDefaultButton(QMessageBox::No);
-        
-        int ret = msgBox.exec();
-        if (ret == QMessageBox::Yes) {
-            // User confirmed, stop streaming using the streaming dock's method
-            if (streamingDock) {
-                streamingDock->closeLive();
-            }
-        } else {
-            // User cancelled, do nothing
+        QPushButton *confirmButton = msgBox.addButton(obs_module_text("Logout.Warning.Button.Yes"), QMessageBox::YesRole);
+        QPushButton *cancelButton = msgBox.addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
+        msgBox.setDefaultButton(cancelButton);
+    
+        msgBox.exec();
+        if (msgBox.clickedButton() != confirmButton) {
+            // User cancelled the operation
             return;
+        }
+
+        
+        // User confirmed, stop streaming using the streaming dock's method
+        if (streamingDock) {
+            streamingDock->closeLive();
         }
     }
 
