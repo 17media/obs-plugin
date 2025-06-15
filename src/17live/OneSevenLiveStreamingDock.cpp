@@ -736,6 +736,11 @@ void OneSevenLiveStreamingDock::updateTagsFromList()
     
     // Add flexible space to align tags to the left
     tagsLayout->addStretch();
+    
+    // Check if tags limit is reached and disable/enable UI accordingly
+    bool limitReached = tagsList.size() >= hashtagSelectLimit;
+    addTagButton->setEnabled(!limitReached);
+    tagEdit->setEnabled(!limitReached);
 }
 
 void OneSevenLiveStreamingDock::onSaveConfigClicked()
