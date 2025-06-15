@@ -101,12 +101,6 @@ void OneSevenLiveLoginDialog::setupUi()
         "    padding: 0 15px;"
         "    font-size: 14px;"
         "}"
-        "QLineEdit::placeholder {"
-        "    color: #888888;"
-        "}"
-        "QLineEdit:focus {"
-        "    border: 2px solid #4A90E2;"
-        "}"
     );
     mainLayout->addWidget(usernameEdit);
 
@@ -191,11 +185,6 @@ void OneSevenLiveLoginDialog::setupUi()
         "    border-radius: 2px 0 0 2px;"
         "    padding: 0 15px;"
         "}"
-        "QLineEdit:focus {"
-        "    border: 2px solid #4A90E2;"
-        // "    background-color: #2E2E2E;"
-        "    border-right: none;"
-        "}"
     );
 
     // Add Enter key handling, pressing Enter is equivalent to clicking login button
@@ -211,17 +200,20 @@ void OneSevenLiveLoginDialog::setupUi()
     showPasswordButton->setFixedSize(40, 40);
     showPasswordButton->setStyleSheet(
         "QPushButton {"
-        // "    border: none;"
+        "    border: none;"
         "    border-radius: 0 2px 2px 0;"
-        // "    background-color: #f8f8f8;"
+        "    margin: 0;"
+        "    padding: 0;"
         "}"
     );
-    showPasswordButton->setFlat(true); // Remove button border, closely connected to passwordEdit
+    // showPasswordButton->setFlat(true); // Remove button border, closely connected to passwordEdit
 
     passwordLayout->addWidget(passwordEdit);
     passwordLayout->addWidget(showPasswordButton);
     // passwordLayout->setAlignment(Qt::AlignVCenter);
-    passwordLayout->setAlignment(Qt::AlignTop);
+    // passwordLayout->setAlignment(Qt::AlignTop);
+    passwordLayout->setAlignment(passwordEdit, Qt::AlignVCenter);
+    passwordLayout->setAlignment(showPasswordButton, Qt::AlignVCenter);
 
     mainLayout->addWidget(passwordContainer);
     
