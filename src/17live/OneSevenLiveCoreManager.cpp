@@ -2,6 +2,11 @@
 #include <QMainWindow>
 #include <QDesktopServices>
 #include <QMessageBox>
+#include <QApplication>
+#include <QScreen>
+#include <QTimer>
+#include <QScrollArea>
+#include <QLineEdit>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -305,43 +310,7 @@ void OneSevenLiveCoreManager::handleStreamingClicked()
     obs_log(LOG_INFO, "handleStreamingClicked");
 
     if (!streamingDock) {
-        OneSevenLiveLoginData loginData;
-        if (!configManager->getLoginData(loginData)) {
-            obs_log(LOG_ERROR, "Failed to get login data");
-            return;
-        }
-
-        // Create and show streaming window
-        streamingDock = new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
-
-        streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
-
-        streamingDock->setFloating(true);
-        streamingDock->setVisible(true);
-
-        connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this] () {
-            if (liveListDock) {
-                liveListDock->refreshStreamList();
-            }
-        });
-
-        connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this, [this] (OneSevenLiveStreamingStatus status_) {
-            status = status_;
-        });
-
-        connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
-                                            visible,
-                                            liveListDock && liveListDock->isVisible());
-        });
-        
-        // Connect close signal to main window slot function
-        connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
-            saveDockState();
-        });
-
-        streamingDock->loadRoomInfo(loginData.userInfo.roomID);
+        createStreamingDock();
     } else {
         streamingDock->setVisible(!streamingDock->isVisible());
 
@@ -350,14 +319,57 @@ void OneSevenLiveCoreManager::handleStreamingClicked()
             mainWindow->restoreState(dockState);
     }
 
-
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
                                         streamingDock && streamingDock->isVisible(),
                                         liveListDock && liveListDock->isVisible());
     }
+}
 
+void OneSevenLiveCoreManager::createStreamingDock()
+{ 
+    if (streamingDock) {
+        return;
+    }
+
+    OneSevenLiveLoginData loginData;
+    if (!configManager->getLoginData(loginData)) {
+        obs_log(LOG_ERROR, "Failed to get login data");
+        return;
+    }
+
+    // Create and show streaming window
+    streamingDock = new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
+
+    streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
+
+    streamingDock->setFloating(true);
+    streamingDock->setVisible(true);
+
+    connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this] () {
+        if (liveListDock) {
+            liveListDock->refreshStreamList();
+        }
+    });
+
+    connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this, [this] (OneSevenLiveStreamingStatus status_) {
+        status = status_;
+    });
+
+    connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+                                        visible,
+                                        liveListDock && liveListDock->isVisible());
+    });
+    
+    // Connect close signal to main window slot function
+    connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
+        saveDockState();
+    });
+
+    streamingDock->loadRoomInfo(loginData.userInfo.roomID);
 }
 
 void OneSevenLiveCoreManager::handleLiveListClicked()
@@ -388,9 +400,37 @@ void OneSevenLiveCoreManager::handleLiveListClicked()
         });
     
         connect(liveListDock, &OneSevenLiveStreamListDock::editLiveClicked, this, [this] (const OneSevenLiveStreamInfo& info) {
-            if (streamingDock) {
-                streamingDock->editLiveWithInfo(info);
+            // Create streamingDock if it doesn't exist
+            if (!streamingDock) {
+                createStreamingDock();
             }
+            
+            // Edit live with info
+            streamingDock->editLiveWithInfo(info);
+            
+            // Show streamingDock in center of desktop
+            streamingDock->setVisible(true);
+            streamingDock->raise();
+            streamingDock->activateWindow();
+            
+            // Move to center of screen
+            QRect screenGeometry = QApplication::primaryScreen()->geometry();
+            int x = (screenGeometry.width() - streamingDock->width()) / 2;
+            int y = (screenGeometry.height() - streamingDock->height()) / 2;
+            streamingDock->move(x, y);
+            
+            // Scroll to title edit box and focus on it
+            QTimer::singleShot(100, [this]() {
+                if (streamingDock) {
+                    QScrollArea *scrollArea = streamingDock->findChild<QScrollArea*>();
+                    QLineEdit *titleEdit = streamingDock->findChild<QLineEdit*>("titleEdit");
+                    if (scrollArea && titleEdit) {
+                        scrollArea->ensureWidgetVisible(titleEdit);
+                        titleEdit->setFocus();
+                        titleEdit->selectAll();
+                    }
+                }
+            });
         });
 
         // When dock is closed, uncheck menu item status

@@ -132,6 +132,7 @@ private:
     bool streamingDockFirstLoad = true;
     OneSevenLiveStreamingDock* streamingDock{nullptr};
     void handleStreamingClicked();
+    void createStreamingDock();
 
     void handleChatRoomClicked();
 
