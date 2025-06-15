@@ -17,7 +17,7 @@ using namespace json11;
 
 using namespace std;
 
-// 全局meta数据，在程序启动时加载
+// Global meta data, loaded at program startup
 OneSevenLiveMetaData metaData;
 bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData)
 {
@@ -25,17 +25,17 @@ bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData
         return false;
     }
 
-    // 遍历JSON对象的所有键值对
+    // Iterate through all key-value pairs of JSON object
     for (const auto& pair : json.object_items()) {
         const std::string& key = pair.first;
         const Json& value = pair.second;
         
         if (value.is_array()) {
-            // 处理数组类型
+            // Handle array type
             QVariantList variantList;
             for (const auto& item : value.array_items()) {
                 if (item.is_object()) {
-                    // 处理对象数组
+                    // Handle object array
                     QVariantMap variantMap;
                     for (const auto& objPair : item.object_items()) {
                         variantMap[QString::fromStdString(objPair.first)] = 
@@ -43,19 +43,19 @@ bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData
                     }
                     variantList.append(variantMap);
                 } else if (item.is_string()) {
-                    // 处理字符串数组
+                    // Handle string array
                     variantList.append(QString::fromStdString(item.string_value()));
                 } else if (item.is_number()) {
-                    // 处理数字数组
+                    // Handle number array
                     variantList.append(item.number_value());
                 } else if (item.is_bool()) {
-                    // 处理布尔数组
+                    // Handle boolean array
                     variantList.append(item.bool_value());
                 }
             }
             metaData.data[QString::fromStdString(key)] = variantList;
         } else if (value.is_object()) {
-            // 处理对象类型
+            // Handle object type
             QVariantMap variantMap;
             for (const auto& objPair : value.object_items()) {
                 variantMap[QString::fromStdString(objPair.first)] = 
@@ -63,14 +63,14 @@ bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData
             }
             metaData.data[QString::fromStdString(key)] = variantMap;
         } else if (value.is_string()) {
-            // 处理字符串类型
+            // Handle string type
             metaData.data[QString::fromStdString(key)] = 
                 QString::fromStdString(value.string_value());
         } else if (value.is_number()) {
-            // 处理数字类型
+            // Handle number type
             metaData.data[QString::fromStdString(key)] = value.number_value();
         } else if (value.is_bool()) {
-            // 处理布尔类型
+            // Handle boolean type
             metaData.data[QString::fromStdString(key)] = value.bool_value();
         }
     }

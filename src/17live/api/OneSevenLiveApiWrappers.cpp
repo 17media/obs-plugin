@@ -16,7 +16,7 @@ using namespace std;
 
 extern const char* service;
 
-// 登录接口: ONESEVENLIVE_API_URL + "/api/v1/auth/loginAction"
+// Login API: ONESEVENLIVE_API_URL + "/api/v1/auth/loginAction"
 const string ONESEVENLIVE_LOGIN_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/auth/loginAction";
 
 const string ONESEVENLIVE_APIGATEWAY_URL = string(ONESEVENLIVE_API_URL) + "/apiGateWay";
@@ -248,11 +248,11 @@ bool OneSevenLiveApiWrappers::CommonRequest(const std::string action, Json &json
     {"action", action},
   };
   
-  // 将 JSON 转换为字符串并进行 URL 编码
+  // Convert JSON to string and perform URL encoding
   std::string jsonStr = data.dump();
   QString encodedData = QUrl::toPercentEncoding(QString::fromStdString(jsonStr));
   
-  // 构建最终的 post data
+  // Build final post data
   std::string postData = "cypher=0_v2&data=" + encodedData.toStdString();
   
 
@@ -287,7 +287,7 @@ bool OneSevenLiveApiWrappers::GetRoomInfo(const qint64 roomID, OneSevenLiveRoomI
 {
   lastErrorMessage.clear();
 
-  // 构建请求URL
+  // Build request URL
   QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ROOM_INFO_URL).arg(roomID);
   QByteArray url = urlStr.toUtf8();
 
@@ -299,7 +299,7 @@ bool OneSevenLiveApiWrappers::GetRoomInfo(const qint64 roomID, OneSevenLiveRoomI
     return false;
   }
 
-  // 使用 JsonToOneSevenLiveRoomInfo 函数解析数据到结构体
+  // Use JsonToOneSevenLiveRoomInfo function to parse data to struct
   if (!JsonToOneSevenLiveRoomInfo(json_out, roomInfo)) {
     obs_log(LOG_ERROR, "Failed to parse room info data");
     lastErrorMessage = "Failed to parse room info data";
@@ -316,7 +316,7 @@ QString OneSevenLiveApiWrappers::md5(const QString& str)
   return QString(hash.toHex());
 }
 
-// 添加生成毫秒时间戳的函数
+// Add function to generate millisecond timestamp
 int64_t OneSevenLiveApiWrappers::getCurrentTimestampMs()
 {
     auto now = std::chrono::system_clock::now();

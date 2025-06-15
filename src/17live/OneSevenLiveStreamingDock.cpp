@@ -34,21 +34,21 @@ void OneSevenLiveStreamingDock::setupUi()
     QWidget *container = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
 
-    // 创建滚动区域
+    // Create scroll area
     QScrollArea *scrollArea = new QScrollArea(this);
-    scrollArea->setWidgetResizable(true); // 允许内容调整大小
-    scrollArea->setFrameShape(QFrame::NoFrame); // 移除边框
-    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded); // 需要时显示垂直滚动条
-    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // 禁用水平滚动条
+    scrollArea->setWidgetResizable(true); // Allow content resizing
+    scrollArea->setFrameShape(QFrame::NoFrame); // Remove border
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded); // Show vertical scrollbar when needed
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // Disable horizontal scrollbar
     
-    // 设置最大高度（可以根据需要调整）
-    scrollArea->setMaximumHeight(800); // 设置最大高度为800像素
+    // Set maximum height (adjustable as needed)
+    scrollArea->setMaximumHeight(800); // Set maximum height to 800 pixels
     
-    // 创建加载状态覆盖层 - 注意这里将父部件改为scrollArea
+    // Create loading state overlay - note that parent widget is changed to scrollArea
     loadingOverlay = new QWidget(scrollArea->viewport());
     loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 120);");
     loadingOverlay->setAttribute(Qt::WA_TranslucentBackground);
-    loadingOverlay->setVisible(false); // 初始不可见
+    loadingOverlay->setVisible(false); // Initially invisible
     
     QVBoxLayout *overlayLayout = new QVBoxLayout(loadingOverlay);
     overlayLayout->setAlignment(Qt::AlignCenter);
@@ -58,20 +58,20 @@ void OneSevenLiveStreamingDock::setupUi()
     loadingLabel->setAlignment(Qt::AlignCenter);
     
     loadingProgress = new QProgressBar();
-    loadingProgress->setRange(0, 0); // 设置为不确定进度
+    loadingProgress->setRange(0, 0); // Set to indeterminate progress
     loadingProgress->setTextVisible(false);
     loadingProgress->setFixedSize(200, 10);
     
     overlayLayout->addWidget(loadingLabel);
     overlayLayout->addWidget(loadingProgress);
     
-    // 标题输入
+    // Title input
     QFormLayout *formLayout = new QFormLayout();
-    // 设置为纵向布局，标签在字段上方
+    // Set to vertical layout, labels above fields
     formLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
-    // 设置标签左对齐
+    // Set label left alignment
     formLayout->setLabelAlignment(Qt::AlignLeft);
-    // 设置字段增长方式
+    // Set field growth policy
     formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
     QLabel* titleLabel = new QLabel();
@@ -80,7 +80,7 @@ void OneSevenLiveStreamingDock::setupUi()
     titleEdit = new QLineEdit();
     formLayout->addRow(titleLabel, titleEdit);
     
-    // 类别选择
+    // Category selection
     categoryCombo = new QComboBox();
 
     QLabel* categoryLabel = new QLabel();
@@ -88,10 +88,10 @@ void OneSevenLiveStreamingDock::setupUi()
 
     formLayout->addRow(categoryLabel, categoryCombo);
     
-    // 标签区域
+    // Tags area
     QVBoxLayout *tagContainer = new QVBoxLayout();
     
-    // 输入框和添加按钮
+    // Input box and add button
     QHBoxLayout *tagInputLayout = new QHBoxLayout();
     tagEdit = new QLineEdit();
     tagEdit->setPlaceholderText(obs_module_text("Live.Settings.Tags.Placeholder"));
@@ -100,7 +100,7 @@ void OneSevenLiveStreamingDock::setupUi()
     tagInputLayout->addWidget(addTagButton);
     tagContainer->addLayout(tagInputLayout);
     
-    // 标签显示区域
+    // Tags display area
     tagsContainer = new QWidget();
     tagsLayout = new QHBoxLayout(tagsContainer);
     tagsLayout->setContentsMargins(0, 5, 0, 0);
@@ -112,7 +112,7 @@ void OneSevenLiveStreamingDock::setupUi()
 
     mainLayout->addLayout(formLayout);
     
-    // 开播格式
+    // Stream format
     QGroupBox *streamFormatGroup = new QGroupBox(obs_module_text("Live.Settings.Layout"));
     QHBoxLayout *formatLayout = new QHBoxLayout(streamFormatGroup);
     normalStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Landscape"));
@@ -123,35 +123,35 @@ void OneSevenLiveStreamingDock::setupUi()
     
     mainLayout->addWidget(streamFormatGroup);
     
-    // 活动相关
+    // Event related
     QVBoxLayout *eventContainer = new QVBoxLayout();
     
-    // 标题
+    // Title
     QLabel *eventLabel = new QLabel(obs_module_text("Live.Settings.Event"));
     eventContainer->addWidget(eventLabel);
         
-    // 下拉框
+    // Dropdown box
     activityCombo = new QComboBox();
     eventContainer->addWidget(activityCombo);
         
-    // 创建提示 Label 并靠右对齐
+    // Create hint label and align right
     QHBoxLayout *hintLayout = new QHBoxLayout();
     QLabel *hintLabel = new QLabel(obs_module_text("Live.Settings.Event.Tip"));
     hintLabel->setStyleSheet("color: gray; font-size: 12px;");
-    hintLayout->addStretch(); // 添加弹性空间，使提示文字靠右
+    hintLayout->addStretch(); // Add flexible space to align hint text to the right
     hintLayout->addWidget(hintLabel);
     eventContainer->addLayout(hintLayout);
         
     mainLayout->addLayout(eventContainer);
 
-    // 直播模式
+    // Broadcast mode
     QVBoxLayout *broadcastModeLayout = new QVBoxLayout();
     broadcastModeLabel = new QLabel(obs_module_text("Live.Settings.BroadcastMode"));
     broadcastModeLabel->setStyleSheet("font-weight: bold;");
     broadcastModeLayout->addWidget(broadcastModeLabel);
     
-    // 战队限定观看 - 可折叠部分
-    // 1. 头部（标题和折叠按钮）
+    // Army-only viewing - collapsible section
+    // 1. Header (title and collapse button)
     armyOnlyHeader = new QWidget();
     armyOnlyHeaderLayout = new QHBoxLayout(armyOnlyHeader);
     armyOnlyHeaderLayout->setContentsMargins(0, 10, 0, 10);
@@ -166,12 +166,12 @@ void OneSevenLiveStreamingDock::setupUi()
     armyOnlyHeaderLayout->addStretch();
     armyOnlyHeaderLayout->addWidget(armyOnlyToggleButton);
     
-    // 2. 内容容器（默认隐藏）
+    // 2. Content container (hidden by default)
     armyOnlyContainer = new QWidget();
     armyOnlyContainerLayout = new QVBoxLayout(armyOnlyContainer);
-    armyOnlyContainerLayout->setContentsMargins(20, 0, 0, 10); // 左侧缩进
+    armyOnlyContainerLayout->setContentsMargins(20, 0, 0, 10); // Left indent
     
-    // 战队限定观看开关
+    // Army-only viewing switch
     QHBoxLayout *armyOnlyCheckLayout = new QHBoxLayout();
     QLabel *armyOnlyCheckLabel = new QLabel(obs_module_text("Live.Settings.ArmyOnly"));
     armyOnlyCheck = new QCheckBox();
@@ -182,7 +182,7 @@ void OneSevenLiveStreamingDock::setupUi()
     
     armyOnlyContainerLayout->addLayout(armyOnlyCheckLayout);
     
-    // 用户条件
+    // User conditions
     QVBoxLayout *userConditionLayout = new QVBoxLayout();
     QLabel *userConditionLabel = new QLabel(obs_module_text("Live.Settings.UserCondition"));
     userConditionLayout->addWidget(userConditionLabel);
@@ -194,7 +194,7 @@ void OneSevenLiveStreamingDock::setupUi()
     
     armyOnlyContainerLayout->addLayout(userConditionLayout);
     
-    // 显示在热门页
+    // Show in hot page
     QHBoxLayout *showInHotPageLayout = new QHBoxLayout();
     QLabel *showInHotPageLabel = new QLabel(obs_module_text("Live.Settings.ShowInHotPage"));
     showInHotPageCheck = new QCheckBox();
@@ -205,7 +205,7 @@ void OneSevenLiveStreamingDock::setupUi()
     
     armyOnlyContainerLayout->addLayout(showInHotPageLayout);
     
-    // 开播通知
+    // Live notification
     QHBoxLayout *liveNotificationLayout = new QHBoxLayout();
     QLabel *liveNotificationLabel = new QLabel(obs_module_text("Live.Settings.LiveNotification"));
     liveNotificationCheck = new QCheckBox();
@@ -216,40 +216,40 @@ void OneSevenLiveStreamingDock::setupUi()
     
     armyOnlyContainerLayout->addLayout(liveNotificationLayout);
     
-    // 初始状态：折叠
+    // Initial state: collapsed
     armyOnlyContainer->setVisible(false);
     armyOnlyExpanded = false;
     
-    // 添加到主布局
+    // Add to main layout
     broadcastModeLayout->addWidget(armyOnlyHeader);
     broadcastModeLayout->addWidget(armyOnlyContainer);
     
     mainLayout->addLayout(broadcastModeLayout);
     
-    // 开关选项 
+    // Switch options 
     QHBoxLayout *archiveLayout = new QHBoxLayout();
     QVBoxLayout *archiveLabelLayout = new QVBoxLayout();
     
-    // 左侧标题和提示信息
+    // Left side title and hint information
     QLabel *archiveLabel = new QLabel(obs_module_text("Live.Settings.Archive.Record"));
     QLabel *archiveTip = new QLabel(obs_module_text("Live.Settings.Archive.Record.Tip"));
     archiveTip->setStyleSheet("color: gray; font-size: 12px;");
     
     archiveLabelLayout->addWidget(archiveLabel);
     archiveLabelLayout->addWidget(archiveTip);
-    archiveLabelLayout->setSpacing(2); // 调整标题和提示之间的间距
+    archiveLabelLayout->setSpacing(2); // Adjust spacing between title and hint
     
-    // 右侧Switch组件
+    // Right side Switch component
     archiveStreamCheck = new QCheckBox();
     
-    // 将左右两部分添加到水平布局中
+    // Add left and right parts to horizontal layout
     archiveLayout->addLayout(archiveLabelLayout);
-    archiveLayout->addStretch(); // 添加弹性空间，使Switch靠右
+    archiveLayout->addStretch(); // Add flexible space to align Switch to the right
     archiveLayout->addWidget(archiveStreamCheck);
     
     mainLayout->addLayout(archiveLayout);
     
-    // 同样修改自动预览选项
+    // Similarly modify auto preview options
     QHBoxLayout *previewLayout = new QHBoxLayout();
     QVBoxLayout *previewLabelLayout = new QVBoxLayout();
     
@@ -277,7 +277,7 @@ void OneSevenLiveStreamingDock::setupUi()
     clipTip->setStyleSheet("color: gray; font-size: 12px;");
     clipLayout->addWidget(clipTip);
     
-    // 剪辑身份
+    // Clip identity
     clipIdentityCombo = new QComboBox();
     QList<OneSevenLiveMetaValueLabel> clipIdentityList;
     getMetaValueLabelList("ClipPermissions", clipIdentityList);
@@ -285,10 +285,10 @@ void OneSevenLiveStreamingDock::setupUi()
         clipIdentityCombo->addItem(item.label, item.value.toInt());
     }
     
-    // 设置为不可编辑
+    // Set to non-editable
     clipIdentityCombo->setEditable(false);
     
-    // 选中第一个选项
+    // Select first option
     clipIdentityCombo->setCurrentIndex(0);
     clipLayout->addWidget(clipIdentityCombo);
     clipLayout->setSpacing(2);
@@ -296,7 +296,7 @@ void OneSevenLiveStreamingDock::setupUi()
     mainLayout->addLayout(clipLayout);
     
     
-    // 虚拟主播选项
+    // Virtual streamer options
     QVBoxLayout *vliverLayout = new QVBoxLayout();
 
     QLabel *vliverLabel = new QLabel(obs_module_text("Live.Settings.VirtualLiver.Title"));
@@ -313,7 +313,7 @@ void OneSevenLiveStreamingDock::setupUi()
 
     mainLayout->addLayout(vliverLayout);
 
-    // 底部按钮
+    // Bottom buttons
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     saveConfigButton = new QPushButton(obs_module_text("Live.Settings.Save"));
     saveConfigButton->setStyleSheet("background-color: red; color: white;");
@@ -323,41 +323,41 @@ void OneSevenLiveStreamingDock::setupUi()
     buttonLayout->addWidget(createLiveButton);
     mainLayout->addLayout(buttonLayout);
     
-    scrollArea->setWidget(container); // 将container设置为scrollArea的内容
-    setWidget(scrollArea); // 将滚动区域设置为dock的主要部件
+    scrollArea->setWidget(container); // Set container as scrollArea content
+    setWidget(scrollArea); // Set scroll area as dock's main widget
 
-    // 使用延迟处理，确保布局已经计算完成
+    // Use delayed processing to ensure layout calculation is complete
     QTimer::singleShot(0, this, [this, scrollArea]() {
         if (loadingOverlay && scrollArea) {
             loadingOverlay->setGeometry(QRect(0, 0, scrollArea->viewport()->width(), scrollArea->viewport()->height()));
-            loadingOverlay->raise(); // 确保覆盖层在最上层
+            loadingOverlay->raise(); // Ensure overlay is on top
         }
     });
 }
 
-// 添加新方法，用于加载房间信息
+// Add new method for loading room information
 void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID)
 {
-    // 显示加载状态
+    // Show loading state
     isLoading = true;
     loadingOverlay->setVisible(true);
-    loadingOverlay->raise(); // 确保覆盖层在最上层
+    loadingOverlay->raise(); // Ensure overlay is on top
     loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
     
-    // 禁用所有控件
+    // Disable all controls
     QScrollArea *scrollArea = qobject_cast<QScrollArea*>(widget());
     if (scrollArea && scrollArea->widget()) {
         scrollArea->widget()->setEnabled(false);
     }
     
-    // TODO: 以下代码需要优化，建立Worker类，将API调用放在Worker类中，在Worker类中发送信号，在主线程中接收信号，更新UI
-    // 创建一个新线程来执行API调用，避免阻塞UI
+    // TODO: The following code needs optimization, establish Worker class, put API calls in Worker class, send signals in Worker class, receive signals in main thread, update UI
+    // Create a new thread to execute API calls, avoiding UI blocking
     QThread *thread = new QThread;
     QObject *worker = new QObject;
     worker->moveToThread(thread);
     
     connect(thread, &QThread::started, worker, [this, roomID, worker, thread]() {
-        // 在新线程中执行API调用
+        // Execute API calls in new thread
         bool roomInfoSuccess = apiWrapper->GetRoomInfo(roomID, roomInfo);
         
         std::string region;
@@ -367,36 +367,36 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID)
         std::string userID;
         configManager->getConfigValue("UserID", userID);
 
-        // 在同一线程中获取configStreamer信息
+        // Get configStreamer information in the same thread
         bool configStreamerSuccess = apiWrapper->GetConfigStreamer(region, language, configStreamer);
 
         bool userInfoSuccess = apiWrapper->GetUserInfo(userID, region, language, userInfo);
 
         bool levelsSuccess = apiWrapper->GetArmySubscriptionLevels(region, language, levels);
         
-        // 使用Qt::QueuedConnection确保在主线程中更新UI
+        // Use Qt::QueuedConnection to ensure UI updates in main thread
         QMetaObject::invokeMethod(this, [this, roomInfoSuccess, configStreamerSuccess, userInfoSuccess, levelsSuccess]() {
-            // 隐藏加载状态
+            // Hide loading state
             isLoading = false;
             loadingOverlay->setVisible(false);
             
-            // 启用所有控件
+            // Enable all controls
             QScrollArea *scrollArea = qobject_cast<QScrollArea*>(widget());
             if (scrollArea && scrollArea->widget()) {
                 scrollArea->widget()->setEnabled(true);
             }
             
             if (roomInfoSuccess) {
-                // 更新UI
+                // Update UI
                 updateUIWithRoomInfo();
             } else {
-                // 显示错误消息
+                // Show error message
                 QMessageBox::warning(this, 
                     obs_module_text("Live.Settings.Error"), 
                     QString::fromStdString(obs_module_text("Live.Settings.LoadError")).arg(apiWrapper->getLastErrorMessage()));
             }
             
-            // 如果configStreamer获取失败，记录日志但不影响主流程
+            // If configStreamer retrieval fails, log but don't affect main flow
             if (!configStreamerSuccess) {
                 obs_log(LOG_WARNING, "Failed to get config streamer in loadRoomInfo");
             }
@@ -410,7 +410,7 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID)
             }
         }, Qt::QueuedConnection);
         
-        // 完成后清理
+        // Clean up after completion
         thread->quit();
         worker->deleteLater();
     });
@@ -419,19 +419,19 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID)
     thread->start();
 }
 
-// 添加新方法，用于根据roomInfo更新UI
+// Add new method to update UI based on roomInfo
 void OneSevenLiveStreamingDock::updateUIWithRoomInfo()
 {
     // obs_log(LOG_INFO, "Updating UI with room info");
 
     hashtagSelectLimit = configStreamer.hashtagSelectLimit;
 
-    // 类别
+    // Category
     for (const auto& subtab : configStreamer.subtabs) {
         categoryCombo->addItem(subtab.displayName, subtab.ID);
     }
 
-    // 活动
+    // Activity
     for (const auto& event : configStreamer.event.events) {
         QString eventName = event.name;
         if (eventName.isEmpty()) {
@@ -440,24 +440,24 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo()
         activityCombo->addItem(eventName, event.ID);
     }
 
-    // 设置开播格式
+    // Set streaming format
     if (roomInfo.landscape) {
         normalStreamRadio->setChecked(true);
     } else {
         verticalStreamRadio->setChecked(true);
     }
 
-    // 战队设定
+    // Army settings
     armyOnlyHeader->setVisible(configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1);
 
     if (configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1) {
         updateRequiredArmyRankSelections();
     }
     
-    // 设置存档配置
+    // Set archive configuration
     archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
     autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
-    // 设置剪辑权限
+    // Set clip permissions
     clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(roomInfo.archiveConfig.clipPermission));
 
     if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)
@@ -465,9 +465,9 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo()
         updateUIValues();
     }
 
-    // 当web端已经开始直播后，应如何处理
+    // How to handle when web has already started streaming
     if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)) {
-        // 添加用户提示框，询问用户接下来的操作
+        // Add user prompt dialog to ask for next operation
         QMessageBox msgBox(this);
         msgBox.setWindowTitle(obs_module_text("Live.Settings.LiveCreated"));
         msgBox.setText(obs_module_text("Live.Settings.LiveCreated.Tip"));
@@ -517,10 +517,10 @@ void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections()
         return;
     }
 
-    // 初始化Combo Items
+    // Initialize Combo Items
     requiredArmyRankCombo->clear();
 
-    // 遍历levels，添加到Combo Items
+    // Iterate through levels, add to Combo Items
     for (const auto& level : levels.subscriptionLevels) {
         QString rankValueTemplate = obs_module_text(QString("Live.Settings.Rank%1.%2").arg(QString::number(config.addOns.features["158"]), level.i18nToken.key).toStdString().c_str());
 
@@ -545,7 +545,7 @@ void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections()
 
 void OneSevenLiveStreamingDock::updateUIValues()
 {
-    // 设置虚拟主播选项
+    // Set virtual streamer options
     virtualStreamerCheck->setChecked(configStreamer.lastStreamState.vliverInfo.vliverModel == 3);
 
     if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)
@@ -558,7 +558,7 @@ void OneSevenLiveStreamingDock::updateUIValues()
         }
         categoryCombo->setCurrentIndex(currentCategoryIndex);
 
-        // 将 roomInfo.lastUsedHashtags 添加到 hashtagEdit
+        // Add roomInfo.lastUsedHashtags to hashtagEdit
         for (const auto& tag : roomInfo.lastUsedHashtags) {
             addTag(tag.text);
         }
@@ -580,15 +580,15 @@ void OneSevenLiveStreamingDock::updateUIValues()
 
 void OneSevenLiveStreamingDock::createConnections()
 {
-    // 标签相关连接
+    // Tag-related connections
     connect(addTagButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onAddTagClicked);
     connect(tagEdit, &QLineEdit::returnPressed, this, &OneSevenLiveStreamingDock::onTagEnterPressed);
     
-    // 其他按钮连接
+    // Other button connections
     connect(saveConfigButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onSaveConfigClicked);
     connect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onCreateLiveClicked);
 
-    // 战队限定观看折叠/展开按钮
+    // Army-only viewing collapse/expand button
     connect(armyOnlyToggleButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onArmyOnlyToggleClicked);
 
     connect(armyOnlyCheck, &QCheckBox::stateChanged, this, &OneSevenLiveStreamingDock::onArmyOnlyCheckChanged);
@@ -599,7 +599,7 @@ void OneSevenLiveStreamingDock::onArmyOnlyToggleClicked()
     armyOnlyExpanded = !armyOnlyExpanded;
     armyOnlyContainer->setVisible(armyOnlyExpanded);
     
-    // 更新按钮图标
+    // Update button icon
     if (armyOnlyExpanded) {
         armyOnlyToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
     } else {
@@ -614,10 +614,10 @@ void OneSevenLiveStreamingDock::onArmyOnlyCheckChanged(int state)
         autoPreviewCheck->setChecked(false);
         clipIdentityCombo->setCurrentIndex(0);
     } else {
-        // 设置存档配置
+        // Set archive configuration
         archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
         autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
-        // 设置剪辑权限
+        // Set clip permissions
         clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(roomInfo.archiveConfig.clipPermission));
     }
 
@@ -637,22 +637,22 @@ void OneSevenLiveStreamingDock::onAddTagClicked()
 
 void OneSevenLiveStreamingDock::onTagEnterPressed()
 {
-    onAddTagClicked(); // 复用添加标签的逻辑
+    onAddTagClicked(); // Reuse add tag logic
 }
 
 void OneSevenLiveStreamingDock::onRemoveTagClicked()
 {
-    // 获取发送信号的按钮
+    // Get the button that sent the signal
     QPushButton *removeButton = qobject_cast<QPushButton*>(sender());
     if (!removeButton) return;
     
-    // 获取标签文本（存储在按钮的属性中）
+    // Get tag text (stored in button property)
     QString tag = removeButton->property("tag").toString();
     
-    // 从列表中移除标签
+    // Remove tag from list
     tagsList.removeOne(tag);
     
-    // 更新标签显示
+    // Update tag display
     updateTagsFromList();
 }
 
@@ -662,7 +662,7 @@ void OneSevenLiveStreamingDock::addTag(const QString &tag)
         return;
     }
 
-    // 检查标签长度是否超过24字节
+    // Check if tag length exceeds 24 bytes
     if (tag.toUtf8().size() > 24) {
         QMessageBox::warning(this, 
             obs_module_text("Live.Settings.Error"), 
@@ -670,7 +670,7 @@ void OneSevenLiveStreamingDock::addTag(const QString &tag)
         return;
     }
 
-    // 检查标签是否已存在
+    // Check if tag already exists
     if (!tagsList.contains(tag)) {
         tagsList.append(tag);
         updateTagsFromList();
@@ -679,7 +679,7 @@ void OneSevenLiveStreamingDock::addTag(const QString &tag)
 
 void OneSevenLiveStreamingDock::updateTagsFromList()
 {
-    // 清除现有标签显示
+    // Clear existing tag display
     QLayoutItem *child;
     while ((child = tagsLayout->takeAt(0)) != nullptr) {
         if (child->widget()) {
@@ -688,9 +688,9 @@ void OneSevenLiveStreamingDock::updateTagsFromList()
         delete child;
     }
     
-    // 重新创建标签显示
+    // Recreate tag display
     for (const QString &tag : tagsList) {
-        // 创建标签容器
+        // Create tag container
         QWidget *tagWidget = new QWidget();
         tagWidget->setStyleSheet("background-color: #3D3D3D; border-radius: 4px; padding: 2px;");
         
@@ -698,11 +698,11 @@ void OneSevenLiveStreamingDock::updateTagsFromList()
         tagWidgetLayout->setContentsMargins(5, 2, 5, 2);
         tagWidgetLayout->setSpacing(3);
         
-        // 创建标签文本
+        // Create tag text
         QLabel *tagLabel = new QLabel("#" + tag);
         tagLabel->setStyleSheet("color: white;");
         
-        // 创建删除按钮
+        // Create delete button
         QPushButton *removeButton = new QPushButton("x");
         removeButton->setProperty("tag", tag);
         removeButton->setFixedSize(16, 16);
@@ -715,7 +715,7 @@ void OneSevenLiveStreamingDock::updateTagsFromList()
         tagsLayout->addWidget(tagWidget);
     }
     
-    // 添加弹性空间，使标签靠左对齐
+    // Add flexible space to align tags to the left
     tagsLayout->addStretch();
 }
 
@@ -744,7 +744,7 @@ void OneSevenLiveStreamingDock::onSaveConfigClicked()
 
     emit streamInfoSaved();
 
-    // 弹出提示框说明保存成功
+    // Show success message dialog
     QMessageBox::information(this, obs_module_text("Live.Settings.Save.Title"), obs_module_text("Live.Settings.Save.Success"));
 }
 
@@ -752,7 +752,7 @@ void OneSevenLiveStreamingDock::onCreateLiveClicked()
 {
     obs_log(LOG_INFO, "onCreateLiveClicked");
 
-    // 创建直播
+    // Create live stream
     OneSevenLiveRtmpRequest request;
     if (!gatherRtmpRequest(request)) {
         obs_log(LOG_ERROR, "Failed to gather rtmp request");
@@ -800,9 +800,9 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID, const OneSev
     QString streamUrl;
     QString streamKey;
 
-    // 正则表达式 /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ 解析 response.rtmpURL
-    // 匹配到的第一个分组为 streamUrl，第二个分组为 streamKey
-    // 例如：rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
+    // Regular expression /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ to parse response.rtmpURL
+    // First captured group is streamUrl, second captured group is streamKey
+    // Example: rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
     QRegularExpression re("(^.+://[^/]+/[^/]+)/(.+)$");
     QRegularExpressionMatch match = re.match(response.rtmpURL);
     if (match.hasMatch()) {
@@ -820,7 +820,7 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID, const OneSev
 
     saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(), streamKey.toStdString());
 
-    // 开始直播
+    // Start live stream
     if (!skip && !apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
         obs_log(LOG_ERROR, "Failed to start stream");
         return;
@@ -835,19 +835,19 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID, const OneSev
 
     updateLiveStatus(OneSevenLiveStreamingStatus::Streaming);
     
-    // 询问是否同时开始串流
+    // Ask whether to start streaming simultaneously
     QMessageBox msgBox;
     msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
     msgBox.setText(obs_module_text("Live.Settings.StartStreaming.Tip"));
     
-    // 使用本地化的按钮文本
+    // Use localized button text
     QPushButton *yesButton = msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
     /* QPushButton *noButton = */ msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
     msgBox.setDefaultButton(yesButton);
     
     msgBox.exec();
     if (msgBox.clickedButton() == yesButton) {
-        // 启动OBS串流
+        // Start OBS streaming
         obs_frontend_streaming_start();
     }
 }
@@ -856,19 +856,19 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked()
 {
     obs_log(LOG_INFO, "onDeleteLiveClicked");
 
-    // 添加确认对话框
+    // Add confirmation dialog
     QMessageBox msgBox;
     msgBox.setWindowTitle(obs_module_text("Live.Settings.CloseLive"));
     msgBox.setText(obs_module_text("Live.Settings.CloseLive.Confirm"));
     
-    // 使用本地化的按钮文本
+    // Use localized button text
     QPushButton *confirmButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Confirm.Button"), QMessageBox::YesRole);
     QPushButton *cancelButton = msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
     msgBox.setDefaultButton(cancelButton);
     
     msgBox.exec();
     if (msgBox.clickedButton() != confirmButton) {
-        // 用户取消了操作
+        // User cancelled the operation
         return;
     }
 
@@ -877,7 +877,7 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked()
 
 void OneSevenLiveStreamingDock::closeLive()
 {   
-    // 处理停止流的逻辑
+    // Handle stop streaming logic
     stopStreaming();
 
     std::string currUserID;
@@ -885,7 +885,7 @@ void OneSevenLiveStreamingDock::closeLive()
     configManager->getConfigValue("UserID", currUserID);
     configManager->getConfigValue("LiveStreamID", currLiveStreamID);
 
-    // 发送关闭直播请求
+    // Send close live stream request
     OneSevenLiveCloseLiveRequest request;
     request.reason = "normalEnd";
     request.userID = QString::fromStdString(currUserID);
@@ -902,20 +902,20 @@ void OneSevenLiveStreamingDock::closeLive()
 
 void OneSevenLiveStreamingDock::saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey)
 {
-    // 处理开始流的逻辑
+    // Handle start streaming logic
     obs_log(LOG_INFO, "saveStreamingSettings %s", liveStreamID.c_str());
 
-    // 获取OBS服务
+    // Get OBS service
     obs_service_t* service = obs_service_create("rtmp_custom", "default_service", NULL, NULL);
     
-    // 设置流媒体URL和密钥
+    // Set streaming URL and key
     obs_data_t *settings = obs_service_get_settings(service);
     obs_log(LOG_INFO, "streamUrl: %s", streamUrl.c_str());
     obs_log(LOG_INFO, "streamKey: %s", streamKey.c_str());
     obs_data_set_string(settings, "server", streamUrl.c_str());
     obs_data_set_string(settings, "key", streamKey.c_str());
     
-    // 应用设置
+    // Apply settings
     obs_service_update(service, settings);
     obs_data_release(settings);
 
@@ -923,13 +923,13 @@ void OneSevenLiveStreamingDock::saveStreamingSettings(const std::string &liveStr
 
     obs_frontend_save_streaming_service();
 
-    // 释放资源
+    // Release resources
     obs_service_release(service);
 }
 
 void OneSevenLiveStreamingDock::stopStreaming()
 {
-    // 处理停止流的逻辑
+    // Handle stop streaming logic
     obs_log(LOG_INFO, "stopStreaming");
 
     if (!obs_frontend_streaming_active()) {
@@ -942,19 +942,19 @@ void OneSevenLiveStreamingDock::stopStreaming()
 
 void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpRequest &request)
 {
-    // 注意：userID 和 streamerType 一般不可编辑，只展示在界面或保持同步
+    // Note: userID and streamerType are generally not editable, only displayed in interface or kept synchronized
     roomInfo.userID = request.userID;
     roomInfo.streamerType = request.streamerType;
 
     titleEdit->setText(request.caption);
     
-    // 如果你的 activityCombo 是用 setItemData 设置的 eventID，这里要查找对应索引
+    // If your activityCombo uses setItemData to set eventID, find the corresponding index here
     int eventIndex = activityCombo->findData(QVariant(request.eventID));
     if (eventIndex >= 0) {
         activityCombo->setCurrentIndex(eventIndex);
     }
 
-    // 清空并重新加载标签列表
+    // Clear and reload tag list
     tagsList.clear();
     tagsList = request.hashtags;
     updateTagsFromList();
@@ -971,7 +971,7 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
         categoryCombo->setCurrentIndex(categoryIndex);
     }
 
-    // 战队限定观看设置
+    // Army-only viewing settings
     armyOnlyCheck->setChecked(request.armyOnly.enable);
     
     int userConditionIndex = requiredArmyRankCombo->findData(QVariant(request.armyOnly.requiredArmyRank));
@@ -998,13 +998,13 @@ bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &reque
     obs_log(LOG_INFO, "gatherRtmpRequest");
     QString caption = titleEdit->text();
     if (caption.isEmpty()) {
-        // 弹出提示框, 提示用户输入标题
+        // Show dialog to prompt user to enter title
         QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"), obs_module_text("Live.Settings.Save.Title.Empty"));
         return false;
     }
     QString subtabID = categoryCombo->currentData().toString();
     if (subtabID.isEmpty()) {
-        // 弹出提示框, 提示用户选择分类
+        // Show dialog to prompt user to select category
         QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"), obs_module_text("Live.Settings.Save.Category.Empty"));
         return false;
     }
@@ -1018,7 +1018,7 @@ bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &reque
     request.streamerType = roomInfo.streamerType;
     request.subtabID = categoryCombo->currentData().toString();
 
-    // 战队限定观看设置
+    // Army-only viewing settings
     request.armyOnly.enable = armyOnlyCheck->isChecked();
     request.armyOnly.requiredArmyRank = requiredArmyRankCombo->currentData().toInt();
     request.armyOnly.showOnHotPage = showInHotPageCheck->isChecked();
@@ -1036,16 +1036,16 @@ void OneSevenLiveStreamingDock::updateLiveButton(bool isLive)
 {   
     obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
     if (isLive) {
-        // change text to "停止直播"
+        // change text to "Stop Live"
         createLiveButton->setText(obs_module_text("Live.Settings.StopLive"));
-        // 设置为绿色背景，表示当前正在直播
+        // Set green background to indicate currently live
         createLiveButton->setStyleSheet("background-color: green; color: white;");
         disconnect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onCreateLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onDeleteLiveClicked);
     } else {
-        // change text to "建立直播"
+        // change text to "Start Live"
         createLiveButton->setText(obs_module_text("Live.Settings.StartLive"));
-        // 设置为红色背景，表示当前未直播
+        // Set red background to indicate not currently live
         createLiveButton->setStyleSheet("background-color: red; color: white;");
         disconnect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onDeleteLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onCreateLiveClicked);
@@ -1063,13 +1063,13 @@ void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event)
 {
     QDockWidget::resizeEvent(event);
     
-    // 更新加载覆盖层的大小和位置，使其始终覆盖整个可见区域
+    // Update loading overlay size and position to always cover the entire visible area
     if (loadingOverlay && widget()) {
         QScrollArea *scrollArea = qobject_cast<QScrollArea*>(widget());
         if (scrollArea) {
-            // 直接使用viewport的rect()，因为loadingOverlay的父部件已经是viewport
+            // Use viewport's rect() directly since loadingOverlay's parent is already viewport
             loadingOverlay->setGeometry(QRect(0, 0, scrollArea->viewport()->width(), scrollArea->viewport()->height()));
-            loadingOverlay->raise(); // 确保覆盖层在最上层
+            loadingOverlay->raise(); // Ensure overlay is on top
         }
     }
 }

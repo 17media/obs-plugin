@@ -10,14 +10,14 @@
 
 using namespace json11;
 
-// 定义当前的直播状态，包括未开播 0、直播创建好 1、开始直播 2
+// Define current streaming status, including not started 0, live created 1, streaming started 2
 enum class OneSevenLiveStreamingStatus {
   NotStarted,
   Live,
   Streaming
 };
 
-// 通过索引获取Provider名称的函数
+// Function to get Provider name by index
 static QString GetProviderNameByIndex(int index) {
   switch (index) {
     case 0: return "DEFAULT";
@@ -148,7 +148,7 @@ static QString GetProviderNameByIndex(int index) {
     QString errorTitle;
   };
 
-  // RTMP URL信息结构体
+  // RTMP URL information struct
   struct OneSevenLiveRtmpUrl {
     int provider;
     QString streamType;
@@ -161,13 +161,13 @@ static QString GetProviderNameByIndex(int index) {
     bool throttle;
   };
 
-  // 拉流URL信息结构体
+  // Pull stream URL information struct
   struct OneSevenLivePullUrlsInfo {
     QList<OneSevenLiveRtmpUrl> rtmpURLs;
     qint64 seqNo;
   };
 
-  // 商品信息结构体
+  // Product information struct
   struct OneSevenLiveCommodityInfo {
     int type;
     int price;
@@ -176,13 +176,13 @@ static QString GetProviderNameByIndex(int index) {
     qint64 endTimeMS;
   };
 
-  // 活动图标信息结构体
+  // Event icon information struct
   struct OneSevenLiveEventIcon {
     QString language;
     QString value;
   };
 
-  // 活动信息结构体
+  // Event information struct
   struct OneSevenLiveEventInfo {
     qint64 ID;
     int type;
@@ -197,7 +197,7 @@ static QString GetProviderNameByIndex(int index) {
     QList<OneSevenLiveEventIcon> webViewTitles;
   };
 
-  // 荣耀之路信息结构体
+  // Glory road information struct
   struct OneSevenLiveGloryroadInfo {
     int point;
     int level;
@@ -205,17 +205,17 @@ static QString GetProviderNameByIndex(int index) {
     QString badgeIconURL;
   };
 
-  // 公会信息结构体
+  // Guild information struct
   struct OneSevenLiveClanInfo {
     int joinCount;
   };
 
-  // 联赛信息结构体
+  // League information struct
   struct OneSevenLiveLeagueInfo {
     bool shouldShowEntrance;
   };
 
-  // 用户信息结构体
+  // User information struct
   struct OneSevenLiveStreamUserInfo : public OneSevenLiveUserInfo {
     QString gender;
     bool isChoice;
@@ -242,16 +242,16 @@ static QString GetProviderNameByIndex(int index) {
     bool autoRecording;
     bool autoPublish;
     int clipPermission;
-    int clipPermissionDownload;  // 新增字段
+    int clipPermissionDownload;  // New field
   };
 
-  // hashtag结构体
+  // hashtag struct
   struct OneSevenLiveHashtag {
     QString text;
     bool isOfficial;
   };
 
-  // 主房间信息结构体
+  // Main room information struct
   struct OneSevenLiveRoomInfo {
     QString userID;
     int streamerType;
@@ -307,23 +307,23 @@ static QString GetProviderNameByIndex(int index) {
     int gridStyle;
     QString device;
     QList<OneSevenLiveEventInfo> eventList;
-    OneSevenLiveArchiveConfig archiveConfig;  // 添加存档配置
-    QString archiveID;                         // 添加存档ID
-    bool hideGameMarquee;                      // 添加游戏跑马灯隐藏标志
+    OneSevenLiveArchiveConfig archiveConfig;  // Add archive configuration
+    QString archiveID;                         // Add archive ID
+    bool hideGameMarquee;                      // Add game marquee hide flag
     QStringList subtabs;
     QList<OneSevenLiveHashtag> lastUsedHashtags;
   };
 
-  // 将Json转换为OneSevenLiveRoomInfo结构体
+  // Convert Json to OneSevenLiveRoomInfo struct
   bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo);
   bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json);
 
-  // 虚拟主播信息结构体
+  // Virtual streamer information struct
   struct OneSevenLiveVliverInfo {
     int vliverModel;
   };
 
-  // 战队设定
+  // Army settings
   struct OneSevenLiveArmy {
     bool armyOnlyPN;
     bool enable;
@@ -331,7 +331,7 @@ static QString GetProviderNameByIndex(int index) {
     bool showOnHotPage;
   };
 
-  // RTMP请求结构体
+  // RTMP request struct
   struct OneSevenLiveRtmpRequest {
     QString userID;
     QString caption;
@@ -360,28 +360,28 @@ static QString GetProviderNameByIndex(int index) {
   bool JsonToOneSevenLiveStreamInfo(const Json &json, OneSevenLiveStreamInfo &streamInfo);
 
 
-  // 成就值状态结构体
+  // Achievement value status struct
   struct OneSevenLiveAchievementValueState {
     bool isValueCarryOver;
     int initSeconds;
   };
 
-  // RTMP响应结构体
+  // RTMP response struct
   struct OneSevenLiveRtmpResponse {
     QString liveStreamID;
     QString streamID;
     QString rtmpURL;
     QString rtmpProvider;
     int messageProvider;
-    Json firstStreamInfo;  // 使用Json类型因为它是一个空对象
-    QList<OneSevenLiveRtmpUrl> rtmpURLs;  // 复用已有的OneSevenLiveRtmpUrl结构体
+    Json firstStreamInfo;  // Use Json type because it's an empty object
+    QList<OneSevenLiveRtmpUrl> rtmpURLs;  // Reuse existing OneSevenLiveRtmpUrl struct
     OneSevenLiveAchievementValueState achievementValueState;
     bool subtitleEnabled;
   };
 
   bool JsonToOneSevenLiveRtmpResponse(const Json &json, OneSevenLiveRtmpResponse &response);
 
-  // 关闭直播请求结构体
+  // Close live request struct
   struct OneSevenLiveCloseLiveRequest {
     QString userID;
     QString reason;
@@ -389,13 +389,13 @@ static QString GetProviderNameByIndex(int index) {
 
   bool OneSevenLiveCloseLiveRequestToJson(const OneSevenLiveCloseLiveRequest &request, Json &json);
 
-  // 活动标签结构体
+  // Event tag struct
   struct OneSevenLiveEventTag {
     QString ID;
     QString name;
   };
 
-  // Ably Token响应结构体
+  // Ably Token response struct
   struct OneSevenLiveAblyTokenResponse {
     int provider;
     QString token;
@@ -405,7 +405,7 @@ static QString GetProviderNameByIndex(int index) {
   bool JsonToOneSevenLiveAblyTokenResponse(const Json &json, OneSevenLiveAblyTokenResponse &response);
   bool OneSevenLiveAblyTokenResponseToJson(const OneSevenLiveAblyTokenResponse &response, Json &json);
 
-  // 活动事件结构体
+  // Event item struct
   struct OneSevenLiveEventItem {
     qint64 ID;
     QString name;
@@ -415,7 +415,7 @@ static QString GetProviderNameByIndex(int index) {
     qint64 endTime;
   };
 
-  // 活动事件列表结构体
+  // Event list struct
   struct OneSevenLiveEventList {
     QList<OneSevenLiveEventItem> events;
     bool notEligibleForAllEvents;
@@ -424,19 +424,19 @@ static QString GetProviderNameByIndex(int index) {
     QString instructionURL;
   };
 
-  // 自定义活动结构体
+  // Custom event struct
   struct OneSevenLiveCustomEvent {
     qint64 endTime;
     int status;
   };
 
-  // 盲盒抽奖结构体
+  // Box gacha struct
   struct OneSevenLiveBoxGacha {
     bool previousSettingStatus;
     QString availableEventID;
   };
 
-  // 子标签结构体
+  // Subtab struct
   struct OneSevenLiveSubtab {
     QString displayName;
     QString ID;
@@ -446,7 +446,7 @@ static QString GetProviderNameByIndex(int index) {
     OneSevenLiveVliverInfo vliverInfo;
   };
 
-  // 配置流媒体响应结构体
+  // Configure streamer response struct
   struct OneSevenLiveConfigStreamer {
     OneSevenLiveEventList event;
     OneSevenLiveCustomEvent customEvent;
@@ -457,16 +457,16 @@ static QString GetProviderNameByIndex(int index) {
     int armyOnly;
   };
 
-  // 解析JSON到OneSevenLiveConfigStreamerResponse结构体的函数声明
+  // Function declaration to parse JSON to OneSevenLiveConfigStreamerResponse struct
   bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStreamer &response);
   bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response, Json &json);
 
-  // 附加组件结构体
+  // Add-ons struct
   struct OneSevenLiveAddOns {
     QMap<QString, int> features;
   };
 
-  // 配置结构体，用于处理如下的json数据：
+  // Configuration struct for handling the following json data:
   // { 
   //   "addOns": { 
   //     "features": { 
@@ -479,33 +479,33 @@ static QString GetProviderNameByIndex(int index) {
     OneSevenLiveAddOns addOns;
   };
 
-  // 解析JSON到OneSevenLiveConfig结构体的函数声明
+  // Function declaration to parse JSON to OneSevenLiveConfig struct
   bool JsonToOneSevenLiveConfig(const Json &json, OneSevenLiveConfig &config);
   bool OneSevenLiveConfigToJson(const OneSevenLiveConfig &config, Json &json);
 
-// 国际化令牌参数结构体
+// Internationalization token parameter struct
 struct OneSevenLiveI18nTokenParam {
   QString value;
 };
 
-// 国际化令牌结构体
+// Internationalization token struct
 struct OneSevenLiveI18nToken {
   QString key;
   QList<OneSevenLiveI18nTokenParam> params;
 };
 
-// 军团订阅级别结构体
+// Army subscription level struct
 struct OneSevenLiveArmySubscriptionLevel {
-  int rank;                      // 级别排名
-  int subscribersAmount;         // 订阅者数量
-  OneSevenLiveI18nToken i18nToken;  // 国际化令牌
+  int rank;                      // Level ranking
+  int subscribersAmount;         // Number of subscribers
+  OneSevenLiveI18nToken i18nToken;  // Internationalization token
 };
 
-// 军团订阅级别列表结构体
+// Army subscription levels list struct
 struct OneSevenLiveArmySubscriptionLevels {
   QList<OneSevenLiveArmySubscriptionLevel> subscriptionLevels;
 };
 
-// JSON转换函数声明
+// JSON conversion function declarations
 bool JsonToOneSevenLiveArmySubscriptionLevels(const Json &json, OneSevenLiveArmySubscriptionLevels &levels);
 bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscriptionLevels &levels, Json &json);

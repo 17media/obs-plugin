@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
-// 本文件整合了plugin-support功能，使用PLUGIN_NAME和PLUGIN_VERSION常量以及obs_log函数
+// This file integrates plugin-support functionality, using PLUGIN_NAME and PLUGIN_VERSION constants and obs_log function
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -72,7 +72,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 
 		obs_log(LOG_INFO, "[obs-17live]: initializing");
 
-		// 获取OBS主窗体
+		// Get OBS main window
 		QMainWindow* mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
 		if (!mainWindow) {
 			obs_log(LOG_ERROR, "Failed to get OBS main window");
@@ -84,7 +84,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 		QLabel *label = new QLabel(QString("%1 [%2]%3").arg(PLUGIN_NAME, PLUGIN_VERSION, (strcmp(ONESEVENLIVE_API_URL, "https://wap-api.17app.co") == 0 ? "" : " (development)")), mainWindow);
     mainWindow->statusBar()->addWidget(label);
 	
-		// 初始化OneSevenLiveCoreManager
+		// Initialize OneSevenLiveCoreManager
 		try {
 			auto& manager = OneSevenLiveCoreManager::getInstance(mainWindow);
 			if (!manager.initialize()) {
@@ -115,7 +115,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 		// Shutdown 17Live plugin
 		obs_log(LOG_INFO, "[obs-17live]: shutting down");
 
-		// 释放OneSevenLiveCoreManager资源
+		// Release OneSevenLiveCoreManager resources
 		try {
 			auto& manager = OneSevenLiveCoreManager::getInstance();
 			manager.shutdown();
