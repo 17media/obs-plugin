@@ -7,6 +7,7 @@
 #include <QPixmap>
 #include <QStyle>
 #include <QMessageBox>
+#include <QToolTip>
 
 #include "api/OneSevenLiveApiWrappers.hpp"
 
@@ -35,8 +36,21 @@ void OneSevenLiveLoginDialog::setupUi()
         "   font-family: 'Inter';"
         "   font-style: normal;"
         "}"
+        "QToolTip {"
+        "   background-color: #333333;"
+        "   color: #FFFFFF;"
+        "   font-weight: 400;"
+        "   font-size: 12px;"
+        "   line-height: 16px;"
+        "   padding: 5px;"
+        "   border: none;"
+        "   border-radius: 4px;"
+        "   min-width: 220px;"
+        "   min-height: 64px;"
+        "}"
     );
-    
+
+
     auto mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(20);
     mainLayout->setContentsMargins(40, 40, 40, 40);
@@ -143,7 +157,7 @@ void OneSevenLiveLoginDialog::setupUi()
     
     // Set tooltip hint
     passwordQuestionButton->setToolTip(
-        QString("<div style='max-width: 200px; word-wrap: break-word; padding: 5px; border-radius: 5px;'>%1</div>")
+        QString("<div style='max-width: 200px; word-wrap: break-word;'>%1</div>")
         .arg(obs_module_text("Auth.Password.Tip"))
     );
     
