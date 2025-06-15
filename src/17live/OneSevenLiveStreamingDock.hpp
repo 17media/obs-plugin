@@ -29,6 +29,8 @@ public:
     void editLiveWithInfo(const OneSevenLiveStreamInfo &info);
     void loadRoomInfo(qint64 roomID);
 
+    void closeLive();
+
 private:
     void setupUi();
     void createConnections();
@@ -93,6 +95,7 @@ private:
 
 signals:
     void streamInfoSaved();
+    void streamStatusUpdated(OneSevenLiveStreamingStatus status);
 
 private slots:
     void onAddTagClicked();
@@ -114,7 +117,7 @@ private:
 
     void createLive(const OneSevenLiveRtmpRequest& request);
     void startLive(const std::string userID, const OneSevenLiveRtmpResponse &response, bool autoRecording, bool skip = false);
-    void closeLive();
+    
     void syncWithWeb(OneSevenLiveStreamingStatus status);
     
     // Tag-related functions

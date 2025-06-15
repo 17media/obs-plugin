@@ -1,6 +1,7 @@
 #include "OneSevenLiveCoreManager.hpp"
 #include <QMainWindow>
 #include <QDesktopServices>
+#include <QMessageBox>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -255,6 +256,29 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
 
 void OneSevenLiveCoreManager::handleLogoutClicked()
 {
+    obs_log(LOG_INFO, "handleLogoutClicked");
+
+    // Check if currently streaming
+    if (status == OneSevenLiveStreamingStatus::Streaming) {
+        // Show warning message to user about interrupting live stream
+        QMessageBox msgBox;
+        msgBox.setWindowTitle(obs_module_text("Logout.Warning.Title"));
+        msgBox.setText(obs_module_text("Logout.Warning.Message"));
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::No);
+        
+        int ret = msgBox.exec();
+        if (ret == QMessageBox::Yes) {
+            // User confirmed, stop streaming using the streaming dock's method
+            if (streamingDock) {
+                streamingDock->closeLive();
+            }
+        } else {
+            // User cancelled, do nothing
+            return;
+        }
+    }
+
     // Close all dock windows to avoid incorrect operations after logout
     if (streamingDock) {
         streamingDock->close();
@@ -300,6 +324,10 @@ void OneSevenLiveCoreManager::handleStreamingClicked()
             if (liveListDock) {
                 liveListDock->refreshStreamList();
             }
+        });
+
+        connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this, [this] (OneSevenLiveStreamingStatus status_) {
+            status = status_;
         });
 
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {

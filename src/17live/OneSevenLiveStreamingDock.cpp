@@ -834,6 +834,7 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID, const OneSev
     }
 
     updateLiveStatus(OneSevenLiveStreamingStatus::Streaming);
+    emit streamStatusUpdated(OneSevenLiveStreamingStatus::Streaming);
     
     // Ask whether to start streaming simultaneously
     QMessageBox msgBox;
@@ -898,6 +899,7 @@ void OneSevenLiveStreamingDock::closeLive()
     configManager->clearStreamingInfo();
 
     updateLiveStatus(OneSevenLiveStreamingStatus::NotStarted);
+    emit streamStatusUpdated(OneSevenLiveStreamingStatus::NotStarted);
 }
 
 void OneSevenLiveStreamingDock::saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey)

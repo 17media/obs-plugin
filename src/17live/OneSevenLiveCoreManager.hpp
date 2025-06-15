@@ -6,6 +6,8 @@
 #include <map>
 #include <mutex>
 
+#include "api/OneSevenLiveModels.hpp"
+
 // Forward declarations
 class QMainWindow;
 
@@ -18,13 +20,9 @@ class OneSevenLiveApiWrappers;
 
 class OneSevenLiveConfigManager;
 
-struct OneSevenLiveLoginData;
-
 class OneSevenLiveStreamingDock;
 
 class OneSevenLiveStreamListDock;
-
-struct OneSevenLiveRtmpRequest;
 
 class OneSevenLiveHttpServer;
 
@@ -144,4 +142,6 @@ private:
     void saveDockState();
 
     void load17LiveConfig();
+
+    OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
 };
