@@ -14,9 +14,9 @@ public:
     ~OneSevenLiveMenuManager();
 
     /**
-     * @brief 初始化菜单管理器
-     * 
-     * @return bool 初始化是否成功
+     * @brief Initialize menu manager
+     *
+     * @return bool Whether initialization was successful
      */
     bool initialize();
 
@@ -26,10 +26,10 @@ public:
     void handleLogout();
     void cleanup();
     
-    // 更新 dock 窗口可见状态
+    // Update dock window visibility status
     void updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible);
     
-    // 更新菜单项启用状态
+    // Update menu item enable status
     void updateMenuItemsEnabled();
 
 signals:
@@ -55,7 +55,7 @@ private:
     QAction* loginAction;
     bool isLoggedIn;
     
-    // Dock 窗口可见状态
+    // Dock window visibility status
     bool isChatRoomVisible;
     bool isBroadcastVisible;
     bool isLiveListVisible;

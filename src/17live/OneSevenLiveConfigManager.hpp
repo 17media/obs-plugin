@@ -42,9 +42,9 @@ public:
   QByteArray getDockState();
   bool setDockState(const QByteArray &state);
 
-  // 设置配置数据
+  // Set configuration data
   bool setConfig(const Json &configData);
-  // 获取配置数据
+  // Get configuration data
   bool getConfig(OneSevenLiveConfig &config);
 
   
@@ -55,8 +55,8 @@ private:
 
   std::string configPath;
 
-  // 用于保存配置文件的互斥锁
+  // Mutex for saving configuration file
   std::mutex configMutex;
-  // 当前配置
+  // Current configuration
   OneSevenLiveConfig currentConfig;
 };

@@ -41,18 +41,18 @@ private:
     QLineEdit *titleEdit;
     QComboBox *categoryCombo;
     
-    // 标签区域
+    // Tag area
     QLineEdit *tagEdit;
     QPushButton *addTagButton;
-    QWidget *tagsContainer; // 用于显示标签的容器
-    QHBoxLayout *tagsLayout; // 标签容器的布局
-    QList<QString> tagsList; // 存储当前的标签列表
+    QWidget *tagsContainer; // Container for displaying tags
+    QHBoxLayout *tagsLayout; // Layout for tag container
+    QList<QString> tagsList; // Store current tag list
     
-    // 开播格式
+    // Streaming format
     QRadioButton *normalStreamRadio;
     QRadioButton *verticalStreamRadio;
 
-    // 直播模式 - 战队限定观看
+    // Live mode - army-only viewing
     QLabel *broadcastModeLabel;
     QWidget *armyOnlyHeader;
     QHBoxLayout *armyOnlyHeaderLayout;
@@ -70,18 +70,18 @@ private:
     QComboBox *customActivityCombo;
     QComboBox *viewerLimitCombo;
     
-    // 开关
+    // Switches
     QCheckBox *archiveStreamCheck;
     QCheckBox *autoPreviewCheck;
     
     QComboBox *clipIdentityCombo;
     QCheckBox *virtualStreamerCheck;
     
-    // 底部按钮
+    // Bottom buttons
     QPushButton *saveConfigButton;
     QPushButton *createLiveButton;
 
-    // 加载状态UI
+    // Loading state UI
     QWidget *loadingOverlay;
     QProgressBar *loadingProgress;
     QLabel *loadingLabel;
@@ -101,8 +101,8 @@ private slots:
     void onCreateLiveClicked();
     void onDeleteLiveClicked();
     void onSaveConfigClicked();
-    void onArmyOnlyToggleClicked(); // 新增折叠/展开按钮点击事件
-    void onArmyOnlyCheckChanged(int state); // armyOnlyCheck 状态改变时触发
+    void onArmyOnlyToggleClicked(); // New collapse/expand button click event
+    void onArmyOnlyCheckChanged(int state); // Triggered when armyOnlyCheck state changes
 
 private:
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);
@@ -117,16 +117,16 @@ private:
     void closeLive();
     void syncWithWeb(OneSevenLiveStreamingStatus status);
     
-    // 标签相关函数
+    // Tag-related functions
     void addTag(const QString &tag);
     void updateTagsFromList();
-    int hashtagSelectLimit = 2; // 最多可以添加的标签数量
+    int hashtagSelectLimit = 2; // Maximum number of tags that can be added
 
     OneSevenLiveApiWrappers *apiWrapper = nullptr;
     OneSevenLiveConfigManager *configManager = nullptr;
 
     QString currentInfoUuid = "";
-    bool isLoading = false; // 标识是否正在加载中
+    bool isLoading = false; // Indicates whether loading is in progress
     OneSevenLiveStreamingStatus currentLiveStatus = OneSevenLiveStreamingStatus::NotStarted;
 
 protected:

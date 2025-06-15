@@ -27,7 +27,7 @@ OneSevenLiveLoginDialog::~OneSevenLiveLoginDialog()
 
 void OneSevenLiveLoginDialog::setupUi()
 {
-    // 设置对话框背景为黑色
+    // Set dialog background to black
     setStyleSheet(
         "QDialog {"
         "    background-color: #000000;"
@@ -39,16 +39,16 @@ void OneSevenLiveLoginDialog::setupUi()
     mainLayout->setSpacing(20);
     mainLayout->setContentsMargins(40, 40, 40, 40);
 
-    // Logo - 添加一个加载resource中 17live-logo-whith.svg 图片
+    // Logo - add loading of 17live-logo-whith.svg image from resources
     QLabel* logoLabel = new QLabel(this);
     QPixmap logoPixmap(":/resources/17live-logo-white.svg");
-    // 设置合适的缩放大小
+    // Set appropriate scaling size
     logoLabel->setPixmap(logoPixmap.scaled(200, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     logoLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(logoLabel);
     
     
-    // 添加"17LIVE ID 登入"标题
+    // Add "17LIVE ID Login" title
     QLabel* loginTitleLabel = new QLabel(obs_module_text("Auth.Caption"), this);
     loginTitleLabel->setAlignment(Qt::AlignLeft);
     loginTitleLabel->setStyleSheet(
@@ -76,7 +76,7 @@ void OneSevenLiveLoginDialog::setupUi()
     idLabelLayout->addWidget(idLabel);
     mainLayout->addWidget(idLabelContainer);
 
-    // 用户名输入框
+    // Username input field
     usernameEdit = new QLineEdit(this);
     usernameEdit->setMinimumHeight(40);
     usernameEdit->setStyleSheet(
@@ -95,7 +95,7 @@ void OneSevenLiveLoginDialog::setupUi()
     );
     mainLayout->addWidget(usernameEdit);
 
-    // 密码标签
+    // Password label
     QWidget* passwordLabelContainer = new QWidget(this);
     QHBoxLayout* passwordLabelLayout = new QHBoxLayout(passwordLabelContainer);
     passwordLabelLayout->setContentsMargins(0, 0, 0, 0);
@@ -108,16 +108,16 @@ void OneSevenLiveLoginDialog::setupUi()
         "}"
     );
     
-    // Question icon按钮
+    // Question icon button
     passwordQuestionButton = new QPushButton(passwordLabelContainer);
     
-    // 设置问号图标
+    // Set question mark icon
     QIcon questionIcon(":/resources/question.svg");
     passwordQuestionButton->setIcon(questionIcon);
     passwordQuestionButton->setIconSize(QSize(16, 16));
     passwordQuestionButton->setFixedSize(16, 16);
     
-    // 设置透明背景样式
+    // Set transparent background style
     passwordQuestionButton->setStyleSheet(
         "QPushButton {"
         "    background: transparent;"
@@ -132,13 +132,13 @@ void OneSevenLiveLoginDialog::setupUi()
         "}"
     );
     
-    // 设置tooltip提示
+    // Set tooltip hint
     passwordQuestionButton->setToolTip(
         QString("<div style='max-width: 200px; word-wrap: break-word; padding: 5px; border-radius: 5px;'>%1</div>")
         .arg(obs_module_text("Auth.Password.Tip"))
     );
     
-    // 忘记密码链接
+    // Forgot password link
     forgotPasswordLinkLabel = new QLabel(passwordLabelContainer);
     forgotPasswordLinkLabel->setText(obs_module_text("Auth.ForgotPassword"));
     forgotPasswordLinkLabel->setOpenExternalLinks(true);
@@ -155,21 +155,21 @@ void OneSevenLiveLoginDialog::setupUi()
         "}"
     );
     
-    // 添加到标签布局
+    // Add to label layout
     passwordLabelLayout->addWidget(passwordLabel);
     passwordLabelLayout->addWidget(passwordQuestionButton);
-    passwordLabelLayout->addStretch(); // 添加弹性空间，将忘记密码链接推到右侧
+    passwordLabelLayout->addStretch(); // Add flexible space to push forgot password link to right
     passwordLabelLayout->addWidget(forgotPasswordLinkLabel);
     
     mainLayout->addWidget(passwordLabelContainer);
 
-    // 密码输入框容器
+    // Password input field container
     QWidget* passwordContainer = new QWidget(this);
     QHBoxLayout* passwordLayout = new QHBoxLayout(passwordContainer);
     passwordLayout->setContentsMargins(0, 0, 0, 0);
     passwordLayout->setSpacing(0);
 
-    // 密码输入框
+    // Password input field
     passwordEdit = new QLineEdit(passwordContainer);
     passwordEdit->setEchoMode(QLineEdit::Password);
     passwordEdit->setFixedHeight(40);
@@ -186,13 +186,13 @@ void OneSevenLiveLoginDialog::setupUi()
         "}"
     );
 
-    // 添加回车键处理，点击回车键相当于点击登录按钮
+    // Add Enter key handling, pressing Enter is equivalent to clicking login button
     connect(passwordEdit, &QLineEdit::returnPressed, this, &OneSevenLiveLoginDialog::handleLogin);
     
-    // 显示/隐藏密码按钮
+    // Show/hide password button
     showPasswordButton = new QPushButton(passwordContainer);
 
-    // 设置初始图标为显示密码图标
+    // Set initial icon to show password icon
     QIcon showIcon(":/resources/show-password.svg");
     showPasswordButton->setIcon(showIcon);
     showPasswordButton->setIconSize(QSize(20, 20));
@@ -211,7 +211,7 @@ void OneSevenLiveLoginDialog::setupUi()
         // "    background-color: #d8d8d8;"
         "}"
     );
-    showPasswordButton->setFlat(true); // 去除按钮边框，和passwordEdit紧密相连
+    showPasswordButton->setFlat(true); // Remove button border, closely connected to passwordEdit
 
     passwordLayout->addWidget(passwordEdit);
     passwordLayout->addWidget(showPasswordButton);
@@ -220,22 +220,22 @@ void OneSevenLiveLoginDialog::setupUi()
 
     mainLayout->addWidget(passwordContainer);
     
-    // 连接按钮点击事件
+    // Connect button click event
     connect(showPasswordButton, &QPushButton::clicked, this, [this]() {
         if (passwordEdit->echoMode() == QLineEdit::Password) {
             passwordEdit->setEchoMode(QLineEdit::Normal);
-            // 切换到隐藏密码图标
+            // Switch to hide password icon
             QIcon hideIcon(":/resources/hide-password.svg");
             showPasswordButton->setIcon(hideIcon);
         } else {
             passwordEdit->setEchoMode(QLineEdit::Password);
-            // 切换到显示密码图标
+            // Switch to show password icon
             QIcon showIcon(":/resources/show-password.svg");
             showPasswordButton->setIcon(showIcon);
         }
     });
 
-    // 错误提示
+    // Error message
     errorLabel = new QLabel(this);
     errorLabel->setText(obs_module_text("Auth.Error01"));
     errorLabel->setStyleSheet(
@@ -247,11 +247,11 @@ void OneSevenLiveLoginDialog::setupUi()
         "}"
     );
     errorLabel->setVisible(false);
-    // 修改：允许标签自动调整高度，但保持固定的最小高度
+    // Modified: allow label to auto-adjust height while maintaining fixed minimum height
     errorLabel->setMinimumHeight(20);
-    // 修改：允许标签在需要时垂直扩展
+    // Modified: allow label to expand vertically when needed
     errorLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-    // 修改：启用自动换行
+    // Modified: enable word wrapping
     errorLabel->setWordWrap(true);
     mainLayout->addWidget(errorLabel);
 
@@ -259,7 +259,7 @@ void OneSevenLiveLoginDialog::setupUi()
     QHBoxLayout *loginLayout = new QHBoxLayout(loginContainer);
     loginLayout->setContentsMargins(0, 0, 0, 0);
 
-    // 登录按钮
+    // Login button
     loginButton = new QPushButton(obs_module_text("Auth.SignIn"), this);
     loginButton->setMinimumHeight(40);
     loginButton->setMinimumWidth(150);
@@ -284,7 +284,7 @@ void OneSevenLiveLoginDialog::setupUi()
     QVBoxLayout *loginLeftLayout = new QVBoxLayout();
     loginLeftLayout->setContentsMargins(0, 0, 0, 0);
 
-    // 注册新用户链接
+    // Register new user link
     registerLabel = new QLabel(obs_module_text("Auth.Register"), this);
     registerLabel->setAlignment(Qt::AlignLeft);
     registerLabel->setOpenExternalLinks(true);
@@ -294,7 +294,7 @@ void OneSevenLiveLoginDialog::setupUi()
         "}"
     );
     
-    // 更多登入幫助
+    // More login help
     QLabel* helpLabel = new QLabel(obs_module_text("Auth.Help"), this);
     helpLabel->setAlignment(Qt::AlignLeft);
     helpLabel->setOpenExternalLinks(true);
@@ -317,7 +317,7 @@ void OneSevenLiveLoginDialog::setupUi()
 
     mainLayout->addStretch();
 
-    // 免責聲明
+    // Disclaimer
     disclaimerLabel = new QLabel(obs_module_text("Auth.Hint01"), this);
     disclaimerLabel->setWordWrap(true);
     disclaimerLabel->setAlignment(Qt::AlignCenter);
@@ -336,17 +336,17 @@ void OneSevenLiveLoginDialog::handleLogin()
 {
     obs_log(LOG_INFO, "OneSevenLiveLoginDialog::handle login");
     
-    // 验证逻辑
+    // Validation logic
     if (usernameEdit->text().isEmpty() || passwordEdit->text().isEmpty()) {
         errorLabel->setVisible(true);
         adjustSize(); // resize dialog to fit error message
         return;
     }
     
-    // 创建API包装器实例
+    // Create API wrapper instance
     OneSevenLiveLoginData loginData;
     
-    // 调用登录接口
+    // Call login interface
     if (!apiWrapper->Login(usernameEdit->text(), passwordEdit->text(), loginData)) {
         // QString errorMessageTemplate = obs_module_text("Auth.Error02");
         // QString errorMessage = errorMessageTemplate.arg(apiWrapper.getLastErrorMessage());
@@ -366,9 +366,9 @@ void OneSevenLiveLoginDialog::handleLogin()
     // log access token
     // obs_log(LOG_INFO, "access token: %s", loginData.accessToken.toStdString().c_str());
     
-    // 显示登录成功消息框
+    // Show login success message box
     QMessageBox::information(this, obs_module_text("Auth.LoginSuccess"), QString(obs_module_text("Auth.LoginSuccess.Tip")).arg(loginData.userInfo.openID));
     
-    // 登录成功
+    // Login successful
     accept();
 }

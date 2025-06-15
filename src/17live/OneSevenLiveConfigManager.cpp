@@ -18,16 +18,16 @@ const char* service = "OneSevenLive";
 OneSevenLiveConfigManager::OneSevenLiveConfigManager(): initialized(false) {}
 bool OneSevenLiveConfigManager::initialize()
 {
-  // 防止重复初始化
+  // Prevent duplicate initialization
   if (initialized) {
     return true;
   }
 
-  // 当前用户的home目录下的.17Live目录，采用Qt的方式获取
+  // .17Live directory under current user's home directory, using Qt method
   QString homeDir = QDir::homePath();
   QString configDir = homeDir + "/" + CONFIG_PATH;
   QDir dir(configDir);
-  // 如果目录不存在，创建目录
+  // If directory doesn't exist, create it
   if (!dir.exists()) {
     if (!dir.mkpath(configDir)) {
       obs_log(LOG_ERROR, "Failed to create config directory");
@@ -35,7 +35,7 @@ bool OneSevenLiveConfigManager::initialize()
     }
   }
 
-  // 配置文件路径
+  // Configuration file path
   QString configFilePath = configDir + "/" + CONFIG_NAME;
 
   configPath = configDir.toStdString();
@@ -110,7 +110,7 @@ bool OneSevenLiveConfigManager::setLoginData(const OneSevenLiveLoginData &loginD
     return false;
   }
     
-  // 转换为std::string并保持引用
+  // Convert to std::string and maintain reference
   std::string userID = loginData.userInfo.userID.toStdString();
   std::string openID = loginData.userInfo.openID.toStdString();
   std::string displayName = loginData.userInfo.displayName.toStdString();
@@ -298,7 +298,7 @@ bool OneSevenLiveConfigManager::saveLiveConfig(const OneSevenLiveStreamInfo &str
 
   for (auto& info : streamInfoList) {
     if (info.streamUuid == streamInfo.streamUuid) {
-        // 用新的 streamInfo 替换
+        // Replace with new streamInfo
         info = streamInfo;
         found = true;
         break;
@@ -309,7 +309,7 @@ bool OneSevenLiveConfigManager::saveLiveConfig(const OneSevenLiveStreamInfo &str
     streamInfoList.push_back(streamInfo);
   }
 
-  // 最多保存10条
+  // Save maximum 10 entries
   if (streamInfoList.size() > 10) {
     streamInfoList.erase(streamInfoList.begin());
   }
@@ -405,7 +405,7 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData)
   
   std::string configJson = configData.dump();
   
-  // 保存到配置文件
+  // Save to configuration file
   std::string configJsonPath = configPath + "/config_17live.json";
   std::ofstream file(configJsonPath);
   if (!file.is_open()) {
@@ -428,12 +428,12 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config)
   
   std::lock_guard<std::mutex> lock(configMutex);
   
-  // 尝试从文件读取配置
+  // Try to read configuration from file
   std::string configJsonPath = configPath + "/config_17live.json";
   QFile file(QString::fromStdString(configJsonPath));
   
   if (!file.exists()) {
-    // 如果文件不存在，返回当前内存中的配置
+    // If file doesn't exist, return current configuration in memory
     config = currentConfig;
     return true;
   }
@@ -447,12 +447,12 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config)
   file.close();
   
   if (jsonData.isEmpty()) {
-    // 如果文件为空，返回当前内存中的配置
+    // If file is empty, return current configuration in memory
     config = currentConfig;
     return true;
   }
   
-  // 解析JSON数据
+  // Parse JSON data
   std::string err;
   Json jsonObj = Json::parse(jsonData.toStdString(), err);
   
@@ -461,13 +461,13 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config)
     return false;
   }
   
-  // 将JSON转换为OneSevenLiveConfig结构体
+  // Convert JSON to OneSevenLiveConfig structure
   if (!JsonToOneSevenLiveConfig(jsonObj, config)) {
     obs_log(LOG_ERROR, "Failed to convert JSON to config");
     return false;
   }
   
-  // 更新当前配置
+  // Update current configuration
   currentConfig = config;
   
   return true;

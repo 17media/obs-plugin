@@ -6,12 +6,12 @@
 #include <map>
 #include <mutex>
 
-// 前向声明
+// Forward declarations
 class QMainWindow;
 
 class BrowserApp;
 
-// 前向声明 OneSevenLiveMenuManager 类
+// Forward declaration of OneSevenLiveMenuManager class
 class OneSevenLiveMenuManager;
 
 class OneSevenLiveApiWrappers;
@@ -29,53 +29,53 @@ struct OneSevenLiveRtmpRequest;
 class OneSevenLiveHttpServer;
 
 /**
- * @brief OneSevenLiveCoreManager 类是17live插件的核心管理类
- * 
- * 该类采用单例模式设计，作为管理全部17live插件的控制中心。
- * 负责插件的初始化、配置管理、资源分配等核心功能。
+ * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
+ *
+ * This class uses singleton pattern design as the control center for managing all 17live plugins.
+ * Responsible for plugin initialization, configuration management, resource allocation and other core functions.
  */
 class OneSevenLiveCoreManager : public QObject {
     Q_OBJECT
 
 public:
     /**
-     * @brief 获取OneSevenLiveCoreManager的单例实例
-     * 
-     * @param mainWindow OBS主窗体，仅在首次调用时需要提供
-     * @return OneSevenLiveCoreManager& 单例实例的引用
+     * @brief Get the singleton instance of OneSevenLiveCoreManager
+     *
+     * @param mainWindow OBS main window, only needs to be provided on first call
+     * @return OneSevenLiveCoreManager& Reference to the singleton instance
      */
     static OneSevenLiveCoreManager& getInstance(QMainWindow* mainWindow = nullptr);
 
     /**
-     * @brief 初始化核心管理器
-     * 
-     * @return bool 初始化是否成功
+     * @brief Initialize the core manager
+     *
+     * @return bool Whether initialization was successful
      */
     bool initialize();
 
     /**
-     * @brief 关闭并清理资源
+     * @brief Shutdown and cleanup resources
      */
     void shutdown();
 
     /**
-     * @brief 获取OBS主窗体
-     * 
-     * @return QMainWindow* OBS主窗体指针
+     * @brief Get OBS main window
+     *
+     * @return QMainWindow* Pointer to OBS main window
      */
     QMainWindow* getMainWindow() const;
 
     /**
-     * @brief 获取菜单管理器
-     * 
-     * @return OneSevenLiveMenuManager* 菜单管理器指针
+     * @brief Get menu manager
+     *
+     * @return OneSevenLiveMenuManager* Pointer to menu manager
      */
     OneSevenLiveMenuManager* getMenuManager() const;
     
     /**
-     * @brief 获取API包装器
-     * 
-     * @return OneSevenLiveApiWrappers* API包装器指针
+     * @brief Get API wrapper
+     *
+     * @return OneSevenLiveApiWrappers* Pointer to API wrapper
      */
     OneSevenLiveApiWrappers* getApiWrapper() const;
 
@@ -83,35 +83,35 @@ public:
 
     bool handleLoginClicked();
 
-    // 禁止拷贝构造和赋值操作
+    // Disable copy constructor and assignment operator
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
 
 private:
-    // 私有构造函数，确保只能通过getInstance方法获取实例
+    // Private constructor, ensure instance can only be obtained through getInstance method
     explicit OneSevenLiveCoreManager(QMainWindow* mainWindow);
     
-    // 私有析构函数
+    // Private destructor
     ~OneSevenLiveCoreManager();
 
-    // 单例实例
+    // Singleton instance
     static OneSevenLiveCoreManager* instance;
     
-    // 互斥锁，用于线程安全的单例访问
+    // Mutex for thread-safe singleton access
     static std::mutex instanceMutex;
 
-    // OBS主窗体
+    // OBS main window
     QMainWindow* mainWindow;
     
-    // 配置存储
+    // Configuration storage
     std::map<std::string, std::string> configMap;
     
-    // 初始化标志
+    // Initialization flag
     bool initialized;
 
     std::unique_ptr<OneSevenLiveConfigManager> configManager;
 
-    // 菜单管理器
+    // Menu manager
     std::unique_ptr<OneSevenLiveMenuManager> menuManager;
 
     std::unique_ptr<OneSevenLiveApiWrappers> apiWrapper;
@@ -119,15 +119,15 @@ private:
     std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
 
     /**
-     * @brief 处理登录成功的槽函数
-     * 
-     * @param userData 登录成功后返回的用户数据
+     * @brief Slot function to handle successful login
+     *
+     * @param userData User data returned after successful login
      */
     void handleLoginSuccess(const OneSevenLiveLoginData& userData);
 
     void handleLogoutClicked();
 
-    // 检查登录状态是否有效的函数
+    // Function to check if login status is valid
     bool checkLoginStatus();
     
     // Streaming Dock load status

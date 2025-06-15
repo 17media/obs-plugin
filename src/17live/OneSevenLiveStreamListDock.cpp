@@ -19,7 +19,7 @@ OneSevenLiveStreamListDock::OneSevenLiveStreamListDock(QWidget *parent,  OneSeve
     createConnections();
     refreshStreamList();
 
-    // 添加延迟初始化，确保界面元素尺寸已正确计算
+    // Add delayed initialization to ensure UI element sizes are correctly calculated
     QTimer::singleShot(0, this, [this]() {
         if (emptyContainer && emptyContainer->isVisible()) {
             emptyContainer->setGeometry(widget()->rect());
@@ -34,7 +34,7 @@ void OneSevenLiveStreamListDock::setupUi()
     QWidget *container = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
     
-    // 创建直播列表
+    // Create live stream list
     streamList = new QListWidget();
     streamList->setStyleSheet(
         "QListWidget {"
@@ -58,7 +58,7 @@ void OneSevenLiveStreamListDock::setupUi()
     );
     mainLayout->addWidget(streamList);
     
-    // 创建开始直播按钮
+    // Create start streaming button
     startLiveButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
     startLiveButton->setStyleSheet(
         "QPushButton {"
@@ -89,7 +89,7 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     mainLayout->setContentsMargins(12, 8, 12, 8);
     mainLayout->setSpacing(8);
 
-    // 左侧布局（标题、类别、时间）
+    // Left layout (title, category, time)
     QVBoxLayout* leftLayout = new QVBoxLayout();
     leftLayout->setAlignment(Qt::AlignVCenter);
 
@@ -106,7 +106,7 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     leftLayout->addWidget(categoryLabel);
     leftLayout->addWidget(timeLabel);
 
-    // 右侧按钮（编辑 + 删除）
+    // Right buttons (edit + delete)
     QWidget* buttonContainer = new QWidget();
     QHBoxLayout* buttonLayout = new QHBoxLayout(buttonContainer);
     buttonLayout->setContentsMargins(0, 0, 0, 0);
@@ -128,12 +128,12 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     buttonLayout->addWidget(editButton);
     buttonLayout->addWidget(deleteButton);
 
-    // 加入主布局
+    // Add to main layout
     mainLayout->addLayout(leftLayout);
     mainLayout->addStretch();
     mainLayout->addWidget(buttonContainer);
 
-    // 限制最大宽度，避免拉伸
+    // Limit maximum width to avoid stretching
     frame->setMaximumWidth(streamList->viewport()->width() - 20);
 
     item->setSizeHint(frame->sizeHint());
@@ -148,16 +148,16 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
 }
 void OneSevenLiveStreamListDock::showEmptyListMessage()
 {
-    // 隐藏列表和开始直播按钮
+    // Hide list and start streaming button
     streamList->setVisible(false);
     startLiveButton->setVisible(false);
     
-    // 如果已经存在空状态容器，先删除
+    // If empty state container already exists, delete it first
     if (emptyContainer) {
         emptyContainer->deleteLater();
     }
     
-    // 创建空状态容器
+    // Create empty state container
     emptyContainer = new QWidget(widget());
     emptyContainer->setStyleSheet(
         "QWidget {"
@@ -166,20 +166,20 @@ void OneSevenLiveStreamListDock::showEmptyListMessage()
         "}"
     );
     
-    // 设置空状态容器填充整个 Dock 区域
+    // Set empty state container to fill entire Dock area
     emptyContainer->setGeometry(widget()->rect());
 
-    // 创建布局管理器
+    // Create layout manager
     QVBoxLayout *emptyLayout = new QVBoxLayout(emptyContainer);
     emptyLayout->setAlignment(Qt::AlignCenter);
     emptyLayout->setSpacing(20);
     emptyLayout->setContentsMargins(20, 20, 20, 20);
     
-    // 创建提示标签
+    // Create hint label
     QLabel *emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
     emptyLabel->setAlignment(Qt::AlignCenter);
-    emptyLabel->setWordWrap(true); // 添加文字换行
-    emptyLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred); // 允许水平方向扩展
+    emptyLabel->setWordWrap(true); // Enable text wrapping
+    emptyLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred); // Allow horizontal expansion
     emptyLabel->setStyleSheet(
         "QLabel {"
         "    color: #888888;"
@@ -189,7 +189,7 @@ void OneSevenLiveStreamListDock::showEmptyListMessage()
         "}"
     );
     
-    // 创建跳转到开始直播的按钮
+    // Create button to navigate to start streaming
     QPushButton *goToStreamingButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
     goToStreamingButton->setFixedSize(200, 40);
     goToStreamingButton->setStyleSheet(
@@ -207,26 +207,26 @@ void OneSevenLiveStreamListDock::showEmptyListMessage()
     );
     goToStreamingButton->setCursor(Qt::PointingHandCursor);
     
-    // 创建按钮容器用于居中显示按钮
+    // Create button container for centered button display
     QWidget *buttonContainer = new QWidget();
     QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
     buttonLayout->setAlignment(Qt::AlignCenter);
     buttonLayout->setContentsMargins(0, 0, 0, 0);
     buttonLayout->addWidget(goToStreamingButton);
     
-    // 连接按钮点击信号
+    // Connect button click signal
     connect(goToStreamingButton, &QPushButton::clicked, this, [this]() {
-        // 发送信号，通知需要打开开始直播面板
+        // Send signal to notify opening start streaming panel
         emit startLiveClicked(OneSevenLiveRtmpRequest());
     });
     
-    // 添加到布局
+    // Add to layout
     emptyLayout->addWidget(emptyLabel);
-    emptyLayout->addWidget(buttonContainer); // 使用buttonContainer代替直接添加按钮
+    emptyLayout->addWidget(buttonContainer); // Use buttonContainer instead of adding button directly
     
-    // 显示空状态容器
+    // Show empty state container
     emptyContainer->show();
-    emptyContainer->raise(); // 确保显示在最上层
+    emptyContainer->raise(); // Ensure display on top layer
 }
 
 void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent *event)
@@ -243,7 +243,7 @@ void OneSevenLiveStreamListDock::refreshStreamList()
     streamList->clear();
 
     if (emptyContainer) {
-        // 如果已经存在空状态容器，先删除
+        // If empty state container already exists, delete it first
         emptyContainer->deleteLater();
         emptyContainer = nullptr;
     }
@@ -252,20 +252,20 @@ void OneSevenLiveStreamListDock::refreshStreamList()
     configManager->loadAllLiveConfig(streamInfoList);
     
     if (streamInfoList.empty()) {
-        // 显示空列表提示和跳转按钮
+        // Show empty list hint and navigation button
         showEmptyListMessage();
-        // 禁用开始直播按钮，因为没有可选择的直播
+        // Disable start streaming button as no streams are available for selection
         startLiveButton->setVisible(false);
     } else {
         streamList->setVisible(true);
         
-        // 有直播信息，正常显示列表
+        // Have stream info, display list normally
         for (const auto& info : streamInfoList) {
             QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
             widgetItem->setData(Qt::UserRole, QVariant::fromValue(info));
             updateStreamItem(widgetItem, info);
         }
-        // 启用开始直播按钮
+        // Enable start streaming button
         startLiveButton->setVisible(true);
     }
 }
@@ -286,10 +286,10 @@ void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWid
 
 void OneSevenLiveStreamListDock::onStartLiveClicked()
 {
-    // 获取当前选择的list item
+    // Get currently selected list item
     QListWidgetItem* item = streamList->currentItem();
     if (item) {
-        // 获取item的信息
+        // Get item information
         OneSevenLiveStreamInfo info = item->data(Qt::UserRole).value<OneSevenLiveStreamInfo>();
         emit startLiveClicked(info.request);
     }

@@ -131,23 +131,23 @@ static bool create_dummy_browser_source(void)
         return true;
     }
 
-    // 获取 browser source 类型（确保 obs-browser 插件已加载）
+    // Get browser source type (ensure obs-browser plugin is loaded)
     const char *source_id = "browser_source";
     // if (!obs_has_source(source_id)) {
     //     blog(LOG_ERROR, "[obs-17live] 'browser_source' not found. Is obs-browser loaded?");
     //     return false;
     // }
 
-    // 创建默认设置
+    // Create default settings
     // obs_data_t *settings = obs_data_create();
     // obs_data_set_string(settings, "url", "https://17.live");
     // obs_data_set_int(settings, "width", 1280);
     // obs_data_set_int(settings, "height", 720);
     // obs_data_set_bool(settings, "is_local_file", false);
-    // obs_data_set_bool(settings, "shutdown", true);  // 在不活动时关闭页面
+    // obs_data_set_bool(settings, "shutdown", true);  // Close page when inactive
     obs_data_t *settings = obs_get_source_defaults(source_id);
 
-    // 创建源
+    // Create source
     dummy_source = obs_source_create(source_id, "DummyBrowser", settings, nullptr);
     if (!dummy_source) {
         blog(LOG_ERROR, "[obs-17live] Failed to create browser source");
@@ -158,11 +158,11 @@ static bool create_dummy_browser_source(void)
     blog(LOG_INFO, "[obs-17live] Browser source created successfully");
 
     obs_data_release(settings);
-    // 如果你希望将其添加到当前场景，可以加上：
+    // If you want to add it to current scene, you can add:
     // obs_scene_t *scene = obs_scene_from_source(obs_frontend_get_current_scene());
     // obs_scene_add(scene, browser_source);
 
-    // 或你也可以在某些 UI 回调里动态添加
+    // Or you can dynamically add in some UI callbacks
 
     return true;
 }
@@ -235,7 +235,7 @@ static bool release_source_callback(void *param, obs_source_t *source)
 		}
 	}
 
-	return true; // 返回 true 表示继续枚举全部 source
+	return true; // Return true to continue enumerating all sources
 }
 
 void release_sources_by_name(const char *target_name)
@@ -331,9 +331,9 @@ static void cef_view_show_window(const char *url) {
     cef_window = new QDockWidget(mainWindow);
     cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
     cef_window->resize(378, 600);
-    // 先设置为浮动窗口，避免添加到dock area后无法调整大小
+    // Set as floating window first to avoid size adjustment issues after adding to dock area
     cef_window->setFloating(true);
-    // 设置允许的停靠区域
+    // Set allowed dock areas
     cef_window->setAllowedAreas(Qt::RightDockWidgetArea|Qt::LeftDockWidgetArea);
 
     // CEF window info

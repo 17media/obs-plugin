@@ -9,18 +9,18 @@
 
 using namespace json11;
 
-// 剪辑权限项结构体
+// Clip permission item structure
 struct OneSevenLiveMetaValueLabel {
   QString value;
   QString label;
 };
 
-// 元数据结构体 - 使用字典结构
+// Metadata structure - using dictionary structure
 struct OneSevenLiveMetaData {
-  // 使用 QMap 作为字典结构，键为字符串，值为 QVariant 以支持不同类型
+  // Use QMap as dictionary structure, key is string, value is QVariant to support different types
   QMap<QString, QVariant> data;
   
-  // 辅助方法：获取value-label列表
+  // Helper method: get value-label list
   QList<OneSevenLiveMetaValueLabel> getMetaValueLabel(const QString &key) const {
       QList<OneSevenLiveMetaValueLabel> result;
       if (data.contains(key)) {
@@ -36,7 +36,7 @@ struct OneSevenLiveMetaData {
       return result;
   }
   
-  // 辅助方法：设置剪辑权限列表
+  // Helper method: set clip permission list
   void setMetaValueLabel(const QString &key, const QList<OneSevenLiveMetaValueLabel>& values) {
       QVariantList valueList;
       for (const OneSevenLiveMetaValueLabel& item : values) {
@@ -52,7 +52,7 @@ struct OneSevenLiveMetaData {
 bool LoadMetaData();
 bool SaveMetaData();
 
-// 解析JSON到OneSevenLiveMetaData结构体的函数声明
+// Function declaration to parse JSON to OneSevenLiveMetaData structure
 bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData);
 Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData &metaData);
 

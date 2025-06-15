@@ -12,13 +12,13 @@
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 
-// 获取模块数据路径的辅助函数
+// Helper function to get module data path
 std::string get_obs_module_data_path_str() {
     const char* path = obs_get_module_data_path(obs_current_module());
     if (path) {
         return std::string(path);
     }
-    return ""; // 或者抛出异常，或者返回一个默认的已知路径
+    return ""; // Or throw exception, or return a default known path
 }
 
 std::string OneSevenLiveHttpServer::get_file_extension(const std::string& file_path) const {
@@ -52,7 +52,7 @@ OneSevenLiveHttpServer::OneSevenLiveHttpServer(const std::string& host, int port
     std::string module_data_path = get_obs_module_data_path_str();
     if (module_data_path.empty()) {
         blog(LOG_ERROR, "[17Live HTTP Server] Failed to get OBS module data path.");
-        // 可以选择设置一个默认的 base_dir_ 或者让服务器启动失败
+        // Can choose to set a default base_dir_ or let server startup fail
         base_dir_ = base_dir_relative_to_module_data; // Fallback or error state
     } else {
         std::filesystem::path full_base_path = std::filesystem::path(module_data_path) / base_dir_relative_to_module_data;
@@ -72,22 +72,22 @@ bool OneSevenLiveHttpServer::start() {
         return true;
     }
 
-    // 确保 base_dir_ 存在
+    // Ensure base_dir_ exists
     if (!std::filesystem::exists(base_dir_) || !std::filesystem::is_directory(base_dir_)) {
         blog(LOG_ERROR, "[17Live HTTP Server] Base directory '%s' does not exist or is not a directory.", base_dir_.c_str());
         return false;
     }
 
-    // 设置静态文件服务
-    // httplib的set_mount_point的第二个参数应该是相对于当前工作目录的路径，或者绝对路径。
-    // 我们已经将base_dir_计算为绝对路径。
+    // Set up static file service
+    // The second parameter of httplib's set_mount_point should be a path relative to current working directory, or absolute path.
+    // We have already calculated base_dir_ as absolute path.
     if (!svr_.set_mount_point("/", base_dir_.c_str())) {
         blog(LOG_ERROR, "[17Live HTTP Server] Failed to set mount point '/' to '%s'", base_dir_.c_str());
         return false;
     }
     blog(LOG_INFO, "[17Live HTTP Server] Mounting '/' to serve files from '%s'", base_dir_.c_str());
 
-    // 默认提供 index.html
+    // Provide index.html by default
     svr_.Get("/", [this](const httplib::Request &req, httplib::Response &res) {
         obs_log(LOG_INFO, "[17Live HTTP Server] Handling request for %s", req.path.c_str());
         std::filesystem::path path_obj = std::filesystem::path(base_dir_) / "index.html";
@@ -113,22 +113,22 @@ bool OneSevenLiveHttpServer::start() {
         res.set_content("PONG", "text/plain");
     });
 
-    // 添加 /lapi 路由，处理 API 请求
+    // Add /lapi route to handle API requests
     svr_.Post("/lapi", [](const httplib::Request &req, httplib::Response &res) {
         // obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi");
         
-        // 设置响应头
+        // Set response headers
         res.set_header("Content-Type", "application/json");
         
-        // 获取 OneSevenLiveCoreManager 实例
+        // Get OneSevenLiveCoreManager instance
         auto &coreManager = OneSevenLiveCoreManager::getInstance();
         
-        // 解析请求体中的 JSON 数据
+        // Parse JSON data from request body
         std::string error;
         json11::Json requestJson = json11::Json::parse(req.body, error);
         
         if (!error.empty()) {
-            // JSON 解析错误
+            // JSON parsing error
             json11::Json errorResponse = json11::Json::object {
                 {"success", json11::Json(false)},
                 {"error", json11::Json("Invalid JSON: " + error)}
@@ -137,11 +137,11 @@ bool OneSevenLiveHttpServer::start() {
             return;
         }
         
-        // 获取请求的 action
+        // Get requested action
         std::string action = requestJson["action"].string_value();
         
         if (action.empty()) {
-            // 缺少 action 参数
+            // Missing action parameter
             json11::Json errorResponse = json11::Json::object{
                 {"success", false},
                 {"error", "Missing 'action' parameter"}
@@ -150,17 +150,17 @@ bool OneSevenLiveHttpServer::start() {
             return;
         }
         
-        // 调用 API 并返回结果
+        // Call API and return result
         json11::Json apiResult;
         bool success = false;
         
         try {
-            // 获取 apiWrapper 实例
+            // Get apiWrapper instance
             auto apiWrapper = coreManager.getApiWrapper();
             auto configManager = coreManager.getConfigManager();
             
             if (!apiWrapper) {
-                // API Wrapper 未初始化
+                // API Wrapper not initialized
                 json11::Json errorResponse = json11::Json::object{
                     {"success", false},
                     {"error", "API not initialized"}
@@ -169,7 +169,7 @@ bool OneSevenLiveHttpServer::start() {
                 return;
             }
             
-            // 根据 action 调用相应的 API 函数
+            // Call corresponding API function based on action
             if (action == ACTION_GETABLYTOKEN) {
                 std::string roomID;
                 configManager->getConfigValue("RoomID", roomID);
@@ -188,7 +188,7 @@ bool OneSevenLiveHttpServer::start() {
                     OneSevenLiveRoomInfoToJson(roomInfo, apiResult);
                 }
             } else {
-                // 不支持的 action
+                // Unsupported action
                 json11::Json errorResponse = json11::Json::object{
                     {"success", false},
                     {"error", "Unsupported action: " + action}
@@ -198,7 +198,7 @@ bool OneSevenLiveHttpServer::start() {
             }
 
             if (!success) {
-                // API 调用失败
+                // API call failed
                 json11::Json errorResponse = json11::Json::object{
                     {"success", json11::Json(false)},
                     {"error", json11::Json(apiWrapper->getLastErrorMessage().toStdString())}
@@ -207,12 +207,12 @@ bool OneSevenLiveHttpServer::start() {
                 return;
             }
             
-            // 构建响应
+            // Build response
             json11::Json response = apiResult;
             
             res.set_content(response.dump(), "application/json");
         } catch (const std::exception &e) {
-            // 处理异常
+            // Handle exceptions
             json11::Json errorResponse = json11::Json::object{
                 {"success", false},
                 {"error", std::string("Exception: ") + e.what()}
@@ -221,7 +221,7 @@ bool OneSevenLiveHttpServer::start() {
         }
     });
 
-    // 在新线程中启动服务器，以避免阻塞主线程
+    // Start server in new thread to avoid blocking main thread
     server_thread_ = std::make_unique<std::thread>([this]() {
         if (port_ == 0) {
             // Bind to any available port if port_ is 0
@@ -241,27 +241,27 @@ bool OneSevenLiveHttpServer::start() {
             blog(LOG_INFO, "[17Live HTTP Server] Starting server on %s:%d", host_.c_str(), port_);
             if (!svr_.listen(host_.c_str(), port_)) {
                 blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d", host_.c_str(), port_);
-                running_ = false; // 确保状态正确
+                running_ = false; // Ensure correct state
             }
         }
     });
     
-    // 稍微等待一下，看服务器是否能成功启动。这不是很完美，但可以捕捉到一些即时错误。
-    // 一个更好的方法是使用条件变量或 future 来等待服务器真正开始监听。
+    // Wait a bit to see if server can start successfully. This is not perfect, but can catch some immediate errors.
+    // A better approach would be to use condition variables or futures to wait for server to actually start listening.
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
     
-    // listen 失败会在线程内打印日志，但我们这里假设它会启动
-    // is_running() 依赖于 svr_.is_running()，但 listen 是阻塞的，所以 svr_.is_running() 可能在 listen 成功前返回 false
-    // 我们需要一种更可靠的方式来检查服务器是否真的在运行。
-    // 对于这个实现，我们暂时乐观地假设它会运行，并在stop时正确处理。
-    running_ = svr_.is_running(); // 这可能不会立即反映真实状态，因为listen在另一个线程
+    // listen failure will print logs within thread, but we assume it will start here
+    // is_running() depends on svr_.is_running(), but listen is blocking, so svr_.is_running() may return false before listen succeeds
+    // We need a more reliable way to check if server is actually running.
+    // For this implementation, we optimistically assume it will run and handle properly in stop.
+    running_ = svr_.is_running(); // This may not immediately reflect real state since listen is in another thread
     if(!running_){
-        // 尝试检查端口是否被占用等，但httplib可能没有直接提供这种检查方式
-        // 这里的逻辑是，如果listen快速失败（例如端口已占用），svr_.stop()会被调用，running_会是false
-        // 但如果listen正在尝试，它会阻塞，is_running()可能还是false
-        // 这是一个简化的处理，实际项目中可能需要更复杂的启动确认机制
+        // Try to check if port is occupied etc., but httplib may not directly provide this check
+        // The logic here is, if listen fails quickly (e.g. port occupied), svr_.stop() will be called, running_ will be false
+        // But if listen is trying, it will block, is_running() may still be false
+        // This is a simplified handling, actual projects may need more complex startup confirmation mechanism
         blog(LOG_INFO, "[17Live HTTP Server] Server thread started. Checking status shortly.");
-        // 暂时假设启动成功，由stop和析构函数处理清理
+        // Temporarily assume startup success, let stop and destructor handle cleanup
         running_ = true; 
     }
 
@@ -271,9 +271,9 @@ bool OneSevenLiveHttpServer::start() {
 void OneSevenLiveHttpServer::stop() {
     if (running_) {
         blog(LOG_INFO, "[17Live HTTP Server] Stopping server...");
-        svr_.stop(); // 停止服务器监听
+        svr_.stop(); // Stop server listening
         if (server_thread_ && server_thread_->joinable()) {
-            server_thread_->join(); // 等待服务器线程结束
+            server_thread_->join(); // Wait for server thread to end
         }
         server_thread_.reset();
         running_ = false;
@@ -284,9 +284,9 @@ void OneSevenLiveHttpServer::stop() {
 }
 
 bool OneSevenLiveHttpServer::is_running() const {
-    // svr_.is_running() 检查服务器是否正在监听。 
-    // 但是，如果listen在另一个线程中失败，这个状态可能不会立即更新。
-    // 我们的 running_ 成员旨在提供一个更直接的控制状态。
+    // svr_.is_running() checks if server is listening. 
+    // However, if listen fails in another thread, this state may not update immediately.
+    // Our running_ member aims to provide a more direct control state.
     return running_ && svr_.is_running();
 }
 

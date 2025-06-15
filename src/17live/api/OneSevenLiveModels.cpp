@@ -13,10 +13,10 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
         return false;
     }
 
-    // 处理用户信息
+    // Handle user information
     const auto& userInfoJson = json["userInfo"];
     if (userInfoJson.is_object()) {
-        // 基本用户信息
+        // Basic user information
         loginData.userInfo.userID = QString::fromStdString(userInfoJson["userID"].string_value());
         loginData.userInfo.openID = QString::fromStdString(userInfoJson["openID"].string_value());
         loginData.userInfo.displayName = QString::fromStdString(userInfoJson["displayName"].string_value());
@@ -25,60 +25,60 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
         loginData.userInfo.picture = QString::fromStdString(userInfoJson["picture"].string_value());
         loginData.userInfo.website = QString::fromStdString(userInfoJson["website"].string_value());
         
-        // 计数信息
+        // Count information
         loginData.userInfo.followerCount = userInfoJson["followerCount"].int_value();
         loginData.userInfo.followingCount = userInfoJson["followingCount"].int_value();
         loginData.userInfo.receivedLikeCount = userInfoJson["receivedLikeCount"].int_value();
         loginData.userInfo.likeCount = userInfoJson["likeCount"].int_value();
         
-        // 关注状态
+        // Follow status
         loginData.userInfo.isFollowing = userInfoJson["isFollowing"].int_value();
         loginData.userInfo.isNotif = userInfoJson["isNotif"].int_value();
         loginData.userInfo.isBlocked = userInfoJson["isBlocked"].int_value();
         loginData.userInfo.followTime = userInfoJson["followTime"].int_value();
         loginData.userInfo.followRequestTime = userInfoJson["followRequestTime"].int_value();
         
-        // 房间和隐私设置
+        // Room and privacy settings
         loginData.userInfo.roomID = userInfoJson["roomID"].int_value();
         loginData.userInfo.privacyMode = QString::fromStdString(userInfoJson["privacyMode"].string_value());
         loginData.userInfo.followPrivacyMode = userInfoJson["followPrivacyMode"].int_value();
         
-        // 等级和状态信息
+        // Level and status information
         loginData.userInfo.ballerLevel = userInfoJson["ballerLevel"].int_value();
         loginData.userInfo.postCount = userInfoJson["postCount"].int_value();
         loginData.userInfo.isCelebrity = userInfoJson["isCelebrity"].int_value();
         loginData.userInfo.baller = userInfoJson["baller"].int_value();
         loginData.userInfo.level = userInfoJson["level"].int_value();
         
-        // 其他属性
+        // Other attributes
         loginData.userInfo.revenueShareIndicator = QString::fromStdString(userInfoJson["revenueShareIndicator"].string_value());
         loginData.userInfo.clanStatus = userInfoJson["clanStatus"].int_value();
         loginData.userInfo.region = QString::fromStdString(userInfoJson["region"].string_value());
         loginData.userInfo.hideAllPointToLeaderboard = userInfoJson["hideAllPointToLeaderboard"].int_value();
         loginData.userInfo.enableShop = userInfoJson["enableShop"].int_value();
         
-        // 时间戳信息
+        // Timestamp information
         loginData.userInfo.lastLiveTimestamp = userInfoJson["lastLiveTimestamp"].int_value();
         loginData.userInfo.lastCreateLiveTimestamp = userInfoJson["lastCreateLiveTimestamp"].int_value();
         loginData.userInfo.lastLiveRegion = QString::fromStdString(userInfoJson["lastLiveRegion"].string_value());
         
-        // 布尔值属性
+        // Boolean attributes
         loginData.userInfo.streamerRecapEnable = userInfoJson["streamerRecapEnable"].bool_value();
         loginData.userInfo.newbieDisplayAllGiftTabsToast = userInfoJson["newbieDisplayAllGiftTabsToast"].bool_value();
         loginData.userInfo.isUnderaged = userInfoJson["isUnderaged"].bool_value();
         loginData.userInfo.isFreePrivateMsgEnabled = userInfoJson["isFreePrivateMsgEnabled"].bool_value();
         loginData.userInfo.isVliverOnlyModeEnabled = userInfoJson["isVliverOnlyModeEnabled"].bool_value();
         
-        // 整数属性
+        // Integer attributes
         loginData.userInfo.gloryroadMode = userInfoJson["gloryroadMode"].int_value();
         loginData.userInfo.avatarOnboardingPhase = userInfoJson["avatarOnboardingPhase"].int_value();
         loginData.userInfo.isEmailVerified = userInfoJson["isEmailVerified"].int_value();
         
-        // 字符串属性
+        // String attributes
         loginData.userInfo.extIDAppleTransfer = QString::fromStdString(userInfoJson["extIDAppleTransfer"].string_value());
         loginData.userInfo.commentShadowColor = QString::fromStdString(userInfoJson["commentShadowColor"].string_value());
         
-        // 数组属性
+        // Array attributes
         if (userInfoJson["badgeInfo"].is_array()) {
             for (const auto& badge : userInfoJson["badgeInfo"].array_items()) {
                 loginData.userInfo.badgeInfo.append(QString::fromStdString(badge.string_value()));
@@ -103,11 +103,11 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
             }
         }
         
-        // 对象属性 - monthlyVIPBadges
-        // 注意：这里假设QVariantMap可以直接从JSON对象构建，实际实现可能需要调整
+        // Object attributes - monthlyVIPBadges
+        // Note: This assumes QVariantMap can be built directly from JSON object, actual implementation may need adjustment
         if (userInfoJson["monthlyVIPBadges"].is_object()) {
-            // 这里需要根据实际情况处理monthlyVIPBadges
-            // 简单示例：
+            // Need to handle monthlyVIPBadges based on actual situation
+            // Simple example:
             // const auto& badges = userInfoJson["monthlyVIPBadges"].object_items();
             // for (const auto& pair : badges) {
             //     loginData.userInfo.monthlyVIPBadges.insert(QString::fromStdString(pair.first), QVariant::fromValue(pair.second));
@@ -115,7 +115,7 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
         }
     }
     
-    // 处理基本响应信息
+    // Handle basic response information
     loginData.message = QString::fromStdString(json["message"].string_value());
     loginData.result = QString::fromStdString(json["result"].string_value());
     loginData.refreshToken = QString::fromStdString(json["refreshToken"].string_value());
@@ -124,20 +124,20 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
     loginData.giftModuleState = json["giftModuleState"].int_value();
     loginData.word = QString::fromStdString(json["word"].string_value());
     
-    // 处理A/B测试相关字段
+    // Handle A/B testing related fields
     loginData.abtestNewbieFocus = QString::fromStdString(json["abtestNewbieFocus"].string_value());
     loginData.abtestNewbieGuidance = QString::fromStdString(json["abtestNewbieGuidance"].string_value());
     loginData.abtestNewbieGuide = QString::fromStdString(json["abtestNewbieGuide"].string_value());
     
-    // 处理推荐和新手引导相关字段
+    // Handle recommendation and onboarding related fields
     loginData.showRecommend = json["showRecommend"].bool_value();
     loginData.newbieEnhanceGuidanceStyle = json["newbieEnhanceGuidanceStyle"].int_value();
     loginData.newbieGuidanceFocusMissionEnable = json["newbieGuidanceFocusMissionEnable"].bool_value();
     
-    // 处理自动进入直播相关字段
+    // Handle auto-enter live streaming related fields
     const auto& autoEnterJson = json["autoEnterLive"];
     if (autoEnterJson.is_object()) {
-        // 注意：JSON中字段名为"auto"，但结构体中字段名为"autoEnter"
+        // Note: Field name in JSON is "auto", but field name in struct is "autoEnter"
         loginData.autoEnterLive.autoEnter = autoEnterJson["auto"].bool_value();
         loginData.autoEnterLive.liveStreamID = autoEnterJson["liveStreamID"].int_value();
     }
@@ -151,7 +151,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
     }
 
     try {
-        // 基本信息
+        // Basic information
         roomInfo.userID = QString::fromStdString(json["userID"].string_value());
         roomInfo.streamerType = json["streamerType"].int_value();
         roomInfo.streamType = QString::fromStdString(json["streamType"].string_value());
@@ -199,7 +199,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
             }
         }
 
-        // 直播信息
+        // Live streaming information
         roomInfo.allowCallin = json["allowCallin"].int_value();
         roomInfo.restreamerOpenID = QString::fromStdString(json["restreamerOpenID"].string_value());
         roomInfo.streamID = QString::fromStdString(json["streamID"].string_value());
@@ -217,7 +217,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         roomInfo.latitude = json["latitude"].number_value();
         roomInfo.longitude = json["longitude"].number_value();
 
-        // 房间设置
+        // Room settings
         roomInfo.shareLocation = json["shareLocation"].int_value();
         roomInfo.followerOnlyChat = json["followerOnlyChat"].int_value();
         roomInfo.chatAvailable = json["chatAvailable"].int_value();
@@ -226,7 +226,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         roomInfo.numberOfChunks = json["numberOfChunks"].int_value();
         roomInfo.canSendGift = json["canSendGift"].int_value();
 
-        // 用户信息
+        // User information
         const auto& userInfoJson = json["userInfo"];
         if (userInfoJson.is_object()) {
             roomInfo.userInfo.userID = QString::fromStdString(userInfoJson["userID"].string_value());
@@ -241,7 +241,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
             roomInfo.userInfo.picture = QString::fromStdString(userInfoJson["picture"].string_value());
 
 
-            // 荣耀之路信息
+            // Glory Road information
             const auto& gloryroadInfoJson = userInfoJson["gloryroadInfo"];
             if (gloryroadInfoJson.is_object()) {
                 roomInfo.userInfo.gloryroadInfo.point = gloryroadInfoJson["point"].int_value();
@@ -251,7 +251,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
             }
         }
 
-        // 其他设置
+        // Other settings
         roomInfo.landscape = json["landscape"].bool_value();
         roomInfo.mute = json["mute"].bool_value();
         roomInfo.birthdayState = json["birthdayState"].int_value();
@@ -261,7 +261,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         roomInfo.region = QString::fromStdString(json["region"].string_value());
         roomInfo.device = QString::fromStdString(json["device"].string_value());
 
-        // 活动列表
+        // Event list
         const auto& eventListJson = json["eventList"];
         if (eventListJson.is_array()) {
             for (const auto& eventJson : eventListJson.array_items()) {
@@ -276,7 +276,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
                 eventInfo.pageSize = eventJson["pageSize"].int_value();
                 eventInfo.webViewTitle = QString::fromStdString(eventJson["webViewTitle"].string_value());
 
-                // 图标列表
+                // Icon list
                 const auto& iconsJson = eventJson["icons"];
                 if (iconsJson.is_array()) {
                     for (const auto& iconJson : iconsJson.array_items()) {
@@ -292,7 +292,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         }
 
 
-        // 存档配置
+        // Archive configuration
         const auto& archiveConfigJson = json["archiveConfig"];
         if (archiveConfigJson.is_object()) {
             roomInfo.archiveConfig.autoRecording = archiveConfigJson["autoRecording"].bool_value();
@@ -301,7 +301,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
             roomInfo.archiveConfig.clipPermissionDownload = archiveConfigJson["clipPermissionDownload"].int_value();
         }
 
-        // 存档ID和游戏跑马灯设置
+        // Archive ID and game marquee settings
         roomInfo.archiveID = QString::fromStdString(json["archiveID"].string_value());
         roomInfo.hideGameMarquee = json["hideGameMarquee"].bool_value();
 
@@ -333,7 +333,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
     try {
         Json::object jsonObject;
 
-        // 基本信息
+        // Basic information
         jsonObject["userID"] = roomInfo.userID.toStdString();
         jsonObject["streamerType"] = roomInfo.streamerType;
         jsonObject["streamType"] = roomInfo.streamType.toStdString();
@@ -378,7 +378,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         pullUrlsInfoObject["rtmpURLs"] = pullRtmpUrlsArray;
         jsonObject["pullURLsInfo"] = pullUrlsInfoObject;
 
-        // 直播信息
+        // Live streaming information
         jsonObject["allowCallin"] = roomInfo.allowCallin;
         jsonObject["restreamerOpenID"] = roomInfo.restreamerOpenID.toStdString();
         jsonObject["streamID"] = roomInfo.streamID.toStdString();
@@ -396,7 +396,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         jsonObject["latitude"] = roomInfo.latitude;
         jsonObject["longitude"] = roomInfo.longitude;
 
-        // 房间设置
+        // Room settings
         jsonObject["shareLocation"] = roomInfo.shareLocation;
         jsonObject["followerOnlyChat"] = roomInfo.followerOnlyChat;
         jsonObject["chatAvailable"] = roomInfo.chatAvailable;
@@ -405,7 +405,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         jsonObject["numberOfChunks"] = roomInfo.numberOfChunks;
         jsonObject["canSendGift"] = roomInfo.canSendGift;
 
-        // 用户信息
+        // User information
         Json::object userInfoObject;
         userInfoObject["userID"] = roomInfo.userInfo.userID.toStdString();
         userInfoObject["openID"] = roomInfo.userInfo.openID.toStdString();
@@ -418,7 +418,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         userInfoObject["deviceType"] = roomInfo.userInfo.deviceType.toStdString();
         userInfoObject["picture"] = roomInfo.userInfo.picture.toStdString();
 
-        // 荣耀之路信息
+        // Glory road information
         Json::object gloryroadInfoObject;
         gloryroadInfoObject["point"] = roomInfo.userInfo.gloryroadInfo.point;
         gloryroadInfoObject["level"] = roomInfo.userInfo.gloryroadInfo.level;
@@ -427,7 +427,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         userInfoObject["gloryroadInfo"] = gloryroadInfoObject;
         jsonObject["userInfo"] = userInfoObject;
 
-        // 其他设置
+        // Other settings
         jsonObject["landscape"] = roomInfo.landscape;
         jsonObject["mute"] = roomInfo.mute;
         jsonObject["birthdayState"] = roomInfo.birthdayState;
@@ -437,7 +437,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         jsonObject["region"] = roomInfo.region.toStdString();
         jsonObject["device"] = roomInfo.device.toStdString();
 
-        // 活动列表
+        // Activity list
         Json::array eventListArray;
         for (const auto& eventInfo : roomInfo.eventList) {
             Json::object eventJson;
@@ -463,7 +463,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         }
         jsonObject["eventList"] = eventListArray;
 
-        // 存档配置
+        // Archive configuration
         Json::object archiveConfigObject;
         archiveConfigObject["autoRecording"] = roomInfo.archiveConfig.autoRecording;
         archiveConfigObject["autoPublish"] = roomInfo.archiveConfig.autoPublish;
@@ -471,7 +471,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         archiveConfigObject["clipPermissionDownload"] = roomInfo.archiveConfig.clipPermissionDownload;
         jsonObject["archiveConfig"] = archiveConfigObject;
 
-        // 存档ID和游戏跑马灯设置
+        // Archive ID and game marquee settings
         jsonObject["archiveID"] = roomInfo.archiveID.toStdString();
         jsonObject["hideGameMarquee"] = roomInfo.hideGameMarquee;
 
@@ -494,7 +494,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         return true;
 
     } catch (const std::exception& e) {
-        // 您可以在这里添加日志记录，例如使用 obs_log
+        // You can add logging here, for example using obs_log
         obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveRoomInfoToJson error: %s", e.what());
         return false;
     }
@@ -502,25 +502,25 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
 
 bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, Json &json)
 {
-    // 创建存档配置的JSON对象
+    // Create archive configuration JSON object
     Json archiveConfig = Json::object{
         {"autoRecording", request.archiveConfig.autoRecording},
         {"autoPublish", request.archiveConfig.autoPublish},
         {"clipPermission", request.archiveConfig.clipPermission}
     };
 
-    // 创建虚拟主播信息的JSON对象
+    // Create virtual streamer information JSON object
     Json vliverInfo = Json::object{
         {"vliverModel", request.vliverInfo.vliverModel}
     };
 
-    // 将hashtags转换为Json数组
+    // Convert hashtags to Json array
     std::vector<Json> hashtagsArray;
     for (const QString &tag : request.hashtags) {
         hashtagsArray.push_back(Json(tag.toStdString()));
     }
 
-    // 创建主JSON对象
+    // Create main JSON object
     Json eventID = Json(static_cast<int>(request.eventID));
     json = Json::object{
         {"userID", request.userID.toStdString()},
@@ -543,7 +543,7 @@ bool JsonToOneSevenLiveRtmpRequest(const Json &json, OneSevenLiveRtmpRequest &re
     if (!json.is_object()) {
         return false;
     }
-    // 基本信息
+    // Basic information
     request.userID = QString::fromStdString(json["userID"].string_value());
     request.caption = QString::fromStdString(json["caption"].string_value());
     request.device = QString::fromStdString(json["device"].string_value());
@@ -593,11 +593,11 @@ bool JsonToOneSevenLiveStreamInfo(const Json &json, OneSevenLiveStreamInfo &stre
     if (!json.is_object()) {
         return false;
     }
-    // 基本信息
+    // Basic information
     streamInfo.categoryName = QString::fromStdString(json["categoryName"].string_value());
     streamInfo.createdAt = QDateTime::fromString(QString::fromStdString(json["createdAt"].string_value()), Qt::ISODate);
     streamInfo.streamUuid = QString::fromStdString(json["streamUuid"].string_value());
-    // 处理 request 对象
+    // Handle request object
     if (!JsonToOneSevenLiveRtmpRequest(json["request"], streamInfo.request)) {
         return false;
     }
@@ -610,17 +610,17 @@ bool JsonToOneSevenLiveRtmpResponse(const Json &json, OneSevenLiveRtmpResponse &
         return false;
     }
 
-    // 基本信息
+    // Basic information
     response.liveStreamID = QString::fromStdString(json["liveStreamID"].string_value());
     response.streamID = QString::fromStdString(json["streamID"].string_value());
     response.rtmpURL = QString::fromStdString(json["rtmpURL"].string_value());
     response.rtmpProvider = QString::fromStdString(json["rtmpProvider"].string_value());
     response.messageProvider = json["messageProvider"].int_value();
     
-    // firstStreamInfo 是空对象，直接赋值
+    // firstStreamInfo is empty object, assign directly
     response.firstStreamInfo = json["firstStreamInfo"];
 
-    // 处理 rtmpURLs 数组
+    // Handle rtmpURLs array
     const auto& rtmpUrlsJson = json["rtmpURLs"];
     if (rtmpUrlsJson.is_array()) {
         for (const auto& urlJson : rtmpUrlsJson.array_items()) {
@@ -638,14 +638,14 @@ bool JsonToOneSevenLiveRtmpResponse(const Json &json, OneSevenLiveRtmpResponse &
         }
     }
 
-    // 处理成就值状态
+    // Handle achievement value status
     const auto& achievementValueStateJson = json["achievementValueState"];
     if (achievementValueStateJson.is_object()) {
         response.achievementValueState.isValueCarryOver = achievementValueStateJson["isValueCarryOver"].bool_value();
         response.achievementValueState.initSeconds = achievementValueStateJson["initSeconds"].int_value();
     }
 
-    // 字幕启用状态
+    // Subtitle enable status
     response.subtitleEnabled = json["subtitleEnabled"].bool_value();
 
     return true;
@@ -666,11 +666,11 @@ bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStream
       return false;
     }
   
-    // 解析event部分
+    // Parse event section
     if (json["event"].is_object()) {
       const auto &eventJson = json["event"];
       
-      // 解析events数组
+      // Parse events array
       if (eventJson["events"].is_array()) {
         const auto &eventsArray = eventJson["events"].array_items();
         for (const auto &eventItem : eventsArray) {
@@ -681,7 +681,7 @@ bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStream
           item.descriptionURL = QString::fromStdString(eventItem["descriptionURL"].string_value());
           item.endTime = eventItem["endTime"].int_value();
           
-          // 解析tagIDs数组
+          // Parse tagIDs array
           if (eventItem["tagIDs"].is_array()) {
             const auto &tagIDsArray = eventItem["tagIDs"].array_items();
             for (const auto &tagID : tagIDsArray) {
@@ -697,7 +697,7 @@ bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStream
       response.event.promotionIndex = eventJson["promotionIndex"].int_value();
       response.event.instructionURL = QString::fromStdString(eventJson["instructionURL"].string_value());
       
-      // 解析tags数组
+      // Parse tags array
       if (eventJson["tags"].is_array()) {
         const auto &tagsArray = eventJson["tags"].array_items();
         for (const auto &tagItem : tagsArray) {
@@ -709,21 +709,21 @@ bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStream
       }
     }
     
-    // 解析customEvent部分
+    // Parse customEvent section
     if (json["customEvent"].is_object()) {
       const auto &customEventJson = json["customEvent"];
       response.customEvent.endTime = customEventJson["endTime"].int_value();
       response.customEvent.status = customEventJson["status"].int_value();
     }
     
-    // 解析boxGacha部分
+    // Parse boxGacha section
     if (json["boxGacha"].is_object()) {
       const auto &boxGachaJson = json["boxGacha"];
       response.boxGacha.previousSettingStatus = boxGachaJson["previousSettingStatus"].bool_value();
       response.boxGacha.availableEventID = QString::fromStdString(boxGachaJson["availableEventID"].string_value());
     }
     
-    // 解析subtabs数组
+    // Parse subtabs array
     if (json["subtabs"].is_array()) {
       const auto &subtabsArray = json["subtabs"].array_items();
       for (const auto &subtabItem : subtabsArray) {
@@ -753,16 +753,16 @@ bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStream
 
 bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response, Json &json)
 {
-    // 创建 event 部分
+    // Create event section
     std::vector<Json> eventsArray;
     for (const auto &event : response.event.events) {
-        // 创建 tagIDs 数组
+        // Create tagIDs array
         std::vector<Json> tagIDsArray;
         for (const QString &tagID : event.tagIDs) {
             tagIDsArray.push_back(Json(tagID.toStdString()));
         }
 
-        // 创建单个事件对象
+        // Create single event object
         Json eventJson = Json::object{
             {"ID", static_cast<int>(event.ID)},
             {"name", event.name.toStdString()},
@@ -774,7 +774,7 @@ bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response
         eventsArray.push_back(eventJson);
     }
 
-    // 创建 tags 数组
+    // Create tags array
     std::vector<Json> tagsArray;
     for (const auto &tag : response.event.tags) {
         Json tagJson = Json::object{
@@ -784,7 +784,7 @@ bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response
         tagsArray.push_back(tagJson);
     }
 
-    // 创建 event 对象
+    // Create event object
     Json eventJson = Json::object{
         {"events", eventsArray},
         {"notEligibleForAllEvents", response.event.notEligibleForAllEvents},
@@ -793,19 +793,19 @@ bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response
         {"instructionURL", response.event.instructionURL.toStdString()}
     };
 
-    // 创建 customEvent 对象
+    // Create customEvent object
     Json customEventJson = Json::object{
         {"endTime", static_cast<int>(response.customEvent.endTime)},
         {"status", response.customEvent.status}
     };
 
-    // 创建 boxGacha 对象
+    // Create boxGacha object
     Json boxGachaJson = Json::object{
         {"previousSettingStatus", response.boxGacha.previousSettingStatus},
         {"availableEventID", response.boxGacha.availableEventID.toStdString()}
     };
 
-    // 创建 subtabs 数组
+    // Create subtabs array
     std::vector<Json> subtabsArray;
     for (const auto &subtab : response.subtabs) {
         Json subtabJson = Json::object{
@@ -821,7 +821,7 @@ bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response
         }}
     };
 
-    // 创建主 JSON 对象
+    // Create main JSON object
     json = Json::object{
         {"event", eventJson},
         {"customEvent", customEventJson},
@@ -840,21 +840,21 @@ bool JsonToOneSevenLiveAblyTokenResponse(const Json &json, OneSevenLiveAblyToken
         return false;
     }
 
-    // 解析 provider 字段
+    // Parse provider field
     if (json["provider"].is_number()) {
         response.provider = json["provider"].int_value();
     } else {
         return false;
     }
 
-    // 解析 token 字段
+    // Parse token field
     if (json["token"].is_string()) {
         response.token = QString::fromStdString(json["token"].string_value());
     } else {
         return false;
     }
 
-    // 解析 channels 数组
+    // Parse channels array
     if (json["channels"].is_array()) {
         const auto &channelsArray = json["channels"].array_items();
         response.channels.clear();
@@ -871,13 +871,13 @@ bool JsonToOneSevenLiveAblyTokenResponse(const Json &json, OneSevenLiveAblyToken
 }
 
 bool OneSevenLiveAblyTokenResponseToJson(const OneSevenLiveAblyTokenResponse &response, Json &json) {
-    // 创建 channels 数组
+    // Create channels array
     std::vector<Json> channelsArray;
     for (const QString &channel : response.channels) {
         channelsArray.push_back(Json(channel.toStdString()));
     }
 
-    // 创建主 JSON 对象
+    // Create main JSON object
     json = Json::object{
         {"provider", response.provider},
         {"token", response.token.toStdString()},
@@ -914,13 +914,13 @@ bool JsonToOneSevenLiveConfig(const Json &json, OneSevenLiveConfig &config)
     }
 
     try {
-        // 处理addOns对象
+        // Handle addOns object
         const auto& addOnsJson = json["addOns"];
         if (addOnsJson.is_object()) {
-            // 处理features对象
+            // Handle features object
             const auto& featuresJson = addOnsJson["features"];
             if (featuresJson.is_object()) {
-                // 遍历features对象中的所有键值对
+                // Iterate through all key-value pairs in features object
                 for (const auto& item : featuresJson.object_items()) {
                     const std::string& key = item.first;
                     const int value = item.second.int_value();
@@ -930,7 +930,7 @@ bool JsonToOneSevenLiveConfig(const Json &json, OneSevenLiveConfig &config)
         }
         return true;
     } catch (const std::exception& e) {
-        // 记录错误日志
+        // Log error
         obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveConfig error: %s", e.what());
         return false;
     }
@@ -939,24 +939,24 @@ bool JsonToOneSevenLiveConfig(const Json &json, OneSevenLiveConfig &config)
 bool OneSevenLiveConfigToJson(const OneSevenLiveConfig &config, Json &json)
 {
     try {
-        // 创建features对象
+        // Create features object
         Json::object featuresObject;
         for (auto it = config.addOns.features.constBegin(); it != config.addOns.features.constEnd(); ++it) {
             featuresObject[it.key().toStdString()] = it.value();
         }
 
-        // 创建addOns对象
+        // Create addOns object
         Json::object addOnsObject;
         addOnsObject["features"] = featuresObject;
 
-        // 创建主JSON对象
+        // Create main JSON object
         Json::object jsonObject;
         jsonObject["addOns"] = addOnsObject;
 
         json = Json(jsonObject);
         return true;
     } catch (const std::exception& e) {
-        // 记录错误日志
+        // Log error message
         obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveConfigToJson error: %s", e.what());
         return false;
     }
@@ -969,7 +969,7 @@ bool JsonToOneSevenLiveArmySubscriptionLevels(const Json &json, OneSevenLiveArmy
     }
 
     try {
-        // 处理subscriptionLevels数组
+        // Handle subscriptionLevels array
         const auto& subscriptionLevelsJson = json["subscriptionLevels"];
         if (subscriptionLevelsJson.is_array()) {
             levels.subscriptionLevels.clear();
@@ -977,16 +977,16 @@ bool JsonToOneSevenLiveArmySubscriptionLevels(const Json &json, OneSevenLiveArmy
             for (const auto& levelJson : subscriptionLevelsJson.array_items()) {
                 OneSevenLiveArmySubscriptionLevel level;
                 
-                // 解析基本字段
+                // Parse basic fields
                 level.rank = levelJson["rank"].int_value();
                 level.subscribersAmount = levelJson["subscribersAmount"].int_value();
                 
-                // 解析i18nToken对象
+                // Parse i18nToken object
                 const auto& i18nTokenJson = levelJson["i18nToken"];
                 if (i18nTokenJson.is_object()) {
                     level.i18nToken.key = QString::fromStdString(i18nTokenJson["key"].string_value());
                     
-                    // 解析params数组
+                    // Parse params array
                     const auto& paramsJson = i18nTokenJson["params"];
                     if (paramsJson.is_array()) {
                         for (const auto& paramJson : paramsJson.array_items()) {
@@ -1003,7 +1003,7 @@ bool JsonToOneSevenLiveArmySubscriptionLevels(const Json &json, OneSevenLiveArmy
         
         return true;
     } catch (const std::exception& e) {
-        // 记录错误日志
+        // Log error message
         obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveArmySubscriptionLevels error: %s", e.what());
         return false;
     }
@@ -1012,11 +1012,11 @@ bool JsonToOneSevenLiveArmySubscriptionLevels(const Json &json, OneSevenLiveArmy
 bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscriptionLevels &levels, Json &json)
 {
     try {
-        // 创建subscriptionLevels数组
+        // Create subscriptionLevels array
         std::vector<Json> subscriptionLevelsArray;
         
         for (const auto &level : levels.subscriptionLevels) {
-            // 创建params数组
+            // Create params array
             std::vector<Json> paramsArray;
             for (const auto &param : level.i18nToken.params) {
                 Json paramJson = Json::object{
@@ -1025,7 +1025,7 @@ bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscription
                 paramsArray.push_back(paramJson);
             }
             
-            // 创建i18nToken对象
+            // Create i18nToken object
             Json i18nTokenJson;
             if (level.i18nToken.params.isEmpty()) {
                 i18nTokenJson = Json::object{
@@ -1038,7 +1038,7 @@ bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscription
                 };
             }
             
-            // 创建level对象
+            // Create level object
             Json levelJson = Json::object{
                 {"rank", level.rank},
                 {"subscribersAmount", level.subscribersAmount},
@@ -1048,14 +1048,14 @@ bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscription
             subscriptionLevelsArray.push_back(levelJson);
         }
         
-        // 创建主JSON对象
+        // Create main JSON object
         json = Json::object{
             {"subscriptionLevels", subscriptionLevelsArray}
         };
         
         return true;
     } catch (const std::exception& e) {
-        // 记录错误日志
+        // Log error message
         obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveArmySubscriptionLevelsToJson error: %s", e.what());
         return false;
     }

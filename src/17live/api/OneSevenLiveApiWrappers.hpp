@@ -60,16 +60,16 @@ public:
   bool GetRtmpByProvider(const std::string provider, OneSevenLiveRtmpResponse &response);
 
   /**
-   * @brief 对字符串进行MD5加密
-   * @param str 需要加密的字符串
-   * @return 返回MD5加密后的字符串（16进制格式）
-   */
+     * @brief Perform MD5 encryption on string
+     * @param str String to be encrypted
+     * @return Returns MD5 encrypted string (hexadecimal format)
+     */
   static QString md5(const QString& str);
 
   /**
-   * @brief 获取当前时间的毫秒级时间戳
-   * @return int64_t 返回自 1970-01-01 00:00:00 UTC 以来的毫秒数
-   */
+     * @brief Get current time in millisecond timestamp
+     * @return int64_t Returns milliseconds since 1970-01-01 00:00:00 UTC
+     */
   static int64_t getCurrentTimestampMs();
 
   QString getLastErrorMessage() const { return lastErrorMessage; }

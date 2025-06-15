@@ -10,14 +10,14 @@
 OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     : mainWindow(parent), isLoggedIn(false), isChatRoomVisible(false), isBroadcastVisible(false), isLiveListVisible(false)
 {
-    // 创建17Live菜单
+    // Create 17Live menu
     menu = mainWindow->menuBar()->addMenu(obs_module_text("17Live"));
 
-    // add submenu fro dock menu
+    // Add submenu for dock menu
     dockSubMenu = new QMenu(obs_module_text("Menu.Dock"));
     menu->addMenu(dockSubMenu);
 
-    // add submenu item
+    // Add submenu items
     chatRoomAction = dockSubMenu->addAction(obs_module_text("Menu.ChatRoom"));
     connect(chatRoomAction, &QAction::triggered, this, [this](){
         emit chatRoomClicked();
@@ -35,7 +35,7 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     
     menu->addSeparator();
 
-    // common menu
+    // Common menu
     helpAction = menu->addAction(obs_module_text("Menu.Help"));
 
     connect(helpAction, &QAction::triggered, this, [this](){
@@ -44,20 +44,20 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
 	    QDesktopServices::openUrl(url);
     });
 
-    // 创建检查更新菜单项
+    // Create check update menu item
     checkUpdateAction = menu->addAction(obs_module_text("Menu.CheckUpdate"));
     connect(checkUpdateAction, &QAction::triggered, this, &OneSevenLiveMenuManager::checkUpdate);
 
     menu->addSeparator();
 
-    // 创建登录菜单项
+    // Create login menu item
     loginAction = menu->addAction(obs_module_text("Menu.SignIn"));
     connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
     
-    // 初始化菜单项启用状态
+    // Initialize menu item enabled status
     updateMenuItemsEnabled();
     
-    // 初始化菜单项勾选状态
+    // Initialize menu item checked status
     chatRoomAction->setCheckable(true);
     broadcastAction->setCheckable(true);
     liveListAction->setCheckable(true);
@@ -91,7 +91,7 @@ void OneSevenLiveMenuManager::updateLoginStatus(bool logged, QString username)
         connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
     }
     
-    // 更新菜单项启用状态
+    // Update menu item enabled status
     updateMenuItemsEnabled();
 }
 
@@ -112,12 +112,12 @@ void OneSevenLiveMenuManager::checkUpdate()
 
 void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible)
 {
-    // 更新可见状态变量
+    // Update visibility status variables
     isChatRoomVisible = chatRoomVisible;
     isBroadcastVisible = broadcastVisible;
     isLiveListVisible = liveListVisible;
     
-    // 更新菜单项勾选状态
+    // Update menu item checked status
     if (chatRoomAction) {
         chatRoomAction->setCheckable(true);
         chatRoomAction->setChecked(isChatRoomVisible);
@@ -136,7 +136,7 @@ void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool br
 
 void OneSevenLiveMenuManager::updateMenuItemsEnabled()
 {
-    // 根据登录状态更新菜单项启用状态
+    // Update menu item enabled status based on login status
     chatRoomAction->setEnabled(isLoggedIn);
     broadcastAction->setEnabled(isLoggedIn);
     liveListAction->setEnabled(isLoggedIn);

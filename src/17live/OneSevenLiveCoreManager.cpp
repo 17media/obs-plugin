@@ -25,18 +25,18 @@ extern QDockWidget *cef_window;
 using namespace json11;
 using namespace std;
 
-// 初始化静态成员变量
+// Initialize static member variables
 OneSevenLiveCoreManager* OneSevenLiveCoreManager::instance = nullptr;
 std::mutex OneSevenLiveCoreManager::instanceMutex;
 
 OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainWindow)
 {
-    // 使用双重检查锁定模式确保线程安全
+    // Use double-checked locking pattern to ensure thread safety
     if (instance == nullptr) {
         std::lock_guard<std::mutex> lock(instanceMutex);
         if (instance == nullptr) {
             if (mainWindow == nullptr) {
-                throw std::runtime_error("首次调用getInstance时必须提供mainWindow参数");
+                throw std::runtime_error("mainWindow parameter must be provided on first call to getInstance");
             }
             instance = new OneSevenLiveCoreManager(mainWindow);
         }
@@ -51,7 +51,7 @@ OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
 
 OneSevenLiveCoreManager::~OneSevenLiveCoreManager()
 {
-    // 确保在析构前调用shutdown
+    // Ensure shutdown is called before destruction
     if (initialized) {
         shutdown();
     }
@@ -59,23 +59,23 @@ OneSevenLiveCoreManager::~OneSevenLiveCoreManager()
 
 bool OneSevenLiveCoreManager::initialize()
 {
-    // 防止重复初始化
+    // Prevent duplicate initialization
     if (initialized) {
         return true;
     }
 
-    // 初始化并启动 HTTP 服务器
-    // "html" 是相对于 obs_get_module_data_path() 的路径
+    // Initialize and start HTTP server
+    // "html" is the path relative to obs_get_module_data_path()
     httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");
     if (!httpServer_->start()) {
         blog(LOG_ERROR, "[17Live Core] Failed to start HTTP server.");
-        // 根据需求决定是否因为 HTTP 服务器启动失败而中断整个初始化
+        // Decide whether to interrupt the entire initialization due to HTTP server startup failure based on requirements
         // return false; 
     } else {
         blog(LOG_INFO, "[17Live Core] HTTP server started successfully.");
     }
 
-    // 初始化配置管理器
+    // Initialize configuration manager
     configManager = std::make_unique<OneSevenLiveConfigManager>();
 
     if (!configManager->initialize()) {
@@ -99,7 +99,7 @@ bool OneSevenLiveCoreManager::initialize()
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
     }
 
-    // 初始化菜单管理器
+    // Initialize menu manager
     menuManager = std::make_unique<OneSevenLiveMenuManager>(mainWindow);
     if (!menuManager) {
         obs_log(LOG_ERROR, "Failed to create menu manager");
@@ -131,7 +131,7 @@ bool OneSevenLiveCoreManager::initialize()
         }
         menuManager->updateLoginStatus(true, username);
 
-        // 加载meta data
+        // Load meta data
         if (!LoadMetaData()) {
             obs_log(LOG_ERROR, "Failed to load meta data");
             return false;
@@ -146,25 +146,25 @@ bool OneSevenLiveCoreManager::initialize()
 
 void OneSevenLiveCoreManager::load17LiveConfig()
 {
-    // 在initialize方法中，在初始化configManager之后添加以下代码
+    // In the initialize method, add the following code after initializing configManager
 
-    // 异步获取配置
+    // Asynchronously get configuration
     std::thread configThread([this]() {
-        // 获取当前区域和语言
+        // Get current region and language
         OneSevenLiveLoginData loginData;
         configManager->getLoginData(loginData);
     
         std::string region = loginData.userInfo.region.toStdString();
         if (region.empty()) {
-            region = "TW"; // 默认区域
+            region = "TW"; // Default region
         }
     
         std::string language = GetCurrentLanguage();
     
-        // 调用API获取配置
+        // Call API to get configuration
         json11::Json configJson;
         if (apiWrapper->GetConfig(region, language, configJson)) {
-            // 保存配置
+            // Save configuration
             configManager->setConfig(configJson);
             obs_log(LOG_INFO, "Config loaded successfully");
         } else {
@@ -172,7 +172,7 @@ void OneSevenLiveCoreManager::load17LiveConfig()
         }
     });
   
-    // 分离线程，让它在后台运行
+    // Detach thread to let it run in background
     configThread.detach(); 
 }
 
@@ -196,7 +196,7 @@ void OneSevenLiveCoreManager::shutdown()
 
     saveDockState();
 
-    // 清理菜单管理器资源
+    // Clean up menu manager resources
     if (menuManager) {
         menuManager->cleanup();
     }
@@ -230,7 +230,7 @@ bool OneSevenLiveCoreManager::handleLoginClicked()
 {
     OneSevenLiveLoginDialog dialog(mainWindow, getApiWrapper());
 
-    // 连接登录成功信号到主窗口的槽函数
+    // Connect login success signal to main window slot function
     QObject::connect(&dialog, &OneSevenLiveLoginDialog::loginSuccess, this, &OneSevenLiveCoreManager::handleLoginSuccess);
 
     return dialog.exec() == QDialog::Accepted;
@@ -245,7 +245,7 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
         return;
     }
 
-    // 更新菜单
+    // Update menu
     QString username = loginData.userInfo.displayName;
     if (username.isEmpty()) {
         username = loginData.userInfo.openID;
@@ -255,7 +255,7 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
 
 void OneSevenLiveCoreManager::handleLogoutClicked()
 {
-    // 关闭所有 dock 窗口，避免登出后出现错误操作
+    // Close all dock windows to avoid incorrect operations after logout
     if (streamingDock) {
         streamingDock->close();
         streamingDock = nullptr;
@@ -266,12 +266,12 @@ void OneSevenLiveCoreManager::handleLogoutClicked()
         liveListDock = nullptr;
     }
     
-    // 关闭聊天室窗口（如果存在）
+    // Close chat room window (if exists)
     if (cef_window && cef_window->isVisible()) {
         cef_window->close();
     }
     
-    // 重置登录状态
+    // Reset login status
     menuManager->updateLoginStatus(false, "");
     configManager->clearLoginData();
 }
@@ -287,7 +287,7 @@ void OneSevenLiveCoreManager::handleStreamingClicked()
             return;
         }
 
-        // 创建并显示流媒体窗口
+        // Create and show streaming window
         streamingDock = new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
 
         streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -308,7 +308,7 @@ void OneSevenLiveCoreManager::handleStreamingClicked()
                                             liveListDock && liveListDock->isVisible());
         });
         
-        // 连接关闭信号到主窗口的槽函数
+        // Connect close signal to main window slot function
         connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
             saveDockState();
         });
@@ -323,7 +323,7 @@ void OneSevenLiveCoreManager::handleStreamingClicked()
     }
 
 
-    // 更新菜单项勾选状态
+    // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
                                         streamingDock && streamingDock->isVisible(),
@@ -365,14 +365,14 @@ void OneSevenLiveCoreManager::handleLiveListClicked()
             }
         });
 
-        // dock 关闭时，取消菜单项的勾选状态
+        // When dock is closed, uncheck menu item status
         connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
                                             streamingDock && streamingDock->isVisible(),
                                             visible);
         });
     
-        // 连接关闭信号到主窗口的槽函数
+        // Connect close signal to main window slot function
         connect(liveListDock, &QDockWidget::destroyed, this, [this]() {
             saveDockState();
         });
@@ -384,7 +384,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked()
             mainWindow->restoreState(dockState);
     }
 
-    // 更新菜单项勾选状态
+    // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
                                         streamingDock && streamingDock->isVisible(),
@@ -447,7 +447,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked()
         cef_window->setVisible(!cef_window->isVisible());
     }
     
-    // 更新聊天室可见状态（CEF 视图打开时视为可见）
+    // Update chat room visibility status (considered visible when CEF view is open)
     if (menuManager) {
         menuManager->updateDockVisibility(true, 
                                         streamingDock && streamingDock->isVisible(), 

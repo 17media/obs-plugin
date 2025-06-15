@@ -22,8 +22,8 @@ private:
 
 signals:
     /**
-     * @brief 登录成功信号
-     * @param loginData 登录信息
+     * @brief Login success signal
+     * @param loginData Login information
      */
     void loginSuccess(const OneSevenLiveLoginData& loginData);
 

@@ -58,10 +58,10 @@ std::string ExecuteCommandAndGetOutput(const char* cmd) {
   std::string result;
   
 #ifdef _WIN32
-  // Windows平台使用_popen和_pclose
+  // Windows platform uses _popen and _pclose
   FILE* pipe = _popen(cmd, "r");
 #else
-  // macOS和Linux平台使用popen和pclose
+  // macOS and Linux platforms use popen and pclose
   FILE* pipe = popen(cmd, "r");
 #endif
   
@@ -157,7 +157,7 @@ std::string GetCurrentOSVersion() {
   return version;
 }
 
-// 去除字符串开头和结尾的空白字符（空格、\t、\n、\r等）
+// Remove whitespace characters (space, \t, \n, \r, etc.) from beginning and end of string
 std::string trim(const std::string& str) {
   auto start = std::find_if_not(str.begin(), str.end(), [](int ch) {
     return std::isspace(ch);
@@ -168,7 +168,7 @@ std::string trim(const std::string& str) {
   }).base();
 
   if (start >= end) {
-    return ""; // 全是空白字符
+    return ""; // All whitespace characters
   }
 
   return std::string(start, end);
