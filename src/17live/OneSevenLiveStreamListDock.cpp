@@ -89,7 +89,7 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     frame->setStyleSheet("background-color: transparent; border-radius: 8px;");
 
     QHBoxLayout* mainLayout = new QHBoxLayout(frame);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setContentsMargins(10, 5, 10, 5);
     mainLayout->setSpacing(8);
 
     // Left layout (title, category, time)

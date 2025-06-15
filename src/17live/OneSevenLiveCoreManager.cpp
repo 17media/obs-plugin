@@ -396,8 +396,19 @@ void OneSevenLiveCoreManager::handleLiveListClicked()
             // if streamingDock is not visible, show it
             // in order to edit the live info item
             if (!streamingDock) {
-                handleStreamingClicked();
+                createStreamingDock();
             }
+
+            // Show streamingDock in center of desktop
+            streamingDock->setVisible(true);
+            streamingDock->raise();
+            streamingDock->activateWindow();
+            
+            // Move to center of main window
+            QRect mainWindowGeometry = mainWindow->geometry();
+            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - streamingDock->width()) / 2;
+            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
+            streamingDock->move(x, y);
     
             streamingDock->createLiveWithRequest(request);
         });
@@ -416,10 +427,10 @@ void OneSevenLiveCoreManager::handleLiveListClicked()
             streamingDock->raise();
             streamingDock->activateWindow();
             
-            // Move to center of screen
-            QRect screenGeometry = QApplication::primaryScreen()->geometry();
-            int x = (screenGeometry.width() - streamingDock->width()) / 2;
-            int y = (screenGeometry.height() - streamingDock->height()) / 2;
+            // Move to center of main window
+            QRect mainWindowGeometry = mainWindow->geometry();
+            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - streamingDock->width()) / 2;
+            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
             streamingDock->move(x, y);
             
             // Scroll to title edit box and focus on it
