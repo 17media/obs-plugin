@@ -32,6 +32,13 @@ OneSevenLiveStreamingDock::~OneSevenLiveStreamingDock() = default;
 void OneSevenLiveStreamingDock::setupUi()
 {
     QWidget *container = new QWidget(this);
+    container->setStyleSheet(
+        "QWidget {"
+        "    color: white;"
+        "    font-family: 'Inter';"
+        "    font-style: normal;"
+        "}"
+    );
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
 
     // Create scroll area
