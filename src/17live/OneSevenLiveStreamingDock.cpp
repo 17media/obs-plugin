@@ -1065,7 +1065,7 @@ void OneSevenLiveStreamingDock::updateLiveButton(bool isLive)
         // change text to "Stop Live"
         createLiveButton->setText(obs_module_text("Live.Settings.StopLive"));
         // Set green background to indicate currently live
-        createLiveButton->setStyleSheet("background-color: green; color: white;");
+        createLiveButton->setStyleSheet("background-color: #215EBC; color: white;");
         disconnect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onCreateLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onDeleteLiveClicked);
     } else {
