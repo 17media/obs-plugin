@@ -60,6 +60,20 @@ function(_setup_obs_studio)
     set(_cmake_generator "Xcode")
     set(_cmake_arch "-DCMAKE_OSX_ARCHITECTURES:STRING='arm64;x86_64'")
     set(_cmake_extra "-DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+
+    # check if CMAKE_OSX_SYSROOT is set (maybe lost in macOS intel chip)
+    if(NOT CMAKE_OSX_SYSROOT)
+      # if not set, then use xcrun to get the SDK path
+      execute_process(
+        COMMAND xcrun --sdk macosx --show-sdk-path
+        OUTPUT_VARIABLE CMAKE_OSX_SYSROOT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+      message(STATUS "CMAKE_OSX_SYSROOT: ${CMAKE_OSX_SYSROOT}")
+      
+      set(_cmake_osx_sysroot "-DCMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT}")
+      message(STATUS "_cmake_osx_sysroot: ${_cmake_osx_sysroot}")
+    endif()
   endif()
 
   message(STATUS "Configure ${label} (${arch})")
@@ -69,7 +83,7 @@ function(_setup_obs_studio)
       "${dependencies_dir}/${_obs_destination}/build_${arch}" -G ${_cmake_generator} "${_cmake_arch}"
       -DOBS_CMAKE_VERSION:STRING=3.0.0 -DENABLE_PLUGINS:BOOL=OFF -DENABLE_UI:BOOL=OFF
       -DOBS_VERSION_OVERRIDE:STRING=${_obs_version} "-DCMAKE_PREFIX_PATH='${CMAKE_PREFIX_PATH}'" ${_is_fresh}
-      ${_cmake_extra}
+      ${_cmake_extra} ${_cmake_osx_sysroot}
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
     OUTPUT_QUIET
