@@ -662,6 +662,14 @@ void OneSevenLiveStreamingDock::addTag(const QString &tag)
         return;
     }
 
+    // 检查标签长度是否超过24字节
+    if (tag.toUtf8().size() > 24) {
+        QMessageBox::warning(this, 
+            obs_module_text("Live.Settings.Error"), 
+            obs_module_text("Live.Settings.Tags.LengthError"));
+        return;
+    }
+
     // 检查标签是否已存在
     if (!tagsList.contains(tag)) {
         tagsList.append(tag);
