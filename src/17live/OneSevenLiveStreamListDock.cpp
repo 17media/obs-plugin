@@ -48,8 +48,8 @@ void OneSevenLiveStreamListDock::setupUi()
         "    padding: 2px;"
         "}"
         "QListWidget::item:selected {"
-        "    background-color: #4a90e2;"
-        "    border: 2px solid #6aa8ff;"
+        "    background-color: #3a3a4a;"
+        "    border: 2px solid #5a5a6a;"
         "    color: white;"
         "}"
         "QListWidget::item:hover:!selected {"
@@ -83,10 +83,10 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
 {
     QFrame* frame = new QFrame();
     frame->setMinimumHeight(60);
-    frame->setStyleSheet("background-color: #2c2c38; border-radius: 8px;");
+    frame->setStyleSheet("background-color: transparent; border-radius: 8px;");
 
     QHBoxLayout* mainLayout = new QHBoxLayout(frame);
-    mainLayout->setContentsMargins(12, 8, 12, 8);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(8);
 
     // Left layout (title, category, time)
@@ -134,7 +134,7 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     mainLayout->addWidget(buttonContainer);
 
     // Limit maximum width to avoid stretching
-    frame->setMaximumWidth(streamList->viewport()->width() - 20);
+    frame->setMaximumWidth(streamList->viewport()->width());
 
     item->setSizeHint(frame->sizeHint());
     streamList->setItemWidget(item, frame);
@@ -268,6 +268,8 @@ void OneSevenLiveStreamListDock::refreshStreamList()
         // Enable start streaming button
         startLiveButton->setVisible(true);
     }
+
+    adjustSize();
 }
 
 void OneSevenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const OneSevenLiveStreamInfo& info)
