@@ -6,12 +6,12 @@
 #include <QString>
 #include <QMainWindow>
 
-class SeventeenLiveMenuManager : public QObject {
+class OneSevenLiveMenuManager : public QObject {
     Q_OBJECT
 
 public:
-    SeventeenLiveMenuManager(QMainWindow* mainWindow);
-    ~SeventeenLiveMenuManager();
+    OneSevenLiveMenuManager(QMainWindow* mainWindow);
+    ~OneSevenLiveMenuManager();
 
     /**
      * @brief 初始化菜单管理器

@@ -1,4 +1,4 @@
-#include "SeventeenLiveModels.hpp"
+#include "OneSevenLiveModels.hpp"
 
 #include "json11.hpp"
 
@@ -7,7 +7,7 @@
 #include "plugin-support.h"
 
 using namespace json11;
-bool JsonToSeventeenLiveLoginData(const Json &json, SeventeenLiveLoginData &loginData)
+bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginData)
 {
     if (!json.is_object()) {
         return false;
@@ -144,7 +144,7 @@ bool JsonToSeventeenLiveLoginData(const Json &json, SeventeenLiveLoginData &logi
     
     return true;
 }
-bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomInfo)
+bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo)
 {
     if (!json.is_object()) {
         return false;
@@ -163,7 +163,7 @@ bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomIn
         const auto& rtmpUrlsJson = json["rtmpUrls"];
         if (rtmpUrlsJson.is_array()) {
             for (const auto& urlJson : rtmpUrlsJson.array_items()) {
-                SeventeenLiveRtmpUrl rtmpUrl;
+                OneSevenLiveRtmpUrl rtmpUrl;
                 rtmpUrl.provider = urlJson["provider"].int_value();
                 rtmpUrl.streamType = QString::fromStdString(urlJson["streamType"].string_value());
                 rtmpUrl.url = QString::fromStdString(urlJson["url"].string_value());
@@ -184,7 +184,7 @@ bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomIn
             const auto& rtmpURLsJson = pullUrlsInfoJson["rtmpURLs"];
             if (rtmpURLsJson.is_array()) {
                 for (const auto& urlJson : rtmpURLsJson.array_items()) {
-                    SeventeenLiveRtmpUrl rtmpUrl;
+                    OneSevenLiveRtmpUrl rtmpUrl;
                     rtmpUrl.provider = urlJson["provider"].int_value();
                     rtmpUrl.streamType = QString::fromStdString(urlJson["streamType"].string_value());
                     rtmpUrl.url = QString::fromStdString(urlJson["url"].string_value());
@@ -265,7 +265,7 @@ bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomIn
         const auto& eventListJson = json["eventList"];
         if (eventListJson.is_array()) {
             for (const auto& eventJson : eventListJson.array_items()) {
-                SeventeenLiveEventInfo eventInfo;
+                OneSevenLiveEventInfo eventInfo;
                 eventInfo.ID = eventJson["ID"].int_value();
                 eventInfo.type = eventJson["type"].int_value();
                 eventInfo.icon = QString::fromStdString(eventJson["icon"].string_value());
@@ -280,7 +280,7 @@ bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomIn
                 const auto& iconsJson = eventJson["icons"];
                 if (iconsJson.is_array()) {
                     for (const auto& iconJson : iconsJson.array_items()) {
-                        SeventeenLiveEventIcon icon;
+                        OneSevenLiveEventIcon icon;
                         icon.language = QString::fromStdString(iconJson["language"].string_value());
                         icon.value = QString::fromStdString(iconJson["value"].string_value());
                         eventInfo.icons.append(icon);
@@ -315,21 +315,21 @@ bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomIn
         const auto& lastUsedHashtagsJson = json["lastUsedHashtags"];
         if (lastUsedHashtagsJson.is_array()) {
             for (const auto& hashtagJson : lastUsedHashtagsJson.array_items()) {
-                SeventeenLiveHashtag hashtag;
+                OneSevenLiveHashtag hashtag;
                 hashtag.text = QString::fromStdString(hashtagJson["text"].string_value());
                 hashtag.isOfficial = hashtagJson["isOfficial"].bool_value();
                 roomInfo.lastUsedHashtags.append(hashtag);
             }
         }
     } catch (const std::exception& e) {
-        obs_log(LOG_ERROR, "[obs-17live]: JsonToSeventeenLiveRoomInfo error: %s", e.what());
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveRoomInfo error: %s", e.what());
         return false;
     }
 
     return true;
 }
 
-bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &json) {
+bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json) {
     try {
         Json::object jsonObject;
 
@@ -495,12 +495,12 @@ bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &js
 
     } catch (const std::exception& e) {
         // 您可以在这里添加日志记录，例如使用 obs_log
-        obs_log(LOG_ERROR, "[obs-17live]: SeventeenLiveRoomInfoToJson error: %s", e.what());
+        obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveRoomInfoToJson error: %s", e.what());
         return false;
     }
 }
 
-bool SeventeenLiveRtmpRequestToJson(const SeventeenLiveRtmpRequest &request, Json &json)
+bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, Json &json)
 {
     // 创建存档配置的JSON对象
     Json archiveConfig = Json::object{
@@ -538,7 +538,7 @@ bool SeventeenLiveRtmpRequestToJson(const SeventeenLiveRtmpRequest &request, Jso
     return true;
 }
 
-bool JsonToSeventeenLiveRtmpRequest(const Json &json, SeventeenLiveRtmpRequest &request)
+bool JsonToOneSevenLiveRtmpRequest(const Json &json, OneSevenLiveRtmpRequest &request)
 {
     if (!json.is_object()) {
         return false;
@@ -573,10 +573,10 @@ bool JsonToSeventeenLiveRtmpRequest(const Json &json, SeventeenLiveRtmpRequest &
     return true;
 }
 
-bool SeventeenLiveStreamInfoToJson(const SeventeenLiveStreamInfo &streamInfo, Json &json)
+bool OneSevenLiveStreamInfoToJson(const OneSevenLiveStreamInfo &streamInfo, Json &json)
 {
     Json jsonRequest;
-    if (!SeventeenLiveRtmpRequestToJson(streamInfo.request, jsonRequest)) {
+    if (!OneSevenLiveRtmpRequestToJson(streamInfo.request, jsonRequest)) {
         return false;
     }
     json = Json::object{
@@ -588,7 +588,7 @@ bool SeventeenLiveStreamInfoToJson(const SeventeenLiveStreamInfo &streamInfo, Js
     return true;
 }
 
-bool JsonToSeventeenLiveStreamInfo(const Json &json, SeventeenLiveStreamInfo &streamInfo)
+bool JsonToOneSevenLiveStreamInfo(const Json &json, OneSevenLiveStreamInfo &streamInfo)
 {
     if (!json.is_object()) {
         return false;
@@ -598,13 +598,13 @@ bool JsonToSeventeenLiveStreamInfo(const Json &json, SeventeenLiveStreamInfo &st
     streamInfo.createdAt = QDateTime::fromString(QString::fromStdString(json["createdAt"].string_value()), Qt::ISODate);
     streamInfo.streamUuid = QString::fromStdString(json["streamUuid"].string_value());
     // 处理 request 对象
-    if (!JsonToSeventeenLiveRtmpRequest(json["request"], streamInfo.request)) {
+    if (!JsonToOneSevenLiveRtmpRequest(json["request"], streamInfo.request)) {
         return false;
     }
     return true;
 }
 
-bool JsonToSeventeenLiveRtmpResponse(const Json &json, SeventeenLiveRtmpResponse &response)
+bool JsonToOneSevenLiveRtmpResponse(const Json &json, OneSevenLiveRtmpResponse &response)
 {
     if (!json.is_object()) {
         return false;
@@ -624,7 +624,7 @@ bool JsonToSeventeenLiveRtmpResponse(const Json &json, SeventeenLiveRtmpResponse
     const auto& rtmpUrlsJson = json["rtmpURLs"];
     if (rtmpUrlsJson.is_array()) {
         for (const auto& urlJson : rtmpUrlsJson.array_items()) {
-            SeventeenLiveRtmpUrl rtmpUrl;
+            OneSevenLiveRtmpUrl rtmpUrl;
             rtmpUrl.provider = urlJson["provider"].int_value();
             rtmpUrl.streamType = QString::fromStdString(urlJson["streamType"].string_value());
             rtmpUrl.url = QString::fromStdString(urlJson["url"].string_value());
@@ -651,7 +651,7 @@ bool JsonToSeventeenLiveRtmpResponse(const Json &json, SeventeenLiveRtmpResponse
     return true;
 }
 
-bool SeventeenLiveCloseLiveRequestToJson(const SeventeenLiveCloseLiveRequest &request, Json &json)
+bool OneSevenLiveCloseLiveRequestToJson(const OneSevenLiveCloseLiveRequest &request, Json &json)
 {
     json = Json::object{
         {"reason", request.reason.toStdString()},
@@ -661,7 +661,7 @@ bool SeventeenLiveCloseLiveRequestToJson(const SeventeenLiveCloseLiveRequest &re
     return true;
 }
 
-bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStreamer &response) {
+bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStreamer &response) {
     if (!json.is_object()) {
       return false;
     }
@@ -674,7 +674,7 @@ bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStre
       if (eventJson["events"].is_array()) {
         const auto &eventsArray = eventJson["events"].array_items();
         for (const auto &eventItem : eventsArray) {
-          SeventeenLiveEventItem item;
+          OneSevenLiveEventItem item;
           item.ID = eventItem["ID"].int_value();
           item.name = QString::fromStdString(eventItem["name"].string_value());
           item.bannerURL = QString::fromStdString(eventItem["bannerURL"].string_value());
@@ -701,7 +701,7 @@ bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStre
       if (eventJson["tags"].is_array()) {
         const auto &tagsArray = eventJson["tags"].array_items();
         for (const auto &tagItem : tagsArray) {
-          SeventeenLiveEventTag tag;
+          OneSevenLiveEventTag tag;
           tag.ID = QString::fromStdString(tagItem["ID"].string_value());
           tag.name = QString::fromStdString(tagItem["name"].string_value());
           response.event.tags.append(tag);
@@ -727,7 +727,7 @@ bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStre
     if (json["subtabs"].is_array()) {
       const auto &subtabsArray = json["subtabs"].array_items();
       for (const auto &subtabItem : subtabsArray) {
-        SeventeenLiveSubtab subtab;
+        OneSevenLiveSubtab subtab;
         subtab.displayName = QString::fromStdString(subtabItem["displayName"].string_value());
         subtab.ID = QString::fromStdString(subtabItem["ID"].string_value());
         response.subtabs.append(subtab);
@@ -736,9 +736,9 @@ bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStre
 
     if (json["lastStreamState"].is_object()) {
         const auto &lastStreamStateJson = json["lastStreamState"];
-        SeventeenLiveStreamState lastStreamState;
+        OneSevenLiveStreamState lastStreamState;
         if (json["lastStreamState"]["vliverInfo"].is_object()) {
-            SeventeenLiveVliverInfo vliverInfo;
+            OneSevenLiveVliverInfo vliverInfo;
             vliverInfo.vliverModel = lastStreamStateJson["vliverInfo"]["vliverModel"].int_value();
             lastStreamState.vliverInfo = vliverInfo;
         }
@@ -751,7 +751,7 @@ bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStre
     return true;
 }
 
-bool SeventeenLiveConfigStreamerToJson(const SeventeenLiveConfigStreamer &response, Json &json)
+bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response, Json &json)
 {
     // 创建 event 部分
     std::vector<Json> eventsArray;
@@ -835,7 +835,7 @@ bool SeventeenLiveConfigStreamerToJson(const SeventeenLiveConfigStreamer &respon
     return true;
 }
 
-bool JsonToSeventeenLiveAblyTokenResponse(const Json &json, SeventeenLiveAblyTokenResponse &response) {
+bool JsonToOneSevenLiveAblyTokenResponse(const Json &json, OneSevenLiveAblyTokenResponse &response) {
     if (!json.is_object()) {
         return false;
     }
@@ -870,7 +870,7 @@ bool JsonToSeventeenLiveAblyTokenResponse(const Json &json, SeventeenLiveAblyTok
     return true;
 }
 
-bool SeventeenLiveAblyTokenResponseToJson(const SeventeenLiveAblyTokenResponse &response, Json &json) {
+bool OneSevenLiveAblyTokenResponseToJson(const OneSevenLiveAblyTokenResponse &response, Json &json) {
     // 创建 channels 数组
     std::vector<Json> channelsArray;
     for (const QString &channel : response.channels) {
@@ -887,14 +887,14 @@ bool SeventeenLiveAblyTokenResponseToJson(const SeventeenLiveAblyTokenResponse &
     return true;
 }
 
-bool JsonToSeventeenLiveUserInfo(const Json &json, SeventeenLiveUserInfo &userInfo)
+bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo)
 {
     if (!json.is_object()) {
         return false;
     }
 
     try {
-        SeventeenLiveOnliveInfo onliveInfo;
+        OneSevenLiveOnliveInfo onliveInfo;
         if (json["onliveInfo"].is_object()) { 
             onliveInfo.premiumType = json["onliveInfo"]["premiumType"].int_value();
         }
@@ -907,7 +907,7 @@ bool JsonToSeventeenLiveUserInfo(const Json &json, SeventeenLiveUserInfo &userIn
     return true;
 }
 
-bool JsonToSeventeenLiveConfig(const Json &json, SeventeenLiveConfig &config)
+bool JsonToOneSevenLiveConfig(const Json &json, OneSevenLiveConfig &config)
 {
     if (!json.is_object()) {
         return false;
@@ -931,12 +931,12 @@ bool JsonToSeventeenLiveConfig(const Json &json, SeventeenLiveConfig &config)
         return true;
     } catch (const std::exception& e) {
         // 记录错误日志
-        obs_log(LOG_ERROR, "[obs-17live]: JsonToSeventeenLiveConfig error: %s", e.what());
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveConfig error: %s", e.what());
         return false;
     }
 }
 
-bool SeventeenLiveConfigToJson(const SeventeenLiveConfig &config, Json &json)
+bool OneSevenLiveConfigToJson(const OneSevenLiveConfig &config, Json &json)
 {
     try {
         // 创建features对象
@@ -957,12 +957,12 @@ bool SeventeenLiveConfigToJson(const SeventeenLiveConfig &config, Json &json)
         return true;
     } catch (const std::exception& e) {
         // 记录错误日志
-        obs_log(LOG_ERROR, "[obs-17live]: SeventeenLiveConfigToJson error: %s", e.what());
+        obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveConfigToJson error: %s", e.what());
         return false;
     }
 }
 
-bool JsonToSeventeenLiveArmySubscriptionLevels(const Json &json, SeventeenLiveArmySubscriptionLevels &levels)
+bool JsonToOneSevenLiveArmySubscriptionLevels(const Json &json, OneSevenLiveArmySubscriptionLevels &levels)
 {
     if (!json.is_object()) {
         return false;
@@ -975,7 +975,7 @@ bool JsonToSeventeenLiveArmySubscriptionLevels(const Json &json, SeventeenLiveAr
             levels.subscriptionLevels.clear();
             
             for (const auto& levelJson : subscriptionLevelsJson.array_items()) {
-                SeventeenLiveArmySubscriptionLevel level;
+                OneSevenLiveArmySubscriptionLevel level;
                 
                 // 解析基本字段
                 level.rank = levelJson["rank"].int_value();
@@ -990,7 +990,7 @@ bool JsonToSeventeenLiveArmySubscriptionLevels(const Json &json, SeventeenLiveAr
                     const auto& paramsJson = i18nTokenJson["params"];
                     if (paramsJson.is_array()) {
                         for (const auto& paramJson : paramsJson.array_items()) {
-                            SeventeenLiveI18nTokenParam param;
+                            OneSevenLiveI18nTokenParam param;
                             param.value = QString::fromStdString(paramJson["value"].string_value());
                             level.i18nToken.params.append(param);
                         }
@@ -1004,12 +1004,12 @@ bool JsonToSeventeenLiveArmySubscriptionLevels(const Json &json, SeventeenLiveAr
         return true;
     } catch (const std::exception& e) {
         // 记录错误日志
-        obs_log(LOG_ERROR, "[obs-17live]: JsonToSeventeenLiveArmySubscriptionLevels error: %s", e.what());
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveArmySubscriptionLevels error: %s", e.what());
         return false;
     }
 }
 
-bool SeventeenLiveArmySubscriptionLevelsToJson(const SeventeenLiveArmySubscriptionLevels &levels, Json &json)
+bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscriptionLevels &levels, Json &json)
 {
     try {
         // 创建subscriptionLevels数组
@@ -1056,7 +1056,7 @@ bool SeventeenLiveArmySubscriptionLevelsToJson(const SeventeenLiveArmySubscripti
         return true;
     } catch (const std::exception& e) {
         // 记录错误日志
-        obs_log(LOG_ERROR, "[obs-17live]: SeventeenLiveArmySubscriptionLevelsToJson error: %s", e.what());
+        obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveArmySubscriptionLevelsToJson error: %s", e.what());
         return false;
     }
 }

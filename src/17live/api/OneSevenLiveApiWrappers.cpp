@@ -1,4 +1,4 @@
-#include "SeventeenLiveApiWrappers.hpp"
+#include "OneSevenLiveApiWrappers.hpp"
 
 #include <QFile>
 #include <QMimeDatabase>
@@ -16,44 +16,44 @@ using namespace std;
 
 extern const char* service;
 
-// 登录接口: SEVENTEENLIVE_API_URL + "/api/v1/auth/loginAction"
-const string SEVENTEENLIVE_LOGIN_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/auth/loginAction";
+// 登录接口: ONESEVENLIVE_API_URL + "/api/v1/auth/loginAction"
+const string ONESEVENLIVE_LOGIN_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/auth/loginAction";
 
-const string SEVENTEENLIVE_APIGATEWAY_URL = string(SEVENTEENLIVE_API_URL) + "/apiGateWay";
+const string ONESEVENLIVE_APIGATEWAY_URL = string(ONESEVENLIVE_API_URL) + "/apiGateWay";
 
-const string SEVENTEENLIVE_GET_ROOM_INFO_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1/info";
+const string ONESEVENLIVE_GET_ROOM_INFO_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1/info";
 
-const string SEVENTEENLIVE_CREATE_RTMP_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/rtmp";
+const string ONESEVENLIVE_CREATE_RTMP_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/rtmp";
 
-const string SEVENTEENLIVE_STREAM_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1";
+const string ONESEVENLIVE_STREAM_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1";
 
-const string SEVENTEENLIVE_ARCHIVE_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1/archive/recording?enable=%2";
+const string ONESEVENLIVE_ARCHIVE_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1/archive/recording?enable=%2";
 
-const string SEVENTEENLIVE_GET_CONFIG_STREAMER_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/liveStreams/config/streamer";
+const string ONESEVENLIVE_GET_CONFIG_STREAMER_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/liveStreams/config/streamer";
 
-const string SEVENTEENLIVE_GET_RTMP_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/rtmp?rtmp-provider=%1";
+const string ONESEVENLIVE_GET_RTMP_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/rtmp?rtmp-provider=%1";
 
-const string SEVENTEENLIVE_GET_ARMYSUBSCRIPIONLEVELS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/army/subscriptionLVs";
+const string ONESEVENLIVE_GET_ARMYSUBSCRIPIONLEVELS_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/army/subscriptionLVs";
 
-const string SEVENTEENLIVE_GET_CONFIG_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/config";
+const string ONESEVENLIVE_GET_CONFIG_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/config";
 
-const string SEVENTEENLIVE_GET_USERINFO_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/users/%1/info?onLive=1";
+const string ONESEVENLIVE_GET_USERINFO_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/users/%1/info?onLive=1";
 
-const string SEVENTEENLIVE_GET_ABLY_TOKEN_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/messenger/token?type=3&roomID=%1";
+const string ONESEVENLIVE_GET_ABLY_TOKEN_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/messenger/token?type=3&roomID=%1";
 
-const string SEVENTEENLIVE_GET_GIFTTABS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/lives/%1/giftTabs?filter=0";
+const string ONESEVENLIVE_GET_GIFTTABS_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1/giftTabs?filter=0";
 
-const string SEVENTEENLIVE_GET_GIFTS_URL = string(SEVENTEENLIVE_API_URL) + "/api/v1/gifts";
+const string ONESEVENLIVE_GET_GIFTS_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/gifts";
 
-SeventeenLiveApiWrappers::SeventeenLiveApiWrappers() : token("") {
+OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
   currentOS = GetCurrentOS();
   currentOSVersion = GetCurrentOSVersion();
   currentPlatformUUID = GetCurrentPlatformUUID();
 }
 
-SeventeenLiveApiWrappers::SeventeenLiveApiWrappers(std::string token_) : token(token_) {}
+OneSevenLiveApiWrappers::OneSevenLiveApiWrappers(std::string token_) : token(token_) {}
 
-bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *content_type, std::string request_type,
+bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *content_type, std::string request_type,
   const char *data, Json &json_out, long *error_code, int data_size, bool token_required, const std::vector<std::string> extraHeaders)
 {
   long httpStatusCode = 0;
@@ -122,14 +122,14 @@ bool SeventeenLiveApiWrappers::TryInsertCommand(const char *url, const char *con
   return httpStatusCode < 400;
 }
 
-bool SeventeenLiveApiWrappers::UpdateAccessToken()
+bool OneSevenLiveApiWrappers::UpdateAccessToken()
 {
   obs_log(LOG_INFO, "Updating access token");
   // TODO: implement
   return false;
 }
 
-bool SeventeenLiveApiWrappers::InsertCommand(const char *url, const char *content_type, std::string request_type, const char *data, Json &json_out, int data_size, bool token_required, const std::vector<std::string> extraHeaders)
+bool OneSevenLiveApiWrappers::InsertCommand(const char *url, const char *content_type, std::string request_type, const char *data, Json &json_out, int data_size, bool token_required, const std::vector<std::string> extraHeaders)
 {
   long error_code;
   std::string error;
@@ -161,11 +161,11 @@ bool SeventeenLiveApiWrappers::InsertCommand(const char *url, const char *conten
   return success;
 }
 
-bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &password, SeventeenLiveLoginData &loginData)
+bool OneSevenLiveApiWrappers::Login(const QString &username, const QString &password, OneSevenLiveLoginData &loginData)
 {
 	lastErrorMessage.clear();
 
-	const QByteArray url = SEVENTEENLIVE_LOGIN_URL.c_str();
+	const QByteArray url = ONESEVENLIVE_LOGIN_URL.c_str();
   // TODO: language
   // const char *obs_get_locale(void)
 	const Json data = Json::object{
@@ -208,7 +208,7 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
     return false;
   }
 
-  JsonToSeventeenLiveLoginData(json_out_data, loginData);
+  JsonToOneSevenLiveLoginData(json_out_data, loginData);
 
   // save token to next call
   token = loginData.jwtAccessToken.toStdString();
@@ -216,7 +216,7 @@ bool SeventeenLiveApiWrappers::Login(const QString &username, const QString &pas
   return !loginData.jwtAccessToken.isEmpty();  
 }
 
-bool SeventeenLiveApiWrappers::SeventeenLiveApiWrappers::GetSelfInfo(SeventeenLiveLoginData &loginData)
+bool OneSevenLiveApiWrappers::OneSevenLiveApiWrappers::GetSelfInfo(OneSevenLiveLoginData &loginData)
 {
   Json json_out;
   if (!CommonRequest("getSelfInfo", json_out))
@@ -237,11 +237,11 @@ bool SeventeenLiveApiWrappers::SeventeenLiveApiWrappers::GetSelfInfo(SeventeenLi
   return true;
 }
   
-bool SeventeenLiveApiWrappers::CommonRequest(const std::string action, Json &json_out)
+bool OneSevenLiveApiWrappers::CommonRequest(const std::string action, Json &json_out)
 {
   lastErrorMessage.clear();
 
-	const QByteArray url = SEVENTEENLIVE_APIGATEWAY_URL.c_str();
+	const QByteArray url = ONESEVENLIVE_APIGATEWAY_URL.c_str();
   
   const Json data = Json::object{
     {"nonce", "nonce-17live-" + std::to_string(getCurrentTimestampMs())},
@@ -283,12 +283,12 @@ bool SeventeenLiveApiWrappers::CommonRequest(const std::string action, Json &jso
 }
 
 
-bool SeventeenLiveApiWrappers::GetRoomInfo(const qint64 roomID, SeventeenLiveRoomInfo &roomInfo)
+bool OneSevenLiveApiWrappers::GetRoomInfo(const qint64 roomID, OneSevenLiveRoomInfo &roomInfo)
 {
   lastErrorMessage.clear();
 
   // 构建请求URL
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_ROOM_INFO_URL).arg(roomID);
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ROOM_INFO_URL).arg(roomID);
   QByteArray url = urlStr.toUtf8();
 
   Json json_out;
@@ -299,8 +299,8 @@ bool SeventeenLiveApiWrappers::GetRoomInfo(const qint64 roomID, SeventeenLiveRoo
     return false;
   }
 
-  // 使用 JsonToSeventeenLiveRoomInfo 函数解析数据到结构体
-  if (!JsonToSeventeenLiveRoomInfo(json_out, roomInfo)) {
+  // 使用 JsonToOneSevenLiveRoomInfo 函数解析数据到结构体
+  if (!JsonToOneSevenLiveRoomInfo(json_out, roomInfo)) {
     obs_log(LOG_ERROR, "Failed to parse room info data");
     lastErrorMessage = "Failed to parse room info data";
     return false;
@@ -309,7 +309,7 @@ bool SeventeenLiveApiWrappers::GetRoomInfo(const qint64 roomID, SeventeenLiveRoo
   return true;
 }
 
-QString SeventeenLiveApiWrappers::md5(const QString& str)
+QString OneSevenLiveApiWrappers::md5(const QString& str)
 {
   QByteArray input = str.toUtf8();
   QByteArray hash = QCryptographicHash::hash(input, QCryptographicHash::Md5);
@@ -317,23 +317,23 @@ QString SeventeenLiveApiWrappers::md5(const QString& str)
 }
 
 // 添加生成毫秒时间戳的函数
-int64_t SeventeenLiveApiWrappers::getCurrentTimestampMs()
+int64_t OneSevenLiveApiWrappers::getCurrentTimestampMs()
 {
     auto now = std::chrono::system_clock::now();
     auto duration = now.time_since_epoch();
     return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 }
 
-bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &request, SeventeenLiveRtmpResponse &response)
+bool OneSevenLiveApiWrappers::CreateRtmp(const OneSevenLiveRtmpRequest &request, OneSevenLiveRtmpResponse &response)
 {
   obs_log(LOG_INFO, "CreateRtmp start");
 
   lastErrorMessage.clear();
 
-  const QByteArray url = SEVENTEENLIVE_CREATE_RTMP_URL.c_str();
+  const QByteArray url = ONESEVENLIVE_CREATE_RTMP_URL.c_str();
 
   Json requestData;
-  if (!SeventeenLiveRtmpRequestToJson(request, requestData)) {
+  if (!OneSevenLiveRtmpRequestToJson(request, requestData)) {
     obs_log(LOG_ERROR, "Failed to convert request to JSON");
     lastErrorMessage = "Failed to convert request to JSON";
     return false;
@@ -359,7 +359,7 @@ bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &reques
     return false;
   }
 
-  if (!JsonToSeventeenLiveRtmpResponse(json_out, response)) {
+  if (!JsonToOneSevenLiveRtmpResponse(json_out, response)) {
     obs_log(LOG_ERROR, "Failed to convert response to struct");
     lastErrorMessage = "Failed to convert response to struct";
     return false;
@@ -368,11 +368,11 @@ bool SeventeenLiveApiWrappers::CreateRtmp(const SeventeenLiveRtmpRequest &reques
   return true;
 }
 
-bool SeventeenLiveApiWrappers::StartStream(const std::string &liveStreamID, const std::string &userID)
+bool OneSevenLiveApiWrappers::StartStream(const std::string &liveStreamID, const std::string &userID)
 {
   obs_log(LOG_INFO, "StartStream start");
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_STREAM_URL).arg(liveStreamID.c_str());
     QByteArray url = urlStr.toUtf8();
 
   Json requestData = Json::object{
@@ -393,11 +393,11 @@ bool SeventeenLiveApiWrappers::StartStream(const std::string &liveStreamID, cons
   return true;
 }
 
-bool SeventeenLiveApiWrappers::EnableStreamArchive(const std::string &liveStreamID, int enableArchive)
+bool OneSevenLiveApiWrappers::EnableStreamArchive(const std::string &liveStreamID, int enableArchive)
 {
   obs_log(LOG_INFO, "EnableStreamArchive start");
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_ARCHIVE_URL).arg(liveStreamID.c_str(), enableArchive);
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_ARCHIVE_URL).arg(liveStreamID.c_str(), enableArchive);
     QByteArray url = urlStr.toUtf8();
     
   std::string error;
@@ -412,15 +412,15 @@ bool SeventeenLiveApiWrappers::EnableStreamArchive(const std::string &liveStream
   return true;
 }
 
-bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID, const SeventeenLiveCloseLiveRequest &request)
+bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID, const OneSevenLiveCloseLiveRequest &request)
 {
   obs_log(LOG_INFO, "StopStream start");
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_STREAM_URL).arg(liveStreamID.c_str());
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_STREAM_URL).arg(liveStreamID.c_str());
   QByteArray url = urlStr.toUtf8();
 
   Json requestData;
-  if (!SeventeenLiveCloseLiveRequestToJson(request, requestData)) {
+  if (!OneSevenLiveCloseLiveRequestToJson(request, requestData)) {
     obs_log(LOG_ERROR, "Failed to convert request to JSON");
     lastErrorMessage = "Failed to convert request to JSON";
     return false;
@@ -439,12 +439,12 @@ bool SeventeenLiveApiWrappers::StopStream(const std::string &liveStreamID, const
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamer &response)
+bool OneSevenLiveApiWrappers::GetConfigStreamer(const std::string region, const std::string language, OneSevenLiveConfigStreamer &response)
 {
   obs_log(LOG_INFO, "GetConfigStreamer");
 
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_CONFIG_STREAMER_URL);
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CONFIG_STREAMER_URL);
   QByteArray url = urlStr.toUtf8();
 
   std::vector<std::string> extraHeaders = {
@@ -460,7 +460,7 @@ bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const
 		return false;
 	}
 
-  if (!JsonToSeventeenLiveConfigStreamer(json_out_resp, response)) {
+  if (!JsonToOneSevenLiveConfigStreamer(json_out_resp, response)) {
     obs_log(LOG_ERROR, "Failed to convert response to struct");
     lastErrorMessage = "Failed to convert response to struct";
     return false;
@@ -470,12 +470,12 @@ bool SeventeenLiveApiWrappers::GetConfigStreamer(const std::string region, const
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetRtmpByProvider(const std::string provider, SeventeenLiveRtmpResponse &response)
+bool OneSevenLiveApiWrappers::GetRtmpByProvider(const std::string provider, OneSevenLiveRtmpResponse &response)
 {
   obs_log(LOG_INFO, "GetRtmpByProvider");
 
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_RTMP_URL).arg(provider.c_str());
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_RTMP_URL).arg(provider.c_str());
   QByteArray url = urlStr.toUtf8();
   
   std::string error;
@@ -486,7 +486,7 @@ bool SeventeenLiveApiWrappers::GetRtmpByProvider(const std::string provider, Sev
 		return false;
 	}
 
-  if (!JsonToSeventeenLiveRtmpResponse(json_out_resp, response)) {
+  if (!JsonToOneSevenLiveRtmpResponse(json_out_resp, response)) {
     obs_log(LOG_ERROR, "Failed to convert response to struct");
     lastErrorMessage = "Failed to convert response to struct";
     return false;
@@ -495,12 +495,12 @@ bool SeventeenLiveApiWrappers::GetRtmpByProvider(const std::string provider, Sev
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetArmySubscriptionLevels(const std::string region, const std::string language, SeventeenLiveArmySubscriptionLevels &response)
+bool OneSevenLiveApiWrappers::GetArmySubscriptionLevels(const std::string region, const std::string language, OneSevenLiveArmySubscriptionLevels &response)
 {
   obs_log(LOG_INFO, "GetArmySubscriptionLevels");
 
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_ARMYSUBSCRIPIONLEVELS_URL);
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ARMYSUBSCRIPIONLEVELS_URL);
   QByteArray url = urlStr.toUtf8();
 
   std::vector<std::string> extraHeaders = {
@@ -516,7 +516,7 @@ bool SeventeenLiveApiWrappers::GetArmySubscriptionLevels(const std::string regio
 		return false;
 	}
 
-  if (!JsonToSeventeenLiveArmySubscriptionLevels(json_out_resp, response)) {
+  if (!JsonToOneSevenLiveArmySubscriptionLevels(json_out_resp, response)) {
     obs_log(LOG_ERROR, "Failed to convert response to struct");
     lastErrorMessage = "Failed to convert response to struct";
     return false;
@@ -526,12 +526,12 @@ bool SeventeenLiveApiWrappers::GetArmySubscriptionLevels(const std::string regio
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetConfig(const std::string region, const std::string language, Json &json_out_resp)
+bool OneSevenLiveApiWrappers::GetConfig(const std::string region, const std::string language, Json &json_out_resp)
 {
   obs_log(LOG_INFO, "GetConfig");
 
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_CONFIG_URL);
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CONFIG_URL);
   QByteArray url = urlStr.toUtf8();
 
   std::vector<std::string> extraHeaders = {
@@ -550,12 +550,12 @@ bool SeventeenLiveApiWrappers::GetConfig(const std::string region, const std::st
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetUserInfo(const std::string userID, const std::string region, const std::string language, SeventeenLiveUserInfo &response)
+bool OneSevenLiveApiWrappers::GetUserInfo(const std::string userID, const std::string region, const std::string language, OneSevenLiveUserInfo &response)
 {
   obs_log(LOG_INFO, "GetUserInfo");
 
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_USERINFO_URL).arg(userID.c_str());
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_USERINFO_URL).arg(userID.c_str());
   QByteArray url = urlStr.toUtf8();
 
   std::vector<std::string> extraHeaders = {
@@ -571,7 +571,7 @@ bool SeventeenLiveApiWrappers::GetUserInfo(const std::string userID, const std::
 		return false;
 	}
 
-  if (!JsonToSeventeenLiveUserInfo(json_out_resp, response)) {
+  if (!JsonToOneSevenLiveUserInfo(json_out_resp, response)) {
     obs_log(LOG_ERROR, "Failed to convert response to struct");
     lastErrorMessage = "Failed to convert response to struct";
     return false;
@@ -581,11 +581,11 @@ bool SeventeenLiveApiWrappers::GetUserInfo(const std::string userID, const std::
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json &json_out)
+bool OneSevenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json &json_out)
 {
   obs_log(LOG_INFO, "GetAblyToken");
   lastErrorMessage.clear();
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_ABLY_TOKEN_URL).arg(liveStreamID.c_str());
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ABLY_TOKEN_URL).arg(liveStreamID.c_str());
   QByteArray url = urlStr.toUtf8();
 
   if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out, 0, true)) {
@@ -599,13 +599,13 @@ bool SeventeenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Jso
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetGiftTabs(const std::string &liveStreamID, const std::string language, Json &json_out_resp)
+bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &liveStreamID, const std::string language, Json &json_out_resp)
 {
   obs_log(LOG_INFO, "GetGiftTabs");
   
   lastErrorMessage.clear();
   
-  QString urlStr = QString::fromStdString(SEVENTEENLIVE_GET_GIFTTABS_URL).arg(liveStreamID.c_str());
+  QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_GIFTTABS_URL).arg(liveStreamID.c_str());
   QByteArray url = urlStr.toUtf8();
   
   std::vector<std::string> extraHeaders = {
@@ -621,13 +621,13 @@ bool SeventeenLiveApiWrappers::GetGiftTabs(const std::string &liveStreamID, cons
   return true;
 }
 
-bool SeventeenLiveApiWrappers::GetGifts(const std::string language, Json &json_out_resp)
+bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_out_resp)
 {
   obs_log(LOG_INFO, "GetGifts");
 
   lastErrorMessage.clear();
 
-    QByteArray url = SEVENTEENLIVE_GET_GIFTS_URL.c_str();
+    QByteArray url = ONESEVENLIVE_GET_GIFTS_URL.c_str();
 
   std::vector<std::string> extraHeaders = {
     "Language: " + language

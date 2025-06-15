@@ -34,7 +34,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #endif
 
 #include <plugin-support.h>
-#include "17live/SeventeenLiveCoreManager.hpp"
+#include "17live/OneSevenLiveCoreManager.hpp"
 #include "17live/cef-view.hpp"
 
 using namespace std;
@@ -80,21 +80,21 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 			return;
 		}
 
-		// check SEVENTEENLIVE_API_URL == "https://wap-api.17app.co"
-		QLabel *label = new QLabel(QString("%1 [%2]%3").arg(PLUGIN_NAME, PLUGIN_VERSION, (strcmp(SEVENTEENLIVE_API_URL, "https://wap-api.17app.co") == 0 ? "" : " (development)")), mainWindow);
+		// check ONESEVENLIVE_API_URL == "https://wap-api.17app.co"
+		QLabel *label = new QLabel(QString("%1 [%2]%3").arg(PLUGIN_NAME, PLUGIN_VERSION, (strcmp(ONESEVENLIVE_API_URL, "https://wap-api.17app.co") == 0 ? "" : " (development)")), mainWindow);
     mainWindow->statusBar()->addWidget(label);
 	
-		// 初始化SeventeenLiveCoreManager
+		// 初始化OneSevenLiveCoreManager
 		try {
-			auto& manager = SeventeenLiveCoreManager::getInstance(mainWindow);
+			auto& manager = OneSevenLiveCoreManager::getInstance(mainWindow);
 			if (!manager.initialize()) {
-				obs_log(LOG_ERROR, "SeventeenLiveCoreManager初始化失败");
+				obs_log(LOG_ERROR, "OneSevenLiveCoreManager初始化失败");
 				isRunning = false;
 				return;
 			}
-			obs_log(LOG_INFO, "SeventeenLiveCoreManager初始化成功");
+			obs_log(LOG_INFO, "OneSevenLiveCoreManager初始化成功");
 		} catch (const std::exception& e) {
-			obs_log(LOG_ERROR, "SeventeenLiveCoreManager初始化异常: %s", e.what());
+			obs_log(LOG_ERROR, "OneSevenLiveCoreManager初始化异常: %s", e.what());
 			isRunning = false;
 			return;
 		}
@@ -115,13 +115,13 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 		// Shutdown 17Live plugin
 		obs_log(LOG_INFO, "[obs-17live]: shutting down");
 
-		// 释放SeventeenLiveCoreManager资源
+		// 释放OneSevenLiveCoreManager资源
 		try {
-			auto& manager = SeventeenLiveCoreManager::getInstance();
+			auto& manager = OneSevenLiveCoreManager::getInstance();
 			manager.shutdown();
-			obs_log(LOG_INFO, "SeventeenLiveCoreManager资源已释放");
+			obs_log(LOG_INFO, "OneSevenLiveCoreManager资源已释放");
 		} catch (const std::exception& e) {
-			obs_log(LOG_ERROR, "SeventeenLiveCoreManager释放资源异常: %s", e.what());
+			obs_log(LOG_ERROR, "OneSevenLiveCoreManager释放资源异常: %s", e.what());
 		}
 
 		cef_view_unload();

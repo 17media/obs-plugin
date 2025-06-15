@@ -1,18 +1,18 @@
 #include <obs-module.h>
 #include <plugin-support.h>
 
-#include "SeventeenLiveLoginDialog.hpp"
+#include "OneSevenLiveLoginDialog.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPixmap>
 #include <QStyle>
 #include <QMessageBox>
 
-#include "api/SeventeenLiveApiWrappers.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
 
-#include "moc_SeventeenLiveLoginDialog.cpp"
+#include "moc_OneSevenLiveLoginDialog.cpp"
 
-SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent,  SeventeenLiveApiWrappers* apiWrapper_)
+OneSevenLiveLoginDialog::OneSevenLiveLoginDialog(QWidget* parent,  OneSevenLiveApiWrappers* apiWrapper_)
     : QDialog(parent),  apiWrapper(apiWrapper_)
 {
     setupUi();
@@ -21,11 +21,11 @@ SeventeenLiveLoginDialog::SeventeenLiveLoginDialog(QWidget* parent,  SeventeenLi
     setFixedWidth(400);
 }
 
-SeventeenLiveLoginDialog::~SeventeenLiveLoginDialog()
+OneSevenLiveLoginDialog::~OneSevenLiveLoginDialog()
 {
 }
 
-void SeventeenLiveLoginDialog::setupUi()
+void OneSevenLiveLoginDialog::setupUi()
 {
     // 设置对话框背景为黑色
     setStyleSheet(
@@ -187,7 +187,7 @@ void SeventeenLiveLoginDialog::setupUi()
     );
 
     // 添加回车键处理，点击回车键相当于点击登录按钮
-    connect(passwordEdit, &QLineEdit::returnPressed, this, &SeventeenLiveLoginDialog::handleLogin);
+    connect(passwordEdit, &QLineEdit::returnPressed, this, &OneSevenLiveLoginDialog::handleLogin);
     
     // 显示/隐藏密码按钮
     showPasswordButton = new QPushButton(passwordContainer);
@@ -279,7 +279,7 @@ void SeventeenLiveLoginDialog::setupUi()
         "    background-color: #CC3333;"
         "}"
     );
-    connect(loginButton, &QPushButton::clicked, this, &SeventeenLiveLoginDialog::handleLogin);
+    connect(loginButton, &QPushButton::clicked, this, &OneSevenLiveLoginDialog::handleLogin);
 
     QVBoxLayout *loginLeftLayout = new QVBoxLayout();
     loginLeftLayout->setContentsMargins(0, 0, 0, 0);
@@ -332,9 +332,9 @@ void SeventeenLiveLoginDialog::setupUi()
     mainLayout->addWidget(disclaimerLabel);
 }
 
-void SeventeenLiveLoginDialog::handleLogin()
+void OneSevenLiveLoginDialog::handleLogin()
 {
-    obs_log(LOG_INFO, "SeventeenLiveLoginDialog::handle login");
+    obs_log(LOG_INFO, "OneSevenLiveLoginDialog::handle login");
     
     // 验证逻辑
     if (usernameEdit->text().isEmpty() || passwordEdit->text().isEmpty()) {
@@ -344,7 +344,7 @@ void SeventeenLiveLoginDialog::handleLogin()
     }
     
     // 创建API包装器实例
-    SeventeenLiveLoginData loginData;
+    OneSevenLiveLoginData loginData;
     
     // 调用登录接口
     if (!apiWrapper->Login(usernameEdit->text(), passwordEdit->text(), loginData)) {

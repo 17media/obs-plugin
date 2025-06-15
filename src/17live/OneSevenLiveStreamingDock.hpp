@@ -11,22 +11,22 @@
 #include <QHBoxLayout>
 #include <QProgressBar>
 
-#include "api/SeventeenLiveModels.hpp"
+#include "api/OneSevenLiveModels.hpp"
 
-class SeventeenLiveApiWrappers;
+class OneSevenLiveApiWrappers;
 
-class SeventeenLiveConfigManager;
+class OneSevenLiveConfigManager;
 
-class SeventeenLiveStreamingDock : public QDockWidget {
+class OneSevenLiveStreamingDock : public QDockWidget {
     Q_OBJECT
 
 public:
-    explicit SeventeenLiveStreamingDock(QWidget *parent = nullptr, SeventeenLiveApiWrappers *apiWrapper = nullptr, SeventeenLiveConfigManager *configManager = nullptr);
-    ~SeventeenLiveStreamingDock();
+    explicit OneSevenLiveStreamingDock(QWidget *parent = nullptr, OneSevenLiveApiWrappers *apiWrapper = nullptr, OneSevenLiveConfigManager *configManager = nullptr);
+    ~OneSevenLiveStreamingDock();
 
-    void updateLiveStatus(SeventeenLiveStreamingStatus status);
-    void createLiveWithRequest(const SeventeenLiveRtmpRequest &request);
-    void editLiveWithInfo(const SeventeenLiveStreamInfo &info);
+    void updateLiveStatus(OneSevenLiveStreamingStatus status);
+    void createLiveWithRequest(const OneSevenLiveRtmpRequest &request);
+    void editLiveWithInfo(const OneSevenLiveStreamInfo &info);
     void loadRoomInfo(qint64 roomID);
 
 private:
@@ -86,10 +86,10 @@ private:
     QProgressBar *loadingProgress;
     QLabel *loadingLabel;
 
-    SeventeenLiveRoomInfo roomInfo;
-    SeventeenLiveConfigStreamer configStreamer;
-    SeventeenLiveUserInfo userInfo;
-    SeventeenLiveArmySubscriptionLevels levels;
+    OneSevenLiveRoomInfo roomInfo;
+    OneSevenLiveConfigStreamer configStreamer;
+    OneSevenLiveUserInfo userInfo;
+    OneSevenLiveArmySubscriptionLevels levels;
 
 signals:
     void streamInfoSaved();
@@ -105,29 +105,29 @@ private slots:
     void onArmyOnlyCheckChanged(int state); // armyOnlyCheck 状态改变时触发
 
 private:
-    bool gatherRtmpRequest(SeventeenLiveRtmpRequest &request);
-    void populateRtmpRequest(const SeventeenLiveRtmpRequest &request);
+    bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);
+    void populateRtmpRequest(const OneSevenLiveRtmpRequest &request);
     void updateLiveButton(bool isLive);
 
     void saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey);
     void stopStreaming();
 
-    void createLive(const SeventeenLiveRtmpRequest& request);
-    void startLive(const std::string userID, const SeventeenLiveRtmpResponse &response, bool autoRecording, bool skip = false);
+    void createLive(const OneSevenLiveRtmpRequest& request);
+    void startLive(const std::string userID, const OneSevenLiveRtmpResponse &response, bool autoRecording, bool skip = false);
     void closeLive();
-    void syncWithWeb(SeventeenLiveStreamingStatus status);
+    void syncWithWeb(OneSevenLiveStreamingStatus status);
     
     // 标签相关函数
     void addTag(const QString &tag);
     void updateTagsFromList();
     int hashtagSelectLimit = 2; // 最多可以添加的标签数量
 
-    SeventeenLiveApiWrappers *apiWrapper = nullptr;
-    SeventeenLiveConfigManager *configManager = nullptr;
+    OneSevenLiveApiWrappers *apiWrapper = nullptr;
+    OneSevenLiveConfigManager *configManager = nullptr;
 
     QString currentInfoUuid = "";
     bool isLoading = false; // 标识是否正在加载中
-    SeventeenLiveStreamingStatus currentLiveStatus = SeventeenLiveStreamingStatus::NotStarted;
+    OneSevenLiveStreamingStatus currentLiveStatus = OneSevenLiveStreamingStatus::NotStarted;
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

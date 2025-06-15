@@ -1,4 +1,4 @@
-#include "SeventeenLiveCoreManager.hpp"
+#include "OneSevenLiveCoreManager.hpp"
 #include <QMainWindow>
 #include <QDesktopServices>
 
@@ -8,15 +8,15 @@
 
 #include "json11.hpp"
 
-#include "SeventeenLiveMenuManager.hpp"
-#include "api/SeventeenLiveApiWrappers.hpp"
-#include "SeventeenLiveConfigManager.hpp"
-#include "SeventeenLiveLoginDialog.hpp"
-#include "SeventeenLiveStreamingDock.hpp"
-#include "SeventeenLiveStreamListDock.hpp"
+#include "OneSevenLiveMenuManager.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
+#include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveLoginDialog.hpp"
+#include "OneSevenLiveStreamingDock.hpp"
+#include "OneSevenLiveStreamListDock.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
-#include "SeventeenLiveHttpServer.hpp"
+#include "OneSevenLiveHttpServer.hpp"
 
 #include "cef-view.hpp"
 
@@ -26,10 +26,10 @@ using namespace json11;
 using namespace std;
 
 // 初始化静态成员变量
-SeventeenLiveCoreManager* SeventeenLiveCoreManager::instance = nullptr;
-std::mutex SeventeenLiveCoreManager::instanceMutex;
+OneSevenLiveCoreManager* OneSevenLiveCoreManager::instance = nullptr;
+std::mutex OneSevenLiveCoreManager::instanceMutex;
 
-SeventeenLiveCoreManager& SeventeenLiveCoreManager::getInstance(QMainWindow* mainWindow)
+OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainWindow)
 {
     // 使用双重检查锁定模式确保线程安全
     if (instance == nullptr) {
@@ -38,18 +38,18 @@ SeventeenLiveCoreManager& SeventeenLiveCoreManager::getInstance(QMainWindow* mai
             if (mainWindow == nullptr) {
                 throw std::runtime_error("首次调用getInstance时必须提供mainWindow参数");
             }
-            instance = new SeventeenLiveCoreManager(mainWindow);
+            instance = new OneSevenLiveCoreManager(mainWindow);
         }
     }
     return *instance;
 }
 
-SeventeenLiveCoreManager::SeventeenLiveCoreManager(QMainWindow* mainWindow_)
+OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
     : mainWindow(mainWindow_), initialized(false)
 {
 }
 
-SeventeenLiveCoreManager::~SeventeenLiveCoreManager()
+OneSevenLiveCoreManager::~OneSevenLiveCoreManager()
 {
     // 确保在析构前调用shutdown
     if (initialized) {
@@ -57,7 +57,7 @@ SeventeenLiveCoreManager::~SeventeenLiveCoreManager()
     }
 }
 
-bool SeventeenLiveCoreManager::initialize()
+bool OneSevenLiveCoreManager::initialize()
 {
     // 防止重复初始化
     if (initialized) {
@@ -66,7 +66,7 @@ bool SeventeenLiveCoreManager::initialize()
 
     // 初始化并启动 HTTP 服务器
     // "html" 是相对于 obs_get_module_data_path() 的路径
-    httpServer_ = std::make_unique<SeventeenLiveHttpServer>("localhost", 0, "html/chat");
+    httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");
     if (!httpServer_->start()) {
         blog(LOG_ERROR, "[17Live Core] Failed to start HTTP server.");
         // 根据需求决定是否因为 HTTP 服务器启动失败而中断整个初始化
@@ -76,47 +76,47 @@ bool SeventeenLiveCoreManager::initialize()
     }
 
     // 初始化配置管理器
-    configManager = std::make_unique<SeventeenLiveConfigManager>();
+    configManager = std::make_unique<OneSevenLiveConfigManager>();
 
     if (!configManager->initialize()) {
         obs_log(LOG_ERROR, "Failed to initialize config manager");
         return false;
     }
 
-    SeventeenLiveLoginData loginData;
+    OneSevenLiveLoginData loginData;
     configManager->getLoginData(loginData);
 
     bool isLogin = false;
 
     if (!loginData.jwtAccessToken.isEmpty()) {
-        apiWrapper = std::make_unique<SeventeenLiveApiWrappers>(loginData.jwtAccessToken.toStdString());
+        apiWrapper = std::make_unique<OneSevenLiveApiWrappers>(loginData.jwtAccessToken.toStdString());
 
         isLogin = checkLoginStatus();
     } 
     
     // if not login, reinitialize apiWrapper
     if (!isLogin) {
-        apiWrapper = std::make_unique<SeventeenLiveApiWrappers>();
+        apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
     }
 
     // 初始化菜单管理器
-    menuManager = std::make_unique<SeventeenLiveMenuManager>(mainWindow);
+    menuManager = std::make_unique<OneSevenLiveMenuManager>(mainWindow);
     if (!menuManager) {
         obs_log(LOG_ERROR, "Failed to create menu manager");
         return false;
     }
     // connect menuManager's loginClicked signal to handleLoginClicked slot
-    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::loginClicked, this, &SeventeenLiveCoreManager::handleLoginClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::loginClicked, this, &OneSevenLiveCoreManager::handleLoginClicked);
 
-    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::logoutClicked, this, &SeventeenLiveCoreManager::handleLogoutClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::logoutClicked, this, &OneSevenLiveCoreManager::handleLogoutClicked);
 
-    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::streamingClicked, this, &SeventeenLiveCoreManager::handleStreamingClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::streamingClicked, this, &OneSevenLiveCoreManager::handleStreamingClicked);
 
-    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::chatRoomClicked, this, &SeventeenLiveCoreManager::handleChatRoomClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::chatRoomClicked, this, &OneSevenLiveCoreManager::handleChatRoomClicked);
 
-    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::liveListClicked, this, &SeventeenLiveCoreManager::handleLiveListClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::liveListClicked, this, &OneSevenLiveCoreManager::handleLiveListClicked);
 
-    QObject::connect(menuManager.get(), &SeventeenLiveMenuManager::checkUpdateClicked, this, [this] () {
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this, [this] () {
         QUrl url = QUrl(obs_module_text("Menu.CheckUpdate.Url"), QUrl::TolerantMode);
 	    QDesktopServices::openUrl(url);
     });
@@ -144,14 +144,14 @@ bool SeventeenLiveCoreManager::initialize()
     return true;
 }
 
-void SeventeenLiveCoreManager::load17LiveConfig()
+void OneSevenLiveCoreManager::load17LiveConfig()
 {
     // 在initialize方法中，在初始化configManager之后添加以下代码
 
     // 异步获取配置
     std::thread configThread([this]() {
         // 获取当前区域和语言
-        SeventeenLiveLoginData loginData;
+        OneSevenLiveLoginData loginData;
         configManager->getLoginData(loginData);
     
         std::string region = loginData.userInfo.region.toStdString();
@@ -176,7 +176,7 @@ void SeventeenLiveCoreManager::load17LiveConfig()
     configThread.detach(); 
 }
 
-void SeventeenLiveCoreManager::shutdown()
+void OneSevenLiveCoreManager::shutdown()
 {
     if (!initialized) {
         return;
@@ -206,37 +206,37 @@ void SeventeenLiveCoreManager::shutdown()
     initialized = false;
 }
 
-QMainWindow* SeventeenLiveCoreManager::getMainWindow() const
+QMainWindow* OneSevenLiveCoreManager::getMainWindow() const
 {
     return mainWindow;
 }
 
-SeventeenLiveMenuManager* SeventeenLiveCoreManager::getMenuManager() const
+OneSevenLiveMenuManager* OneSevenLiveCoreManager::getMenuManager() const
 {
     return menuManager.get();
 }
 
-SeventeenLiveApiWrappers* SeventeenLiveCoreManager::getApiWrapper() const
+OneSevenLiveApiWrappers* OneSevenLiveCoreManager::getApiWrapper() const
 {
     return apiWrapper.get();
 }
 
-SeventeenLiveConfigManager* SeventeenLiveCoreManager::getConfigManager() const
+OneSevenLiveConfigManager* OneSevenLiveCoreManager::getConfigManager() const
 {
     return configManager.get();
 }
 
-bool SeventeenLiveCoreManager::handleLoginClicked()
+bool OneSevenLiveCoreManager::handleLoginClicked()
 {
-    SeventeenLiveLoginDialog dialog(mainWindow, getApiWrapper());
+    OneSevenLiveLoginDialog dialog(mainWindow, getApiWrapper());
 
     // 连接登录成功信号到主窗口的槽函数
-    QObject::connect(&dialog, &SeventeenLiveLoginDialog::loginSuccess, this, &SeventeenLiveCoreManager::handleLoginSuccess);
+    QObject::connect(&dialog, &OneSevenLiveLoginDialog::loginSuccess, this, &OneSevenLiveCoreManager::handleLoginSuccess);
 
     return dialog.exec() == QDialog::Accepted;
 }
 
-void SeventeenLiveCoreManager::handleLoginSuccess(const SeventeenLiveLoginData& loginData)
+void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& loginData)
 {
     obs_log(LOG_INFO, "handleLoginSuccess");
 
@@ -253,7 +253,7 @@ void SeventeenLiveCoreManager::handleLoginSuccess(const SeventeenLiveLoginData& 
     menuManager->updateLoginStatus(true, username);
 }
 
-void SeventeenLiveCoreManager::handleLogoutClicked()
+void OneSevenLiveCoreManager::handleLogoutClicked()
 {
     // 关闭所有 dock 窗口，避免登出后出现错误操作
     if (streamingDock) {
@@ -276,19 +276,19 @@ void SeventeenLiveCoreManager::handleLogoutClicked()
     configManager->clearLoginData();
 }
 
-void SeventeenLiveCoreManager::handleStreamingClicked()
+void OneSevenLiveCoreManager::handleStreamingClicked()
 {
     obs_log(LOG_INFO, "handleStreamingClicked");
 
     if (!streamingDock) {
-        SeventeenLiveLoginData loginData;
+        OneSevenLiveLoginData loginData;
         if (!configManager->getLoginData(loginData)) {
             obs_log(LOG_ERROR, "Failed to get login data");
             return;
         }
 
         // 创建并显示流媒体窗口
-        streamingDock = new SeventeenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
+        streamingDock = new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
 
         streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
@@ -296,7 +296,7 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
         streamingDock->setFloating(true);
         streamingDock->setVisible(true);
 
-        connect(streamingDock, &SeventeenLiveStreamingDock::streamInfoSaved, this, [this] () {
+        connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this] () {
             if (liveListDock) {
                 liveListDock->refreshStreamList();
             }
@@ -332,13 +332,13 @@ void SeventeenLiveCoreManager::handleStreamingClicked()
 
 }
 
-void SeventeenLiveCoreManager::handleLiveListClicked()
+void OneSevenLiveCoreManager::handleLiveListClicked()
 {
     obs_log(LOG_INFO, "handleLiveListClicked");
 
     if (!liveListDock) {
 
-        liveListDock = new SeventeenLiveStreamListDock(mainWindow, configManager.get());
+        liveListDock = new OneSevenLiveStreamListDock(mainWindow, configManager.get());
         liveListDock->setMinimumWidth(300);
         liveListDock->setMinimumHeight(400);
 
@@ -349,7 +349,7 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
 
         liveListDock->setVisible(true);
 
-        connect(liveListDock, &SeventeenLiveStreamListDock::startLiveClicked, this, [this] (const SeventeenLiveRtmpRequest& request) {
+        connect(liveListDock, &OneSevenLiveStreamListDock::startLiveClicked, this, [this] (const OneSevenLiveRtmpRequest& request) {
             // if streamingDock is not visible, show it
             // in order to edit the live info item
             if (!streamingDock) {
@@ -359,7 +359,7 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
             streamingDock->createLiveWithRequest(request);
         });
     
-        connect(liveListDock, &SeventeenLiveStreamListDock::editLiveClicked, this, [this] (const SeventeenLiveStreamInfo& info) {
+        connect(liveListDock, &OneSevenLiveStreamListDock::editLiveClicked, this, [this] (const OneSevenLiveStreamInfo& info) {
             if (streamingDock) {
                 streamingDock->editLiveWithInfo(info);
             }
@@ -392,10 +392,10 @@ void SeventeenLiveCoreManager::handleLiveListClicked()
     }
 }
 
-bool SeventeenLiveCoreManager::checkLoginStatus()
+bool OneSevenLiveCoreManager::checkLoginStatus()
 {
     // call apiWrapper->GetSelfInfo()
-    SeventeenLiveLoginData loginData;
+    OneSevenLiveLoginData loginData;
     if (!apiWrapper->GetSelfInfo(loginData)) {
         configManager->clearLoginData();
         return false;
@@ -406,7 +406,7 @@ bool SeventeenLiveCoreManager::checkLoginStatus()
     return true;
 }
 
-void SeventeenLiveCoreManager::saveDockState()
+void OneSevenLiveCoreManager::saveDockState()
 {
     if (!initialized || !mainWindow || !configManager) {
         return;
@@ -418,12 +418,12 @@ void SeventeenLiveCoreManager::saveDockState()
     obs_log(LOG_INFO, "Dock state saved successfully");
 }
 
-void SeventeenLiveCoreManager::handleChatRoomClicked()
+void OneSevenLiveCoreManager::handleChatRoomClicked()
 {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
     if (!cef_window) { 
-        SeventeenLiveLoginData loginData;
+        OneSevenLiveLoginData loginData;
         if (!configManager->getLoginData(loginData)) {
             obs_log(LOG_ERROR, "Failed to get login data");
             return;

@@ -5,16 +5,16 @@
 #include <QLabel>
 #include <QPushButton>
 
-struct SeventeenLiveLoginData;
+struct OneSevenLiveLoginData;
 
-class SeventeenLiveApiWrappers;
+class OneSevenLiveApiWrappers;
 
-class SeventeenLiveLoginDialog : public QDialog {
+class OneSevenLiveLoginDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit SeventeenLiveLoginDialog(QWidget* parent = nullptr, SeventeenLiveApiWrappers* apiWrapper_ = nullptr);
-    ~SeventeenLiveLoginDialog();
+    explicit OneSevenLiveLoginDialog(QWidget* parent = nullptr, OneSevenLiveApiWrappers* apiWrapper_ = nullptr);
+    ~OneSevenLiveLoginDialog();
 
 private:
     void setupUi();
@@ -25,7 +25,7 @@ signals:
      * @brief 登录成功信号
      * @param loginData 登录信息
      */
-    void loginSuccess(const SeventeenLiveLoginData& loginData);
+    void loginSuccess(const OneSevenLiveLoginData& loginData);
 
 private:
     QLabel* titleLabel;
@@ -40,5 +40,5 @@ private:
     QLabel* passwordLabel;
     QPushButton* passwordQuestionButton;
     QLabel* forgotPasswordLinkLabel;
-    SeventeenLiveApiWrappers* apiWrapper;
+    OneSevenLiveApiWrappers* apiWrapper;
 };

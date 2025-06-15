@@ -1,4 +1,4 @@
-#include "SeventeenLiveStreamListDock.hpp"
+#include "OneSevenLiveStreamListDock.hpp"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -10,9 +10,9 @@
 #include <obs-frontend-api.h>
 #include "plugin-support.h"
 
-#include "moc_SeventeenLiveStreamListDock.cpp"
+#include "moc_OneSevenLiveStreamListDock.cpp"
 
-SeventeenLiveStreamListDock::SeventeenLiveStreamListDock(QWidget *parent,  SeventeenLiveConfigManager *configManager_)
+OneSevenLiveStreamListDock::OneSevenLiveStreamListDock(QWidget *parent,  OneSevenLiveConfigManager *configManager_)
     : QDockWidget(obs_module_text("Live.StreamList"), parent), configManager(configManager_)
 {
     setupUi();
@@ -27,9 +27,9 @@ SeventeenLiveStreamListDock::SeventeenLiveStreamListDock(QWidget *parent,  Seven
     });
 }
 
-SeventeenLiveStreamListDock::~SeventeenLiveStreamListDock() = default;
+OneSevenLiveStreamListDock::~OneSevenLiveStreamListDock() = default;
 
-void SeventeenLiveStreamListDock::setupUi()
+void OneSevenLiveStreamListDock::setupUi()
 {
     QWidget *container = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
@@ -74,12 +74,12 @@ void SeventeenLiveStreamListDock::setupUi()
     setWidget(container);
 }
 
-void SeventeenLiveStreamListDock::createConnections()
+void OneSevenLiveStreamListDock::createConnections()
 {
-    connect(startLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamListDock::onStartLiveClicked);
+    connect(startLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamListDock::onStartLiveClicked);
 }
 
-void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const SeventeenLiveStreamInfo& info)
+void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const OneSevenLiveStreamInfo& info)
 {
     QFrame* frame = new QFrame();
     frame->setMinimumHeight(60);
@@ -146,7 +146,7 @@ void SeventeenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const 
         this->onDeleteStreamClicked(item, info);
     });
 }
-void SeventeenLiveStreamListDock::showEmptyListMessage()
+void OneSevenLiveStreamListDock::showEmptyListMessage()
 {
     // 隐藏列表和开始直播按钮
     streamList->setVisible(false);
@@ -217,7 +217,7 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     // 连接按钮点击信号
     connect(goToStreamingButton, &QPushButton::clicked, this, [this]() {
         // 发送信号，通知需要打开开始直播面板
-        emit startLiveClicked(SeventeenLiveRtmpRequest());
+        emit startLiveClicked(OneSevenLiveRtmpRequest());
     });
     
     // 添加到布局
@@ -229,7 +229,7 @@ void SeventeenLiveStreamListDock::showEmptyListMessage()
     emptyContainer->raise(); // 确保显示在最上层
 }
 
-void SeventeenLiveStreamListDock::resizeEvent(QResizeEvent *event)
+void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent *event)
 {
     QDockWidget::resizeEvent(event);
     
@@ -238,7 +238,7 @@ void SeventeenLiveStreamListDock::resizeEvent(QResizeEvent *event)
     }
 }
 
-void SeventeenLiveStreamListDock::refreshStreamList()
+void OneSevenLiveStreamListDock::refreshStreamList()
 {
     streamList->clear();
 
@@ -248,7 +248,7 @@ void SeventeenLiveStreamListDock::refreshStreamList()
         emptyContainer = nullptr;
     }
     
-    std::vector<SeventeenLiveStreamInfo> streamInfoList;
+    std::vector<OneSevenLiveStreamInfo> streamInfoList;
     configManager->loadAllLiveConfig(streamInfoList);
     
     if (streamInfoList.empty()) {
@@ -270,13 +270,13 @@ void SeventeenLiveStreamListDock::refreshStreamList()
     }
 }
 
-void SeventeenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const SeventeenLiveStreamInfo& info)
+void OneSevenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const OneSevenLiveStreamInfo& info)
 {
     obs_log(LOG_INFO, "onEditStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
     emit editLiveClicked(info);
 }
 
-void SeventeenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item, const SeventeenLiveStreamInfo& info)
+void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item, const OneSevenLiveStreamInfo& info)
 {
     obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
 
@@ -284,13 +284,13 @@ void SeventeenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWi
     refreshStreamList();
 }
 
-void SeventeenLiveStreamListDock::onStartLiveClicked()
+void OneSevenLiveStreamListDock::onStartLiveClicked()
 {
     // 获取当前选择的list item
     QListWidgetItem* item = streamList->currentItem();
     if (item) {
         // 获取item的信息
-        SeventeenLiveStreamInfo info = item->data(Qt::UserRole).value<SeventeenLiveStreamInfo>();
+        OneSevenLiveStreamInfo info = item->data(Qt::UserRole).value<OneSevenLiveStreamInfo>();
         emit startLiveClicked(info.request);
     }
 }

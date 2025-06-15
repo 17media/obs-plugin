@@ -7,17 +7,17 @@
 
 #include <QByteArray>
 
-#include "api/SeventeenLiveModels.hpp"
+#include "api/OneSevenLiveModels.hpp"
 
 using namespace json11;
 
-class SeventeenLiveConfigManager {
+class OneSevenLiveConfigManager {
 public:
-  SeventeenLiveConfigManager();
+  OneSevenLiveConfigManager();
   bool initialize();
 
-  bool getLoginData(SeventeenLiveLoginData &loginData);
-  bool setLoginData(const SeventeenLiveLoginData &loginData);
+  bool getLoginData(OneSevenLiveLoginData &loginData);
+  bool setLoginData(const OneSevenLiveLoginData &loginData);
   void clearLoginData();
 
   bool setStreamingInfo(const std::string &liveStreamID,
@@ -34,9 +34,9 @@ public:
 
   bool getConfigValue(const std::string &key, std::string &value);
 
-  bool saveLiveConfig(const SeventeenLiveStreamInfo &streamInfo);
-  bool loadAllLiveConfig(std::vector<SeventeenLiveStreamInfo> &streamInfo);
-  bool saveAllLiveConfig(const std::vector<SeventeenLiveStreamInfo> &streamInfo);
+  bool saveLiveConfig(const OneSevenLiveStreamInfo &streamInfo);
+  bool loadAllLiveConfig(std::vector<OneSevenLiveStreamInfo> &streamInfo);
+  bool saveAllLiveConfig(const std::vector<OneSevenLiveStreamInfo> &streamInfo);
   bool removeLiveConfig(const std::string &streamUuid);
 
   QByteArray getDockState();
@@ -45,7 +45,7 @@ public:
   // 设置配置数据
   bool setConfig(const Json &configData);
   // 获取配置数据
-  bool getConfig(SeventeenLiveConfig &config);
+  bool getConfig(OneSevenLiveConfig &config);
 
   
 private:
@@ -58,5 +58,5 @@ private:
   // 用于保存配置文件的互斥锁
   std::mutex configMutex;
   // 当前配置
-  SeventeenLiveConfig currentConfig;
+  OneSevenLiveConfig currentConfig;
 };

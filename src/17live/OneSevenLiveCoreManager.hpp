@@ -11,40 +11,40 @@ class QMainWindow;
 
 class BrowserApp;
 
-// 前向声明 SeventeenLiveMenuManager 类
-class SeventeenLiveMenuManager;
+// 前向声明 OneSevenLiveMenuManager 类
+class OneSevenLiveMenuManager;
 
-class SeventeenLiveApiWrappers;
+class OneSevenLiveApiWrappers;
 
-class SeventeenLiveConfigManager;
+class OneSevenLiveConfigManager;
 
-struct SeventeenLiveLoginData;
+struct OneSevenLiveLoginData;
 
-class SeventeenLiveStreamingDock;
+class OneSevenLiveStreamingDock;
 
-class SeventeenLiveStreamListDock;
+class OneSevenLiveStreamListDock;
 
-struct SeventeenLiveRtmpRequest;
+struct OneSevenLiveRtmpRequest;
 
-class SeventeenLiveHttpServer;
+class OneSevenLiveHttpServer;
 
 /**
- * @brief SeventeenLiveCoreManager 类是17live插件的核心管理类
+ * @brief OneSevenLiveCoreManager 类是17live插件的核心管理类
  * 
  * 该类采用单例模式设计，作为管理全部17live插件的控制中心。
  * 负责插件的初始化、配置管理、资源分配等核心功能。
  */
-class SeventeenLiveCoreManager : public QObject {
+class OneSevenLiveCoreManager : public QObject {
     Q_OBJECT
 
 public:
     /**
-     * @brief 获取SeventeenLiveCoreManager的单例实例
+     * @brief 获取OneSevenLiveCoreManager的单例实例
      * 
      * @param mainWindow OBS主窗体，仅在首次调用时需要提供
-     * @return SeventeenLiveCoreManager& 单例实例的引用
+     * @return OneSevenLiveCoreManager& 单例实例的引用
      */
-    static SeventeenLiveCoreManager& getInstance(QMainWindow* mainWindow = nullptr);
+    static OneSevenLiveCoreManager& getInstance(QMainWindow* mainWindow = nullptr);
 
     /**
      * @brief 初始化核心管理器
@@ -68,34 +68,34 @@ public:
     /**
      * @brief 获取菜单管理器
      * 
-     * @return SeventeenLiveMenuManager* 菜单管理器指针
+     * @return OneSevenLiveMenuManager* 菜单管理器指针
      */
-    SeventeenLiveMenuManager* getMenuManager() const;
+    OneSevenLiveMenuManager* getMenuManager() const;
     
     /**
      * @brief 获取API包装器
      * 
-     * @return SeventeenLiveApiWrappers* API包装器指针
+     * @return OneSevenLiveApiWrappers* API包装器指针
      */
-    SeventeenLiveApiWrappers* getApiWrapper() const;
+    OneSevenLiveApiWrappers* getApiWrapper() const;
 
-    SeventeenLiveConfigManager* getConfigManager() const;
+    OneSevenLiveConfigManager* getConfigManager() const;
 
     bool handleLoginClicked();
 
     // 禁止拷贝构造和赋值操作
-    SeventeenLiveCoreManager(const SeventeenLiveCoreManager&) = delete;
-    SeventeenLiveCoreManager& operator=(const SeventeenLiveCoreManager&) = delete;
+    OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
+    OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
 
 private:
     // 私有构造函数，确保只能通过getInstance方法获取实例
-    explicit SeventeenLiveCoreManager(QMainWindow* mainWindow);
+    explicit OneSevenLiveCoreManager(QMainWindow* mainWindow);
     
     // 私有析构函数
-    ~SeventeenLiveCoreManager();
+    ~OneSevenLiveCoreManager();
 
     // 单例实例
-    static SeventeenLiveCoreManager* instance;
+    static OneSevenLiveCoreManager* instance;
     
     // 互斥锁，用于线程安全的单例访问
     static std::mutex instanceMutex;
@@ -109,21 +109,21 @@ private:
     // 初始化标志
     bool initialized;
 
-    std::unique_ptr<SeventeenLiveConfigManager> configManager;
+    std::unique_ptr<OneSevenLiveConfigManager> configManager;
 
     // 菜单管理器
-    std::unique_ptr<SeventeenLiveMenuManager> menuManager;
+    std::unique_ptr<OneSevenLiveMenuManager> menuManager;
 
-    std::unique_ptr<SeventeenLiveApiWrappers> apiWrapper;
+    std::unique_ptr<OneSevenLiveApiWrappers> apiWrapper;
 
-    std::unique_ptr<SeventeenLiveHttpServer> httpServer_;
+    std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
 
     /**
      * @brief 处理登录成功的槽函数
      * 
      * @param userData 登录成功后返回的用户数据
      */
-    void handleLoginSuccess(const SeventeenLiveLoginData& userData);
+    void handleLoginSuccess(const OneSevenLiveLoginData& userData);
 
     void handleLogoutClicked();
 
@@ -132,13 +132,13 @@ private:
     
     // Streaming Dock load status
     bool streamingDockFirstLoad = true;
-    SeventeenLiveStreamingDock* streamingDock{nullptr};
+    OneSevenLiveStreamingDock* streamingDock{nullptr};
     void handleStreamingClicked();
 
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;
-    SeventeenLiveStreamListDock* liveListDock{nullptr};
+    OneSevenLiveStreamListDock* liveListDock{nullptr};
     void handleLiveListClicked();
 
     void saveDockState();

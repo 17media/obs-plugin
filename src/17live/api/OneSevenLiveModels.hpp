@@ -11,7 +11,7 @@
 using namespace json11;
 
 // 定义当前的直播状态，包括未开播 0、直播创建好 1、开始直播 2
-enum class SeventeenLiveStreamingStatus {
+enum class OneSevenLiveStreamingStatus {
   NotStarted,
   Live,
   Streaming
@@ -43,21 +43,21 @@ static QString GetProviderNameByIndex(int index) {
   }
 }
 
-  struct SeventeenLiveAPIResponse {
+  struct OneSevenLiveAPIResponse {
     QString key;
     QString data;
   };
   
-  struct SeventeenLiveAPIResult {
+  struct OneSevenLiveAPIResult {
     QString result;
     QString message;
   };
   
-  struct SeventeenLiveOnliveInfo {
+  struct OneSevenLiveOnliveInfo {
     int premiumType;
   };
 
-  struct SeventeenLiveUserInfo {
+  struct OneSevenLiveUserInfo {
     QString userID;
     QString openID;
     QString displayName;
@@ -105,18 +105,18 @@ static QString GetProviderNameByIndex(int index) {
     QString commentShadowColor;
     bool isFreePrivateMsgEnabled;
     bool isVliverOnlyModeEnabled;
-    SeventeenLiveOnliveInfo onliveInfo;
+    OneSevenLiveOnliveInfo onliveInfo;
   };
 
-  bool JsonToSeventeenLiveUserInfo(const Json &json, SeventeenLiveUserInfo &userInfo);
+  bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo);
   
-  struct SeventeenLiveAutoEnter {
+  struct OneSevenLiveAutoEnter {
     bool autoEnter;
     qint64 liveStreamID;
   };
   
-  struct SeventeenLiveLoginData {
-    SeventeenLiveUserInfo userInfo;
+  struct OneSevenLiveLoginData {
+    OneSevenLiveUserInfo userInfo;
     QString message;
     QString result;
     QString refreshToken;
@@ -128,12 +128,12 @@ static QString GetProviderNameByIndex(int index) {
     QString abtestNewbieGuidance;
     QString abtestNewbieGuide;
     bool showRecommend;
-    SeventeenLiveAutoEnter autoEnterLive;
+    OneSevenLiveAutoEnter autoEnterLive;
     int newbieEnhanceGuidanceStyle;
     bool newbieGuidanceFocusMissionEnable;
   };
 
-  bool JsonToSeventeenLiveLoginData(const Json &json, SeventeenLiveLoginData &loginData);
+  bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginData);
   
   /* struct for json data
   {
@@ -142,14 +142,14 @@ static QString GetProviderNameByIndex(int index) {
     "errorTitle": ""
   }
   */
-  struct SeventeenLiveError {
+  struct OneSevenLiveError {
     int errorCode;
     QString errorMessage;
     QString errorTitle;
   };
 
   // RTMP URL信息结构体
-  struct SeventeenLiveRtmpUrl {
+  struct OneSevenLiveRtmpUrl {
     int provider;
     QString streamType;
     QString url;
@@ -162,13 +162,13 @@ static QString GetProviderNameByIndex(int index) {
   };
 
   // 拉流URL信息结构体
-  struct SeventeenLivePullUrlsInfo {
-    QList<SeventeenLiveRtmpUrl> rtmpURLs;
+  struct OneSevenLivePullUrlsInfo {
+    QList<OneSevenLiveRtmpUrl> rtmpURLs;
     qint64 seqNo;
   };
 
   // 商品信息结构体
-  struct SeventeenLiveCommodityInfo {
+  struct OneSevenLiveCommodityInfo {
     int type;
     int price;
     int amount;
@@ -177,13 +177,13 @@ static QString GetProviderNameByIndex(int index) {
   };
 
   // 活动图标信息结构体
-  struct SeventeenLiveEventIcon {
+  struct OneSevenLiveEventIcon {
     QString language;
     QString value;
   };
 
   // 活动信息结构体
-  struct SeventeenLiveEventInfo {
+  struct OneSevenLiveEventInfo {
     qint64 ID;
     int type;
     QString icon;
@@ -193,12 +193,12 @@ static QString GetProviderNameByIndex(int index) {
     QString URL;
     int pageSize;
     QString webViewTitle;
-    QList<SeventeenLiveEventIcon> icons;
-    QList<SeventeenLiveEventIcon> webViewTitles;
+    QList<OneSevenLiveEventIcon> icons;
+    QList<OneSevenLiveEventIcon> webViewTitles;
   };
 
   // 荣耀之路信息结构体
-  struct SeventeenLiveGloryroadInfo {
+  struct OneSevenLiveGloryroadInfo {
     int point;
     int level;
     QString iconURL;
@@ -206,17 +206,17 @@ static QString GetProviderNameByIndex(int index) {
   };
 
   // 公会信息结构体
-  struct SeventeenLiveClanInfo {
+  struct OneSevenLiveClanInfo {
     int joinCount;
   };
 
   // 联赛信息结构体
-  struct SeventeenLiveLeagueInfo {
+  struct OneSevenLiveLeagueInfo {
     bool shouldShowEntrance;
   };
 
   // 用户信息结构体
-  struct SeventeenLiveStreamUserInfo : public SeventeenLiveUserInfo {
+  struct OneSevenLiveStreamUserInfo : public OneSevenLiveUserInfo {
     QString gender;
     bool isChoice;
     bool isInternational;
@@ -226,19 +226,19 @@ static QString GetProviderNameByIndex(int index) {
     QString version;
     QString deviceType;
     QString createClanID;
-    SeventeenLiveClanInfo clanInfo;
+    OneSevenLiveClanInfo clanInfo;
     int chatMuteDuration;
     QString language;
     QString registerRegion;
     int vipGroupType;
     int followReminder;
-    SeventeenLiveLeagueInfo leagueInfo;
+    OneSevenLiveLeagueInfo leagueInfo;
     bool hasVipPurchase;
     bool disableMakeLiveHotToast;
-    SeventeenLiveGloryroadInfo gloryroadInfo;
+    OneSevenLiveGloryroadInfo gloryroadInfo;
   };
 
-  struct SeventeenLiveArchiveConfig {
+  struct OneSevenLiveArchiveConfig {
     bool autoRecording;
     bool autoPublish;
     int clipPermission;
@@ -246,21 +246,21 @@ static QString GetProviderNameByIndex(int index) {
   };
 
   // hashtag结构体
-  struct SeventeenLiveHashtag {
+  struct OneSevenLiveHashtag {
     QString text;
     bool isOfficial;
   };
 
   // 主房间信息结构体
-  struct SeventeenLiveRoomInfo {
+  struct OneSevenLiveRoomInfo {
     QString userID;
     int streamerType;
     QString streamType;
     int status;
     QString caption;
     QString thumbnail;
-    QList<SeventeenLiveRtmpUrl> rtmpUrls;
-    SeventeenLivePullUrlsInfo pullURLsInfo;
+    QList<OneSevenLiveRtmpUrl> rtmpUrls;
+    OneSevenLivePullUrlsInfo pullURLsInfo;
     int allowCallin;
     QString restreamerOpenID;
     QString streamID;
@@ -284,7 +284,7 @@ static QString GetProviderNameByIndex(int index) {
     int replayAvailable;
     int numberOfChunks;
     int canSendGift;
-    SeventeenLiveStreamUserInfo userInfo;
+    OneSevenLiveStreamUserInfo userInfo;
     bool landscape;
     bool mute;
     int birthdayState;
@@ -302,29 +302,29 @@ static QString GetProviderNameByIndex(int index) {
     int campaignSize;
     QString campaignTitle;
     int commodityState;
-    SeventeenLiveCommodityInfo commodityInfo;
+    OneSevenLiveCommodityInfo commodityInfo;
     bool canSellCommodity;
     int gridStyle;
     QString device;
-    QList<SeventeenLiveEventInfo> eventList;
-    SeventeenLiveArchiveConfig archiveConfig;  // 添加存档配置
+    QList<OneSevenLiveEventInfo> eventList;
+    OneSevenLiveArchiveConfig archiveConfig;  // 添加存档配置
     QString archiveID;                         // 添加存档ID
     bool hideGameMarquee;                      // 添加游戏跑马灯隐藏标志
     QStringList subtabs;
-    QList<SeventeenLiveHashtag> lastUsedHashtags;
+    QList<OneSevenLiveHashtag> lastUsedHashtags;
   };
 
-  // 将Json转换为SeventeenLiveRoomInfo结构体
-  bool JsonToSeventeenLiveRoomInfo(const Json &json, SeventeenLiveRoomInfo &roomInfo);
-  bool SeventeenLiveRoomInfoToJson(const SeventeenLiveRoomInfo &roomInfo, Json &json);
+  // 将Json转换为OneSevenLiveRoomInfo结构体
+  bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo);
+  bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json);
 
   // 虚拟主播信息结构体
-  struct SeventeenLiveVliverInfo {
+  struct OneSevenLiveVliverInfo {
     int vliverModel;
   };
 
   // 战队设定
-  struct SeventeenLiveArmy {
+  struct OneSevenLiveArmy {
     bool armyOnlyPN;
     bool enable;
     int requiredArmyRank;
@@ -332,7 +332,7 @@ static QString GetProviderNameByIndex(int index) {
   };
 
   // RTMP请求结构体
-  struct SeventeenLiveRtmpRequest {
+  struct OneSevenLiveRtmpRequest {
     QString userID;
     QString caption;
     QString device;
@@ -341,72 +341,72 @@ static QString GetProviderNameByIndex(int index) {
     bool landscape;
     int streamerType;
     QString subtabID;
-    SeventeenLiveArchiveConfig archiveConfig;
-    SeventeenLiveVliverInfo vliverInfo;
-    SeventeenLiveArmy armyOnly;
+    OneSevenLiveArchiveConfig archiveConfig;
+    OneSevenLiveVliverInfo vliverInfo;
+    OneSevenLiveArmy armyOnly;
   };
 
-  bool SeventeenLiveRtmpRequestToJson(const SeventeenLiveRtmpRequest &request, Json &json);
-  bool JsonToSeventeenLiveRtmpRequest(const Json &json, SeventeenLiveRtmpRequest &request);
+  bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, Json &json);
+  bool JsonToOneSevenLiveRtmpRequest(const Json &json, OneSevenLiveRtmpRequest &request);
 
-  struct SeventeenLiveStreamInfo {
-    SeventeenLiveRtmpRequest request;
+  struct OneSevenLiveStreamInfo {
+    OneSevenLiveRtmpRequest request;
     QString categoryName;
     QDateTime createdAt;
     QString streamUuid;
   };
 
-  bool SeventeenLiveStreamInfoToJson(const SeventeenLiveStreamInfo &streamInfo, Json &json);
-  bool JsonToSeventeenLiveStreamInfo(const Json &json, SeventeenLiveStreamInfo &streamInfo);
+  bool OneSevenLiveStreamInfoToJson(const OneSevenLiveStreamInfo &streamInfo, Json &json);
+  bool JsonToOneSevenLiveStreamInfo(const Json &json, OneSevenLiveStreamInfo &streamInfo);
 
 
   // 成就值状态结构体
-  struct SeventeenLiveAchievementValueState {
+  struct OneSevenLiveAchievementValueState {
     bool isValueCarryOver;
     int initSeconds;
   };
 
   // RTMP响应结构体
-  struct SeventeenLiveRtmpResponse {
+  struct OneSevenLiveRtmpResponse {
     QString liveStreamID;
     QString streamID;
     QString rtmpURL;
     QString rtmpProvider;
     int messageProvider;
     Json firstStreamInfo;  // 使用Json类型因为它是一个空对象
-    QList<SeventeenLiveRtmpUrl> rtmpURLs;  // 复用已有的SeventeenLiveRtmpUrl结构体
-    SeventeenLiveAchievementValueState achievementValueState;
+    QList<OneSevenLiveRtmpUrl> rtmpURLs;  // 复用已有的OneSevenLiveRtmpUrl结构体
+    OneSevenLiveAchievementValueState achievementValueState;
     bool subtitleEnabled;
   };
 
-  bool JsonToSeventeenLiveRtmpResponse(const Json &json, SeventeenLiveRtmpResponse &response);
+  bool JsonToOneSevenLiveRtmpResponse(const Json &json, OneSevenLiveRtmpResponse &response);
 
   // 关闭直播请求结构体
-  struct SeventeenLiveCloseLiveRequest {
+  struct OneSevenLiveCloseLiveRequest {
     QString userID;
     QString reason;
   };
 
-  bool SeventeenLiveCloseLiveRequestToJson(const SeventeenLiveCloseLiveRequest &request, Json &json);
+  bool OneSevenLiveCloseLiveRequestToJson(const OneSevenLiveCloseLiveRequest &request, Json &json);
 
   // 活动标签结构体
-  struct SeventeenLiveEventTag {
+  struct OneSevenLiveEventTag {
     QString ID;
     QString name;
   };
 
   // Ably Token响应结构体
-  struct SeventeenLiveAblyTokenResponse {
+  struct OneSevenLiveAblyTokenResponse {
     int provider;
     QString token;
     QStringList channels;
   };
 
-  bool JsonToSeventeenLiveAblyTokenResponse(const Json &json, SeventeenLiveAblyTokenResponse &response);
-  bool SeventeenLiveAblyTokenResponseToJson(const SeventeenLiveAblyTokenResponse &response, Json &json);
+  bool JsonToOneSevenLiveAblyTokenResponse(const Json &json, OneSevenLiveAblyTokenResponse &response);
+  bool OneSevenLiveAblyTokenResponseToJson(const OneSevenLiveAblyTokenResponse &response, Json &json);
 
   // 活动事件结构体
-  struct SeventeenLiveEventItem {
+  struct OneSevenLiveEventItem {
     qint64 ID;
     QString name;
     QString bannerURL;
@@ -416,53 +416,53 @@ static QString GetProviderNameByIndex(int index) {
   };
 
   // 活动事件列表结构体
-  struct SeventeenLiveEventList {
-    QList<SeventeenLiveEventItem> events;
+  struct OneSevenLiveEventList {
+    QList<OneSevenLiveEventItem> events;
     bool notEligibleForAllEvents;
     int promotionIndex;
-    QList<SeventeenLiveEventTag> tags;
+    QList<OneSevenLiveEventTag> tags;
     QString instructionURL;
   };
 
   // 自定义活动结构体
-  struct SeventeenLiveCustomEvent {
+  struct OneSevenLiveCustomEvent {
     qint64 endTime;
     int status;
   };
 
   // 盲盒抽奖结构体
-  struct SeventeenLiveBoxGacha {
+  struct OneSevenLiveBoxGacha {
     bool previousSettingStatus;
     QString availableEventID;
   };
 
   // 子标签结构体
-  struct SeventeenLiveSubtab {
+  struct OneSevenLiveSubtab {
     QString displayName;
     QString ID;
   };
 
-  struct SeventeenLiveStreamState {
-    SeventeenLiveVliverInfo vliverInfo;
+  struct OneSevenLiveStreamState {
+    OneSevenLiveVliverInfo vliverInfo;
   };
 
   // 配置流媒体响应结构体
-  struct SeventeenLiveConfigStreamer {
-    SeventeenLiveEventList event;
-    SeventeenLiveCustomEvent customEvent;
-    SeventeenLiveBoxGacha boxGacha;
-    QList<SeventeenLiveSubtab> subtabs;
-    SeventeenLiveStreamState lastStreamState;
+  struct OneSevenLiveConfigStreamer {
+    OneSevenLiveEventList event;
+    OneSevenLiveCustomEvent customEvent;
+    OneSevenLiveBoxGacha boxGacha;
+    QList<OneSevenLiveSubtab> subtabs;
+    OneSevenLiveStreamState lastStreamState;
     int hashtagSelectLimit;
     int armyOnly;
   };
 
-  // 解析JSON到SeventeenLiveConfigStreamerResponse结构体的函数声明
-  bool JsonToSeventeenLiveConfigStreamer(const Json &json, SeventeenLiveConfigStreamer &response);
-  bool SeventeenLiveConfigStreamerToJson(const SeventeenLiveConfigStreamer &response, Json &json);
+  // 解析JSON到OneSevenLiveConfigStreamerResponse结构体的函数声明
+  bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStreamer &response);
+  bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response, Json &json);
 
   // 附加组件结构体
-  struct SeventeenLiveAddOns {
+  struct OneSevenLiveAddOns {
     QMap<QString, int> features;
   };
 
@@ -475,37 +475,37 @@ static QString GetProviderNameByIndex(int index) {
   //     } 
   //   } 
   // }
-  struct SeventeenLiveConfig {
-    SeventeenLiveAddOns addOns;
+  struct OneSevenLiveConfig {
+    OneSevenLiveAddOns addOns;
   };
 
-  // 解析JSON到SeventeenLiveConfig结构体的函数声明
-  bool JsonToSeventeenLiveConfig(const Json &json, SeventeenLiveConfig &config);
-  bool SeventeenLiveConfigToJson(const SeventeenLiveConfig &config, Json &json);
+  // 解析JSON到OneSevenLiveConfig结构体的函数声明
+  bool JsonToOneSevenLiveConfig(const Json &json, OneSevenLiveConfig &config);
+  bool OneSevenLiveConfigToJson(const OneSevenLiveConfig &config, Json &json);
 
 // 国际化令牌参数结构体
-struct SeventeenLiveI18nTokenParam {
+struct OneSevenLiveI18nTokenParam {
   QString value;
 };
 
 // 国际化令牌结构体
-struct SeventeenLiveI18nToken {
+struct OneSevenLiveI18nToken {
   QString key;
-  QList<SeventeenLiveI18nTokenParam> params;
+  QList<OneSevenLiveI18nTokenParam> params;
 };
 
 // 军团订阅级别结构体
-struct SeventeenLiveArmySubscriptionLevel {
+struct OneSevenLiveArmySubscriptionLevel {
   int rank;                      // 级别排名
   int subscribersAmount;         // 订阅者数量
-  SeventeenLiveI18nToken i18nToken;  // 国际化令牌
+  OneSevenLiveI18nToken i18nToken;  // 国际化令牌
 };
 
 // 军团订阅级别列表结构体
-struct SeventeenLiveArmySubscriptionLevels {
-  QList<SeventeenLiveArmySubscriptionLevel> subscriptionLevels;
+struct OneSevenLiveArmySubscriptionLevels {
+  QList<OneSevenLiveArmySubscriptionLevel> subscriptionLevels;
 };
 
 // JSON转换函数声明
-bool JsonToSeventeenLiveArmySubscriptionLevels(const Json &json, SeventeenLiveArmySubscriptionLevels &levels);
-bool SeventeenLiveArmySubscriptionLevelsToJson(const SeventeenLiveArmySubscriptionLevels &levels, Json &json);
+bool JsonToOneSevenLiveArmySubscriptionLevels(const Json &json, OneSevenLiveArmySubscriptionLevels &levels);
+bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscriptionLevels &levels, Json &json);

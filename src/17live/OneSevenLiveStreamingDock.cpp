@@ -1,4 +1,4 @@
-#include "SeventeenLiveStreamingDock.hpp"
+#include "OneSevenLiveStreamingDock.hpp"
 
 #include <QVBoxLayout>
 #include <QFormLayout>
@@ -14,22 +14,22 @@
 #include "plugin-support.h"
 
 #include "utility/Meta.hpp"
-#include "api/SeventeenLiveApiWrappers.hpp"
-#include "SeventeenLiveConfigManager.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
+#include "OneSevenLiveConfigManager.hpp"
 #include "utility/Common.hpp"
 
-#include "moc_SeventeenLiveStreamingDock.cpp"
+#include "moc_OneSevenLiveStreamingDock.cpp"
 
-SeventeenLiveStreamingDock::SeventeenLiveStreamingDock(QWidget *parent, SeventeenLiveApiWrappers *apiWrapper_, SeventeenLiveConfigManager *configManager_)
+OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent, OneSevenLiveApiWrappers *apiWrapper_, OneSevenLiveConfigManager *configManager_)
     : QDockWidget(obs_module_text("Live.Settings"), parent), apiWrapper(apiWrapper_), configManager(configManager_) 
 {
     setupUi();
     createConnections();
 }
 
-SeventeenLiveStreamingDock::~SeventeenLiveStreamingDock() = default;
+OneSevenLiveStreamingDock::~OneSevenLiveStreamingDock() = default;
 
-void SeventeenLiveStreamingDock::setupUi()
+void OneSevenLiveStreamingDock::setupUi()
 {
     QWidget *container = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
@@ -279,7 +279,7 @@ void SeventeenLiveStreamingDock::setupUi()
     
     // 剪辑身份
     clipIdentityCombo = new QComboBox();
-    QList<SeventeenLiveMetaValueLabel> clipIdentityList;
+    QList<OneSevenLiveMetaValueLabel> clipIdentityList;
     getMetaValueLabelList("ClipPermissions", clipIdentityList);
     for (const auto& item : clipIdentityList) {
         clipIdentityCombo->addItem(item.label, item.value.toInt());
@@ -336,7 +336,7 @@ void SeventeenLiveStreamingDock::setupUi()
 }
 
 // 添加新方法，用于加载房间信息
-void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
+void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID)
 {
     // 显示加载状态
     isLoading = true;
@@ -420,7 +420,7 @@ void SeventeenLiveStreamingDock::loadRoomInfo(qint64 roomID)
 }
 
 // 添加新方法，用于根据roomInfo更新UI
-void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
+void OneSevenLiveStreamingDock::updateUIWithRoomInfo()
 {
     // obs_log(LOG_INFO, "Updating UI with room info");
 
@@ -460,13 +460,13 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
     // 设置剪辑权限
     clipIdentityCombo->setCurrentIndex(clipIdentityCombo->findData(roomInfo.archiveConfig.clipPermission));
 
-    if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Live)
-        || roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Streaming)) {
+    if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)
+        || roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
         updateUIValues();
     }
 
     // 当web端已经开始直播后，应如何处理
-    if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Live)) {
+    if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)) {
         // 添加用户提示框，询问用户接下来的操作
         QMessageBox msgBox(this);
         msgBox.setWindowTitle(obs_module_text("Live.Settings.LiveCreated"));
@@ -479,23 +479,23 @@ void SeventeenLiveStreamingDock::updateUIWithRoomInfo()
         msgBox.exec();
         
         if (msgBox.clickedButton() == startLiveOnlyButton) {
-            syncWithWeb(static_cast<SeventeenLiveStreamingStatus>(roomInfo.status));
+            syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
         } else if (msgBox.clickedButton() == closeLiveButton) {
             closeLive();
         }
-    } else if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Streaming)) {
-        syncWithWeb(static_cast<SeventeenLiveStreamingStatus>(roomInfo.status));
+    } else if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
+        syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
     }
 }
 
-void SeventeenLiveStreamingDock::syncWithWeb(SeventeenLiveStreamingStatus status)
+void OneSevenLiveStreamingDock::syncWithWeb(OneSevenLiveStreamingStatus status)
 {
     if (roomInfo.rtmpUrls.size() > 0) {
         QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
-        SeventeenLiveRtmpResponse  rtmpResponse;
+        OneSevenLiveRtmpResponse  rtmpResponse;
         if (apiWrapper->GetRtmpByProvider(provider.toStdString(), rtmpResponse)) { 
             rtmpResponse.liveStreamID = QString::number(roomInfo.liveStreamID);
-            startLive(roomInfo.userInfo.userID.toStdString(),  rtmpResponse, roomInfo.archiveConfig.autoRecording, status == SeventeenLiveStreamingStatus::Streaming);
+            startLive(roomInfo.userInfo.userID.toStdString(),  rtmpResponse, roomInfo.archiveConfig.autoRecording, status == OneSevenLiveStreamingStatus::Streaming);
         } else {
             QMessageBox::warning(this,
                 obs_module_text("Live.Settings.Error"),
@@ -508,11 +508,11 @@ void SeventeenLiveStreamingDock::syncWithWeb(SeventeenLiveStreamingStatus status
     }
 }
 
-void SeventeenLiveStreamingDock::updateRequiredArmyRankSelections()
+void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections()
 {
     // obs_log(LOG_INFO, "updateRequiredArmyRankSelections");
 
-    SeventeenLiveConfig config;
+    OneSevenLiveConfig config;
     if (!configManager->getConfig(config)) {
         return;
     }
@@ -543,13 +543,13 @@ void SeventeenLiveStreamingDock::updateRequiredArmyRankSelections()
     }
 }
 
-void SeventeenLiveStreamingDock::updateUIValues()
+void OneSevenLiveStreamingDock::updateUIValues()
 {
     // 设置虚拟主播选项
     virtualStreamerCheck->setChecked(configStreamer.lastStreamState.vliverInfo.vliverModel == 3);
 
-    if (roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Live)
-        || roomInfo.status == static_cast<int>(SeventeenLiveStreamingStatus::Streaming)) {
+    if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)
+        || roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
         titleEdit->setText(roomInfo.caption);
 
         int currentCategoryIndex = 0;
@@ -578,23 +578,23 @@ void SeventeenLiveStreamingDock::updateUIValues()
     }
 }
 
-void SeventeenLiveStreamingDock::createConnections()
+void OneSevenLiveStreamingDock::createConnections()
 {
     // 标签相关连接
-    connect(addTagButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onAddTagClicked);
-    connect(tagEdit, &QLineEdit::returnPressed, this, &SeventeenLiveStreamingDock::onTagEnterPressed);
+    connect(addTagButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onAddTagClicked);
+    connect(tagEdit, &QLineEdit::returnPressed, this, &OneSevenLiveStreamingDock::onTagEnterPressed);
     
     // 其他按钮连接
-    connect(saveConfigButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onSaveConfigClicked);
-    connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
+    connect(saveConfigButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onSaveConfigClicked);
+    connect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onCreateLiveClicked);
 
     // 战队限定观看折叠/展开按钮
-    connect(armyOnlyToggleButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onArmyOnlyToggleClicked);
+    connect(armyOnlyToggleButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onArmyOnlyToggleClicked);
 
-    connect(armyOnlyCheck, &QCheckBox::stateChanged, this, &SeventeenLiveStreamingDock::onArmyOnlyCheckChanged);
+    connect(armyOnlyCheck, &QCheckBox::stateChanged, this, &OneSevenLiveStreamingDock::onArmyOnlyCheckChanged);
 }
 
-void SeventeenLiveStreamingDock::onArmyOnlyToggleClicked()
+void OneSevenLiveStreamingDock::onArmyOnlyToggleClicked()
 {
     armyOnlyExpanded = !armyOnlyExpanded;
     armyOnlyContainer->setVisible(armyOnlyExpanded);
@@ -607,7 +607,7 @@ void SeventeenLiveStreamingDock::onArmyOnlyToggleClicked()
     }
 }
 
-void SeventeenLiveStreamingDock::onArmyOnlyCheckChanged(int state)
+void OneSevenLiveStreamingDock::onArmyOnlyCheckChanged(int state)
 {
     if (state == Qt::Checked) {
         archiveStreamCheck->setChecked(false);
@@ -626,7 +626,7 @@ void SeventeenLiveStreamingDock::onArmyOnlyCheckChanged(int state)
     clipIdentityCombo->setEnabled(state != Qt::Checked);
 }
 
-void SeventeenLiveStreamingDock::onAddTagClicked()
+void OneSevenLiveStreamingDock::onAddTagClicked()
 {
     QString tag = tagEdit->text().trimmed();
     if (!tag.isEmpty()) {
@@ -635,12 +635,12 @@ void SeventeenLiveStreamingDock::onAddTagClicked()
     }
 }
 
-void SeventeenLiveStreamingDock::onTagEnterPressed()
+void OneSevenLiveStreamingDock::onTagEnterPressed()
 {
     onAddTagClicked(); // 复用添加标签的逻辑
 }
 
-void SeventeenLiveStreamingDock::onRemoveTagClicked()
+void OneSevenLiveStreamingDock::onRemoveTagClicked()
 {
     // 获取发送信号的按钮
     QPushButton *removeButton = qobject_cast<QPushButton*>(sender());
@@ -656,7 +656,7 @@ void SeventeenLiveStreamingDock::onRemoveTagClicked()
     updateTagsFromList();
 }
 
-void SeventeenLiveStreamingDock::addTag(const QString &tag)
+void OneSevenLiveStreamingDock::addTag(const QString &tag)
 {
     if (tagsList.size() >= hashtagSelectLimit) {
         return;
@@ -669,7 +669,7 @@ void SeventeenLiveStreamingDock::addTag(const QString &tag)
     }
 }
 
-void SeventeenLiveStreamingDock::updateTagsFromList()
+void OneSevenLiveStreamingDock::updateTagsFromList()
 {
     // 清除现有标签显示
     QLayoutItem *child;
@@ -699,7 +699,7 @@ void SeventeenLiveStreamingDock::updateTagsFromList()
         removeButton->setProperty("tag", tag);
         removeButton->setFixedSize(16, 16);
         removeButton->setStyleSheet("QPushButton { background-color: transparent; color: white; border: none; font-size: 12px; } QPushButton:hover { color: red; }");
-        connect(removeButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onRemoveTagClicked);
+        connect(removeButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onRemoveTagClicked);
         
         tagWidgetLayout->addWidget(tagLabel);
         tagWidgetLayout->addWidget(removeButton);
@@ -711,15 +711,15 @@ void SeventeenLiveStreamingDock::updateTagsFromList()
     tagsLayout->addStretch();
 }
 
-void SeventeenLiveStreamingDock::onSaveConfigClicked()
+void OneSevenLiveStreamingDock::onSaveConfigClicked()
 {
-    SeventeenLiveRtmpRequest request;
+    OneSevenLiveRtmpRequest request;
     if (!gatherRtmpRequest(request)) {
         obs_log(LOG_ERROR, "Failed to gather rtmp request");
         return;
     }
 
-    SeventeenLiveStreamInfo streamInfo;
+    OneSevenLiveStreamInfo streamInfo;
     streamInfo.categoryName = categoryCombo->currentText();
     streamInfo.createdAt = QDateTime::currentDateTime();
     streamInfo.request = request;
@@ -740,12 +740,12 @@ void SeventeenLiveStreamingDock::onSaveConfigClicked()
     QMessageBox::information(this, obs_module_text("Live.Settings.Save.Title"), obs_module_text("Live.Settings.Save.Success"));
 }
 
-void SeventeenLiveStreamingDock::onCreateLiveClicked()
+void OneSevenLiveStreamingDock::onCreateLiveClicked()
 {
     obs_log(LOG_INFO, "onCreateLiveClicked");
 
     // 创建直播
-    SeventeenLiveRtmpRequest request;
+    OneSevenLiveRtmpRequest request;
     if (!gatherRtmpRequest(request)) {
         obs_log(LOG_ERROR, "Failed to gather rtmp request");
         return;
@@ -754,7 +754,7 @@ void SeventeenLiveStreamingDock::onCreateLiveClicked()
     createLive(request);
 }
 
-void SeventeenLiveStreamingDock::createLiveWithRequest(const SeventeenLiveRtmpRequest &request)
+void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequest &request)
 {
     obs_log(LOG_INFO, "createLiveWithRequest");
 
@@ -767,18 +767,18 @@ void SeventeenLiveStreamingDock::createLiveWithRequest(const SeventeenLiveRtmpRe
     createLive(request);
 }
 
-void SeventeenLiveStreamingDock::editLiveWithInfo(const SeventeenLiveStreamInfo &info)
+void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &info)
 {
     obs_log(LOG_INFO, "editLiveWithInfo");
     populateRtmpRequest(info.request);
     currentInfoUuid = info.streamUuid;
 }
 
-void SeventeenLiveStreamingDock::createLive(const SeventeenLiveRtmpRequest& request)
+void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest& request)
 {
     obs_log(LOG_INFO, "createLive");
 
-    SeventeenLiveRtmpResponse response;
+    OneSevenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {
         obs_log(LOG_ERROR, "Failed to create stream");
         return;
@@ -787,7 +787,7 @@ void SeventeenLiveStreamingDock::createLive(const SeventeenLiveRtmpRequest& requ
     startLive(request.userID.toStdString(), response, request.archiveConfig.autoRecording);
 }
 
-void SeventeenLiveStreamingDock::startLive(const std::string userID, const SeventeenLiveRtmpResponse &response, bool autoRecording, bool skip)
+void OneSevenLiveStreamingDock::startLive(const std::string userID, const OneSevenLiveRtmpResponse &response, bool autoRecording, bool skip)
 {
     QString streamUrl;
     QString streamKey;
@@ -825,7 +825,7 @@ void SeventeenLiveStreamingDock::startLive(const std::string userID, const Seven
         }
     }
 
-    updateLiveStatus(SeventeenLiveStreamingStatus::Streaming);
+    updateLiveStatus(OneSevenLiveStreamingStatus::Streaming);
     
     // 询问是否同时开始串流
     QMessageBox msgBox;
@@ -844,7 +844,7 @@ void SeventeenLiveStreamingDock::startLive(const std::string userID, const Seven
     }
 }
 
-void SeventeenLiveStreamingDock::onDeleteLiveClicked()
+void OneSevenLiveStreamingDock::onDeleteLiveClicked()
 {
     obs_log(LOG_INFO, "onDeleteLiveClicked");
 
@@ -867,7 +867,7 @@ void SeventeenLiveStreamingDock::onDeleteLiveClicked()
     closeLive();
 }
 
-void SeventeenLiveStreamingDock::closeLive()
+void OneSevenLiveStreamingDock::closeLive()
 {   
     // 处理停止流的逻辑
     stopStreaming();
@@ -878,7 +878,7 @@ void SeventeenLiveStreamingDock::closeLive()
     configManager->getConfigValue("LiveStreamID", currLiveStreamID);
 
     // 发送关闭直播请求
-    SeventeenLiveCloseLiveRequest request;
+    OneSevenLiveCloseLiveRequest request;
     request.reason = "normalEnd";
     request.userID = QString::fromStdString(currUserID);
 
@@ -889,10 +889,10 @@ void SeventeenLiveStreamingDock::closeLive()
 
     configManager->clearStreamingInfo();
 
-    updateLiveStatus(SeventeenLiveStreamingStatus::NotStarted);
+    updateLiveStatus(OneSevenLiveStreamingStatus::NotStarted);
 }
 
-void SeventeenLiveStreamingDock::saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey)
+void OneSevenLiveStreamingDock::saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl, const std::string &streamKey)
 {
     // 处理开始流的逻辑
     obs_log(LOG_INFO, "saveStreamingSettings %s", liveStreamID.c_str());
@@ -919,7 +919,7 @@ void SeventeenLiveStreamingDock::saveStreamingSettings(const std::string &liveSt
     obs_service_release(service);
 }
 
-void SeventeenLiveStreamingDock::stopStreaming()
+void OneSevenLiveStreamingDock::stopStreaming()
 {
     // 处理停止流的逻辑
     obs_log(LOG_INFO, "stopStreaming");
@@ -932,7 +932,7 @@ void SeventeenLiveStreamingDock::stopStreaming()
     obs_frontend_streaming_stop();
 }
 
-void SeventeenLiveStreamingDock::populateRtmpRequest(const SeventeenLiveRtmpRequest &request)
+void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpRequest &request)
 {
     // 注意：userID 和 streamerType 一般不可编辑，只展示在界面或保持同步
     roomInfo.userID = request.userID;
@@ -985,7 +985,7 @@ void SeventeenLiveStreamingDock::populateRtmpRequest(const SeventeenLiveRtmpRequ
     virtualStreamerCheck->setChecked(request.vliverInfo.vliverModel == 3);
 }
 
-bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &request)
+bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &request)
 {
     obs_log(LOG_INFO, "gatherRtmpRequest");
     QString caption = titleEdit->text();
@@ -1024,7 +1024,7 @@ bool SeventeenLiveStreamingDock::gatherRtmpRequest(SeventeenLiveRtmpRequest &req
     return true;
 }
 
-void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
+void OneSevenLiveStreamingDock::updateLiveButton(bool isLive)
 {   
     obs_log(LOG_INFO, "updateLiveButton: %d", isLive);
     if (isLive) {
@@ -1032,26 +1032,26 @@ void SeventeenLiveStreamingDock::updateLiveButton(bool isLive)
         createLiveButton->setText(obs_module_text("Live.Settings.StopLive"));
         // 设置为绿色背景，表示当前正在直播
         createLiveButton->setStyleSheet("background-color: green; color: white;");
-        disconnect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
-        connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onDeleteLiveClicked);
+        disconnect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onCreateLiveClicked);
+        connect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onDeleteLiveClicked);
     } else {
         // change text to "建立直播"
         createLiveButton->setText(obs_module_text("Live.Settings.StartLive"));
         // 设置为红色背景，表示当前未直播
         createLiveButton->setStyleSheet("background-color: red; color: white;");
-        disconnect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onDeleteLiveClicked);
-        connect(createLiveButton, &QPushButton::clicked, this, &SeventeenLiveStreamingDock::onCreateLiveClicked);
+        disconnect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onDeleteLiveClicked);
+        connect(createLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamingDock::onCreateLiveClicked);
     }
 }
 
-void SeventeenLiveStreamingDock::updateLiveStatus(SeventeenLiveStreamingStatus status)
+void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus status)
 {
     currentLiveStatus = status;
 
-    updateLiveButton(status != SeventeenLiveStreamingStatus::NotStarted);
+    updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
 }
 
-void SeventeenLiveStreamingDock::resizeEvent(QResizeEvent *event)
+void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event)
 {
     QDockWidget::resizeEvent(event);
     

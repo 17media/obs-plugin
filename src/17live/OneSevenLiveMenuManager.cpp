@@ -1,13 +1,13 @@
 #include <obs-module.h>
 
-#include "SeventeenLiveMenuManager.hpp"
+#include "OneSevenLiveMenuManager.hpp"
 #include <QMenuBar>
 #include <QUrl>
 #include <QDesktopServices>
 
-#include "moc_SeventeenLiveMenuManager.cpp"
+#include "moc_OneSevenLiveMenuManager.cpp"
 
-SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
+OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     : mainWindow(parent), isLoggedIn(false), isChatRoomVisible(false), isBroadcastVisible(false), isLiveListVisible(false)
 {
     // 创建17Live菜单
@@ -46,13 +46,13 @@ SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
 
     // 创建检查更新菜单项
     checkUpdateAction = menu->addAction(obs_module_text("Menu.CheckUpdate"));
-    connect(checkUpdateAction, &QAction::triggered, this, &SeventeenLiveMenuManager::checkUpdate);
+    connect(checkUpdateAction, &QAction::triggered, this, &OneSevenLiveMenuManager::checkUpdate);
 
     menu->addSeparator();
 
     // 创建登录菜单项
     loginAction = menu->addAction(obs_module_text("Menu.SignIn"));
-    connect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogin);
+    connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
     
     // 初始化菜单项启用状态
     updateMenuItemsEnabled();
@@ -66,11 +66,11 @@ SeventeenLiveMenuManager::SeventeenLiveMenuManager(QMainWindow* parent)
     liveListAction->setChecked(false);
 }
 
-SeventeenLiveMenuManager::~SeventeenLiveMenuManager()
+OneSevenLiveMenuManager::~OneSevenLiveMenuManager()
 {
 }
 
-void SeventeenLiveMenuManager::updateLoginStatus(bool logged, QString username)
+void OneSevenLiveMenuManager::updateLoginStatus(bool logged, QString username)
 {
     isLoggedIn = logged;
     QString text = QString::fromStdString(obs_module_text("Menu.SignIn"));
@@ -84,33 +84,33 @@ void SeventeenLiveMenuManager::updateLoginStatus(bool logged, QString username)
     loginAction->setText(text);
     
     if (isLoggedIn) {
-        disconnect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogin);
-        connect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogout);
+        disconnect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
+        connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogout);
     } else {
-        disconnect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogout);
-        connect(loginAction, &QAction::triggered, this, &SeventeenLiveMenuManager::handleLogin);
+        disconnect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogout);
+        connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
     }
     
     // 更新菜单项启用状态
     updateMenuItemsEnabled();
 }
 
-void SeventeenLiveMenuManager::handleLogin()
+void OneSevenLiveMenuManager::handleLogin()
 {
     emit loginClicked();
 }
 
-void SeventeenLiveMenuManager::handleLogout()
+void OneSevenLiveMenuManager::handleLogout()
 {
     emit logoutClicked();
 }
 
-void SeventeenLiveMenuManager::checkUpdate()
+void OneSevenLiveMenuManager::checkUpdate()
 {
     emit checkUpdateClicked();
 }
 
-void SeventeenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible)
+void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible)
 {
     // 更新可见状态变量
     isChatRoomVisible = chatRoomVisible;
@@ -134,7 +134,7 @@ void SeventeenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool b
     }
 }
 
-void SeventeenLiveMenuManager::updateMenuItemsEnabled()
+void OneSevenLiveMenuManager::updateMenuItemsEnabled()
 {
     // 根据登录状态更新菜单项启用状态
     chatRoomAction->setEnabled(isLoggedIn);
@@ -142,7 +142,7 @@ void SeventeenLiveMenuManager::updateMenuItemsEnabled()
     liveListAction->setEnabled(isLoggedIn);
 }
 
-void SeventeenLiveMenuManager::cleanup()
+void OneSevenLiveMenuManager::cleanup()
 {
     if (dockSubMenu) {
         delete dockSubMenu;

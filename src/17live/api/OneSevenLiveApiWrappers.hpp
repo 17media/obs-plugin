@@ -5,7 +5,7 @@
 #include <QString>
 #include <QObject>
 
-#include "SeventeenLiveModels.hpp"
+#include "OneSevenLiveModels.hpp"
 
 
 // for local http server proxy request
@@ -26,7 +26,7 @@
 
 using namespace json11;
 
-class SeventeenLiveApiWrappers : public QObject {
+class OneSevenLiveApiWrappers : public QObject {
   Q_OBJECT
 
   bool TryInsertCommand(const char *url, const char *content_type, std::string request_type, const char *data,
@@ -37,27 +37,27 @@ class SeventeenLiveApiWrappers : public QObject {
 
 
 public:
-  SeventeenLiveApiWrappers();
-  SeventeenLiveApiWrappers(std::string token_);
+  OneSevenLiveApiWrappers();
+  OneSevenLiveApiWrappers(std::string token_);
   
-  bool Login(const QString &username, const QString &password, SeventeenLiveLoginData &loginData);
+  bool Login(const QString &username, const QString &password, OneSevenLiveLoginData &loginData);
 
-  bool GetSelfInfo(SeventeenLiveLoginData &loginData);
+  bool GetSelfInfo(OneSevenLiveLoginData &loginData);
   bool CommonRequest(const std::string action, Json &json_out);
 
-  bool GetRoomInfo(const qint64 roomID, SeventeenLiveRoomInfo &roomInfo);
-  bool CreateRtmp(const SeventeenLiveRtmpRequest &request, SeventeenLiveRtmpResponse &response);
+  bool GetRoomInfo(const qint64 roomID, OneSevenLiveRoomInfo &roomInfo);
+  bool CreateRtmp(const OneSevenLiveRtmpRequest &request, OneSevenLiveRtmpResponse &response);
   bool StartStream(const std::string &liveStreamID, const std::string &userID);
   bool EnableStreamArchive(const std::string &liveStreamID, int enableArchive);
-  bool StopStream(const std::string &liveStreamID, const SeventeenLiveCloseLiveRequest &request);
-  bool GetConfigStreamer(const std::string region, const std::string language, SeventeenLiveConfigStreamer &response);
+  bool StopStream(const std::string &liveStreamID, const OneSevenLiveCloseLiveRequest &request);
+  bool GetConfigStreamer(const std::string region, const std::string language, OneSevenLiveConfigStreamer &response);
   bool GetAblyToken(const std::string &liveStreamID, Json &response);
   bool GetGiftTabs(const std::string &liveStreamID, const std::string language, Json &response);
   bool GetGifts(const std::string language, Json &response);
-  bool GetUserInfo(const std::string userID, const std::string region, const std::string language, SeventeenLiveUserInfo &response);
+  bool GetUserInfo(const std::string userID, const std::string region, const std::string language, OneSevenLiveUserInfo &response);
   bool GetConfig(const std::string region, const std::string language, Json &response);
-  bool GetArmySubscriptionLevels(const std::string region, const std::string language, SeventeenLiveArmySubscriptionLevels &levels);
-  bool GetRtmpByProvider(const std::string provider, SeventeenLiveRtmpResponse &response);
+  bool GetArmySubscriptionLevels(const std::string region, const std::string language, OneSevenLiveArmySubscriptionLevels &levels);
+  bool GetRtmpByProvider(const std::string provider, OneSevenLiveRtmpResponse &response);
 
   /**
    * @brief 对字符串进行MD5加密

@@ -1,4 +1,4 @@
-#include "SeventeenLiveConfigManager.hpp"
+#include "OneSevenLiveConfigManager.hpp"
 
 #include <obs-module.h>
 #include <util/config-file.h>
@@ -8,15 +8,15 @@
 #include <QString>
 #include "plugin-support.h"
 
-#include "api/SeventeenLiveApiWrappers.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
 
-const char* service = "SeventeenLive";
+const char* service = "OneSevenLive";
 
 #define CONFIG_PATH ".17Live"
 #define CONFIG_NAME "config.ini"
 
-SeventeenLiveConfigManager::SeventeenLiveConfigManager(): initialized(false) {}
-bool SeventeenLiveConfigManager::initialize()
+OneSevenLiveConfigManager::OneSevenLiveConfigManager(): initialized(false) {}
+bool OneSevenLiveConfigManager::initialize()
 {
   // 防止重复初始化
   if (initialized) {
@@ -51,7 +51,7 @@ bool SeventeenLiveConfigManager::initialize()
   return true;
 }
 
-bool SeventeenLiveConfigManager::getConfigValue(const std::string &key, std::string &value)
+bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::string &value)
 {
   if (!initialized) {
     return false;
@@ -68,7 +68,7 @@ bool SeventeenLiveConfigManager::getConfigValue(const std::string &key, std::str
   value = valueChar;
   return true;
 }
-bool SeventeenLiveConfigManager::getLoginData(SeventeenLiveLoginData &loginData)
+bool OneSevenLiveConfigManager::getLoginData(OneSevenLiveLoginData &loginData)
 {
   if (!initialized) {
     return false;
@@ -101,7 +101,7 @@ bool SeventeenLiveConfigManager::getLoginData(SeventeenLiveLoginData &loginData)
   return true;
 }
 
-bool SeventeenLiveConfigManager::setLoginData(const SeventeenLiveLoginData &loginData)
+bool OneSevenLiveConfigManager::setLoginData(const OneSevenLiveLoginData &loginData)
 {
   if (!initialized) {
     return false;
@@ -134,7 +134,7 @@ bool SeventeenLiveConfigManager::setLoginData(const SeventeenLiveLoginData &logi
   return true;
 }
 
-void SeventeenLiveConfigManager::clearLoginData()
+void OneSevenLiveConfigManager::clearLoginData()
 {
   if (!initialized) {
     return;
@@ -154,7 +154,7 @@ void SeventeenLiveConfigManager::clearLoginData()
 
 }
 
-QByteArray SeventeenLiveConfigManager::getDockState()
+QByteArray OneSevenLiveConfigManager::getDockState()
 {
   if (!initialized) {
     return QByteArray();
@@ -172,7 +172,7 @@ QByteArray SeventeenLiveConfigManager::getDockState()
   return QByteArray(dockStateChar);
 }
 
-bool SeventeenLiveConfigManager::setDockState(const QByteArray &state)
+bool OneSevenLiveConfigManager::setDockState(const QByteArray &state)
 {
   if (!initialized) {
     return false;
@@ -190,7 +190,7 @@ bool SeventeenLiveConfigManager::setDockState(const QByteArray &state)
   return true;
 }
 
-bool SeventeenLiveConfigManager::setStreamingInfo(const std::string &liveStreamID, const std::string &streamUrl,
+bool OneSevenLiveConfigManager::setStreamingInfo(const std::string &liveStreamID, const std::string &streamUrl,
   const std::string &streamKey)
 {
   if (!initialized) {
@@ -212,7 +212,7 @@ bool SeventeenLiveConfigManager::setStreamingInfo(const std::string &liveStreamI
 
   return true;
 }
-bool SeventeenLiveConfigManager::getStreamingInfo(std::string &liveStreamID,
+bool OneSevenLiveConfigManager::getStreamingInfo(std::string &liveStreamID,
   std::string &streamUrl,
   std::string &streamKey)
 {
@@ -234,12 +234,12 @@ bool SeventeenLiveConfigManager::getStreamingInfo(std::string &liveStreamID,
   streamKey = streamKeyChar;
   return true;
 }
-bool SeventeenLiveConfigManager::clearStreamingInfo()
+bool OneSevenLiveConfigManager::clearStreamingInfo()
 {
   return setStreamingInfo("", "", "");
 }
 
-void SeventeenLiveConfigManager::setStreamingPullUrl(const std::string &streamPullUrl)
+void OneSevenLiveConfigManager::setStreamingPullUrl(const std::string &streamPullUrl)
 {
   if (!initialized) {
     return;
@@ -253,7 +253,7 @@ void SeventeenLiveConfigManager::setStreamingPullUrl(const std::string &streamPu
   }
 }
   
-bool SeventeenLiveConfigManager::getStreamingPullUrl(std::string &streamPullUrl)
+bool OneSevenLiveConfigManager::getStreamingPullUrl(std::string &streamPullUrl)
 {
   if (!initialized) {
     return false;
@@ -269,7 +269,7 @@ bool SeventeenLiveConfigManager::getStreamingPullUrl(std::string &streamPullUrl)
   return true;
 }
   
-void SeventeenLiveConfigManager::clearStreamingPullUrl()
+void OneSevenLiveConfigManager::clearStreamingPullUrl()
 {
   if (!initialized) {
     return;
@@ -283,7 +283,7 @@ void SeventeenLiveConfigManager::clearStreamingPullUrl()
   }
 }
 
-bool SeventeenLiveConfigManager::saveLiveConfig(const SeventeenLiveStreamInfo &streamInfo)
+bool OneSevenLiveConfigManager::saveLiveConfig(const OneSevenLiveStreamInfo &streamInfo)
 {
     obs_log(LOG_INFO, "Saving live config to live_info.json");
 
@@ -291,7 +291,7 @@ bool SeventeenLiveConfigManager::saveLiveConfig(const SeventeenLiveStreamInfo &s
     return false;
   }
 
-  std::vector<SeventeenLiveStreamInfo> streamInfoList;
+  std::vector<OneSevenLiveStreamInfo> streamInfoList;
   loadAllLiveConfig(streamInfoList);
 
   bool found = false;
@@ -317,7 +317,7 @@ bool SeventeenLiveConfigManager::saveLiveConfig(const SeventeenLiveStreamInfo &s
   return true;
 }
   
-bool SeventeenLiveConfigManager::loadAllLiveConfig(std::vector<SeventeenLiveStreamInfo> &streamInfo)
+bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStreamInfo> &streamInfo)
 {
   if (!initialized) {
     return false;
@@ -344,15 +344,15 @@ bool SeventeenLiveConfigManager::loadAllLiveConfig(std::vector<SeventeenLiveStre
   }
 
   for (const auto& item : json.array_items()) {
-    SeventeenLiveStreamInfo info;
-    JsonToSeventeenLiveStreamInfo(item, info);
+    OneSevenLiveStreamInfo info;
+    JsonToOneSevenLiveStreamInfo(item, info);
     streamInfo.push_back(info);
   }
 
   return true;
 }
 
-bool SeventeenLiveConfigManager::saveAllLiveConfig(const std::vector<SeventeenLiveStreamInfo> &streamInfoList)
+bool OneSevenLiveConfigManager::saveAllLiveConfig(const std::vector<OneSevenLiveStreamInfo> &streamInfoList)
 {
   if (!initialized) {
     return false;
@@ -361,7 +361,7 @@ bool SeventeenLiveConfigManager::saveAllLiveConfig(const std::vector<SeventeenLi
   std::vector<Json> json_array = Json::array();
   for (const auto& item : streamInfoList) {
     Json json_item;
-    SeventeenLiveStreamInfoToJson(item, json_item);
+    OneSevenLiveStreamInfoToJson(item, json_item);
     json_array.push_back(json_item);
   }
   Json json_data = Json(json_array);
@@ -376,12 +376,12 @@ bool SeventeenLiveConfigManager::saveAllLiveConfig(const std::vector<SeventeenLi
   return true;
 }
 
-bool SeventeenLiveConfigManager::removeLiveConfig(const std::string &streamUuid)
+bool OneSevenLiveConfigManager::removeLiveConfig(const std::string &streamUuid)
 { 
   if (!initialized) {
     return false;
   }
-  std::vector<SeventeenLiveStreamInfo> streamInfoList;
+  std::vector<OneSevenLiveStreamInfo> streamInfoList;
   loadAllLiveConfig(streamInfoList);
   for (auto it = streamInfoList.begin(); it != streamInfoList.end(); ++it) {
     if (it->streamUuid.toStdString() == streamUuid) {
@@ -395,7 +395,7 @@ bool SeventeenLiveConfigManager::removeLiveConfig(const std::string &streamUuid)
   return true;
 }
 
-bool SeventeenLiveConfigManager::setConfig(const Json &configData)
+bool OneSevenLiveConfigManager::setConfig(const Json &configData)
 {
   if (!initialized) {
     return false;
@@ -420,7 +420,7 @@ bool SeventeenLiveConfigManager::setConfig(const Json &configData)
   return true;
 }
 
-bool SeventeenLiveConfigManager::getConfig(SeventeenLiveConfig &config)
+bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config)
 {
   if (!initialized) {
     return false;
@@ -461,8 +461,8 @@ bool SeventeenLiveConfigManager::getConfig(SeventeenLiveConfig &config)
     return false;
   }
   
-  // 将JSON转换为SeventeenLiveConfig结构体
-  if (!JsonToSeventeenLiveConfig(jsonObj, config)) {
+  // 将JSON转换为OneSevenLiveConfig结构体
+  if (!JsonToOneSevenLiveConfig(jsonObj, config)) {
     obs_log(LOG_ERROR, "Failed to convert JSON to config");
     return false;
   }

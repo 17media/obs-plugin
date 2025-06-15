@@ -18,8 +18,8 @@ using namespace json11;
 using namespace std;
 
 // 全局meta数据，在程序启动时加载
-SeventeenLiveMetaData metaData;
-bool JsonToSeventeenLiveMetaData(const Json &json, SeventeenLiveMetaData &metaData)
+OneSevenLiveMetaData metaData;
+bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData)
 {
     if (!json.is_object()) {
         return false;
@@ -78,7 +78,7 @@ bool JsonToSeventeenLiveMetaData(const Json &json, SeventeenLiveMetaData &metaDa
     return true;
 }
 
-Json SeventeenLiveMetaDataToJson(const SeventeenLiveMetaData &metaData)
+Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData &metaData)
 {
     Json::object json;
 
@@ -152,7 +152,7 @@ bool LoadMetaData()
   if (!error.empty()) {
     return false;
   }
-  if (!JsonToSeventeenLiveMetaData(json, metaData)) {
+  if (!JsonToOneSevenLiveMetaData(json, metaData)) {
     return false;
   }
   return true;
@@ -169,14 +169,14 @@ bool SaveMetaData()
     return false;
   }
 
-  Json jsonObj = SeventeenLiveMetaDataToJson(metaData);
+  Json jsonObj = OneSevenLiveMetaDataToJson(metaData);
   QTextStream out(&file);
   out << QString::fromStdString(jsonObj.dump());
   file.close();
   return true;
 }
 
-bool getMetaValueLabelList(const QString &key, QList<SeventeenLiveMetaValueLabel> &result)
+bool getMetaValueLabelList(const QString &key, QList<OneSevenLiveMetaValueLabel> &result)
 {
     QVariant value = metaData.data[key];
     if (value.metaType().id() == QMetaType::QVariantList) {

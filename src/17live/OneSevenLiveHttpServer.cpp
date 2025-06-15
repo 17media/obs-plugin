@@ -1,4 +1,4 @@
-#include "SeventeenLiveHttpServer.hpp"
+#include "OneSevenLiveHttpServer.hpp"
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -8,9 +8,9 @@
 
 #include "plugin-support.h"
 
-#include "SeventeenLiveCoreManager.hpp"
-#include "SeventeenLiveConfigManager.hpp"
-#include "api/SeventeenLiveApiWrappers.hpp"
+#include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveConfigManager.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
 
 // 获取模块数据路径的辅助函数
 std::string get_obs_module_data_path_str() {
@@ -21,7 +21,7 @@ std::string get_obs_module_data_path_str() {
     return ""; // 或者抛出异常，或者返回一个默认的已知路径
 }
 
-std::string SeventeenLiveHttpServer::get_file_extension(const std::string& file_path) const {
+std::string OneSevenLiveHttpServer::get_file_extension(const std::string& file_path) const {
     size_t dot_pos = file_path.rfind('.');
     if (dot_pos != std::string::npos) {
         return file_path.substr(dot_pos + 1);
@@ -29,7 +29,7 @@ std::string SeventeenLiveHttpServer::get_file_extension(const std::string& file_
     return "";
 }
 
-std::string SeventeenLiveHttpServer::get_mime_type(const std::string& file_path) const {
+std::string OneSevenLiveHttpServer::get_mime_type(const std::string& file_path) const {
     std::string ext = get_file_extension(file_path);
     if (ext == "html" || ext == "htm") return "text/html; charset=utf-8";
     if (ext == "css") return "text/css; charset=utf-8";
@@ -46,7 +46,7 @@ std::string SeventeenLiveHttpServer::get_mime_type(const std::string& file_path)
     return "application/octet-stream";
 }
 
-SeventeenLiveHttpServer::SeventeenLiveHttpServer(const std::string& host, int port, const std::string& base_dir_relative_to_module_data)
+OneSevenLiveHttpServer::OneSevenLiveHttpServer(const std::string& host, int port, const std::string& base_dir_relative_to_module_data)
     : host_(host), port_(port), running_(false) {
     
     std::string module_data_path = get_obs_module_data_path_str();
@@ -62,11 +62,11 @@ SeventeenLiveHttpServer::SeventeenLiveHttpServer(const std::string& host, int po
     blog(LOG_INFO, "[17Live HTTP Server] Base directory set to: %s", base_dir_.c_str());
 }
 
-SeventeenLiveHttpServer::~SeventeenLiveHttpServer() {
+OneSevenLiveHttpServer::~OneSevenLiveHttpServer() {
     stop();
 }
 
-bool SeventeenLiveHttpServer::start() {
+bool OneSevenLiveHttpServer::start() {
     if (running_) {
         blog(LOG_WARNING, "[17Live HTTP Server] Server already running.");
         return true;
@@ -120,8 +120,8 @@ bool SeventeenLiveHttpServer::start() {
         // 设置响应头
         res.set_header("Content-Type", "application/json");
         
-        // 获取 SeventeenLiveCoreManager 实例
-        auto &coreManager = SeventeenLiveCoreManager::getInstance();
+        // 获取 OneSevenLiveCoreManager 实例
+        auto &coreManager = OneSevenLiveCoreManager::getInstance();
         
         // 解析请求体中的 JSON 数据
         std::string error;
@@ -179,13 +179,13 @@ bool SeventeenLiveHttpServer::start() {
                 configManager->getConfigValue("Region", language);
                 success = apiWrapper->GetGifts(language, apiResult);
             } else if (action == ACTION_GETROOMINFO) {
-                SeventeenLiveLoginData loginData;
+                OneSevenLiveLoginData loginData;
                 configManager->getLoginData(loginData);
 
-                SeventeenLiveRoomInfo roomInfo;
+                OneSevenLiveRoomInfo roomInfo;
                 success = apiWrapper->GetRoomInfo(loginData.userInfo.roomID, roomInfo);
                 if (success) {
-                    SeventeenLiveRoomInfoToJson(roomInfo, apiResult);
+                    OneSevenLiveRoomInfoToJson(roomInfo, apiResult);
                 }
             } else {
                 // 不支持的 action
@@ -268,7 +268,7 @@ bool SeventeenLiveHttpServer::start() {
     return running_;
 }
 
-void SeventeenLiveHttpServer::stop() {
+void OneSevenLiveHttpServer::stop() {
     if (running_) {
         blog(LOG_INFO, "[17Live HTTP Server] Stopping server...");
         svr_.stop(); // 停止服务器监听
@@ -283,14 +283,14 @@ void SeventeenLiveHttpServer::stop() {
     }
 }
 
-bool SeventeenLiveHttpServer::is_running() const {
+bool OneSevenLiveHttpServer::is_running() const {
     // svr_.is_running() 检查服务器是否正在监听。 
     // 但是，如果listen在另一个线程中失败，这个状态可能不会立即更新。
     // 我们的 running_ 成员旨在提供一个更直接的控制状态。
     return running_ && svr_.is_running();
 }
 
-int SeventeenLiveHttpServer::getPort() const {
+int OneSevenLiveHttpServer::getPort() const {
     if (running_) {
         return port_;
     }

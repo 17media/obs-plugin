@@ -1,5 +1,5 @@
-#ifndef SEVENTEENLIVEHTTPSERVER_HPP
-#define SEVENTEENLIVEHTTPSERVER_HPP
+#ifndef ONESEVENLIVEHTTPSERVER_HPP
+#define ONESEVENLIVEHTTPSERVER_HPP
 
 #include "../../deps/cpp-httplib/httplib.h"
 #include <string>
@@ -7,10 +7,10 @@
 #include <memory>
 #include <filesystem>
 
-class SeventeenLiveHttpServer {
+class OneSevenLiveHttpServer {
 public:
-    SeventeenLiveHttpServer(const std::string& host, int port = 0, const std::string& base_dir_relative_to_module_data = "html");
-    ~SeventeenLiveHttpServer();
+    OneSevenLiveHttpServer(const std::string& host, int port = 0, const std::string& base_dir_relative_to_module_data = "html");
+    ~OneSevenLiveHttpServer();
 
     bool start();
     void stop();
@@ -29,4 +29,4 @@ private:
     bool running_ = false;
 };
 
-#endif // SEVENTEENLIVEHTTPSERVER_HPP
+#endif // ONESEVENLIVEHTTPSERVER_HPP

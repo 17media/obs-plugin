@@ -93,19 +93,19 @@ configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
                                              src/plugin-support.c
-                                             src/17live/SeventeenLiveCoreManager.cpp
-                                             src/17live/SeventeenLiveConfigManager.cpp
-                                             src/17live/api/SeventeenLiveModels.cpp
+                                             src/17live/OneSevenLiveCoreManager.cpp
+                                             src/17live/OneSevenLiveConfigManager.cpp
+                                             src/17live/api/OneSevenLiveModels.cpp
                                              src/17live/utility/RemoteTextThread.cpp
                                              src/17live/utility/Common.cpp
                                              src/17live/utility/Meta.cpp
-                                             src/17live/api/SeventeenLiveApiWrappers.cpp
+                                             src/17live/api/OneSevenLiveApiWrappers.cpp
                                              src/17live/cef-view.cpp
-                                             src/17live/SeventeenLiveMenuManager.cpp
-                                             src/17live/SeventeenLiveLoginDialog.cpp
-                                             src/17live/SeventeenLiveStreamingDock.cpp
-                                             src/17live/SeventeenLiveStreamListDock.cpp
-                                             src/17live/SeventeenLiveHttpServer.cpp
+                                             src/17live/OneSevenLiveMenuManager.cpp
+                                             src/17live/OneSevenLiveLoginDialog.cpp
+                                             src/17live/OneSevenLiveStreamingDock.cpp
+                                             src/17live/OneSevenLiveStreamListDock.cpp
+                                             src/17live/OneSevenLiveHttpServer.cpp
                                              resources.qrc)
 
 if (MSVC)
