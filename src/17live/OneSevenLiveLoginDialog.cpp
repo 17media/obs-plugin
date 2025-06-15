@@ -156,9 +156,6 @@ void OneSevenLiveLoginDialog::setupUi()
         "    font-size: 14px;"
         "    color: #FFFFFF;"
         "}"
-        "QLabel a {"
-        "    text-decoration: underline;"
-        "}"
     );
     
     // Add to label layout
@@ -299,9 +296,6 @@ void OneSevenLiveLoginDialog::setupUi()
         "    font-size: 14px;"
         "    color: #FFFFFF;"
         "}"
-        "QLabel a {"
-        "    text-decoration: underline;"
-        "}"
     );
     
     // More login help
@@ -312,9 +306,6 @@ void OneSevenLiveLoginDialog::setupUi()
         "QLabel {"
         "    font-size: 14px;"
         "    color: #FFFFFF;"
-        "}"
-        "QLabel a {"
-        "    text-decoration: underline;"
         "}"
     );
 
