@@ -114,6 +114,7 @@ void OneSevenLiveStreamingDock::setupUi()
     tagEdit = new QLineEdit();
     tagEdit->setPlaceholderText(obs_module_text("Live.Settings.Tags.Placeholder"));
     addTagButton = new QPushButton(obs_module_text("Live.Settings.AddTag"));
+    addTagButton->setStyleSheet("background-color: #FF0001;");
     tagInputLayout->addWidget(tagEdit);
     tagInputLayout->addWidget(addTagButton);
     tagContainer->addLayout(tagInputLayout);
