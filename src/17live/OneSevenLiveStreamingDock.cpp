@@ -90,6 +90,16 @@ void OneSevenLiveStreamingDock::setupUi()
     
     // Category selection
     categoryCombo = new QComboBox();
+    categoryCombo->setEditable(true);
+    categoryCombo->lineEdit()->setReadOnly(true);
+    
+    // Connect signal to update display text when selection changes
+    connect(categoryCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+        if (index >= 0) {
+            QString categoryName = categoryCombo->itemText(index);
+            categoryCombo->lineEdit()->setText(QString(obs_module_text("Live.Settings.Category.Current")).arg(categoryName));
+        }
+    });
 
     QLabel* categoryLabel = new QLabel();
     categoryLabel->setText(QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>").arg(obs_module_text("Live.Settings.Category")));
