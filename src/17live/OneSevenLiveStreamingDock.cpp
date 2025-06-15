@@ -85,6 +85,7 @@ void OneSevenLiveStreamingDock::setupUi()
     titleLabel->setText(QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>").arg(obs_module_text("Live.Settings.Title")));
 
     titleEdit = new QLineEdit();
+    titleEdit->setPlaceholderText(obs_module_text("Live.Settings.Title.Placeholder"));
     formLayout->addRow(titleLabel, titleEdit);
     
     // Category selection
