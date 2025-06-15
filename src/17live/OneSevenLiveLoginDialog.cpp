@@ -243,7 +243,7 @@ void OneSevenLiveLoginDialog::setupUi()
     errorLabel->setText(obs_module_text("Auth.Error01"));
     errorLabel->setStyleSheet(
         "QLabel {"
-        "    color: #FF6B6B;"
+        "    color: #FF0001;"
         "    font-size: 14px;"
         "    margin: 10px 0;"
         "    min-height: 20px;"
@@ -268,18 +268,12 @@ void OneSevenLiveLoginDialog::setupUi()
     loginButton->setMinimumWidth(150);
     loginButton->setStyleSheet(
         "QPushButton {"
-        "    background-color: #FF4444;"
+        "    background-color: #FF0001;"
         "    color: white;"
         "    border: none;"
         "    border-radius: 2px;"
         "    font-size: 16px;"
         "    font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "    background-color: #FF6666;"
-        "}"
-        "QPushButton:pressed {"
-        "    background-color: #CC3333;"
         "}"
     );
     connect(loginButton, &QPushButton::clicked, this, &OneSevenLiveLoginDialog::handleLogin);
