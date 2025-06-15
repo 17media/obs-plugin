@@ -147,17 +147,11 @@ void OneSevenLiveLoginDialog::setupUi()
         "    border: none;"
         "    padding: 0px;"
         "}"
-        "QPushButton:hover {"
-        "    background: rgba(255, 255, 255, 0.1);"
-        "}"
-        "QPushButton:pressed {"
-        "    background: rgba(255, 255, 255, 0.2);"
-        "}"
     );
     
     // Set tooltip hint
     passwordQuestionButton->setToolTip(
-        QString("<div style='max-width: 200px; word-wrap: break-word;'>%1</div>")
+        QString("<div style='max-width: 300px; word-wrap: break-word;'>%1</div>")
         .arg(obs_module_text("Auth.Password.Tip"))
     );
     
