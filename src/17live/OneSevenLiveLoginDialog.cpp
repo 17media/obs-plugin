@@ -240,25 +240,43 @@ void OneSevenLiveLoginDialog::setupUi()
         }
     });
 
-    // Error message
+    // Error message container
+    errorContainer = new QWidget(this);
+    QHBoxLayout* errorLayout = new QHBoxLayout(errorContainer);
+    errorLayout->setContentsMargins(0, 10, 0, 10);
+    errorLayout->setSpacing(8);
+    errorLayout->setAlignment(Qt::AlignCenter);
+    
+    // Error icon
+    QLabel* errorIcon = new QLabel(this);
+    QPixmap alertPixmap(":/resources/alert.svg");
+    alertPixmap = alertPixmap.scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    errorIcon->setPixmap(alertPixmap);
+    errorIcon->setFixedSize(16, 16);
+    errorLayout->addWidget(errorIcon);
+    
+    // Error text
     errorLabel = new QLabel(this);
     errorLabel->setText(obs_module_text("Auth.Error01"));
     errorLabel->setStyleSheet(
         "QLabel {"
-        "    color: #FF0001;"
+        "    font-weight: 500;"
         "    font-size: 14px;"
-        "    margin: 10px 0;"
-        "    min-height: 20px;"
+        "   line-height: 16px;"
+        "   text-align: center;"
+        "   color: #FF0001;"
         "}"
     );
-    errorLabel->setVisible(false);
-    // Modified: allow label to auto-adjust height while maintaining fixed minimum height
-    errorLabel->setMinimumHeight(20);
-    // Modified: allow label to expand vertically when needed
-    errorLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-    // Modified: enable word wrapping
+
     errorLabel->setWordWrap(true);
-    mainLayout->addWidget(errorLabel);
+    errorLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    errorLayout->addWidget(errorLabel);
+    
+    // Set container properties
+    errorContainer->setMinimumHeight(20);
+    errorContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    errorContainer->setVisible(false);
+    mainLayout->addWidget(errorContainer);
 
     QWidget *loginContainer = new QWidget(this);
     QHBoxLayout *loginLayout = new QHBoxLayout(loginContainer);
@@ -345,7 +363,7 @@ void OneSevenLiveLoginDialog::handleLogin()
     
     // Validation logic
     if (usernameEdit->text().isEmpty() || passwordEdit->text().isEmpty()) {
-        errorLabel->setVisible(true);
+        errorContainer->setVisible(true);
         adjustSize(); // resize dialog to fit error message
         return;
     }
@@ -358,7 +376,7 @@ void OneSevenLiveLoginDialog::handleLogin()
         // QString errorMessageTemplate = obs_module_text("Auth.Error02");
         // QString errorMessage = errorMessageTemplate.arg(apiWrapper.getLastErrorMessage());
         // errorLabel->setText(errorMessage);
-        errorLabel->setVisible(true);
+        errorContainer->setVisible(true);
         adjustSize(); // resize dialog to fit error message
         return;
     }

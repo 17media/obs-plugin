@@ -34,6 +34,7 @@ private:
     QPushButton* showPasswordButton;
     QPushButton* loginButton;
     QLabel* errorLabel;
+    QWidget* errorContainer;
     QLabel* forgotPasswordLabel;
     QLabel* registerLabel;
     QLabel* disclaimerLabel;
