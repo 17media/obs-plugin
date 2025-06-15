@@ -75,7 +75,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 		// 获取OBS主窗体
 		QMainWindow* mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
 		if (!mainWindow) {
-			obs_log(LOG_ERROR, "无法获取OBS主窗体");
+			obs_log(LOG_ERROR, "Failed to get OBS main window");
 			isRunning = false;
 			return;
 		}
@@ -88,13 +88,13 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 		try {
 			auto& manager = OneSevenLiveCoreManager::getInstance(mainWindow);
 			if (!manager.initialize()) {
-				obs_log(LOG_ERROR, "OneSevenLiveCoreManager初始化失败");
+				obs_log(LOG_ERROR, "OneSevenLiveCoreManager initialization failed");
 				isRunning = false;
 				return;
 			}
-			obs_log(LOG_INFO, "OneSevenLiveCoreManager初始化成功");
+			obs_log(LOG_INFO, "OneSevenLiveCoreManager initialized successfully");
 		} catch (const std::exception& e) {
-			obs_log(LOG_ERROR, "OneSevenLiveCoreManager初始化异常: %s", e.what());
+			obs_log(LOG_ERROR, "OneSevenLiveCoreManager initialization exception: %s", e.what());
 			isRunning = false;
 			return;
 		}
@@ -119,9 +119,9 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 		try {
 			auto& manager = OneSevenLiveCoreManager::getInstance();
 			manager.shutdown();
-			obs_log(LOG_INFO, "OneSevenLiveCoreManager资源已释放");
+			obs_log(LOG_INFO, "OneSevenLiveCoreManager resources released");
 		} catch (const std::exception& e) {
-			obs_log(LOG_ERROR, "OneSevenLiveCoreManager释放资源异常: %s", e.what());
+			obs_log(LOG_ERROR, "OneSevenLiveCoreManager resource release exception: %s", e.what());
 		}
 
 		cef_view_unload();
