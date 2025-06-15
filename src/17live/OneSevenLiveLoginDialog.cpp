@@ -148,12 +148,9 @@ void OneSevenLiveLoginDialog::setupUi()
     forgotPasswordLinkLabel->setStyleSheet(
         "QLabel {"
         "    font-size: 14px;"
+        "    color: #FFFFFF;"
         "}"
         "QLabel a {"
-        "    color: #4A9EFF;"
-        "    text-decoration: none;"
-        "}"
-        "QLabel a:hover {"
         "    text-decoration: underline;"
         "}"
     );
@@ -205,13 +202,6 @@ void OneSevenLiveLoginDialog::setupUi()
         // "    border: none;"
         "    border-radius: 0 2px 2px 0;"
         // "    background-color: #f8f8f8;"
-        "}"
-        "QPushButton:hover {"
-        // "    background-color: #e8e8e8;"
-        // "    border: none;"
-        "}"
-        "QPushButton:pressed {"
-        // "    background-color: #d8d8d8;"
         "}"
     );
     showPasswordButton->setFlat(true); // Remove button border, closely connected to passwordEdit
@@ -287,7 +277,11 @@ void OneSevenLiveLoginDialog::setupUi()
     registerLabel->setOpenExternalLinks(true);
     registerLabel->setStyleSheet(
         "QLabel {"
-        "    margin: 10px 0;"
+        "    font-size: 14px;"
+        "    color: #FFFFFF;"
+        "}"
+        "QLabel a {"
+        "    text-decoration: underline;"
         "}"
     );
     
@@ -297,7 +291,11 @@ void OneSevenLiveLoginDialog::setupUi()
     helpLabel->setOpenExternalLinks(true);
     helpLabel->setStyleSheet(
         "QLabel {"
-        "    margin-bottom: 20px;"
+        "    font-size: 14px;"
+        "    color: #FFFFFF;"
+        "}"
+        "QLabel a {"
+        "    text-decoration: underline;"
         "}"
     );
 
