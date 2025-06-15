@@ -356,6 +356,9 @@ void OneSevenLiveCoreManager::createStreamingDock()
 
     connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this, [this] (OneSevenLiveStreamingStatus status_) {
         status = status_;
+        if (liveListDock) {
+            liveListDock->setStatus(status_);
+        }
     });
 
     connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
@@ -378,7 +381,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked()
 
     if (!liveListDock) {
 
-        liveListDock = new OneSevenLiveStreamListDock(mainWindow, configManager.get());
+        liveListDock = new OneSevenLiveStreamListDock(mainWindow, configManager.get(), status);
         liveListDock->setMinimumWidth(300);
         liveListDock->setMinimumHeight(400);
 

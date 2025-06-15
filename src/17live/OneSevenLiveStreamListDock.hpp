@@ -5,22 +5,21 @@
 #include <QPushButton>
 #include <QDateTime>
 
-#include "api/OneSevenLiveApiWrappers.hpp"
-#include "OneSevenLiveConfigManager.hpp"
+#include "api/OneSevenLiveModels.hpp"
 
-struct OneSevenLiveRtmpRequest;
-
-struct OneSevenLiveStreamInfo;
+class OneSevenLiveConfigManager;
 
 class OneSevenLiveStreamListDock : public QDockWidget {
     Q_OBJECT
 
 public:
 
-    OneSevenLiveStreamListDock(QWidget *parent, OneSevenLiveConfigManager *configManager_);
+    OneSevenLiveStreamListDock(QWidget *parent, OneSevenLiveConfigManager *configManager_, OneSevenLiveStreamingStatus status_ = OneSevenLiveStreamingStatus::NotStarted);
     ~OneSevenLiveStreamListDock();
 
     void refreshStreamList();
+
+    void setStatus(OneSevenLiveStreamingStatus status_);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -43,6 +42,7 @@ private:
     QListWidget *streamList;
     QPushButton *startLiveButton;
     QWidget *emptyContainer = nullptr;
-    OneSevenLiveApiWrappers *apiWrapper;
     OneSevenLiveConfigManager *configManager;
+
+    OneSevenLiveStreamingStatus status;
 };

@@ -5,15 +5,18 @@
 #include <QLabel>
 #include <QFrame>
 #include <QTimer>
+#include <QMessageBox>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include "plugin-support.h"
 
+#include "OneSevenLiveConfigManager.hpp"
+
 #include "moc_OneSevenLiveStreamListDock.cpp"
 
-OneSevenLiveStreamListDock::OneSevenLiveStreamListDock(QWidget *parent,  OneSevenLiveConfigManager *configManager_)
-    : QDockWidget(obs_module_text("Live.StreamList"), parent), configManager(configManager_)
+OneSevenLiveStreamListDock::OneSevenLiveStreamListDock(QWidget *parent,  OneSevenLiveConfigManager *configManager_, OneSevenLiveStreamingStatus status_)
+    : QDockWidget(obs_module_text("Live.StreamList"), parent), configManager(configManager_), status(status_)
 {
     setupUi();
     createConnections();
@@ -238,6 +241,33 @@ void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent *event)
     }
 }
 
+void OneSevenLiveStreamListDock::setStatus(OneSevenLiveStreamingStatus status_)
+{
+    status = status_;
+
+    // Enable/disable buttons based on streaming status
+    bool isNotStarted = (status == OneSevenLiveStreamingStatus::NotStarted);
+    
+    // Enable/disable start live button
+    if (startLiveButton) {
+        startLiveButton->setEnabled(isNotStarted);
+    }
+    
+    // Enable/disable edit and delete buttons in stream list items
+    for (int i = 0; i < streamList->count(); ++i) {
+        QListWidgetItem* item = streamList->item(i);
+        if (item) {
+            QWidget* widget = streamList->itemWidget(item);
+            if (widget) {
+                // Find edit and delete buttons
+                QList<QPushButton*> buttons = widget->findChildren<QPushButton*>();
+                for (QPushButton* button : buttons) {
+                    button->setEnabled(isNotStarted);
+                }
+            }
+        }
+    }
+}
 void OneSevenLiveStreamListDock::refreshStreamList()
 {
     streamList->clear();
@@ -274,12 +304,22 @@ void OneSevenLiveStreamListDock::refreshStreamList()
 
 void OneSevenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const OneSevenLiveStreamInfo& info)
 {
+    if (status != OneSevenLiveStreamingStatus::NotStarted) {
+        QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+        return;
+    }
+    
     obs_log(LOG_INFO, "onEditStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
     emit editLiveClicked(info);
 }
 
 void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item, const OneSevenLiveStreamInfo& info)
 {
+    if (status != OneSevenLiveStreamingStatus::NotStarted) {
+        QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+        return;
+    }
+    
     obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
 
     configManager->removeLiveConfig(info.streamUuid.toStdString());
@@ -288,6 +328,11 @@ void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWid
 
 void OneSevenLiveStreamListDock::onStartLiveClicked()
 {
+    if (status != OneSevenLiveStreamingStatus::NotStarted) {
+        QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+        return;
+    }
+    
     // Get currently selected list item
     QListWidgetItem* item = streamList->currentItem();
     if (item) {
