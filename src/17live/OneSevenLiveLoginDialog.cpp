@@ -206,12 +206,9 @@ void OneSevenLiveLoginDialog::setupUi()
         "    padding: 0;"
         "}"
     );
-    // showPasswordButton->setFlat(true); // Remove button border, closely connected to passwordEdit
-
+    
     passwordLayout->addWidget(passwordEdit);
     passwordLayout->addWidget(showPasswordButton);
-    // passwordLayout->setAlignment(Qt::AlignVCenter);
-    // passwordLayout->setAlignment(Qt::AlignTop);
     passwordLayout->setAlignment(passwordEdit, Qt::AlignVCenter);
     passwordLayout->setAlignment(showPasswordButton, Qt::AlignVCenter);
 
