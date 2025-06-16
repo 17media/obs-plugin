@@ -997,6 +997,8 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
     int categoryIndex = categoryCombo->findData(QVariant(request.subtabID));
     if (categoryIndex >= 0) {
         categoryCombo->setCurrentIndex(categoryIndex);
+        QString categoryName = categoryCombo->itemText(categoryIndex);
+        categoryCombo->lineEdit()->setText(QString(obs_module_text("Live.Settings.Category.Current")).arg(categoryName));
     }
 
     // Army-only viewing settings
