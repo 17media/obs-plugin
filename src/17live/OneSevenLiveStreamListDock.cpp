@@ -35,45 +35,57 @@ OneSevenLiveStreamListDock::~OneSevenLiveStreamListDock() = default;
 void OneSevenLiveStreamListDock::setupUi()
 {
     QWidget *container = new QWidget(this);
+    container->setStyleSheet(
+        "QWidget#container {"
+        "    background-color: #000000;"
+        "    border: none;"
+        "    font-family: 'Inter';"
+        "    color: #FFFFFF;"
+        "    font-style: normal;"
+        "}"
+    );
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
     
     // Create live stream list
     streamList = new QListWidget();
     streamList->setStyleSheet(
         "QListWidget {"
-        "    background-color: #1e1e1e;"
-        "    border-radius: 4px;"
+        "   background-color: transparent;"
+        "   border: none;"
+        "   padding: 5px;"
         "}"
         "QListWidget::item {"
-        "    background-color: #3C404C;"
-        "    border-radius: 6px;"
-        "    margin: 4px;"
-        "    padding: 2px;"
+        "   background-color: #3C404C;"
+        "   border-radius: 6px;"
+        "   margin: 4px;"
+        "   padding: 2px;"
         "}"
         "QListWidget::item:selected {"
-        "    background-color: #3a3a4a;"
-        "    border: 2px solid #5a5a6a;"
-        "    color: white;"
+        "   background-color: #3a3a4a;"
+        "   border: 2px solid #5a5a6a;"
+        "   color: white;"
         "}"
         "QListWidget::item:hover:!selected {"
         "    background-color: #454b5a;"
         "}"
     );
     mainLayout->addWidget(streamList);
-    
+
     // Create start streaming button
     startLiveButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
     startLiveButton->setStyleSheet(
         "QPushButton {"
-        "    background-color: red;"
+        "    background-color: #FF0001;"
         "    color: white;"
         "    border-radius: 4px;"
         "    padding: 8px;"
-        "    font-weight: bold;"
+        "   font-weight: 600;"
+        "   font-size: 16px;"
+        "   line-height: 24px;"
         "}"
     );
     mainLayout->addWidget(startLiveButton);
-    
+
     setWidget(container);
 }
 
@@ -220,7 +232,7 @@ void OneSevenLiveStreamListDock::showEmptyListMessage()
     // Connect button click signal
     connect(goToStreamingButton, &QPushButton::clicked, this, [this]() {
         // Send signal to notify opening start streaming panel
-        emit startLiveClicked(OneSevenLiveRtmpRequest());
+        emit editLiveClicked(OneSevenLiveStreamInfo());
     });
     
     // Add to layout
