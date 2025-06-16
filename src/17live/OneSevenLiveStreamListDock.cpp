@@ -52,13 +52,14 @@ void OneSevenLiveStreamListDock::setupUi()
         "QListWidget {"
         "   background-color: transparent;"
         "   border: none;"
-        "   padding: 5px;"
+        "   padding: 0;"
         "}"
         "QListWidget::item {"
         "   background-color: #3C404C;"
         "   border-radius: 6px;"
-        "   margin: 4px;"
-        "   padding: 2px;"
+        "   margin: 10px;"
+        "   padding: 8px;"
+        "   height: 80px;"
         "}"
         "QListWidget::item:selected {"
         "   background-color: #3a3a4a;"
@@ -98,10 +99,10 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
 {
     QFrame* frame = new QFrame();
     frame->setMinimumHeight(60);
-    frame->setStyleSheet("background-color: transparent; border-radius: 8px;");
+    frame->setStyleSheet("background-color: transparent; border-radius: 6px;");
 
     QHBoxLayout* mainLayout = new QHBoxLayout(frame);
-    mainLayout->setContentsMargins(10, 5, 10, 5);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(8);
 
     // Left layout (title, category, time)
@@ -109,13 +110,13 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     leftLayout->setAlignment(Qt::AlignVCenter);
 
     QLabel* titleLabel = new QLabel(info.request.caption);
-    titleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 14px;");
+    titleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 14px; font-family: 'Inter';");
 
     QLabel* categoryLabel = new QLabel(info.categoryName);
-    categoryLabel->setStyleSheet("color: #aaaaaa; font-size: 12px;");
+    categoryLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter';");
 
     QLabel* timeLabel = new QLabel(info.createdAt.toString("yyyy-MM-dd hh:mm:ss"));
-    timeLabel->setStyleSheet("color: #888888; font-size: 12px;");
+    timeLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter';");
 
     leftLayout->addWidget(titleLabel);
     leftLayout->addWidget(categoryLabel);
