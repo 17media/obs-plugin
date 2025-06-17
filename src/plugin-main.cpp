@@ -80,8 +80,8 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 			return;
 		}
 
-		// check ONESEVENLIVE_API_URL == "https://wap-api.17app.co"
-		QLabel *label = new QLabel(QString("%1 [%2]%3").arg(PLUGIN_NAME, PLUGIN_VERSION, (strcmp(ONESEVENLIVE_API_URL, "https://wap-api.17app.co") == 0 ? "" : " (development)")), mainWindow);
+		// check ONESEVENLIVE_API_URL include sta
+		QLabel *label = new QLabel(QString("%1 [%2]%3").arg(PLUGIN_NAME, PLUGIN_VERSION, (strstr(ONESEVENLIVE_API_URL, "sta") != nullptr ? " (stage)" : "")), mainWindow);
     mainWindow->statusBar()->addWidget(label);
 	
 		// Initialize OneSevenLiveCoreManager
