@@ -471,7 +471,7 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo()
     // Army settings
     armyOnlyHeader->setVisible(configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1);
 
-    if (configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1) {
+    if (configStreamer.armyOnly==2 && userInfo.onliveInfo.premiumType != 1) {
         updateRequiredArmyRankSelections();
     }
     
