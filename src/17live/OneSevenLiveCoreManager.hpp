@@ -134,6 +134,7 @@ private:
     void handleStreamingClicked();
     void createStreamingDock();
 
+    bool chatRoomDockFirstLoad = true;
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;

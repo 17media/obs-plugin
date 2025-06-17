@@ -506,31 +506,28 @@ void OneSevenLiveCoreManager::handleChatRoomClicked()
 {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
-    if (!cef_window) { 
-        OneSevenLiveLoginData loginData;
-        if (!configManager->getLoginData(loginData)) {
-            obs_log(LOG_ERROR, "Failed to get login data");
-            return;
-        }
+    OneSevenLiveLoginData loginData;
+    if (!configManager->getLoginData(loginData)) {
+        obs_log(LOG_ERROR, "Failed to get login data");
+        return;
+    }
 
-        std::string locale = GetCurrentLocale();
+    std::string locale = GetCurrentLocale();
 
-        obs_log(LOG_INFO, "userID: %s", loginData.userInfo.userID.toStdString().c_str());
+    QString chatUrl = QString("http://localhost:%1/%2.html?roomID=%3&userID=%4")
+        .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale), QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
+    obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
+    cef_view_open_url(chatUrl.toStdString().c_str());
 
-        QString chatUrl = QString("http://localhost:%1/%2.html?roomID=%3&userID=%4")
-            .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale), QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
-        obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
-        cef_view_open_url(chatUrl.toStdString().c_str());
-
+    if (chatRoomDockFirstLoad) { 
         connect(cef_window, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(visible,
                                             streamingDock && streamingDock->isVisible(),
                                             liveListDock && liveListDock->isVisible());
         });
-    } else {
-        cef_window->setVisible(!cef_window->isVisible());
+        chatRoomDockFirstLoad = false;
     }
-    
+
     // Update chat room visibility status (considered visible when CEF view is open)
     if (menuManager) {
         menuManager->updateDockVisibility(true, 

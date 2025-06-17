@@ -583,7 +583,7 @@ bool OneSevenLiveApiWrappers::GetUserInfo(const std::string userID, const std::s
 
 bool OneSevenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json &json_out)
 {
-  obs_log(LOG_INFO, "GetAblyToken");
+  // obs_log(LOG_INFO, "GetAblyToken");
   lastErrorMessage.clear();
   QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ABLY_TOKEN_URL).arg(liveStreamID.c_str());
   QByteArray url = urlStr.toUtf8();
@@ -594,7 +594,7 @@ bool OneSevenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json
     return false;
   }
   
-  obs_log(LOG_INFO, "GetAblyToken success: %s", json_out.dump().c_str());
+  // obs_log(LOG_INFO, "GetAblyToken success: %s", json_out.dump().c_str());
   
   return true;
 }
