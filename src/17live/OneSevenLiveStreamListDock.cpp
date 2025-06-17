@@ -206,7 +206,7 @@ void OneSevenLiveStreamListDock::showEmptyListMessage()
     );
     
     // Create button to navigate to start streaming
-    QPushButton *goToStreamingButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
+    goToStreamingButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
     goToStreamingButton->setFixedSize(200, 40);
     goToStreamingButton->setStyleSheet(
         "QPushButton {"
@@ -279,6 +279,10 @@ void OneSevenLiveStreamListDock::setStatus(OneSevenLiveStreamingStatus status_)
                 }
             }
         }
+    }
+
+    if (goToStreamingButton) {
+        goToStreamingButton->setEnabled(isNotStarted);
     }
 }
 void OneSevenLiveStreamListDock::refreshStreamList()

@@ -350,31 +350,36 @@ void OneSevenLiveCoreManager::createStreamingDock()
     streamingDock->setFloating(true);
     streamingDock->setVisible(true);
 
-    connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this] () {
-        if (liveListDock) {
-            liveListDock->refreshStreamList();
-        }
-    });
-
-    connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this, [this] (OneSevenLiveStreamingStatus status_) {
-        status = status_;
-        if (liveListDock) {
-            liveListDock->setStatus(status_);
-        }
-    });
-
-    connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-        menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
-                                        visible,
-                                        liveListDock && liveListDock->isVisible());
-    });
-    
-    // Connect close signal to main window slot function
-    connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
-        saveDockState();
-    });
-
     streamingDock->loadRoomInfo(loginData.userInfo.roomID);
+
+    if (streamingDockFirstLoad) {
+
+        connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this] () {
+            if (liveListDock) {
+                liveListDock->refreshStreamList();
+            }
+        });
+
+        connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this, [this] (OneSevenLiveStreamingStatus status_) {
+            status = status_;
+            if (liveListDock) {
+                liveListDock->setStatus(status_);
+            }
+        });
+
+        connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+                                            visible,
+                                            liveListDock && liveListDock->isVisible());
+        });
+        
+        // Connect close signal to main window slot function
+        connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
+            saveDockState();
+        });
+
+        streamingDockFirstLoad = false;
+    }
 }
 
 void OneSevenLiveCoreManager::handleLiveListClicked()

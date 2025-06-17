@@ -44,5 +44,7 @@ private:
     QWidget *emptyContainer = nullptr;
     OneSevenLiveConfigManager *configManager;
 
+    QPushButton *goToStreamingButton;
+
     OneSevenLiveStreamingStatus status;
 };
