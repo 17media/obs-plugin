@@ -289,7 +289,7 @@ void OneSevenLiveStreamListDock::setStatus(OneSevenLiveStreamingStatus status_)
         }
     }
 
-    if (goToStreamingButton) {
+    if (emptyContainer && goToStreamingButton) {
         goToStreamingButton->setEnabled(isNotStarted);
     }
 }
