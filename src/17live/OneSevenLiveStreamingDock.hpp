@@ -29,7 +29,7 @@ public:
     void editLiveWithInfo(const OneSevenLiveStreamInfo &info);
     void loadRoomInfo(qint64 roomID);
 
-    void closeLive();
+    void closeLive(const std::string &currUserID, const std::string &currLiveStreamID);
 
 private:
     void setupUi();

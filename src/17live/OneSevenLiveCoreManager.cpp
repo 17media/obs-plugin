@@ -282,7 +282,12 @@ void OneSevenLiveCoreManager::handleLogoutClicked()
         
         // User confirmed, stop streaming using the streaming dock's method
         if (streamingDock) {
-            streamingDock->closeLive();
+            std::string currUserID;
+            std::string currLiveStreamID;
+            configManager->getConfigValue("UserID", currUserID);
+            configManager->getConfigValue("LiveStreamID", currLiveStreamID);
+
+            streamingDock->closeLive(currUserID, currLiveStreamID);
         }
     }
 

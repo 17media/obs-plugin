@@ -502,7 +502,7 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo()
         if (msgBox.clickedButton() == startLiveOnlyButton) {
             syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
         } else if (msgBox.clickedButton() == closeLiveButton) {
-            closeLive();
+            closeLive(roomInfo.userInfo.userID.toStdString(), QString::number(roomInfo.liveStreamID).toStdString());
         }
     } else if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
         syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
@@ -935,18 +935,18 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked()
         return;
     }
 
-    closeLive();
-}
-
-void OneSevenLiveStreamingDock::closeLive()
-{   
-    // Handle stop streaming logic
-    stopStreaming();
-
     std::string currUserID;
     std::string currLiveStreamID;
     configManager->getConfigValue("UserID", currUserID);
     configManager->getConfigValue("LiveStreamID", currLiveStreamID);
+
+    closeLive(currUserID, currLiveStreamID);
+}
+
+void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID, const std::string &currLiveStreamID)
+{   
+    // Handle stop streaming logic
+    stopStreaming();
 
     // Send close live stream request
     OneSevenLiveCloseLiveRequest request;
