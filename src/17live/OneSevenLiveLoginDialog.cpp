@@ -243,7 +243,6 @@ void OneSevenLiveLoginDialog::setupUi()
     alertPixmap = alertPixmap.scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     errorIcon->setPixmap(alertPixmap);
     errorIcon->setFixedSize(16, 16);
-    errorLayout->addWidget(errorIcon);
     
     // Error text
     errorLabel = new QLabel(this);
@@ -259,8 +258,14 @@ void OneSevenLiveLoginDialog::setupUi()
     );
 
     errorLabel->setWordWrap(true);
-    errorLayout->addWidget(errorLabel);
+    errorLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     
+    errorLayout->addStretch();
+    errorLayout->addWidget(errorIcon);
+    errorLayout->addWidget(errorLabel);
+    errorLayout->addStretch();
+
+    errorContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     errorContainer->setVisible(false);
     mainLayout->addWidget(errorContainer);
 
@@ -332,6 +337,7 @@ void OneSevenLiveLoginDialog::setupUi()
         "    font-size: 12px;"
         "    line-height: 1.4;"
         "    margin: 20px 0;"
+        "    padding: 5px;"
         "}"
     );
     mainLayout->addWidget(disclaimerLabel);
