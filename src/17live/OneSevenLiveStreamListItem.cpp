@@ -48,9 +48,8 @@ OneSevenLiveStreamListItem::OneSevenLiveStreamListItem(const QString& title, con
   rightLayout->addWidget(deleteButton);
 
   QHBoxLayout* mainLayout = new QHBoxLayout(this);
-  mainLayout->addLayout(leftLayout);
-  mainLayout->addStretch();
-  mainLayout->addLayout(rightLayout);
+  mainLayout->addLayout(leftLayout, 1);
+  mainLayout->addLayout(rightLayout, 0);
   mainLayout->setContentsMargins(10, 10, 10, 10);
   mainLayout->setSpacing(0);
 }
