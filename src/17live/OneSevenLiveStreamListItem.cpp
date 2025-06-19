@@ -13,8 +13,9 @@ OneSevenLiveStreamListItem::OneSevenLiveStreamListItem(const QString& title, con
 
   contentLabel->setWordWrap(true);
 
-  titleLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
-  timestampLabel->setStyleSheet("color: gray; font-size: 10px;");
+  titleLabel->setStyleSheet("font-family: Inter; font-weight: bold; font-size: 14px;");
+  contentLabel->setStyleSheet("font-family: Inter; color: gray; font-size: 14px;");
+  timestampLabel->setStyleSheet("font-family: Inter; color: gray; font-size: 14px;");
 
   titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
   contentLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -24,6 +25,7 @@ OneSevenLiveStreamListItem::OneSevenLiveStreamListItem(const QString& title, con
   leftLayout->addWidget(titleLabel);
   leftLayout->addWidget(contentLabel);
   leftLayout->addWidget(timestampLabel);
+  leftLayout->setSpacing(5);
 
   
   editButton = new QPushButton();
@@ -41,13 +43,14 @@ OneSevenLiveStreamListItem::OneSevenLiveStreamListItem(const QString& title, con
   connect(editButton, &QPushButton::clicked, this, &OneSevenLiveStreamListItem::editClicked);
   connect(deleteButton, &QPushButton::clicked, this, &OneSevenLiveStreamListItem::deleteClicked);
 
-    QHBoxLayout* rightLayout = new QHBoxLayout;
+  QHBoxLayout* rightLayout = new QHBoxLayout;
   rightLayout->addWidget(editButton);
   rightLayout->addWidget(deleteButton);
 
   QHBoxLayout* mainLayout = new QHBoxLayout(this);
-  mainLayout->addLayout(leftLayout, 1);
-  mainLayout->addLayout(rightLayout, 0);
+  mainLayout->addLayout(leftLayout);
+  mainLayout->addStretch();
+  mainLayout->addLayout(rightLayout);
   mainLayout->setContentsMargins(10, 10, 10, 10);
-  mainLayout->setSpacing(15);
+  mainLayout->setSpacing(0);
 }

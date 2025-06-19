@@ -71,6 +71,7 @@ void OneSevenLiveStreamListDock::setupUi()
     );
     streamList->setResizeMode(QListWidget::Adjust);
     streamList->setWordWrap(true);
+    streamList->setSpacing(10);
     mainLayout->addWidget(streamList);
 
     // Create start streaming button
@@ -86,7 +87,8 @@ void OneSevenLiveStreamListDock::setupUi()
         "   line-height: 24px;"
         "}"
     );
-    mainLayout->addWidget(startLiveButton);
+    startLiveButton->setFixedWidth(250);
+    mainLayout->addWidget(startLiveButton, 0, Qt::AlignHCenter);
 
     setWidget(container);
 }
