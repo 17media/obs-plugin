@@ -74,10 +74,6 @@ void OneSevenLiveLoginDialog::setupUi()
         "   font-weight: 600;"
         "   font-size: 32px;"
         "   line-height: 40px;"
-// /* identical to box height, or 143% */
-// display: flex;
-// align-items: center;
-// letter-spacing: -0.02em;
         "   color: #FFFFFF;"
         "}"
     );
@@ -263,12 +259,8 @@ void OneSevenLiveLoginDialog::setupUi()
     );
 
     errorLabel->setWordWrap(true);
-    errorLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     errorLayout->addWidget(errorLabel);
     
-    // Set container properties
-    errorContainer->setMinimumHeight(20);
-    errorContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     errorContainer->setVisible(false);
     mainLayout->addWidget(errorContainer);
 
