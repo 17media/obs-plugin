@@ -136,12 +136,12 @@ bool OneSevenLiveCoreManager::initialize()
             username = openId;
         }
         menuManager->updateLoginStatus(true, username);
+    }
 
-        // Load meta data
-        if (!LoadMetaData()) {
-            obs_log(LOG_ERROR, "Failed to load meta data");
-            return false;
-        }
+    // Load meta data
+    if (!LoadMetaData()) {
+        obs_log(LOG_ERROR, "Failed to load meta data");
+        return false;
     }
 
     load17LiveConfig();
