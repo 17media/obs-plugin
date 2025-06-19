@@ -12,6 +12,7 @@
 #include "plugin-support.h"
 
 #include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveStreamListItem.hpp"
 
 #include "moc_OneSevenLiveStreamListDock.cpp"
 
@@ -52,13 +53,12 @@ void OneSevenLiveStreamListDock::setupUi()
         "QListWidget {"
         "   background-color: transparent;"
         "   border: none;"
-        "   padding: 0;"
         "}"
         "QListWidget::item {"
         "   background-color: #3C404C;"
         "   border-radius: 6px;"
-        "   margin: 10px;"
-        "   padding: 8px;"
+        "   padding: 0px;"
+        "   margin: 0px;"
         "}"
         "QListWidget::item:selected {"
         "   background-color: #3a3a4a;"
@@ -69,6 +69,8 @@ void OneSevenLiveStreamListDock::setupUi()
         "    background-color: #454b5a;"
         "}"
     );
+    streamList->setResizeMode(QListWidget::Adjust);
+    streamList->setWordWrap(true);
     mainLayout->addWidget(streamList);
 
     // Create start streaming button
@@ -96,18 +98,16 @@ void OneSevenLiveStreamListDock::createConnections()
 
 void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const OneSevenLiveStreamInfo& info)
 {
-    QFrame* frame = new QFrame();
-    frame->setStyleSheet("background-color: transparent; border-radius: 6px;");
-    frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    QWidget *itemContainer = new QWidget(this);
 
-    QHBoxLayout* mainLayout = new QHBoxLayout(frame);
+    QHBoxLayout* mainLayout = new QHBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(8);
+    // mainLayout->setSpacing(0);
 
     // Left layout (title, category, time)
     QVBoxLayout* leftLayout = new QVBoxLayout();
-    leftLayout->setAlignment(Qt::AlignVCenter);
-    leftLayout->setSpacing(4);
+    // leftLayout->setAlignment(Qt::AlignVCenter);
+    leftLayout->setSpacing(5);
 
     QLabel* titleLabel = new QLabel(info.request.caption);
     titleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: 20px;");
@@ -155,13 +155,11 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     mainLayout->addStretch();
     mainLayout->addWidget(buttonContainer);
 
-    // Set frame size policy and calculate proper size
-    frame->adjustSize();
-    QSize frameSize = frame->sizeHint();
-    frameSize.setHeight(qMax(frameSize.height(), 80)); // Minimum height
-    
-    item->setSizeHint(frameSize);
-    streamList->setItemWidget(item, frame);
+    itemContainer->setLayout(mainLayout);
+    // Adjust size to ensure all content is visible, especially after word wrap
+    itemContainer->adjustSize(); 
+    item->setSizeHint(QSize(-1, itemContainer->sizeHint().height()));
+    streamList->setItemWidget(item, itemContainer);
 
     connect(editButton, &QPushButton::clicked, this, [this, item, info]() {
         this->onEditStreamClicked(item, info);
@@ -260,6 +258,14 @@ void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent *event)
     if (emptyContainer && emptyContainer->isVisible()) {
         emptyContainer->setGeometry(widget()->rect());
     }
+
+    for (int i = 0; i < streamList->count(); ++i) {
+        QListWidgetItem* item = streamList->item(i);
+        QWidget* widget = streamList->itemWidget(item);
+        if (widget)
+            widget->resize(streamList->viewport()->width(), widget->height());
+            item->setSizeHint(widget->sizeHint());
+    }
 }
 
 void OneSevenLiveStreamListDock::setStatus(OneSevenLiveStreamingStatus status_)
@@ -316,15 +322,43 @@ void OneSevenLiveStreamListDock::refreshStreamList()
         
         // Have stream info, display list normally
         for (const auto& info : streamInfoList) {
+            QString title = info.request.caption;
+            QString content = info.categoryName;
+            QString timestamp = info.createdAt.toString("yyyy-MM-dd hh:mm:ss");
+
+            OneSevenLiveStreamListItem* widget = new OneSevenLiveStreamListItem(title, content, timestamp);
             QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
+            streamList->setItemWidget(widgetItem, widget);
+            widgetItem->setSizeHint(widget->sizeHint());
             widgetItem->setData(Qt::UserRole, QVariant::fromValue(info));
-            updateStreamItem(widgetItem, info);
+            streamList->addItem(widgetItem);
+
+            connect(widget, &OneSevenLiveStreamListItem::editClicked, [=]() {
+                if (status != OneSevenLiveStreamingStatus::NotStarted) {
+                    QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+                    return;
+                }
+                
+                obs_log(LOG_INFO, "onEditStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
+                emit editLiveClicked(info);
+            });
+
+            connect(widget, &OneSevenLiveStreamListItem::deleteClicked, [=](){
+                if (status != OneSevenLiveStreamingStatus::NotStarted) {
+                    QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+                    return;
+                }
+                
+                obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
+            
+                configManager->removeLiveConfig(info.streamUuid.toStdString());
+                refreshStreamList();
+            });
         }
+        
         // Enable start streaming button
         startLiveButton->setVisible(true);
     }
-
-    adjustSize();
 }
 
 void OneSevenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const OneSevenLiveStreamInfo& info)
