@@ -344,6 +344,8 @@ void OneSevenLiveCoreManager::createStreamingDock()
     // Create and show streaming window
     streamingDock = new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
 
+    streamingDock->setMaximumWidth(600);
+
     streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
 

@@ -59,7 +59,6 @@ void OneSevenLiveStreamListDock::setupUi()
         "   border-radius: 6px;"
         "   margin: 10px;"
         "   padding: 8px;"
-        "   height: 80px;"
         "}"
         "QListWidget::item:selected {"
         "   background-color: #3a3a4a;"
@@ -98,8 +97,8 @@ void OneSevenLiveStreamListDock::createConnections()
 void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const OneSevenLiveStreamInfo& info)
 {
     QFrame* frame = new QFrame();
-    frame->setMinimumHeight(60);
     frame->setStyleSheet("background-color: transparent; border-radius: 6px;");
+    frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QHBoxLayout* mainLayout = new QHBoxLayout(frame);
     mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -108,15 +107,21 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     // Left layout (title, category, time)
     QVBoxLayout* leftLayout = new QVBoxLayout();
     leftLayout->setAlignment(Qt::AlignVCenter);
+    leftLayout->setSpacing(4);
 
     QLabel* titleLabel = new QLabel(info.request.caption);
     titleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 14px; font-family: 'Inter';");
+    titleLabel->setWordWrap(true);
+    titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QLabel* categoryLabel = new QLabel(info.categoryName);
     categoryLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter';");
+    categoryLabel->setWordWrap(true);
+    categoryLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QLabel* timeLabel = new QLabel(info.createdAt.toString("yyyy-MM-dd hh:mm:ss"));
     timeLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter';");
+    timeLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     leftLayout->addWidget(titleLabel);
     leftLayout->addWidget(categoryLabel);
@@ -124,6 +129,7 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
 
     // Right buttons (edit + delete)
     QWidget* buttonContainer = new QWidget();
+    buttonContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
     QHBoxLayout* buttonLayout = new QHBoxLayout(buttonContainer);
     buttonLayout->setContentsMargins(0, 0, 0, 0);
     buttonLayout->setSpacing(4);
@@ -149,10 +155,12 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     mainLayout->addStretch();
     mainLayout->addWidget(buttonContainer);
 
-    // Limit maximum width to avoid stretching
-    frame->setMaximumWidth(streamList->viewport()->width());
-
-    item->setSizeHint(frame->sizeHint());
+    // Set frame size policy and calculate proper size
+    frame->adjustSize();
+    QSize frameSize = frame->sizeHint();
+    frameSize.setHeight(qMax(frameSize.height(), 80)); // Minimum height
+    
+    item->setSizeHint(frameSize);
     streamList->setItemWidget(item, frame);
 
     connect(editButton, &QPushButton::clicked, this, [this, item, info]() {
