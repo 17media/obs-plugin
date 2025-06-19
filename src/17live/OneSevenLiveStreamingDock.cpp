@@ -797,6 +797,37 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
 {
     obs_log(LOG_INFO, "createLiveWithRequest");
 
+    if (isLoading) {
+        // loading roomInfo is in progress, waiting for it to finish
+        obs_log(LOG_INFO, "Waiting for loading to complete before creating live");
+        
+        // Create a timer to periodically check if loading is complete
+        QTimer *waitTimer = new QTimer(this);
+        waitTimer->setSingleShot(false);
+        waitTimer->setInterval(100); // Check every 100ms
+        
+        connect(waitTimer, &QTimer::timeout, this, [this, request, waitTimer]() {
+            if (!isLoading) {
+                // Loading is complete, stop timer and proceed with creation
+                waitTimer->stop();
+                waitTimer->deleteLater();
+                
+                obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
+                
+                populateRtmpRequest(request);
+                
+                if (request.caption.isEmpty() || request.subtabID.isEmpty()) {
+                    return;
+                }
+                
+                createLive(request);
+            }
+        });
+        
+        waitTimer->start();
+        return;
+    }
+
     populateRtmpRequest(request);
 
     if (request.caption.isEmpty() || request.subtabID.isEmpty()) {
