@@ -47,4 +47,7 @@ private:
     QPushButton *goToStreamingButton;
 
     OneSevenLiveStreamingStatus status;
+
+private slots:
+    void handleTopLevelChanged(bool topLevel);
 };

@@ -29,6 +29,8 @@ OneSevenLiveStreamListDock::OneSevenLiveStreamListDock(QWidget *parent,  OneSeve
             emptyContainer->setGeometry(widget()->rect());
         }
     });
+
+    connect(this, &QDockWidget::topLevelChanged, this, &OneSevenLiveStreamListDock::handleTopLevelChanged);
 }
 
 OneSevenLiveStreamListDock::~OneSevenLiveStreamListDock() = default;
@@ -400,5 +402,25 @@ void OneSevenLiveStreamListDock::onStartLiveClicked()
         // Get item information
         OneSevenLiveStreamInfo info = item->data(Qt::UserRole).value<OneSevenLiveStreamInfo>();
         emit startLiveClicked(info.request);
+    }
+}
+
+void OneSevenLiveStreamListDock::handleTopLevelChanged(bool topLevel)
+{
+    if (!topLevel) {
+        // Docked
+        // 在这里执行 adjustSize() 或其他需要的操作
+        adjustSize(); 
+        // 可能还需要强制更新布局或子控件的大小
+        for (int i = 0; i < streamList->count(); ++i) {
+            QListWidgetItem* item = streamList->item(i);
+            QWidget* itemWidget = streamList->itemWidget(item);
+            if (itemWidget) {
+                itemWidget->adjustSize();
+                item->setSizeHint(itemWidget->sizeHint());
+            }
+        }
+    } else {
+        // Floating
     }
 }
