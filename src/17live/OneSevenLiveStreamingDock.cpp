@@ -754,7 +754,12 @@ void OneSevenLiveStreamingDock::onSaveConfigClicked()
     }
 
     OneSevenLiveStreamInfo streamInfo;
-    streamInfo.categoryName = categoryCombo->currentText();
+    for (const auto& subtab : configStreamer.subtabs) {
+        if (subtab.ID == request.subtabID) {
+            streamInfo.categoryName = subtab.displayName;
+            break;
+        }
+    }
     streamInfo.createdAt = QDateTime::currentDateTime();
     streamInfo.request = request;
     if (!currentInfoUuid.isEmpty()) {

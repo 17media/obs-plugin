@@ -110,17 +110,17 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     leftLayout->setSpacing(4);
 
     QLabel* titleLabel = new QLabel(info.request.caption);
-    titleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 14px; font-family: 'Inter';");
+    titleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: 20px;");
     titleLabel->setWordWrap(true);
     titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QLabel* categoryLabel = new QLabel(info.categoryName);
-    categoryLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter';");
+    categoryLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: 20px;");
     categoryLabel->setWordWrap(true);
     categoryLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QLabel* timeLabel = new QLabel(info.createdAt.toString("yyyy-MM-dd hh:mm:ss"));
-    timeLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter';");
+    timeLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: 20px;");
     timeLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     leftLayout->addWidget(titleLabel);
