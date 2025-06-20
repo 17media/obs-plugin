@@ -341,6 +341,8 @@ bool OneSevenLiveApiWrappers::CreateRtmp(const OneSevenLiveRtmpRequest &request,
 
   std::string postData = requestData.dump();
 
+  obs_log(LOG_INFO, "CreateRtmp requestData: %s", postData.c_str());
+
   std::string error;
 	Json json_out;
 	
