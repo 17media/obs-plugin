@@ -469,10 +469,13 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo()
     }
 
     // Army settings
-    armyOnlyHeader->setVisible(configStreamer.armyOnly==2 || userInfo.onliveInfo.premiumType != 1);
+    armyOnlyHeader->setVisible(configStreamer.armyOnly==2 && userInfo.onliveInfo.premiumType != 1);
 
     if (configStreamer.armyOnly==2 && userInfo.onliveInfo.premiumType != 1) {
         updateRequiredArmyRankSelections();
+        armyOnlyHeader->setToolTip("");
+    } else {
+        armyOnlyHeader->setToolTip(obs_module_text("Live.Settings.ArmyOnly.Tip"));
     }
     
     // Set archive configuration
