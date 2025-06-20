@@ -264,6 +264,8 @@ void OneSevenLiveLoginDialog::setupUi()
     errorContainer->setVisible(false);
     mainLayout->addWidget(errorContainer);
 
+    mainLayout->addSpacing(10);
+
     QWidget *loginContainer = new QWidget(this);
     QHBoxLayout *loginLayout = new QHBoxLayout(loginContainer);
     loginLayout->setContentsMargins(0, 0, 0, 0);
