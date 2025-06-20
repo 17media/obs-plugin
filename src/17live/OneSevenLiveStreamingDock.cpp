@@ -47,8 +47,6 @@ void OneSevenLiveStreamingDock::setupUi()
         "   padding: 5px;"
         "   border: none;"
         "   border-radius: 4px;"
-        "   min-width: 220px;"
-        "   min-height: 64px;"
         "}"
     );
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
@@ -184,6 +182,7 @@ void OneSevenLiveStreamingDock::setupUi()
     // Army-only viewing - collapsible section
     // 1. Header (title and collapse button)
     armyOnlyHeader = new QWidget();
+    armyOnlyHeader->setStyleSheet("QLabel:disabled { color: #808080; }");
     armyOnlyHeaderLayout = new QHBoxLayout(armyOnlyHeader);
     armyOnlyHeaderLayout->setContentsMargins(0, 10, 0, 10);
     
@@ -481,7 +480,8 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo()
     }
 
     // Army settings
-    armyOnlyHeader->setVisible(configStreamer.armyOnly==2 && userInfo.onliveInfo.premiumType != 1);
+
+    armyOnlyHeader->setEnabled(configStreamer.armyOnly==2 && userInfo.onliveInfo.premiumType != 1);
 
     if (configStreamer.armyOnly==2 && userInfo.onliveInfo.premiumType != 1) {
         updateRequiredArmyRankSelections();
