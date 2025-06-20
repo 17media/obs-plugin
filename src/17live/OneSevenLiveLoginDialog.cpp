@@ -52,7 +52,7 @@ void OneSevenLiveLoginDialog::setupUi()
 
 
     auto mainLayout = new QVBoxLayout(this);
-    mainLayout->setSpacing(20);
+    mainLayout->setSpacing(5);
     mainLayout->setContentsMargins(40, 40, 40, 40);
 
     // Logo - add loading of 17live-logo-whith.svg image from resources
@@ -62,7 +62,7 @@ void OneSevenLiveLoginDialog::setupUi()
     logoLabel->setPixmap(logoPixmap.scaled(200, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     logoLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(logoLabel);
-    
+    mainLayout->addSpacing(20);
     
     // Add "17LIVE ID Login" title
     QLabel* loginTitleLabel = new QLabel(obs_module_text("Auth.Caption"), this);
@@ -77,29 +77,22 @@ void OneSevenLiveLoginDialog::setupUi()
         "   color: #FFFFFF;"
         "}"
     );
-
-
-
-
     mainLayout->addWidget(loginTitleLabel);
+    mainLayout->addSpacing(20);
     
     QWidget* idLabelContainer = new QWidget(this);
     QHBoxLayout* idLabelLayout = new QHBoxLayout(idLabelContainer);
     idLabelLayout->setContentsMargins(0, 0, 0, 0);
-    idLabelLayout->setSpacing(0);
     
     QLabel* idLabel = new QLabel("ID", this);
     idLabel->setStyleSheet(
         "QLabel {"
         "    color: white;"
         "    font-size: 16px;"
-        "    margin-right: 10px;"
         "}"
     );
     idLabelLayout->addWidget(idLabel);
     mainLayout->addWidget(idLabelContainer);
-
-    mainLayout->addSpacing(5);
 
     // Username input field
     usernameEdit = new QLineEdit(this);
@@ -113,6 +106,8 @@ void OneSevenLiveLoginDialog::setupUi()
         "}"
     );
     mainLayout->addWidget(usernameEdit);
+
+    mainLayout->addSpacing(10);
 
     // Password label
     QWidget* passwordLabelContainer = new QWidget(this);
@@ -325,7 +320,7 @@ void OneSevenLiveLoginDialog::setupUi()
 
     mainLayout->addWidget(loginContainer);
 
-    mainLayout->addStretch();
+    mainLayout->addSpacing(20);
 
     // Disclaimer
     disclaimerLabel = new QLabel(obs_module_text("Auth.Hint01"), this);
@@ -336,8 +331,6 @@ void OneSevenLiveLoginDialog::setupUi()
         "    color: white;"
         "    font-size: 12px;"
         "    line-height: 1.4;"
-        "    margin: 20px 0;"
-        "    padding: 5px;"
         "}"
     );
     mainLayout->addWidget(disclaimerLabel);
