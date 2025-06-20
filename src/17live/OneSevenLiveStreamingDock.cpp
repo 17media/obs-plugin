@@ -38,6 +38,18 @@ void OneSevenLiveStreamingDock::setupUi()
         "    font-family: 'Inter';"
         "    font-style: normal;"
         "}"
+        "QToolTip {"
+        "   background-color: #333333;"
+        "   color: #FFFFFF;"
+        "   font-weight: 400;"
+        "   font-size: 12px;"
+        "   line-height: 16px;"
+        "   padding: 5px;"
+        "   border: none;"
+        "   border-radius: 4px;"
+        "   min-width: 220px;"
+        "   min-height: 64px;"
+        "}"
     );
     QVBoxLayout *mainLayout = new QVBoxLayout(container);
 
