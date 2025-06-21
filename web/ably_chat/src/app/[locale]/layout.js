@@ -22,7 +22,7 @@ export default async function RootLayout({ children, params }) {
 
   return (
     <html lang="{locale}">
-      <body>
+      <body style={{backgroundColor: 'black'}}>
         <NextIntlClientProvider>
           {children}
         </NextIntlClientProvider>
