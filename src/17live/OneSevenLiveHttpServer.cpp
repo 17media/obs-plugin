@@ -178,6 +178,7 @@ bool OneSevenLiveHttpServer::start() {
                 std::string language;
                 configManager->getConfigValue("Region", language);
                 success = apiWrapper->GetGifts(language, apiResult);
+                configManager->saveGifts(apiResult);
             } else if (action == ACTION_GETROOMINFO) {
                 OneSevenLiveLoginData loginData;
                 configManager->getLoginData(loginData);

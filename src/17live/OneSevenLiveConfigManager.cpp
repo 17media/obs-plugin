@@ -472,3 +472,48 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config)
   
   return true;
 }
+
+bool OneSevenLiveConfigManager::saveGifts(const Json &gifts)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
+  QFile file(giftsFile);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    obs_log(LOG_ERROR, "Failed to open gifts.json for writing");
+    return false;
+  }
+  QTextStream out(&file);
+  out << QString::fromStdString(gifts.dump());
+  file.close();
+  return true;
+}
+  
+bool OneSevenLiveConfigManager::loadGifts(Json &gifts)
+{
+  if (!initialized) {
+    return false;
+  }
+
+  QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
+  QFile file(giftsFile);
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    // File doesn't exist, return empty object
+    gifts = Json::object();
+    return true;
+  }
+  QTextStream in(&file);
+  QString jsonString = in.readAll();
+  file.close();
+  
+  std::string error;
+  gifts = Json::parse(jsonString.toStdString(), error);
+  if (!error.empty()) {
+    obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", error.c_str());
+    return false;
+  }
+  
+  return true;
+}

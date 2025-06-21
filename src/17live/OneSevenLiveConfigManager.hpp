@@ -47,6 +47,9 @@ public:
   // Get configuration data
   bool getConfig(OneSevenLiveConfig &config);
 
+  bool saveGifts(const Json &gifts);
+  bool loadGifts(Json &gifts);
+
   
 private:
   bool initialized = false;

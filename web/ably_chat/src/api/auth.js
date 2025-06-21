@@ -1,6 +1,6 @@
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 const jwtToken = process.env.NEXT_PUBLIC_JWT_TOKEN;
-async function getAblyTokenFromServerByRoomID(roomID, jwtToken) {
+async function getAblyTokenFromServerByRoomID(roomID) {
     
   const url = `${apiUrl}/api/v1/messenger/token?type=3&roomID=${encodeURIComponent(roomID)}`;
   try {

@@ -51,6 +51,23 @@ export default function AblyComponent() {
             || message.type === MsgType_NEW_LUCKYBAG) {
             const { displayUser, barrage, ...restGift } = message?.giftMsg;
             const gift = getGiftByID(restGift.giftID);
+
+            if (message.type === MsgType_NEW_LUCKYBAG && restGift.extID) {
+                const luckyBag = getGiftByID(restGift.extID);
+                const indexedGift = fromJS({
+                    ...restGift,
+                    ...displayUser,
+                        barrage,
+                        id,
+                        messageType: message.type,
+                        gift,
+                        luckyBag,
+                        streamerInfo,
+                    });
+                return indexedGift;
+            } 
+
+
             const indexedGift = fromJS({
             ...restGift,
             ...displayUser,

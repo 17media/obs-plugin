@@ -44,7 +44,7 @@ const MultilineDesktop = styled(Multiline)`
     color: ${({color}) => color};
 `;
 
-const renderMessageContent = (messageType, content, gift = null) => {
+const renderMessageContent = (messageType, content, gift = null, luckyBag = null) => {
     switch (messageType) {
         case MsgType_COMMENT:
         case MsgType_JOIN_ROOM:
@@ -52,7 +52,7 @@ const renderMessageContent = (messageType, content, gift = null) => {
             return content;
         case MsgType_NEW_GIFT:
         case MsgType_NEW_LUCKYBAG:
-            return <GiftItem giftInfo={gift} />;
+            return <GiftItem messageType={messageType} giftInfo={gift} luckyBagInfo={luckyBag} />;
         default:
             return null;
     }
@@ -87,6 +87,7 @@ const Chat = ({
                   topRightBadge,
                   asideLiveWidth,
                   gift,
+                  luckyBag,
               }) => {
     const {
         commentRef,
@@ -228,7 +229,7 @@ const Chat = ({
                     <MultilineDesktop
                         color={hasUserDecoration ? textColor : userTypeColor}
                     >
-                        {renderMessageContent(messageType, content, gift)}
+                        {renderMessageContent(messageType, content, gift, luckyBag)}
                     </MultilineDesktop>
 
                     {/* 右上徽章 */}
