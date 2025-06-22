@@ -1,278 +1,278 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
     <Fragment>
         <DirectoryRef Id="DATAFOLDER">
-            <Component Id="cmpH1caRiWg85GxUwbS9XlFol4qbcU" Guid="E52D9F8C-4F95-4C0B-902D-36AEB1316633">
+            <Component Id="cmpH1caRiWg85GxUwbS9XlFol4qbcU" Guid="DD5C03F4-BC6E-4EA0-BB44-FA5146A9E352">
                 <File Id="filz0JfNe6u6NGQrhZBIw8pK0HKD6A" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\meta_JP.json" />
             </Component>
-            <Component Id="cmpPV3Wi603.D5KolZs_pNCSGs5UGg" Guid="2DF6AAB6-4F72-4967-8531-5D21FDA20026">
+            <Component Id="cmpPV3Wi603.D5KolZs_pNCSGs5UGg" Guid="326368D1-54A3-4D49-9052-A5D5681057CA">
                 <File Id="filEwSQp9GBmFrLQWTI3F5S.Homj5s" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\meta_TW.json" />
             </Component>
-            <Component Id="cmprLiKzBKfckJ2RGOvt_K5aOw1NS4" Guid="00C8906C-9D50-4997-9075-229CB9E54481">
+            <Component Id="cmprLiKzBKfckJ2RGOvt_K5aOw1NS4" Guid="3FBF75DA-9A8B-4D0C-9615-2DDFBC484E52">
                 <File Id="filsxlpOjfChCtgLIB9.hg4L1f.WO4" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\meta_US.json" />
             </Component>
             <Directory Id="dirnlgqwT2TZA9GsfZ3941Yv8aXbcw" Name="html">
                 <Directory Id="dir_XwdzDxgnCjpBPQfonWShJer.YI" Name="chat">
-                    <Component Id="cmpF6BdIRfgAfvL1qR6IxOjIql92pI" Guid="197D1913-ED30-499E-A08B-41EF24E236C8">
+                    <Component Id="cmpF6BdIRfgAfvL1qR6IxOjIql92pI" Guid="4E02665D-B440-4155-A677-71BBC765E58D">
                         <File Id="filCylj7RlvAjTiUQTNfio18yK6XlE" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\404.html" />
                     </Component>
-                    <Component Id="cmp5tlJGApSy2i5SayOxBEtGrkrtZM" Guid="ABAC58D5-46AA-47D9-ACF1-E47419A001DB">
+                    <Component Id="cmp5tlJGApSy2i5SayOxBEtGrkrtZM" Guid="57F17CB7-7654-470E-9F6D-4AF59916EA92">
                         <File Id="fil7Xq0dHKGlUsJVMBg2YJ3lQRtOyA" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\en.html" />
                     </Component>
-                    <Component Id="cmpRR9fWgfggbn2aW3elIWeSJK0eYY" Guid="E21A3015-6C56-4CBC-BA7D-0F82B7C730DA">
+                    <Component Id="cmpRR9fWgfggbn2aW3elIWeSJK0eYY" Guid="55D834FD-C549-4B30-BE94-9BCDEBB7AEDC">
                         <File Id="filTnhhI3J5_MIAOAe.SEraaqOwi7o" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\en.txt" />
                     </Component>
-                    <Component Id="cmpznDi3mSTyIPYeRlwZzCLYcPsqh8" Guid="70C426FD-1A28-4237-860F-6CF1C97046E4">
+                    <Component Id="cmpznDi3mSTyIPYeRlwZzCLYcPsqh8" Guid="44F0BECB-890C-48EA-8930-1E89628A32B5">
                         <File Id="fil7JzvSLeC5dBJF3hCgwtNKWeJWHs" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\ja.html" />
                     </Component>
-                    <Component Id="cmpuqZW1j3KMpkEX9UTISZfCy8ik0o" Guid="231B0412-1198-449C-9CDE-8F21EFB736A5">
+                    <Component Id="cmpuqZW1j3KMpkEX9UTISZfCy8ik0o" Guid="3EEA4128-0342-4F9B-9BA2-89593B346451">
                         <File Id="filTX1DdfrBlkJRwpqmKMkMHeS4QHw" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\ja.txt" />
                     </Component>
-                    <Component Id="cmpVrcrdSCted4END_nN8HyhMZUCes" Guid="A7B0C242-251E-4F61-9BCE-5D5D5835535D">
+                    <Component Id="cmpVrcrdSCted4END_nN8HyhMZUCes" Guid="BA437AD5-9CAC-428E-B523-651D1BFB4B45">
                         <File Id="filGIS3G_3.tsoPXQDPysoWwLtF8oo" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\zh.html" />
                     </Component>
-                    <Component Id="cmpCXiU4bctsFuGb7fC5TZH4sPNVxM" Guid="E54D8177-CFFA-49DC-A644-5A2A3A46398E">
+                    <Component Id="cmpCXiU4bctsFuGb7fC5TZH4sPNVxM" Guid="9DA0F49F-800C-47E4-A042-ADB59ACC20AA">
                         <File Id="filabZ11Hj.FY3UqkVa9pSx3QXpxlw" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\zh.txt" />
                     </Component>
                     <Directory Id="dir1TVHjNQ_jgscSO1Ogr8ycb2xQGY" Name="images">
-                        <Component Id="cmppr1GSzDeoSuEkGIH9e7B1jR9BsQ" Guid="2B66BFC7-6E4B-4B23-873A-B78EB1E8CE82">
+                        <Component Id="cmppr1GSzDeoSuEkGIH9e7B1jR9BsQ" Guid="F3FC5585-3D45-40B3-902B-B735E4ABB9D2">
                             <File Id="filkbYjXfCYdlxiULzlq7wPjTFghrE" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\images\ig_AIBaby_background.svg" />
                         </Component>
                     </Directory>
                     <Directory Id="dirhHknBwaHquxM5S0yowphAIn4WtI" Name="_next">
                         <Directory Id="dirsOEtPI33m7aVvnzKcIFjOuh8hIA" Name="static">
                             <Directory Id="diroK83R9SJIwtstNdMGexUp8YZrZg" Name="chunks">
-                                <Component Id="cmpqntViF_ZY9bWwRLnupGS9V6w9Mk" Guid="D9F3F4E0-8D99-4046-BEB9-9B5E31DFC7A6">
+                                <Component Id="cmpqntViF_ZY9bWwRLnupGS9V6w9Mk" Guid="F335FC35-9250-461B-B891-F59CAF6CB0AB">
                                     <File Id="filmxrsW7TosMHGaNGN0HZKZ22Kb14" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\122.8695147541cbf54a.js" />
                                 </Component>
-                                <Component Id="cmpin88.u4QQH3CFFFP0mPbLkMmTKQ" Guid="9D4EFC53-B2BA-4CB0-989C-C10AEE871D3B">
+                                <Component Id="cmpin88.u4QQH3CFFFP0mPbLkMmTKQ" Guid="CB544BF9-6AF5-454F-BA71-4D06F8C64B49">
                                     <File Id="fil8XKlLsze0eGEhkV0dQNhsoYsHIg" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\136.3b3b725b5513b762.js" />
                                 </Component>
-                                <Component Id="cmpNBAWRgcmtD8v.LfGiGDfDKGKAZU" Guid="C799F63D-3F18-4641-BE14-ACD52F5472B5">
+                                <Component Id="cmpNBAWRgcmtD8v.LfGiGDfDKGKAZU" Guid="49510334-200E-4461-9572-18281403062B">
                                     <File Id="fil..hhkns757eesLzHp9Lr1Dan6Zo" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\142.9e73e7e1beb4f0af.js" />
                                 </Component>
-                                <Component Id="cmpYDPiPpytUPyJ9TvQ9atB20QU6kE" Guid="4497809B-5DAC-444C-998D-895874A9A5A1">
+                                <Component Id="cmpYDPiPpytUPyJ9TvQ9atB20QU6kE" Guid="D7A17D6B-F045-4821-8821-2CAB01D9461A">
                                     <File Id="filXsp4AygiWbi_v_l9vecbvjG3RS8" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\148.cc5e1ee9f1cd168b.js" />
                                 </Component>
-                                <Component Id="cmputkwfhm0SGaxJ6ebfk0BCUOESkg" Guid="E75A1DC7-1E71-403E-B41A-4484D0465B21">
+                                <Component Id="cmputkwfhm0SGaxJ6ebfk0BCUOESkg" Guid="19EC0900-7E41-44C9-BC15-51D4C93510BD">
                                     <File Id="filv.W1ZfcXNogBYRdAGoivWGQUBkM" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\184.e8d987729de1f48f.js" />
                                 </Component>
-                                <Component Id="cmpFONypZJds2MtEhL760J7hopU6W8" Guid="2C1F2495-3A5B-4D3F-BCB4-8AFBCE046850">
+                                <Component Id="cmpFONypZJds2MtEhL760J7hopU6W8" Guid="F14F9E11-7C49-4569-99E4-C594A6D94BF2">
                                     <File Id="filSIGX29_U6zpuvwQnlMAcySALgng" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\240.34a6edd38ec08063.js" />
                                 </Component>
-                                <Component Id="cmpiKZpA8HCgJo_yQXKt1AFCudt4sI" Guid="758E8455-2F68-43CD-9A75-F86B5E6A451B">
+                                <Component Id="cmpiKZpA8HCgJo_yQXKt1AFCudt4sI" Guid="DD2972DE-EBDA-4C6B-8427-F83B4CF7C046">
                                     <File Id="filGW3OLCxr8u9c0zxUtIm1ZbFeBrk" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\269.c8c9817732b3351b.js" />
                                 </Component>
-                                <Component Id="cmpbNDzVvS.cFRXG2AY81fAO2mq1BQ" Guid="A1F31BA0-64B6-41B1-8337-97A68728DE0C">
+                                <Component Id="cmpbNDzVvS.cFRXG2AY81fAO2mq1BQ" Guid="A1B6C22E-FCFF-43FD-9393-7771CA5ECA13">
                                     <File Id="fildbBQoSmXagxGQBLnonHOnlHoua8" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\290.4ab5e5f583d7e977.js" />
                                 </Component>
-                                <Component Id="cmp2bLTazHT0V_zHfYSumbiePBJkGM" Guid="33FECC0D-AB1A-4EA2-81B1-65EAF3482CB6">
+                                <Component Id="cmp2bLTazHT0V_zHfYSumbiePBJkGM" Guid="B5F94044-5452-414F-A26D-FF049FCE75C4">
                                     <File Id="filxUS2pypwDG_c_9m025IADjSes5w" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\335.c1eff0412c274ec7.js" />
                                 </Component>
-                                <Component Id="cmphE.2.gIJzpOLnPznTjKylmpDD2U" Guid="F042248A-62BD-42A5-A8E9-872F0EC6C2A6">
+                                <Component Id="cmphE.2.gIJzpOLnPznTjKylmpDD2U" Guid="0610657E-C38A-4DB0-BEFD-F1171B87F26B">
                                     <File Id="filrTD5fX8DUOBd_LMj._6QBmhm85w" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\341.df3329d77a5faa19.js" />
                                 </Component>
-                                <Component Id="cmphtlAgmWYsm.TIPpailYfa52kfzc" Guid="5C179E9C-597A-42D0-9DFE-AD416B80DABD">
+                                <Component Id="cmphtlAgmWYsm.TIPpailYfa52kfzc" Guid="2C9EA64F-3015-4DA4-A5EE-FA0BD5A8C33F">
                                     <File Id="filLMWtBlLKA0pLrIkMeH6vnRKqNns" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\39.b5b5d67dd8e8c25d.js" />
                                 </Component>
-                                <Component Id="cmpI6D_M0NFIqCN4TRVUeICMSKdXQo" Guid="5B5D5FF4-C39B-4732-ADE7-462CEE565737">
+                                <Component Id="cmpI6D_M0NFIqCN4TRVUeICMSKdXQo" Guid="C844C803-0FE0-4974-B29C-7D096013D78E">
                                     <File Id="filSxWhkZ3SRiV5Tkjmu2FvHOqvh1Y" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\472.a3826d29d6854395.js" />
                                 </Component>
-                                <Component Id="cmpkXySdFs0OaAS6aXP7aH742ZAk_s" Guid="CD947071-6994-4391-9546-84DB6273DC78">
+                                <Component Id="cmpkXySdFs0OaAS6aXP7aH742ZAk_s" Guid="BC9B585D-0290-4BE3-9C9F-B69058655F93">
                                     <File Id="filEA2psy0SpI1BHS9.NSZktnMc1V0" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\475.0ce50b36f7d72f37.js" />
                                 </Component>
-                                <Component Id="cmpEWxd4UqNOQCrdXtH4sES8w3gIU0" Guid="946D62E4-3B62-46B9-A9F9-A4A89BCE4761">
+                                <Component Id="cmpEWxd4UqNOQCrdXtH4sES8w3gIU0" Guid="331CA0AC-C940-4848-B242-90FE3729A770">
                                     <File Id="fil.DESPyJ2AIGBU3tIRU2r8dWQuUY" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\4bd1b696-70920878d6d745e2.js" />
                                 </Component>
-                                <Component Id="cmpx2IMqj_ouPkVb9Xwy1zi.78v_Gk" Guid="16A5F5CF-A7F3-4E8A-9E29-F3B0EA3F1D94">
+                                <Component Id="cmpx2IMqj_ouPkVb9Xwy1zi.78v_Gk" Guid="47A4B5B4-2107-45C3-AC61-CDECB877B115">
                                     <File Id="filQXxkQRP29ai3Qm71X_E3IT6vNds" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\524.5b79051fdac01c85.js" />
                                 </Component>
-                                <Component Id="cmpKqjwKz7l_p5CeZijq50o509DE6M" Guid="BFFB8340-DCF5-45ED-AFC3-CA5374361344">
+                                <Component Id="cmpKqjwKz7l_p5CeZijq50o509DE6M" Guid="7CBFDC45-F14E-4BFF-B989-FA9C5580D561">
                                     <File Id="fil8Y5X7qP4uEz2SehjE0dAy.empRw" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\566.f4fc3fdaea6fed29.js" />
                                 </Component>
-                                <Component Id="cmpngA8wgVDozwF0AWNtkALalq0QsE" Guid="916929E0-14E2-4ECA-B619-B343A34825B1">
+                                <Component Id="cmpngA8wgVDozwF0AWNtkALalq0QsE" Guid="8B70CBA1-6D80-43D1-9058-4FD6560784B0">
                                     <File Id="filJLjw0Ac3szCaDYcMlk36dcmUMko" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\571.f5f2273e74bf7758.js" />
                                 </Component>
-                                <Component Id="cmpZt5H41TiTZ5sCcjnwDGtYR3D0ng" Guid="72BCDB34-C092-4EB5-913B-A53DCF6E5CB4">
+                                <Component Id="cmpZt5H41TiTZ5sCcjnwDGtYR3D0ng" Guid="D7285649-04F8-4E7C-8BDC-61A15B443130">
                                     <File Id="filq06etGYuMkCvbSt_wjAXkAbeqao" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\579.fc47d9d9bf551f2d.js" />
                                 </Component>
-                                <Component Id="cmpz0dxYB8Ui7E58hKb8jJHqaYZ9ds" Guid="1D2D25CE-C3F7-484F-8289-D47AB98EC18C">
+                                <Component Id="cmpz0dxYB8Ui7E58hKb8jJHqaYZ9ds" Guid="5FB797E0-632C-4497-8DEA-12B579C5566D">
                                     <File Id="fil_Znx3GA3lBkCQXqDYpAjpsN5XfI" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\633.11ae6586fd074f3a.js" />
                                 </Component>
-                                <Component Id="cmpCNrybvYcZyg9biOwDNCsOvTeJH8" Guid="BCF9B2BC-7FE1-4288-819A-742CF1B0C1AA">
+                                <Component Id="cmpCNrybvYcZyg9biOwDNCsOvTeJH8" Guid="FBC5808B-E875-4DFB-9DA9-EDD1623CE704">
                                     <File Id="filrt70AU2pJAwZTw7GL3inGc.clKo" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\653.c5bcbfb268851a48.js" />
                                 </Component>
-                                <Component Id="cmptdSYIkYNnp6Old1cUOra_lD1e.Q" Guid="23269FF8-5650-458C-9E2D-C741D3B2B852">
+                                <Component Id="cmptdSYIkYNnp6Old1cUOra_lD1e.Q" Guid="C884C784-57AD-4DC6-94CF-DAC47EF4F5BB">
                                     <File Id="filjoZnJwvQp0MnnSiaCIK9CmgxrZc" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\684-ac517d3f287680f3.js" />
                                 </Component>
-                                <Component Id="cmpfOXByGYq_.JVcWERO6aPhwuYKOM" Guid="7BC0B367-9192-4604-8B2F-4F2C576642B9">
+                                <Component Id="cmpfOXByGYq_.JVcWERO6aPhwuYKOM" Guid="F020C0D4-1A31-4B6E-B177-6E17645D173C">
                                     <File Id="filt4lp6kDvEdxfMG7SjOWedGIsbDU" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\716.ccb71df9bf653540.js" />
                                 </Component>
-                                <Component Id="cmprokniBsdRNaegQJeh6oJOesiikc" Guid="81A7B3FE-E095-42FC-93C9-DE5A6B447AB8">
+                                <Component Id="cmprokniBsdRNaegQJeh6oJOesiikc" Guid="CA39A07E-45C5-4E09-B8CD-DB3C03B1E541">
                                     <File Id="filaihvKAodkheXiKJI_Qw1rLA0zT4" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\745-33fac667cd4b6cbd.js" />
                                 </Component>
-                                <Component Id="cmpG4XzxApqwg3L6GFqFg6GYqe5j80" Guid="879A8E29-8F43-4814-B4F7-0447B2355FB8">
+                                <Component Id="cmpG4XzxApqwg3L6GFqFg6GYqe5j80" Guid="E511CF68-6FE4-45B2-975F-FE63A5297EE9">
                                     <File Id="filwqyV0E_zcmlSaAjx0xexYiU5EX0" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\80.931553ab0bd82943.js" />
                                 </Component>
-                                <Component Id="cmp2TxOD6_crKjaue9eth.o6lVI2ys" Guid="9EBC2853-198A-4AD6-B631-5D4265396879">
+                                <Component Id="cmp2TxOD6_crKjaue9eth.o6lVI2ys" Guid="6401D1B5-621E-4E0B-981D-4C5F57D20C34">
                                     <File Id="filJBIM3_mjqxd6bb.uysp_MMmGaBc" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\826.cd970a3ffbd89326.js" />
                                 </Component>
-                                <Component Id="cmpx7qZassHyg300R6V.mnxv2V__6I" Guid="CEFA5FE8-44CB-4F9C-9288-200584E8688C">
+                                <Component Id="cmpx7qZassHyg300R6V.mnxv2V__6I" Guid="D3FB27FE-F4FC-42AF-92E6-11F88BAE6885">
                                     <File Id="fil4qQGI2M0sNx4bTPmQme2B1dw.og" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\841.ad43e5e3964407b2.js" />
                                 </Component>
-                                <Component Id="cmpNPLoTkoXBKckMNBz7cUnH90WtOY" Guid="3C1E8D51-BAF5-4E29-BAB6-818217DB5599">
+                                <Component Id="cmpNPLoTkoXBKckMNBz7cUnH90WtOY" Guid="45257FF0-000C-45FD-A65D-37517A58DC13">
                                     <File Id="fil9LwjsJrXR4wSXu9p8ugN.7_p1t4" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\849.adb5a5d9a47de711.js" />
                                 </Component>
-                                <Component Id="cmp.ihjyl8JD1V2ALI_vOPVJ.Vj15I" Guid="50367FE9-CE64-4BD3-B313-54F6A9325296">
+                                <Component Id="cmp.ihjyl8JD1V2ALI_vOPVJ.Vj15I" Guid="23B4AF6E-39A1-4322-95B5-23E3EBD67839">
                                     <File Id="filbiZbVHOVap1GZGV54g8nogw73UY" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\861.9463816cd04b2e15.js" />
                                 </Component>
-                                <Component Id="cmpxC8w8WxwlUlGLKbl_9yUBvCH1ss" Guid="9059CE18-DE15-4946-A214-560C1E1D7669">
+                                <Component Id="cmpxC8w8WxwlUlGLKbl_9yUBvCH1ss" Guid="0F6BB50E-8085-45A1-8BD4-C00C607C233D">
                                     <File Id="filOMNtEcoKkizUaQFRK3Vc89I7bJQ" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\898.adbf6855cfa5338e.js" />
                                 </Component>
-                                <Component Id="cmplrBlfCcb5pRv9HzL72aIqOGztMQ" Guid="36F5883D-6CDB-4920-9390-6854FE04D05B">
+                                <Component Id="cmplrBlfCcb5pRv9HzL72aIqOGztMQ" Guid="60C953AC-98F5-494D-8361-BCFEF0983A8F">
                                     <File Id="fild3aXIfOC7bbi3hVRgbc0XXG5kms" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\943.d0966dd47890f9b7.js" />
                                 </Component>
-                                <Component Id="cmp0IvXAyp1txnEOOr5nKhj1k446kg" Guid="23784186-2EAE-4A73-B25D-32FC70DC94CB">
+                                <Component Id="cmp0IvXAyp1txnEOOr5nKhj1k446kg" Guid="F3D1BD0B-884B-45BF-99BB-BFDE912E90DA">
                                     <File Id="filppTFBM0nwi_TUgzg6gVGVZ_Qsuo" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\96-739ba8cb410f0333.js" />
                                 </Component>
-                                <Component Id="cmpNwZIMXix4J4aOzeu89XtUH5ykgE" Guid="ADA3A0B3-19CE-47E5-B8CE-21F7D2492EB2">
+                                <Component Id="cmpNwZIMXix4J4aOzeu89XtUH5ykgE" Guid="96626FE7-D928-4804-8853-7D0FD282058D">
                                     <File Id="filGy7m.oLHSo.nSwT6NdVoPshELZQ" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\967.e040a6f711a526d4.js" />
                                 </Component>
-                                <Component Id="cmps6FgSoOmCUq4DlgVDuNiAPWAf9E" Guid="1353E976-9B27-4E59-A2E3-7F3090290A31">
+                                <Component Id="cmps6FgSoOmCUq4DlgVDuNiAPWAf9E" Guid="F9B6A85A-9362-4BAD-8409-D252CE39AFF9">
                                     <File Id="filFY1IzNha8lcU22IU5rD4TuO1GPE" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\f6d0a8ec-6458b7e92ca6364d.js" />
                                 </Component>
-                                <Component Id="cmpm5mD6CsoPm494fN2z1rWz10bQUQ" Guid="74A59308-0C97-461F-ADF7-88909DEBF177">
+                                <Component Id="cmpm5mD6CsoPm494fN2z1rWz10bQUQ" Guid="F1694123-3102-4F48-9763-1FD62C0F6A10">
                                     <File Id="fil8zuL9EbRdK.BrvXuDsF0qtcAzXA" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\framework-f593a28cde54158e.js" />
                                 </Component>
-                                <Component Id="cmpa3vNXtEUnvGAoeFmbp0RLUfD.QA" Guid="B56D90BB-9DF5-4B94-AB67-424431A832D9">
+                                <Component Id="cmpa3vNXtEUnvGAoeFmbp0RLUfD.QA" Guid="DBE041AC-0221-4CFD-B3C4-686C20F20F42">
                                     <File Id="filIcQIK_l.g3orWuzfKoMl8qwnnhU" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\main-0945b6f18dba43f4.js" />
                                 </Component>
-                                <Component Id="cmpQ2FWUvCYL1Hfh5v.k06oPQjV4ic" Guid="65FF6A12-1045-4580-83D3-2CCE7AFEB208">
+                                <Component Id="cmpQ2FWUvCYL1Hfh5v.k06oPQjV4ic" Guid="D729FA19-DF48-4851-B675-2F40CF5A8C77">
                                     <File Id="fil65p55MaY.wpEmGNAXmFG1rUxkcQ" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\main-app-d36cc093648ac647.js" />
                                 </Component>
-                                <Component Id="cmpw5ijXL59v.uWD6zrlVlM17UlBtg" Guid="F72F9674-55C3-474A-84CE-6443F72F5D57">
+                                <Component Id="cmpw5ijXL59v.uWD6zrlVlM17UlBtg" Guid="D52B273B-D8FA-40D5-BF92-020C2EED3D09">
                                     <File Id="filTyDO2pDX0gir2JYTY9QPWx8glmI" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\polyfills-42372ed130431b0a.js" />
                                 </Component>
-                                <Component Id="cmpYgutUUS04Eiuv9Xym._xq5vYHZw" Guid="B2D7A152-44AF-45F4-832B-3931A7D45B9F">
+                                <Component Id="cmpYgutUUS04Eiuv9Xym._xq5vYHZw" Guid="2290CBE8-A851-4446-B980-3F390986FBDA">
                                     <File Id="fil37U8cYdovUZnXepGiBbBm9do4Ls" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\webpack-bb50ce9e5e789d5a.js" />
                                 </Component>
                                 <Directory Id="dir3wHo3_f5g3efGyosekpHIjykows" Name="app">
                                     <Directory Id="dirVey1aa8Ev2AnZrlbzThPg7bpai8" Name="[locale]">
-                                        <Component Id="cmpsHf690kr9_s_PeD_3sTQmQcu2Ko" Guid="50D37008-1D6A-4F68-95F3-ED68B5D5A855">
+                                        <Component Id="cmpsHf690kr9_s_PeD_3sTQmQcu2Ko" Guid="3F235D25-6686-4E2D-B4A2-FFD7E24271CC">
                                             <File Id="filjyV4JNOlkybvMGj6diXQtVH3U7M" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\app\[locale]\layout-d6312016d83ce343.js" />
                                         </Component>
-                                        <Component Id="cmpLv9Ji87Us1IgVByHEWiMyTUvgR4" Guid="4631C6C0-9A1E-4229-8E5B-04704B9EDD55">
-                                            <File Id="filIZ6hzZyxw4QqxKl2xf8jvjv8l5k" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\app\[locale]\page-d171f31a21c51df2.js" />
+                                        <Component Id="cmphHDXCcIGJsEng1zHpyO9wyHCsKE" Guid="238DD05B-71B5-4245-BF85-C7D48BEF2D14">
+                                            <File Id="filx7C5JbDfa4c3reXb3Ql4kFy.Kgw" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\app\[locale]\page-e81d344f2337fab1.js" />
                                         </Component>
                                     </Directory>
                                     <Directory Id="dirajlOklctmegz0j6WCmo0mRFR2Z8" Name="_not-found">
-                                        <Component Id="cmpwcI4nl6rKxvS5ulKFdhic7t31KQ" Guid="9B8BDEB7-A316-4E17-9947-9245DF33D8D0">
+                                        <Component Id="cmpwcI4nl6rKxvS5ulKFdhic7t31KQ" Guid="AFAFD27B-C2BD-43F8-8FAE-992C3E9833DD">
                                             <File Id="filqvt5zXZFWuSPWSnKnGu3MnLdO6M" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\app\_not-found\page-29aac20e2378fa54.js" />
                                         </Component>
                                     </Directory>
                                 </Directory>
                                 <Directory Id="dir9A4j8Gqya1D8GwLqcBJnGshbrms" Name="pages">
-                                    <Component Id="cmpXiCd8qts1Wvs6oKtylR_4Zs1SSA" Guid="1BBDE27E-662A-46DB-9B57-AE2E6E2FE5CE">
+                                    <Component Id="cmpXiCd8qts1Wvs6oKtylR_4Zs1SSA" Guid="92B0F097-EFC1-4A43-955F-2F0167EFB7F2">
                                         <File Id="filGqogUtjq4bFlW7hjx19.xsQXG3E" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\pages\_app-92f2aae776f86b9c.js" />
                                     </Component>
-                                    <Component Id="cmpB307gXPij0c11cKPVVHiAnnVGc0" Guid="AFDE990C-10BA-49A9-BFC9-97B567DC93E3">
+                                    <Component Id="cmpB307gXPij0c11cKPVVHiAnnVGc0" Guid="C1D904F0-482F-4C21-994E-24047DFBFE96">
                                         <File Id="filIcZhteNhVEgSVxmi4BTkpS1yXAc" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\chunks\pages\_error-71d2b6a7b832d02a.js" />
                                     </Component>
                                 </Directory>
                             </Directory>
-                            <Directory Id="dirCbeudWGkWtJzy22JCEraxPjCjwo" Name="F38DWR6Y7y2p6X7S0k-Bf">
-                                <Component Id="cmpRPIMTyuTpQt6YIuOtqQgR16AS3U" Guid="F4F88391-E134-4FAC-A6A4-99CE42401C79">
-                                    <File Id="filjJsdWuyTjJh_YClZUXrs5yTczh4" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\F38DWR6Y7y2p6X7S0k-Bf\_buildManifest.js" />
+                            <Directory Id="dirGoBwSL9ssNdvDSmE8c10nFRsieA" Name="IrfG2wDcTjvOWrZJY_av-">
+                                <Component Id="cmpEaPjAczRhgSpbAIvQsZ8BtFhSpM" Guid="A27FC2E3-4C81-41C9-A84C-5F4CE6803A90">
+                                    <File Id="filGZojWowBxsI3nM93ilkaAYZH8EM" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\IrfG2wDcTjvOWrZJY_av-\_buildManifest.js" />
                                 </Component>
-                                <Component Id="cmpgPyUu3PMT9SIWn8lJX7VP6yDKhQ" Guid="69360A83-7A4E-4D57-95D0-2EF6C62599FD">
-                                    <File Id="filfB.Qgx5KTysjbQj5bDEtNfCTBis" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\F38DWR6Y7y2p6X7S0k-Bf\_ssgManifest.js" />
+                                <Component Id="cmpsVaCMHGE.10RepHKgA8agIk6ZA4" Guid="86150527-800C-4473-A734-F91163966A52">
+                                    <File Id="filh1djm85lHIMolS7lEwF6vn3J7Qg" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\IrfG2wDcTjvOWrZJY_av-\_ssgManifest.js" />
                                 </Component>
                             </Directory>
                             <Directory Id="dirc141ZyXhIXp12lqvJXZPKwB74UU" Name="media">
-                                <Component Id="cmprBuODXWh_PjZrt.rZONsyHGy3hA" Guid="A88DCA93-6CBA-4ACD-A241-A04444101282">
+                                <Component Id="cmprBuODXWh_PjZrt.rZONsyHGy3hA" Guid="49E38290-0FF1-44EB-8DAF-EF7575B4572A">
                                     <File Id="filyuMs5f_R41912Fqjya.18T_jk7o" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-bdg-subs-m.3e8146ae.svg" />
                                 </Component>
-                                <Component Id="cmpmMpq7R1oOf.Ese7T94ii63wHTug" Guid="6EFAC29B-325F-40A8-A43A-9EB7B858FC26">
+                                <Component Id="cmpmMpq7R1oOf.Ese7T94ii63wHTug" Guid="5F91F572-56DE-4ADC-9EAB-0046B340B8B0">
                                     <File Id="filZLxW5.Kmf601RIOFyhSPNvtOMu0" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-01.a66d9244.svg" />
                                 </Component>
-                                <Component Id="cmpiqk2zpxKrhmfxI53f6_ylynh0Hk" Guid="615E290F-4F72-45F0-BCB8-E9076A4EEECF">
+                                <Component Id="cmpiqk2zpxKrhmfxI53f6_ylynh0Hk" Guid="1B9C6FF9-A469-4D35-B3DB-E48F2AB30E21">
                                     <File Id="fil77a0Y5MF0e9VrUMUFAA5gMufGRY" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-02.4f2cafe5.svg" />
                                 </Component>
-                                <Component Id="cmpiY0RHiZunenjcF0u.yXs8b41Whg" Guid="49F61B95-ED5A-43F1-8508-E1B2B5FEC7AA">
+                                <Component Id="cmpiY0RHiZunenjcF0u.yXs8b41Whg" Guid="8E5DD7BC-7A0A-4703-BD59-0A48C131BEE7">
                                     <File Id="filbt4ZKt7kkNKfASSagGZXjFrLOvw" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-03.70f2b455.svg" />
                                 </Component>
-                                <Component Id="cmp_dd_MQoB5V3sWbYgd.NpaAnTacY" Guid="92271268-1B69-4D3D-B9A3-B2ADB451A60C">
+                                <Component Id="cmp_dd_MQoB5V3sWbYgd.NpaAnTacY" Guid="E0A8B349-F3C4-4F1C-B33F-6FEE0A76E04A">
                                     <File Id="filTFK_q7gX8VHIFyyJynoNLJuSvWM" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-04.3130804a.svg" />
                                 </Component>
-                                <Component Id="cmp8UDhX6DXFAlLxYb8qzuJqLPm5.Y" Guid="73964510-D868-4216-8CB3-D9CF87B93378">
+                                <Component Id="cmp8UDhX6DXFAlLxYb8qzuJqLPm5.Y" Guid="2DB30DAF-0609-47C7-AC2F-F2765244DDFA">
                                     <File Id="fildb49dhDUpNAAec4iLaq3NQQ4qDU" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-05.aa15dec8.svg" />
                                 </Component>
-                                <Component Id="cmpVIxPauuURAi.tsN1AyzJ8sTtkVo" Guid="FD9FC6F0-302E-4054-BEAD-C2A801CDC52B">
+                                <Component Id="cmpVIxPauuURAi.tsN1AyzJ8sTtkVo" Guid="8D33B07D-2DC5-495D-8961-5F6596A208B4">
                                     <File Id="filLtOqJKGNlWcGdKxMdf0REUFrP98" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-06.bde76389.svg" />
                                 </Component>
-                                <Component Id="cmpDB68.BYLzb8H.aqHtaoPwcUImig" Guid="476FFC49-EF3C-4EA2-9F8A-2A024A567F58">
+                                <Component Id="cmpDB68.BYLzb8H.aqHtaoPwcUImig" Guid="7C409BB4-8FD7-41EA-A0C5-AC8F8F5CF659">
                                     <File Id="filoUvyfgEfhRmgLjYtciKTzzDT7Hs" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-07.d429d412.svg" />
                                 </Component>
-                                <Component Id="cmp.eW.aggtKOxO1lUFJfvIqrQvyjU" Guid="1422DC49-1D5C-46A0-92DC-BDBBB11968E6">
+                                <Component Id="cmp.eW.aggtKOxO1lUFJfvIqrQvyjU" Guid="9E62E54A-960C-4162-BA43-97B15D8DD57C">
                                     <File Id="fil2anvuwtpFNM9fc8RNrHjidmlIoM" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-08.0cd997a9.svg" />
                                 </Component>
-                                <Component Id="cmpvQsoUtMvgnkHFw3YYP6Dl.EdKNE" Guid="553429CD-877F-442D-9581-F5919F88A5A0">
+                                <Component Id="cmpvQsoUtMvgnkHFw3YYP6Dl.EdKNE" Guid="5D0094A0-241C-4559-8C10-D66F28C5BF3C">
                                     <File Id="filryhSlPkEm1BqZAJS_P3oX0CibJg" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-09.8922b420.svg" />
                                 </Component>
-                                <Component Id="cmpBl1QbNgIfiM2XvlQM7oVhLEC2mk" Guid="5E8B26AE-5AEF-4602-8D9E-0B7F794E0A1F">
+                                <Component Id="cmpBl1QbNgIfiM2XvlQM7oVhLEC2mk" Guid="81A14490-3A4E-47B7-912E-8C202338176B">
                                     <File Id="filM.noarzot__mvl4d6AzqhbfBbZk" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-10.3423c534.svg" />
                                 </Component>
-                                <Component Id="cmp2AOGgzY0o.62GESTlN00WeqU334" Guid="07F9D770-79DE-4289-B5DB-7CA961A74ADA">
+                                <Component Id="cmp2AOGgzY0o.62GESTlN00WeqU334" Guid="F13D4376-9378-4F7F-95CD-B44F1C6FB8E2">
                                     <File Id="filfzhv8jz_mrQyQqpTMQPxEWPom94" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-12.0f7ef918.svg" />
                                 </Component>
-                                <Component Id="cmpA3oYDi4yoqqRK._B..35XkEZ5zI" Guid="390CC7DC-3F6A-4360-9BB9-8E47783C1140">
+                                <Component Id="cmpA3oYDi4yoqqRK._B..35XkEZ5zI" Guid="BDC63149-85EF-4FB5-BAAF-CFE3CB50A553">
                                     <File Id="filbMw9rBfCSW46PDZ3n.5ocQEiLyQ" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-13.866f77f9.svg" />
                                 </Component>
-                                <Component Id="cmpqiIJin_oQp2JUiTxfkUAEe2Gz4M" Guid="6CD1D649-DDEB-40BA-AE1D-9DAE01CB0909">
+                                <Component Id="cmpqiIJin_oQp2JUiTxfkUAEe2Gz4M" Guid="A8A83AF0-4F81-471C-ADA3-B0A90F240ADF">
                                     <File Id="filtKSEl1coMXoUbogXdU3SS1MXwHI" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-14.7025701e.svg" />
                                 </Component>
-                                <Component Id="cmpBWG8KQ8RNeGepsTbWVCRu6Sxbxc" Guid="E2D983D9-7CA0-4099-874C-33B3441D6BD2">
+                                <Component Id="cmpBWG8KQ8RNeGepsTbWVCRu6Sxbxc" Guid="326C3FA0-676B-4B26-B3F0-F0AC783562ED">
                                     <File Id="filEyhJ1ktYML36JN_FPVlDjPYcOaQ" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-15.22ee742c.svg" />
                                 </Component>
-                                <Component Id="cmpYW0sHtLaQ.nYAr30nXPaUZcOy8I" Guid="B32929BD-AC61-48F8-97FA-84A900016E84">
+                                <Component Id="cmpYW0sHtLaQ.nYAr30nXPaUZcOy8I" Guid="89FCE98A-4957-403A-B5D7-FBAE8CD51ECC">
                                     <File Id="fil7riXsq0tqWCxeqyw9hx.IQlI27g" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-16.bf764d0a.svg" />
                                 </Component>
-                                <Component Id="cmpwnxpghLFNol9oSjfsYpFnj59DpQ" Guid="8EDD53A6-3500-4B70-BDBA-D843FEB19A93">
+                                <Component Id="cmpwnxpghLFNol9oSjfsYpFnj59DpQ" Guid="F23F1F16-FC96-4422-AD85-5171160FACE8">
                                     <File Id="filbSH41maJN.VtZ9T0fTMs.9whyhQ" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-17.e4bd7565.svg" />
                                 </Component>
-                                <Component Id="cmpYVbDUhx6MZAzqIAQfekBKFwdJXw" Guid="B0200568-A515-4FC5-82FC-928C919A7301">
+                                <Component Id="cmpYVbDUhx6MZAzqIAQfekBKFwdJXw" Guid="BF05FBCF-4256-4D2B-B476-E19F4301B7AE">
                                     <File Id="filmNkWZ3L1E6uVnI79g6396Omy0ZY" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-18.7be28b3f.svg" />
                                 </Component>
-                                <Component Id="cmpmJsD.EvomrU5UJPRVFjgqrFXoqM" Guid="8962A5FE-96CB-4509-85C2-DB1FDDD28BC3">
+                                <Component Id="cmpmJsD.EvomrU5UJPRVFjgqrFXoqM" Guid="6E7CAF9B-9C94-4BC3-B0AB-3D7DBF974B0B">
                                     <File Id="filtnthlPwRNsJGbRrYLcfqKeyBYmM" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-19.5b7290d1.svg" />
                                 </Component>
-                                <Component Id="cmpVCYpSMFhSwZSAHoztYSAHixfJ8g" Guid="C386F59A-7AB7-4464-B15A-717B48264198">
+                                <Component Id="cmpVCYpSMFhSwZSAHoztYSAHixfJ8g" Guid="73E635E5-AB78-4FCD-9A35-D65CADCC7955">
                                     <File Id="fil4FcYf6giZP2NEb2h_PNo9FEuLok" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-20.450ff26f.svg" />
                                 </Component>
-                                <Component Id="cmpUEVtVP3lD5xyJuQjIPpX.rsenjs" Guid="CB4D3609-9807-4ABF-8B33-E9EB4EE9E4BC">
+                                <Component Id="cmpUEVtVP3lD5xyJuQjIPpX.rsenjs" Guid="30FF93E1-5DC0-49E3-9093-6390212CD744">
                                     <File Id="fil6oBgd9KuHceHXAAIJL2EGqze5.s" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-22.d5cc417c.svg" />
                                 </Component>
-                                <Component Id="cmpS3nxYiEVMgTf4T3aH.hJpS4DHVc" Guid="391709A9-8266-402C-82EF-CDE46F35511F">
+                                <Component Id="cmpS3nxYiEVMgTf4T3aH.hJpS4DHVc" Guid="275EDAB7-5964-4FC5-B0A9-0A6D537A8EF1">
                                     <File Id="filvyAV.PqcKC4e.HauLrjPM5nOTds" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-23.ea8a7448.svg" />
                                 </Component>
-                                <Component Id="cmpNwYSqeFPF3wNGBp422kXBIj120k" Guid="4C109310-8CBE-4B0D-B5A6-BCCB46783570">
+                                <Component Id="cmpNwYSqeFPF3wNGBp422kXBIj120k" Guid="30951042-3E28-48E5-B85F-AB548E1D8F8C">
                                     <File Id="filOTbZRcg3HtPBjhcKwXew7Z8r1rI" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-24.f45e1f3d.svg" />
                                 </Component>
-                                <Component Id="cmpKPp2o3K_AxTa2uTO76o09pzLkj8" Guid="05F2FABF-1C88-4647-8944-11F33BB23276">
+                                <Component Id="cmpKPp2o3K_AxTa2uTO76o09pzLkj8" Guid="61AE8388-F3A8-4303-ACCF-4D967E84EB40">
                                     <File Id="fil_Lx7g53TOb.DyVucmG1ye4fCO_Q" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-25.5fca747f.svg" />
                                 </Component>
-                                <Component Id="cmpwWfsqLant9xtyGhqrGSgJf3GN8w" Guid="2B86C86B-92CD-49BF-963D-680E3D21C74F">
+                                <Component Id="cmpwWfsqLant9xtyGhqrGSgJf3GN8w" Guid="4075655A-F125-48E0-88C2-131A298F6F15">
                                     <File Id="fil1lIcPu_kQp70HtbsfxSzqNiLhko" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-26.8306ea3d.svg" />
                                 </Component>
-                                <Component Id="cmp0l0V5bGvG2kWO8bHh6Gq9CyOVKE" Guid="F33375D9-3FEC-4455-BE6A-FAEA69BBD6DC">
+                                <Component Id="cmp0l0V5bGvG2kWO8bHh6Gq9CyOVKE" Guid="43AA3E2F-9397-4DC8-AECB-A01D4ACB4A26">
                                     <File Id="fila5Hz92TR7Y5MieVhXBEkcFKxQd4" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-27.82938534.svg" />
                                 </Component>
-                                <Component Id="cmpQ1KwJXG6GxRIJ_UGUMOh.z1dITg" Guid="D4228099-AD96-483B-8BDF-C361255CD3BC">
+                                <Component Id="cmpQ1KwJXG6GxRIJ_UGUMOh.z1dITg" Guid="4BFA6C74-4A87-4FD9-BE3F-97C34C2E94F6">
                                     <File Id="filY3vRAMozzMqZMdPKs.s9EJyi7ao" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-28.e1ef6f43.svg" />
                                 </Component>
-                                <Component Id="cmpGx9udB_mc1uhQzTVC1QvyWdcuZk" Guid="55B8345B-885F-4281-9712-8D37EF1898D8">
+                                <Component Id="cmpGx9udB_mc1uhQzTVC1QvyWdcuZk" Guid="6EC27245-3D4F-4F8B-A012-D48CA5749B42">
                                     <File Id="filSETtqenMfmn782kJT6qORDHh0Uc" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-lv-default.71f79125.svg" />
                                 </Component>
-                                <Component Id="cmpfCMM4x2IuV8CHCw6bTJ2KK4QE_U" Guid="2E6DB0D5-95CD-4F12-840E-7D328C576311">
+                                <Component Id="cmpfCMM4x2IuV8CHCw6bTJ2KK4QE_U" Guid="541B4DAF-EBF3-489E-B668-686C9DF42ED1">
                                     <File Id="filMUpmqMhDY9zWu3SAbZa.KEIqf5g" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\html\chat\_next\static\media\ic-msg-guardian.b6284d25.svg" />
                                 </Component>
                             </Directory>
@@ -281,16 +281,16 @@
                 </Directory>
             </Directory>
             <Directory Id="diroafhly1ciS9WV5tlcb5nkU399gw" Name="locale">
-                <Component Id="cmpGfbbuPTcI6xvUV5P95fGKDOuUVc" Guid="09BDBA06-11E1-4E0D-B164-BD7C1BF5CCE6">
+                <Component Id="cmpGfbbuPTcI6xvUV5P95fGKDOuUVc" Guid="540AA3B1-EB0E-42D5-92A9-40AE455E2AC6">
                     <File Id="filIuCXwttcWNgw0ruP1l4DhQqRpDg" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\locale\en-US.ini" />
                 </Component>
-                <Component Id="cmp1DJWnmZgJRwPGYZ1lls5N4y29pk" Guid="B6C5CD2C-60FA-4DBE-9969-322896F9D891">
+                <Component Id="cmp1DJWnmZgJRwPGYZ1lls5N4y29pk" Guid="06046BDA-AD74-4D2A-8EB7-6ED80207B3D6">
                     <File Id="fil5cvShpZ43pJafNqoE3bJFF7gYFg" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\locale\ja-JP.ini" />
                 </Component>
-                <Component Id="cmpdthXrXRiAa_1ADL_WWRkWgwySZg" Guid="6250FCE4-88D5-424A-97C1-C52934B359AE">
+                <Component Id="cmpdthXrXRiAa_1ADL_WWRkWgwySZg" Guid="A7CED891-63F3-42FE-9BC2-E4FE167A111F">
                     <File Id="filLZbvjLNYmKSfC_j5x7F5sQd7VzQ" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\locale\zh-CN.ini" />
                 </Component>
-                <Component Id="cmpe4tZZzl7nplXvID2j37meXEu0yA" Guid="559FF4F7-7D86-4F10-ACC8-C2824C3F3DE7">
+                <Component Id="cmpe4tZZzl7nplXvID2j37meXEu0yA" Guid="EA9A23E0-4E29-443D-8544-38C28A671205">
                     <File Id="filtd7Jl2yxvs3zOjexchILgRhO328" KeyPath="yes" Source="C:\Users\apple\yzz\obs-17live\data\locale\zh-TW.ini" />
                 </Component>
             </Directory>
@@ -348,12 +348,12 @@
             <ComponentRef Id="cmpw5ijXL59v.uWD6zrlVlM17UlBtg" />
             <ComponentRef Id="cmpYgutUUS04Eiuv9Xym._xq5vYHZw" />
             <ComponentRef Id="cmpsHf690kr9_s_PeD_3sTQmQcu2Ko" />
-            <ComponentRef Id="cmpLv9Ji87Us1IgVByHEWiMyTUvgR4" />
+            <ComponentRef Id="cmphHDXCcIGJsEng1zHpyO9wyHCsKE" />
             <ComponentRef Id="cmpwcI4nl6rKxvS5ulKFdhic7t31KQ" />
             <ComponentRef Id="cmpXiCd8qts1Wvs6oKtylR_4Zs1SSA" />
             <ComponentRef Id="cmpB307gXPij0c11cKPVVHiAnnVGc0" />
-            <ComponentRef Id="cmpRPIMTyuTpQt6YIuOtqQgR16AS3U" />
-            <ComponentRef Id="cmpgPyUu3PMT9SIWn8lJX7VP6yDKhQ" />
+            <ComponentRef Id="cmpEaPjAczRhgSpbAIvQsZ8BtFhSpM" />
+            <ComponentRef Id="cmpsVaCMHGE.10RepHKgA8agIk6ZA4" />
             <ComponentRef Id="cmprBuODXWh_PjZrt.rZONsyHGy3hA" />
             <ComponentRef Id="cmpmMpq7R1oOf.Ese7T94ii63wHTug" />
             <ComponentRef Id="cmpiqk2zpxKrhmfxI53f6_ylynh0Hk" />

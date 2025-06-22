@@ -1,5 +1,5 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Obs17LivePluginInstaller" Manufacturer="17Live Limited" Version="1.1.0.0" UpgradeCode="b81d9705-e5b2-475f-8de8-4d02d297c073">
+  <Package Name="Obs17LivePluginInstaller" Manufacturer="17Live Limited" Version="0.3.0.0" UpgradeCode="b81d9705-e5b2-475f-8de8-4d02d297c073">
 	<MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeError)" />
 
     <Feature Id="Main">
