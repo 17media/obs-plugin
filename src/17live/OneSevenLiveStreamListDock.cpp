@@ -339,7 +339,7 @@ void OneSevenLiveStreamListDock::refreshStreamList()
 
             connect(widget, &OneSevenLiveStreamListItem::editClicked, [=]() {
                 if (status != OneSevenLiveStreamingStatus::NotStarted) {
-                    QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+                    QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
                     return;
                 }
                 
@@ -349,7 +349,7 @@ void OneSevenLiveStreamListDock::refreshStreamList()
 
             connect(widget, &OneSevenLiveStreamListItem::deleteClicked, [=](){
                 if (status != OneSevenLiveStreamingStatus::NotStarted) {
-                    QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+                    QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
                     return;
                 }
                 
@@ -368,7 +368,7 @@ void OneSevenLiveStreamListDock::refreshStreamList()
 void OneSevenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const OneSevenLiveStreamInfo& info)
 {
     if (status != OneSevenLiveStreamingStatus::NotStarted) {
-        QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
         return;
     }
     
@@ -379,7 +379,7 @@ void OneSevenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidge
 void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item, const OneSevenLiveStreamInfo& info)
 {
     if (status != OneSevenLiveStreamingStatus::NotStarted) {
-        QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
         return;
     }
     
@@ -392,7 +392,7 @@ void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWid
 void OneSevenLiveStreamListDock::onStartLiveClicked()
 {
     if (status != OneSevenLiveStreamingStatus::NotStarted) {
-        QMessageBox::information(this, "提示", "正在直播中，暂时不能操作");
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
         return;
     }
     
@@ -409,9 +409,9 @@ void OneSevenLiveStreamListDock::handleTopLevelChanged(bool topLevel)
 {
     if (!topLevel) {
         // Docked
-        // 在这里执行 adjustSize() 或其他需要的操作
+        // Execute adjustSize() or other necessary operations here
         adjustSize(); 
-        // 可能还需要强制更新布局或子控件的大小
+        // May also need to force update layout or child widget sizes
         for (int i = 0; i < streamList->count(); ++i) {
             QListWidgetItem* item = streamList->item(i);
             QWidget* itemWidget = streamList->itemWidget(item);

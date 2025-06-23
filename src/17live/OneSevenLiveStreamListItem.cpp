@@ -1,12 +1,13 @@
 #include "OneSevenLiveStreamListItem.hpp"
 
 #include <QHBoxLayout>
-#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <obs-module.h>
 
 #include "moc_OneSevenLiveStreamListItem.cpp"
 
 OneSevenLiveStreamListItem::OneSevenLiveStreamListItem(const QString& title, const QString& content, const QString& timestamp, QWidget *parent_) : QWidget(parent_) { 
-  // 左边内容布局
+  // Left content layout
   titleLabel = new QLabel(title);
   contentLabel = new QLabel(content);
   timestampLabel = new QLabel(timestamp);
