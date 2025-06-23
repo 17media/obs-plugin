@@ -1,5 +1,5 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
-  <Bundle Id="TODO_Manufacturer.Obs17Live" Name="Obs17Live" Manufacturer="TODO Manufacturer" Version="1.1.0.0">
+  <Bundle Id="OneSevenLive.Obs17Live" Name="Obs17Live" Manufacturer="17Live Limited" Version="0.3.0.0">
     <BootstrapperApplication>
       <bal:WixStandardBootstrapperApplication LicenseUrl="https://www.example.com/license" Theme="hyperlinkLicense" />
     </BootstrapperApplication>

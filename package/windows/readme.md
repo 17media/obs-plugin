@@ -9,7 +9,7 @@ use [heat](https://github.com/wixtoolset/wix/releases/tag/v6.0.1) to gather data
 ```
 cd {project_base_path}
 
-heat dir data -cg Obs17livePluginData -dr DATAFOLDER -gg -g1 -sfrag -srd -out package\windows\Obs17Live_Windows_x64_Installer\Obs17livePluginData.wxs
+heat dir data -cg Obs17livePluginData -dr DATAFOLDER -gg -g1 -sfrag -srd -out package\windows\Obs17Live_Windows_x64_Installer\Obs17Live_Windows_x64_Installer
 ```
 
 replace `SourceDir` in Obs17livePluginData.wxs with the correct path, which should be `{project_base_path}\data`
