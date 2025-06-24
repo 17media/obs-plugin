@@ -4,18 +4,16 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <BindFiles>false</BindFiles>
+    <DefineConstants>PackageName=OneSevenLiveObsPluginInstaller;Manufacturer=17Live Limited;Version=0.4.0.0;UpgradeCode=b81d9705-e5b2-475f-8de8-4d02d297c073</DefineConstants>
   </PropertyGroup>
-	
-	<ItemGroup>
-		<HarvestDirectory Include="..\..\..\..\data">
-			<ComponentGroupName>Obs17livePluginData</ComponentGroupName>
-			<DirectoryRefId>DATAFOLDER</DirectoryRefId>
-			<SuppressRootDirectory>true</SuppressRootDirectory>
-		</HarvestDirectory>
-
-		<BindPath Include="..\..\..\..\data" />
-	</ItemGroup>
-
+  <ItemGroup>
+    <HarvestDirectory Include="..\..\..\..\data">
+      <ComponentGroupName>Obs17livePluginData</ComponentGroupName>
+      <DirectoryRefId>DATAFOLDER</DirectoryRefId>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+    </HarvestDirectory>
+    <BindPath Include="..\..\..\..\data" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.Heat" Version="6.0.1" />
   </ItemGroup>

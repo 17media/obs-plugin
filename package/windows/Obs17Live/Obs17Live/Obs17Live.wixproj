@@ -1,8 +1,8 @@
 ﻿<Project Sdk="WixToolset.Sdk/6.0.0">
   <PropertyGroup>
     <OutputType>Bundle</OutputType>
+    <DefineConstants>BundleId=OneSevenLive.17Live;BundleName=Obs17Live;Manufacturer=17Live Limited;Version=0.4.0.0;UpgradeCode=b81d9705-e5b2-475f-8de8-4d02d297c073</DefineConstants>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="WixToolset.BootstrapperApplications.wixext" Version="6.0.0" />
   </ItemGroup>
