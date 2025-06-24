@@ -28,6 +28,8 @@ const string ONESEVENLIVE_CREATE_RTMP_URL = string(ONESEVENLIVE_API_URL) + "/api
 
 const string ONESEVENLIVE_STREAM_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1";
 
+const string ONESEVENLIVE_ALIVE_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1/alive";
+
 const string ONESEVENLIVE_ARCHIVE_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1/archive/recording?enable=%2";
 
@@ -464,6 +466,27 @@ bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID,
     }
 
     obs_log(LOG_INFO, "StopStream success");
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::CheckStream(const std::string &liveStreamID) 
+{
+    obs_log(LOG_INFO, "CheckStream start");
+    lastErrorMessage.clear();
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_ALIVE_URL).arg(liveStreamID.c_str());
+    QByteArray url = urlStr.toUtf8();
+
+    std::string error;
+    Json json_out_resp;
+    if (!InsertCommand(url.constData(), "application/json", "POST", nullptr,
+                       json_out_resp)) {
+        obs_log(LOG_ERROR, "CheckStream error: %s", json_out_resp.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "CheckStream success");
     return true;
 }
 
