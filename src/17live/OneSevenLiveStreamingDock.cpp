@@ -988,7 +988,7 @@ void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
 
     if (!apiWrapper->StopStream(currLiveStreamID, request)) {
         obs_log(LOG_ERROR, "Failed to stop stream");
-        return;
+        // return;
     }
 
     configManager->clearStreamingInfo();
