@@ -540,6 +540,11 @@ bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, Json 
                                       {"autoPublish", request.archiveConfig.autoPublish},
                                       {"clipPermission", request.archiveConfig.clipPermission}};
 
+    Json armyOnly = Json::object{{"enable", request.armyOnly.enable},
+                                 {"requiredArmyRank", request.armyOnly.requiredArmyRank},
+                                 {"showOnHotPage", request.armyOnly.showOnHotPage},
+                                 {"armyOnlyPN", request.armyOnly.armyOnlyPN}};
+
     // Create virtual streamer information JSON object
     Json vliverInfo = Json::object{{"vliverModel", request.vliverInfo.vliverModel}};
 
@@ -551,16 +556,13 @@ bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, Json 
 
     // Create main JSON object
     Json eventID = Json(static_cast<int>(request.eventID));
-    json = Json::object{{"userID", request.userID.toStdString()},
-                        {"caption", request.caption.toStdString()},
-                        {"device", request.device.toStdString()},
-                        {"eventID", eventID},
-                        {"hashtags", hashtagsArray},
-                        {"landscape", request.landscape},
-                        {"streamerType", request.streamerType},
-                        {"subtabID", request.subtabID.toStdString()},
-                        {"archiveConfig", archiveConfig},
-                        {"vliverInfo", vliverInfo}};
+    json = Json::object {
+        {"userID", request.userID.toStdString()}, {"caption", request.caption.toStdString()},
+        {"device", request.device.toStdString()}, {"eventID", eventID},
+        {"hashtags", hashtagsArray}, {"landscape", request.landscape},
+        {"streamerType", request.streamerType}, {"subtabID", request.subtabID.toStdString()},
+        {"archiveConfig", archiveConfig}, {"vliverInfo", vliverInfo}, 
+        {"armyOnly", armyOnly}};
 
     return true;
 }
