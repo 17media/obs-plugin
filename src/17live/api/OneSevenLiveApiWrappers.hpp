@@ -50,6 +50,7 @@ class OneSevenLiveApiWrappers : public QObject {
     bool StartStream(const std::string &liveStreamID, const std::string &userID);
     bool EnableStreamArchive(const std::string &liveStreamID, int enableArchive);
     bool StopStream(const std::string &liveStreamID, const OneSevenLiveCloseLiveRequest &request);
+    bool CheckStream(const std::string &liveStreamID);
     bool GetConfigStreamer(const std::string region, const std::string language,
                            OneSevenLiveConfigStreamer &response);
     bool GetAblyToken(const std::string &liveStreamID, Json &response);

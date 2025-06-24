@@ -10,6 +10,7 @@
 
 // Forward declarations
 class QMainWindow;
+class QTimer;
 
 class BrowserApp;
 
@@ -146,5 +147,10 @@ class OneSevenLiveCoreManager : public QObject {
 
     void load17LiveConfig();
 
+    void closeLive();
+
     OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
+
+    // Timer for checking stream status
+    QTimer* streamCheckTimer{nullptr};
 };

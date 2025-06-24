@@ -276,14 +276,7 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
         }
 
         // User confirmed, stop streaming using the streaming dock's method
-        if (streamingDock) {
-            std::string currUserID;
-            std::string currLiveStreamID;
-            configManager->getConfigValue("UserID", currUserID);
-            configManager->getConfigValue("LiveStreamID", currLiveStreamID);
-
-            streamingDock->closeLive(currUserID, currLiveStreamID);
-        }
+        closeLive();
     }
 
     // Close all dock windows to avoid incorrect operations after logout
@@ -305,6 +298,17 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
     // Reset login status
     menuManager->updateLoginStatus(false, "");
     configManager->clearLoginData();
+}
+
+void OneSevenLiveCoreManager::closeLive() {
+    if (streamingDock) {
+        std::string currUserID;
+        std::string currLiveStreamID;
+        configManager->getConfigValue("UserID", currUserID);
+        configManager->getConfigValue("LiveStreamID", currLiveStreamID);
+
+        streamingDock->closeLive(currUserID, currLiveStreamID);
+    }
 }
 
 void OneSevenLiveCoreManager::handleStreamingClicked() {
@@ -365,6 +369,39 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                     status = status_;
                     if (liveListDock) {
                         liveListDock->setStatus(status_);
+                    }
+
+                    // Handle stream status change
+                    if (status_ == OneSevenLiveStreamingStatus::Streaming) {
+                        // Start timer to check stream status every 30 seconds
+                        if (!streamCheckTimer) {
+                            streamCheckTimer = new QTimer(this);
+                            connect(streamCheckTimer, &QTimer::timeout, this, [this]() {
+                                std::string liveStreamID;
+                                std::string streamUrl;
+                                std::string streamKey;
+                                if (configManager->getStreamingInfo(liveStreamID, streamUrl,
+                                                                    streamKey)) {
+                                    if (!apiWrapper->CheckStream(liveStreamID)) {
+                                        // Stream check failed, close live and stop timer
+                                        closeLive();
+                                        if (streamCheckTimer) {
+                                            streamCheckTimer->stop();
+                                            streamCheckTimer->deleteLater();
+                                            streamCheckTimer = nullptr;
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        streamCheckTimer->start(30000);  // 30 seconds
+                    } else {
+                        // Stop timer when not streaming
+                        if (streamCheckTimer) {
+                            streamCheckTimer->stop();
+                            streamCheckTimer->deleteLater();
+                            streamCheckTimer = nullptr;
+                        }
                     }
                 });
 
