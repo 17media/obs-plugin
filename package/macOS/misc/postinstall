@@ -1,8 +1,8 @@
 #!/bin/bash
 # postinstall script
 
-# 设置权限（确保插件文件可访问）
+# Set permissions (ensure plugin files are accessible)
 chmod -R 755 /Applications/OBS.app/Contents/PlugIns
 
-# 如果需要做其他操作，可以在这里继续添加
+# If you need to do other operations, you can continue to add them here
 exit 0
