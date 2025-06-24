@@ -2,6 +2,9 @@
   <PropertyGroup>
     <OutputType>Package</OutputType>
   </PropertyGroup>
+	<PropertyGroup>
+		<Cultures>en-US;zh-TW;ja-JP</Cultures>
+	</PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <BindFiles>false</BindFiles>
     <DefineConstants>PackageName=OneSevenLiveObsPluginInstaller;Manufacturer=17Live Limited;Version=0.4.0.0;UpgradeCode=b81d9705-e5b2-475f-8de8-4d02d297c073</DefineConstants>
@@ -16,5 +19,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.Heat" Version="6.0.1" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="6.0.1" />
   </ItemGroup>
 </Project>
