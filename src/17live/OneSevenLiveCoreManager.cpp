@@ -300,8 +300,7 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
     configManager->clearLoginData();
 }
 
-void OneSevenLiveCoreManager::closeLive()
-{
+void OneSevenLiveCoreManager::closeLive() {
     if (streamingDock) {
         std::string currUserID;
         std::string currLiveStreamID;
@@ -371,7 +370,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                     if (liveListDock) {
                         liveListDock->setStatus(status_);
                     }
-                    
+
                     // Handle stream status change
                     if (status_ == OneSevenLiveStreamingStatus::Streaming) {
                         // Start timer to check stream status every 30 seconds
@@ -381,7 +380,8 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                                 std::string liveStreamID;
                                 std::string streamUrl;
                                 std::string streamKey;
-                                if (configManager->getStreamingInfo(liveStreamID, streamUrl, streamKey)) {
+                                if (configManager->getStreamingInfo(liveStreamID, streamUrl,
+                                                                    streamKey)) {
                                     if (!apiWrapper->CheckStream(liveStreamID)) {
                                         // Stream check failed, close live and stop timer
                                         closeLive();
@@ -394,7 +394,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                                 }
                             });
                         }
-                        streamCheckTimer->start(30000); // 30 seconds
+                        streamCheckTimer->start(30000);  // 30 seconds
                     } else {
                         // Stop timer when not streaming
                         if (streamCheckTimer) {

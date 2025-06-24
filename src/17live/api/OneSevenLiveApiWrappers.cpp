@@ -469,8 +469,7 @@ bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID,
     return true;
 }
 
-bool OneSevenLiveApiWrappers::CheckStream(const std::string &liveStreamID) 
-{
+bool OneSevenLiveApiWrappers::CheckStream(const std::string &liveStreamID) {
     obs_log(LOG_INFO, "CheckStream start");
     lastErrorMessage.clear();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_ALIVE_URL).arg(liveStreamID.c_str());
@@ -478,8 +477,7 @@ bool OneSevenLiveApiWrappers::CheckStream(const std::string &liveStreamID)
 
     std::string error;
     Json json_out_resp;
-    if (!InsertCommand(url.constData(), "application/json", "POST", nullptr,
-                       json_out_resp)) {
+    if (!InsertCommand(url.constData(), "application/json", "POST", nullptr, json_out_resp)) {
         obs_log(LOG_ERROR, "CheckStream error: %s", json_out_resp.dump().c_str());
         lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
                            QString::fromStdString(json_out_resp["errorMessage"].string_value());

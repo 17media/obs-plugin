@@ -556,13 +556,17 @@ bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, Json 
 
     // Create main JSON object
     Json eventID = Json(static_cast<int>(request.eventID));
-    json = Json::object {
-        {"userID", request.userID.toStdString()}, {"caption", request.caption.toStdString()},
-        {"device", request.device.toStdString()}, {"eventID", eventID},
-        {"hashtags", hashtagsArray}, {"landscape", request.landscape},
-        {"streamerType", request.streamerType}, {"subtabID", request.subtabID.toStdString()},
-        {"archiveConfig", archiveConfig}, {"vliverInfo", vliverInfo}, 
-        {"armyOnly", armyOnly}};
+    json = Json::object{{"userID", request.userID.toStdString()},
+                        {"caption", request.caption.toStdString()},
+                        {"device", request.device.toStdString()},
+                        {"eventID", eventID},
+                        {"hashtags", hashtagsArray},
+                        {"landscape", request.landscape},
+                        {"streamerType", request.streamerType},
+                        {"subtabID", request.subtabID.toStdString()},
+                        {"archiveConfig", archiveConfig},
+                        {"vliverInfo", vliverInfo},
+                        {"armyOnly", armyOnly}};
 
     return true;
 }

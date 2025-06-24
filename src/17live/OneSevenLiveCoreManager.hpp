@@ -150,7 +150,7 @@ class OneSevenLiveCoreManager : public QObject {
     void closeLive();
 
     OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
-    
+
     // Timer for checking stream status
     QTimer* streamCheckTimer{nullptr};
 };
