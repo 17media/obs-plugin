@@ -1,32 +1,31 @@
 #include "OneSevenLiveCoreManager.hpp"
-#include <QMainWindow>
-#include <QDesktopServices>
-#include <QMessageBox>
-#include <QApplication>
-#include <QScreen>
-#include <QTimer>
-#include <QScrollArea>
-#include <QLineEdit>
 
-#include <obs-module.h>
 #include <obs-frontend-api.h>
-#include "plugin-support.h"
+#include <obs-module.h>
 
-#include "json11.hpp"
+#include <QApplication>
+#include <QDesktopServices>
+#include <QLineEdit>
+#include <QMainWindow>
+#include <QMessageBox>
+#include <QScreen>
+#include <QScrollArea>
+#include <QTimer>
 
-#include "OneSevenLiveMenuManager.hpp"
-#include "api/OneSevenLiveApiWrappers.hpp"
 #include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveHttpServer.hpp"
 #include "OneSevenLiveLoginDialog.hpp"
-#include "OneSevenLiveStreamingDock.hpp"
+#include "OneSevenLiveMenuManager.hpp"
 #include "OneSevenLiveStreamListDock.hpp"
+#include "OneSevenLiveStreamingDock.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
+#include "cef-view.hpp"
+#include "json11.hpp"
+#include "plugin-support.h"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
-#include "OneSevenLiveHttpServer.hpp"
 
-#include "cef-view.hpp"
-
-extern QDockWidget *cef_window;
+extern QDockWidget* cef_window;
 
 using namespace json11;
 using namespace std;
@@ -35,14 +34,14 @@ using namespace std;
 OneSevenLiveCoreManager* OneSevenLiveCoreManager::instance = nullptr;
 std::mutex OneSevenLiveCoreManager::instanceMutex;
 
-OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainWindow)
-{
+OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainWindow) {
     // Use double-checked locking pattern to ensure thread safety
     if (instance == nullptr) {
         std::lock_guard<std::mutex> lock(instanceMutex);
         if (instance == nullptr) {
             if (mainWindow == nullptr) {
-                throw std::runtime_error("mainWindow parameter must be provided on first call to getInstance");
+                throw std::runtime_error(
+                    "mainWindow parameter must be provided on first call to getInstance");
             }
             instance = new OneSevenLiveCoreManager(mainWindow);
         }
@@ -51,20 +50,16 @@ OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainW
 }
 
 OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
-    : mainWindow(mainWindow_), initialized(false)
-{
-}
+    : mainWindow(mainWindow_), initialized(false) {}
 
-OneSevenLiveCoreManager::~OneSevenLiveCoreManager()
-{
+OneSevenLiveCoreManager::~OneSevenLiveCoreManager() {
     // Ensure shutdown is called before destruction
     if (initialized) {
         shutdown();
     }
 }
 
-bool OneSevenLiveCoreManager::initialize()
-{
+bool OneSevenLiveCoreManager::initialize() {
     // Prevent duplicate initialization
     if (initialized) {
         return true;
@@ -75,8 +70,8 @@ bool OneSevenLiveCoreManager::initialize()
     httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");
     if (!httpServer_->start()) {
         blog(LOG_ERROR, "[17Live Core] Failed to start HTTP server.");
-        // Decide whether to interrupt the entire initialization due to HTTP server startup failure based on requirements
-        // return false; 
+        // Decide whether to interrupt the entire initialization due to HTTP server startup failure
+        // based on requirements return false;
     } else {
         blog(LOG_INFO, "[17Live Core] HTTP server started successfully.");
     }
@@ -95,11 +90,12 @@ bool OneSevenLiveCoreManager::initialize()
     bool isLogin = false;
 
     if (!loginData.jwtAccessToken.isEmpty()) {
-        apiWrapper = std::make_unique<OneSevenLiveApiWrappers>(loginData.jwtAccessToken.toStdString());
+        apiWrapper =
+            std::make_unique<OneSevenLiveApiWrappers>(loginData.jwtAccessToken.toStdString());
 
         isLogin = checkLoginStatus();
-    } 
-    
+    }
+
     // if not login, reinitialize apiWrapper
     if (!isLogin) {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
@@ -112,20 +108,26 @@ bool OneSevenLiveCoreManager::initialize()
         return false;
     }
     // connect menuManager's loginClicked signal to handleLoginClicked slot
-    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::loginClicked, this, &OneSevenLiveCoreManager::handleLoginClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::loginClicked, this,
+                     &OneSevenLiveCoreManager::handleLoginClicked);
 
-    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::logoutClicked, this, &OneSevenLiveCoreManager::handleLogoutClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::logoutClicked, this,
+                     &OneSevenLiveCoreManager::handleLogoutClicked);
 
-    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::streamingClicked, this, &OneSevenLiveCoreManager::handleStreamingClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::streamingClicked, this,
+                     &OneSevenLiveCoreManager::handleStreamingClicked);
 
-    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::chatRoomClicked, this, &OneSevenLiveCoreManager::handleChatRoomClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::chatRoomClicked, this,
+                     &OneSevenLiveCoreManager::handleChatRoomClicked);
 
-    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::liveListClicked, this, &OneSevenLiveCoreManager::handleLiveListClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::liveListClicked, this,
+                     &OneSevenLiveCoreManager::handleLiveListClicked);
 
-    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this, [this] () {
-        QUrl url = QUrl(obs_module_text("Menu.CheckUpdate.Url"), QUrl::TolerantMode);
-	    QDesktopServices::openUrl(url);
-    });
+    QObject::connect(
+        menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this, [this]() {
+            QUrl url = QUrl(obs_module_text("Menu.CheckUpdate.Url"), QUrl::TolerantMode);
+            QDesktopServices::openUrl(url);
+        });
 
     if (isLogin) {
         QString openId = loginData.userInfo.openID;
@@ -150,8 +152,7 @@ bool OneSevenLiveCoreManager::initialize()
     return true;
 }
 
-void OneSevenLiveCoreManager::load17LiveConfig()
-{
+void OneSevenLiveCoreManager::load17LiveConfig() {
     // In the initialize method, add the following code after initializing configManager
 
     // Asynchronously get configuration
@@ -159,14 +160,14 @@ void OneSevenLiveCoreManager::load17LiveConfig()
         // Get current region and language
         OneSevenLiveLoginData loginData;
         configManager->getLoginData(loginData);
-    
+
         std::string region = loginData.userInfo.region.toStdString();
         if (region.empty()) {
-            region = "TW"; // Default region
+            region = "TW";  // Default region
         }
-    
+
         std::string language = GetCurrentLanguage();
-    
+
         // Call API to get configuration
         json11::Json configJson;
         if (apiWrapper->GetConfig(region, language, configJson)) {
@@ -177,13 +178,12 @@ void OneSevenLiveCoreManager::load17LiveConfig()
             obs_log(LOG_ERROR, "Failed to load config from API");
         }
     });
-  
+
     // Detach thread to let it run in background
-    configThread.detach(); 
+    configThread.detach();
 }
 
-void OneSevenLiveCoreManager::shutdown()
-{
+void OneSevenLiveCoreManager::shutdown() {
     if (!initialized) {
         return;
     }
@@ -212,38 +212,33 @@ void OneSevenLiveCoreManager::shutdown()
     initialized = false;
 }
 
-QMainWindow* OneSevenLiveCoreManager::getMainWindow() const
-{
+QMainWindow* OneSevenLiveCoreManager::getMainWindow() const {
     return mainWindow;
 }
 
-OneSevenLiveMenuManager* OneSevenLiveCoreManager::getMenuManager() const
-{
+OneSevenLiveMenuManager* OneSevenLiveCoreManager::getMenuManager() const {
     return menuManager.get();
 }
 
-OneSevenLiveApiWrappers* OneSevenLiveCoreManager::getApiWrapper() const
-{
+OneSevenLiveApiWrappers* OneSevenLiveCoreManager::getApiWrapper() const {
     return apiWrapper.get();
 }
 
-OneSevenLiveConfigManager* OneSevenLiveCoreManager::getConfigManager() const
-{
+OneSevenLiveConfigManager* OneSevenLiveCoreManager::getConfigManager() const {
     return configManager.get();
 }
 
-bool OneSevenLiveCoreManager::handleLoginClicked()
-{
+bool OneSevenLiveCoreManager::handleLoginClicked() {
     OneSevenLiveLoginDialog dialog(mainWindow, getApiWrapper());
 
     // Connect login success signal to main window slot function
-    QObject::connect(&dialog, &OneSevenLiveLoginDialog::loginSuccess, this, &OneSevenLiveCoreManager::handleLoginSuccess);
+    QObject::connect(&dialog, &OneSevenLiveLoginDialog::loginSuccess, this,
+                     &OneSevenLiveCoreManager::handleLoginSuccess);
 
     return dialog.exec() == QDialog::Accepted;
 }
 
-void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& loginData)
-{
+void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& loginData) {
     obs_log(LOG_INFO, "handleLoginSuccess");
 
     if (!configManager->setLoginData(loginData)) {
@@ -259,8 +254,7 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
     menuManager->updateLoginStatus(true, username);
 }
 
-void OneSevenLiveCoreManager::handleLogoutClicked()
-{
+void OneSevenLiveCoreManager::handleLogoutClicked() {
     obs_log(LOG_INFO, "handleLogoutClicked");
 
     // Check if currently streaming
@@ -269,17 +263,18 @@ void OneSevenLiveCoreManager::handleLogoutClicked()
         QMessageBox msgBox;
         msgBox.setWindowTitle(obs_module_text("Logout.Warning.Title"));
         msgBox.setText(obs_module_text("Logout.Warning.Message"));
-        QPushButton *confirmButton = msgBox.addButton(obs_module_text("Logout.Warning.Button.Yes"), QMessageBox::YesRole);
-        QPushButton *cancelButton = msgBox.addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
+        QPushButton* confirmButton =
+            msgBox.addButton(obs_module_text("Logout.Warning.Button.Yes"), QMessageBox::YesRole);
+        QPushButton* cancelButton =
+            msgBox.addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
         msgBox.setDefaultButton(cancelButton);
-    
+
         msgBox.exec();
         if (msgBox.clickedButton() != confirmButton) {
             // User cancelled the operation
             return;
         }
 
-        
         // User confirmed, stop streaming using the streaming dock's method
         if (streamingDock) {
             std::string currUserID;
@@ -296,24 +291,23 @@ void OneSevenLiveCoreManager::handleLogoutClicked()
         streamingDock->close();
         streamingDock = nullptr;
     }
-    
+
     if (liveListDock) {
         liveListDock->close();
         liveListDock = nullptr;
     }
-    
+
     // Close chat room window (if exists)
     if (cef_window && cef_window->isVisible()) {
         cef_window->close();
     }
-    
+
     // Reset login status
     menuManager->updateLoginStatus(false, "");
     configManager->clearLoginData();
 }
 
-void OneSevenLiveCoreManager::handleStreamingClicked()
-{
+void OneSevenLiveCoreManager::handleStreamingClicked() {
     obs_log(LOG_INFO, "handleStreamingClicked");
 
     if (!streamingDock) {
@@ -329,13 +323,12 @@ void OneSevenLiveCoreManager::handleStreamingClicked()
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
-                                        streamingDock && streamingDock->isVisible(),
-                                        liveListDock && liveListDock->isVisible());
+                                          streamingDock && streamingDock->isVisible(),
+                                          liveListDock && liveListDock->isVisible());
     }
 }
 
-void OneSevenLiveCoreManager::createStreamingDock()
-{ 
+void OneSevenLiveCoreManager::createStreamingDock() {
     if (streamingDock) {
         return;
     }
@@ -347,7 +340,8 @@ void OneSevenLiveCoreManager::createStreamingDock()
     }
 
     // Create and show streaming window
-    streamingDock = new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
+    streamingDock =
+        new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
 
     streamingDock->setMaximumWidth(600);
 
@@ -360,41 +354,36 @@ void OneSevenLiveCoreManager::createStreamingDock()
     streamingDock->loadRoomInfo(loginData.userInfo.roomID);
 
     if (streamingDockFirstLoad) {
-
-        connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this] () {
+        connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this]() {
             if (liveListDock) {
                 liveListDock->refreshStreamList();
             }
         });
 
-        connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this, [this] (OneSevenLiveStreamingStatus status_) {
-            status = status_;
-            if (liveListDock) {
-                liveListDock->setStatus(status_);
-            }
-        });
+        connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this,
+                [this](OneSevenLiveStreamingStatus status_) {
+                    status = status_;
+                    if (liveListDock) {
+                        liveListDock->setStatus(status_);
+                    }
+                });
 
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
-                                            visible,
-                                            liveListDock && liveListDock->isVisible());
+            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(), visible,
+                                              liveListDock && liveListDock->isVisible());
         });
-        
+
         // Connect close signal to main window slot function
-        connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
-            saveDockState();
-        });
+        connect(streamingDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
 
         streamingDockFirstLoad = false;
     }
 }
 
-void OneSevenLiveCoreManager::handleLiveListClicked()
-{
+void OneSevenLiveCoreManager::handleLiveListClicked() {
     obs_log(LOG_INFO, "handleLiveListClicked");
 
     if (!liveListDock) {
-
         liveListDock = new OneSevenLiveStreamListDock(mainWindow, configManager.get(), status);
         liveListDock->setMinimumWidth(300);
         liveListDock->setMinimumHeight(400);
@@ -406,75 +395,79 @@ void OneSevenLiveCoreManager::handleLiveListClicked()
 
         liveListDock->setVisible(true);
 
-        connect(liveListDock, &OneSevenLiveStreamListDock::startLiveClicked, this, [this] (const OneSevenLiveRtmpRequest& request) {
-            // if streamingDock is not visible, show it
-            // in order to edit the live info item
-            if (!streamingDock) {
-                createStreamingDock();
-            }
-
-            // Show streamingDock in center of desktop
-            streamingDock->setVisible(true);
-            streamingDock->raise();
-            streamingDock->activateWindow();
-            
-            // Move to center of main window
-            QRect mainWindowGeometry = mainWindow->geometry();
-            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - streamingDock->width()) / 2;
-            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
-            streamingDock->move(x, y);
-    
-            streamingDock->createLiveWithRequest(request);
-        });
-    
-        connect(liveListDock, &OneSevenLiveStreamListDock::editLiveClicked, this, [this] (const OneSevenLiveStreamInfo& info) {
-            // Create streamingDock if it doesn't exist
-            if (!streamingDock) {
-                createStreamingDock();
-            }
-            
-            // Edit live with info
-            streamingDock->editLiveWithInfo(info);
-            
-            // Show streamingDock in center of desktop
-            streamingDock->setVisible(true);
-            streamingDock->raise();
-            streamingDock->activateWindow();
-            
-            // Move to center of main window
-            QRect mainWindowGeometry = mainWindow->geometry();
-            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - streamingDock->width()) / 2;
-            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
-            streamingDock->move(x, y);
-            
-            // Scroll to title edit box and focus on it
-            QTimer::singleShot(100, [this]() {
-                if (streamingDock) {
-                    QScrollArea *scrollArea = streamingDock->findChild<QScrollArea*>();
-                    QLineEdit *titleEdit = streamingDock->findChild<QLineEdit*>("titleEdit");
-                    if (scrollArea && titleEdit) {
-                        scrollArea->ensureWidgetVisible(titleEdit);
-                        titleEdit->setFocus();
-                        titleEdit->selectAll();
+        connect(liveListDock, &OneSevenLiveStreamListDock::startLiveClicked, this,
+                [this](const OneSevenLiveRtmpRequest& request) {
+                    // if streamingDock is not visible, show it
+                    // in order to edit the live info item
+                    if (!streamingDock) {
+                        createStreamingDock();
                     }
-                }
-            });
-        });
+
+                    // Show streamingDock in center of desktop
+                    streamingDock->setVisible(true);
+                    streamingDock->raise();
+                    streamingDock->activateWindow();
+
+                    // Move to center of main window
+                    QRect mainWindowGeometry = mainWindow->geometry();
+                    int x = mainWindowGeometry.x() +
+                            (mainWindowGeometry.width() - streamingDock->width()) / 2;
+                    int y = mainWindowGeometry.y() +
+                            (mainWindowGeometry.height() - streamingDock->height()) / 2;
+                    streamingDock->move(x, y);
+
+                    streamingDock->createLiveWithRequest(request);
+                });
+
+        connect(liveListDock, &OneSevenLiveStreamListDock::editLiveClicked, this,
+                [this](const OneSevenLiveStreamInfo& info) {
+                    // Create streamingDock if it doesn't exist
+                    if (!streamingDock) {
+                        createStreamingDock();
+                    }
+
+                    // Edit live with info
+                    streamingDock->editLiveWithInfo(info);
+
+                    // Show streamingDock in center of desktop
+                    streamingDock->setVisible(true);
+                    streamingDock->raise();
+                    streamingDock->activateWindow();
+
+                    // Move to center of main window
+                    QRect mainWindowGeometry = mainWindow->geometry();
+                    int x = mainWindowGeometry.x() +
+                            (mainWindowGeometry.width() - streamingDock->width()) / 2;
+                    int y = mainWindowGeometry.y() +
+                            (mainWindowGeometry.height() - streamingDock->height()) / 2;
+                    streamingDock->move(x, y);
+
+                    // Scroll to title edit box and focus on it
+                    QTimer::singleShot(100, [this]() {
+                        if (streamingDock) {
+                            QScrollArea* scrollArea = streamingDock->findChild<QScrollArea*>();
+                            QLineEdit* titleEdit =
+                                streamingDock->findChild<QLineEdit*>("titleEdit");
+                            if (scrollArea && titleEdit) {
+                                scrollArea->ensureWidgetVisible(titleEdit);
+                                titleEdit->setFocus();
+                                titleEdit->selectAll();
+                            }
+                        }
+                    });
+                });
 
         // When dock is closed, uncheck menu item status
         connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
-                                            streamingDock && streamingDock->isVisible(),
-                                            visible);
+                                              streamingDock && streamingDock->isVisible(), visible);
         });
-    
+
         // Connect close signal to main window slot function
-        connect(liveListDock, &QDockWidget::destroyed, this, [this]() {
-            saveDockState();
-        });
+        connect(liveListDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
     } else {
         liveListDock->setVisible(!liveListDock->isVisible());
-        
+
         QByteArray dockState = configManager->getDockState();
         if (mainWindow->isVisible())
             mainWindow->restoreState(dockState);
@@ -483,39 +476,36 @@ void OneSevenLiveCoreManager::handleLiveListClicked()
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
-                                        streamingDock && streamingDock->isVisible(),
-                                        liveListDock && liveListDock->isVisible());
+                                          streamingDock && streamingDock->isVisible(),
+                                          liveListDock && liveListDock->isVisible());
     }
 }
 
-bool OneSevenLiveCoreManager::checkLoginStatus()
-{
+bool OneSevenLiveCoreManager::checkLoginStatus() {
     // call apiWrapper->GetSelfInfo()
     OneSevenLiveLoginData loginData;
     if (!apiWrapper->GetSelfInfo(loginData)) {
         configManager->clearLoginData();
         return false;
     }
-    
+
     // TODO: update loginData: displayName
 
     return true;
 }
 
-void OneSevenLiveCoreManager::saveDockState()
-{
+void OneSevenLiveCoreManager::saveDockState() {
     if (!initialized || !mainWindow || !configManager) {
         return;
     }
-    
+
     QByteArray state = mainWindow->saveState();
     configManager->setDockState(state);
-    
+
     obs_log(LOG_INFO, "Dock state saved successfully");
 }
 
-void OneSevenLiveCoreManager::handleChatRoomClicked()
-{
+void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
     OneSevenLiveLoginData loginData;
@@ -526,24 +516,24 @@ void OneSevenLiveCoreManager::handleChatRoomClicked()
 
     std::string locale = GetCurrentLocale();
 
-    QString chatUrl = QString("http://localhost:%1/%2.html?roomID=%3&userID=%4")
-        .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale), QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
+    QString chatUrl =
+        QString("http://localhost:%1/%2.html?roomID=%3&userID=%4")
+            .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
+                 QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
     obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
     cef_view_open_url(chatUrl.toStdString().c_str());
 
-    if (chatRoomDockFirstLoad) { 
+    if (chatRoomDockFirstLoad) {
         connect(cef_window, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(visible,
-                                            streamingDock && streamingDock->isVisible(),
-                                            liveListDock && liveListDock->isVisible());
+            menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
+                                              liveListDock && liveListDock->isVisible());
         });
         chatRoomDockFirstLoad = false;
     }
 
     // Update chat room visibility status (considered visible when CEF view is open)
     if (menuManager) {
-        menuManager->updateDockVisibility(true, 
-                                        streamingDock && streamingDock->isVisible(), 
-                                        liveListDock && liveListDock->isVisible());
+        menuManager->updateDockVisibility(true, streamingDock && streamingDock->isVisible(),
+                                          liveListDock && liveListDock->isVisible());
     }
 }

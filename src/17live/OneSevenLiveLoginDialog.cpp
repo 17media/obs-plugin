@@ -1,33 +1,30 @@
+#include "OneSevenLiveLoginDialog.hpp"
+
 #include <obs-module.h>
 #include <plugin-support.h>
 
-#include "OneSevenLiveLoginDialog.hpp"
-#include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QMessageBox>
 #include <QPixmap>
 #include <QStyle>
-#include <QMessageBox>
 #include <QToolTip>
+#include <QVBoxLayout>
 
 #include "api/OneSevenLiveApiWrappers.hpp"
-
 #include "moc_OneSevenLiveLoginDialog.cpp"
 
-OneSevenLiveLoginDialog::OneSevenLiveLoginDialog(QWidget* parent,  OneSevenLiveApiWrappers* apiWrapper_)
-    : QDialog(parent),  apiWrapper(apiWrapper_)
-{
+OneSevenLiveLoginDialog::OneSevenLiveLoginDialog(QWidget* parent,
+                                                 OneSevenLiveApiWrappers* apiWrapper_)
+    : QDialog(parent), apiWrapper(apiWrapper_) {
     setupUi();
     setWindowTitle(obs_module_text("Auth.SignIn"));
     // setFixedSize(400, 600);
     setFixedWidth(400);
 }
 
-OneSevenLiveLoginDialog::~OneSevenLiveLoginDialog()
-{
-}
+OneSevenLiveLoginDialog::~OneSevenLiveLoginDialog() {}
 
-void OneSevenLiveLoginDialog::setupUi()
-{
+void OneSevenLiveLoginDialog::setupUi() {
     // Set dialog background to black
     setStyleSheet(
         "QDialog {"
@@ -47,9 +44,7 @@ void OneSevenLiveLoginDialog::setupUi()
         "   border-radius: 4px;"
         "   min-width: 220px;"
         "   min-height: 64px;"
-        "}"
-    );
-
+        "}");
 
     auto mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(5);
@@ -63,7 +58,7 @@ void OneSevenLiveLoginDialog::setupUi()
     logoLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(logoLabel);
     mainLayout->addSpacing(20);
-    
+
     // Add "17LIVE ID Login" title
     QLabel* loginTitleLabel = new QLabel(obs_module_text("Auth.Caption"), this);
     loginTitleLabel->setAlignment(Qt::AlignLeft);
@@ -75,22 +70,20 @@ void OneSevenLiveLoginDialog::setupUi()
         "   font-size: 32px;"
         "   line-height: 40px;"
         "   color: #FFFFFF;"
-        "}"
-    );
+        "}");
     mainLayout->addWidget(loginTitleLabel);
     mainLayout->addSpacing(20);
-    
+
     QWidget* idLabelContainer = new QWidget(this);
     QHBoxLayout* idLabelLayout = new QHBoxLayout(idLabelContainer);
     idLabelLayout->setContentsMargins(0, 0, 0, 0);
-    
+
     QLabel* idLabel = new QLabel("ID", this);
     idLabel->setStyleSheet(
         "QLabel {"
         "    color: white;"
         "    font-size: 16px;"
-        "}"
-    );
+        "}");
     idLabelLayout->addWidget(idLabel);
     mainLayout->addWidget(idLabelContainer);
 
@@ -103,8 +96,7 @@ void OneSevenLiveLoginDialog::setupUi()
         "    border-radius: 2px;"
         "    padding: 0 15px;"
         "    font-size: 14px;"
-        "}"
-    );
+        "}");
     mainLayout->addWidget(usernameEdit);
 
     mainLayout->addSpacing(10);
@@ -119,33 +111,30 @@ void OneSevenLiveLoginDialog::setupUi()
         "QLabel {"
         "    color: white;"
         "    font-size: 14px;"
-        "}"
-    );
-    
+        "}");
+
     // Question icon button
     passwordQuestionButton = new QPushButton(passwordLabelContainer);
-    
+
     // Set question mark icon
     QIcon questionIcon(":/resources/question.svg");
     passwordQuestionButton->setIcon(questionIcon);
     passwordQuestionButton->setIconSize(QSize(16, 16));
     passwordQuestionButton->setFixedSize(16, 16);
-    
+
     // Set transparent background style
     passwordQuestionButton->setStyleSheet(
         "QPushButton {"
         "    background: transparent;"
         "    border: none;"
         "    padding: 0px;"
-        "}"
-    );
-    
+        "}");
+
     // Set tooltip hint
     passwordQuestionButton->setToolTip(
         QString("<div style='max-width: 300px; word-wrap: break-word;'>%1</div>")
-        .arg(obs_module_text("Auth.Password.Tip"))
-    );
-    
+            .arg(obs_module_text("Auth.Password.Tip")));
+
     // Forgot password link
     forgotPasswordLinkLabel = new QLabel(passwordLabelContainer);
     forgotPasswordLinkLabel->setText(obs_module_text("Auth.ForgotPassword"));
@@ -154,15 +143,14 @@ void OneSevenLiveLoginDialog::setupUi()
         "QLabel {"
         "    font-size: 14px;"
         "    color: #FFFFFF;"
-        "}"
-    );
-    
+        "}");
+
     // Add to label layout
     passwordLabelLayout->addWidget(passwordLabel);
     passwordLabelLayout->addWidget(passwordQuestionButton);
-    passwordLabelLayout->addStretch(); // Add flexible space to push forgot password link to right
+    passwordLabelLayout->addStretch();  // Add flexible space to push forgot password link to right
     passwordLabelLayout->addWidget(forgotPasswordLinkLabel);
-    
+
     mainLayout->addWidget(passwordLabelContainer);
 
     // Password input field container
@@ -180,12 +168,11 @@ void OneSevenLiveLoginDialog::setupUi()
         "    border: none;"
         "    border-radius: 2px 0 0 2px;"
         "    padding: 0 15px;"
-        "}"
-    );
+        "}");
 
     // Add Enter key handling, pressing Enter is equivalent to clicking login button
     connect(passwordEdit, &QLineEdit::returnPressed, this, &OneSevenLiveLoginDialog::handleLogin);
-    
+
     // Show/hide password button
     showPasswordButton = new QPushButton(passwordContainer);
 
@@ -200,16 +187,15 @@ void OneSevenLiveLoginDialog::setupUi()
         "    border-radius: 0 2px 2px 0;"
         "    margin: 0;"
         "    padding: 0;"
-        "}"
-    );
-    
+        "}");
+
     passwordLayout->addWidget(passwordEdit);
     passwordLayout->addWidget(showPasswordButton);
     passwordLayout->setAlignment(passwordEdit, Qt::AlignVCenter);
     passwordLayout->setAlignment(showPasswordButton, Qt::AlignVCenter);
 
     mainLayout->addWidget(passwordContainer);
-    
+
     // Connect button click event
     connect(showPasswordButton, &QPushButton::clicked, this, [this]() {
         if (passwordEdit->echoMode() == QLineEdit::Password) {
@@ -231,14 +217,14 @@ void OneSevenLiveLoginDialog::setupUi()
     errorLayout->setContentsMargins(0, 10, 0, 10);
     errorLayout->setSpacing(8);
     errorLayout->setAlignment(Qt::AlignCenter);
-    
+
     // Error icon
     QLabel* errorIcon = new QLabel(this);
     QPixmap alertPixmap(":/resources/alert.svg");
     alertPixmap = alertPixmap.scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     errorIcon->setPixmap(alertPixmap);
     errorIcon->setFixedSize(16, 16);
-    
+
     // Error text
     errorLabel = new QLabel(this);
     errorLabel->setText(obs_module_text("Auth.Error01"));
@@ -249,12 +235,11 @@ void OneSevenLiveLoginDialog::setupUi()
         "   line-height: 16px;"
         "   text-align: center;"
         "   color: #FF0001;"
-        "}"
-    );
+        "}");
 
     errorLabel->setWordWrap(true);
     errorLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    
+
     errorLayout->addStretch();
     errorLayout->addWidget(errorIcon);
     errorLayout->addWidget(errorLabel);
@@ -266,8 +251,8 @@ void OneSevenLiveLoginDialog::setupUi()
 
     mainLayout->addSpacing(10);
 
-    QWidget *loginContainer = new QWidget(this);
-    QHBoxLayout *loginLayout = new QHBoxLayout(loginContainer);
+    QWidget* loginContainer = new QWidget(this);
+    QHBoxLayout* loginLayout = new QHBoxLayout(loginContainer);
     loginLayout->setContentsMargins(0, 0, 0, 0);
 
     // Login button
@@ -282,11 +267,10 @@ void OneSevenLiveLoginDialog::setupUi()
         "    border-radius: 2px;"
         "    font-size: 16px;"
         "    font-weight: bold;"
-        "}"
-    );
+        "}");
     connect(loginButton, &QPushButton::clicked, this, &OneSevenLiveLoginDialog::handleLogin);
 
-    QVBoxLayout *loginLeftLayout = new QVBoxLayout();
+    QVBoxLayout* loginLeftLayout = new QVBoxLayout();
     loginLeftLayout->setContentsMargins(0, 0, 0, 0);
 
     // Register new user link
@@ -297,9 +281,8 @@ void OneSevenLiveLoginDialog::setupUi()
         "QLabel {"
         "    font-size: 14px;"
         "    color: #FFFFFF;"
-        "}"
-    );
-    
+        "}");
+
     // More login help
     QLabel* helpLabel = new QLabel(obs_module_text("Auth.Help"), this);
     helpLabel->setAlignment(Qt::AlignLeft);
@@ -308,8 +291,7 @@ void OneSevenLiveLoginDialog::setupUi()
         "QLabel {"
         "    font-size: 14px;"
         "    color: #FFFFFF;"
-        "}"
-    );
+        "}");
 
     loginLeftLayout->addWidget(registerLabel);
     loginLeftLayout->addWidget(helpLabel);
@@ -333,32 +315,30 @@ void OneSevenLiveLoginDialog::setupUi()
         "    color: white;"
         "    font-size: 12px;"
         "    line-height: 1.4;"
-        "}"
-    );
+        "}");
     mainLayout->addWidget(disclaimerLabel);
 }
 
-void OneSevenLiveLoginDialog::handleLogin()
-{
+void OneSevenLiveLoginDialog::handleLogin() {
     obs_log(LOG_INFO, "OneSevenLiveLoginDialog::handle login");
-    
+
     // Validation logic
     if (usernameEdit->text().isEmpty() || passwordEdit->text().isEmpty()) {
         errorContainer->setVisible(true);
-        adjustSize(); // resize dialog to fit error message
+        adjustSize();  // resize dialog to fit error message
         return;
     }
-    
+
     // Create API wrapper instance
     OneSevenLiveLoginData loginData;
-    
+
     // Call login interface
     if (!apiWrapper->Login(usernameEdit->text(), passwordEdit->text(), loginData)) {
         // QString errorMessageTemplate = obs_module_text("Auth.Error02");
         // QString errorMessage = errorMessageTemplate.arg(apiWrapper.getLastErrorMessage());
         // errorLabel->setText(errorMessage);
         errorContainer->setVisible(true);
-        adjustSize(); // resize dialog to fit error message
+        adjustSize();  // resize dialog to fit error message
         return;
     }
 
@@ -371,10 +351,12 @@ void OneSevenLiveLoginDialog::handleLogin()
 
     // log access token
     // obs_log(LOG_INFO, "access token: %s", loginData.accessToken.toStdString().c_str());
-    
+
     // Show login success message box
-    QMessageBox::information(this, obs_module_text("Auth.LoginSuccess"), QString(obs_module_text("Auth.LoginSuccess.Tip")).arg(loginData.userInfo.openID));
-    
+    QMessageBox::information(
+        this, obs_module_text("Auth.LoginSuccess"),
+        QString(obs_module_text("Auth.LoginSuccess.Tip")).arg(loginData.userInfo.openID));
+
     // Login successful
     accept();
 }

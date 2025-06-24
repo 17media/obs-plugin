@@ -1,15 +1,15 @@
 #pragma once
 
-#include <QMenu>
 #include <QAction>
-#include <memory>
-#include <QString>
 #include <QMainWindow>
+#include <QMenu>
+#include <QString>
+#include <memory>
 
 class OneSevenLiveMenuManager : public QObject {
     Q_OBJECT
 
-public:
+   public:
     OneSevenLiveMenuManager(QMainWindow* mainWindow);
     ~OneSevenLiveMenuManager();
 
@@ -25,14 +25,14 @@ public:
     void handleLogin();
     void handleLogout();
     void cleanup();
-    
+
     // Update dock window visibility status
     void updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible);
-    
+
     // Update menu item enable status
     void updateMenuItemsEnabled();
 
-signals:
+   signals:
     void chatRoomClicked();
     void settingsClicked();
     void streamingClicked();
@@ -41,8 +41,8 @@ signals:
     void loginClicked();
     void logoutClicked();
     void checkUpdateClicked();
-    
-private:
+
+   private:
     QMainWindow* mainWindow;
     QMenu* menu;
     QMenu* dockSubMenu;
@@ -54,10 +54,9 @@ private:
     QAction* checkUpdateAction;
     QAction* loginAction;
     bool isLoggedIn;
-    
+
     // Dock window visibility status
     bool isChatRoomVisible;
     bool isBroadcastVisible;
     bool isLiveListVisible;
-
 };

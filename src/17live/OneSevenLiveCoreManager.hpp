@@ -1,10 +1,10 @@
 #pragma once
 
 #include <QObject>
-#include <memory>
-#include <string>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <string>
 
 #include "api/OneSevenLiveModels.hpp"
 
@@ -30,12 +30,13 @@ class OneSevenLiveHttpServer;
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
  *
  * This class uses singleton pattern design as the control center for managing all 17live plugins.
- * Responsible for plugin initialization, configuration management, resource allocation and other core functions.
+ * Responsible for plugin initialization, configuration management, resource allocation and other
+ * core functions.
  */
 class OneSevenLiveCoreManager : public QObject {
     Q_OBJECT
 
-public:
+   public:
     /**
      * @brief Get the singleton instance of OneSevenLiveCoreManager
      *
@@ -69,7 +70,7 @@ public:
      * @return OneSevenLiveMenuManager* Pointer to menu manager
      */
     OneSevenLiveMenuManager* getMenuManager() const;
-    
+
     /**
      * @brief Get API wrapper
      *
@@ -85,25 +86,25 @@ public:
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
 
-private:
+   private:
     // Private constructor, ensure instance can only be obtained through getInstance method
     explicit OneSevenLiveCoreManager(QMainWindow* mainWindow);
-    
+
     // Private destructor
     ~OneSevenLiveCoreManager();
 
     // Singleton instance
     static OneSevenLiveCoreManager* instance;
-    
+
     // Mutex for thread-safe singleton access
     static std::mutex instanceMutex;
 
     // OBS main window
     QMainWindow* mainWindow;
-    
+
     // Configuration storage
     std::map<std::string, std::string> configMap;
-    
+
     // Initialization flag
     bool initialized;
 
@@ -127,7 +128,7 @@ private:
 
     // Function to check if login status is valid
     bool checkLoginStatus();
-    
+
     // Streaming Dock load status
     bool streamingDockFirstLoad = true;
     OneSevenLiveStreamingDock* streamingDock{nullptr};

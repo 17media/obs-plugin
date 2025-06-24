@@ -1,39 +1,40 @@
-#include <util/threading.h>
+#include "cef-view.hpp"
+
 #include <obs-frontend-api.h>
 #include <obs-module.h>
+#include <util/platform.h>  // For os_event_t, etc.
+#include <util/threading.h>
+
 #include <obs.hpp>
-#include <util/platform.h> // For os_event_t, etc.
-#include <util/dstr.hpp> // For DStr
+#include <util/dstr.hpp>  // For DStr
 
 #include "plugin-support.h"
 
-#include "cef-view.hpp"
-
- #ifdef _MSC_VER
- #pragma warning(push)
- #pragma warning(disable : 4100 4996)
- #else
- #pragma GCC diagnostic push
- #pragma GCC diagnostic ignored "-Wunused-parameter"
- #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
- #endif
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4100 4996)
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 // CEF includes - Assuming they are correctly set up in CMakeLists.txt
 // These paths might need to be adjusted based on your CEF binary structure
- #include "include/cef_app.h"
- #include "include/cef_client.h"
- #include "include/cef_browser.h"
- #include "include/cef_command_line.h"
- #include "include/cef_frame.h"
- //#include "include/cef_runnable.h"
- #include "include/cef_scheme.h"
- #include "include/cef_process_message.h"
- #include "include/wrapper/cef_helpers.h"
+#include "include/cef_app.h"
+#include "include/cef_browser.h"
+#include "include/cef_client.h"
+#include "include/cef_command_line.h"
+#include "include/cef_frame.h"
+// #include "include/cef_runnable.h"
+#include "include/cef_process_message.h"
+#include "include/cef_scheme.h"
+#include "include/wrapper/cef_helpers.h"
 
 // Qt includes (if needed for windowing, though CEF can create its own)
 #include <QAction>
-#include <QMainWindow>
 #include <QDockWidget>
+#include <QMainWindow>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -51,9 +52,8 @@ static os_event_t *cef_started_event = nullptr;
 static obs_source_t *dummy_source = nullptr;
 
 // A simple CEF application implementation
-class SimpleCefApp : public CefApp,
-                     public CefBrowserProcessHandler {
-public:
+class SimpleCefApp : public CefApp, public CefBrowserProcessHandler {
+   public:
     SimpleCefApp() {}
 
     CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override {
@@ -68,7 +68,8 @@ public:
         obs_log(LOG_INFO, "CEF context initialized.");
     }
 
-    void OnBeforeCommandLineProcessing(const CefString& process_type, CefRefPtr<CefCommandLine> command_line) override {
+    void OnBeforeCommandLineProcessing(const CefString &process_type,
+                                       CefRefPtr<CefCommandLine> command_line) override {
         // Enable experimental features if needed, or other command line switches
         // command_line->AppendSwitch("enable-experimental-web-platform-features");
         // Disable GPU acceleration if causing issues, for example:
@@ -76,14 +77,13 @@ public:
         // command_line->AppendSwitch("disable-gpu-compositing");
     }
 
-private:
+   private:
     IMPLEMENT_REFCOUNTING(SimpleCefApp);
 };
 
 // A simple CefClient implementation
-class SimpleCefClient : public CefClient,
-                        public CefLifeSpanHandler {
-public:
+class SimpleCefClient : public CefClient, public CefLifeSpanHandler {
+   public:
     SimpleCefClient() {}
 
     CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override {
@@ -100,32 +100,33 @@ public:
 
     bool DoClose(CefRefPtr<CefBrowser> browser) override {
         CEF_REQUIRE_UI_THREAD();
-        if (cef_browser_instance && cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
+        if (cef_browser_instance &&
+            cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
             cef_browser_instance = nullptr;
             if (cef_window) {
                 // This will trigger OnBeforeClose
                 // For a QWidget hosted CEF, we might need to close the QWidget
             }
         }
-        return false; // Allow close
+        return false;  // Allow close
     }
 
     void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
         CEF_REQUIRE_UI_THREAD();
         obs_log(LOG_INFO, "CEF Browser closing.");
-        if (cef_browser_instance && cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
+        if (cef_browser_instance &&
+            cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
             cef_browser_instance = nullptr;
         }
     }
 
-private:
+   private:
     IMPLEMENT_REFCOUNTING(SimpleCefClient);
 };
 
 // Function to initialize CEF
 
-static bool create_dummy_browser_source(void)
-{
+static bool create_dummy_browser_source(void) {
     if (dummy_source) {
         blog(LOG_WARNING, "[obs-17live] Dummy browser source already exists.");
         return true;
@@ -168,19 +169,21 @@ static bool create_dummy_browser_source(void)
 }
 
 static bool initialize_cef() {
-    if (cef_initialized) return true;
+    if (cef_initialized)
+        return true;
 
     obs_log(LOG_INFO, "Initializing CEF...");
 
     // struct obs_cmdline_args cmdline_args = obs_get_cmdline_args();
-	// CefMainArgs main_args(cmdline_args.argc, cmdline_args.argv);
+    // CefMainArgs main_args(cmdline_args.argc, cmdline_args.argv);
     // CefSettings settings;
     // settings.log_severity = LOGSEVERITY_VERBOSE;
 
     // Set path to browser subprocess executable
     // This is crucial. The path needs to be to a helper executable.
     // For macOS, this is often within the framework bundle.
-    // e.g., CefString(&settings.browser_subprocess_path).FromString("/path/to/Framework.framework/Versions/A/Helpers/SubProcess.app/Contents/MacOS/SubProcess");
+    // e.g.,
+    // CefString(&settings.browser_subprocess_path).FromString("/path/to/Framework.framework/Versions/A/Helpers/SubProcess.app/Contents/MacOS/SubProcess");
     // For now, let's assume it's found automatically or set elsewhere if needed.
     // On macOS, if you bundle CEF correctly, it might find it.
     // If not, you'll need to specify: CefString(&settings.browser_subprocess_path).Set( ... );
@@ -201,7 +204,7 @@ static bool initialize_cef() {
     //     obs_log(LOG_ERROR, "CEF initialization failed. Exit code");
     //     return false;
     // }
-    
+
     if (!create_dummy_browser_source()) {
         obs_log(LOG_ERROR, "Failed to create dummy browser source.");
         return false;
@@ -214,47 +217,46 @@ static bool initialize_cef() {
 }
 
 struct release_param {
-	const char *target_name;
+    const char *target_name;
 };
 
-static bool release_source_callback(void *param, obs_source_t *source)
-{
-	if (!source)
-		return true;
+static bool release_source_callback(void *param, obs_source_t *source) {
+    if (!source)
+        return true;
 
-	const char *name = obs_source_get_name(source);
+    const char *name = obs_source_get_name(source);
     obs_log(LOG_INFO, "Checking source: %s", name);
 
-	auto *p = static_cast<release_param *>(param);
+    auto *p = static_cast<release_param *>(param);
 
-	if (strcmp(name, p->target_name) == 0) {
-		obs_source_t *ref = obs_source_get_ref(source);
-		if (ref) {
-			obs_log(LOG_INFO, "Releasing source: %s", name);
-			obs_source_release(ref);
-		}
-	}
+    if (strcmp(name, p->target_name) == 0) {
+        obs_source_t *ref = obs_source_get_ref(source);
+        if (ref) {
+            obs_log(LOG_INFO, "Releasing source: %s", name);
+            obs_source_release(ref);
+        }
+    }
 
-	return true; // Return true to continue enumerating all sources
+    return true;  // Return true to continue enumerating all sources
 }
 
-void release_sources_by_name(const char *target_name)
-{
+void release_sources_by_name(const char *target_name) {
     obs_log(LOG_INFO, "Releasing sources by name: %s", target_name);
-	release_param param = { target_name };
-	obs_enum_sources(release_source_callback, &param);
+    release_param param = {target_name};
+    obs_enum_sources(release_source_callback, &param);
 }
 
 // Function to shutdown CEF
 static void shutdown_cef() {
-    if (!cef_initialized) return;
+    if (!cef_initialized)
+        return;
     obs_log(LOG_INFO, "Shutting down CEF...");
     if (cef_browser_instance) {
         cef_browser_instance->GetHost()->CloseBrowser(true);
         cef_browser_instance = nullptr;
     }
     if (cef_window) {
-        delete cef_window; // Clean up Qt window
+        delete cef_window;  // Clean up Qt window
         cef_window = nullptr;
     }
     // CefShutdown();
@@ -272,7 +274,7 @@ static void cef_view_action_callback(void *private_data) {
     UNUSED_PARAMETER(private_data);
     // The 'checked' state of the QAction is not passed here.
     // For a simple menu trigger, it's usually not needed.
-    cef_view_open_url(nullptr); // Open with default URL
+    cef_view_open_url(nullptr);  // Open with default URL
 }
 
 // Function to open a URL in the CEF view
@@ -293,7 +295,8 @@ void cef_view_open_url(const char *url_str) {
 
 // Function to create and show the CEF window
 static void cef_view_show_window(const char *url) {
-    CEF_REQUIRE_UI_THREAD(); // Ensure this is called on the UI thread if CEF expects it for window creation
+    CEF_REQUIRE_UI_THREAD();  // Ensure this is called on the UI thread if CEF expects it for window
+                              // creation
 
     obs_log(LOG_INFO, "Showing CEF window. %s", url);
 
@@ -307,7 +310,7 @@ static void cef_view_show_window(const char *url) {
         return;
     }
 
-    if (cef_window) { // Window exists but is hidden
+    if (cef_window) {  // Window exists but is hidden
         obs_log(LOG_INFO, "Showing CEF window.");
         if (cef_browser_instance) {
             cef_browser_instance->GetMainFrame()->LoadURL(url);
@@ -326,7 +329,7 @@ static void cef_view_show_window(const char *url) {
     // cef_window->resize(1024, 768);
     // cef_window->resize(378, 600);
 
-     QMainWindow* mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+    QMainWindow *mainWindow = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 
     cef_window = new QDockWidget(mainWindow);
     cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
@@ -334,7 +337,7 @@ static void cef_view_show_window(const char *url) {
     // Set as floating window first to avoid size adjustment issues after adding to dock area
     cef_window->setFloating(true);
     // Set allowed dock areas
-    cef_window->setAllowedAreas(Qt::RightDockWidgetArea|Qt::LeftDockWidgetArea);
+    cef_window->setAllowedAreas(Qt::RightDockWidgetArea | Qt::LeftDockWidgetArea);
 
     // CEF window info
     CefWindowInfo window_info;
@@ -343,27 +346,29 @@ static void cef_view_show_window(const char *url) {
 #if defined(OS_WIN)
     // On Windows, provide the parent window handle
     CefRect rect(0, 0, 378, 600);
-    window_info.SetAsChild((HWND)cef_window->winId(), rect);
+    window_info.SetAsChild((HWND) cef_window->winId(), rect);
 #elif defined(OS_MAC)
     // On macOS, you might embed CEF into an NSView. For a top-level window, this is different.
     // If using Qt, Qt handles the NSView creation. We pass the view's handle.
     // For a simple top-level window, CEF can create its own.
     // Let's assume Qt provides a view that CEF can use.
     // This requires a QWidget to host the CEF view.
-    QWidget* cef_widget_host = new QWidget(cef_window);
-     cef_window->setWidget(cef_widget_host);
-//    cef_window->setCentralWidget(cef_widget_host);
-    window_info.SetAsChild((cef_window_handle_t)cef_widget_host->winId(), CefRect(0,0,378,600)); // Placeholder, might need adjustment
-#else // Linux
+    QWidget *cef_widget_host = new QWidget(cef_window);
+    cef_window->setWidget(cef_widget_host);
+    //    cef_window->setCentralWidget(cef_widget_host);
+    window_info.SetAsChild((cef_window_handle_t) cef_widget_host->winId(),
+                           CefRect(0, 0, 378, 600));  // Placeholder, might need adjustment
+#else  // Linux
     // On Linux, provide the X11 window ID
-    window_info.SetAsChild((unsigned long)cef_window->winId(), CefRect(0,0,1024,768));
+    window_info.SetAsChild((unsigned long) cef_window->winId(), CefRect(0, 0, 1024, 768));
 #endif
 
     CefRefPtr<SimpleCefClient> client = new SimpleCefClient();
 
     obs_log(LOG_INFO, "Creating CEF browser... %s", url);
     // Create the browser asynchronously
-    bool browser_created = CefBrowserHost::CreateBrowser(window_info, client.get(), url, browser_settings, nullptr, nullptr);
+    bool browser_created = CefBrowserHost::CreateBrowser(window_info, client.get(), url,
+                                                         browser_settings, nullptr, nullptr);
 
     if (!browser_created) {
         obs_log(LOG_ERROR, "Failed to create CEF browser.");
@@ -379,19 +384,19 @@ static void cef_view_show_window(const char *url) {
 static void obs_frontend_event_callback(enum obs_frontend_event event, void *private_data) {
     UNUSED_PARAMETER(private_data);
     if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-
         // Initialize CEF (if not already done)
-        // It's better to initialize CEF early, perhaps in obs_module_load, but ensure it's on the correct thread.
-        // For now, deferring until first use or here.
+        // It's better to initialize CEF early, perhaps in obs_module_load, but ensure it's on the
+        // correct thread. For now, deferring until first use or here.
         if (!cef_initialized) {
             // Running CEF initialization on the main UI thread is crucial.
             // OBS might call this callback on the UI thread.
             // If not, CefInitialize needs to be posted to the UI thread.
             // For simplicity, assuming this callback is on an appropriate thread.
-            // A more robust solution would use a dedicated thread for CEF message loop and initialization.
+            // A more robust solution would use a dedicated thread for CEF message loop and
+            // initialization.
             os_event_init(&cef_started_event, OS_EVENT_TYPE_MANUAL);
             if (!initialize_cef()) {
-                 obs_log(LOG_ERROR, "CEF View: Failed to initialize CEF during frontend load.");
+                obs_log(LOG_ERROR, "CEF View: Failed to initialize CEF during frontend load.");
             } else {
                 // If CEF needs its own message loop and is not integrated with Qt's loop:
                 // std::thread cef_message_loop_thread([](){

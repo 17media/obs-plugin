@@ -1,9 +1,9 @@
 #pragma once
 
+#include <QDateTime>
 #include <QDockWidget>
 #include <QListWidget>
 #include <QPushButton>
-#include <QDateTime>
 
 #include "api/OneSevenLiveModels.hpp"
 
@@ -12,42 +12,43 @@ class OneSevenLiveConfigManager;
 class OneSevenLiveStreamListDock : public QDockWidget {
     Q_OBJECT
 
-public:
-
-    OneSevenLiveStreamListDock(QWidget *parent, OneSevenLiveConfigManager *configManager_, OneSevenLiveStreamingStatus status_ = OneSevenLiveStreamingStatus::NotStarted);
+   public:
+    OneSevenLiveStreamListDock(
+        QWidget* parent, OneSevenLiveConfigManager* configManager_,
+        OneSevenLiveStreamingStatus status_ = OneSevenLiveStreamingStatus::NotStarted);
     ~OneSevenLiveStreamListDock();
 
     void refreshStreamList();
 
     void setStatus(OneSevenLiveStreamingStatus status_);
 
-protected:
-    void resizeEvent(QResizeEvent *event) override;
+   protected:
+    void resizeEvent(QResizeEvent* event) override;
 
-signals:
+   signals:
     void startLiveClicked(const OneSevenLiveRtmpRequest& request);
     void editLiveClicked(const OneSevenLiveStreamInfo& info);
 
-private slots:
+   private slots:
     void onEditStreamClicked(QListWidgetItem* item, const OneSevenLiveStreamInfo& info);
     void onDeleteStreamClicked(QListWidgetItem* item, const OneSevenLiveStreamInfo& info);
     void onStartLiveClicked();
-    
-private:
+
+   private:
     void setupUi();
     void createConnections();
     void updateStreamItem(QListWidgetItem* item, const OneSevenLiveStreamInfo& info);
     void showEmptyListMessage();
 
-    QListWidget *streamList;
-    QPushButton *startLiveButton;
-    QWidget *emptyContainer = nullptr;
-    OneSevenLiveConfigManager *configManager;
+    QListWidget* streamList;
+    QPushButton* startLiveButton;
+    QWidget* emptyContainer = nullptr;
+    OneSevenLiveConfigManager* configManager;
 
-    QPushButton *goToStreamingButton;
+    QPushButton* goToStreamingButton;
 
     OneSevenLiveStreamingStatus status;
 
-private slots:
+   private slots:
     void handleTopLevelChanged(bool topLevel);
 };

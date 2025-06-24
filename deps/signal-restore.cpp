@@ -15,35 +15,35 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  ******************************************************************************/
 
+#include "signal-restore.hpp"
+
 #include <signal.h>
 #include <string.h>
 
-#include "signal-restore.hpp"
-
-// Method here borrowed from https://bitbucket.org/chromiumembedded/java-cef/src/master/native/signal_restore_posix.cpp
+// Method here borrowed from
+// https://bitbucket.org/chromiumembedded/java-cef/src/master/native/signal_restore_posix.cpp
 
 #ifndef _WIN32
-template<typename T, size_t N> char (&ArraySizeHelper(T (&array)[N]))[N];
+template <typename T, size_t N>
+char (&ArraySizeHelper(T (&array)[N]))[N];
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
 const int signals_to_restore[] = {SIGHUP,  SIGINT,  SIGQUIT, SIGILL, SIGABRT, SIGFPE, SIGSEGV,
-				  SIGALRM, SIGTERM, SIGCHLD, SIGBUS, SIGTRAP, SIGPIPE};
+                                  SIGALRM, SIGTERM, SIGCHLD, SIGBUS, SIGTRAP, SIGPIPE};
 struct sigaction signal_handlers[arraysize(signals_to_restore)];
 
-void BackupSignalHandlers()
-{
-	struct sigaction sigact;
-	for (unsigned i = 0; i < arraysize(signals_to_restore); ++i) {
-		memset(&sigact, 0, sizeof(sigact));
-		sigaction(signals_to_restore[i], nullptr, &sigact);
-		signal_handlers[i] = sigact;
-	}
+void BackupSignalHandlers() {
+    struct sigaction sigact;
+    for (unsigned i = 0; i < arraysize(signals_to_restore); ++i) {
+        memset(&sigact, 0, sizeof(sigact));
+        sigaction(signals_to_restore[i], nullptr, &sigact);
+        signal_handlers[i] = sigact;
+    }
 }
 
-void RestoreSignalHandlers()
-{
-	for (unsigned i = 0; i < arraysize(signals_to_restore); ++i) {
-		sigaction(signals_to_restore[i], &signal_handlers[i], nullptr);
-	}
+void RestoreSignalHandlers() {
+    for (unsigned i = 0; i < arraysize(signals_to_restore); ++i) {
+        sigaction(signals_to_restore[i], &signal_handlers[i], nullptr);
+    }
 }
 #endif
