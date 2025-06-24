@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
-// 如果没有包含plugin-support.h，则提供mock实现
+// If plugin-support.h is not included, provide a mock implementation
 #ifndef PLUGIN_SUPPORT_INCLUDED
 #define PLUGIN_SUPPORT_INCLUDED
 
