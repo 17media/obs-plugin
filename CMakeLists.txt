@@ -58,9 +58,9 @@ else()
 endif()
 find_package(CEF REQUIRED)
 
-# Link json11 libraries
+# Add the json11 dependency
 add_subdirectory(deps/json11)
-# Link wrappers libraries
+# Add the wrappers dependency
 add_subdirectory(deps/wrappers)
 
 # Set header file include paths
@@ -74,7 +74,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
-# 链接 json11, wrappers 库
+# Link json11, wrappers libraries
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
   json11 
   wrappers
