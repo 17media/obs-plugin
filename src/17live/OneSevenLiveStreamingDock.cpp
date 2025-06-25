@@ -259,6 +259,8 @@ void OneSevenLiveStreamingDock::setupUi() {
     QLabel *archiveLabel = new QLabel(obs_module_text("Live.Settings.Archive.Record"));
     QLabel *archiveTip = new QLabel(obs_module_text("Live.Settings.Archive.Record.Tip"));
     archiveTip->setStyleSheet("color: gray; font-size: 12px;");
+    archiveTip->setMaximumWidth(580);
+    archiveTip->setWordWrap(true);
 
     archiveLabelLayout->addWidget(archiveLabel);
     archiveLabelLayout->addWidget(archiveTip);
@@ -281,6 +283,8 @@ void OneSevenLiveStreamingDock::setupUi() {
     QLabel *previewLabel = new QLabel(obs_module_text("Live.Settings.Archive.AutoPublish"));
     QLabel *previewTip = new QLabel(obs_module_text("Live.Settings.Archive.AutoPublish.Tip"));
     previewTip->setStyleSheet("color: gray; font-size: 12px;");
+    previewTip->setMaximumWidth(580);
+    previewTip->setWordWrap(true);
 
     previewLabelLayout->addWidget(previewLabel);
     previewLabelLayout->addWidget(previewTip);
@@ -300,6 +304,8 @@ void OneSevenLiveStreamingDock::setupUi() {
 
     QLabel *clipTip = new QLabel(obs_module_text("Live.Settings.Archive.ClipPermission.Tip"));
     clipTip->setStyleSheet("color: gray; font-size: 12px;");
+    clipTip->setMaximumWidth(580);
+    clipTip->setWordWrap(true);
     clipLayout->addWidget(clipTip);
 
     // Clip identity
@@ -328,6 +334,8 @@ void OneSevenLiveStreamingDock::setupUi() {
 
     QLabel *vliverTip = new QLabel(obs_module_text("Live.Settings.VirtualLiver.Tip"));
     vliverTip->setStyleSheet("color: gray; font-size: 12px;");
+    vliverTip->setMaximumWidth(580);
+    vliverTip->setWordWrap(true);
     vliverLayout->addWidget(vliverTip);
 
     virtualStreamerCheck = new QCheckBox(obs_module_text("Live.Settings.VirtualLiver"));
