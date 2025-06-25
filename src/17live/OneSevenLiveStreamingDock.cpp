@@ -74,6 +74,8 @@ void OneSevenLiveStreamingDock::setupUi() {
 
     loadingLabel = new QLabel(obs_module_text("Live.Settings.Loading"));
     loadingLabel->setStyleSheet("color: white; font-size: 16px;");
+    loadingLabel->setMaximumWidth(350);
+    loadingLabel->setWordWrap(true);
     loadingLabel->setAlignment(Qt::AlignCenter);
 
     loadingProgress = new QProgressBar();
