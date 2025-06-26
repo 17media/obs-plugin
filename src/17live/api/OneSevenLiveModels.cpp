@@ -781,6 +781,16 @@ bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStream
     response.hashtagSelectLimit = json["hashtagSelectLimit"].int_value();
     response.armyOnly = json["armyOnly"].int_value();
 
+    // Archive configuration
+    const auto &archiveConfigJson = json["archiveConfig"];
+    if (archiveConfigJson.is_object()) {
+        response.archiveConfig.autoRecording = archiveConfigJson["autoRecording"].bool_value();
+        response.archiveConfig.autoPublish = archiveConfigJson["autoPublish"].bool_value();
+        response.archiveConfig.clipPermission = archiveConfigJson["clipPermission"].int_value();
+        response.archiveConfig.clipPermissionDownload =
+            archiveConfigJson["clipPermissionDownload"].int_value();
+    }
+
     return true;
 }
 
@@ -840,6 +850,14 @@ bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response
         {"vliverInfo",
          Json::object{{"vliverModel", response.lastStreamState.vliverInfo.vliverModel}}}};
 
+    // Archive configuration
+    Json::object archiveConfigObject;
+    archiveConfigObject["autoRecording"] = response.archiveConfig.autoRecording;
+    archiveConfigObject["autoPublish"] = response.archiveConfig.autoPublish;
+    archiveConfigObject["clipPermission"] = response.archiveConfig.clipPermission;
+    archiveConfigObject["clipPermissionDownload"] =
+            response.archiveConfig.clipPermissionDownload;
+    
     // Create main JSON object
     json = Json::object{{"event", eventJson},
                         {"customEvent", customEventJson},
@@ -847,7 +865,8 @@ bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response
                         {"subtabs", subtabsArray},
                         {"lastStreamState", lastStreamStateJson},
                         {"hashtagSelectLimit", response.hashtagSelectLimit},
-                        {"armyOnly", response.armyOnly}};
+                        {"armyOnly", response.armyOnly},
+                        {"archiveConfig", archiveConfigObject}};
 
     return true;
 }

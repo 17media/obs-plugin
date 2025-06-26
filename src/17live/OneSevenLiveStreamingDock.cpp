@@ -426,7 +426,7 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
                     scrollArea->widget()->setEnabled(true);
                 }
 
-                if (roomInfoSuccess) {
+                if (configStreamerSuccess) {
                     // Update UI
                     updateUIWithRoomInfo();
                 } else {
@@ -437,9 +437,8 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
                             .arg(apiWrapper->getLastErrorMessage()));
                 }
 
-                // If configStreamer retrieval fails, log but don't affect main flow
-                if (!configStreamerSuccess) {
-                    obs_log(LOG_WARNING, "Failed to get config streamer in loadRoomInfo");
+                if (!roomInfoSuccess) {
+                    obs_log(LOG_WARNING, "Failed to get roomInfo in loadRoomInfo");
                 }
 
                 if (!userInfoSuccess) {
@@ -501,11 +500,11 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
     }
 
     // Set archive configuration
-    archiveStreamCheck->setChecked(roomInfo.archiveConfig.autoRecording);
-    autoPreviewCheck->setChecked(roomInfo.archiveConfig.autoPublish);
+    archiveStreamCheck->setChecked(configStreamer.archiveConfig.autoRecording);
+    autoPreviewCheck->setChecked(configStreamer.archiveConfig.autoPublish);
     // Set clip permissions
     clipIdentityCombo->setCurrentIndex(
-        clipIdentityCombo->findData(roomInfo.archiveConfig.clipPermission));
+        clipIdentityCombo->findData(configStreamer.archiveConfig.clipPermission));
 
     if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live) ||
         roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {

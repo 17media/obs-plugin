@@ -470,6 +470,7 @@ struct OneSevenLiveConfigStreamer {
     OneSevenLiveStreamState lastStreamState;
     int hashtagSelectLimit;
     int armyOnly;
+    OneSevenLiveArchiveConfig archiveConfig;
 };
 
 // Function declaration to parse JSON to OneSevenLiveConfigStreamerResponse struct
