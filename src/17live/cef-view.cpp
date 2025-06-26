@@ -298,11 +298,12 @@ static void cef_view_show_window(const char *url) {
     CEF_REQUIRE_UI_THREAD();  // Ensure this is called on the UI thread if CEF expects it for window
                               // creation
 
-    obs_log(LOG_INFO, "Showing CEF window. %s", url);
+    obs_log(LOG_INFO, "Show CEF window. %s", url);
 
     if (cef_window && cef_window->isVisible()) {
-        obs_log(LOG_INFO, "CEF window already visible.");
+        
         if (cef_browser_instance) {
+            obs_log(LOG_INFO, "CEF window already visible.");
             cef_browser_instance->GetMainFrame()->LoadURL(url);
         }
         cef_window->raise();
@@ -311,8 +312,9 @@ static void cef_view_show_window(const char *url) {
     }
 
     if (cef_window) {  // Window exists but is hidden
-        obs_log(LOG_INFO, "Showing CEF window.");
+        
         if (cef_browser_instance) {
+            obs_log(LOG_INFO, "Showing CEF window.");
             cef_browser_instance->GetMainFrame()->LoadURL(url);
         }
         cef_window->show();
