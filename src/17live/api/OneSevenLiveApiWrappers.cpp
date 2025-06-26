@@ -470,7 +470,7 @@ bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID,
 }
 
 bool OneSevenLiveApiWrappers::CheckStream(const std::string &liveStreamID) {
-    obs_log(LOG_INFO, "CheckStream start");
+    // obs_log(LOG_INFO, "CheckStream start");
     lastErrorMessage.clear();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_ALIVE_URL).arg(liveStreamID.c_str());
     QByteArray url = urlStr.toUtf8();
@@ -484,7 +484,7 @@ bool OneSevenLiveApiWrappers::CheckStream(const std::string &liveStreamID) {
         return false;
     }
 
-    obs_log(LOG_INFO, "CheckStream success");
+    // obs_log(LOG_INFO, "CheckStream success");
     return true;
 }
 
