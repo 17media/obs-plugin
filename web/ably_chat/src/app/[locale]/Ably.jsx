@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import { useTranslations } from 'next-intl';
 
 import * as Ably from 'ably';
@@ -40,6 +40,7 @@ export default function AblyComponent() {
     const [userID, setUserID] = useState('');
 
     const [roomInfo, setRoomInfo] = useState(null);
+    const chatEndRef = useRef(null);
 
     const t = useTranslations('ChatPage');
 
@@ -220,6 +221,13 @@ export default function AblyComponent() {
         }
     }, [chatList, roomID]);
 
+    // 自动滚动到聊天末尾
+    useEffect(() => {
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [chatList]);
+
     useEffect(() => {
         if (!roomID || !userID) {
             return;
@@ -301,6 +309,7 @@ export default function AblyComponent() {
                         isGroupCall={false}
                     />
                 ))}
+            <div ref={chatEndRef} />
         </ChatListWrapper>
     );
 }
