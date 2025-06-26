@@ -855,9 +855,8 @@ bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response
     archiveConfigObject["autoRecording"] = response.archiveConfig.autoRecording;
     archiveConfigObject["autoPublish"] = response.archiveConfig.autoPublish;
     archiveConfigObject["clipPermission"] = response.archiveConfig.clipPermission;
-    archiveConfigObject["clipPermissionDownload"] =
-            response.archiveConfig.clipPermissionDownload;
-    
+    archiveConfigObject["clipPermissionDownload"] = response.archiveConfig.clipPermissionDownload;
+
     // Create main JSON object
     json = Json::object{{"event", eventJson},
                         {"customEvent", customEventJson},

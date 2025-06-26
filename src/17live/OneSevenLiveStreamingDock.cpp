@@ -142,10 +142,10 @@ void OneSevenLiveStreamingDock::setupUi() {
     QHBoxLayout *formatLayout = new QHBoxLayout(streamFormatGroup);
     landscapeStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Landscape"));
     portraitStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Portrait"));
-    
+
     formatLayout->addWidget(portraitStreamRadio);
     formatLayout->addWidget(landscapeStreamRadio);
-    
+
     portraitStreamRadio->setChecked(true);
 
     mainLayout->addWidget(streamFormatGroup);
