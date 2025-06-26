@@ -52,7 +52,7 @@ export async function getAblyTokenFromServer(roomID = '') {
           }
 
           const resBody = await res.json();
-          console.log(resBody);
+        //   console.log(resBody);
           return resBody.token;
       } catch (err) {
           console.error("Failed to get Ably token:", err);
