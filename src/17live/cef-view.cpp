@@ -51,6 +51,8 @@ static os_event_t *cef_started_event = nullptr;
 
 static obs_source_t *dummy_source = nullptr;
 
+
+
 // A simple CEF application implementation
 class SimpleCefApp : public CefApp, public CefBrowserProcessHandler {
    public:
@@ -100,24 +102,24 @@ class SimpleCefClient : public CefClient, public CefLifeSpanHandler {
 
     bool DoClose(CefRefPtr<CefBrowser> browser) override {
         CEF_REQUIRE_UI_THREAD();
-        // if (cef_browser_instance &&
-        //     cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
-        //     cef_browser_instance = nullptr;
-        //     if (cef_window) {
-        //         // This will trigger OnBeforeClose
-        //         // For a QWidget hosted CEF, we might need to close the QWidget
-        //     }
-        // }
+        if (cef_browser_instance &&
+            cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
+            cef_browser_instance = nullptr;
+            if (cef_window) {
+                // This will trigger OnBeforeClose
+                // For a QWidget hosted CEF, we might need to close the QWidget
+            }
+        }
         return false;  // Allow close
     }
 
     void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
         CEF_REQUIRE_UI_THREAD();
         obs_log(LOG_INFO, "CEF Browser closing.");
-        // if (cef_browser_instance &&
-        //     cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
-        //     cef_browser_instance = nullptr;
-        // }
+        if (cef_browser_instance &&
+            cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
+            cef_browser_instance = nullptr;
+        }
     }
 
    private:
@@ -213,55 +215,9 @@ void cef_view_open_url(const char *url_str) {
     cef_view_show_window(url_to_load.c_str());
 }
 
-// Function to create and show the CEF window
-static void cef_view_show_window(const char *url) {
-    CEF_REQUIRE_UI_THREAD();  // Ensure this is called on the UI thread if CEF expects it for window
-                              // creation
-
-    obs_log(LOG_INFO, "Show CEF window. %s", url);
-
-    if (cef_window && cef_window->isVisible()) {
-        
-        if (cef_browser_instance) {
-            obs_log(LOG_INFO, "CEF window already visible.");
-            cef_browser_instance->GetMainFrame()->LoadURL(url);
-        }
-        cef_window->raise();
-        cef_window->activateWindow();
-        return;
-    }
-
-    if (cef_window) {  // Window exists but is hidden
-        
-        if (cef_browser_instance) {
-            obs_log(LOG_INFO, "Showing CEF window.");
-            cef_browser_instance->GetMainFrame()->LoadURL(url);
-        }
-        cef_window->show();
-        cef_window->raise();
-        cef_window->activateWindow();
-        return;
-    }
-
-    obs_log(LOG_INFO, "Creating CEF window.");
-
-    // Create the main window (using Qt as an example)
-    // cef_window = new QMainWindow();
-    // cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
-    // cef_window->resize(1024, 768);
-    // cef_window->resize(378, 600);
-
-    QMainWindow *mainWindow = static_cast<QMainWindow *>(obs_frontend_get_main_window());
-
-    cef_window = new QDockWidget(mainWindow);
-    cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
-    cef_window->resize(378, 600);
-    // Set as floating window first to avoid size adjustment issues after adding to dock area
-    cef_window->setFloating(true);
-    // Set allowed dock areas
-    cef_window->setAllowedAreas(Qt::RightDockWidgetArea | Qt::LeftDockWidgetArea);
-
-    // CEF window info
+static bool cef_view_create_browser(QDockWidget *cef_window, const char *url)
+{
+        // CEF window info
     CefWindowInfo window_info;
     CefBrowserSettings browser_settings;
 
@@ -296,8 +252,68 @@ static void cef_view_show_window(const char *url) {
         obs_log(LOG_ERROR, "Failed to create CEF browser.");
         delete cef_window;
         cef_window = nullptr;
+    }
+
+    return browser_created;
+}
+
+// Function to create and show the CEF window
+static void cef_view_show_window(const char *url) {
+    CEF_REQUIRE_UI_THREAD();  // Ensure this is called on the UI thread if CEF expects it for window
+                              // creation
+
+    obs_log(LOG_INFO, "Show CEF window. %s", url);
+
+    if (cef_window && cef_window->isVisible()) {
+        
+        if (cef_browser_instance) {
+            obs_log(LOG_INFO, "CEF window already visible.");
+            cef_browser_instance->GetMainFrame()->LoadURL(url);
+        } else {
+            obs_log(LOG_INFO, "CEF window already visible but no browser instance.");
+            if (!cef_view_create_browser(cef_window, url)) return;
+        }
+
+        cef_window->raise();
+        cef_window->activateWindow();
         return;
     }
+
+    if (cef_window) {  // Window exists but is hidden
+        
+        if (cef_browser_instance) {
+            obs_log(LOG_INFO, "Showing CEF window.");
+            cef_browser_instance->GetMainFrame()->LoadURL(url);
+        } else {
+            obs_log(LOG_INFO, "No browser instance.");
+            if (!cef_view_create_browser(cef_window, url)) return;
+        }
+
+        cef_window->show();
+        cef_window->raise();
+        cef_window->activateWindow();
+        return;
+    }
+
+    obs_log(LOG_INFO, "Creating CEF window.");
+
+    // Create the main window (using Qt as an example)
+    // cef_window = new QMainWindow();
+    // cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
+    // cef_window->resize(1024, 768);
+    // cef_window->resize(378, 600);
+
+    QMainWindow *mainWindow = static_cast<QMainWindow *>(obs_frontend_get_main_window());
+
+    cef_window = new QDockWidget(mainWindow);
+    cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
+    cef_window->resize(378, 600);
+    // Set as floating window first to avoid size adjustment issues after adding to dock area
+    cef_window->setFloating(true);
+    // Set allowed dock areas
+    cef_window->setAllowedAreas(Qt::RightDockWidgetArea | Qt::LeftDockWidgetArea);
+
+    cef_view_create_browser(cef_window, url);
 
     cef_window->show();
 }
