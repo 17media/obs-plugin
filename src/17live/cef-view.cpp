@@ -297,12 +297,6 @@ static void cef_view_show_window(const char *url) {
 
     obs_log(LOG_INFO, "Creating CEF window.");
 
-    // Create the main window (using Qt as an example)
-    // cef_window = new QMainWindow();
-    // cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
-    // cef_window->resize(1024, 768);
-    // cef_window->resize(378, 600);
-
     QMainWindow *mainWindow = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 
     cef_window = new QDockWidget(mainWindow);
