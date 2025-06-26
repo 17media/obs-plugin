@@ -140,11 +140,11 @@ void OneSevenLiveStreamingDock::setupUi() {
     // Stream format
     QGroupBox *streamFormatGroup = new QGroupBox(obs_module_text("Live.Settings.Layout"));
     QHBoxLayout *formatLayout = new QHBoxLayout(streamFormatGroup);
-    normalStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Landscape"));
-    verticalStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Portrait"));
-    formatLayout->addWidget(verticalStreamRadio);
-    formatLayout->addWidget(normalStreamRadio);
-    verticalStreamRadio->setChecked(true);
+    landscapeStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Landscape"));
+    portraitStreamRadio = new QRadioButton(obs_module_text("Live.Settings.Layout.Portrait"));
+    formatLayout->addWidget(landscapeStreamRadio);
+    formatLayout->addWidget(portraitStreamRadio);
+    portraitStreamRadio->setChecked(true);
 
     mainLayout->addWidget(streamFormatGroup);
 
@@ -482,9 +482,9 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
 
     // Set streaming format
     if (roomInfo.landscape) {
-        normalStreamRadio->setChecked(true);
+        landscapeStreamRadio->setChecked(true);
     } else {
-        verticalStreamRadio->setChecked(true);
+        portraitStreamRadio->setChecked(true);
     }
 
     // Army settings
@@ -1067,9 +1067,9 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
     tagEdit->clear();
 
     if (request.landscape) {
-        normalStreamRadio->setChecked(true);
+        landscapeStreamRadio->setChecked(true);
     } else {
-        verticalStreamRadio->setChecked(true);
+        portraitStreamRadio->setChecked(true);
     }
 
     int categoryIndex = categoryCombo->findData(QVariant(request.subtabID));
@@ -1122,7 +1122,7 @@ bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &reque
     int eventID = activityCombo->currentData().toInt();
     request.eventID = eventID;
     request.hashtags = tagsList;
-    request.landscape = normalStreamRadio->isChecked();
+    request.landscape = landscapeStreamRadio->isChecked();
     request.streamerType = roomInfo.streamerType;
     request.subtabID = categoryCombo->currentData().toString();
 

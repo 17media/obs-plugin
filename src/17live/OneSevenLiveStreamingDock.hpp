@@ -53,8 +53,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QList<QString> tagsList;  // Store current tag list
 
     // Streaming format
-    QRadioButton *normalStreamRadio;
-    QRadioButton *verticalStreamRadio;
+    QRadioButton *landscapeStreamRadio;
+    QRadioButton *portraitStreamRadio;
 
     // Live mode - army-only viewing
     QLabel *broadcastModeLabel;
