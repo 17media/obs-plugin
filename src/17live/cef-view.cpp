@@ -100,24 +100,24 @@ class SimpleCefClient : public CefClient, public CefLifeSpanHandler {
 
     bool DoClose(CefRefPtr<CefBrowser> browser) override {
         CEF_REQUIRE_UI_THREAD();
-        if (cef_browser_instance &&
-            cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
-            cef_browser_instance = nullptr;
-            if (cef_window) {
-                // This will trigger OnBeforeClose
-                // For a QWidget hosted CEF, we might need to close the QWidget
-            }
-        }
+        // if (cef_browser_instance &&
+        //     cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
+        //     cef_browser_instance = nullptr;
+        //     if (cef_window) {
+        //         // This will trigger OnBeforeClose
+        //         // For a QWidget hosted CEF, we might need to close the QWidget
+        //     }
+        // }
         return false;  // Allow close
     }
 
     void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
         CEF_REQUIRE_UI_THREAD();
         obs_log(LOG_INFO, "CEF Browser closing.");
-        if (cef_browser_instance &&
-            cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
-            cef_browser_instance = nullptr;
-        }
+        // if (cef_browser_instance &&
+        //     cef_browser_instance->GetIdentifier() == browser->GetIdentifier()) {
+        //     cef_browser_instance = nullptr;
+        // }
     }
 
    private:
@@ -134,18 +134,7 @@ static bool create_dummy_browser_source(void) {
 
     // Get browser source type (ensure obs-browser plugin is loaded)
     const char *source_id = "browser_source";
-    // if (!obs_has_source(source_id)) {
-    //     blog(LOG_ERROR, "[obs-17live] 'browser_source' not found. Is obs-browser loaded?");
-    //     return false;
-    // }
 
-    // Create default settings
-    // obs_data_t *settings = obs_data_create();
-    // obs_data_set_string(settings, "url", "https://17.live");
-    // obs_data_set_int(settings, "width", 1280);
-    // obs_data_set_int(settings, "height", 720);
-    // obs_data_set_bool(settings, "is_local_file", false);
-    // obs_data_set_bool(settings, "shutdown", true);  // Close page when inactive
     obs_data_t *settings = obs_get_source_defaults(source_id);
 
     // Create source
@@ -159,12 +148,6 @@ static bool create_dummy_browser_source(void) {
     blog(LOG_INFO, "[obs-17live] Browser source created successfully");
 
     obs_data_release(settings);
-    // If you want to add it to current scene, you can add:
-    // obs_scene_t *scene = obs_scene_from_source(obs_frontend_get_current_scene());
-    // obs_scene_add(scene, browser_source);
-
-    // Or you can dynamically add in some UI callbacks
-
     return true;
 }
 
@@ -173,37 +156,6 @@ static bool initialize_cef() {
         return true;
 
     obs_log(LOG_INFO, "Initializing CEF...");
-
-    // struct obs_cmdline_args cmdline_args = obs_get_cmdline_args();
-    // CefMainArgs main_args(cmdline_args.argc, cmdline_args.argv);
-    // CefSettings settings;
-    // settings.log_severity = LOGSEVERITY_VERBOSE;
-
-    // Set path to browser subprocess executable
-    // This is crucial. The path needs to be to a helper executable.
-    // For macOS, this is often within the framework bundle.
-    // e.g.,
-    // CefString(&settings.browser_subprocess_path).FromString("/path/to/Framework.framework/Versions/A/Helpers/SubProcess.app/Contents/MacOS/SubProcess");
-    // For now, let's assume it's found automatically or set elsewhere if needed.
-    // On macOS, if you bundle CEF correctly, it might find it.
-    // If not, you'll need to specify: CefString(&settings.browser_subprocess_path).Set( ... );
-
-    // Configure settings
-    // settings.no_sandbox = true; // Required for some environments, use with caution.
-    // settings.windowless_rendering_enabled = false; // We want a window
-    // CefString(&settings.locale).FromString("en-US");
-
-    // Initialize CEF. This should be called on the main application thread.
-    // OBS plugins might load on a different thread, so care is needed.
-    // For simplicity, we assume this is called from a context where it's safe.
-    // A dedicated CEF management thread is often used in complex apps.
-
-    // CefRefPtr<SimpleCefApp> app = new SimpleCefApp();
-
-    // if (!CefInitialize(main_args, settings, app.get(), nullptr)) {
-    //     obs_log(LOG_ERROR, "CEF initialization failed. Exit code");
-    //     return false;
-    // }
 
     if (!create_dummy_browser_source()) {
         obs_log(LOG_ERROR, "Failed to create dummy browser source.");
@@ -214,36 +166,6 @@ static bool initialize_cef() {
 
     obs_log(LOG_INFO, "CEF initialized successfully.");
     return true;
-}
-
-struct release_param {
-    const char *target_name;
-};
-
-static bool release_source_callback(void *param, obs_source_t *source) {
-    if (!source)
-        return true;
-
-    const char *name = obs_source_get_name(source);
-    obs_log(LOG_INFO, "Checking source: %s", name);
-
-    auto *p = static_cast<release_param *>(param);
-
-    if (strcmp(name, p->target_name) == 0) {
-        obs_source_t *ref = obs_source_get_ref(source);
-        if (ref) {
-            obs_log(LOG_INFO, "Releasing source: %s", name);
-            obs_source_release(ref);
-        }
-    }
-
-    return true;  // Return true to continue enumerating all sources
-}
-
-void release_sources_by_name(const char *target_name) {
-    obs_log(LOG_INFO, "Releasing sources by name: %s", target_name);
-    release_param param = {target_name};
-    obs_enum_sources(release_source_callback, &param);
 }
 
 // Function to shutdown CEF
@@ -259,11 +181,9 @@ static void shutdown_cef() {
         delete cef_window;  // Clean up Qt window
         cef_window = nullptr;
     }
-    // CefShutdown();
+   
     obs_source_release(dummy_source);
     dummy_source = nullptr;
-
-    // release_sources_by_name("DummyBrowser"); // legacy dev
 
     cef_initialized = false;
     obs_log(LOG_INFO, "CEF shutdown complete.");
