@@ -11,18 +11,19 @@ import Chat from '@/lib/Chat';
 import { getAblyDecodeData } from '@/util/getAblyDecodeData';
 import { getChatProps } from '@/util/getChatProps';
 import { ChatListWrapper } from '@/lib/ChatListWrapper';
-import { getAblyTokenFromServer,
+import {
+    getAblyTokenFromServer,
     getGifts,
     getGiftByID,
     getRoomInfo
 } from '../../api';
 
-import { 
-    MsgType_COMMENT, 
-    MsgType_NEW_GIFT, 
-    MsgType_NEW_LUCKYBAG, 
+import {
+    MsgType_COMMENT,
+    MsgType_NEW_GIFT,
+    MsgType_NEW_LUCKYBAG,
     MsgType_JOIN_ROOM,
-    MsgType_AI_COHOST_MESSAGE, 
+    MsgType_AI_COHOST_MESSAGE,
     DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
 } from '@/lib/constants';
 
@@ -42,12 +43,69 @@ export default function AblyComponent() {
 
     const t = useTranslations('ChatPage');
 
+    // 保存对话到本地存储
+    const saveChatToStorage = (roomId, chatData) => {
+        try {
+            const storageKey = `chat_history_${roomId}`;
+            // 将Immutable对象转换为普通JavaScript对象进行存储
+            const plainChats = chatData.map(chat => chat.toJS ? chat.toJS() : chat);
+            const chatHistory = {
+                roomId,
+                timestamp: Date.now(),
+                chats: plainChats
+            };
+            localStorage.setItem(storageKey, JSON.stringify(chatHistory));
+        } catch (error) {
+            console.error('Error saving chat to storage:', error);
+        }
+    };
+
+    // 从本地存储加载对话
+    const loadChatFromStorage = (roomId) => {
+        try {
+            const storageKey = `chat_history_${roomId}`;
+            const savedData = localStorage.getItem(storageKey);
+            if (savedData) {
+                const chatHistory = JSON.parse(savedData);
+                // 检查数据是否过期（可选：设置24小时过期）
+                const isExpired = Date.now() - chatHistory.timestamp > 24 * 60 * 60 * 1000;
+                if (!isExpired && chatHistory.chats) {
+                    return chatHistory.chats.map(chat => fromJS(chat));
+                }
+            }
+        } catch (error) {
+            console.error('Error loading chat from storage:', error);
+        }
+        return [];
+    };
+
+    // 清理过期的聊天记录
+    const cleanupExpiredChats = () => {
+        try {
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('chat_history_')) {
+                    const savedData = localStorage.getItem(key);
+                    if (savedData) {
+                        const chatHistory = JSON.parse(savedData);
+                        const isExpired = Date.now() - chatHistory.timestamp > 24 * 60 * 60 * 1000;
+                        if (isExpired) {
+                            localStorage.removeItem(key);
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error cleaning up expired chats:', error);
+        }
+    };
+
     const prepareIndexedChat = (message) => {
         const id = shortid.generate();
         const { userInfo } = roomInfo;
         const streamerInfo = userInfo;
-        
-        if (message.type === MsgType_NEW_GIFT 
+
+        if (message.type === MsgType_NEW_GIFT
             || message.type === MsgType_NEW_LUCKYBAG) {
             const { displayUser, barrage, ...restGift } = message?.giftMsg;
             const gift = getGiftByID(restGift.giftID);
@@ -57,20 +115,20 @@ export default function AblyComponent() {
                 const indexedGift = fromJS({
                     ...restGift,
                     ...displayUser,
-                        barrage,
-                        id,
-                        messageType: message.type,
-                        gift,
-                        luckyBag,
-                        streamerInfo,
-                    });
+                    barrage,
+                    id,
+                    messageType: message.type,
+                    gift,
+                    luckyBag,
+                    streamerInfo,
+                });
                 return indexedGift;
-            } 
+            }
 
 
             const indexedGift = fromJS({
-            ...restGift,
-            ...displayUser,
+                ...restGift,
+                ...displayUser,
                 barrage,
                 id,
                 messageType: message.type,
@@ -136,13 +194,32 @@ export default function AblyComponent() {
 
                 // 初次加载时获取礼物信息
                 await getGifts();
+
+                // 清理过期的聊天记录
+                cleanupExpiredChats();
             } catch (error) {
                 console.error("Error fetching initial data:", error);
             }
         };
         fetchInitialData();
     }, []);
-        
+
+    // 当roomID变化时加载历史对话
+    useEffect(() => {
+        if (roomID) {
+            const savedChats = loadChatFromStorage(roomID);
+            console.log('savedChats', savedChats);
+            setChatList(savedChats);
+        }
+    }, [roomID]);
+
+    // 当对话列表更新时保存到本地存储
+    useEffect(() => {
+        if (roomID && chatList.length > 0) {
+            saveChatToStorage(roomID, chatList);
+        }
+    }, [chatList, roomID]);
+
     useEffect(() => {
         if (!roomID || !userID) {
             return;
@@ -176,7 +253,7 @@ export default function AblyComponent() {
             const decodeMessage = getAblyDecodeData(message);
             const streamerInfo = roomInfo.userInfo;
 
-            if (decodeMessage?.type === MsgType_COMMENT 
+            if (decodeMessage?.type === MsgType_COMMENT
                 || decodeMessage?.type === MsgType_JOIN_ROOM
             ) {
                 const chat = decodeMessage?.commentMsg;
@@ -187,14 +264,22 @@ export default function AblyComponent() {
                         chat.displayUser.userID === userID)
                 ) {
                     const indexedChat = prepareIndexedChat(decodeMessage, streamerInfo);
-                    setChatList(prevChatList => [...prevChatList, indexedChat]);
+                    setChatList(prevChatList => {
+                        const newChatList = [...prevChatList, indexedChat];
+                        // 限制聊天记录数量，避免内存过多占用
+                        return newChatList.length > 1000 ? newChatList.slice(-1000) : newChatList;
+                    });
                 }
-            } else if (decodeMessage?.type === MsgType_NEW_GIFT 
+            } else if (decodeMessage?.type === MsgType_NEW_GIFT
                 || decodeMessage?.type === MsgType_NEW_LUCKYBAG
                 || decodeMessage?.type === MsgType_AI_COHOST_MESSAGE
-            ) { 
+            ) {
                 const indexedChat = prepareIndexedChat(decodeMessage);
-                setChatList(prevChatList => [...prevChatList, indexedChat]);
+                setChatList(prevChatList => {
+                    const newChatList = [...prevChatList, indexedChat];
+                    // 限制聊天记录数量，避免内存过多占用
+                    return newChatList.length > 1000 ? newChatList.slice(-1000) : newChatList;
+                });
             }
         });
 
