@@ -300,6 +300,7 @@ static void cef_view_show_window(const char *url) {
     cef_window = new QDockWidget(mainWindow);
     cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
     cef_window->resize(378, 600);
+    cef_window->setFixedWidth(378);
     // Set as floating window first to avoid size adjustment issues after adding to dock area
     cef_window->setFloating(true);
     // Set allowed dock areas
