@@ -39,7 +39,7 @@ const CommentFrameShineEffect = styled.canvas`
 
 /**
  * Type 3
- * 因若將圖片正常切 4x4 塊，邊邊塊會含有間隙，故需要人工校正每邊剪約 1/4 borderWidth
+ * If the image is normally cut into 4x4 blocks, edge blocks will contain gaps, so manual correction is needed to trim about 1/4 borderWidth from each edge
  */
 const CommentFrameGradient = ({
                                           imageURL,
@@ -69,7 +69,7 @@ const CommentFrameGradient = ({
             const pieceWidth = img.width / 4;
             const pieceHeight = img.height / 8;
 
-            // 因為原圖有分成上下兩張圖，這邊要取得下圖的 Y 軸
+            // Since the original image is divided into upper and lower images, need to get the Y axis of the lower image
             const imgHalfHeight = img.height / 2;
 
             /**
@@ -86,7 +86,7 @@ const CommentFrameGradient = ({
              * dy: destinationY
              * dWidth: destination width
              * sHeight: destination height
-             * 參數命名參考：https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/drawImage
+             * Parameter naming reference: https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/drawImage
              */
             const patternMap = [
                 {
@@ -114,7 +114,7 @@ const CommentFrameGradient = ({
                     dHeight: borderWidth,
                 },
                 {
-                    id: 'material_2', // 右上 --> Top
+                    id: 'material_2', // Top right --> Top
                     order: 1,
                     sx: pieceWidth * 2,
                     sy: pieceHeight,
@@ -150,7 +150,7 @@ const CommentFrameGradient = ({
                     dHeight: commentHeight - borderWidth * 2 - borderOffset * 2,
                 },
                 {
-                    id: 'material_4', // 右下 --> Right
+                    id: 'material_4', // Bottom right --> Right
                     order: 3,
                     sx: pieceWidth * 2,
                     sy: pieceHeight * 2,
@@ -186,7 +186,7 @@ const CommentFrameGradient = ({
                     dHeight: borderWidth,
                 },
                 {
-                    id: 'material_3', // 左下 --> Bottom
+                    id: 'material_3', // Bottom left --> Bottom
                     order: 5,
                     sx: pieceWidth,
                     sy: pieceHeight * 2,
@@ -222,7 +222,7 @@ const CommentFrameGradient = ({
                     dHeight: commentHeight - borderWidth * 2 - borderOffset * 2,
                 },
                 {
-                    id: 'material_1', // 左上 --> Left
+                    id: 'material_1', // Top left --> Left
                     order: 7,
                     sx: pieceWidth,
                     sy: pieceHeight,
@@ -255,7 +255,7 @@ const CommentFrameGradient = ({
     );
 
     useEffect(() => {
-        // 在圖片載入後進行繪製
+        // Draw after image is loaded
         imageOnLoad(imageURL).then(draw);
     }, [imageURL, draw]);
 

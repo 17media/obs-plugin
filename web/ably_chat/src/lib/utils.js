@@ -43,7 +43,7 @@ export const mapLevelToTextColor = normalizedLevel =>
     LEVEL_COLORS[`LEVEL_${normalizedLevel}`];
 
 export const normalizeLevel = level => {
-    // 獎勵帳號例如 17gift 的 level 會是 0, 為了不讓 LevelBadge 全白讓他返回 `00`
+    // Reward accounts like 17gift have level 0, return `00` to prevent LevelBadge from being all white
     if (level === 0) {
         return '00';
     }
@@ -146,7 +146,7 @@ export const imageOnLoad = (
 };
 
 /**
- * 來用判斷要用新還舊的以 image 為 pattern 的 canvas 繪製方式
+ * Used to determine whether to use new or old canvas drawing method with image as pattern
  */
 export const getIsSupportImageBitmapPattern = async (
     img,
@@ -182,8 +182,8 @@ const drawImagePattern = ({
 };
 
 /**
- * 取 image 特定範圍做為素材繪製留言框或框上圖案
- * 依 os 是否支援 bitmap image + create pattern 分成新舊寫法
+ * Take specific range of image as material to draw comment box or patterns on the box
+ * Divided into new and old methods based on whether OS supports bitmap image + create pattern
  */
 export const drawImage = ({
                               ctx,
@@ -207,16 +207,16 @@ export const drawImage = ({
      *  5 |  6 |  7 |  8
      *  9 | 10 | 11 | 12
      * 13 | 14 | 15 | 16
-     * 框上圖案取 6/7/10/11 其中一塊重複，都是 borderWidth x borderWidth
-     * 但框底要取 1&2/8&12/14&15/5&9 其中兩塊重複
+     * Patterns on the box take one of 6/7/10/11 blocks to repeat, all are borderWidth x borderWidth
+     * But the box base needs to take two blocks from 1&2/8&12/14&15/5&9 to repeat
      */
     const isMaterial = id?.includes('material');
     const resizeWidth = isMaterial
         ? borderWidth
-        : borderWidth * (dWidth > dHeight ? 2 : 1); // 橫邊寬兩塊
+        : borderWidth * (dWidth > dHeight ? 2 : 1); // Horizontal edge width two blocks
     const resizeHeight = isMaterial
         ? borderWidth
-        : borderWidth * (dWidth < dHeight ? 2 : 1); // 直邊高兩塊
+        : borderWidth * (dWidth < dHeight ? 2 : 1); // Vertical edge height two blocks
 
     if (isSupportCreateImageBitmapWithPattern) {
         createImageBitmap(img, sx, sy, sw, sh, {
@@ -230,7 +230,7 @@ export const drawImage = ({
         return;
     }
 
-    // 若 createImageBitmap 的新寫法支援度不足
+    // If createImageBitmap new method support is insufficient
     const patternCanvas = document.createElement('canvas');
     patternCanvas.width = resizeWidth;
     patternCanvas.height = resizeHeight;
@@ -257,7 +257,7 @@ export const drawImage = ({
  * dy: destinationY
  * dWidth: destination width
  * sHeight: destination height
- * 參數命名參考：https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/drawImage
+ * Parameter naming reference: https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/drawImage
  */
 const drawPattern = ({
                          ctx,
@@ -276,7 +276,7 @@ const drawPattern = ({
                          isSupportCreateImageBitmapWithPattern,
                      }) => {
     if (order === 0 || order === 2 || order === 4 || order === 6) {
-        // 繪製留言框四個角
+        // Draw four corners of comment box
         ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dWidth, dHeight);
     } else if (order === 1 || order === 3 || order === 5 || order === 7) {
         drawImage({
@@ -322,7 +322,7 @@ const drawShineEffect = ({
         const progress = frame / totalFrames;
         const rectX = progress * endX;
 
-        // 繪製閃光
+        // Draw shine effect
         shineCtx.beginPath();
         shineCtx.moveTo(rectX, 0);
         shineCtx.lineTo(rectX + shineWidth, 0);
@@ -339,9 +339,9 @@ const drawShineEffect = ({
 };
 
 /**
- * 繪製 ChatRoomCommentFrameGradient 留言框主要 function
- * 有兩階段的 drawPattern，以圖上半一次繪製完基底框，再以圖下半動畫依序繪製變化後的框
- * 最後再繪製白色矩形左至右滑過，模仿閃爍效果
+ * Main function for drawing ChatRoomCommentFrameGradient comment box
+ * Has two stages of drawPattern, first draw the base frame with upper half of image, then animate with lower half to draw transformed frame
+ * Finally draw white rectangle sliding from left to right to simulate shine effect
  */
 export const drawGradientFrame = ({
                                       ctx,
@@ -367,7 +367,7 @@ export const drawGradientFrame = ({
                     ctx,
                     id,
                     sx,
-                    sy: sy + (isTransitioned ? imgHalfHeight : 0), // 繪製漸變動畫需要使用原圖的下半部，所以加上 imgHalfHeight 調整 sy 的高度
+                    sy: sy + (isTransitioned ? imgHalfHeight : 0), // Drawing gradient animation needs to use lower half of original image, so add imgHalfHeight to adjust sy height
                     sw,
                     sh,
                     dx,
@@ -384,7 +384,7 @@ export const drawGradientFrame = ({
     };
 
     if (skipAnimationFrame) {
-        // 直接繪製漸變後的結果
+        // Directly draw the result after gradient
         for (let drawOrder = 0; drawOrder <= 7; drawOrder++) {
             drawPatternMap(
                 patternMap.filter(pattern => pattern.order === drawOrder),
@@ -394,12 +394,12 @@ export const drawGradientFrame = ({
         return;
     }
 
-    // 繪製漸變前
+    // Draw before gradient
     drawPatternMap(patternMap);
 
     const drawFrame = (drawOrder) => {
         if (drawOrder > 7) {
-            // 繪製完漸變後再閃爍
+            // Draw shine effect after gradient is complete
             drawShineEffect({
                 shineEffectRef,
                 commentRef,
@@ -409,7 +409,7 @@ export const drawGradientFrame = ({
             onAnimationEnd?.();
             return;
         }
-        // 依序繪製漸變後
+        // Draw after gradient in sequence
         drawPatternMap(
             patternMap.filter(pattern => pattern.order === drawOrder),
             true
@@ -420,7 +420,7 @@ export const drawGradientFrame = ({
         );
     };
 
-    // 由左上角開始順時鐘依序轉換成原圖下半漸變後的樣式
+    // Starting from top-left corner, clockwise transform to gradient style of lower half of original image
     setTimeout(
         () => requestAnimationFrame(() => drawFrame(0)),
         COMMENT_BORDER_PAINT_INTERVAL_TIME

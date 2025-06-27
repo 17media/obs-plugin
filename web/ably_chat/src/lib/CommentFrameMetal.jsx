@@ -34,7 +34,8 @@ const CommentInner = styled.canvas`
 
 /**
  * Type 2
- * 因若將圖片正常切 4x4 塊，邊邊塊會含有間隙，故需要人工校正每邊剪約 1/4 borderWidth
+ * If the image is normally cut into 4x4 blocks, the edge blocks will contain gaps,
+ * so manual correction is needed to trim about 1/4 borderWidth from each edge
  */
 const CommentFrameMetal = ({
                                        imageURL,
@@ -78,11 +79,11 @@ const CommentFrameMetal = ({
              * dy: destinationY
              * dWidth: destination width
              * sHeight: destination height
-             * 參數命名參考：https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/drawImage
+             * Parameter naming reference: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage
              */
             const patternMap = [
                 {
-                    id: 'material_2', // 右上 --> Top
+                    id: 'material_2', // Top-right --> Top
                     order: 1,
                     sx: pieceWidth * 2,
                     sy: pieceHeight,
@@ -94,7 +95,7 @@ const CommentFrameMetal = ({
                     dHeight: borderWidth - borderOffset * 2,
                 },
                 {
-                    id: 'material_4', // 右下 --> Right
+                    id: 'material_4', // Bottom-right --> Right
                     order: 3,
                     sx: pieceWidth * 2,
                     sy: pieceHeight * 2,
@@ -106,7 +107,7 @@ const CommentFrameMetal = ({
                     dHeight: commentHeight - borderWidth * 2 - borderOffset * 2,
                 },
                 {
-                    id: 'material_3', // 左下 --> Bottom
+                    id: 'material_3', // Bottom-left --> Bottom
                     order: 5,
                     sx: pieceWidth,
                     sy: pieceHeight * 2,
@@ -118,7 +119,7 @@ const CommentFrameMetal = ({
                     dHeight: borderWidth,
                 },
                 {
-                    id: 'material_1', // 左上 --> Left
+                    id: 'material_1', // Top-left --> Left
                     order: 7,
                     sx: pieceWidth,
                     sy: pieceHeight,
@@ -133,7 +134,7 @@ const CommentFrameMetal = ({
 
             patternMap.forEach(
                 ({ id, sx, sy, sw, sh, dx, dy, dWidth, dHeight, order }) => {
-                    // 繪製留言框上的圖案
+                    // Draw patterns on the comment frame
                     if (order === 1 || order === 3 || order === 5 || order === 7) {
                         drawImage({
                             ctx,
@@ -158,7 +159,7 @@ const CommentFrameMetal = ({
     );
 
     useEffect(() => {
-        // 在圖片載入後進行繪製
+        // Draw after image is loaded
         imageOnLoad(imageURL).then(draw);
     }, [imageURL, draw]);
 
