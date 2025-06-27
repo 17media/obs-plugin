@@ -16,7 +16,7 @@ add_library(${CMAKE_PROJECT_NAME} MODULE)
 # Set the runtime library on Windows to static linking (/MT) to match the CEF library
 if(OS_WINDOWS)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE 
+  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
     $<$<CONFIG:Release>:/MT>
     $<$<CONFIG:RelWithDebInfo>:/MT>
     $<$<CONFIG:Debug>:/MTd>
@@ -50,33 +50,36 @@ endif()
 # Add CEF support
 # CEF_ROOT_DIR should already be set in defaults.cmake -> buildspec.cmake
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+
 if(CEF_ROOT_DIR)
   set(CEF_ROOT "${CEF_ROOT_DIR}")
   message(STATUS "Using CEF_ROOT: ${CEF_ROOT}")
 else()
   message(FATAL_ERROR "CEF_ROOT_DIR not set. Dependencies may not have been processed correctly.")
 endif()
+
 find_package(CEF REQUIRED)
 
 # Add the json11 dependency
 add_subdirectory(deps/json11)
+
 # Add the wrappers dependency
 add_subdirectory(deps/wrappers)
 
 # Set header file include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
-    ${CEF_ROOT_DIR} # This might need adjustment based on actual CEF include path
-    ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
+  ${CEF_ROOT_DIR} # This might need adjustment based on actual CEF include path
+  ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
 # Link json11, wrappers libraries
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
-  json11 
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+  json11
   wrappers
   CEF::Library
   CEF::Wrapper
@@ -85,36 +88,36 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add cpp-httplib include directory (though it might already be covered by 'deps')
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/cpp-httplib
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/cpp-httplib
 )
 
 # Configure plugin-support.c file
 configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
-                                             src/plugin-support.c
-                                             src/17live/OneSevenLiveCoreManager.cpp
-                                             src/17live/OneSevenLiveConfigManager.cpp
-                                             src/17live/api/OneSevenLiveModels.cpp
-                                             src/17live/utility/RemoteTextThread.cpp
-                                             src/17live/utility/Common.cpp
-                                             src/17live/utility/Meta.cpp
-                                             src/17live/api/OneSevenLiveApiWrappers.cpp
-                                             src/17live/cef-view.cpp
-                                             src/17live/OneSevenLiveMenuManager.cpp
-                                             src/17live/OneSevenLiveLoginDialog.cpp
-                                             src/17live/OneSevenLiveStreamingDock.cpp
-                                             src/17live/OneSevenLiveStreamListItem.cpp
-                                             src/17live/OneSevenLiveStreamListDock.cpp
-                                             src/17live/OneSevenLiveHttpServer.cpp
-                                             resources.qrc)
+  src/plugin-support.c
+  src/17live/OneSevenLiveCoreManager.cpp
+  src/17live/OneSevenLiveConfigManager.cpp
+  src/17live/api/OneSevenLiveModels.cpp
+  src/17live/utility/RemoteTextThread.cpp
+  src/17live/utility/Common.cpp
+  src/17live/utility/Meta.cpp
+  src/17live/api/OneSevenLiveApiWrappers.cpp
+  src/17live/cef-view.cpp
+  src/17live/CefDockWidget.cpp
+  src/17live/OneSevenLiveMenuManager.cpp
+  src/17live/OneSevenLiveLoginDialog.cpp
+  src/17live/OneSevenLiveStreamingDock.cpp
+  src/17live/OneSevenLiveStreamListItem.cpp
+  src/17live/OneSevenLiveStreamListDock.cpp
+  src/17live/OneSevenLiveHttpServer.cpp
+  resources.qrc)
 
-if (MSVC)
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE /wd4996)
+if(MSVC)
+  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE /wd4996)
 else()
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wno-deprecated-builtins)
+  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wno-deprecated-builtins)
 endif()
-
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 

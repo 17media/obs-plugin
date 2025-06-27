@@ -8,7 +8,12 @@
 #include <obs.hpp>
 #include <util/dstr.hpp>  // For DStr
 
+#include <QWidget>
+#include <QMainWindow>
+
 #include "plugin-support.h"
+
+#include "CefDockWidget.hpp"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -31,13 +36,6 @@
 #include "include/cef_scheme.h"
 #include "include/wrapper/cef_helpers.h"
 
-// Qt includes (if needed for windowing, though CEF can create its own)
-#include <QAction>
-#include <QDockWidget>
-#include <QMainWindow>
-#include <QVBoxLayout>
-#include <QWidget>
-
 // Forward declarations
 // static void cef_view_open_url(const char *url_str);
 static void cef_view_show_window(const char *url);
@@ -45,7 +43,7 @@ static void cef_view_show_window(const char *url);
 // Global CEF browser instance and window
 static CefRefPtr<CefBrowser> cef_browser_instance;
 // static QMainWindow *cef_window = nullptr;
-QDockWidget *cef_window = nullptr;
+CefDockWidget *cef_window = nullptr;
 static bool cef_initialized = false;
 static os_event_t *cef_started_event = nullptr;
 
@@ -178,7 +176,7 @@ static void shutdown_cef() {
         cef_browser_instance = nullptr;
     }
     if (cef_window) {
-        delete cef_window;  // Clean up Qt window
+        cef_window->deleteLater();  // Clean up Qt window safely
         cef_window = nullptr;
     }
 
@@ -213,14 +211,39 @@ void cef_view_open_url(const char *url_str) {
     cef_view_show_window(url_to_load.c_str());
 }
 
-static bool cef_view_create_browser(QDockWidget *cef_window, const char *url) {
+// Function to resize the CEF browser
+void cef_view_resize_browser(int width, int height) {
+    if (!cef_browser_instance) {
+        return;
+    }
+    
+    obs_log(LOG_INFO, "Resizing CEF browser to %dx%d", width, height);
+    
+    // Get the browser host and resize
+    CefRefPtr<CefBrowserHost> host = cef_browser_instance->GetHost();
+    if (host) {
+#if defined(OS_WIN)
+        // On Windows, we need to resize the browser window
+        HWND hwnd = host->GetWindowHandle();
+        if (hwnd) {
+            SetWindowPos(hwnd, nullptr, 0, 0, width, height, SWP_NOZORDER | SWP_NOMOVE);
+        }
+#elif defined(OS_MAC)
+        // On macOS, notify CEF about the size change
+        host->WasResized();
+#else  // Linux
+        // On Linux, notify CEF about the size change
+        host->WasResized();
+#endif
+    }
+}
+
+static bool cef_view_create_browser(CefDockWidget *cef_window, const char *url) {
     // CEF window info
     CefWindowInfo window_info;
     CefBrowserSettings browser_settings;
 
-    cef_window->resize(378, 600);
-
-    CefRect rect(0, 0, 378, 600);
+    CefRect rect(0, 0, cef_window->width(), cef_window->height());
 
 #if defined(OS_WIN)
     // On Windows, provide the parent window handle
@@ -299,7 +322,7 @@ static void cef_view_show_window(const char *url) {
 
     QMainWindow *mainWindow = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 
-    cef_window = new QDockWidget(mainWindow);
+    cef_window = new CefDockWidget(mainWindow);
     cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
     cef_window->resize(378, 600);
     // Set as floating window first to avoid size adjustment issues after adding to dock area
