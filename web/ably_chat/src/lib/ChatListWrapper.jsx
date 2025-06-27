@@ -10,7 +10,8 @@ export const ChatListWrapper = styled.ul`
   position: absolute;
   height: 100%;
   min-height: 600px;
-  width: 378px;
+  width: 100%;
+  min-width: 378px;
   top: 0;
   left: 0;
   list-style: none;
