@@ -42,13 +42,32 @@ export default function AblyComponent() {
     const [roomInfo, setRoomInfo] = useState(null);
     const chatEndRef = useRef(null);
 
+    // Add window width state
+    const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
     const t = useTranslations('ChatPage');
 
-    // 保存对话到本地存储
+    // Listen for window resize events
+    useEffect(() => {
+        const handleResize = () => {
+            setWindowWidth(window.innerWidth);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Calculate responsive asideLiveWidth
+    const getAsideLiveWidth = () => {
+        // Calculate based on window width, minimum 378, maximum 600
+        return Math.max(378, windowWidth);
+    };
+
+    // Save chat to local storage
     const saveChatToStorage = (roomId, chatData) => {
         try {
             const storageKey = `chat_history_${roomId}`;
-            // 将Immutable对象转换为普通JavaScript对象进行存储
+            // Convert Immutable object to plain JavaScript object for storage
             const plainChats = chatData.map(chat => chat.toJS ? chat.toJS() : chat);
             const chatHistory = {
                 roomId,
@@ -61,14 +80,14 @@ export default function AblyComponent() {
         }
     };
 
-    // 从本地存储加载对话
+    // load chat from local storage
     const loadChatFromStorage = (roomId) => {
         try {
             const storageKey = `chat_history_${roomId}`;
             const savedData = localStorage.getItem(storageKey);
             if (savedData) {
                 const chatHistory = JSON.parse(savedData);
-                // 检查数据是否过期（可选：设置24小时过期）
+                // check if the data is expired
                 const isExpired = Date.now() - chatHistory.timestamp > 24 * 60 * 60 * 1000;
                 if (!isExpired && chatHistory.chats) {
                     return chatHistory.chats.map(chat => fromJS(chat));
@@ -80,7 +99,7 @@ export default function AblyComponent() {
         return [];
     };
 
-    // 清理过期的聊天记录
+    // clear chat history
     const cleanupExpiredChats = () => {
         try {
             const keys = Object.keys(localStorage);
@@ -193,10 +212,10 @@ export default function AblyComponent() {
                 const roomInfo = await getRoomInfo();
                 setRoomInfo(roomInfo);
 
-                // 初次加载时获取礼物信息
+                // load gifts
                 await getGifts();
 
-                // 清理过期的聊天记录
+                // load chat history from local storage
                 cleanupExpiredChats();
             } catch (error) {
                 console.error("Error fetching initial data:", error);
@@ -205,7 +224,7 @@ export default function AblyComponent() {
         fetchInitialData();
     }, []);
 
-    // 当roomID变化时加载历史对话
+    // load chat history from local storage when roomID changes
     useEffect(() => {
         if (roomID) {
             const savedChats = loadChatFromStorage(roomID);
@@ -214,14 +233,14 @@ export default function AblyComponent() {
         }
     }, [roomID]);
 
-    // 当对话列表更新时保存到本地存储
+    // save chat to local storage
     useEffect(() => {
         if (roomID && chatList.length > 0) {
             saveChatToStorage(roomID, chatList);
         }
     }, [chatList, roomID]);
 
-    // 自动滚动到聊天末尾
+    // automatically scroll to the bottom when chatList changes
     useEffect(() => {
         if (chatEndRef.current) {
             chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -274,7 +293,7 @@ export default function AblyComponent() {
                     const indexedChat = prepareIndexedChat(decodeMessage, streamerInfo);
                     setChatList(prevChatList => {
                         const newChatList = [...prevChatList, indexedChat];
-                        // 限制聊天记录数量，避免内存过多占用
+                        // only keep the last 1000 chat messages
                         return newChatList.length > 1000 ? newChatList.slice(-1000) : newChatList;
                     });
                 }
@@ -285,7 +304,7 @@ export default function AblyComponent() {
                 const indexedChat = prepareIndexedChat(decodeMessage);
                 setChatList(prevChatList => {
                     const newChatList = [...prevChatList, indexedChat];
-                    // 限制聊天记录数量，避免内存过多占用
+                    // only keep the last 1000 chat messages
                     return newChatList.length > 1000 ? newChatList.slice(-1000) : newChatList;
                 });
             }
@@ -302,7 +321,7 @@ export default function AblyComponent() {
             {chatList
                 .map(chat => (
                     <Chat
-                        asideLiveWidth={378}
+                        asideLiveWidth={getAsideLiveWidth()}
                         {...getChatProps(chat)}
                         roomID={roomID}
                         isConcert={false}
