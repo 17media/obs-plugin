@@ -218,9 +218,12 @@ static bool cef_view_create_browser(QDockWidget *cef_window, const char *url) {
     CefWindowInfo window_info;
     CefBrowserSettings browser_settings;
 
+    cef_window->resize(378, 600);
+
+    CefRect rect(0, 0, 378, 600);
+
 #if defined(OS_WIN)
     // On Windows, provide the parent window handle
-    CefRect rect(0, 0, 378, 600);
     window_info.SetAsChild((HWND) cef_window->winId(), rect);
 #elif defined(OS_MAC)
     // On macOS, you might embed CEF into an NSView. For a top-level window, this is different.
@@ -231,11 +234,10 @@ static bool cef_view_create_browser(QDockWidget *cef_window, const char *url) {
     QWidget *cef_widget_host = new QWidget(cef_window);
     cef_window->setWidget(cef_widget_host);
     //    cef_window->setCentralWidget(cef_widget_host);
-    window_info.SetAsChild((cef_window_handle_t) cef_widget_host->winId(),
-                           CefRect(0, 0, 378, 600));  // Placeholder, might need adjustment
+    window_info.SetAsChild((cef_window_handle_t) cef_widget_host->winId(), rect);  // Placeholder, might need adjustment
 #else  // Linux
     // On Linux, provide the X11 window ID
-    window_info.SetAsChild((unsigned long) cef_window->winId(), CefRect(0, 0, 1024, 768));
+    window_info.SetAsChild((unsigned long) cef_window->winId(), rect);
 #endif
 
     CefRefPtr<SimpleCefClient> client = new SimpleCefClient();
@@ -300,7 +302,6 @@ static void cef_view_show_window(const char *url) {
     cef_window = new QDockWidget(mainWindow);
     cef_window->setWindowTitle(obs_module_text("ChatRoom.Title"));
     cef_window->resize(378, 600);
-    cef_window->setFixedWidth(378);
     // Set as floating window first to avoid size adjustment issues after adding to dock area
     cef_window->setFloating(true);
     // Set allowed dock areas
