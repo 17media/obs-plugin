@@ -19,13 +19,14 @@
 #include "OneSevenLiveStreamListDock.hpp"
 #include "OneSevenLiveStreamingDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
+#include "CefDockWidget.hpp"
 #include "cef-view.hpp"
 #include "json11.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
 
-extern QDockWidget* cef_window;
+extern CefDockWidget* cef_window;
 
 using namespace json11;
 using namespace std;
