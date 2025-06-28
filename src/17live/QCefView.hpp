@@ -16,6 +16,7 @@
 #include <include/cef_app.h>
 #include <include/cef_browser.h>
 #include <include/cef_render_handler.h>
+#include <include/wrapper/cef_helpers.h>
 
 class QCefView : public QWidget, public CefClient, public CefRenderHandler, public CefLifeSpanHandler, public CefDisplayHandler
 {

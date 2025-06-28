@@ -43,7 +43,7 @@ QCefView::QCefView(QWidget *parent) : QWidget(parent), m_browser(nullptr)
 }
 
 QCefView::~QCefView()
-{
+{ 
     if (m_browser)
     {
         m_browser->GetHost()->CloseBrowser(true);
@@ -61,7 +61,7 @@ void QCefView::loadUrl(const QString &url)
     }
     else
     {
-        // 確保窗口已經有正確的大小
+        // 確保窗口已經有正確的大小，但只在widget已經有有效的parent和screen時調用
         adjustSize();
         
         // 使用QTimer延遲創建瀏覽器，確保窗口大小已經正確設置
@@ -71,7 +71,8 @@ void QCefView::loadUrl(const QString &url)
             
 #ifdef Q_OS_WIN
             // 獲取設備像素比例以支持高DPI
-            qreal devicePixelRatio = screen()->devicePixelRatio();
+            QScreen* currentScreen = screen();
+            qreal devicePixelRatio = currentScreen ? currentScreen->devicePixelRatio() : 1.0;
             int scaledWidth = width() * devicePixelRatio;
             int scaledHeight = height() * devicePixelRatio;
             
@@ -145,7 +146,8 @@ void QCefView::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect &rect)
     
 #ifdef Q_OS_WIN
     // 獲取設備像素比例以支持高DPI
-    qreal devicePixelRatio = screen()->devicePixelRatio();
+    QScreen* currentScreen = screen();
+    qreal devicePixelRatio = currentScreen ? currentScreen->devicePixelRatio() : 1.0;
     rect.width = width() * devicePixelRatio;
     rect.height = height() * devicePixelRatio;
 #else
@@ -163,17 +165,31 @@ void QCefView::OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type,
 
 void QCefView::OnAfterCreated(CefRefPtr<CefBrowser> browser)
 {
-    m_browser = browser;
+    CEF_REQUIRE_UI_THREAD();
+
+    if (!m_browser) {
+        m_browser = browser;
+    }
 }
 
 bool QCefView::DoClose(CefRefPtr<CefBrowser> browser)
 {
+    CEF_REQUIRE_UI_THREAD();
+
+    if (m_browser && m_browser->GetIdentifier() == browser->GetIdentifier()) {
+        m_browser = nullptr;
+    }
+
     return false;
 }
 
 void QCefView::OnBeforeClose(CefRefPtr<CefBrowser> browser)
 {
-    m_browser = nullptr;
+    CEF_REQUIRE_UI_THREAD();
+
+    if (m_browser && m_browser->GetIdentifier() == browser->GetIdentifier()) {
+        m_browser = nullptr;
+    }
 }
 
 void QCefView::OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString &title)
@@ -201,7 +217,8 @@ void QCefView::resizeEvent(QResizeEvent *event)
         {
 #ifdef Q_OS_WIN
             // 獲取設備像素比例以支持高DPI
-            qreal devicePixelRatio = screen()->devicePixelRatio();
+            QScreen* currentScreen = screen();
+            qreal devicePixelRatio = currentScreen ? currentScreen->devicePixelRatio() : 1.0;
             
             // 調整CEF瀏覽器窗口大小
             RECT rect;

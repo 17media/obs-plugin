@@ -207,8 +207,6 @@ void OneSevenLiveCoreManager::shutdown() {
         menuManager->cleanup();
     }
 
-    // os_event_destroy(cef_started_event);
-
     initialized = false;
 }
 
@@ -550,18 +548,28 @@ void OneSevenLiveCoreManager::saveDockState() {
 void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
-    if (chatRoomDock) {
-        chatRoomDock->close();
-        delete chatRoomDock;
-        chatRoomDock = nullptr;
-        cefView = nullptr;
+    if (!chatRoomDock) {
+        chatRoomDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
+        chatRoomDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        chatRoomDock->setFeatures(QDockWidget::DockWidgetMovable | 
+                                QDockWidget::DockWidgetFloatable | 
+                                QDockWidget::DockWidgetClosable);
+        
+        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatRoomDock);
 
-        if (menuManager) {
-            menuManager->updateDockVisibility(false, streamingDock && streamingDock->isVisible(),
+        connect(chatRoomDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+                                            streamingDock && streamingDock->isVisible(),
                                             liveListDock && liveListDock->isVisible());
-        }
+        });
+    } else if (chatRoomDock->isVisible()) {
+        chatRoomDock->hide();
+        // cefView will be destroyed when dock is hidden
         return;
     }
+
+    cefView = new QCefView(mainWindow);
+    chatRoomDock->setWidget(cefView);
 
     OneSevenLiveLoginData loginData;
     if (!configManager->getLoginData(loginData)) {
@@ -574,19 +582,9 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     QString chatUrl =
         QString("http://localhost:%1/%2.html?roomID=%3&userID=%4")
             .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
-                 QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
+                QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
     obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
 
-    cefView = new QCefView(mainWindow);
-
-    chatRoomDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
-    chatRoomDock->setWidget(cefView);
-    chatRoomDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    chatRoomDock->setFeatures(QDockWidget::DockWidgetMovable | 
-                             QDockWidget::DockWidgetFloatable | 
-                             QDockWidget::DockWidgetClosable);
-    
-    mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatRoomDock);
 
     chatRoomDock->resize(378, 600);
     chatRoomDock->setFloating(true);
@@ -594,18 +592,6 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     cefView->loadUrl(chatUrl);
 
     chatRoomDock->show();
-
-    connect(chatRoomDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-        if (!visible) {
-            chatRoomDock->close();
-            delete chatRoomDock;
-            chatRoomDock = nullptr;
-            cefView = nullptr;
-        }
-        
-        menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
-                                            liveListDock && liveListDock->isVisible());
-    });
 
     // Update chat room visibility status (considered visible when CEF view is open)
     if (menuManager) {
