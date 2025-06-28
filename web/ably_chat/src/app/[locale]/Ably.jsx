@@ -240,12 +240,40 @@ export default function AblyComponent() {
         }
     }, [chatList, roomID]);
 
-    // automatically scroll to the bottom when chatList changes
+    // 記錄用戶是否在底部的狀態
+    const [isUserNearBottom, setIsUserNearBottom] = useState(true);
+    
+    // 監聽滾動事件，檢測用戶是否在底部附近
     useEffect(() => {
-        if (chatEndRef.current) {
-            chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        const chatContainer = document.querySelector('.chat-list-wrapper');
+        if (!chatContainer) return;
+        
+        const handleScroll = () => {
+            // 計算用戶是否已經接近底部（距離底部小於100px）
+            const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+            setIsUserNearBottom(isNearBottom);
+        };
+        
+        // 初始檢查
+        handleScroll();
+        
+        // 添加滾動事件監聽
+        chatContainer.addEventListener('scroll', handleScroll);
+        
+        // 清理函數
+        return () => {
+            chatContainer.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
+    
+    // 僅當用戶在底部附近且聊天記錄更新時，才自動滾動到底部
+    useEffect(() => {
+        // 確保只有當聊天列表有內容且用戶在底部附近時才滾動
+        if (chatEndRef.current && isUserNearBottom && chatList.length > 0) {
+            // 使用 smooth 行為確保滾動平滑，且只滾動到底部
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
-    }, [chatList]);
+    }, [chatList, isUserNearBottom]);
 
     useEffect(() => {
         if (!roomID || !userID) {
@@ -317,7 +345,7 @@ export default function AblyComponent() {
     }, [roomID, userID, roomInfo]);
 
     return (
-        <ChatListWrapper>
+        <ChatListWrapper className="chat-list-wrapper">
             {chatList
                 .map(chat => (
                     <Chat
