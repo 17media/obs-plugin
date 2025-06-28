@@ -12,6 +12,7 @@
 #include <QWindow>
 #include <QDebug>
 #include <QScreen>
+#include <QTimer>
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -60,30 +61,43 @@ void QCefView::loadUrl(const QString &url)
     }
     else
     {
-        // 創建瀏覽器窗口
-        CefWindowInfo windowInfo;
+        // 確保窗口已經有正確的大小
+        adjustSize();
         
+        // 使用QTimer延遲創建瀏覽器，確保窗口大小已經正確設置
+        QTimer::singleShot(100, this, [this, url]() {
+            // 創建瀏覽器窗口
+            CefWindowInfo windowInfo;
+            
 #ifdef Q_OS_WIN
-        // 獲取設備像素比例以支持高DPI
-        qreal devicePixelRatio = screen()->devicePixelRatio();
-        int scaledWidth = width() * devicePixelRatio;
-        int scaledHeight = height() * devicePixelRatio;
-        
-        windowInfo.SetAsChild((CefWindowHandle)m_window->winId(), 
-                             CefRect(0, 0, scaledWidth, scaledHeight));
+            // 獲取設備像素比例以支持高DPI
+            qreal devicePixelRatio = screen()->devicePixelRatio();
+            int scaledWidth = width() * devicePixelRatio;
+            int scaledHeight = height() * devicePixelRatio;
+            
+            windowInfo.SetAsChild((CefWindowHandle)m_window->winId(), 
+                                CefRect(0, 0, scaledWidth, scaledHeight));
 #else
-        windowInfo.SetAsChild((CefWindowHandle)m_window->winId(), 
-                             CefRect(0, 0, width(), height()));
+            windowInfo.SetAsChild((CefWindowHandle)m_window->winId(), 
+                                CefRect(0, 0, width(), height()));
 #endif
 
-        CefBrowserSettings browserSettings;
-        // browserSettings.background_color = CefColorSetARGB(255, 255, 255, 255);
-        
-        // 啟用高DPI支持
-        // browserSettings.windowless_frame_rate = 60;
+            CefBrowserSettings browserSettings;
+            // browserSettings.background_color = CefColorSetARGB(255, 255, 255, 255);
+            
+            // 啟用高DPI支持
+            // browserSettings.windowless_frame_rate = 60;
 
-        CefString cefUrl(url.toStdString());
-        CefBrowserHost::CreateBrowser(windowInfo, this, cefUrl, browserSettings, nullptr, nullptr);
+            CefString cefUrl(url.toStdString());
+            CefBrowserHost::CreateBrowser(windowInfo, this, cefUrl, browserSettings, nullptr, nullptr);
+            
+            // 確保瀏覽器窗口充滿整個容器
+            QTimer::singleShot(200, this, [this]() {
+                if (m_browser) {
+                    resizeEvent(nullptr);
+                }
+            });
+        });
     }
 }
 
