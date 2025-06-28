@@ -11,6 +11,7 @@
 // Forward declarations
 class QMainWindow;
 class QTimer;
+class QDockWidget;
 
 class BrowserApp;
 
@@ -26,6 +27,8 @@ class OneSevenLiveStreamingDock;
 class OneSevenLiveStreamListDock;
 
 class OneSevenLiveHttpServer;
+
+class QCefView;
 
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
@@ -137,6 +140,8 @@ class OneSevenLiveCoreManager : public QObject {
     void createStreamingDock();
 
     bool chatRoomDockFirstLoad = true;
+    QDockWidget *chatRoomDock{nullptr};
+    QCefView *cefView{nullptr};
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;

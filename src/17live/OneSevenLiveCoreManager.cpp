@@ -11,6 +11,9 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
+#include <QDockWidget>
+
+#include "QCefView.hpp" 
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
@@ -19,14 +22,10 @@
 #include "OneSevenLiveStreamListDock.hpp"
 #include "OneSevenLiveStreamingDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include "CefDockWidget.hpp"
-#include "cef-view.hpp"
 #include "json11.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
-
-extern CefDockWidget* cef_window;
 
 using namespace json11;
 using namespace std;
@@ -197,8 +196,8 @@ void OneSevenLiveCoreManager::shutdown() {
         liveListDock->disconnect(this);
     }
 
-    if (cef_window) {
-        cef_window->disconnect(this);
+    if (chatRoomDock) {
+        chatRoomDock->disconnect(this);
     }
 
     saveDockState();
@@ -292,8 +291,13 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
     }
 
     // Close chat room window (if exists)
-    if (cef_window && cef_window->isVisible()) {
-        cef_window->close();
+    if (chatRoomDock && chatRoomDock->isVisible()) {
+        chatRoomDock->close();
+        chatRoomDock = nullptr;
+    }
+
+    if (cefView) {
+        cefView = nullptr;
     }
 
     // Reset login status
@@ -327,7 +331,7 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+        menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                           streamingDock && streamingDock->isVisible(),
                                           liveListDock && liveListDock->isVisible());
     }
@@ -407,7 +411,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                 });
 
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(), visible,
+            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(), visible,
                                               liveListDock && liveListDock->isVisible());
         });
 
@@ -497,7 +501,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
         // When dock is closed, uncheck menu item status
         connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(), visible);
         });
 
@@ -513,7 +517,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(cef_window && cef_window->isVisible(),
+        menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                           streamingDock && streamingDock->isVisible(),
                                           liveListDock && liveListDock->isVisible());
     }
@@ -546,6 +550,19 @@ void OneSevenLiveCoreManager::saveDockState() {
 void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
+    if (chatRoomDock) {
+        chatRoomDock->close();
+        delete chatRoomDock;
+        chatRoomDock = nullptr;
+        cefView = nullptr;
+
+        if (menuManager) {
+            menuManager->updateDockVisibility(false, streamingDock && streamingDock->isVisible(),
+                                            liveListDock && liveListDock->isVisible());
+        }
+        return;
+    }
+
     OneSevenLiveLoginData loginData;
     if (!configManager->getLoginData(loginData)) {
         obs_log(LOG_ERROR, "Failed to get login data");
@@ -559,15 +576,29 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
                  QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
     obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
-    cef_view_open_url(chatUrl.toStdString().c_str());
 
-    if (chatRoomDockFirstLoad) {
-        connect(cef_window, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible());
-        });
-        chatRoomDockFirstLoad = false;
-    }
+    cefView = new QCefView(mainWindow);
+
+    chatRoomDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
+    chatRoomDock->setWidget(cefView);
+    chatRoomDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    chatRoomDock->setFeatures(QDockWidget::DockWidgetMovable | 
+                             QDockWidget::DockWidgetFloatable | 
+                             QDockWidget::DockWidgetClosable);
+    
+    mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatRoomDock);
+
+    chatRoomDock->resize(378, 600);
+    chatRoomDock->setFloating(true);
+
+    cefView->loadUrl(chatUrl);
+
+    chatRoomDock->show();
+
+    connect(chatRoomDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
+                                            liveListDock && liveListDock->isVisible());
+    });
 
     // Update chat room visibility status (considered visible when CEF view is open)
     if (menuManager) {
