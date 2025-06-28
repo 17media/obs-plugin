@@ -26,36 +26,36 @@ public:
     explicit QCefView(QWidget *parent = nullptr);
     ~QCefView();
 
-    // 加載URL
+    // Load URL
     void loadUrl(const QString &url);
-    // 獲取當前URL
+    // Get current URL
     QString currentUrl() const;
-    // 返回上一頁
+    // Go back to previous page
     void back();
-    // 前進到下一頁
+    // Go forward to next page
     void forward();
-    // 刷新頁面
+    // Refresh page
     void reload();
-    // 停止加載
+    // Stop loading
     void stopLoad();
 
-    // CefClient接口實現
+    // CefClient interface implementation
     virtual CefRefPtr<CefRenderHandler> GetRenderHandler() override { return this; }
     virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
     virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
 
-    // CefRenderHandler接口實現
+    // CefRenderHandler interface implementation
     virtual void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect &rect) override;
     virtual void OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type, 
                         const RectList &dirtyRects, const void *buffer, 
                         int width, int height) override;
 
-    // CefLifeSpanHandler接口實現
+    // CefLifeSpanHandler interface implementation
     virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
     virtual bool DoClose(CefRefPtr<CefBrowser> browser) override;
     virtual void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
 
-    // CefDisplayHandler接口實現
+    // CefDisplayHandler interface implementation
     virtual void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString &title) override;
     virtual void OnAddressChange(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, const CefString &url) override;
 
@@ -73,6 +73,6 @@ private:
     QVBoxLayout *m_layout;
     QString m_currentUrl;
 
-    // CEF引用計數實現
+    // CEF reference counting implementation
     IMPLEMENT_REFCOUNTING(QCefView);
 };

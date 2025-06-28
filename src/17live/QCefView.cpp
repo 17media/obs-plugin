@@ -25,17 +25,17 @@
 
 QCefView::QCefView(QWidget *parent) : QWidget(parent), m_browser(nullptr)
 {
-    // 創建佈局
+    // Create layout
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(m_layout);
 
-    // 創建窗口容器
+    // Create window container
     m_window = new QWindow();
     m_container = QWidget::createWindowContainer(m_window, this);
     m_layout->addWidget(m_container);
 
-    // 設置窗口屬性
+    // Set window attributes
     setAttribute(Qt::WA_NativeWindow, true);
     setAttribute(Qt::WA_DontCreateNativeAncestors, true);
     setAttribute(Qt::WA_DeleteOnClose, true);
@@ -61,16 +61,16 @@ void QCefView::loadUrl(const QString &url)
     }
     else
     {
-        // 確保窗口已經有正確的大小，但只在widget已經有有效的parent和screen時調用
+        // Ensure window has correct size, but only call when widget has valid parent and screen
         adjustSize();
         
-        // 使用QTimer延遲創建瀏覽器，確保窗口大小已經正確設置
+        // Use QTimer to delay browser creation, ensuring window size is properly set
         QTimer::singleShot(100, this, [this, url]() {
-            // 創建瀏覽器窗口
+            // Create browser window
             CefWindowInfo windowInfo;
             
 #ifdef Q_OS_WIN
-            // 獲取設備像素比例以支持高DPI
+            // Get device pixel ratio for high DPI support
             QScreen* currentScreen = screen();
             qreal devicePixelRatio = currentScreen ? currentScreen->devicePixelRatio() : 1.0;
             int scaledWidth = width() * devicePixelRatio;
@@ -86,13 +86,13 @@ void QCefView::loadUrl(const QString &url)
             CefBrowserSettings browserSettings;
             // browserSettings.background_color = CefColorSetARGB(255, 255, 255, 255);
             
-            // 啟用高DPI支持
+            // Enable high DPI support
             // browserSettings.windowless_frame_rate = 60;
 
             CefString cefUrl(url.toStdString());
             CefBrowserHost::CreateBrowser(windowInfo, this, cefUrl, browserSettings, nullptr, nullptr);
             
-            // 確保瀏覽器窗口充滿整個容器
+            // Ensure browser window fills the entire container
             QTimer::singleShot(200, this, [this]() {
                 if (m_browser) {
                     resizeEvent(nullptr);
@@ -145,7 +145,7 @@ void QCefView::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect &rect)
     rect.y = 0;
     
 #ifdef Q_OS_WIN
-    // 獲取設備像素比例以支持高DPI
+    // Get device pixel ratio for high DPI support
     QScreen* currentScreen = screen();
     qreal devicePixelRatio = currentScreen ? currentScreen->devicePixelRatio() : 1.0;
     rect.width = width() * devicePixelRatio;
@@ -160,7 +160,7 @@ void QCefView::OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type,
                       const RectList &dirtyRects, const void *buffer, 
                       int width, int height)
 {
-    // 在離屏渲染模式下需要實現，但我們使用的是窗口渲染模式，所以這裡不需要實現
+    // Implementation needed for off-screen rendering mode, but we use window rendering mode, so no implementation needed here
 }
 
 void QCefView::OnAfterCreated(CefRefPtr<CefBrowser> browser)
@@ -216,23 +216,23 @@ void QCefView::resizeEvent(QResizeEvent *event)
         if (hwnd)
         {
 #ifdef Q_OS_WIN
-            // 獲取設備像素比例以支持高DPI
+            // Get device pixel ratio for high DPI support
             QScreen* currentScreen = screen();
             qreal devicePixelRatio = currentScreen ? currentScreen->devicePixelRatio() : 1.0;
             
-            // 調整CEF瀏覽器窗口大小
+            // Resize CEF browser window
             RECT rect;
             rect.left = 0;
             rect.top = 0;
             rect.right = width() * devicePixelRatio;
             rect.bottom = height() * devicePixelRatio;
             
-            // 使用Windows API調整窗口大小
+            // Use Windows API to resize window
             HDWP hdwp = BeginDeferWindowPos(1);
             hdwp = DeferWindowPos(hdwp, hwnd, NULL, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER);
             EndDeferWindowPos(hdwp);
 #else
-            // 非Windows平台的處理
+            // Handle non-Windows platforms
             m_browser->GetHost()->WasResized();
 #endif
         }
