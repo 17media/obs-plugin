@@ -18,7 +18,9 @@
 #include <include/cef_render_handler.h>
 #include <include/wrapper/cef_helpers.h>
 
-class QCefView : public QWidget, public CefClient, public CefRenderHandler, public CefLifeSpanHandler, public CefDisplayHandler
+class SimpleCefClient;
+
+class QCefView : public QWidget
 {
     Q_OBJECT
 
@@ -30,49 +32,15 @@ public:
     void loadUrl(const QString &url);
     // Get current URL
     QString currentUrl() const;
-    // Go back to previous page
-    void back();
-    // Go forward to next page
-    void forward();
-    // Refresh page
-    void reload();
-    // Stop loading
-    void stopLoad();
-
-    // CefClient interface implementation
-    virtual CefRefPtr<CefRenderHandler> GetRenderHandler() override { return this; }
-    virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
-    virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
-
-    // CefRenderHandler interface implementation
-    virtual void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect &rect) override;
-    virtual void OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type, 
-                        const RectList &dirtyRects, const void *buffer, 
-                        int width, int height) override;
-
-    // CefLifeSpanHandler interface implementation
-    virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
-    virtual bool DoClose(CefRefPtr<CefBrowser> browser) override;
-    virtual void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
-
-    // CefDisplayHandler interface implementation
-    virtual void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString &title) override;
-    virtual void OnAddressChange(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, const CefString &url) override;
-
-signals:
-    void titleChanged(const QString &title);
-    void urlChanged(const QString &url);
 
 protected:
     virtual void resizeEvent(QResizeEvent *event) override;
 
 private:
-    CefRefPtr<CefBrowser> m_browser;
+    CefRefPtr<SimpleCefClient> m_client;
+
     QWindow *m_window;
     QWidget *m_container;
     QVBoxLayout *m_layout;
     QString m_currentUrl;
-
-    // CEF reference counting implementation
-    IMPLEMENT_REFCOUNTING(QCefView);
 };

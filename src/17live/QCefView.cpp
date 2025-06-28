@@ -20,10 +20,11 @@
 #endif
 
 #include "plugin-support.h"
+#include "SimpleCefClient.hpp"
 
 #include "moc_QCefView.cpp"
 
-QCefView::QCefView(QWidget *parent) : QWidget(parent), m_browser(nullptr)
+QCefView::QCefView(QWidget *parent) : QWidget(parent), m_client(nullptr)
 {
     // Create layout
     m_layout = new QVBoxLayout(this);
@@ -43,20 +44,20 @@ QCefView::QCefView(QWidget *parent) : QWidget(parent), m_browser(nullptr)
 
 QCefView::~QCefView()
 { 
-    if (m_browser)
+    if (m_client->getBrowser())
     {
-        m_browser->GetHost()->CloseBrowser(true);
-        m_browser = nullptr;
+        obs_log(LOG_INFO, "QCefView::~QCefView()");
+        m_client->getBrowser()->GetHost()->CloseBrowser(true);
     }
 }
 
 void QCefView::loadUrl(const QString &url)
 {
     m_currentUrl = url;
-    if (m_browser)
+    if (m_client && m_client->getBrowser())
     {
         CefString cefUrl(url.toStdString());
-        m_browser->GetMainFrame()->LoadURL(cefUrl);
+        m_client->getBrowser()->GetMainFrame()->LoadURL(cefUrl);
     }
     else
     {
@@ -83,17 +84,18 @@ void QCefView::loadUrl(const QString &url)
 #endif
 
             CefBrowserSettings browserSettings;
-            // browserSettings.background_color = CefColorSetARGB(255, 255, 255, 255);
             
             // Enable high DPI support
             // browserSettings.windowless_frame_rate = 60;
 
             CefString cefUrl(url.toStdString());
-            CefBrowserHost::CreateBrowser(windowInfo, this, cefUrl, browserSettings, nullptr, nullptr);
+
+            m_client = new SimpleCefClient();
+            CefBrowserHost::CreateBrowser(windowInfo, m_client.get(), cefUrl, browserSettings, nullptr, nullptr);
             
             // Ensure browser window fills the entire container
             QTimer::singleShot(200, this, [this]() {
-                if (m_browser) {
+                if (m_client->getBrowser()) {
                     resizeEvent(nullptr);
                 }
             });
@@ -106,112 +108,12 @@ QString QCefView::currentUrl() const
     return m_currentUrl;
 }
 
-void QCefView::back()
-{
-    if (m_browser && m_browser->CanGoBack())
-    {
-        m_browser->GoBack();
-    }
-}
-
-void QCefView::forward()
-{
-    if (m_browser && m_browser->CanGoForward())
-    {
-        m_browser->GoForward();
-    }
-}
-
-void QCefView::reload()
-{
-    if (m_browser)
-    {
-        m_browser->Reload();
-    }
-}
-
-void QCefView::stopLoad()
-{
-    if (m_browser)
-    {
-        m_browser->StopLoad();
-    }
-}
-
-void QCefView::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect &rect)
-{
-    rect.x = 0;
-    rect.y = 0;
-    
-#ifdef Q_OS_WIN
-    // Get device pixel ratio for high DPI support
-    QScreen* currentScreen = screen();
-    qreal devicePixelRatio = currentScreen ? currentScreen->devicePixelRatio() : 1.0;
-    rect.width = width() * devicePixelRatio;
-    rect.height = height() * devicePixelRatio;
-#else
-    rect.width = width();
-    rect.height = height();
-#endif
-}
-
-void QCefView::OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type, 
-                      const RectList &dirtyRects, const void *buffer, 
-                      int width, int height)
-{
-    // Implementation needed for off-screen rendering mode, but we use window rendering mode, so no implementation needed here
-}
-
-void QCefView::OnAfterCreated(CefRefPtr<CefBrowser> browser)
-{
-    CEF_REQUIRE_UI_THREAD();
-
-    if (!m_browser) {
-        m_browser = browser;
-    }
-}
-
-bool QCefView::DoClose(CefRefPtr<CefBrowser> browser)
-{
-    CEF_REQUIRE_UI_THREAD();
-
-    if (m_browser && m_browser->GetIdentifier() == browser->GetIdentifier()) {
-        m_browser = nullptr;
-    }
-
-    return false;
-}
-
-void QCefView::OnBeforeClose(CefRefPtr<CefBrowser> browser)
-{
-    CEF_REQUIRE_UI_THREAD();
-
-    if (m_browser && m_browser->GetIdentifier() == browser->GetIdentifier()) {
-        m_browser = nullptr;
-    }
-}
-
-void QCefView::OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString &title)
-{
-    QString qTitle = QString::fromStdString(title.ToString());
-    emit titleChanged(qTitle);
-}
-
-void QCefView::OnAddressChange(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, const CefString &url)
-{
-    if (frame->IsMain())
-    {
-        m_currentUrl = QString::fromStdString(url.ToString());
-        emit urlChanged(m_currentUrl);
-    }
-}
-
 void QCefView::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    if (m_browser)
+    if (m_client && m_client->getBrowser())
     {
-        CefWindowHandle hwnd = m_browser->GetHost()->GetWindowHandle();
+        CefWindowHandle hwnd = m_client->getBrowser()->GetHost()->GetWindowHandle();
         if (hwnd)
         {
 #ifdef Q_OS_WIN
@@ -232,7 +134,7 @@ void QCefView::resizeEvent(QResizeEvent *event)
             EndDeferWindowPos(hdwp);
 #else
             // Handle non-Windows platforms
-            m_browser->GetHost()->WasResized();
+            m_client->getBrowser()->GetHost()->WasResized();
 #endif
         }
     }

@@ -198,6 +198,17 @@ void OneSevenLiveCoreManager::shutdown() {
 
     if (chatRoomDock) {
         chatRoomDock->disconnect(this);
+
+        obs_log(LOG_INFO, "Closing chat room dock");
+
+        if (cefView) {
+            delete cefView;
+            cefView = nullptr;
+        }
+
+        chatRoomDock->close();
+        chatRoomDock->deleteLater();
+        chatRoomDock = nullptr;
     }
 
     saveDockState();
@@ -563,12 +574,21 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
                                             liveListDock && liveListDock->isVisible());
         });
     } else if (chatRoomDock->isVisible()) {
-        chatRoomDock->hide();
         // cefView will be destroyed when dock is hidden
+        if (cefView) {
+            cefView->deleteLater();
+            cefView = nullptr;
+        }
+        chatRoomDock->hide();
         return;
     }
 
-    cefView = new QCefView(mainWindow);
+    if (cefView) {
+        cefView->deleteLater();
+        cefView = nullptr;
+    }
+
+    cefView = new QCefView(chatRoomDock);
     chatRoomDock->setWidget(cefView);
 
     OneSevenLiveLoginData loginData;

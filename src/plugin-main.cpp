@@ -129,7 +129,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
 
         cef_view_unload();
 
-        obs_log(LOG_INFO, "[obs-17live]: shutdown complete");
+        obs_log(LOG_INFO, "shutdown complete");
         break;
     }
     default:
