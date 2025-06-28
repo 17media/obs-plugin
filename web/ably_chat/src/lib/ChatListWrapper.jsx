@@ -9,7 +9,7 @@ export const ChatListWrapper = styled.ul`
   word-wrap: break-word;
   position: absolute;
   height: 100%;
-  min-height: 600px;
+  min-height: 200px;
   width: 100%;
   min-width: 378px;
   top: 0;
