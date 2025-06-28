@@ -46,7 +46,7 @@ std::string GetCurrentOS() {
 #ifdef _WIN32
     return OS_WINDOWS;
 #elif defined(__APPLE__)
-    return OS_MAC;
+    return OSL_OS_MAC;
 #elif defined(__linux__)
     return OS_LINUX;
 #else
