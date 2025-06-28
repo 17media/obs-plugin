@@ -596,6 +596,13 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     chatRoomDock->show();
 
     connect(chatRoomDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        if (!visible) {
+            chatRoomDock->close();
+            delete chatRoomDock;
+            chatRoomDock = nullptr;
+            cefView = nullptr;
+        }
+        
         menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
                                             liveListDock && liveListDock->isVisible());
     });
