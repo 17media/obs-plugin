@@ -37,7 +37,6 @@ QCefView::QCefView(QWidget *parent) : QWidget(parent), m_browser(nullptr)
 
     // Set window attributes
     setAttribute(Qt::WA_NativeWindow, true);
-    setAttribute(Qt::WA_DontCreateNativeAncestors, true);
     setAttribute(Qt::WA_DeleteOnClose, true);
     setFocusPolicy(Qt::StrongFocus);
 }
