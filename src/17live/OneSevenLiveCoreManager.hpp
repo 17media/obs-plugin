@@ -140,8 +140,8 @@ class OneSevenLiveCoreManager : public QObject {
     void createStreamingDock();
 
     bool chatRoomDockFirstLoad = true;
-    QDockWidget *chatRoomDock{nullptr};
-    QCefView *cefView{nullptr};
+    QDockWidget* chatRoomDock{nullptr};
+    QCefView* cefView{nullptr};
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;

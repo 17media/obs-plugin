@@ -15,8 +15,7 @@
 
 #include "plugin-support.h"
 
-void SimpleCefClient::OnAfterCreated(CefRefPtr<CefBrowser> browser)
-{
+void SimpleCefClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
 
     if (!m_browser) {
@@ -24,8 +23,7 @@ void SimpleCefClient::OnAfterCreated(CefRefPtr<CefBrowser> browser)
     }
 }
 
-bool SimpleCefClient::DoClose(CefRefPtr<CefBrowser> browser)
-{
+bool SimpleCefClient::DoClose(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
 
     if (m_browser && m_browser->GetIdentifier() == browser->GetIdentifier()) {
@@ -35,8 +33,7 @@ bool SimpleCefClient::DoClose(CefRefPtr<CefBrowser> browser)
     return false;
 }
 
-void SimpleCefClient::OnBeforeClose(CefRefPtr<CefBrowser> browser)
-{
+void SimpleCefClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
 
     if (m_browser && m_browser->GetIdentifier() == browser->GetIdentifier()) {

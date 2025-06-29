@@ -5,15 +5,13 @@
 
 #include <QApplication>
 #include <QDesktopServices>
+#include <QDockWidget>
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
-#include <QDockWidget>
-
-#include "QCefView.hpp" 
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
@@ -21,6 +19,7 @@
 #include "OneSevenLiveMenuManager.hpp"
 #include "OneSevenLiveStreamListDock.hpp"
 #include "OneSevenLiveStreamingDock.hpp"
+#include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "json11.hpp"
 #include "plugin-support.h"
@@ -563,16 +562,16 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     if (!chatRoomDock) {
         chatRoomDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
         chatRoomDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        chatRoomDock->setFeatures(QDockWidget::DockWidgetMovable | 
-                                QDockWidget::DockWidgetFloatable | 
-                                QDockWidget::DockWidgetClosable);
-        
+        chatRoomDock->setFeatures(QDockWidget::DockWidgetMovable |
+                                  QDockWidget::DockWidgetFloatable |
+                                  QDockWidget::DockWidgetClosable);
+
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatRoomDock);
 
         connect(chatRoomDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
-                                            streamingDock && streamingDock->isVisible(),
-                                            liveListDock && liveListDock->isVisible());
+                                              streamingDock && streamingDock->isVisible(),
+                                              liveListDock && liveListDock->isVisible());
         });
     } else if (chatRoomDock->isVisible()) {
         // cefView will be destroyed when dock is hidden
@@ -603,9 +602,8 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     QString chatUrl =
         QString("http://localhost:%1/%2.html?roomID=%3&userID=%4")
             .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
-                QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
+                 QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
     obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
-
 
     chatRoomDock->resize(378, 600);
     chatRoomDock->setFloating(true);

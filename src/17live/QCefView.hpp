@@ -9,22 +9,22 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-#include <QWidget>
-#include <QWindow>
-#include <QVBoxLayout>
-#include <include/cef_client.h>
 #include <include/cef_app.h>
 #include <include/cef_browser.h>
+#include <include/cef_client.h>
 #include <include/cef_render_handler.h>
 #include <include/wrapper/cef_helpers.h>
 
+#include <QVBoxLayout>
+#include <QWidget>
+#include <QWindow>
+
 class SimpleCefClient;
 
-class QCefView : public QWidget
-{
+class QCefView : public QWidget {
     Q_OBJECT
 
-public:
+   public:
     explicit QCefView(QWidget *parent = nullptr);
     ~QCefView();
 
@@ -33,10 +33,10 @@ public:
     // Get current URL
     QString currentUrl() const;
 
-protected:
+   protected:
     virtual void resizeEvent(QResizeEvent *event) override;
 
-private:
+   private:
     CefRefPtr<SimpleCefClient> m_client;
 
     QWindow *m_window;

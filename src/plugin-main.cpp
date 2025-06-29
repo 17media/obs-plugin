@@ -36,8 +36,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <plugin-support.h>
 
-#include "17live/OneSevenLiveCoreManager.hpp"
 #include "17live/CefDummy.hpp"
+#include "17live/OneSevenLiveCoreManager.hpp"
 
 using namespace std;
 
