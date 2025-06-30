@@ -101,6 +101,7 @@ void OneSevenLiveStreamingDock::setupUi() {
             .arg(obs_module_text("Live.Settings.Title")));
 
     titleEdit = new QLineEdit();
+    titleEdit->setObjectName("titleEdit");
     titleEdit->setPlaceholderText(obs_module_text("Live.Settings.Title.Placeholder"));
     formLayout->addRow(titleLabel, titleEdit);
 
