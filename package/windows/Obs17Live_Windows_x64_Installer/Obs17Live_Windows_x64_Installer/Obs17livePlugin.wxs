@@ -1,0 +1,12 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Fragment>
+    <ComponentGroup Id="Obs17livePlugin" Directory="INSTALLFOLDER">
+      <Component>
+        <File Source="..\..\..\..\build_x64\$(Configuration)\obs-17live.dll" />
+      </Component>
+		<Component>
+			<File Source="..\..\..\..\build_x64\$(Configuration)\obs-17live.pdb" />
+		</Component>
+	</ComponentGroup>
+  </Fragment>
+</Wix>

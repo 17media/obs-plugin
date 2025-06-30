@@ -1,0 +1,8 @@
+#!/bin/bash
+# postinstall script
+
+# Set permissions (ensure plugin files are accessible)
+chmod -R 755 /Applications/OBS.app/Contents/PlugIns
+
+# If you need to do other operations, you can continue to add them here
+exit 0

@@ -1,0 +1,127 @@
+# Build directories
+build/
+build_*/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+cmake/.CMakeBuildNumber
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Qt-specific
+*.pro.user
+*.pro.user.*
+*.qmake.stash
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# Project-specific
+*.plugin/
+.qt/
+
+# Cache files
+.cache/
+ccache/
+
+# Dependencies
+.deps/
+
+dist/
+data/html/
+
+# for web react app
+
+# dependencies
+web/**/node_modules
+web/**/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+web/**/coverage
+
+# next.js
+web/**/.next/
+web/**/out/
+
+# production
+web/**/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+web/**/.idea
+web/**/.vscode
+get_gifts_response.json
+chat_message.json
+chat_new_gift_2.json
+chat_new_join.json
+chat_ai_cohost.json
+get_room_info_response.json
+
+# visual studio code
+.vs/
+bin/
+obj/

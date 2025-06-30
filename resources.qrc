@@ -1,0 +1,15 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+        <file>resources/17live-logo.svg</file>
+        <file>resources/17live-logo-white.svg</file>
+        <file>resources/edit.svg</file>
+        <file>resources/delete.svg</file>
+        <file>resources/show-password.svg</file>
+        <file>resources/hide-password.svg</file>
+        <file>resources/question.svg</file>
+        <file>resources/arrow-down.svg</file>
+        <file>resources/arrow-up.svg</file>
+        <file>resources/alert.svg</file>
+    </qresource>
+</RCC>

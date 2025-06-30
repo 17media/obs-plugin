@@ -1,0 +1,24 @@
+{
+  "ClipPermissions": [
+    {
+      "value": "0",
+      "label": "No One"
+    },
+    {
+      "value": "1",
+      "label": "Assistant"
+    },
+    {
+      "value": "2",
+      "label": "Army Subscribers"
+    },
+    {
+      "value": "3",
+      "label": "Followers"
+    },
+    {
+      "value": "4",
+      "label": "Everyone"
+    }
+  ]
+}

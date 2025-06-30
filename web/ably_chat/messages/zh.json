@@ -1,0 +1,7 @@
+{
+  "ChatPage": {
+    "AI_COHOST": "AI 助理",
+    "GIVE_GIFT": "送給主播",
+    "GIVE_LUCKYBAG_GIFT": "打開了 {luckyBagName}，送出 {giftName} ({giftNumber})"
+  }
+}

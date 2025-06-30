@@ -1,6 +1,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdarg.h>
+
+// If plugin-support.h is not included, provide a mock implementation
+#ifndef PLUGIN_SUPPORT_INCLUDED
+#define PLUGIN_SUPPORT_INCLUDED
+
+// Mock blogva function for testing
+void blogva(int log_level, const char *format, va_list args)
+{
+  vprintf(format, args);
+}
 
 // Mock obs_log function
 void obs_log(int log_level, const char *format, ...)
@@ -10,6 +21,11 @@ void obs_log(int log_level, const char *format, ...)
   vprintf(format, args);
   va_end(args);
 }
+
+// Mock plugin constants
+const char *PLUGIN_NAME = "obs-17live-test";
+const char *PLUGIN_VERSION = "1.0.0";
+#endif
 
 // Include the functions to be tested
 void display_load_message(const char *message);

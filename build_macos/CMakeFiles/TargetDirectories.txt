@@ -1,5 +1,0 @@
-/Users/zhuyu/workspace/eduself/obs/obs-plugintemplate/build_macos/CMakeFiles/plugin-support.dir
-/Users/zhuyu/workspace/eduself/obs/obs-plugintemplate/build_macos/CMakeFiles/obs-plugintemplate.dir
-/Users/zhuyu/workspace/eduself/obs/obs-plugintemplate/build_macos/CMakeFiles/install.dir
-/Users/zhuyu/workspace/eduself/obs/obs-plugintemplate/build_macos/CMakeFiles/ALL_BUILD.dir
-/Users/zhuyu/workspace/eduself/obs/obs-plugintemplate/build_macos/CMakeFiles/ZERO_CHECK.dir

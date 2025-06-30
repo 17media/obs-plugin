@@ -1,0 +1,24 @@
+{
+  "ClipPermissions": [
+    {
+      "value": "0",
+      "label": "關閉"
+    },
+    {
+      "value": "1",
+      "label": "場控"
+    },
+    {
+      "value": "2",
+      "label": "戰隊成員"
+    },
+    {
+      "value": "3",
+      "label": "追蹤你的用戶"
+    },
+    {
+      "value": "4",
+      "label": "所有人"
+    }
+  ]
+}

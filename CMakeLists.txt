@@ -1,51 +1,133 @@
-cmake_minimum_required(VERSION 3.16)
-project(obs-17live VERSION 1.0.0)
+cmake_minimum_required(VERSION 3.28...3.30)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
 
-# Find OBS
-find_package(LibObs REQUIRED)
+project(${_name} VERSION ${_version})
 
-# Set source files
-set(obs_17live_SOURCES
-    src/plugin-main.cpp
-    src/17live-stream-settings.cpp
-    src/17live-chat-dock.cpp
-    src/17live-api.cpp
+option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" OFF)
+option(ENABLE_QT "Use Qt functionality" OFF)
+
+include(compilerconfig)
+include(defaults)
+include(helpers)
+
+add_library(${CMAKE_PROJECT_NAME} MODULE)
+
+# Set the runtime library on Windows to static linking (/MT) to match the CEF library
+if(OS_WINDOWS)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Release>:/MT>
+    $<$<CONFIG:RelWithDebInfo>:/MT>
+    $<$<CONFIG:Debug>:/MTd>
+  )
+endif()
+
+find_package(libobs REQUIRED)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
+
+find_package(CURL REQUIRED)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE CURL::libcurl)
+
+if(ENABLE_FRONTEND_API)
+  find_package(obs-frontend-api REQUIRED)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::obs-frontend-api)
+endif()
+
+if(ENABLE_QT)
+  find_package(Qt6 COMPONENTS Widgets Core)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
+  target_compile_options(
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header -Wno-comma>
+  )
+  set_target_properties(
+    ${CMAKE_PROJECT_NAME}
+    PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON
+  )
+endif()
+
+# Add CEF support
+# CEF_ROOT_DIR should already be set in defaults.cmake -> buildspec.cmake
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+
+if(CEF_ROOT_DIR)
+  set(CEF_ROOT "${CEF_ROOT_DIR}")
+  message(STATUS "Using CEF_ROOT: ${CEF_ROOT}")
+else()
+  message(FATAL_ERROR "CEF_ROOT_DIR not set. Dependencies may not have been processed correctly.")
+endif()
+
+find_package(CEF REQUIRED)
+
+# Add the json11 dependency
+add_subdirectory(deps/json11)
+
+# Add the wrappers dependency
+add_subdirectory(deps/wrappers)
+
+# Set header file include paths
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
+  ${CEF_ROOT_DIR} # This might need adjustment based on actual CEF include path
+  ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
-# Set header files
-set(obs_17live_HEADERS
-    src/17live-stream-settings.hpp
-    src/17live-chat-dock.hpp
-    src/17live-api.hpp
+# Link json11, wrappers libraries
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+  json11
+  wrappers
+  CEF::Library
+  CEF::Wrapper
+  Threads::Threads # For cpp-httplib
 )
 
-# Add library target
-add_library(obs-17live MODULE
-    ${obs_17live_SOURCES}
-    ${obs_17live_HEADERS}
+# Add cpp-httplib include directory (though it might already be covered by 'deps')
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/cpp-httplib
 )
 
-# Include directories
-target_include_directories(obs-17live PRIVATE
-    ${LIBOBS_INCLUDE_DIR}
-    ${CMAKE_SOURCE_DIR}/src
-)
+# Configure plugin-support.c file
+configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
 
-# Link libraries
-target_link_libraries(obs-17live PRIVATE
-    libobs
-)
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
+  src/plugin-support.c
+  src/17live/OneSevenLiveCoreManager.cpp
+  src/17live/OneSevenLiveConfigManager.cpp
+  src/17live/api/OneSevenLiveModels.cpp
+  src/17live/utility/RemoteTextThread.cpp
+  src/17live/utility/Common.cpp
+  src/17live/utility/Meta.cpp
+  src/17live/api/OneSevenLiveApiWrappers.cpp
+  src/17live/CefDummy.cpp
+  src/17live/QCefView.cpp
+  src/17live/SimpleCefClient.cpp
+  src/17live/OneSevenLiveMenuManager.cpp
+  src/17live/OneSevenLiveLoginDialog.cpp
+  src/17live/OneSevenLiveStreamingDock.cpp
+  src/17live/OneSevenLiveStreamListItem.cpp
+  src/17live/OneSevenLiveStreamListDock.cpp
+  src/17live/OneSevenLiveHttpServer.cpp
+  resources.qrc)
 
-# Install target
-install(TARGETS obs-17live
-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/obs-plugins
-    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/obs-plugins/64bit
-)
+if(MSVC)
+  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE /wd4996)
+else()
+  target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wno-deprecated-builtins)
+endif()
 
-# Install data files
-install(FILES data/locale/en-US.ini
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/data/obs-plugins/obs-17live/locale
-)
+set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+
+# Windows-specific CEF configuration
+if(OS_WINDOWS)
+  # Add Windows specific defines
+  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+    NOMINMAX
+    WIN32_LEAN_AND_MEAN
+    _CRT_SECURE_NO_WARNINGS
+  )
+endif()

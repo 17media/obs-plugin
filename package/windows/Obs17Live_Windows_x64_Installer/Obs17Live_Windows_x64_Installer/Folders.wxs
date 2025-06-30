@@ -1,0 +1,10 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles6432Folder">
+		<Directory Id="OBSFOLDER" Name="obs-studio">
+			<Directory Id="INSTALLFOLDER" Name="obs-plugins\64bit" />
+			<Directory Id="DATAFOLDER" Name="data\obs-plugins\obs-17live" />
+		</Directory>
+	</StandardDirectory>
+  </Fragment>
+</Wix>
