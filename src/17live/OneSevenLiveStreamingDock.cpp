@@ -854,6 +854,11 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
 
                 obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
 
+                if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::NotStarted)) {
+                    obs_log(LOG_INFO, "Room is starting live stream, don't proceed with live creation");
+                    return;
+                }
+
                 populateRtmpRequest(request);
 
                 if (request.caption.isEmpty() || request.subtabID.isEmpty()) {
