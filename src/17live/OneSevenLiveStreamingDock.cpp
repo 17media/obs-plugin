@@ -884,6 +884,38 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
 
 void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &info) {
     obs_log(LOG_INFO, "editLiveWithInfo");
+
+    if (isLoading) {
+        // loading roomInfo is in progress, waiting for it to finish
+        obs_log(LOG_INFO, "Waiting for loading to complete before editing live info");
+
+        // Create a timer to periodically check if loading is complete
+        QTimer *waitTimer = new QTimer(this);
+        waitTimer->setSingleShot(false);
+        waitTimer->setInterval(100);  // Check every 100ms
+
+        connect(waitTimer, &QTimer::timeout, this, [this, info, waitTimer]() {
+            if (!isLoading) {
+                // Loading is complete, stop timer and proceed with creation
+                waitTimer->stop();
+                waitTimer->deleteLater();
+
+                obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
+
+                if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::NotStarted)) {
+                    obs_log(LOG_INFO, "Room is starting live stream, don't proceed with live creation");
+                    return;
+                }
+
+                populateRtmpRequest(info.request);
+                currentInfoUuid = info.streamUuid;
+            }
+        });
+
+        waitTimer->start();
+        return;
+    }
+
     populateRtmpRequest(info.request);
     currentInfoUuid = info.streamUuid;
 }
