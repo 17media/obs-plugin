@@ -1,8 +1,8 @@
 #pragma once
 
 #include <QDialog>
-#include <QLineEdit>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 
 struct OneSevenLiveLoginData;
@@ -12,22 +12,23 @@ class OneSevenLiveApiWrappers;
 class OneSevenLiveLoginDialog : public QDialog {
     Q_OBJECT
 
-public:
-    explicit OneSevenLiveLoginDialog(QWidget* parent = nullptr, OneSevenLiveApiWrappers* apiWrapper_ = nullptr);
+   public:
+    explicit OneSevenLiveLoginDialog(QWidget* parent = nullptr,
+                                     OneSevenLiveApiWrappers* apiWrapper_ = nullptr);
     ~OneSevenLiveLoginDialog();
 
-private:
+   private:
     void setupUi();
     void handleLogin();
 
-signals:
+   signals:
     /**
      * @brief Login success signal
      * @param loginData Login information
      */
     void loginSuccess(const OneSevenLiveLoginData& loginData);
 
-private:
+   private:
     QLabel* titleLabel;
     QLineEdit* usernameEdit;
     QLineEdit* passwordEdit;

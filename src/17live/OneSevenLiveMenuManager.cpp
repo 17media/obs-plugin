@@ -1,15 +1,19 @@
+#include "OneSevenLiveMenuManager.hpp"
+
 #include <obs-module.h>
 
-#include "OneSevenLiveMenuManager.hpp"
+#include <QDesktopServices>
 #include <QMenuBar>
 #include <QUrl>
-#include <QDesktopServices>
 
 #include "moc_OneSevenLiveMenuManager.cpp"
 
 OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
-    : mainWindow(parent), isLoggedIn(false), isChatRoomVisible(false), isBroadcastVisible(false), isLiveListVisible(false)
-{
+    : mainWindow(parent),
+      isLoggedIn(false),
+      isChatRoomVisible(false),
+      isBroadcastVisible(false),
+      isLiveListVisible(false) {
     // Create 17Live menu
     menu = mainWindow->menuBar()->addMenu(obs_module_text("17Live"));
 
@@ -19,29 +23,23 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
 
     // Add submenu items
     chatRoomAction = dockSubMenu->addAction(obs_module_text("Menu.ChatRoom"));
-    connect(chatRoomAction, &QAction::triggered, this, [this](){
-        emit chatRoomClicked();
-    });
+    connect(chatRoomAction, &QAction::triggered, this, [this]() { emit chatRoomClicked(); });
 
     broadcastAction = dockSubMenu->addAction(obs_module_text("Menu.Broadcast"));
-    connect(broadcastAction, &QAction::triggered, this, [this](){
-        emit streamingClicked();
-    });
+    connect(broadcastAction, &QAction::triggered, this, [this]() { emit streamingClicked(); });
 
     liveListAction = dockSubMenu->addAction(obs_module_text("Menu.LiveList"));
-    connect(liveListAction, &QAction::triggered, this, [this](){
-        emit liveListClicked();
-    });
-    
+    connect(liveListAction, &QAction::triggered, this, [this]() { emit liveListClicked(); });
+
     menu->addSeparator();
 
     // Common menu
     helpAction = menu->addAction(obs_module_text("Menu.Help"));
 
-    connect(helpAction, &QAction::triggered, this, [this](){
+    connect(helpAction, &QAction::triggered, this, [this]() {
         // open url obs_module_text("Menu.Help.Url");
-	    QUrl url = QUrl(obs_module_text("Menu.Help.Url"), QUrl::TolerantMode);
-	    QDesktopServices::openUrl(url);
+        QUrl url = QUrl(obs_module_text("Menu.Help.Url"), QUrl::TolerantMode);
+        QDesktopServices::openUrl(url);
     });
 
     // Create check update menu item
@@ -53,10 +51,10 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     // Create login menu item
     loginAction = menu->addAction(obs_module_text("Menu.SignIn"));
     connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
-    
+
     // Initialize menu item enabled status
     updateMenuItemsEnabled();
-    
+
     // Initialize menu item checked status
     chatRoomAction->setCheckable(true);
     broadcastAction->setCheckable(true);
@@ -66,12 +64,9 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     liveListAction->setChecked(false);
 }
 
-OneSevenLiveMenuManager::~OneSevenLiveMenuManager()
-{
-}
+OneSevenLiveMenuManager::~OneSevenLiveMenuManager() {}
 
-void OneSevenLiveMenuManager::updateLoginStatus(bool logged, QString username)
-{
+void OneSevenLiveMenuManager::updateLoginStatus(bool logged, QString username) {
     isLoggedIn = logged;
     QString text = QString::fromStdString(obs_module_text("Menu.SignIn"));
     if (isLoggedIn) {
@@ -82,7 +77,7 @@ void OneSevenLiveMenuManager::updateLoginStatus(bool logged, QString username)
         }
     }
     loginAction->setText(text);
-    
+
     if (isLoggedIn) {
         disconnect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
         connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogout);
@@ -90,33 +85,30 @@ void OneSevenLiveMenuManager::updateLoginStatus(bool logged, QString username)
         disconnect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogout);
         connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
     }
-    
+
     // Update menu item enabled status
     updateMenuItemsEnabled();
 }
 
-void OneSevenLiveMenuManager::handleLogin()
-{
+void OneSevenLiveMenuManager::handleLogin() {
     emit loginClicked();
 }
 
-void OneSevenLiveMenuManager::handleLogout()
-{
+void OneSevenLiveMenuManager::handleLogout() {
     emit logoutClicked();
 }
 
-void OneSevenLiveMenuManager::checkUpdate()
-{
+void OneSevenLiveMenuManager::checkUpdate() {
     emit checkUpdateClicked();
 }
 
-void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible)
-{
+void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible,
+                                                   bool liveListVisible) {
     // Update visibility status variables
     isChatRoomVisible = chatRoomVisible;
     isBroadcastVisible = broadcastVisible;
     isLiveListVisible = liveListVisible;
-    
+
     // Update menu item checked status
     if (chatRoomAction) {
         chatRoomAction->setCheckable(true);
@@ -124,26 +116,24 @@ void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool br
     }
 
     if (broadcastAction) {
-        broadcastAction->setCheckable(true);    
+        broadcastAction->setCheckable(true);
         broadcastAction->setChecked(isBroadcastVisible);
     }
 
     if (liveListAction) {
-        liveListAction->setCheckable(true);    
+        liveListAction->setCheckable(true);
         liveListAction->setChecked(isLiveListVisible);
     }
 }
 
-void OneSevenLiveMenuManager::updateMenuItemsEnabled()
-{
+void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
     // Update menu item enabled status based on login status
     chatRoomAction->setEnabled(isLoggedIn);
     broadcastAction->setEnabled(isLoggedIn);
     liveListAction->setEnabled(isLoggedIn);
 }
 
-void OneSevenLiveMenuManager::cleanup()
-{
+void OneSevenLiveMenuManager::cleanup() {
     if (dockSubMenu) {
         delete dockSubMenu;
         dockSubMenu = nullptr;

@@ -2,16 +2,14 @@
 
 #include <QFile>
 #include <QMetaType>
-#include <QVariant>
 #include <QString>
+#include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
 
-#include "json11.hpp"
-
-#include "obs-module.h"
-
 #include "Common.hpp"
+#include "json11.hpp"
+#include "obs-module.h"
 
 using namespace json11;
 
@@ -19,8 +17,8 @@ using namespace std;
 
 // Global meta data, loaded at program startup
 OneSevenLiveMetaData metaData;
-bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData)
-{
+
+bool JsonToOneSevenLiveMetaData(const Json& json, OneSevenLiveMetaData& metaData) {
     if (!json.is_object()) {
         return false;
     }
@@ -29,7 +27,7 @@ bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData
     for (const auto& pair : json.object_items()) {
         const std::string& key = pair.first;
         const Json& value = pair.second;
-        
+
         if (value.is_array()) {
             // Handle array type
             QVariantList variantList;
@@ -38,7 +36,7 @@ bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData
                     // Handle object array
                     QVariantMap variantMap;
                     for (const auto& objPair : item.object_items()) {
-                        variantMap[QString::fromStdString(objPair.first)] = 
+                        variantMap[QString::fromStdString(objPair.first)] =
                             QString::fromStdString(objPair.second.string_value());
                     }
                     variantList.append(variantMap);
@@ -58,13 +56,13 @@ bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData
             // Handle object type
             QVariantMap variantMap;
             for (const auto& objPair : value.object_items()) {
-                variantMap[QString::fromStdString(objPair.first)] = 
+                variantMap[QString::fromStdString(objPair.first)] =
                     QString::fromStdString(objPair.second.string_value());
             }
             metaData.data[QString::fromStdString(key)] = variantMap;
         } else if (value.is_string()) {
             // Handle string type
-            metaData.data[QString::fromStdString(key)] = 
+            metaData.data[QString::fromStdString(key)] =
                 QString::fromStdString(value.string_value());
         } else if (value.is_number()) {
             // Handle number type
@@ -78,8 +76,7 @@ bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData
     return true;
 }
 
-Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData &metaData)
-{
+Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData& metaData) {
     Json::object json;
 
     for (auto it = metaData.data.constBegin(); it != metaData.data.constEnd(); ++it) {
@@ -134,50 +131,47 @@ Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData &metaData)
     return Json(json);
 }
 
-bool LoadMetaData()
-{
-  string dataPath = obs_get_module_data_path(obs_current_module());
-  string metaDataPath = dataPath + "/meta_" + GetCurrentLanguage() + ".json";
-  QFile file(QString::fromStdString(metaDataPath));
+bool LoadMetaData() {
+    string dataPath = obs_get_module_data_path(obs_current_module());
+    string metaDataPath = dataPath + "/meta_" + GetCurrentLanguage() + ".json";
+    QFile file(QString::fromStdString(metaDataPath));
 
-  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    return false;
-  }
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
 
-  QTextStream in(&file);
-  QString content = in.readAll();
-  file.close();
-  string error;
-  Json json = Json::parse(content.toStdString(), error);
-  if (!error.empty()) {
-    return false;
-  }
-  if (!JsonToOneSevenLiveMetaData(json, metaData)) {
-    return false;
-  }
-  return true;
+    QTextStream in(&file);
+    QString content = in.readAll();
+    file.close();
+    string error;
+    Json json = Json::parse(content.toStdString(), error);
+    if (!error.empty()) {
+        return false;
+    }
+    if (!JsonToOneSevenLiveMetaData(json, metaData)) {
+        return false;
+    }
+    return true;
 }
 
-bool SaveMetaData()
-{
-  string dataPath = obs_get_module_data_path(obs_current_module());
-  string metaDataPath = dataPath + "/meta_" + GetCurrentLanguage() + ".json";
+bool SaveMetaData() {
+    string dataPath = obs_get_module_data_path(obs_current_module());
+    string metaDataPath = dataPath + "/meta_" + GetCurrentLanguage() + ".json";
 
-  QString metaFile = QString::fromStdString(metaDataPath);
-  QFile file(metaFile);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-    return false;
-  }
+    QString metaFile = QString::fromStdString(metaDataPath);
+    QFile file(metaFile);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return false;
+    }
 
-  Json jsonObj = OneSevenLiveMetaDataToJson(metaData);
-  QTextStream out(&file);
-  out << QString::fromStdString(jsonObj.dump());
-  file.close();
-  return true;
+    Json jsonObj = OneSevenLiveMetaDataToJson(metaData);
+    QTextStream out(&file);
+    out << QString::fromStdString(jsonObj.dump());
+    file.close();
+    return true;
 }
 
-bool getMetaValueLabelList(const QString &key, QList<OneSevenLiveMetaValueLabel> &result)
-{
+bool getMetaValueLabelList(const QString& key, QList<OneSevenLiveMetaValueLabel>& result) {
     QVariant value = metaData.data[key];
     if (value.metaType().id() == QMetaType::QVariantList) {
         result = metaData.getMetaValueLabel(key);

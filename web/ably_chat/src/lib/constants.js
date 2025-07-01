@@ -142,14 +142,14 @@ export const COLOR_BLACK = '#000000';
 export const VIP_BANNER_BACKGROUND = VIP_COLOR;
 export const GUARDIAN_BANNER_BACKGROUND = '#42f1f6';
 
-// Pubnub 給 #5928232D 在 FE 會用 transfer8bitHexCode 轉
+// Pubnub provides #5928232D, FE will use transfer8bitHexCode to convert
 export const DEFAULT_COMMENT_BG_COLOR = '#28232D59';
 export const DEFAULT_STREAMER_COMMENT_BG_COLOR = '#00A38EB3';
 export const DEFAULT_GUARDIAN_COMMENT_BG_COLOR = '#1DCBE4B3';
 
-export const DEFAULT_STREAMER_COMMENT_BG_COLOR_1 = '#33CEB0B3'; // hardcode 綠透底
-export const DEFAULT_GUARDIAN_COMMENT_BG_COLOR_1 = '#42F1F6CC'; // hardcode 藍透底
-export const DEFAULT_VIP_COMMENT_BG_COLOR_1 = '#FF15D3B3'; // hardcode 桃透底
+export const DEFAULT_STREAMER_COMMENT_BG_COLOR_1 = '#33CEB0B3'; // hardcode green transparent background
+export const DEFAULT_GUARDIAN_COMMENT_BG_COLOR_1 = '#42F1F6CC'; // hardcode blue transparent background
+export const DEFAULT_VIP_COMMENT_BG_COLOR_1 = '#FF15D3B3'; // hardcode pink transparent background
 
 /**
  * user types
@@ -192,8 +192,8 @@ export const mapCheckingLevelImage = {
     8: 'ig-bg-checking-black.png',
 };
 
-export const MsgType_COMMENT = 3; // 一般留言訊息
-export const MsgType_NEW_GIFT =13; // 送禮動畫訊息
-export const MsgType_JOIN_ROOM = 18; // 觀眾進入直播間訊息
-export const MsgType_NEW_LUCKYBAG = 32; // 隨機禮訊息
-export const MsgType_AI_COHOST_MESSAGE = 120; // AI 主持人訊息
+export const MsgType_COMMENT = 3; // General comment message
+export const MsgType_NEW_GIFT =13; // Gift animation message
+export const MsgType_JOIN_ROOM = 18; // Audience join room message
+export const MsgType_NEW_LUCKYBAG = 32; // Random gift message
+export const MsgType_AI_COHOST_MESSAGE = 120; // AI co-host message

@@ -17,7 +17,7 @@ async function getAblyTokenFromServerByRoomID(roomID) {
 
       const resBody = await res.json();
 
-      // 结构示例：{ provider: 3, token: "xxxx" }
+      // Structure example: { provider: 3, token: "xxxx" }
       return resBody.token;
   } catch (err) {
       console.error("Failed to get Ably token:", err);
@@ -52,7 +52,7 @@ export async function getAblyTokenFromServer(roomID = '') {
           }
 
           const resBody = await res.json();
-          console.log(resBody);
+        //   console.log(resBody);
           return resBody.token;
       } catch (err) {
           console.error("Failed to get Ably token:", err);

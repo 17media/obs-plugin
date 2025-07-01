@@ -1,10 +1,10 @@
-// 用於存儲禮物信息
+// Used to store gift information
 let giftsMap = new Map();
 
 export async function getGifts() {
     if (process.env.NODE_ENV === 'development') {
         try {
-            // 在开发环境中，从本地 JSON 文件读取礼物信息
+            // In development environment, read gift information from local JSON file
             const response = await fetch('/get_gifts_response.json');
             if (!response.ok) {
                 throw new Error(`Failed to fetch gifts: ${response.status}`);
@@ -14,7 +14,7 @@ export async function getGifts() {
                 giftsData.gifts.forEach(gift => {
                     giftsMap.set(gift.giftID, gift);
                 });
-                console.log('Gifts loaded from local JSON:', giftsMap.size);
+                // console.log('Gifts loaded from local JSON:', giftsMap.size);
             } else {
                 console.error('Invalid gifts data structure in local JSON');
             }
@@ -56,7 +56,7 @@ export async function getGifts() {
 }
 
 export function getGiftByID(giftID) {
-    // 根据 giftID 获取礼物信息
-    // 假设 giftsMap 是一个 Map，其中 key 是 giftID，value 是礼物信息
+    // Get gift information by giftID
+    // Assuming giftsMap is a Map where key is giftID and value is gift information
     return giftsMap.get(giftID);
 }

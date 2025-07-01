@@ -1,24 +1,26 @@
 #include "OneSevenLiveStreamListDock.hpp"
 
-#include <QVBoxLayout>
+#include <obs-frontend-api.h>
+#include <obs-module.h>
+
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QFrame>
-#include <QTimer>
 #include <QMessageBox>
-
-#include <obs-module.h>
-#include <obs-frontend-api.h>
-#include "plugin-support.h"
+#include <QTimer>
+#include <QVBoxLayout>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveStreamListItem.hpp"
-
 #include "moc_OneSevenLiveStreamListDock.cpp"
+#include "plugin-support.h"
 
-OneSevenLiveStreamListDock::OneSevenLiveStreamListDock(QWidget *parent,  OneSevenLiveConfigManager *configManager_, OneSevenLiveStreamingStatus status_)
-    : QDockWidget(obs_module_text("Live.StreamList"), parent), configManager(configManager_), status(status_)
-{
+OneSevenLiveStreamListDock::OneSevenLiveStreamListDock(QWidget* parent,
+                                                       OneSevenLiveConfigManager* configManager_,
+                                                       OneSevenLiveStreamingStatus status_)
+    : QDockWidget(obs_module_text("Live.StreamList"), parent),
+      configManager(configManager_),
+      status(status_) {
     setupUi();
     createConnections();
     refreshStreamList();
@@ -30,14 +32,14 @@ OneSevenLiveStreamListDock::OneSevenLiveStreamListDock(QWidget *parent,  OneSeve
         }
     });
 
-    connect(this, &QDockWidget::topLevelChanged, this, &OneSevenLiveStreamListDock::handleTopLevelChanged);
+    connect(this, &QDockWidget::topLevelChanged, this,
+            &OneSevenLiveStreamListDock::handleTopLevelChanged);
 }
 
 OneSevenLiveStreamListDock::~OneSevenLiveStreamListDock() = default;
 
-void OneSevenLiveStreamListDock::setupUi()
-{
-    QWidget *container = new QWidget(this);
+void OneSevenLiveStreamListDock::setupUi() {
+    QWidget* container = new QWidget(this);
     container->setStyleSheet(
         "QWidget#container {"
         "    background-color: #000000;"
@@ -45,10 +47,9 @@ void OneSevenLiveStreamListDock::setupUi()
         "    font-family: 'Inter';"
         "    color: #FFFFFF;"
         "    font-style: normal;"
-        "}"
-    );
-    QVBoxLayout *mainLayout = new QVBoxLayout(container);
-    
+        "}");
+    QVBoxLayout* mainLayout = new QVBoxLayout(container);
+
     // Create live stream list
     streamList = new QListWidget();
     streamList->setStyleSheet(
@@ -69,8 +70,7 @@ void OneSevenLiveStreamListDock::setupUi()
         "}"
         "QListWidget::item:hover:!selected {"
         "    background-color: #454b5a;"
-        "}"
-    );
+        "}");
     streamList->setResizeMode(QListWidget::Adjust);
     streamList->setWordWrap(true);
     streamList->setSpacing(10);
@@ -87,22 +87,21 @@ void OneSevenLiveStreamListDock::setupUi()
         "   font-weight: 600;"
         "   font-size: 16px;"
         "   line-height: 24px;"
-        "}"
-    );
+        "}");
     startLiveButton->setFixedWidth(250);
     mainLayout->addWidget(startLiveButton, 0, Qt::AlignHCenter);
 
     setWidget(container);
 }
 
-void OneSevenLiveStreamListDock::createConnections()
-{
-    connect(startLiveButton, &QPushButton::clicked, this, &OneSevenLiveStreamListDock::onStartLiveClicked);
+void OneSevenLiveStreamListDock::createConnections() {
+    connect(startLiveButton, &QPushButton::clicked, this,
+            &OneSevenLiveStreamListDock::onStartLiveClicked);
 }
 
-void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const OneSevenLiveStreamInfo& info)
-{
-    QWidget *itemContainer = new QWidget(this);
+void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item,
+                                                  const OneSevenLiveStreamInfo& info) {
+    QWidget* itemContainer = new QWidget(this);
 
     QHBoxLayout* mainLayout = new QHBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -114,17 +113,23 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
     leftLayout->setSpacing(5);
 
     QLabel* titleLabel = new QLabel(info.request.caption);
-    titleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: 20px;");
+    titleLabel->setStyleSheet(
+        "color: white; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: "
+        "20px;");
     titleLabel->setWordWrap(true);
     titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QLabel* categoryLabel = new QLabel(info.categoryName);
-    categoryLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: 20px;");
+    categoryLabel->setStyleSheet(
+        "color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: "
+        "20px;");
     categoryLabel->setWordWrap(true);
     categoryLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QLabel* timeLabel = new QLabel(info.createdAt.toString("yyyy-MM-dd hh:mm:ss"));
-    timeLabel->setStyleSheet("color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: 20px;");
+    timeLabel->setStyleSheet(
+        "color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: "
+        "20px;");
     timeLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     leftLayout->addWidget(titleLabel);
@@ -161,60 +166,57 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item, const O
 
     itemContainer->setLayout(mainLayout);
     // Adjust size to ensure all content is visible, especially after word wrap
-    itemContainer->adjustSize(); 
+    itemContainer->adjustSize();
     item->setSizeHint(QSize(-1, itemContainer->sizeHint().height()));
     streamList->setItemWidget(item, itemContainer);
 
-    connect(editButton, &QPushButton::clicked, this, [this, item, info]() {
-        this->onEditStreamClicked(item, info);
-    });
-    connect(deleteButton, &QPushButton::clicked, this, [this, item, info]() {
-        this->onDeleteStreamClicked(item, info);
-    });
+    connect(editButton, &QPushButton::clicked, this,
+            [this, item, info]() { this->onEditStreamClicked(item, info); });
+    connect(deleteButton, &QPushButton::clicked, this,
+            [this, item, info]() { this->onDeleteStreamClicked(item, info); });
 }
-void OneSevenLiveStreamListDock::showEmptyListMessage()
-{
+
+void OneSevenLiveStreamListDock::showEmptyListMessage() {
     // Hide list and start streaming button
     streamList->setVisible(false);
     startLiveButton->setVisible(false);
-    
+
     // If empty state container already exists, delete it first
     if (emptyContainer) {
         emptyContainer->deleteLater();
     }
-    
+
     // Create empty state container
     emptyContainer = new QWidget(widget());
     emptyContainer->setStyleSheet(
         "QWidget {"
         "    background-color: #1e1e1e;"
         "    border-radius: 4px;"
-        "}"
-    );
-    
+        "}");
+
     // Set empty state container to fill entire Dock area
     emptyContainer->setGeometry(widget()->rect());
 
     // Create layout manager
-    QVBoxLayout *emptyLayout = new QVBoxLayout(emptyContainer);
+    QVBoxLayout* emptyLayout = new QVBoxLayout(emptyContainer);
     emptyLayout->setAlignment(Qt::AlignCenter);
     emptyLayout->setSpacing(20);
     emptyLayout->setContentsMargins(20, 20, 20, 20);
-    
+
     // Create hint label
-    QLabel *emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
+    QLabel* emptyLabel = new QLabel(obs_module_text("Live.StreamList.Empty"));
     emptyLabel->setAlignment(Qt::AlignCenter);
-    emptyLabel->setWordWrap(true); // Enable text wrapping
-    emptyLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred); // Allow horizontal expansion
+    emptyLabel->setWordWrap(true);  // Enable text wrapping
+    emptyLabel->setSizePolicy(QSizePolicy::Expanding,
+                              QSizePolicy::Preferred);  // Allow horizontal expansion
     emptyLabel->setStyleSheet(
         "QLabel {"
         "    color: #888888;"
         "    font-size: 16px;"
         "    font-weight: bold;"
         "    padding: 0 10px;"
-        "}"
-    );
-    
+        "}");
+
     // Create button to navigate to start streaming
     goToStreamingButton = new QPushButton(obs_module_text("Live.Settings.StartLive"));
     goToStreamingButton->setFixedSize(200, 40);
@@ -229,36 +231,35 @@ void OneSevenLiveStreamListDock::showEmptyListMessage()
         "}"
         "QPushButton:hover {"
         "    background-color: #5a96f8;"
-        "}"
-    );
+        "}");
     goToStreamingButton->setCursor(Qt::PointingHandCursor);
-    
+
     // Create button container for centered button display
-    QWidget *buttonContainer = new QWidget();
-    QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
+    QWidget* buttonContainer = new QWidget();
+    QHBoxLayout* buttonLayout = new QHBoxLayout(buttonContainer);
     buttonLayout->setAlignment(Qt::AlignCenter);
     buttonLayout->setContentsMargins(0, 0, 0, 0);
     buttonLayout->addWidget(goToStreamingButton);
-    
+
     // Connect button click signal
     connect(goToStreamingButton, &QPushButton::clicked, this, [this]() {
         // Send signal to notify opening start streaming panel
         emit editLiveClicked(OneSevenLiveStreamInfo());
     });
-    
+
     // Add to layout
     emptyLayout->addWidget(emptyLabel);
-    emptyLayout->addWidget(buttonContainer); // Use buttonContainer instead of adding button directly
-    
+    emptyLayout->addWidget(
+        buttonContainer);  // Use buttonContainer instead of adding button directly
+
     // Show empty state container
     emptyContainer->show();
-    emptyContainer->raise(); // Ensure display on top layer
+    emptyContainer->raise();  // Ensure display on top layer
 }
 
-void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent *event)
-{
+void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
-    
+
     if (emptyContainer && emptyContainer->isVisible()) {
         emptyContainer->setGeometry(widget()->rect());
     }
@@ -268,22 +269,21 @@ void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent *event)
         QWidget* widget = streamList->itemWidget(item);
         if (widget)
             widget->resize(streamList->viewport()->width(), widget->height());
-            item->setSizeHint(widget->sizeHint());
+        item->setSizeHint(widget->sizeHint());
     }
 }
 
-void OneSevenLiveStreamListDock::setStatus(OneSevenLiveStreamingStatus status_)
-{
+void OneSevenLiveStreamListDock::setStatus(OneSevenLiveStreamingStatus status_) {
     status = status_;
 
     // Enable/disable buttons based on streaming status
     bool isNotStarted = (status == OneSevenLiveStreamingStatus::NotStarted);
-    
+
     // Enable/disable start live button
     if (startLiveButton) {
         startLiveButton->setEnabled(isNotStarted);
     }
-    
+
     // Enable/disable edit and delete buttons in stream list items
     for (int i = 0; i < streamList->count(); ++i) {
         QListWidgetItem* item = streamList->item(i);
@@ -303,8 +303,8 @@ void OneSevenLiveStreamListDock::setStatus(OneSevenLiveStreamingStatus status_)
         goToStreamingButton->setEnabled(isNotStarted);
     }
 }
-void OneSevenLiveStreamListDock::refreshStreamList()
-{
+
+void OneSevenLiveStreamListDock::refreshStreamList() {
     streamList->clear();
 
     if (emptyContainer) {
@@ -312,10 +312,10 @@ void OneSevenLiveStreamListDock::refreshStreamList()
         emptyContainer->deleteLater();
         emptyContainer = nullptr;
     }
-    
+
     std::vector<OneSevenLiveStreamInfo> streamInfoList;
     configManager->loadAllLiveConfig(streamInfoList);
-    
+
     if (streamInfoList.empty()) {
         // Show empty list hint and navigation button
         showEmptyListMessage();
@@ -323,14 +323,15 @@ void OneSevenLiveStreamListDock::refreshStreamList()
         startLiveButton->setVisible(false);
     } else {
         streamList->setVisible(true);
-        
+
         // Have stream info, display list normally
         for (const auto& info : streamInfoList) {
             QString title = info.request.caption;
             QString content = info.categoryName;
             QString timestamp = info.createdAt.toString("yyyy-MM-dd hh:mm:ss");
 
-            OneSevenLiveStreamListItem* widget = new OneSevenLiveStreamListItem(title, content, timestamp);
+            OneSevenLiveStreamListItem* widget =
+                new OneSevenLiveStreamListItem(title, content, timestamp);
             QListWidgetItem* widgetItem = new QListWidgetItem(streamList);
             streamList->setItemWidget(widgetItem, widget);
             widgetItem->setSizeHint(widget->sizeHint());
@@ -339,63 +340,73 @@ void OneSevenLiveStreamListDock::refreshStreamList()
 
             connect(widget, &OneSevenLiveStreamListItem::editClicked, [=]() {
                 if (status != OneSevenLiveStreamingStatus::NotStarted) {
-                    QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
+                    QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                             obs_module_text("Live.Common.StreamingInProgress"));
                     return;
                 }
-                
-                obs_log(LOG_INFO, "onEditStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
+
+                obs_log(LOG_INFO, "onEditStreamClicked %s %s",
+                        info.request.caption.toStdString().c_str(),
+                        info.streamUuid.toStdString().c_str());
                 emit editLiveClicked(info);
             });
 
-            connect(widget, &OneSevenLiveStreamListItem::deleteClicked, [=](){
+            connect(widget, &OneSevenLiveStreamListItem::deleteClicked, [=]() {
                 if (status != OneSevenLiveStreamingStatus::NotStarted) {
-                    QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
+                    QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                             obs_module_text("Live.Common.StreamingInProgress"));
                     return;
                 }
-                
-                obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
-            
+
+                obs_log(LOG_INFO, "onDeleteStreamClicked %s %s",
+                        info.request.caption.toStdString().c_str(),
+                        info.streamUuid.toStdString().c_str());
+
                 configManager->removeLiveConfig(info.streamUuid.toStdString());
                 refreshStreamList();
             });
         }
-        
+
         // Enable start streaming button
         startLiveButton->setVisible(true);
     }
 }
 
-void OneSevenLiveStreamListDock::onEditStreamClicked([[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const OneSevenLiveStreamInfo& info)
-{
+void OneSevenLiveStreamListDock::onEditStreamClicked(
+    [[maybe_unused]] QListWidgetItem* item, [[maybe_unused]] const OneSevenLiveStreamInfo& info) {
     if (status != OneSevenLiveStreamingStatus::NotStarted) {
-        QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                 obs_module_text("Live.Common.StreamingInProgress"));
         return;
     }
-    
-    obs_log(LOG_INFO, "onEditStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
+
+    obs_log(LOG_INFO, "onEditStreamClicked %s %s", info.request.caption.toStdString().c_str(),
+            info.streamUuid.toStdString().c_str());
     emit editLiveClicked(info);
 }
 
-void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item, const OneSevenLiveStreamInfo& info)
-{
+void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWidgetItem* item,
+                                                       const OneSevenLiveStreamInfo& info) {
     if (status != OneSevenLiveStreamingStatus::NotStarted) {
-        QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                 obs_module_text("Live.Common.StreamingInProgress"));
         return;
     }
-    
-    obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.request.caption.toStdString().c_str(), info.streamUuid.toStdString().c_str());
+
+    obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.request.caption.toStdString().c_str(),
+            info.streamUuid.toStdString().c_str());
 
     configManager->removeLiveConfig(info.streamUuid.toStdString());
     refreshStreamList();
 }
 
-void OneSevenLiveStreamListDock::onStartLiveClicked()
-{
+void OneSevenLiveStreamListDock::onStartLiveClicked() {
     if (status != OneSevenLiveStreamingStatus::NotStarted) {
-        QMessageBox::information(this, obs_module_text("Live.Common.Notice"), obs_module_text("Live.Common.StreamingInProgress"));
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                 obs_module_text("Live.Common.StreamingInProgress"));
         return;
     }
-    
+
     // Get currently selected list item
     QListWidgetItem* item = streamList->currentItem();
     if (item) {
@@ -405,12 +416,11 @@ void OneSevenLiveStreamListDock::onStartLiveClicked()
     }
 }
 
-void OneSevenLiveStreamListDock::handleTopLevelChanged(bool topLevel)
-{
+void OneSevenLiveStreamListDock::handleTopLevelChanged(bool topLevel) {
     if (!topLevel) {
         // Docked
         // Execute adjustSize() or other necessary operations here
-        adjustSize(); 
+        adjustSize();
         // May also need to force update layout or child widget sizes
         for (int i = 0; i < streamList->count(); ++i) {
             QListWidgetItem* item = streamList->item(i);

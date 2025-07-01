@@ -109,8 +109,8 @@ const Chat = ({
     ].includes(backgroundColor);
 
     /**
-     * 在 desktop 只針對 pubnub 有帶樣式資訊的一般訊息裝飾
-     * 且 留言文字色/底色/陰影，只在 user 有設置底色時才會一起套用
+     * On desktop, only decorate general messages with style information from pubnub
+     * And comment text color/background color/shadow are only applied when user has set background color
      */
     const hasUserDecoration = !isDefaultBackgroundColor;
     const textShadowColor = mapCommentShadowColor(commentShadowColor);
@@ -172,14 +172,14 @@ const Chat = ({
                         />
                     ))}
 
-                    {/* 前綴徽章 */}
+                    {/* Prefix badges */}
                     {prefixBadgeContents && (
                         <Box display="inline" mr={1}>
                             {prefixBadgeContents}
                         </Box>
                     )}
 
-                    {/* AI Cohost 頭像 */}
+                    {/* AI Cohost avatar */}
                     {
                         isAiCohost && (
                             <SVG 
@@ -207,7 +207,7 @@ const Chat = ({
                         nameColor={hasUserDecoration ? nameColor : ''}
                     />
 
-                    {/* 後綴徽章 */}
+                    {/* Suffix badges */}
                     {middleBadge && <BadgeImage src={middleBadge}/>}
 
                     {SVGSrc && (
@@ -232,7 +232,7 @@ const Chat = ({
                         {renderMessageContent(messageType, content, gift, luckyBag)}
                     </MultilineDesktop>
 
-                    {/* 右上徽章 */}
+                    {/* Top right badge */}
                     {hasTopRightBadge && (
                         <Box position="absolute" top="5px" right="6px">
                             <BadgeImage src={topRightBadge}/>

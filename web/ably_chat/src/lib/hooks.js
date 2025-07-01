@@ -55,7 +55,7 @@ const useComment = ({
     }, []);
 
     useEffect(() => {
-        // 可視範圍的 chat 寬度依據 asideLiveWidth 重繪留言框用 size
+        // Redraw comment box size based on asideLiveWidth for visible chat width
         if (!isInView) {
             return;
         }

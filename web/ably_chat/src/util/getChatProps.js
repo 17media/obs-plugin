@@ -1,5 +1,5 @@
 /**
- * hex 為 8 碼時，api response 前兩碼為透明度，需調整順序讓 web style 正常
+ * When hex is 8 digits, the first two digits in api response are transparency, need to adjust order for proper web style
  */
 export const transfer8bitHexCode = hexCode => {
     if (!hexCode) {

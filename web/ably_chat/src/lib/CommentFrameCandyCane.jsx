@@ -44,7 +44,7 @@ const CommentFrameCandyCane = ({
             }
             ctx.clearRect(0, 0, commentWidth, commentHeight);
 
-            // fill background 用的 image 先經過 resize 做為 pattern
+            // Image used for fill background is first resized as pattern
             const patternCanvas = document.createElement('canvas');
             const patternCtx = patternCanvas.getContext('2d');
             patternCanvas.width = PATTERN_IMG_RESIZE;
@@ -54,7 +54,7 @@ const CommentFrameCandyCane = ({
             const pattern = ctx.createPattern(patternCanvas, 'repeat');
             patternCanvas.remove();
 
-            // 讓重疊部分消失，製造空心而得到圓角邊框
+            // Make overlapping parts disappear to create hollow rounded border
             ctx.globalCompositeOperation = 'xor';
 
             ctx.fillStyle = pattern || '';
@@ -75,7 +75,7 @@ const CommentFrameCandyCane = ({
     );
 
     useEffect(() => {
-        // 在圖片載入後進行繪製
+        // Draw after image is loaded
         imageOnLoad(imageURL).then(draw);
     }, [imageURL, draw]);
 

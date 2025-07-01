@@ -3,8 +3,8 @@ import { ungzip } from 'pako/dist/pako_inflate.min';
 const mapUnit8ArrayToString = array =>
     String.fromCodePoint.apply(null, array);
 
-// base64 decode 後的 gzip 還要 ungzip 並轉成 string 後
-// 再經過 es5 escape、decodeURIComponent 處理，最後才 parse 成可用的 json data
+// After base64 decode, gzip needs to be ungzipped and converted to string
+// Then processed through es5 escape, decodeURIComponent, and finally parsed into usable json data
 export const decodeMessage = gzipMessage =>
     [escape, decodeURIComponent, JSON.parse].reduce(
         (message, fn) => fn(message),
@@ -25,7 +25,7 @@ export const decodeCompressedData = (
     cdata.forEach(({ alg, data = '' }) => {
         if (alg === 'gzip_base64') {
             try {
-                // 將 message data 單獨拉出來 decode 處理，再跟 data 以外欄位合併回新的 message
+                // Extract message data separately for decode processing, then merge back with fields other than data into new message
                 message = {
                     ...rest,
                     ...decodeMessage(window.atob(data)),
@@ -50,7 +50,7 @@ export const getAblyDecodeData = message => {
         ],
         ...rest,
     };
-    // 因為 decodeCompressedData 同時適用於 ably 和 pubnub，input 會先被整成相同格式格式
+    // Since decodeCompressedData applies to both ably and pubnub, input will be formatted into the same format first
     const resultData = decodeCompressedData(msg);
 
     return resultData;

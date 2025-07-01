@@ -1,0 +1,52 @@
+# Use Google style as the base formatting style
+BasedOnStyle: Google
+
+# Set indentation width to 4 spaces
+IndentWidth: 4
+
+# Indent 'case' labels inside switch statements
+IndentCaseLabels: false
+
+# Align parameters after an opening bracket when splitting across lines
+AlignAfterOpenBracket: Align
+
+# Maximum line length before line wrapping is triggered
+ColumnLimit: 100
+
+# Allow empty functions to be written on a single line
+AllowShortFunctionsOnASingleLine: Empty
+
+# Do not allow short if-statements without braces
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+
+# Indent contents inside namespaces
+NamespaceIndentation: All
+
+# Always separate definition blocks with an empty line
+SeparateDefinitionBlocks: Always
+
+# Place opening braces on the same line as the control statement
+BreakBeforeBraces: Attach
+
+# Sort and group include statements
+IncludeBlocks: Regroup
+SortIncludes: true
+
+# Add space after C-style cast
+SpaceAfterCStyleCast: true
+
+# Add space before parentheses in control statements (if, for, while)
+SpaceBeforeParens: ControlStatements
+
+# Do not insert spaces in angle brackets (e.g., templates)
+SpacesInAngles: false
+
+# Do not insert spaces inside container literals (e.g., initializer lists)
+SpacesInContainerLiterals: false
+
+# Do not insert spaces inside regular parentheses
+SpacesInParentheses: false
+
+# Do not insert spaces inside square brackets
+SpacesInSquareBrackets: false

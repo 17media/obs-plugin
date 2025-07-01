@@ -2,10 +2,10 @@
   <Fragment>
     <ComponentGroup Id="Obs17livePlugin" Directory="INSTALLFOLDER">
       <Component>
-        <File Source="C:\Users\apple\yzz\obs-17live\build_x64\Release\obs-17live.dll" />
+        <File Source="..\..\..\..\build_x64\$(Configuration)\obs-17live.dll" />
       </Component>
 		<Component>
-			<File Source="C:\Users\apple\yzz\obs-17live\build_x64\Release\obs-17live.pdb" />
+			<File Source="..\..\..\..\build_x64\$(Configuration)\obs-17live.pdb" />
 		</Component>
 	</ComponentGroup>
   </Fragment>

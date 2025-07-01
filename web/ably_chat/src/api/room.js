@@ -1,7 +1,7 @@
 export async function getRoomInfo() {
     if (process.env.NODE_ENV === 'development') {
         try {
-            // 在开发环境中，从本地 JSON 文件读取礼物信息
+            // In development environment, read room information from local JSON file
             const response = await fetch('/get_room_info_response.json');
             if (!response.ok) {
                 throw new Error(`Failed to fetch room info: ${response.status}`);
