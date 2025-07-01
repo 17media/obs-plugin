@@ -455,6 +455,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
                     }
 
                     // Show streamingDock in center of desktop
+                    streamingDock->setFloating(true);
                     streamingDock->setVisible(true);
                     streamingDock->raise();
                     streamingDock->activateWindow();
@@ -481,6 +482,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
                     streamingDock->editLiveWithInfo(info);
 
                     // Show streamingDock in center of desktop
+                    streamingDock->setFloating(true);
                     streamingDock->setVisible(true);
                     streamingDock->raise();
                     streamingDock->activateWindow();
