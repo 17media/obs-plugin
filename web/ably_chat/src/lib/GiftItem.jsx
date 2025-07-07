@@ -24,7 +24,7 @@ const GiftItem = ({ messageType, giftInfo, luckyBagInfo }) => {
         t('GIVE_LUCKYBAG_GIFT', {
           giftName: name,
           luckyBagName: luckyBagInfo.get('name'),
-          giftNumber: 1
+          point
         }) 
         : 
         (
