@@ -2,6 +2,6 @@
   "ChatPage": {
     "AI_COHOST": "AIアシスタント",
     "GIVE_GIFT": "配信者にギフトを贈りました",
-    "GIVE_LUCKYBAG_GIFT": "{luckyBagName} を開けて、{giftName}（{giftNumber}）を贈りました"
+    "GIVE_LUCKYBAG_GIFT": "{luckyBagName} を開けて、{giftName}（{point}）を贈りました"
   }
 }
