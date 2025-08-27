@@ -5,7 +5,8 @@ declare const messages: {
   "ChatPage": {
     "AI_COHOST": "AI Assistant",
     "GIVE_GIFT": "Sent a gift to the streamer",
-    "GIVE_LUCKYBAG_GIFT": "Opened {luckyBagName} and sent {giftName} ({point})"
+    "GIVE_LUCKYBAG_GIFT": "Opened {luckyBagName} and sent {giftName} ({point})",
+    "EMPTY_CHAT_MESSAGE": "Pay attention to the chat to stay updated on the audience's trends"
   }
 };
 export default messages;
