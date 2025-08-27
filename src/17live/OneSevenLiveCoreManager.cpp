@@ -435,6 +435,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
     // Create and show streaming window
     streamingDock =
         new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
+    streamingDock->setObjectName("OneSevenLiveStreamingDock");
 
     streamingDock->setMaximumWidth(600);
     streamingDock->resize(450, 600);
@@ -442,8 +443,14 @@ void OneSevenLiveCoreManager::createStreamingDock() {
     streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
 
-    streamingDock->setFloating(true);
-    streamingDock->setVisible(true);
+    // Restore dock state to position streamingDock at its previously saved location
+    QByteArray dockState = configManager->getDockState();
+    if (!dockState.isEmpty() && mainWindow->isVisible()) {
+        mainWindow->restoreState(dockState);
+    } else {
+        streamingDock->setFloating(true);
+        streamingDock->setVisible(true);
+    }
 
     streamingDock->loadRoomInfo(loginData.userInfo.roomID);
 
@@ -512,13 +519,20 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
     if (!liveListDock) {
         liveListDock = new OneSevenLiveStreamListDock(mainWindow, configManager.get(), status);
+        liveListDock->setObjectName("OneSevenLiveStreamListDock");
         liveListDock->setMinimumWidth(300);
         liveListDock->setMinimumHeight(400);
 
         liveListDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, liveListDock);
 
-        liveListDock->setFloating(true);
+        // Restore dock state to position liveListDock at its previously saved location
+        QByteArray dockState = configManager->getDockState();
+        if (!dockState.isEmpty() && mainWindow->isVisible()) {
+            mainWindow->restoreState(dockState);
+        } else {
+            liveListDock->setFloating(true);
+        }
 
         liveListDock->setVisible(true);
 
@@ -639,6 +653,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
 
     if (!chatRoomDock) {
         chatRoomDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
+        chatRoomDock->setObjectName("OneSevenLiveChatRoomDock");
         chatRoomDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         chatRoomDock->setFeatures(QDockWidget::DockWidgetMovable |
                                   QDockWidget::DockWidgetFloatable |
@@ -684,11 +699,16 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
 
     chatRoomDock->resize(378, 600);
-    chatRoomDock->setFloating(true);
-
     cefView->loadUrl(chatUrl);
 
-    chatRoomDock->show();
+    // Restore dock state to position chatRoomDock at its previously saved location
+    QByteArray dockState = configManager->getDockState();
+    if (!dockState.isEmpty() && mainWindow->isVisible()) {
+        mainWindow->restoreState(dockState);
+    } else {
+        chatRoomDock->setFloating(true);
+    }
+    chatRoomDock->setVisible(true);
 
     // Update chat room visibility status (considered visible when CEF view is open)
     if (menuManager) {

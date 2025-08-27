@@ -164,18 +164,23 @@ QByteArray OneSevenLiveConfigManager::getDockState() {
         return QByteArray();
     }
 
-    return QByteArray(dockStateChar);
+    std::string dockStateStr = dockStateChar;
+
+    return QByteArray::fromBase64(QString::fromStdString(dockStateStr).toUtf8());
 }
 
 bool OneSevenLiveConfigManager::setDockState(const QByteArray &state) {
     if (!initialized) {
         return false;
     }
+
     if (!config) {
         return false;
     }
 
-    config_set_string(config, service, "DockState", state.toStdString().c_str());
+    QString encoded = state.toBase64();
+    
+    config_set_string(config, service, "DockState", encoded.toStdString().c_str());
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save config");
         return false;
