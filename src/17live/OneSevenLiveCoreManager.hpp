@@ -12,6 +12,7 @@
 class QMainWindow;
 class QTimer;
 class QDockWidget;
+class QProgressDialog;
 
 class BrowserApp;
 
@@ -158,4 +159,10 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Timer for checking stream status
     QTimer* streamCheckTimer{nullptr};
+
+    // Version update related methods
+    void handleCheckUpdateClicked();
+    void checkForUpdates();
+    
+    class OneSevenLiveUpdateManager* updateManager = nullptr;
 };
