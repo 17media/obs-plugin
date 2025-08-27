@@ -1219,6 +1219,15 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     currentLiveStatus = status;
 
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
+    
+    // Disable archive and vlive settings when streaming is active to avoid user confusion
+    bool isStreaming = (status == OneSevenLiveStreamingStatus::Live || 
+                       status == OneSevenLiveStreamingStatus::Streaming);
+    
+    archiveStreamCheck->setEnabled(!isStreaming);
+    autoPreviewCheck->setEnabled(!isStreaming);
+    clipIdentityCombo->setEnabled(!isStreaming);
+    virtualStreamerCheck->setEnabled(!isStreaming);
 }
 
 void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event) {
