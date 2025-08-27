@@ -12,6 +12,9 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
@@ -21,6 +24,7 @@
 #include "OneSevenLiveStreamingDock.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
+#include "OneSevenLiveUpdateManager.hpp"
 #include "json11.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
@@ -122,11 +126,8 @@ bool OneSevenLiveCoreManager::initialize() {
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::liveListClicked, this,
                      &OneSevenLiveCoreManager::handleLiveListClicked);
 
-    QObject::connect(
-        menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this, [this]() {
-            QUrl url = QUrl(obs_module_text("Menu.CheckUpdate.Url"), QUrl::TolerantMode);
-            QDesktopServices::openUrl(url);
-        });
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this,
+                     &OneSevenLiveCoreManager::handleCheckUpdateClicked);
 
     if (isLogin) {
         QString openId = loginData.userInfo.openID;
@@ -139,6 +140,67 @@ bool OneSevenLiveCoreManager::initialize() {
         menuManager->updateLoginStatus(true, username);
     }
 
+    // Initialize update manager
+    updateManager = new OneSevenLiveUpdateManager(this);
+
+    // Connect update manager signals
+    QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateAvailable, this, [this](const QString& latestVersion, const QJsonArray& assets) {
+        QMessageBox msgBox(mainWindow);
+        msgBox.setWindowTitle(obs_module_text("Update.NewVersionFound"));
+        msgBox.setText(QString(obs_module_text("Update.NewVersionFound.Message")).arg(latestVersion));
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+
+        if (msgBox.exec() == QMessageBox::Yes) {
+            // open download page obs_module_text("Menu.CheckUpdate.Url")
+            QDesktopServices::openUrl(QUrl(obs_module_text("Menu.CheckUpdate.Url")));
+
+            // QString systemInfo = updateManager->getSystemInfo();
+            // QString downloadUrl;
+            // QString fileName;
+
+            // for (QJsonValue assetValue : assets) {
+            //     QJsonObject asset = assetValue.toObject();
+            //     QString assetName = asset["name"].toString();
+
+            //     obs_log(LOG_INFO, "Asset name: %s", assetName.toStdString().c_str());
+            //     obs_log(LOG_INFO, "systemInfo: %s", systemInfo.toStdString().c_str());
+
+            //     if (systemInfo.contains("macOS")) {
+            //         if (systemInfo.contains("arm64") && assetName.contains("macAppleSilicon")) {
+            //             downloadUrl = asset["browser_download_url"].toString();
+            //             fileName = assetName;
+            //             break;
+            //         } else if (systemInfo.contains("x86_64") && assetName.contains("macIntel")) {
+            //             downloadUrl = asset["browser_download_url"].toString();
+            //             fileName = assetName;
+            //             break;
+            //         }
+            //     } else if (systemInfo.contains("Windows") && assetName.contains("windows")) {
+            //         downloadUrl = asset["browser_download_url"].toString();
+            //         fileName = assetName;
+            //         break;
+            //     }
+            // }
+
+            // if (downloadUrl.isEmpty()) {
+            //     QMessageBox::warning(mainWindow, obs_module_text("Update.DownloadFailed"),
+            //                          obs_module_text("Update.DownloadFailed.NoPackage"));
+            //     return;
+            // }
+
+            // updateManager->downloadUpdate(downloadUrl, fileName);
+        }
+    });
+
+    QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateNotAvailable, this, [this]() {
+        obs_log(LOG_INFO, "Update check: no new version available.");
+    });
+
+    QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateCheckFailed, this, [this](const QString& error) {
+        obs_log(LOG_WARNING, "Update check failed: %s", error.toUtf8().constData());
+    });
+
     // Load meta data
     if (!LoadMetaData()) {
         obs_log(LOG_ERROR, "Failed to load meta data");
@@ -148,8 +210,22 @@ bool OneSevenLiveCoreManager::initialize() {
     load17LiveConfig();
 
     initialized = true;
+
+    // Check for updates
+    std::thread updateThread([this]() {
+        updateManager->checkForUpdates();
+    });
+    updateThread.detach();
+    
     return true;
 }
+
+void OneSevenLiveCoreManager::handleCheckUpdateClicked() {
+    if (updateManager) {
+        updateManager->checkForUpdates();
+    }
+}
+
 
 void OneSevenLiveCoreManager::load17LiveConfig() {
     // In the initialize method, add the following code after initializing configManager
