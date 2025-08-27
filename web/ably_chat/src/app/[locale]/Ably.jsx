@@ -346,16 +346,38 @@ export default function AblyComponent() {
 
     return (
         <ChatListWrapper className="chat-list-wrapper">
-            {chatList
-                .map(chat => (
+            {chatList.length === 0 ? (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '40px 20px',
+                    color: '#A1A9B6',
+                    fontSize: '14px'
+                }}>
+                    <img 
+                        src="/images/exclaimark.svg" 
+                        alt="" 
+                        style={{
+                            width: '20px',
+                            height: '20px',
+                            marginRight: '8px'
+                        }}
+                    />
+                    <span>{t('EMPTY_CHAT_MESSAGE')}</span>
+                </div>
+            ) : (
+                chatList.map(chat => (
                     <Chat
+                        key={chat.get('id')}
                         asideLiveWidth={getAsideLiveWidth()}
                         {...getChatProps(chat)}
                         roomID={roomID}
                         isConcert={false}
                         isGroupCall={false}
                     />
-                ))}
+                ))
+            )}
             <div ref={chatEndRef} />
         </ChatListWrapper>
     );
