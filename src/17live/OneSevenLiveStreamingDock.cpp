@@ -514,6 +514,18 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
         updateUIValues();
     }
 
+    // Check feature 207 to control createLiveButton state
+    OneSevenLiveConfig config;
+    if (configManager->getConfig(config)) {
+        bool isFeature207Enabled = (config.addOns.features["207"] == 1);
+        createLiveButton->setEnabled(isFeature207Enabled);
+
+        if (!isFeature207Enabled) {
+            // if disabled, skip following checking, just return
+            return;
+        }
+    }
+
     // How to handle when web has already started streaming
     if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)) {
         // Add user prompt dialog to ask for next operation
