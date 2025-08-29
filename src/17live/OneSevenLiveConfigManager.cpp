@@ -52,6 +52,46 @@ bool OneSevenLiveConfigManager::initialize() {
     return true;
 }
 
+bool OneSevenLiveConfigManager::getDockVisibility(const std::string &dockName) {
+    if (!initialized) {
+        return false;
+    }
+
+    if (!config) {
+        return false;
+    }
+
+    std::string key = "DockVisibility_" + dockName;
+    const char *visibilityChar = config_get_string(config, service, key.c_str());
+    if (!visibilityChar) {
+        return false; // Default to false if not found
+    }
+
+    std::string visibility = visibilityChar;
+    return visibility == "true";
+}
+
+bool OneSevenLiveConfigManager::setDockVisibility(const std::string &dockName, bool visible) {
+    if (!initialized) {
+        return false;
+    }
+
+    if (!config) {
+        return false;
+    }
+
+    std::string key = "DockVisibility_" + dockName;
+    std::string value = visible ? "true" : "false";
+    
+    config_set_string(config, service, key.c_str(), value.c_str());
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save dock visibility config");
+        return false;
+    }
+
+    return true;
+}
+
 bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::string &value) {
     if (!initialized) {
         return false;

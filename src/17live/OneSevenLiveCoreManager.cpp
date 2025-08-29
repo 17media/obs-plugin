@@ -217,6 +217,33 @@ bool OneSevenLiveCoreManager::initialize() {
     });
     updateThread.detach();
     
+    // Restore dock states on startup if they were previously saved
+    isStartupRestore = true;
+    
+    // Check if there are saved dock states and restore them
+    QByteArray dockState = configManager->getDockState();
+    if (!dockState.isEmpty() && mainWindow && mainWindow->isVisible()) {
+        // Restore streaming dock if it was previously shown
+        if (configManager->getDockVisibility("streaming")) {
+            createStreamingDock();
+        }
+        
+        // Restore live list dock if it was previously shown
+        if (configManager->getDockVisibility("liveList")) {
+            handleLiveListClicked();
+        }
+        
+        // Restore chat room dock if it was previously shown
+        if (configManager->getDockVisibility("chatRoom")) {
+            handleChatRoomClicked();
+        }
+        
+        // Apply the saved dock layout
+        mainWindow->restoreState(dockState);
+    }
+    
+    isStartupRestore = false;
+    
     return true;
 }
 
@@ -263,12 +290,21 @@ void OneSevenLiveCoreManager::shutdown() {
         return;
     }
 
+    // Save dock state before closing any docks
+    saveDockState();
+
     if (streamingDock) {
         streamingDock->disconnect(this);
+        streamingDock->close();
+        streamingDock->deleteLater();
+        streamingDock = nullptr;
     }
 
     if (liveListDock) {
         liveListDock->disconnect(this);
+        liveListDock->close();
+        liveListDock->deleteLater();
+        liveListDock = nullptr;
     }
 
     if (chatRoomDock) {
@@ -285,8 +321,6 @@ void OneSevenLiveCoreManager::shutdown() {
         chatRoomDock->deleteLater();
         chatRoomDock = nullptr;
     }
-
-    saveDockState();
 
     // Clean up menu manager resources
     if (menuManager) {
@@ -363,25 +397,31 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
         closeLive();
     }
 
+    // Save dock state before closing any docks
+    saveDockState();
+
     // Close all dock windows to avoid incorrect operations after logout
     if (streamingDock) {
         streamingDock->close();
+        streamingDock->deleteLater();
         streamingDock = nullptr;
     }
 
     if (liveListDock) {
         liveListDock->close();
+        liveListDock->deleteLater();
         liveListDock = nullptr;
     }
 
     // Close chat room window (if exists)
-    if (chatRoomDock && chatRoomDock->isVisible()) {
+    if (chatRoomDock) {
+        if (cefView) {
+            delete cefView;
+            cefView = nullptr;
+        }
         chatRoomDock->close();
+        chatRoomDock->deleteLater();
         chatRoomDock = nullptr;
-    }
-
-    if (cefView) {
-        cefView = nullptr;
     }
 
     // Reset login status
@@ -407,10 +447,6 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
         createStreamingDock();
     } else {
         streamingDock->setVisible(!streamingDock->isVisible());
-
-        QByteArray dockState = configManager->getDockState();
-        if (mainWindow->isVisible())
-            mainWindow->restoreState(dockState);
     }
 
     // Update menu item checked status
@@ -443,13 +479,20 @@ void OneSevenLiveCoreManager::createStreamingDock() {
     streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
 
-    // Restore dock state to position streamingDock at its previously saved location
-    QByteArray dockState = configManager->getDockState();
-    if (!dockState.isEmpty() && mainWindow->isVisible()) {
-        mainWindow->restoreState(dockState);
+    // Only restore state during startup, otherwise set floating and center
+    if (isStartupRestore) {
+        // During startup restoration, the state will be restored by initialize() method
+        streamingDock->setVisible(true);
     } else {
+        // First time creation or manual creation - set floating and center
         streamingDock->setFloating(true);
         streamingDock->setVisible(true);
+        
+        // Center the dock on the main window
+        QRect mainWindowGeometry = mainWindow->geometry();
+        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - streamingDock->width()) / 2;
+        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
+        streamingDock->move(x, y);
     }
 
     streamingDock->loadRoomInfo(loginData.userInfo.roomID);
@@ -505,6 +548,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(), visible,
                                               liveListDock && liveListDock->isVisible());
+            configManager->setDockVisibility("streaming", visible);
         });
 
         // Connect close signal to main window slot function
@@ -526,15 +570,21 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
         liveListDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, liveListDock);
 
-        // Restore dock state to position liveListDock at its previously saved location
-        QByteArray dockState = configManager->getDockState();
-        if (!dockState.isEmpty() && mainWindow->isVisible()) {
-            mainWindow->restoreState(dockState);
+        // Only restore state during startup, otherwise set floating and center
+        if (isStartupRestore) {
+            // During startup restoration, the state will be restored by initialize() method
+            liveListDock->setVisible(true);
         } else {
+            // First time creation or manual creation - set floating and center
             liveListDock->setFloating(true);
+            liveListDock->setVisible(true);
+            
+            // Center the dock on the main window
+            QRect mainWindowGeometry = mainWindow->geometry();
+            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - liveListDock->width()) / 2;
+            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - liveListDock->height()) / 2;
+            liveListDock->move(x, y);
         }
-
-        liveListDock->setVisible(true);
 
         connect(liveListDock, &OneSevenLiveStreamListDock::startLiveClicked, this,
                 [this](const OneSevenLiveRtmpRequest& request) {
@@ -604,16 +654,13 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
         connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(), visible);
+            configManager->setDockVisibility("liveList", visible);
         });
 
         // Connect close signal to main window slot function
         connect(liveListDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
     } else {
         liveListDock->setVisible(!liveListDock->isVisible());
-
-        QByteArray dockState = configManager->getDockState();
-        if (mainWindow->isVisible())
-            mainWindow->restoreState(dockState);
     }
 
     // Update menu item checked status
@@ -665,7 +712,11 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(),
                                               liveListDock && liveListDock->isVisible());
+            configManager->setDockVisibility("chatRoom", visible);
         });
+
+        // Connect destroyed signal to save dock state
+        connect(chatRoomDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
     } else if (chatRoomDock->isVisible()) {
         // cefView will be destroyed when dock is hidden
         if (cefView) {
@@ -701,14 +752,21 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     chatRoomDock->resize(378, 600);
     cefView->loadUrl(chatUrl);
 
-    // Restore dock state to position chatRoomDock at its previously saved location
-    QByteArray dockState = configManager->getDockState();
-    if (!dockState.isEmpty() && mainWindow->isVisible()) {
-        mainWindow->restoreState(dockState);
+    // Only restore state during startup, otherwise set floating and center
+    if (isStartupRestore) {
+        // During startup restoration, the state will be restored by initialize() method
+        chatRoomDock->setVisible(true);
     } else {
+        // First time creation or manual creation - set floating and center
         chatRoomDock->setFloating(true);
+        chatRoomDock->setVisible(true);
+        
+        // Center the dock on the main window
+        QRect mainWindowGeometry = mainWindow->geometry();
+        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatRoomDock->width()) / 2;
+        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatRoomDock->height()) / 2;
+        chatRoomDock->move(x, y);
     }
-    chatRoomDock->setVisible(true);
 
     // Update chat room visibility status (considered visible when CEF view is open)
     if (menuManager) {

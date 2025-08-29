@@ -38,6 +38,9 @@ class OneSevenLiveConfigManager {
 
     QByteArray getDockState();
     bool setDockState(const QByteArray &state);
+    
+    bool getDockVisibility(const std::string &dockName);
+    bool setDockVisibility(const std::string &dockName, bool visible);
 
     // Set configuration data
     bool setConfig(const Json &configData);

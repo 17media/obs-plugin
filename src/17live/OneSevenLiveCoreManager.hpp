@@ -113,6 +113,9 @@ class OneSevenLiveCoreManager : public QObject {
     // Initialization flag
     bool initialized;
 
+    // Flag to track if we are in startup dock restoration phase
+    bool isStartupRestore = false;
+
     std::unique_ptr<OneSevenLiveConfigManager> configManager;
 
     // Menu manager
