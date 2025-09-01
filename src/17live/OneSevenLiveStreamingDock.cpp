@@ -259,8 +259,6 @@ void OneSevenLiveStreamingDock::setupUi() {
     mainLayout->addLayout(broadcastModeLayout);
 
     // Party Live section
-    QHBoxLayout *partyLiveLayout = new QHBoxLayout();
-    
     // Create party live header with label, help button and switch
     partyLiveHeader = new QWidget();
     partyLiveHeaderLayout = new QHBoxLayout(partyLiveHeader);
@@ -1340,8 +1338,8 @@ void OneSevenLiveStreamingDock::onPartyLiveHelpClicked() {
     helpDialog.setIcon(QMessageBox::Information);
     
     helpDialog.setText(obs_module_text("Live.Settings.PartyLive.Help.Content"));
-    helpDialog.setStandardButtons(QMessageBox::Ok);
-    helpDialog.setButtonText(QMessageBox::Ok, obs_module_text("Live.Settings.PartyLive.Help.Button"));
+    
+    helpDialog.addButton(obs_module_text("Live.Settings.PartyLive.Help.Button"), QMessageBox::AcceptRole);
     
     // Set dialog size
     helpDialog.setMinimumWidth(600);

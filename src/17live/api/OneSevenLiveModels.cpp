@@ -566,7 +566,8 @@ bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, Json 
                         {"subtabID", request.subtabID.toStdString()},
                         {"archiveConfig", archiveConfig},
                         {"vliverInfo", vliverInfo},
-                        {"armyOnly", armyOnly}};
+                        {"armyOnly", armyOnly},
+                        {"enableOBSGroupCall", request.enableOBSGroupCall}};
 
     return true;
 }
