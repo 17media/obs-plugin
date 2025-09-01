@@ -680,6 +680,13 @@ bool JsonToOneSevenLiveRtmpResponse(const Json &json, OneSevenLiveRtmpResponse &
     // Subtitle enable status
     response.subtitleEnabled = json["subtitleEnabled"].bool_value();
 
+    // Handle WHIP information
+    const auto &whipJson = json["WHIP"];
+    if (whipJson.is_object()) {
+        response.whipInfo.server = QString::fromStdString(whipJson["server"].string_value());
+        response.whipInfo.token = QString::fromStdString(whipJson["token"].string_value());
+    }
+
     return true;
 }
 

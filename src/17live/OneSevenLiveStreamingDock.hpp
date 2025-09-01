@@ -74,6 +74,13 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QComboBox *customActivityCombo;
     QComboBox *viewerLimitCombo;
 
+    // Party Live
+    QWidget *partyLiveHeader;
+    QHBoxLayout *partyLiveHeaderLayout;
+    QLabel *partyLiveLabel;
+    QPushButton *partyLiveHelpButton;
+    QCheckBox *partyLiveCheck;
+
     // Switches
     QCheckBox *archiveStreamCheck;
     QCheckBox *autoPreviewCheck;
@@ -108,6 +115,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void onSaveConfigClicked();
     void onArmyOnlyToggleClicked();          // New collapse/expand button click event
     void onArmyOnlyCheckChanged(int state);  // Triggered when armyOnlyCheck state changes
+    void onPartyLiveHelpClicked();           // Party live help button click event
 
    private:
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);

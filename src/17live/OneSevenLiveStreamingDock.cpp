@@ -5,6 +5,7 @@
 
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QIcon>
 #include <QMessageBox>
 #include <QScrollArea>
 #include <QThread>
@@ -255,6 +256,33 @@ void OneSevenLiveStreamingDock::setupUi() {
     broadcastModeLayout->addWidget(armyOnlyContainer);
 
     mainLayout->addLayout(broadcastModeLayout);
+
+    // Party Live section
+    QHBoxLayout *partyLiveLayout = new QHBoxLayout();
+    
+    // Create party live header with label, help button and switch
+    partyLiveHeader = new QWidget();
+    partyLiveHeaderLayout = new QHBoxLayout(partyLiveHeader);
+    partyLiveHeaderLayout->setContentsMargins(0, 0, 0, 0);
+    
+    partyLiveLabel = new QLabel(obs_module_text("Live.Settings.PartyLive"));
+    partyLiveLabel->setStyleSheet("font-weight: bold;");
+    
+    // Help button with question icon
+    partyLiveHelpButton = new QPushButton();
+    partyLiveHelpButton->setIcon(QIcon(":/resources/question.svg"));
+    partyLiveHelpButton->setFixedSize(20, 20);
+    partyLiveHelpButton->setStyleSheet("QPushButton { border: none; background: transparent; }");
+    partyLiveHelpButton->setToolTip(obs_module_text("Live.Settings.PartyLive.Help.Tooltip"));
+    
+    partyLiveCheck = new QCheckBox();
+    
+    partyLiveHeaderLayout->addWidget(partyLiveLabel);
+    partyLiveHeaderLayout->addWidget(partyLiveHelpButton);
+    partyLiveHeaderLayout->addStretch();
+    partyLiveHeaderLayout->addWidget(partyLiveCheck);
+    
+    mainLayout->addWidget(partyLiveHeader);
 
     // Switch options
     QHBoxLayout *archiveLayout = new QHBoxLayout();
@@ -670,6 +698,10 @@ void OneSevenLiveStreamingDock::createConnections() {
 
     connect(armyOnlyCheck, &QCheckBox::stateChanged, this,
             &OneSevenLiveStreamingDock::onArmyOnlyCheckChanged);
+
+    // Party live help button
+    connect(partyLiveHelpButton, &QPushButton::clicked, this,
+            &OneSevenLiveStreamingDock::onPartyLiveHelpClicked);
 }
 
 void OneSevenLiveStreamingDock::onArmyOnlyToggleClicked() {
@@ -1141,6 +1173,8 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
     showInHotPageCheck->setChecked(request.armyOnly.showOnHotPage);
     liveNotificationCheck->setChecked(request.armyOnly.armyOnlyPN);
 
+    partyLiveCheck->setChecked(request.enableOBSGroupCall);
+
     archiveStreamCheck->setChecked(request.archiveConfig.autoRecording);
     autoPreviewCheck->setChecked(request.archiveConfig.autoPublish);
 
@@ -1183,6 +1217,8 @@ bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &reque
     request.armyOnly.requiredArmyRank = requiredArmyRankCombo->currentData().toInt();
     request.armyOnly.showOnHotPage = showInHotPageCheck->isChecked();
     request.armyOnly.armyOnlyPN = liveNotificationCheck->isChecked();
+
+    request.enableOBSGroupCall = partyLiveCheck->isChecked();
 
     request.archiveConfig.autoRecording = archiveStreamCheck->isChecked();
     request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
@@ -1230,9 +1266,25 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     virtualStreamerCheck->setEnabled(!isStreaming);
 }
 
+void OneSevenLiveStreamingDock::onPartyLiveHelpClicked() {
+    QMessageBox helpDialog(this);
+    helpDialog.setWindowTitle(obs_module_text("Live.Settings.PartyLive.Help.Title"));
+    helpDialog.setIcon(QMessageBox::Information);
+    
+    helpDialog.setText(obs_module_text("Live.Settings.PartyLive.Help.Content"));
+    helpDialog.setStandardButtons(QMessageBox::Ok);
+    helpDialog.setButtonText(QMessageBox::Ok, obs_module_text("Live.Settings.PartyLive.Help.Button"));
+    
+    // Set dialog size
+    helpDialog.setMinimumWidth(600);
+    helpDialog.setMinimumHeight(400);
+    
+    helpDialog.exec();
+}
+
 void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event) {
     QDockWidget::resizeEvent(event);
-
+    
     // Update loading overlay size and position to always cover the entire visible area
     if (loadingOverlay && widget()) {
         QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());

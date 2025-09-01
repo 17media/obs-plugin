@@ -360,6 +360,7 @@ struct OneSevenLiveRtmpRequest {
     OneSevenLiveArchiveConfig archiveConfig;
     OneSevenLiveVliverInfo vliverInfo;
     OneSevenLiveArmy armyOnly;
+    bool enableOBSGroupCall;
 };
 
 bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, Json &json);
@@ -381,6 +382,12 @@ struct OneSevenLiveAchievementValueState {
     int initSeconds;
 };
 
+// WHIP information struct
+struct OneSevenLiveWhipInfo {
+    QString server;
+    QString token;
+};
+
 // RTMP response struct
 struct OneSevenLiveRtmpResponse {
     QString liveStreamID;
@@ -392,6 +399,7 @@ struct OneSevenLiveRtmpResponse {
     QList<OneSevenLiveRtmpUrl> rtmpURLs;  // Reuse existing OneSevenLiveRtmpUrl struct
     OneSevenLiveAchievementValueState achievementValueState;
     bool subtitleEnabled;
+    OneSevenLiveWhipInfo whipInfo;        // WHIP information
 };
 
 bool JsonToOneSevenLiveRtmpResponse(const Json &json, OneSevenLiveRtmpResponse &response);
