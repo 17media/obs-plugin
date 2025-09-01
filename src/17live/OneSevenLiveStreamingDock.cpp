@@ -7,6 +7,7 @@
 #include <QGroupBox>
 #include <QIcon>
 #include <QMessageBox>
+#include <QRegularExpression>
 #include <QScrollArea>
 #include <QThread>
 #include <QTimer>
@@ -979,30 +980,49 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
 void OneSevenLiveStreamingDock::startLive(const std::string userID,
                                           const OneSevenLiveRtmpResponse &response,
                                           bool autoRecording, bool skip) {
-    QString streamUrl;
-    QString streamKey;
-
-    // Regular expression /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ to parse response.rtmpURL
-    // First captured group is streamUrl, second captured group is streamKey
-    // Example: rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
-    QRegularExpression re("(^.+://[^/]+/[^/]+)/(.+)$");
-    QRegularExpressionMatch match = re.match(response.rtmpURL);
-    if (match.hasMatch()) {
-        streamUrl = match.captured(1);
-        streamKey = match.captured(2);
+    // Check if WHIP information is available
+    bool hasWhipInfo = !response.whipInfo.server.isEmpty() && !response.whipInfo.token.isEmpty();
+    
+    if (hasWhipInfo) {
+        // WHIP mode
+        obs_log(LOG_INFO, "Using WHIP streaming mode");
+        
+        // Save WHIP streaming settings
+        configManager->setWhipStreamingInfo(response.liveStreamID.toStdString(),
+                                           response.whipInfo.server.toStdString(),
+                                           response.whipInfo.token.toStdString());
+        configManager->setWhipMode(true);
+        
+        saveWhipStreamingSettings(response.liveStreamID.toStdString(),
+                                 response.whipInfo.server.toStdString(),
+                                 response.whipInfo.token.toStdString());
     } else {
-        obs_log(LOG_ERROR, "Failed to parse stream url");
-        return;
+        // RTMP mode
+        obs_log(LOG_INFO, "Using RTMP streaming mode");
+        
+        QString streamUrl;
+        QString streamKey;
+
+        // Regular expression /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ to parse response.rtmpURL
+        // First captured group is streamUrl, second captured group is streamKey
+        // Example: rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
+        QRegularExpression re("(^.+://[^/]+/[^/]+)/(.+)$");
+        QRegularExpressionMatch match = re.match(response.rtmpURL);
+        if (match.hasMatch()) {
+            streamUrl = match.captured(1);
+            streamKey = match.captured(2);
+        } else {
+            obs_log(LOG_ERROR, "Failed to parse stream url");
+            return;
+        }
+
+        configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(),
+                                        streamKey.toStdString());
+        configManager->setWhipMode(false);
+
+        saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(),
+                              streamKey.toStdString());
     }
-
-    // obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
-    // obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
-
-    configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(),
-                                    streamKey.toStdString());
-
-    saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(),
-                          streamKey.toStdString());
 
     // Start live stream
     if (!skip && !apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
@@ -1084,7 +1104,13 @@ void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
         // return;
     }
 
-    configManager->clearStreamingInfo();
+    // Clear streaming configuration based on current mode
+    if (configManager->isWhipMode()) {
+        configManager->clearWhipStreamingInfo();
+    } else {
+        configManager->clearStreamingInfo();
+    }
+    configManager->setWhipMode(false);
 
     updateLiveStatus(OneSevenLiveStreamingStatus::NotStarted);
     emit streamStatusUpdated(OneSevenLiveStreamingStatus::NotStarted);
@@ -1116,6 +1142,48 @@ void OneSevenLiveStreamingDock::saveStreamingSettings(const std::string &liveStr
 
     // Release resources
     obs_service_release(service);
+}
+
+void OneSevenLiveStreamingDock::saveWhipStreamingSettings(const std::string &liveStreamID,
+                                                         const std::string &whipServer,
+                                                         const std::string &whipToken) {
+    // Handle WHIP streaming settings
+    obs_log(LOG_INFO, "saveWhipStreamingSettings %s", liveStreamID.c_str());
+    obs_log(LOG_INFO, "whipServer: %s", whipServer.c_str());
+    obs_log(LOG_INFO, "whipToken: %s", whipToken.c_str());
+    
+    // Configure WHIP service
+    configureWhipService(whipServer, whipToken);
+}
+
+void OneSevenLiveStreamingDock::configureWhipService(const std::string &whipServer,
+                                                    const std::string &whipToken) {
+    obs_log(LOG_INFO, "Configuring WHIP service");
+    
+    // Get or create WHIP service
+    obs_service_t *service = obs_service_create("whip_custom", "whip_service", NULL, NULL);
+    if (!service) {
+        obs_log(LOG_ERROR, "Failed to create WHIP service");
+        return;
+    }
+    
+    // Set WHIP server and token
+    obs_data_t *settings = obs_service_get_settings(service);
+    obs_data_set_string(settings, "server", whipServer.c_str());
+    obs_data_set_string(settings, "bearer_token", whipToken.c_str());
+    
+    // Apply settings
+    obs_service_update(service, settings);
+    obs_data_release(settings);
+    
+    // Set as current streaming service
+    obs_frontend_set_streaming_service(service);
+    obs_frontend_save_streaming_service();
+    
+    // Release resources
+    obs_service_release(service);
+    
+    obs_log(LOG_INFO, "WHIP service configured successfully");
 }
 
 void OneSevenLiveStreamingDock::stopStreaming() {
