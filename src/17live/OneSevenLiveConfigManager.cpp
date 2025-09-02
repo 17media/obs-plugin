@@ -329,7 +329,7 @@ bool OneSevenLiveConfigManager::setWhipStreamingInfo(const std::string &liveStre
         return false;
     }
 
-    config_set_string(config, service, "WhipLiveStreamID", liveStreamID.c_str());
+    config_set_string(config, service, "LiveStreamID", liveStreamID.c_str());
     config_set_string(config, service, "WhipServer", whipServer.c_str());
     config_set_string(config, service, "WhipToken", whipToken.c_str());
 
@@ -352,7 +352,7 @@ bool OneSevenLiveConfigManager::getWhipStreamingInfo(std::string &liveStreamID,
         return false;
     }
     
-    const char *liveStreamIDChar = config_get_string(config, service, "WhipLiveStreamID");
+    const char *liveStreamIDChar = config_get_string(config, service, "LiveStreamID");
     const char *whipServerChar = config_get_string(config, service, "WhipServer");
     const char *whipTokenChar = config_get_string(config, service, "WhipToken");
     

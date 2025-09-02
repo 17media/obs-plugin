@@ -518,10 +518,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                             streamCheckTimer = new QTimer(this);
                             connect(streamCheckTimer, &QTimer::timeout, this, [this]() {
                                 std::string liveStreamID;
-                                std::string streamUrl;
-                                std::string streamKey;
-                                if (configManager->getStreamingInfo(liveStreamID, streamUrl,
-                                                                    streamKey)) {
+                                if (configManager->getConfigValue("LiveStreamID", liveStreamID)) {
                                     if (!apiWrapper->CheckStream(liveStreamID)) {
                                         // Stream check failed, close live and stop timer
                                         closeLive();

@@ -1150,14 +1150,6 @@ void OneSevenLiveStreamingDock::saveWhipStreamingSettings(const std::string &liv
     obs_log(LOG_INFO, "whipServer: %s", whipServer.c_str());
     obs_log(LOG_INFO, "whipToken: %s", whipToken.c_str());
     
-    // Configure WHIP service
-    configureWhipService(whipServer, whipToken);
-}
-
-void OneSevenLiveStreamingDock::configureWhipService(const std::string &whipServer,
-                                                    const std::string &whipToken) {
-    obs_log(LOG_INFO, "Configuring WHIP service");
-    
     // Get or create WHIP service
     obs_service_t *service = obs_service_create("whip_custom", "whip_service", NULL, NULL);
     if (!service) {
@@ -1176,6 +1168,7 @@ void OneSevenLiveStreamingDock::configureWhipService(const std::string &whipServ
     
     // Set as current streaming service
     obs_frontend_set_streaming_service(service);
+
     obs_frontend_save_streaming_service();
     
     // Release resources
