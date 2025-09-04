@@ -75,11 +75,11 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QComboBox *viewerLimitCombo;
 
     // Party Live
-    QWidget *partyLiveHeader;
-    QHBoxLayout *partyLiveHeaderLayout;
-    QLabel *partyLiveLabel;
-    QPushButton *partyLiveHelpButton;
-    QCheckBox *partyLiveCheck;
+    QWidget *GroupCallContainer;
+    QHBoxLayout *GroupCallContainerLayout;
+    QLabel *GroupCallLabel;
+    QPushButton *GroupCallHelpButton;
+    QCheckBox *GroupCallCheck;
 
     // Switches
     QCheckBox *archiveStreamCheck;
@@ -115,7 +115,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void onSaveConfigClicked();
     void onArmyOnlyToggleClicked();          // New collapse/expand button click event
     void onArmyOnlyCheckChanged(int state);  // Triggered when armyOnlyCheck state changes
-    void onPartyLiveHelpClicked();           // Party live help button click event
+    void onGroupCallHelpClicked();           // Party live help button click event
 
    private:
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);

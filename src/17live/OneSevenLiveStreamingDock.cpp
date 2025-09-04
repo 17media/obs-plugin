@@ -260,28 +260,43 @@ void OneSevenLiveStreamingDock::setupUi() {
 
     // Party Live section
     // Create party live header with label, help button and switch
-    partyLiveHeader = new QWidget();
-    partyLiveHeaderLayout = new QHBoxLayout(partyLiveHeader);
-    partyLiveHeaderLayout->setContentsMargins(0, 0, 0, 0);
+    GroupCallContainer = new QWidget();
+    GroupCallContainerLayout = new QHBoxLayout(GroupCallContainer);
+    GroupCallContainerLayout->setContentsMargins(0, 0, 0, 0);
     
-    partyLiveLabel = new QLabel(obs_module_text("Live.Settings.PartyLive"));
-    partyLiveLabel->setStyleSheet("font-weight: bold;");
+    QHBoxLayout *groupCallLabelLayout = new QHBoxLayout();
+    GroupCallLabel = new QLabel(obs_module_text("Live.Settings.GroupCall"));
+    GroupCallLabel->setStyleSheet("font-weight: bold;");
     
     // Help button with question icon
-    partyLiveHelpButton = new QPushButton();
-    partyLiveHelpButton->setIcon(QIcon(":/resources/question.svg"));
-    partyLiveHelpButton->setFixedSize(20, 20);
-    partyLiveHelpButton->setStyleSheet("QPushButton { border: none; background: transparent; }");
-    partyLiveHelpButton->setToolTip(obs_module_text("Live.Settings.PartyLive.Help.Tooltip"));
+    GroupCallHelpButton = new QPushButton();
+    GroupCallHelpButton->setIcon(QIcon(":/resources/question.svg"));
+    GroupCallHelpButton->setFixedSize(20, 20);
+    GroupCallHelpButton->setStyleSheet("QPushButton { border: none; background: transparent; }");
+    GroupCallHelpButton->setToolTip(obs_module_text("Live.Settings.GroupCall.Help.Tooltip"));
+
+    groupCallLabelLayout->addWidget(GroupCallLabel);
+    groupCallLabelLayout->addWidget(GroupCallHelpButton);
+    groupCallLabelLayout->addStretch();
+
+    QVBoxLayout *groupCallLeftLayout = new QVBoxLayout();
+
+    QLabel *groupCallTip = new QLabel(obs_module_text("Live.Settings.GroupCall.Tip"));
+    groupCallTip->setStyleSheet("color: gray; font-size: 12px;");
+    groupCallTip->setMaximumWidth(580);
+    groupCallTip->setWordWrap(true);
+
+    groupCallLeftLayout->addLayout(groupCallLabelLayout);
+    groupCallLeftLayout->addWidget(groupCallTip);
+    groupCallLeftLayout->setSpacing(2);  // Adjust spacing between title and hint
     
-    partyLiveCheck = new QCheckBox();
+    GroupCallCheck = new QCheckBox();
     
-    partyLiveHeaderLayout->addWidget(partyLiveLabel);
-    partyLiveHeaderLayout->addWidget(partyLiveHelpButton);
-    partyLiveHeaderLayout->addStretch();
-    partyLiveHeaderLayout->addWidget(partyLiveCheck);
+    GroupCallContainerLayout->addLayout(groupCallLeftLayout);
+    GroupCallContainerLayout->addStretch();
+    GroupCallContainerLayout->addWidget(GroupCallCheck);
     
-    mainLayout->addWidget(partyLiveHeader);
+    mainLayout->addWidget(GroupCallContainer);
 
     // Switch options
     QHBoxLayout *archiveLayout = new QHBoxLayout();
@@ -699,8 +714,8 @@ void OneSevenLiveStreamingDock::createConnections() {
             &OneSevenLiveStreamingDock::onArmyOnlyCheckChanged);
 
     // Party live help button
-    connect(partyLiveHelpButton, &QPushButton::clicked, this,
-            &OneSevenLiveStreamingDock::onPartyLiveHelpClicked);
+    connect(GroupCallHelpButton, &QPushButton::clicked, this,
+            &OneSevenLiveStreamingDock::onGroupCallHelpClicked);
 }
 
 void OneSevenLiveStreamingDock::onArmyOnlyToggleClicked() {
@@ -1232,7 +1247,7 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
     showInHotPageCheck->setChecked(request.armyOnly.showOnHotPage);
     liveNotificationCheck->setChecked(request.armyOnly.armyOnlyPN);
 
-    partyLiveCheck->setChecked(request.enableOBSGroupCall);
+    GroupCallCheck->setChecked(request.enableOBSGroupCall);
 
     archiveStreamCheck->setChecked(request.archiveConfig.autoRecording);
     autoPreviewCheck->setChecked(request.archiveConfig.autoPublish);
@@ -1277,7 +1292,7 @@ bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &reque
     request.armyOnly.showOnHotPage = showInHotPageCheck->isChecked();
     request.armyOnly.armyOnlyPN = liveNotificationCheck->isChecked();
 
-    request.enableOBSGroupCall = partyLiveCheck->isChecked();
+    request.enableOBSGroupCall = GroupCallCheck->isChecked();
 
     request.archiveConfig.autoRecording = archiveStreamCheck->isChecked();
     request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
@@ -1325,18 +1340,50 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     virtualStreamerCheck->setEnabled(!isStreaming);
 }
 
-void OneSevenLiveStreamingDock::onPartyLiveHelpClicked() {
+void OneSevenLiveStreamingDock::onGroupCallHelpClicked() {
     QMessageBox helpDialog(this);
-    helpDialog.setWindowTitle(obs_module_text("Live.Settings.PartyLive.Help.Title"));
-    helpDialog.setIcon(QMessageBox::Information);
+    helpDialog.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
+    // helpDialog.setWindowTitle(obs_module_text("Live.Settings.GroupCall.Help.Title"));
+    helpDialog.setIcon(QMessageBox::NoIcon);
     
-    helpDialog.setText(obs_module_text("Live.Settings.PartyLive.Help.Content"));
+    helpDialog.setText(obs_module_text("Live.Settings.GroupCall.Help.Content"));
     
-    helpDialog.addButton(obs_module_text("Live.Settings.PartyLive.Help.Button"), QMessageBox::AcceptRole);
+    helpDialog.addButton(obs_module_text("Live.Settings.GroupCall.Help.Button"), QMessageBox::AcceptRole);
     
     // Set dialog size
-    helpDialog.setMinimumWidth(600);
-    helpDialog.setMinimumHeight(400);
+    helpDialog.setMinimumWidth(400);
+    
+    // Apply modern dark theme styling
+    helpDialog.setStyleSheet(
+        "QMessageBox {"
+        "    background-color: #4A5568;"
+        "    border-radius: 10px;"
+        "    color: white;"
+        "    font-size: 14px;"
+        "}"
+        "QMessageBox QLabel {"
+        "    color: white;"
+        "    background-color: transparent;"
+        "    padding: 10px;"
+        "    font-size: 14px;"
+        "    font-weight: normal;"
+        "}"
+        "QMessageBox QDialogButtonBox {"
+        "    text-align: center;"
+        "    qproperty-centerButtons: true;"
+        "}"
+        "QMessageBox QPushButton {"
+        "    background-color: #007AFF;"
+        "    color: white;"
+        "    border: none;"
+        "    border-radius: 2px;"
+        "    width: 120px;"
+        "    height: 30px;"
+        "    font-size: 14px;"
+        "    font-weight: bold;"
+        "    margin: 0 auto;"
+        "}"
+    );
     
     helpDialog.exec();
 }
