@@ -523,7 +523,16 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
                 if (allowedGiftCategories.contains(tab.id)) {
                     // Filter gifts based on rules
                     QList<OneSevenLiveGift> filteredGifts;
-                    for (const auto& gift : tab.gifts) {
+                    for (const auto& tabGift : tab.gifts) {
+                        // find giftData from gifts by gift.id
+                        OneSevenLiveGift gift;
+                        for (const auto& giftItem : gifts) {
+                            if (giftItem.id == tabGift.id) {
+                                gift = giftItem;
+                                break;
+                            }
+                        }
+
                         // Rule 1: Skip if isHidden = 1
                         if (gift.isHidden == 1) {
                             continue;

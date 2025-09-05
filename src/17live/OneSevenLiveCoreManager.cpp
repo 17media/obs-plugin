@@ -15,6 +15,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <thread>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
@@ -209,6 +210,11 @@ bool OneSevenLiveCoreManager::initialize() {
 
     load17LiveConfig();
 
+    // Load gifts if user is logged in
+    if (isLogin) {
+        loadGifts();
+    }
+
     initialized = true;
 
     // Check for updates
@@ -370,6 +376,9 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
         username = loginData.userInfo.openID;
     }
     menuManager->updateLoginStatus(true, username);
+
+    // Load gifts after successful login
+    loadGifts();
 }
 
 void OneSevenLiveCoreManager::handleLogoutClicked() {
@@ -770,4 +779,32 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         menuManager->updateDockVisibility(true, streamingDock && streamingDock->isVisible(),
                                           liveListDock && liveListDock->isVisible());
     }
+}
+
+void OneSevenLiveCoreManager::loadGifts() {
+    obs_log(LOG_INFO, "Starting to load gifts asynchronously");
+    
+    // Run gift loading in a separate thread to avoid blocking main thread
+    std::thread giftLoadThread([this]() {
+        try {
+            std::string language;
+            configManager->getConfigValue("Region", language);
+            
+            std::string apiResult;
+            bool success = apiWrapper->GetGifts(language, apiResult);
+            
+            if (success) {
+                configManager->saveGifts(apiResult);
+                obs_log(LOG_INFO, "Gifts loaded and saved successfully");
+            } else {
+                obs_log(LOG_WARNING, "Failed to load gifts from API");
+            }
+        } catch (const std::exception& e) {
+            obs_log(LOG_ERROR, "Exception while loading gifts: %s", e.what());
+        } catch (...) {
+            obs_log(LOG_ERROR, "Unknown exception while loading gifts");
+        }
+    });
+    
+    giftLoadThread.detach();
 }
