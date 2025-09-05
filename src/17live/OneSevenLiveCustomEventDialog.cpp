@@ -495,7 +495,7 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
     
     // TODO: Get live stream ID from current session
     std::string liveStreamID;
-    std::string language;
+    std::string region;
 
     if (!configManager->getConfigValue("LiveStreamID", liveStreamID)) {
         obs_log(LOG_ERROR, "Failed to get live stream ID from config manager");
@@ -503,20 +503,65 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
         return;
     }
 
-    if (!configManager->getConfigValue("Region", language)) {
-        obs_log(LOG_ERROR, "Failed to get language from config manager");
+    if (!configManager->getConfigValue("Region", region)) {
+        obs_log(LOG_ERROR, "Failed to get region from config manager");
         setupGiftTabsUI();
         return;
     }
     
     Json giftTabsJson;
-    if (apiWrapper->GetGiftTabs(liveStreamID, language, giftTabsJson)) {
+    if (apiWrapper->GetGiftTabs(liveStreamID, region, giftTabsJson)) {
+        Json giftsJson;
+        OneSevenLiveGiftsResponse giftsResponse;
+        JsonToOneSevenLiveGiftsResponse(giftTabsJson, giftsResponse);
+        QList<OneSevenLiveGift> gifts = giftsResponse.gifts;
+
         if (JsonToOneSevenLiveGiftTabsResponse(giftTabsJson, giftTabsData)) {
             // Filter tabs based on allowed categories
             filteredGiftTabs.clear();
             for (const auto& tab : giftTabsData.tabs) {
                 if (allowedGiftCategories.contains(tab.id)) {
-                    filteredGiftTabs.append(tab);
+                    // Filter gifts based on rules
+                    QList<OneSevenLiveGift> filteredGifts;
+                    for (const auto& gift : tab.gifts) {
+                        // Rule 1: Skip if isHidden = 1
+                        if (gift.isHidden == 1) {
+                            continue;
+                        }
+                        
+                        // Rule 2: Filter based on regionMode
+                        bool shouldShow = false;
+                        switch (gift.regionMode) {
+                            case 0:
+                                // regionMode = 0: Don't show
+                                shouldShow = false;
+                                break;
+                            case 1:
+                                // regionMode = 1: Always show
+                                shouldShow = true;
+                                break;
+                            case 2:
+                                // regionMode = 2: Show if streamer region is in gift regions
+                                shouldShow = gift.regions.contains(region);
+                                break;
+                            case 3:
+                                // regionMode = 3: Don't show if streamer region is in gift regions
+                                shouldShow = !gift.regions.contains(region);
+                                break;
+                            default:
+                                // Default behavior for unknown regionMode
+                                shouldShow = false;
+                                break;
+                        }
+                        
+                        if (shouldShow) {
+                            filteredGifts.append(gift);
+                        }
+                    }
+                    if (filteredGifts.size() > 0) {
+                        tab.gifts = filteredGifts;
+                        filteredGiftTabs.append(tab);
+                    }
                 }
             }
             setupGiftTabsUI();

@@ -577,3 +577,5 @@ struct OneSevenLiveGiftsResponse {
 // Function declarations for gifts JSON conversion
 bool JsonToOneSevenLiveGiftsResponse(const Json &json, OneSevenLiveGiftsResponse &response);
 bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, Json &json);
+
+
