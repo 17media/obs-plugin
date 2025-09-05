@@ -1094,3 +1094,184 @@ bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscription
         return false;
     }
 }
+
+bool JsonToOneSevenLiveGiftTabsResponse(const Json &json, OneSevenLiveGiftTabsResponse &response) {
+    try {
+        // Parse giftLastUpdate
+        response.giftLastUpdate = json["giftLastUpdate"].int_value();
+        
+        // Parse tabs array
+        if (json["tabs"].is_array()) {
+            const auto &tabsArray = json["tabs"].array_items();
+            for (const auto &tabItem : tabsArray) {
+                OneSevenLiveGiftTab tab;
+                tab.id = QString::fromStdString(tabItem["id"].string_value());
+                tab.type = tabItem["type"].int_value();
+                tab.name = QString::fromStdString(tabItem["name"].string_value());
+                
+                // Parse gifts array
+                if (tabItem["gifts"].is_array()) {
+                    const auto &giftsArray = tabItem["gifts"].array_items();
+                    for (const auto &giftItem : giftsArray) {
+                        OneSevenLiveGift gift;
+                        gift.giftID = QString::fromStdString(giftItem["giftID"].string_value());
+                        gift.isHidden = giftItem["isHidden"].int_value();
+                        gift.regionMode = giftItem["regionMode"].int_value();
+                        gift.name = QString::fromStdString(giftItem["name"].string_value());
+                        gift.point = giftItem["point"].int_value();
+                        gift.leaderboardIcon = QString::fromStdString(giftItem["leaderboardIcon"].string_value());
+                        gift.vffURL = QString::fromStdString(giftItem["vffURL"].string_value());
+                        gift.vffMD5 = QString::fromStdString(giftItem["vffMD5"].string_value());
+                        gift.vffJson = QString::fromStdString(giftItem["vffJson"].string_value());
+                        
+                        // Parse regions array
+                        if (giftItem["regions"].is_array()) {
+                            const auto &regionsArray = giftItem["regions"].array_items();
+                            for (const auto &region : regionsArray) {
+                                gift.regions.append(QString::fromStdString(region.string_value()));
+                            }
+                        }
+                        
+                        tab.gifts.append(gift);
+                    }
+                }
+                
+                response.tabs.append(tab);
+            }
+        }
+        
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveGiftTabsResponse error: %s", e.what());
+        return false;
+    }
+}
+
+bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &response, Json &json) {
+    try {
+        // Create tabs array
+        std::vector<Json> tabsArray;
+        for (const auto &tab : response.tabs) {
+            // Create gifts array
+            std::vector<Json> giftsArray;
+            for (const auto &gift : tab.gifts) {
+                // Create regions array
+                std::vector<Json> regionsArray;
+                for (const auto &region : gift.regions) {
+                    regionsArray.push_back(Json(region.toStdString()));
+                }
+                
+                Json giftJson = Json::object{
+                    {"giftID", gift.giftID.toStdString()},
+                    {"isHidden", gift.isHidden},
+                    {"regionMode", gift.regionMode},
+                    {"name", gift.name.toStdString()},
+                    {"point", gift.point},
+                    {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
+                    {"vffURL", gift.vffURL.toStdString()},
+                    {"vffMD5", gift.vffMD5.toStdString()},
+                    {"vffJson", gift.vffJson.toStdString()},
+                    {"regions", regionsArray}
+                };
+                giftsArray.push_back(giftJson);
+            }
+            
+            Json tabJson = Json::object{
+                {"id", tab.id.toStdString()},
+                {"type", tab.type},
+                {"name", tab.name.toStdString()},
+                {"gifts", giftsArray}
+            };
+            tabsArray.push_back(tabJson);
+        }
+        
+        // Create main JSON object
+        json = Json::object{
+            {"giftLastUpdate", static_cast<int>(response.giftLastUpdate)},
+            {"tabs", tabsArray}
+        };
+        
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveGiftTabsResponseToJson error: %s", e.what());
+        return false;
+    }
+}
+
+bool JsonToOneSevenLiveGiftsResponse(const Json &json, OneSevenLiveGiftsResponse &response) {
+    try {
+        // Parse lastUpdate
+        response.lastUpdate = json["lastUpdate"].int_value();
+        
+        // Parse gifts array
+        if (json["gifts"].is_array()) {
+            const auto &giftsArray = json["gifts"].array_items();
+            for (const auto &giftItem : giftsArray) {
+                OneSevenLiveGift gift;
+                gift.giftID = QString::fromStdString(giftItem["giftID"].string_value());
+                gift.isHidden = giftItem["isHidden"].int_value();
+                gift.regionMode = giftItem["regionMode"].int_value();
+                gift.name = QString::fromStdString(giftItem["name"].string_value());
+                gift.point = giftItem["point"].int_value();
+                gift.leaderboardIcon = QString::fromStdString(giftItem["leaderboardIcon"].string_value());
+                gift.vffURL = QString::fromStdString(giftItem["vffURL"].string_value());
+                gift.vffMD5 = QString::fromStdString(giftItem["vffMD5"].string_value());
+                gift.vffJson = QString::fromStdString(giftItem["vffJson"].string_value());
+                
+                // Parse regions array
+                if (giftItem["regions"].is_array()) {
+                    const auto &regionsArray = giftItem["regions"].array_items();
+                    for (const auto &region : regionsArray) {
+                        gift.regions.append(QString::fromStdString(region.string_value()));
+                    }
+                }
+                
+                response.gifts.append(gift);
+            }
+        }
+        
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveGiftsResponse error: %s", e.what());
+        return false;
+    }
+}
+
+bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, Json &json) {
+    try {
+        // Create gifts array
+        std::vector<Json> giftsArray;
+        for (const auto &gift : response.gifts) {
+            // Create regions array
+            std::vector<Json> regionsArray;
+            for (const auto &region : gift.regions) {
+                regionsArray.push_back(Json(region.toStdString()));
+            }
+            
+            Json giftJson = Json::object{
+                {"giftID", gift.giftID.toStdString()},
+                {"isHidden", gift.isHidden},
+                {"regionMode", gift.regionMode},
+                {"name", gift.name.toStdString()},
+                {"point", gift.point},
+                {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
+                {"vffURL", gift.vffURL.toStdString()},
+                {"vffMD5", gift.vffMD5.toStdString()},
+                {"vffJson", gift.vffJson.toStdString()},
+                {"regions", regionsArray}
+            };
+            giftsArray.push_back(giftJson);
+        }
+        
+        // Create main JSON object
+        json = Json::object{
+            {"lastUpdate", static_cast<int>(response.lastUpdate)},
+            {"gifts", giftsArray}
+        };
+        
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveGiftsResponseToJson error: %s", e.what());
+        return false;
+    }
+}

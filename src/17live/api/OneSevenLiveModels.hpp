@@ -465,6 +465,38 @@ struct OneSevenLiveSubtab {
     QString ID;
 };
 
+// Gift struct
+struct OneSevenLiveGift {
+    QString giftID;
+    int isHidden;
+    int regionMode;
+    QString name;
+    int point;
+    QString leaderboardIcon;
+    QString vffURL;
+    QString vffMD5;
+    QString vffJson;
+    QStringList regions;
+};
+
+// Gift tab struct
+struct OneSevenLiveGiftTab {
+    QString id;
+    int type;
+    QString name;
+    QList<OneSevenLiveGift> gifts;
+};
+
+// Gift tabs response struct
+struct OneSevenLiveGiftTabsResponse {
+    qint64 giftLastUpdate;
+    QList<OneSevenLiveGiftTab> tabs;
+};
+
+// Function declarations for gift tab JSON conversion
+bool JsonToOneSevenLiveGiftTabsResponse(const Json &json, OneSevenLiveGiftTabsResponse &response);
+bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &response, Json &json);
+
 struct OneSevenLiveStreamState {
     OneSevenLiveVliverInfo vliverInfo;
 };
@@ -535,3 +567,13 @@ bool JsonToOneSevenLiveArmySubscriptionLevels(const Json &json,
                                               OneSevenLiveArmySubscriptionLevels &levels);
 bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscriptionLevels &levels,
                                               Json &json);
+
+// Gifts response struct
+struct OneSevenLiveGiftsResponse {
+    qint64 lastUpdate;
+    QList<OneSevenLiveGift> gifts;
+};
+
+// Function declarations for gifts JSON conversion
+bool JsonToOneSevenLiveGiftsResponse(const Json &json, OneSevenLiveGiftsResponse &response);
+bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, Json &json);

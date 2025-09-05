@@ -15,6 +15,7 @@
 #include <QVBoxLayout>
 
 #include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveCustomEventDialog.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "moc_OneSevenLiveStreamingDock.cpp"
 #include "plugin-support.h"
@@ -173,6 +174,28 @@ void OneSevenLiveStreamingDock::setupUi() {
     eventContainer->addLayout(hintLayout);
 
     mainLayout->addLayout(eventContainer);
+
+    // Custom Event (Optional)
+    customEventHeader = new QWidget();
+    customEventHeaderLayout = new QHBoxLayout(customEventHeader);
+    customEventHeaderLayout->setContentsMargins(0, 10, 0, 10);
+
+    customEventLabel = new QLabel("自定活动（选填）");
+    customEventToggleButton = new QPushButton();
+    customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
+    customEventToggleButton->setStyleSheet(
+        "QPushButton { border: none; background-color: transparent; }");
+    customEventToggleButton->setFixedSize(24, 24);
+
+    customEventHeaderLayout->addWidget(customEventLabel);
+    customEventHeaderLayout->addStretch();
+    customEventHeaderLayout->addWidget(customEventToggleButton);
+
+    mainLayout->addWidget(customEventHeader);
+
+    // Initialize custom event dialog
+    customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
+    customEventDialogVisible = false;
 
     // Broadcast mode
     QVBoxLayout *broadcastModeLayout = new QVBoxLayout();
@@ -713,6 +736,10 @@ void OneSevenLiveStreamingDock::createConnections() {
     connect(armyOnlyCheck, &QCheckBox::stateChanged, this,
             &OneSevenLiveStreamingDock::onArmyOnlyCheckChanged);
 
+    // Custom event toggle button
+    connect(customEventToggleButton, &QPushButton::clicked, this,
+            &OneSevenLiveStreamingDock::onCustomEventToggleClicked);
+
     // Party live help button
     connect(GroupCallHelpButton, &QPushButton::clicked, this,
             &OneSevenLiveStreamingDock::onGroupCallHelpClicked);
@@ -747,6 +774,22 @@ void OneSevenLiveStreamingDock::onArmyOnlyCheckChanged(int state) {
     archiveStreamCheck->setEnabled(state != Qt::Checked);
     autoPreviewCheck->setEnabled(state != Qt::Checked);
     clipIdentityCombo->setEnabled(state != Qt::Checked);
+}
+
+void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
+    customEventDialogVisible = !customEventDialogVisible;
+    
+    if (customEventDialogVisible) {
+        // Show dialog and update button icon to arrow-up
+        customEventToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
+        customEventDialog->show();
+        customEventDialog->raise();
+        customEventDialog->activateWindow();
+    } else {
+        // Hide dialog and update button icon to arrow-down
+        customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
+        customEventDialog->hide();
+    }
 }
 
 void OneSevenLiveStreamingDock::onAddTagClicked() {

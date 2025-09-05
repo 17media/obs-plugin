@@ -9,13 +9,14 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QVBoxLayout>
 #include <QWidget>
 
 #include "api/OneSevenLiveModels.hpp"
 
 class OneSevenLiveApiWrappers;
-
 class OneSevenLiveConfigManager;
+class OneSevenLiveCustomEventDialog;
 
 class OneSevenLiveStreamingDock : public QDockWidget {
     Q_OBJECT
@@ -74,6 +75,14 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QComboBox *customActivityCombo;
     QComboBox *viewerLimitCombo;
 
+    // Custom Event
+    QWidget *customEventHeader;
+    QHBoxLayout *customEventHeaderLayout;
+    QLabel *customEventLabel;
+    QPushButton *customEventToggleButton;
+    OneSevenLiveCustomEventDialog *customEventDialog;
+    bool customEventDialogVisible;
+
     // Party Live
     QWidget *GroupCallContainer;
     QHBoxLayout *GroupCallContainerLayout;
@@ -115,6 +124,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void onSaveConfigClicked();
     void onArmyOnlyToggleClicked();          // New collapse/expand button click event
     void onArmyOnlyCheckChanged(int state);  // Triggered when armyOnlyCheck state changes
+    void onCustomEventToggleClicked();       // Custom event toggle button click event
     void onGroupCallHelpClicked();           // Party live help button click event
 
    private:
