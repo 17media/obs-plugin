@@ -522,9 +522,9 @@ bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEventReq
     return true;
 }
 
-bool OneSevenLiveApiWrappers::StopCustomEvent(const std::string &eventID,
-                                            const OneSevenLiveStopCustomEventRequest &request) {
-    obs_log(LOG_INFO, "StopCustomEvent start");
+bool OneSevenLiveApiWrappers::ChangeCustomEventStatus(const std::string &eventID,
+                                            const OneSevenLiveCustomEventStatusRequest &request) {
+    obs_log(LOG_INFO, "ChangeCustomEventStatus start");
 
     lastErrorMessage.clear();
 
@@ -542,7 +542,7 @@ bool OneSevenLiveApiWrappers::StopCustomEvent(const std::string &eventID,
 
     std::string patchData = requestData.dump();
 
-    obs_log(LOG_INFO, "StopCustomEvent requestData: %s", patchData.c_str());
+    obs_log(LOG_INFO, "ChangeCustomEventStatus requestData: %s", patchData.c_str());
 
     std::string error;
     Json json_out;
@@ -551,18 +551,18 @@ bool OneSevenLiveApiWrappers::StopCustomEvent(const std::string &eventID,
         return false;
     }
 
-    obs_log(LOG_INFO, "StopCustomEvent success");
+    obs_log(LOG_INFO, "ChangeCustomEventStatus success");
 
     // Check if errorCode field exists
     if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
-        obs_log(LOG_ERROR, "StopCustomEvent error: %s", json_out.dump().c_str());
+        obs_log(LOG_ERROR, "ChangeCustomEventStatus error: %s", json_out.dump().c_str());
         // lastErrorMessage = errorCode + errorMessage
         lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
                            QString::fromStdString(json_out["errorMessage"].string_value());
         return false;
     }
 
-    // For StopCustomEvent, we only check if status code is 200, no need to parse response
+    // For ChangeCustomEventStatus, we only check if status code is 200, no need to parse response
     return true;
 }
 

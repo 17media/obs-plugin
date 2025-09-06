@@ -482,7 +482,7 @@ struct OneSevenLiveCustomEventResponse {
 };
 
 // Stop custom event request struct
-struct OneSevenLiveStopCustomEventRequest {
+struct OneSevenLiveCustomEventStatusRequest {
     int status; // Status 2 means stop
     QString userID;
 };
@@ -490,7 +490,7 @@ struct OneSevenLiveStopCustomEventRequest {
 bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomEventResponse &response);
 bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse &response, Json &json);
 
-bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveStopCustomEventRequest &request, Json &json);
+bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json);
 
 // Custom event struct (for configuration)
 struct OneSevenLiveCustomEvent {

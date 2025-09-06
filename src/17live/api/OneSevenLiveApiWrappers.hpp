@@ -63,7 +63,9 @@ class OneSevenLiveApiWrappers : public QObject {
                                    OneSevenLiveArmySubscriptionLevels &levels);
     bool GetRtmpByProvider(const std::string provider, OneSevenLiveRtmpResponse &response);
     bool CreateCustomEvent(const OneSevenLiveCustomEventRequest &request, OneSevenLiveCustomEventResponse &response);
-    bool StopCustomEvent(const std::string &eventID, const OneSevenLiveStopCustomEventRequest &request);
+    // ChangeCustomEventStatus
+    // OneSevenLiveCustomEventStatusRequest.status = 2: stop event = 3: close event
+    bool ChangeCustomEventStatus(const std::string &eventID, const OneSevenLiveCustomEventStatusRequest &request);
 
     /**
      * @brief Perform MD5 encryption on string

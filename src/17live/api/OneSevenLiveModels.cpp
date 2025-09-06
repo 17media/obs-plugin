@@ -1298,7 +1298,7 @@ bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &
     return true;
 }
 
-bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveStopCustomEventRequest &request, Json &json) {
+bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json) {
     json = Json::object{
         {"status", request.status},
         {"userID", request.userID.toStdString()},
