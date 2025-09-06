@@ -447,21 +447,8 @@ struct OneSevenLiveEventList {
     QString instructionURL;
 };
 
-// Custom event request struct
-struct OneSevenLiveCustomEventRequest {
-    qint64 endTime;
-    QString eventName;
-    QString description;
-    QList<QString> giftIDs; // Maximum 4 gift IDs
-    qint64 dailyGoalPoints;
-    qint64 goalPoints;
-    QString userID;
-};
-
-bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &request, Json &json);
-
 // Custom event response struct
-struct OneSevenLiveCustomEventResponse {
+struct OneSevenLiveCustomEvent {
     QString eventID;
     QString userID;
     int status;
@@ -487,21 +474,10 @@ struct OneSevenLiveCustomEventStatusRequest {
     QString userID;
 };
 
-bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomEventResponse &response);
-bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse &response, Json &json);
+bool JsonToOneSevenLiveCustomEvent(const Json &json, OneSevenLiveCustomEvent &response);
+bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &response, Json &json);
 
-bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json);
-
-// Custom event struct (for configuration)
-struct OneSevenLiveCustomEvent {
-    qint64 endTime;
-    int status;
-    QString title;
-    QString description;
-    QList<QString> giftIDs; // Maximum 4 gift IDs
-    qint64 dailyTarget;
-    qint64 totalTarget;
-};
+bool OneSevenLiveChangeCustomEventStatusRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json);
 
 // Box gacha struct
 struct OneSevenLiveBoxGacha {

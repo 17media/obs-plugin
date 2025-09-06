@@ -480,10 +480,12 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
 
         bool levelsSuccess = apiWrapper->GetArmySubscriptionLevels(region, language, levels);
 
+        bool customEventSuccess = apiWrapper->GetCustomEvent(userID, customEvent);
+
         // Use Qt::QueuedConnection to ensure UI updates in main thread
         QMetaObject::invokeMethod(
             this,
-            [this, roomInfoSuccess, configStreamerSuccess, userInfoSuccess, levelsSuccess]() {
+            [this, roomInfoSuccess, configStreamerSuccess, userInfoSuccess, levelsSuccess, customEventSuccess]() {
                 // Hide loading state
                 isLoading = false;
                 loadingOverlay->setVisible(false);
@@ -515,6 +517,10 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
 
                 if (!levelsSuccess) {
                     obs_log(LOG_WARNING, "Failed to get army subscription levels in loadRoomInfo");
+                }
+
+                if (!customEventSuccess) {
+                    obs_log(LOG_WARNING, "Failed to get custom event in loadRoomInfo");
                 }
             },
             Qt::QueuedConnection);

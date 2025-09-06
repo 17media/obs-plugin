@@ -1298,7 +1298,7 @@ bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &
     return true;
 }
 
-bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json) {
+bool OneSevenLiveChangeCustomEventStatusRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json) {
     json = Json::object{
         {"status", request.status},
         {"userID", request.userID.toStdString()},
@@ -1307,7 +1307,7 @@ bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveCustomEventStatu
     return true;
 }
 
-bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomEventResponse &response) {
+bool JsonToOneSevenLiveCustomEvent(const Json &json, OneSevenLiveCustomEvent &response) {
     response.eventID = QString::fromStdString(json["eventID"].string_value());
     response.userID = QString::fromStdString(json["userID"].string_value());
     response.status = json["status"].int_value();
@@ -1361,7 +1361,7 @@ bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomE
     return true;
 }
 
-bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse &response, Json &json) {
+bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &response, Json &json) {
     // Create gift ID array
     std::vector<Json> giftIDsJson;
     for (const auto &giftID : response.giftIDs) {

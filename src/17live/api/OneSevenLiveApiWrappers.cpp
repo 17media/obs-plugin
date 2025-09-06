@@ -477,8 +477,8 @@ bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID,
 
 
 
-bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEventRequest &request,
-                                              OneSevenLiveCustomEventResponse &response) {
+bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEvent &request,
+                                              OneSevenLiveCustomEvent &response) {
     obs_log(LOG_INFO, "CreateCustomEvent start");
 
     lastErrorMessage.clear();
@@ -486,7 +486,7 @@ bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEventReq
     const QByteArray url = ONESEVENLIVE_CREATE_CUSTOMEVENT_URL.c_str();
 
     Json requestData;
-    if (!OneSevenLiveCustomEventRequestToJson(request, requestData)) {
+    if (!OneSevenLiveCustomEventToJson(request, requestData)) {
         obs_log(LOG_ERROR, "Failed to convert request to JSON");
         lastErrorMessage = "Failed to convert request to JSON";
         return false;
@@ -515,7 +515,7 @@ bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEventReq
         return false;
     }
 
-    if (!JsonToOneSevenLiveCustomEventResponse(json_out, response)) {
+    if (!JsonToOneSevenLiveCustomEvent(json_out, response)) {
         obs_log(LOG_ERROR, "Failed to convert response to struct");
         lastErrorMessage = "Failed to convert response to struct";
         return false;
@@ -536,7 +536,7 @@ bool OneSevenLiveApiWrappers::ChangeCustomEventStatus(const std::string &eventID
     QByteArray url = urlStr.toUtf8();
     
     Json requestData;
-    if (!OneSevenLiveStopCustomEventRequestToJson(request, requestData)) {
+    if (!OneSevenLiveChangeCustomEventStatusRequestToJson(request, requestData)) {
         obs_log(LOG_ERROR, "Failed to convert request to JSON");
         lastErrorMessage = "Failed to convert request to JSON";
         return false;
@@ -797,7 +797,7 @@ bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_ou
     return true;
 }
 
-bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID, OneSevenLiveCustomEventResponse &response) {
+bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID, OneSevenLiveCustomEvent &response) {
     obs_log(LOG_INFO, "GetCustomEvent start");
 
     lastErrorMessage.clear();
@@ -816,8 +816,8 @@ bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID, OneSeven
         return false;
     }
 
-    // Use JsonToOneSevenLiveCustomEventResponse function to parse data to struct
-    if (!JsonToOneSevenLiveCustomEventResponse(json_out, response)) {
+    // Use JsonToOneSevenLiveCustomEvent function to parse data to struct
+    if (!JsonToOneSevenLiveCustomEvent(json_out, response)) {
         obs_log(LOG_ERROR, "Failed to parse custom event data");
         lastErrorMessage = "Failed to parse custom event data";
         return false;

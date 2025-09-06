@@ -110,6 +110,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     OneSevenLiveConfigStreamer configStreamer;
     OneSevenLiveUserInfo userInfo;
     OneSevenLiveArmySubscriptionLevels levels;
+    OneSevenLiveCustomEvent customEvent;
 
    signals:
     void streamInfoSaved();
