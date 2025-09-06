@@ -1287,7 +1287,7 @@ bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &
         {"userID", request.userID.toStdString()},
     };
 
-    // 添加礼物ID数组
+    // Add gift ID array
     std::vector<Json> giftIDsJson;
     for (const auto &giftID : request.giftIDs) {
         giftIDsJson.push_back(Json(giftID.toStdString()));
@@ -1314,13 +1314,13 @@ bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomE
     response.currentGoalPoints = json["currentGoalPoints"].int_value();
     response.currentDailyGoalPoints = json["currentDailyGoalPoints"].int_value();
 
-    // 处理giftIDs数组
+    // Process giftIDs array
     auto giftIDsJson = json["giftIDs"].array_items();
     for (const auto &giftIDJson : giftIDsJson) {
         response.giftIDs.append(QString::fromStdString(giftIDJson.string_value()));
     }
 
-    // 处理gifts数组
+    // Process gifts array
     auto giftsJson = json["gifts"].array_items();
     for (const auto &giftJson : giftsJson) {
         OneSevenLiveGift gift;
@@ -1334,7 +1334,7 @@ bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomE
         gift.vffMD5 = QString::fromStdString(giftJson["vffMD5"].string_value());
         gift.vffJson = QString::fromStdString(giftJson["vffJson"].string_value());
         
-        // 处理regions数组
+        // Process regions array
         auto regionsJson = giftJson["regions"].array_items();
         for (const auto &regionJson : regionsJson) {
             gift.regions.append(QString::fromStdString(regionJson.string_value()));
@@ -1343,7 +1343,7 @@ bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomE
         response.gifts.append(gift);
     }
 
-    // 处理rewards数组
+    // Process rewards array
     auto rewardsJson = json["rewards"].array_items();
     for (const auto &rewardJson : rewardsJson) {
         response.rewards.append(rewardJson);
@@ -1353,16 +1353,16 @@ bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomE
 }
 
 bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse &response, Json &json) {
-    // 创建礼物ID数组
+    // Create gift ID array
     std::vector<Json> giftIDsJson;
     for (const auto &giftID : response.giftIDs) {
         giftIDsJson.push_back(Json(giftID.toStdString()));
     }
 
-    // 创建礼物数组
+    // Create gifts array
     std::vector<Json> giftsJson;
     for (const auto &gift : response.gifts) {
-        // 创建regions数组
+        // Create regions array
         std::vector<Json> regionsJson;
         for (const auto &region : gift.regions) {
             regionsJson.push_back(Json(region.toStdString()));
@@ -1382,7 +1382,7 @@ bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse
         });
     }
 
-    // 创建rewards数组
+    // Create rewards array
     std::vector<Json> rewardsJson;
     for (const auto &reward : response.rewards) {
         rewardsJson.push_back(reward);

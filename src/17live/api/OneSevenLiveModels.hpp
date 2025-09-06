@@ -452,7 +452,7 @@ struct OneSevenLiveCustomEventRequest {
     qint64 endTime;
     QString eventName;
     QString description;
-    QList<QString> giftIDs; // 最多4个礼物ID
+    QList<QString> giftIDs; // Maximum 4 gift IDs
     qint64 dailyGoalPoints;
     qint64 goalPoints;
     QString userID;
@@ -476,7 +476,7 @@ struct OneSevenLiveCustomEventResponse {
     qint64 goalPoints;
     qint64 dailyGoalPoints;
     QString displayStatus;
-    QList<Json> rewards; // 使用Json类型，因为rewards结构未定义
+    QList<Json> rewards; // Using Json type because rewards structure is not defined
     qint64 currentGoalPoints;
     qint64 currentDailyGoalPoints;
 };
@@ -484,13 +484,13 @@ struct OneSevenLiveCustomEventResponse {
 bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomEventResponse &response);
 bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse &response, Json &json);
 
-// Custom event struct (用于配置)
+// Custom event struct (for configuration)
 struct OneSevenLiveCustomEvent {
     qint64 endTime;
     int status;
     QString title;
     QString description;
-    QList<QString> giftIDs; // 最多4个礼物ID
+    QList<QString> giftIDs; // Maximum 4 gift IDs
     qint64 dailyTarget;
     qint64 totalTarget;
 };
