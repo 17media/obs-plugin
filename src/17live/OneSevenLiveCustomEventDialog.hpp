@@ -77,7 +77,8 @@ private:
     QWidget* giftsContainer;
     QGridLayout* giftsLayout;
     QList<QPushButton*> giftButtons;
-    int selectedGiftIndex;
+    QList<int> selectedGiftIndices; // 支持多选礼物
+    static const int MAX_SELECTED_GIFTS = 4; // 最多选择4个礼物
     
     // Gift Tab Data
     OneSevenLiveGiftTabsResponse giftTabsData;

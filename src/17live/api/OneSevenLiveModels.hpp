@@ -451,6 +451,11 @@ struct OneSevenLiveEventList {
 struct OneSevenLiveCustomEvent {
     qint64 endTime;
     int status;
+    QString title;
+    QString description;
+    QList<QString> giftIDs; // 最多4个礼物ID
+    qint64 dailyTarget;
+    qint64 totalTarget;
 };
 
 // Box gacha struct

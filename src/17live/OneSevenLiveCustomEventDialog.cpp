@@ -28,7 +28,7 @@
 OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(QWidget* parent,
                                                            OneSevenLiveApiWrappers* apiWrapper_,
                                                            OneSevenLiveConfigManager* configManager_)
-    : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_), selectedGiftIndex(-1) {
+    : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_) {
     setupUi();
     setWindowTitle(obs_module_text("CustomEvent.Dialog.Title"));
     setFixedSize(400, 700);
@@ -440,25 +440,51 @@ void OneSevenLiveCustomEventDialog::onDateChanged() {
 }
 
 void OneSevenLiveCustomEventDialog::onGiftSelected(int giftIndex) {
-    // Uncheck all other gift buttons
-    for (int i = 0; i < giftButtons.size(); ++i) {
-        if (i != giftIndex) {
-            giftButtons[i]->setChecked(false);
-        }
-    }
+    // 检查礼物是否已经被选中
+    int indexInSelected = selectedGiftIndices.indexOf(giftIndex);
     
-    selectedGiftIndex = giftIndex;
+    if (indexInSelected != -1) {
+        // 如果已经选中，则取消选中
+        selectedGiftIndices.removeAt(indexInSelected);
+        giftButtons[giftIndex]->setChecked(false);
+    } else {
+        // 如果未选中，检查是否已达到最大选择数量
+        if (selectedGiftIndices.size() >= MAX_SELECTED_GIFTS) {
+            // 已达到最大选择数量，显示提示并取消当前操作
+            QMessageBox::warning(this, "错误", QString("最多只能选择%1个礼物").arg(MAX_SELECTED_GIFTS));
+            giftButtons[giftIndex]->setChecked(false);
+            return;
+        }
+        
+        // 添加到已选中列表
+        selectedGiftIndices.append(giftIndex);
+        giftButtons[giftIndex]->setChecked(true);
+    }
 }
 
 void OneSevenLiveCustomEventDialog::handleCreateEvent() {
-    // Validate input
+    // 验证必填字段
     if (eventTitleEdit->text().trimmed().isEmpty()) {
         QMessageBox::warning(this, "错误", "请输入活动标题");
         return;
     }
     
-    if (selectedGiftIndex == -1) {
-        QMessageBox::warning(this, "错误", "请选择活动礼物");
+    // 验证活动结束日期（已在UI中限制为最多30天）
+    
+    // 验证礼物选择
+    if (selectedGiftIndices.isEmpty()) {
+        QMessageBox::warning(this, "错误", "请至少选择一个活动礼物");
+        return;
+    }
+    
+    if (selectedGiftIndices.size() > MAX_SELECTED_GIFTS) {
+        QMessageBox::warning(this, "错误", QString("最多只能选择%1个礼物").arg(MAX_SELECTED_GIFTS));
+        return;
+    }
+    
+    // 验证活动描述
+    if (descriptionEdit->toPlainText().trimmed().isEmpty()) {
+        QMessageBox::warning(this, "错误", "请输入活动描述");
         return;
     }
     
@@ -467,18 +493,33 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
         return;
     }
     
-    // Create event data
+    // 创建事件数据
     OneSevenLiveCustomEvent eventData;
+    eventData.title = eventTitleEdit->text().trimmed();
     eventData.endTime = QDateTime(dateEdit->date(), QTime(23, 59, 59)).toSecsSinceEpoch();
-    eventData.status = 1; // Active status
+    eventData.status = 1; // 活动状态 - 激活
+    eventData.description = descriptionEdit->toPlainText().trimmed();
+    eventData.dailyTarget = dailyTargetSpinBox->value();
+    eventData.totalTarget = totalTargetSpinBox->value();
     
-    // Emit signal with event data
+    // 添加选中的礼物ID
+    for (int index : selectedGiftIndices) {
+        if (index >= 0 && index < giftButtons.size()) {
+            // 获取礼物ID
+            QString giftID = giftButtons[index]->property("giftID").toString();
+            if (!giftID.isEmpty()) {
+                eventData.giftIDs.append(giftID);
+            }
+        }
+    }
+    
+    // 发送事件创建信号
     emit eventCreated(eventData);
     
-    // Show success message
+    // 显示成功消息
     QMessageBox::information(this, "成功", "自定义活动创建成功！");
     
-    // Close dialog
+    // 关闭对话框
     accept();
 }
 
