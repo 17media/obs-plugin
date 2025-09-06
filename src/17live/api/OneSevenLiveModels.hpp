@@ -481,8 +481,16 @@ struct OneSevenLiveCustomEventResponse {
     qint64 currentDailyGoalPoints;
 };
 
+// Stop custom event request struct
+struct OneSevenLiveStopCustomEventRequest {
+    int status; // Status 2 means stop
+    QString userID;
+};
+
 bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomEventResponse &response);
 bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse &response, Json &json);
+
+bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveStopCustomEventRequest &request, Json &json);
 
 // Custom event struct (for configuration)
 struct OneSevenLiveCustomEvent {

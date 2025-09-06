@@ -49,6 +49,8 @@ const string ONESEVENLIVE_GET_USERINFO_URL =
 
 const string ONESEVENLIVE_CREATE_CUSTOMEVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent";
 
+const string ONESEVENLIVE_STOP_CUSTOMEVENT_URL  = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent/%1/";
+
 const string ONESEVENLIVE_GET_ABLY_TOKEN_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/messenger/token?type=3&roomID=%1";
 
@@ -517,6 +519,50 @@ bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEventReq
         return false;
     }
 
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::StopCustomEvent(const std::string &eventID,
+                                            const OneSevenLiveStopCustomEventRequest &request) {
+    obs_log(LOG_INFO, "StopCustomEvent start");
+
+    lastErrorMessage.clear();
+
+    // Replace %1 with eventID in the URL
+    QString urlStr =
+        QString::fromStdString(ONESEVENLIVE_STOP_CUSTOMEVENT_URL).arg(eventID.c_str());
+    QByteArray url = urlStr.toUtf8();
+    
+    Json requestData;
+    if (!OneSevenLiveStopCustomEventRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string patchData = requestData.dump();
+
+    obs_log(LOG_INFO, "StopCustomEvent requestData: %s", patchData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url, "application/json", "PATCH", patchData.c_str(), json_out)) {
+        return false;
+    }
+
+    obs_log(LOG_INFO, "StopCustomEvent success");
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "StopCustomEvent error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    // For StopCustomEvent, we only check if status code is 200, no need to parse response
     return true;
 }
 

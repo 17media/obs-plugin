@@ -1298,6 +1298,15 @@ bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &
     return true;
 }
 
+bool OneSevenLiveStopCustomEventRequestToJson(const OneSevenLiveStopCustomEventRequest &request, Json &json) {
+    json = Json::object{
+        {"status", request.status},
+        {"userID", request.userID.toStdString()},
+    };
+
+    return true;
+}
+
 bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomEventResponse &response) {
     response.eventID = QString::fromStdString(json["eventID"].string_value());
     response.userID = QString::fromStdString(json["userID"].string_value());
