@@ -28,7 +28,9 @@ class OneSevenLiveCustomEventDialog : public QDialog {
 
 public:
     explicit OneSevenLiveCustomEventDialog(QWidget* parent = nullptr,
-                                          OneSevenLiveApiWrappers* apiWrapper_ = nullptr);
+                                          OneSevenLiveApiWrappers* apiWrapper_ = nullptr,
+                                          OneSevenLiveConfigManager* configManager_ = nullptr,
+                                          const OneSevenLiveCustomEvent* customEvent = nullptr);
     ~OneSevenLiveCustomEventDialog();
 
 private:
@@ -41,7 +43,9 @@ private:
     void setupBottomButtons(QVBoxLayout* parentLayout);
     
     void handleCreateEvent();
-    void handleCancel();
+    void handleStopEvent();
+    void handleCloseEvent();
+
     void onDateChanged();
     void onGiftSelected(int giftIndex);
     void onGiftTabChanged(int tabIndex);
@@ -55,6 +59,12 @@ signals:
      * @param eventData Event information
      */
     void eventCreated(const OneSevenLiveCustomEvent& eventData);
+    
+    /**
+     * @brief Custom event updated successfully
+     * @param eventData Updated event information
+     */
+    void eventUpdated(const OneSevenLiveCustomEvent& eventData);
 
 private:
     // UI Components
@@ -99,12 +109,14 @@ private:
     // Bottom Buttons
     QHBoxLayout* buttonLayout;
     QPushButton* createButton;
-    QPushButton* cancelButton;
     
     // API Wrapper
     OneSevenLiveApiWrappers* apiWrapper;
     // Config manager
     OneSevenLiveConfigManager* configManager;
+    
+    // Custom event data
+    const OneSevenLiveCustomEvent* customEventData;
     
     // Constants
     static const int MAX_DESCRIPTION_LENGTH = 200;

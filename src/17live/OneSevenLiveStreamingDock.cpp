@@ -788,13 +788,31 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
     if (customEventDialogVisible) {
         // Show dialog and update button icon to arrow-up
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
+        
+        // Close existing dialog if any
+        if (customEventDialog) {
+            customEventDialog->close();
+            delete customEventDialog;
+            customEventDialog = nullptr;
+        }
+        
+        // Create a new dialog with the current customEvent
+        customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager, &customEvent);
+        
+        // Show the dialog
         customEventDialog->show();
         customEventDialog->raise();
         customEventDialog->activateWindow();
     } else {
         // Hide dialog and update button icon to arrow-down
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
-        customEventDialog->hide();
+        
+        // Close dialog if it exists
+        if (customEventDialog) {
+            customEventDialog->close();
+            delete customEventDialog;
+            customEventDialog = nullptr;
+        }
     }
 }
 
