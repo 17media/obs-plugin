@@ -6,6 +6,7 @@
 #include "plugin-support.h"
 
 using namespace json11;
+using namespace std;
 
 bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginData) {
     if (!json.is_object()) {
@@ -1274,4 +1275,138 @@ bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, 
         obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveGiftsResponseToJson error: %s", e.what());
         return false;
     }
+}
+
+bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &request, Json &json) {
+    json = Json::object{
+        {"eventName", request.eventName.toStdString()},
+        {"description", request.description.toStdString()},
+        {"endTime", request.endTime},
+        {"dailyGoalPoints", request.dailyGoalPoints},
+        {"goalPoints", request.goalPoints},
+        {"userID", request.userID.toStdString()},
+    };
+
+    // 添加礼物ID数组
+    std::vector<Json> giftIDsJson;
+    for (const auto &giftID : request.giftIDs) {
+        giftIDsJson.push_back(Json(giftID.toStdString()));
+    }
+    json = json.object_items();
+    json["giftIDs"] = Json(giftIDsJson);
+
+    return true;
+}
+
+bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomEventResponse &response) {
+    response.eventID = QString::fromStdString(json["eventID"].string_value());
+    response.userID = QString::fromStdString(json["userID"].string_value());
+    response.status = json["status"].int_value();
+    response.eventName = QString::fromStdString(json["eventName"].string_value());
+    response.description = QString::fromStdString(json["description"].string_value());
+    response.startTime = json["startTime"].int_value();
+    response.endTime = json["endTime"].int_value();
+    response.realEndTime = json["realEndTime"].int_value();
+    response.isAchieved = json["isAchieved"].bool_value();
+    response.goalPoints = json["goalPoints"].int_value();
+    response.dailyGoalPoints = json["dailyGoalPoints"].int_value();
+    response.displayStatus = QString::fromStdString(json["displayStatus"].string_value());
+    response.currentGoalPoints = json["currentGoalPoints"].int_value();
+    response.currentDailyGoalPoints = json["currentDailyGoalPoints"].int_value();
+
+    // 处理giftIDs数组
+    auto giftIDsJson = json["giftIDs"].array_items();
+    for (const auto &giftIDJson : giftIDsJson) {
+        response.giftIDs.append(QString::fromStdString(giftIDJson.string_value()));
+    }
+
+    // 处理gifts数组
+    auto giftsJson = json["gifts"].array_items();
+    for (const auto &giftJson : giftsJson) {
+        OneSevenLiveGift gift;
+        gift.giftID = QString::fromStdString(giftJson["giftID"].string_value());
+        gift.name = QString::fromStdString(giftJson["name"].string_value());
+        gift.point = giftJson["point"].int_value();
+        gift.isHidden = giftJson["isHidden"].int_value();
+        gift.regionMode = giftJson["regionMode"].int_value();
+        gift.leaderboardIcon = QString::fromStdString(giftJson["leaderboardIcon"].string_value());
+        gift.vffURL = QString::fromStdString(giftJson["vffURL"].string_value());
+        gift.vffMD5 = QString::fromStdString(giftJson["vffMD5"].string_value());
+        gift.vffJson = QString::fromStdString(giftJson["vffJson"].string_value());
+        
+        // 处理regions数组
+        auto regionsJson = giftJson["regions"].array_items();
+        for (const auto &regionJson : regionsJson) {
+            gift.regions.append(QString::fromStdString(regionJson.string_value()));
+        }
+        
+        response.gifts.append(gift);
+    }
+
+    // 处理rewards数组
+    auto rewardsJson = json["rewards"].array_items();
+    for (const auto &rewardJson : rewardsJson) {
+        response.rewards.append(rewardJson);
+    }
+
+    return true;
+}
+
+bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse &response, Json &json) {
+    // 创建礼物ID数组
+    std::vector<Json> giftIDsJson;
+    for (const auto &giftID : response.giftIDs) {
+        giftIDsJson.push_back(Json(giftID.toStdString()));
+    }
+
+    // 创建礼物数组
+    std::vector<Json> giftsJson;
+    for (const auto &gift : response.gifts) {
+        // 创建regions数组
+        std::vector<Json> regionsJson;
+        for (const auto &region : gift.regions) {
+            regionsJson.push_back(Json(region.toStdString()));
+        }
+
+        giftsJson.push_back(Json::object{
+            {"giftID", gift.giftID.toStdString()},
+            {"name", gift.name.toStdString()},
+            {"point", gift.point},
+            {"isHidden", gift.isHidden},
+            {"regionMode", gift.regionMode},
+            {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
+            {"vffURL", gift.vffURL.toStdString()},
+            {"vffMD5", gift.vffMD5.toStdString()},
+            {"vffJson", gift.vffJson.toStdString()},
+            {"regions", Json(regionsJson)},
+        });
+    }
+
+    // 创建rewards数组
+    std::vector<Json> rewardsJson;
+    for (const auto &reward : response.rewards) {
+        rewardsJson.push_back(reward);
+    }
+
+    json = Json::object{
+        {"eventID", response.eventID.toStdString()},
+        {"userID", response.userID.toStdString()},
+        {"status", response.status},
+        {"eventName", response.eventName.toStdString()},
+        {"description", response.description.toStdString()},
+        {"startTime", response.startTime},
+        {"endTime", response.endTime},
+        {"realEndTime", response.realEndTime},
+        {"isAchieved", response.isAchieved},
+        {"giftIDs", Json(giftIDsJson)},
+        {"gifts", Json(giftsJson)},
+        {"goalPoints", response.goalPoints},
+        {"dailyGoalPoints", response.dailyGoalPoints},
+        {"displayStatus", response.displayStatus.toStdString()},
+        {"rewards", Json(rewardsJson)},
+        {"currentGoalPoints", response.currentGoalPoints},
+        {"currentDailyGoalPoints", response.currentDailyGoalPoints},
+    };
+
+    return true;
 }

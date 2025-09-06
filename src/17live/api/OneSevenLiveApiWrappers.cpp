@@ -47,6 +47,8 @@ const string ONESEVENLIVE_GET_CONFIG_URL = string(ONESEVENLIVE_API_URL) + "/api/
 const string ONESEVENLIVE_GET_USERINFO_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/users/%1/info?onLive=1";
 
+const string ONESEVENLIVE_CREATE_CUSTOMEVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent";
+
 const string ONESEVENLIVE_GET_ABLY_TOKEN_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/messenger/token?type=3&roomID=%1";
 
@@ -466,6 +468,55 @@ bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID,
     }
 
     obs_log(LOG_INFO, "StopStream success");
+    return true;
+}
+
+
+
+bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEventRequest &request,
+                                              OneSevenLiveCustomEventResponse &response) {
+    obs_log(LOG_INFO, "CreateCustomEvent start");
+
+    lastErrorMessage.clear();
+
+    const QByteArray url = ONESEVENLIVE_CREATE_CUSTOMEVENT_URL.c_str();
+
+    Json requestData;
+    if (!OneSevenLiveCustomEventRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string postData = requestData.dump();
+
+    obs_log(LOG_INFO, "CreateCustomEvent requestData: %s", postData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url, "application/json", "", postData.c_str(), json_out)) {
+        return false;
+    }
+
+    obs_log(LOG_INFO, "CreateCustomEvent success");
+    obs_log(LOG_INFO, "custom event info %s", json_out.dump().c_str());
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "CreateCustomEvent error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    if (!JsonToOneSevenLiveCustomEventResponse(json_out, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        lastErrorMessage = "Failed to convert response to struct";
+        return false;
+    }
+
     return true;
 }
 

@@ -447,7 +447,44 @@ struct OneSevenLiveEventList {
     QString instructionURL;
 };
 
-// Custom event struct
+// Custom event request struct
+struct OneSevenLiveCustomEventRequest {
+    qint64 endTime;
+    QString eventName;
+    QString description;
+    QList<QString> giftIDs; // 最多4个礼物ID
+    qint64 dailyGoalPoints;
+    qint64 goalPoints;
+    QString userID;
+};
+
+bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &request, Json &json);
+
+// Custom event response struct
+struct OneSevenLiveCustomEventResponse {
+    QString eventID;
+    QString userID;
+    int status;
+    QString eventName;
+    QString description;
+    qint64 startTime;
+    qint64 endTime;
+    qint64 realEndTime;
+    bool isAchieved;
+    QList<QString> giftIDs;
+    QList<OneSevenLiveGift> gifts;
+    qint64 goalPoints;
+    qint64 dailyGoalPoints;
+    QString displayStatus;
+    QList<Json> rewards; // 使用Json类型，因为rewards结构未定义
+    qint64 currentGoalPoints;
+    qint64 currentDailyGoalPoints;
+};
+
+bool JsonToOneSevenLiveCustomEventResponse(const Json &json, OneSevenLiveCustomEventResponse &response);
+bool OneSevenLiveCustomEventResponseToJson(const OneSevenLiveCustomEventResponse &response, Json &json);
+
+// Custom event struct (用于配置)
 struct OneSevenLiveCustomEvent {
     qint64 endTime;
     int status;
