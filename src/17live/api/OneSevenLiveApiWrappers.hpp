@@ -66,6 +66,9 @@ class OneSevenLiveApiWrappers : public QObject {
     // ChangeCustomEventStatus
     // OneSevenLiveCustomEventStatusRequest.status = 2: stop event = 3: close event
     bool ChangeCustomEventStatus(const std::string &eventID, const OneSevenLiveCustomEventStatusRequest &request);
+    // GetCustomEvent
+    // Get custom event information by userID
+    bool GetCustomEvent(const std::string &userID, OneSevenLiveCustomEventResponse &response);
 
     /**
      * @brief Perform MD5 encryption on string

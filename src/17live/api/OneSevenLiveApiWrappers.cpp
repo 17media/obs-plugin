@@ -49,6 +49,8 @@ const string ONESEVENLIVE_GET_USERINFO_URL =
 
 const string ONESEVENLIVE_CREATE_CUSTOMEVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent";
 
+const string ONESEVENLIVE_GET_CUSTOMEVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEventV2";
+
 const string ONESEVENLIVE_STOP_CUSTOMEVENT_URL  = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent/%1/";
 
 const string ONESEVENLIVE_GET_ABLY_TOKEN_URL =
@@ -792,5 +794,35 @@ bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_ou
 
     obs_log(LOG_INFO, "GetGifts success %d", json_out_resp["gifts"].array_items().size());
 
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID, OneSevenLiveCustomEventResponse &response) {
+    obs_log(LOG_INFO, "GetCustomEvent start");
+
+    lastErrorMessage.clear();
+
+    // Build request URL with query parameter
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CUSTOMEVENT_URL) + "?userID=" + QString::fromStdString(userID);
+    QByteArray url = urlStr.toUtf8();
+
+    Json json_out;
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out, 0, true)) {
+        obs_log(LOG_ERROR, "GetCustomEvent failed %s", json_out.dump().c_str());
+        lastErrorMessage = QString::fromStdString("GetCustomEvent failed %s")
+                               .arg(json_out.dump().c_str())
+                               .toUtf8()
+                               .constData();
+        return false;
+    }
+
+    // Use JsonToOneSevenLiveCustomEventResponse function to parse data to struct
+    if (!JsonToOneSevenLiveCustomEventResponse(json_out, response)) {
+        obs_log(LOG_ERROR, "Failed to parse custom event data");
+        lastErrorMessage = "Failed to parse custom event data";
+        return false;
+    }
+
+    obs_log(LOG_INFO, "GetCustomEvent success");
     return true;
 }
