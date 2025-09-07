@@ -488,8 +488,10 @@ void OneSevenLiveCustomEventDialog::setupBottomButtons(QVBoxLayout* parentLayout
         // When customEvent doesn't exist or eventID is empty, display Create button
         createButton = new QPushButton(obs_module_text("CustomEvent.Create"), this);
         createButton->setObjectName("createButton");
+        // set button color #FF0001
+        createButton->setStyleSheet("QPushButton { background-color: #FF0001; color: white; }");
         createButton->setFixedHeight(40);
-        createButton->setFixedWidth(80);
+        createButton->setMinimumWidth(80);
         buttonLayout->addWidget(createButton);
         
         // Connect Create button signal
@@ -497,20 +499,26 @@ void OneSevenLiveCustomEventDialog::setupBottomButtons(QVBoxLayout* parentLayout
     } else if (customEventData->status == 1) {
         // When customEvent exists and status=1, display Stop button
         createButton = new QPushButton(obs_module_text("CustomEvent.Stop"), this);
+        // button color #007AFF
+        createButton->setStyleSheet("QPushButton {background-color: #007AFF; color: white;}");
         createButton->setObjectName("stopButton");
         createButton->setFixedHeight(40);
-        createButton->setFixedWidth(80);
+        createButton->setMinimumWidth(80);
         buttonLayout->addWidget(createButton);
+        
         
         // Connect Stop button signal
         connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleStopEvent);
     } else if (customEventData->status == 2) {
         // When customEvent exists and status=2, display Close button
         createButton = new QPushButton(obs_module_text("CustomEvent.Close"), this);
+        // button color #007AFF
+        createButton->setStyleSheet("QPushButton {background-color: #007AFF; color: white;}");
         createButton->setObjectName("closeButton");
         createButton->setFixedHeight(40);
-        createButton->setFixedWidth(80);
+        createButton->setMinimumWidth(80);
         buttonLayout->addWidget(createButton);
+        
         
         // Connect Close button signal
         connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleCloseEvent);
@@ -635,14 +643,24 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
 
 void OneSevenLiveCustomEventDialog::handleStopEvent() {
     // Confirm whether to stop the event
-    QMessageBox::StandardButton reply = QMessageBox::question(this, 
-                                                           obs_module_text("CustomEvent.Confirm"), 
-                                                           obs_module_text("CustomEvent.Confirm.StopEvent"),
-                                                           QMessageBox::Yes|QMessageBox::No);
+    QMessageBox msgBox(QMessageBox::Question,
+                      obs_module_text("CustomEvent.Confirm.Stop.Title"),
+                      obs_module_text("CustomEvent.Confirm.StopEvent"),
+                      QMessageBox::Yes|QMessageBox::No,
+                      this);
+    QAbstractButton *yesButton = msgBox.button(QMessageBox::Yes);
+    if (yesButton) {
+        yesButton->setText(obs_module_text("CustomEvent.Confirm.Stop.Yes"));
+    }
+    QMessageBox::StandardButton reply = (QMessageBox::StandardButton)msgBox.exec();
     if (reply == QMessageBox::Yes) {
         OneSevenLiveCustomEventStatusRequest request;
         request.status = 2;
         request.userID = customEventData->userID;
+
+        obs_log(LOG_INFO, "Stopping custom event... userID: %s, eventID: %s", 
+                customEventData->userID.toStdString().c_str(), 
+                customEventData->eventID.toStdString().c_str());
 
         if (!apiWrapper->ChangeCustomEventStatus(customEventData->eventID.toStdString(), request)) {
             obs_log(LOG_ERROR, "Failed to change custom event status");
@@ -664,10 +682,16 @@ void OneSevenLiveCustomEventDialog::handleStopEvent() {
 }
 
 void OneSevenLiveCustomEventDialog::handleCloseEvent() {
-    QMessageBox::StandardButton reply = QMessageBox::question(this, 
-                                                           obs_module_text("CustomEvent.Confirm"), 
-                                                           obs_module_text("CustomEvent.Confirm.CloseEvent"),
-                                                           QMessageBox::Yes|QMessageBox::No);
+    QMessageBox msgBox(QMessageBox::Question,
+                    obs_module_text("CustomEvent.Confirm.Close.Title"),
+                    obs_module_text("CustomEvent.Confirm.CloseEvent"),
+                      QMessageBox::Yes|QMessageBox::No,
+                      this);
+    QAbstractButton *yesButton = msgBox.button(QMessageBox::Yes);
+    if (yesButton) {
+        yesButton->setText(obs_module_text("CustomEvent.Confirm.Close.Yes"));
+    }
+    QMessageBox::StandardButton reply = (QMessageBox::StandardButton)msgBox.exec();
     if (reply == QMessageBox::Yes) {
        OneSevenLiveCustomEventStatusRequest request;
         request.status = 3;
