@@ -37,6 +37,16 @@ static size_t string_write(char *ptr, size_t size, size_t nmemb, string &str) {
     return total;
 }
 
+static size_t binary_write(char *ptr, size_t size, size_t nmemb, std::vector<char> &data) {
+    size_t total = size * nmemb;
+    if (total) {
+        size_t current_size = data.size();
+        data.resize(current_size + total);
+        memcpy(data.data() + current_size, ptr, total);
+    }
+    return total;
+}
+
 void RemoteTextThread::run() {
     char error[CURL_ERROR_SIZE];
     CURLcode code;
@@ -54,6 +64,7 @@ void RemoteTextThread::run() {
     if (curl) {
         struct curl_slist *header = nullptr;
         string str;
+        std::vector<char> binary_data;
 
         header = curl_slist_append(header, versionString.c_str());
 
@@ -69,8 +80,15 @@ void RemoteTextThread::run() {
         curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error);
         curl_easy_setopt(curl.get(), CURLOPT_FAILONERROR, 1L);
-        curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, string_write);
-        curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &str);
+        
+        if (isImageRequest) {
+            curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, binary_write);
+            curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &binary_data);
+        } else {
+            curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, string_write);
+            curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &str);
+        }
+        
         curl_obs_set_revoke_setting(curl.get());
 
         if (timeoutSec)
@@ -84,9 +102,18 @@ void RemoteTextThread::run() {
         if (code != CURLE_OK) {
             blog(LOG_WARNING, "RemoteTextThread: HTTP request failed. %s",
                  strlen(error) ? error : curl_easy_strerror(code));
-            emit Result(QString(), QT_UTF8(error));
+            if (isImageRequest) {
+                emit ImageResult(QByteArray(), QT_UTF8(error));
+            } else {
+                emit Result(QString(), QT_UTF8(error));
+            }
         } else {
-            emit Result(QT_UTF8(str.c_str()), QString());
+            if (isImageRequest) {
+                QByteArray imageData(binary_data.data(), binary_data.size());
+                emit ImageResult(imageData, QString());
+            } else {
+                emit Result(QT_UTF8(str.c_str()), QString());
+            }
         }
 
         curl_slist_free_all(header);

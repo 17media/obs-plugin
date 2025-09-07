@@ -86,6 +86,7 @@ private:
     
     // Event Gifts Section
     QLabel* giftsLabel;
+    QLineEdit* selectedGiftsEdit;
     QTabWidget* giftTabWidget;
     QScrollArea* giftsScrollArea;
     QWidget* giftsContainer;
@@ -100,9 +101,9 @@ private:
     
     // Event Targets Section
     QLabel* dailyTargetLabel;
-    QSpinBox* dailyTargetSpinBox;
+    QLineEdit* dailyTargetEdit;
     QLabel* totalTargetLabel;
-    QSpinBox* totalTargetSpinBox;
+    QLineEdit* totalTargetEdit;
     
     // Event Description Section
     QLabel* descriptionLabel;

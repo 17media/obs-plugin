@@ -36,6 +36,7 @@
 // Project includes
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "OneSevenLiveConfigManager.hpp"
+#include "utility/RemoteTextThread.hpp"
 
 #include "moc_OneSevenLiveCustomEventDialog.cpp"
 
@@ -46,8 +47,9 @@ OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(QWidget* parent,
     : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_), customEventData(customEvent) {
     setupUi();
     setWindowTitle(obs_module_text("CustomEvent.Dialog.Title"));
-    setFixedSize(400, 700);
-    setModal(false);  // Set to non-modal
+    setFixedWidth(450);
+    // setFixedSize(450, 700);
+    // setModal(false);  // Set to non-modal
     
     // Ensure the dialog is properly initialized and visible
     setAttribute(Qt::WA_DeleteOnClose, false);
@@ -68,8 +70,8 @@ OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(QWidget* parent,
         descriptionEdit->setText(customEvent->description);
         
         // Set targets
-        dailyTargetSpinBox->setValue(customEvent->dailyGoalPoints);
-        totalTargetSpinBox->setValue(customEvent->goalPoints);
+        dailyTargetEdit->setText(QString::number(customEvent->dailyGoalPoints));
+        totalTargetEdit->setText(QString::number(customEvent->goalPoints));
         
         // TODO: Handle gift selection based on customEvent->giftIDs
         // This will be implemented after loading gift tabs
@@ -83,109 +85,104 @@ OneSevenLiveCustomEventDialog::~OneSevenLiveCustomEventDialog() = default;
 
 void OneSevenLiveCustomEventDialog::setupUi() {
     // Set dialog background to black with modern styling
-    setStyleSheet(
-        "QDialog {"
-        "    background-color: #1a1a1a;"
-        "    color: #ffffff;"
-        "    font-family: 'Inter', 'Microsoft YaHei', sans-serif;"
-        "    font-style: normal;"
-        "}"
-        "QLabel {"
-        "    color: #ffffff;"
-        "    font-size: 14px;"
-        "    font-weight: 400;"
-        "    margin: 5px 0;"
-        "}"
-        "QLineEdit, QTextEdit, QSpinBox, QDateEdit {"
-        "    background-color: #2d2d2d;"
-        "    border: 1px solid #404040;"
-        "    border-radius: 6px;"
-        "    padding: 8px 12px;"
-        "    color: #ffffff;"
-        "    font-size: 14px;"
-        "    min-height: 20px;"
-        "}"
-        "QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDateEdit:focus {"
-        "    border-color: #007acc;"
-        "    outline: none;"
-        "}"
-        "QPushButton {"
-        "    background-color: #2d2d2d;"
-        "    border: 1px solid #404040;"
-        "    border-radius: 6px;"
-        "    padding: 8px 16px;"
-        "    color: #ffffff;"
-        "    font-size: 14px;"
-        "    font-weight: 500;"
-        "    min-height: 20px;"
-        "}"
-        "QPushButton:hover {"
-        "    background-color: #3d3d3d;"
-        "    border-color: #505050;"
-        "}"
-        "QPushButton:pressed {"
-        "    background-color: #1d1d1d;"
-        "}"
-        "QPushButton#createButton {"
-        "    background-color: #ff4757;"
-        "    border-color: #ff4757;"
-        "    color: #ffffff;"
-        "    font-weight: 600;"
-        "}"
-        "QPushButton#createButton:hover {"
-        "    background-color: #ff3742;"
-        "}"
-        "QPushButton#createButton:pressed {"
-        "    background-color: #e63946;"
-        "}"
-        "QCalendarWidget {"
-        "    background-color: #2d2d2d;"
-        "    border: 1px solid #404040;"
-        "    border-radius: 6px;"
-        "    color: #ffffff;"
-        "}"
-        "QCalendarWidget QToolButton {"
-        "    background-color: transparent;"
-        "    border: none;"
-        "    color: #ffffff;"
-        "    font-size: 12px;"
-        "    padding: 4px;"
-        "}"
-        "QCalendarWidget QToolButton:hover {"
-        "    background-color: #3d3d3d;"
-        "    border-radius: 4px;"
-        "}"
-        "QCalendarWidget QAbstractItemView {"
-        "    background-color: #2d2d2d;"
-        "    selection-background-color: #007acc;"
-        "    color: #ffffff;"
-        "}"
-        "QScrollArea {"
-        "    border: none;"
-        "    background-color: #1a1a1a;"
-        "}"
-        "QScrollBar:vertical {"
-        "    background-color: #2d2d2d;"
-        "    width: 12px;"
-        "    border-radius: 6px;"
-        "}"
-        "QScrollBar::handle:vertical {"
-        "    background-color: #555555;"
-        "    border-radius: 6px;"
-        "    min-height: 20px;"
-        "}"
-        "QScrollBar::handle:vertical:hover {"
-        "    background-color: #666666;"
-        "}"
-        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
-        "    border: none;"
-        "    background: none;"
-        "}"
-        "QFrame {"
-        "    background-color: #2d2d2d;"
-        "    border: 1px solid #404040;"
-        "    border-radius: 6px;"
-        "}");
+    // setStyleSheet(
+    //     "QDialog {"
+    //     "    background-color: #1a1a1a;"
+    //     "    color: #ffffff;"
+    //     "    font-family: 'Inter', 'Microsoft YaHei', sans-serif;"
+    //     "    font-style: normal;"
+    //     "}"
+        // "QLabel {"
+        // "    color: #ffffff;"
+        // "    font-size: 14px;"
+        // "    font-weight: 400;"
+        // "    margin: 5px 0;"
+        // "}"
+        // "QLineEdit, QTextEdit, QSpinBox, QDateEdit {"
+        // "    background-color: #2d2d2d;"
+        // "    border: 1px solid #404040;"
+        // "    border-radius: 2px;"
+        // "    padding: 8px 12px;"
+        // "    color: #ffffff;"
+        // "    font-size: 14px;"
+        // "    min-height: 20px;"
+        // "}"
+        // "QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDateEdit:focus {"
+        // "    border-color: #007acc;"
+        // "    outline: none;"
+        // "}"
+        // "QPushButton {"
+        // "    background-color: #2d2d2d;"
+        // "    border: 1px solid #404040;"
+        // "    border-radius: 2px;"
+        // "    padding: 8px 16px;"
+        // "    color: #ffffff;"
+        // "    font-size: 14px;"
+        // "    font-weight: 500;"
+        // "    min-height: 20px;"
+        // "}"
+        // "QPushButton:hover {"
+        // "    background-color: #3d3d3d;"
+        // "    border-color: #505050;"
+        // "}"
+        // "QPushButton:pressed {"
+        // "    background-color: #1d1d1d;"
+        // "}"
+        // "QPushButton#createButton {"
+        // "    background-color: #ff4757;"
+        // "    border-color: #ff4757;"
+        // "    color: #ffffff;"
+        // "    font-weight: 600;"
+        // "}"
+        // "QPushButton#createButton:hover {"
+        // "    background-color: #ff3742;"
+        // "}"
+        // "QPushButton#createButton:pressed {"
+        // "    background-color: #e63946;"
+        // "}"
+        // "QCalendarWidget {"
+        // "    background-color: #2d2d2d;"
+        // "    border: 1px solid #404040;"
+        // "    border-radius: 6px;"
+        // "    color: #ffffff;"
+        // "}"
+        // "QCalendarWidget QToolButton {"
+        // "    background-color: transparent;"
+        // "    border: none;"
+        // "    color: #ffffff;"
+        // "    font-size: 12px;"
+        // "    padding: 4px;"
+        // "}"
+        // "QCalendarWidget QToolButton:hover {"
+        // "    background-color: #3d3d3d;"
+        // "    border-radius: 4px;"
+        // "}"
+        // "QCalendarWidget QAbstractItemView {"
+        // "    background-color: #2d2d2d;"
+        // "    selection-background-color: #007acc;"
+        // "    color: #ffffff;"
+        // "}"
+        // "QScrollArea {"
+        // "    border: none;"
+        // "    background-color: #1a1a1a;"
+        // "}"
+        // "QScrollBar:vertical {"
+        // "    background-color: #2d2d2d;"
+        // "    width: 12px;"
+        // "    border-radius: 6px;"
+        // "}"
+        // "QScrollBar::handle:vertical {"
+        // "    background-color: #555555;"
+        // "    border-radius: 6px;"
+        // "    min-height: 20px;"
+        // "}"
+        // "QScrollBar::handle:vertical:hover {"
+        // "    background-color: #666666;"
+        // "}"
+        // "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
+        // "    border: none;"
+        // "    background: none;"
+        // "}");
 
     // Create main dialog layout
     QVBoxLayout* dialogLayout = new QVBoxLayout(this);
@@ -200,10 +197,17 @@ void OneSevenLiveCustomEventDialog::setupUi() {
     scrollArea->setFrameShape(QFrame::NoFrame);
     
     // Create content widget for scroll area
-    QWidget* contentWidget = new QWidget();
+    QWidget* contentWidget = new QWidget(this);
+    contentWidget->setStyleSheet(
+        "QWidget {"
+        "    color: white;"
+        "    font-family: 'Inter';"
+        "    font-style: normal;"
+        "}");
+
     QVBoxLayout* contentLayout = new QVBoxLayout(contentWidget);
-    contentLayout->setSpacing(15);
-    contentLayout->setContentsMargins(20, 20, 20, 20);
+    contentLayout->setSpacing(5);
+    contentLayout->setContentsMargins(10, 10, 10, 10);
     
     // Store the content layout for use in setup functions
     mainLayout = contentLayout;
@@ -215,7 +219,9 @@ void OneSevenLiveCustomEventDialog::setupUi() {
     setupEventDescriptionSection();
     
     // Add stretch to push content to top
-    contentLayout->addStretch();
+    // contentLayout->addStretch();
+
+    setupBottomButtons(contentLayout);
     
     // Set content widget to scroll area
     scrollArea->setWidget(contentWidget);
@@ -224,7 +230,7 @@ void OneSevenLiveCustomEventDialog::setupUi() {
     dialogLayout->addWidget(scrollArea);
     
     // Setup bottom buttons directly with dialog layout
-    setupBottomButtons(dialogLayout);
+    // setupBottomButtons(dialogLayout);
 }
 
 void OneSevenLiveCustomEventDialog::setupEventTitleSection() {
@@ -237,16 +243,24 @@ void OneSevenLiveCustomEventDialog::setupEventTitleSection() {
     eventTitleEdit->setObjectName("eventTitleEdit");
     eventTitleEdit->setPlaceholderText(obs_module_text("CustomEvent.Title.Placeholder"));
     eventTitleEdit->setMaxLength(MAX_TITLE_LENGTH);
-    eventTitleEdit->setStyleSheet(
-        "QLineEdit {"
-        "    background-color: #3a3a3a;"
-        "    border: 1px solid #555555;"
-        "    color: #ffffff;"
-        "    placeholder-text-color: #888888;"
-        "}");
+    // eventTitleEdit->setStyleSheet(
+    //     "QLineEdit {"
+    //     "    background-color: #3a3a3a;"
+    //     "    border: 1px solid #555555;"
+    //     "    color: #ffffff;"
+    //     "    placeholder-text-color: #888888;"
+    //     "}");
+    eventTitleEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     
     // Create form layout for title section
     QFormLayout* titleFormLayout = new QFormLayout();
+    // Set to vertical layout, labels above fields
+    titleFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    // Set label left alignment
+    titleFormLayout->setLabelAlignment(Qt::AlignLeft);
+    // Set field growth policy
+    titleFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+
     titleFormLayout->addRow(titleLabel, eventTitleEdit);
     
     mainLayout->addLayout(titleFormLayout);
@@ -255,7 +269,7 @@ void OneSevenLiveCustomEventDialog::setupEventTitleSection() {
 void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     dateLabel = new QLabel();
     dateLabel->setText(
-        QString("<span style='color:white;'>%1</span>")
+        QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
             .arg(obs_module_text("CustomEvent.EndDate")));
     dateLabel->setStyleSheet("font-weight: 600;");
     
@@ -265,43 +279,51 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     dateEdit->setMinimumDate(QDate::currentDate().addDays(1));
     dateEdit->setMaximumDate(QDate::currentDate().addDays(30));
     dateEdit->setDisplayFormat("yyyy/MM/dd");
-    dateEdit->setCalendarPopup(false);
+    dateEdit->setCalendarPopup(true);
     
     // Create form layout for date section
     QFormLayout* dateFormLayout = new QFormLayout();
+    dateFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    // Set label left alignment
+    dateFormLayout->setLabelAlignment(Qt::AlignLeft);
+    // Set field growth policy
+    dateFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     dateFormLayout->addRow(dateLabel, dateEdit);
     
     // Calendar widget
-    calendarFrame = new QFrame(this);
-    calendarFrame->setFixedHeight(200);
+    // calendarFrame = new QFrame(this);
+    // calendarFrame->setFixedHeight(200);
     
-    QVBoxLayout* calendarLayout = new QVBoxLayout(calendarFrame);
-    calendarLayout->setContentsMargins(5, 5, 5, 5);
+    // QVBoxLayout* calendarLayout = new QVBoxLayout(calendarFrame);
+    // calendarLayout->setContentsMargins(5, 5, 5, 5);
     
-    calendar = new QCalendarWidget(this);
-    calendar->setMinimumDate(QDate::currentDate().addDays(1));
-    calendar->setMaximumDate(QDate::currentDate().addDays(30));
-    calendar->setSelectedDate(QDate::currentDate().addDays(1));
-    calendar->setGridVisible(true);
+    // calendar = new QCalendarWidget(this);
+    // calendar->setMinimumDate(QDate::currentDate().addDays(1));
+    // calendar->setMaximumDate(QDate::currentDate().addDays(30));
+    // calendar->setSelectedDate(QDate::currentDate().addDays(1));
+    // calendar->setGridVisible(true);
     
-    calendarLayout->addWidget(calendar);
+    // calendarLayout->addWidget(calendar);
     
-    // Connect calendar to date edit
-    connect(calendar, &QCalendarWidget::selectionChanged, this, &OneSevenLiveCustomEventDialog::onDateChanged);
-    connect(dateEdit, &QDateEdit::dateChanged, this, [this](const QDate& date) {
-        calendar->setSelectedDate(date);
-    });
+    // // Connect calendar to date edit
+    // connect(calendar, &QCalendarWidget::selectionChanged, this, &OneSevenLiveCustomEventDialog::onDateChanged);
+    // connect(dateEdit, &QDateEdit::dateChanged, this, [this](const QDate& date) {
+    //     calendar->setSelectedDate(date);
+    // });
     
     mainLayout->addLayout(dateFormLayout);
-    mainLayout->addWidget(calendarFrame);
+    // mainLayout->addWidget(calendarFrame);
 }
 
 void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
     giftsLabel = new QLabel();
     giftsLabel->setText(
-        QString("<span style='color:white;'>%1</span>")
+        QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
             .arg(obs_module_text("CustomEvent.Gifts")));
     giftsLabel->setStyleSheet("font-weight: 600;");
+    selectedGiftsEdit = new QLineEdit(this);
+    selectedGiftsEdit->setObjectName("selectedGiftsEdit");
+    selectedGiftsEdit->setPlaceholderText(obs_module_text("CustomEvent.SelectedGifts.Placeholder"));
     
     // Initialize allowed gift categories
     allowedGiftCategories << "luckyBag" << "TreasureChest" << "Event" << "army" 
@@ -310,7 +332,8 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
     
     // Create tab widget for gift categories
     giftTabWidget = new QTabWidget(this);
-    giftTabWidget->setFixedHeight(180);
+    // giftTabWidget->setFixedHeight(180);
+    giftTabWidget->setFixedSize(430, 250);
     giftTabWidget->setStyleSheet(
         "QTabWidget::pane {"
         "    border: 1px solid #555555;"
@@ -339,9 +362,16 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
     
     // Create form layout for gifts section
     QFormLayout* giftsFormLayout = new QFormLayout();
-    giftsFormLayout->addRow(giftsLabel, giftTabWidget);
+    giftsFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    // Set label left alignment
+    giftsFormLayout->setLabelAlignment(Qt::AlignLeft);
+    // Set field growth policy
+    giftsFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    
+    giftsFormLayout->addRow(giftsLabel, selectedGiftsEdit);
     
     mainLayout->addLayout(giftsFormLayout);
+    mainLayout->addWidget(giftTabWidget);
 }
 
 void OneSevenLiveCustomEventDialog::setupEventTargetsSection() {
@@ -352,40 +382,50 @@ void OneSevenLiveCustomEventDialog::setupEventTargetsSection() {
             .arg(obs_module_text("CustomEvent.DailyGoal")));
     dailyTargetLabel->setStyleSheet("font-weight: 600;");
     
-    dailyTargetSpinBox = new QSpinBox(this);
-    dailyTargetSpinBox->setRange(1, 999999999);
-    dailyTargetSpinBox->setValue(7777777);
-    dailyTargetSpinBox->setStyleSheet(
-        "QSpinBox {"
-        "    background-color: #3a3a3a;"
-        "    border: 1px solid #555555;"
-        "    color: #ffffff;"
-        "}");
+    dailyTargetEdit = new QLineEdit(this);
+    // dailyTargetEdit->setValidator(new QIntValidator(1, 999999999, this));
+    dailyTargetEdit->setPlaceholderText(obs_module_text("CustomEvent.DailyGoal.Placeholder"));
+    // dailyTargetEdit->setStyleSheet(
+    //     "QLineEdit {"
+    //     "    background-color: #3a3a3a;"
+    //     "    border: 1px solid #555555;"
+    //     "    color: #ffffff;"
+    //     "}");
     
     // Create form layout for daily target
     QFormLayout* dailyTargetFormLayout = new QFormLayout();
-    dailyTargetFormLayout->addRow(dailyTargetLabel, dailyTargetSpinBox);
+    dailyTargetFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    // Set label left alignment
+    dailyTargetFormLayout->setLabelAlignment(Qt::AlignLeft);
+    // Set field growth policy
+    dailyTargetFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    dailyTargetFormLayout->addRow(dailyTargetLabel, dailyTargetEdit);
     
     // Total target
     totalTargetLabel = new QLabel();
     totalTargetLabel->setText(
         QString("<span style='color:white;'>%1</span>")
-            .arg(obs_module_text("CustomEvent.OverallGoal")));
+            .arg(obs_module_text("CustomEvent.TotalGoal")));
     totalTargetLabel->setStyleSheet("font-weight: 600;");
     
-    totalTargetSpinBox = new QSpinBox(this);
-    totalTargetSpinBox->setRange(1, 999999999);
-    totalTargetSpinBox->setValue(888888888);
-    totalTargetSpinBox->setStyleSheet(
-        "QSpinBox {"
-        "    background-color: #3a3a3a;"
-        "    border: 1px solid #555555;"
-        "    color: #ffffff;"
-        "}");
+    totalTargetEdit = new QLineEdit(this);
+    // totalTargetEdit->setValidator(new QIntValidator(1, 999999999, this));
+    totalTargetEdit->setPlaceholderText(obs_module_text("CustomEvent.TotalGoal.Placeholder"));
+    // totalTargetEdit->setStyleSheet(
+    //     "QLineEdit {"
+    //     "    background-color: #3a3a3a;"
+    //     "    border: 1px solid #555555;"
+    //     "    color: #ffffff;"
+    //     "}");
     
     // Create form layout for total target
     QFormLayout* totalTargetFormLayout = new QFormLayout();
-    totalTargetFormLayout->addRow(totalTargetLabel, totalTargetSpinBox);
+    totalTargetFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    // Set label left alignment
+    totalTargetFormLayout->setLabelAlignment(Qt::AlignLeft);
+    // Set field growth policy
+    totalTargetFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    totalTargetFormLayout->addRow(totalTargetLabel, totalTargetEdit);
     
     mainLayout->addLayout(dailyTargetFormLayout);
     mainLayout->addLayout(totalTargetFormLayout);
@@ -394,48 +434,39 @@ void OneSevenLiveCustomEventDialog::setupEventTargetsSection() {
 void OneSevenLiveCustomEventDialog::setupEventDescriptionSection() {
     descriptionLabel = new QLabel();
     descriptionLabel->setText(
-        QString("<span style='color:white;'>%1</span>")
+        QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
             .arg(obs_module_text("CustomEvent.Description")));
     descriptionLabel->setStyleSheet("font-weight: 600;");
     
-    // Create container for description edit and character count
-    QWidget* descriptionContainer = new QWidget(this);
-    QVBoxLayout* descriptionContainerLayout = new QVBoxLayout(descriptionContainer);
-    descriptionContainerLayout->setContentsMargins(0, 0, 0, 0);
-    descriptionContainerLayout->setSpacing(5);
-    
     descriptionEdit = new QTextEdit(this);
-    descriptionEdit->setFixedHeight(80);
     descriptionEdit->setPlaceholderText(obs_module_text("CustomEvent.Description.Placeholder"));
-    descriptionEdit->setStyleSheet(
-        "QTextEdit {"
-        "    background-color: #3a3a3a;"
-        "    border: 1px solid #555555;"
-        "    color: #ffffff;"
-        "}");
-    
-    characterCountLabel = new QLabel("0 / 200", this);
-    characterCountLabel->setAlignment(Qt::AlignRight);
-    characterCountLabel->setStyleSheet("color: #888888; font-size: 12px;");
-    
-    descriptionContainerLayout->addWidget(descriptionEdit);
-    descriptionContainerLayout->addWidget(characterCountLabel);
-    
+    // descriptionEdit->setStyleSheet(
+    //     "QTextEdit {"
+    //     "    background-color: #3a3a3a;"
+    //     "    border: 1px solid #555555;"
+    //     "    color: #ffffff;"
+    //     "}");
+     
     // Connect text change to update character count
-    connect(descriptionEdit, &QTextEdit::textChanged, this, [this]() {
-        int length = descriptionEdit->toPlainText().length();
-        characterCountLabel->setText(QString("%1 / %2").arg(length).arg(MAX_DESCRIPTION_LENGTH));
+    // connect(descriptionEdit, &QTextEdit::textChanged, this, [this]() {
+    //     int length = descriptionEdit->toPlainText().length();
+    //     characterCountLabel->setText(QString("%1 / %2").arg(length).arg(MAX_DESCRIPTION_LENGTH));
         
-        if (length > MAX_DESCRIPTION_LENGTH) {
-            characterCountLabel->setStyleSheet("color: #ff4757; font-size: 12px;");
-        } else {
-            characterCountLabel->setStyleSheet("color: #888888; font-size: 12px;");
-        }
-    });
+    //     if (length > MAX_DESCRIPTION_LENGTH) {
+    //         characterCountLabel->setStyleSheet("color: #ff4757; font-size: 12px;");
+    //     } else {
+    //         characterCountLabel->setStyleSheet("color: #888888; font-size: 12px;");
+    //     }
+    // });
     
     // Create form layout for description section
     QFormLayout* descriptionFormLayout = new QFormLayout();
-    descriptionFormLayout->addRow(descriptionLabel, descriptionContainer);
+    descriptionFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    // Set label left alignment
+    descriptionFormLayout->setLabelAlignment(Qt::AlignLeft);
+    // Set field growth policy
+    descriptionFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    descriptionFormLayout->addRow(descriptionLabel, descriptionEdit);
     
     mainLayout->addLayout(descriptionFormLayout);
 }
@@ -560,8 +591,8 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
     eventRequest.endTime = QDateTime(dateEdit->date(), QTime(23, 59, 59)).toSecsSinceEpoch();
     eventRequest.status = 1; // Event status - Active
     eventRequest.description = descriptionEdit->toPlainText().trimmed();
-    eventRequest.dailyGoalPoints = dailyTargetSpinBox->value();
-    eventRequest.goalPoints = totalTargetSpinBox->value();
+    eventRequest.dailyGoalPoints = dailyTargetEdit->text().toInt();
+    eventRequest.goalPoints = totalTargetEdit->text().toInt();
     
     // Add selected gift IDs
     for (QString giftID : selectedGiftIndices) {
@@ -867,6 +898,24 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         if (!gift.leaderboardIcon.isEmpty()) {
             QString iconUrl = "https://cdn.17app.co/" + gift.leaderboardIcon;
             imageLabel->setProperty("iconUrl", iconUrl);
+
+            RemoteTextThread *thread = new RemoteTextThread(iconUrl.toStdString(), "image/png", "", 0, true);
+        
+            connect(thread, &RemoteTextThread::ImageResult, this, [this, imageLabel](const QByteArray &imageData, const QString &error) {
+                if (error.isEmpty() && !imageData.isEmpty()) {
+                    QPixmap pix;
+                    if (pix.loadFromData(imageData)) {
+                        imageLabel->setPixmap(pix.scaled(imageLabel->size(),
+                                                        Qt::KeepAspectRatio,
+                                                        Qt::SmoothTransformation));
+                        imageLabel->setText("");
+                    }
+                }
+            });
+            
+            connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+            
+            thread->start();
         }
         
         // Create name label
