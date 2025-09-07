@@ -51,7 +51,7 @@ private:
     void handleCloseEvent();
 
     void onDateChanged();
-    void onGiftSelected(QPushButton* giftButton, QString giftID);
+    void onGiftSelected(QPushButton* giftButton, OneSevenLiveGift gift);
     // void onGiftTabChanged(int tabIndex);
     void loadGiftTabs();
     void setupGiftTabsUI();
@@ -91,7 +91,7 @@ private:
     QScrollArea* giftsScrollArea;
     QWidget* giftsContainer;
     QGridLayout* giftsLayout;
-    QList<QString> selectedGiftIndices; // Support multiple gift selection
+    QList<OneSevenLiveGift> selectedGifts; // Support multiple gift selection
     static const int MAX_SELECTED_GIFTS = 4; // Maximum 4 gifts can be selected
     
     // Gift Tab Data
@@ -125,7 +125,5 @@ private:
     // Constants
     static const int MAX_TITLE_LENGTH = 20;
     static const int MAX_DESCRIPTION_LENGTH = 200;
-    static constexpr int GIFT_GRID_ROWS = 3;
     static constexpr int GIFT_GRID_COLUMNS = 4;
-    static constexpr int MAX_GIFTS = GIFT_GRID_ROWS * GIFT_GRID_COLUMNS;
 };

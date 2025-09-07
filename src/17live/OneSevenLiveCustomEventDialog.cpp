@@ -525,17 +525,22 @@ void OneSevenLiveCustomEventDialog::onDateChanged() {
     dateEdit->setDate(selectedDate);
 }
 
-void OneSevenLiveCustomEventDialog::onGiftSelected(QPushButton* giftButton, QString giftID) {
+void OneSevenLiveCustomEventDialog::onGiftSelected(QPushButton* giftButton, OneSevenLiveGift gift) {
     // Check if the gift is already selected
-    int indexInSelected = selectedGiftIndices.indexOf(giftID);
+    QList<QString> selectedGiftIndices;
+    for (auto selectedGift : selectedGifts) {
+        selectedGiftIndices.append(selectedGift.giftID);
+    }
+
+    int indexInSelected = selectedGiftIndices.indexOf(gift.giftID);
     
     if (indexInSelected != -1) {
         // If already selected, deselect it
-        selectedGiftIndices.removeAt(indexInSelected);
+        selectedGifts.removeAt(indexInSelected);
         giftButton->setChecked(false);
     } else {
         // If not selected, check if maximum selection count is reached
-        if (selectedGiftIndices.size() >= MAX_SELECTED_GIFTS) {
+        if (selectedGifts.size() >= MAX_SELECTED_GIFTS) {
             // Maximum selection count reached, show warning and cancel current operation
             QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
                                 QString(obs_module_text("CustomEvent.Error.MaxGifts")).arg(MAX_SELECTED_GIFTS));
@@ -544,9 +549,17 @@ void OneSevenLiveCustomEventDialog::onGiftSelected(QPushButton* giftButton, QStr
         }
         
         // Add to selected list
-        selectedGiftIndices.append(giftID);
+        selectedGifts.append(gift);
         giftButton->setChecked(true);
     }
+
+    // get selected gifts' name
+    QList<QString> selectedGiftsName;
+    for (auto selectedGift : selectedGifts) {
+        selectedGiftsName.append(selectedGift.name);
+    }
+
+    selectedGiftsEdit->setText(selectedGiftsName.join(" / "));
 }
 
 void OneSevenLiveCustomEventDialog::handleCreateEvent() {
@@ -560,14 +573,14 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
     // Validate event end date (already limited to max 30 days in UI)
     
     // Validate gift selection
-    if (selectedGiftIndices.isEmpty()) {
+    if (selectedGifts.isEmpty()) {
         QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
                             obs_module_text("CustomEvent.Error.NoGifts"));
         return;
     }
     
-    if (selectedGiftIndices.size() > MAX_SELECTED_GIFTS) {
-        QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
+    if (selectedGifts.size() > MAX_SELECTED_GIFTS) {
+        QMessageBox::warning(this, obs_module_text("CustomEvent.Error"),
                             QString(obs_module_text("CustomEvent.Error.MaxGifts")).arg(MAX_SELECTED_GIFTS));
         return;
     }
@@ -595,10 +608,8 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
     eventRequest.goalPoints = totalTargetEdit->text().toInt();
     
     // Add selected gift IDs
-    for (QString giftID : selectedGiftIndices) {
-        if (!giftID.isEmpty()) {
-            eventRequest.giftIDs.append(giftID);
-        }
+    for (auto gift : selectedGifts) {
+        eventRequest.giftIDs.append(gift.giftID);
     }
 
     OneSevenLiveCustomEvent eventResponse;
@@ -867,26 +878,29 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         
         // Create a container widget to hold image and text
         QWidget* giftWidget = new QWidget();
-        giftWidget->setFixedSize(60, 60);
-        giftWidget->setStyleSheet(
-            "QWidget {"
-            "    background-color: #404040;"
-            "    border: 2px solid #555555;"
-            "    border-radius: 8px;"
-            "}"
-            "QWidget:hover {"
-            "    background-color: #505050;"
-            "    border-color: #666666;"
-            "}");
+        giftWidget->setFixedSize(80, 140);
+        // giftWidget->setStyleSheet(
+        //     "QWidget {"
+        //     "    background-color: #404040;"
+        //     "    border: 2px solid #555555;"
+        //     "    border-radius: 8px;"
+        //     "}"
+        //     "QWidget:hover {"
+        //     "    background-color: #505050;"
+        //     "    border-color: #666666;"
+        //     "}");
         
         // Create vertical layout
         QVBoxLayout* layout = new QVBoxLayout(giftWidget);
-        layout->setContentsMargins(2, 2, 2, 2);
+        layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(1);
         
         // Create image label
         QLabel* imageLabel = new QLabel();
-        imageLabel->setFixedSize(40, 40);
+        imageLabel->setStyleSheet("QLabel {"
+                                 "    border-radius: 2px;"
+                                 "}");
+        imageLabel->setFixedSize(80, 80);
         imageLabel->setAlignment(Qt::AlignCenter);
         imageLabel->setScaledContents(true);
         
@@ -921,26 +935,29 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         // Create name label
         QLabel* nameLabel = new QLabel(gift.name);
         nameLabel->setAlignment(Qt::AlignCenter);
-        nameLabel->setStyleSheet("color: white; font-size: 8px;");
+        nameLabel->setStyleSheet("color: white; font-size: 14px;");
+        nameLabel->setWordWrap(true);
         
         // Create price label
-        QLabel* priceLabel = new QLabel(QString::number(gift.point));
-        priceLabel->setAlignment(Qt::AlignCenter);
-        priceLabel->setStyleSheet("color: white; font-size: 8px;");
+        QLabel* pointLabel = new QLabel(QString::number(gift.point));
+        pointLabel->setAlignment(Qt::AlignCenter);
+        pointLabel->setStyleSheet("color: white; font-size: 14px;");
+        pointLabel->setWordWrap(true);
         
         // Add to layout
         layout->addWidget(imageLabel);
         layout->addWidget(nameLabel);
-        layout->addWidget(priceLabel);
+        layout->addWidget(pointLabel);
+        layout->addStretch();
         
         // Set layout stretch factors
-        layout->setStretch(0, 5); // Image
-        layout->setStretch(1, 2); // Name
-        layout->setStretch(2, 1); // Price
+        // layout->setStretch(0, 5); // Image
+        // layout->setStretch(1, 2); // Name
+        // layout->setStretch(2, 1); // Point
         
         // Create a transparent button covering the entire widget to handle click events
         QPushButton* giftButton = new QPushButton(giftWidget);
-        giftButton->setFixedSize(60, 60);
+        giftButton->setFixedSize(80, 140);
         giftButton->setFlat(true);
         giftButton->setStyleSheet(
             "QPushButton {"
@@ -949,7 +966,7 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             "}"
             "QPushButton:checked {"
             "    background-color: rgba(0, 122, 204, 150);"
-            "    border-radius: 8px;"
+            "    border-radius: 2px;"
             "}");
         
         giftButton->setCheckable(true);
@@ -968,9 +985,10 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         giftWidget->setProperty("tabIndex", tabIndex);
 
         QString giftID = gift.giftID;
+        QString giftName = gift.name;
         
-        connect(giftButton, &QPushButton::clicked, this, [this, i, tabIndex, giftButton, giftID]() {
-            onGiftSelected(giftButton, giftID);
+        connect(giftButton, &QPushButton::clicked, this, [this, i, tabIndex, giftButton, gift]() {
+            onGiftSelected(giftButton, gift);
         });
     }
     
