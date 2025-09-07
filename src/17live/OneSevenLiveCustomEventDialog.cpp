@@ -655,10 +655,10 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
     }
     
     // TODO: Get live stream ID from current session
-    std::string liveStreamID;
+    std::string roomID;
     std::string region;
 
-    if (!configManager->getConfigValue("LiveStreamID", liveStreamID)) {
+    if (!configManager->getConfigValue("RoomID", roomID)) {
         obs_log(LOG_ERROR, "Failed to get live stream ID from config manager");
         setupGiftTabsUI();
         return;
@@ -671,7 +671,7 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
     }
     
     Json giftTabsJson;
-    if (apiWrapper->GetGiftTabs(liveStreamID, region, giftTabsJson)) {
+    if (apiWrapper->GetGiftTabs(roomID, region, giftTabsJson)) {
         
         Json giftsJson;
         OneSevenLiveGiftsResponse giftsResponse;

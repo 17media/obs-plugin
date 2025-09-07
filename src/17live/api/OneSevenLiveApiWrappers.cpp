@@ -752,14 +752,14 @@ bool OneSevenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json
     return true;
 }
 
-bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &liveStreamID,
+bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &roomID,
                                           const std::string language, Json &json_out_resp) {
     obs_log(LOG_INFO, "GetGiftTabs");
 
     lastErrorMessage.clear();
 
     QString urlStr =
-        QString::fromStdString(ONESEVENLIVE_GET_GIFTTABS_URL).arg(liveStreamID.c_str());
+        QString::fromStdString(ONESEVENLIVE_GET_GIFTTABS_URL).arg(roomID.c_str());
     QByteArray url = urlStr.toUtf8();
 
     std::vector<std::string> extraHeaders = {"Language: " + language};
