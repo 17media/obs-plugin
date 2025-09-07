@@ -1,11 +1,20 @@
 #pragma once
 
+// C++ Standard Library includes
+#include <string>
+#include <vector>
+#include <map>
+#include <memory>
+#include <limits>
+
+// Qt includes
 #include <QDateTime>
 #include <QList>
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
 
+// Third-party includes
 #include "json11.hpp"
 
 using namespace json11;
@@ -447,6 +456,20 @@ struct OneSevenLiveEventList {
     QString instructionURL;
 };
 
+// Gift struct
+struct OneSevenLiveGift {
+    QString giftID;
+    int isHidden;
+    int regionMode;
+    QString name;
+    int point;
+    QString leaderboardIcon;
+    QString vffURL;
+    QString vffMD5;
+    QString vffJson;
+    QStringList regions;
+};
+
 // Custom event response struct
 struct OneSevenLiveCustomEvent {
     QString eventID;
@@ -475,7 +498,7 @@ struct OneSevenLiveCustomEventStatusRequest {
 };
 
 bool JsonToOneSevenLiveCustomEvent(const Json &json, OneSevenLiveCustomEvent &response);
-bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &response, Json &json);
+bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &request, Json &json);
 
 bool OneSevenLiveChangeCustomEventStatusRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json);
 
@@ -489,20 +512,6 @@ struct OneSevenLiveBoxGacha {
 struct OneSevenLiveSubtab {
     QString displayName;
     QString ID;
-};
-
-// Gift struct
-struct OneSevenLiveGift {
-    QString giftID;
-    int isHidden;
-    int regionMode;
-    QString name;
-    int point;
-    QString leaderboardIcon;
-    QString vffURL;
-    QString vffMD5;
-    QString vffJson;
-    QStringList regions;
 };
 
 // Gift tab struct

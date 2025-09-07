@@ -1,9 +1,35 @@
+// System includes
+#include <sys/types.h>
+#include <stdio.h>
+
+// C++ Standard Library includes
+#include <cstdio>
+#include <cstdlib>
+#include <climits>
+#include <string>
+#include <vector>
+#include <map>
+#include <memory>
+#include <algorithm>
+#include <iostream>
+#include <limits>
+
+// OBS includes
+#include <obs-module.h>
+#include "plugin-support.h"
+
+// Qt includes
+#include <QDateTime>
+#include <QList>
+#include <QString>
+#include <QStringList>
+#include <QVariantMap>
+
+// Project includes
 #include "OneSevenLiveModels.hpp"
 
-#include <obs-module.h>
-
+// Third-party includes
 #include "json11.hpp"
-#include "plugin-support.h"
 
 using namespace json11;
 using namespace std;
@@ -1188,7 +1214,7 @@ bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &resp
         
         // Create main JSON object
         json = Json::object{
-            {"giftLastUpdate", static_cast<int>(response.giftLastUpdate)},
+            {"giftLastUpdate", static_cast<double>(response.giftLastUpdate)},
             {"tabs", tabsArray}
         };
         
@@ -1266,7 +1292,7 @@ bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, 
         
         // Create main JSON object
         json = Json::object{
-            {"lastUpdate", static_cast<int>(response.lastUpdate)},
+            {"lastUpdate", static_cast<double>(response.lastUpdate)},
             {"gifts", giftsArray}
         };
         
@@ -1277,13 +1303,13 @@ bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, 
     }
 }
 
-bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &request, Json &json) {
+bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &request, Json &json) {
     json = Json::object{
         {"eventName", request.eventName.toStdString()},
         {"description", request.description.toStdString()},
-        {"endTime", request.endTime},
-        {"dailyGoalPoints", request.dailyGoalPoints},
-        {"goalPoints", request.goalPoints},
+        {"endTime", static_cast<double>(request.endTime)},
+        {"dailyGoalPoints", static_cast<double>(request.dailyGoalPoints)},
+        {"goalPoints", static_cast<double>(request.goalPoints)},
         {"userID", request.userID.toStdString()},
     };
 
@@ -1292,8 +1318,9 @@ bool OneSevenLiveCustomEventRequestToJson(const OneSevenLiveCustomEventRequest &
     for (const auto &giftID : request.giftIDs) {
         giftIDsJson.push_back(Json(giftID.toStdString()));
     }
-    json = json.object_items();
-    json["giftIDs"] = Json(giftIDsJson);
+    auto jsonObj = json.object_items();
+    jsonObj["giftIDs"] = Json(giftIDsJson);
+    json = Json(jsonObj);
 
     return true;
 }
@@ -1357,65 +1384,6 @@ bool JsonToOneSevenLiveCustomEvent(const Json &json, OneSevenLiveCustomEvent &re
     for (const auto &rewardJson : rewardsJson) {
         response.rewards.append(rewardJson);
     }
-
-    return true;
-}
-
-bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &response, Json &json) {
-    // Create gift ID array
-    std::vector<Json> giftIDsJson;
-    for (const auto &giftID : response.giftIDs) {
-        giftIDsJson.push_back(Json(giftID.toStdString()));
-    }
-
-    // Create gifts array
-    std::vector<Json> giftsJson;
-    for (const auto &gift : response.gifts) {
-        // Create regions array
-        std::vector<Json> regionsJson;
-        for (const auto &region : gift.regions) {
-            regionsJson.push_back(Json(region.toStdString()));
-        }
-
-        giftsJson.push_back(Json::object{
-            {"giftID", gift.giftID.toStdString()},
-            {"name", gift.name.toStdString()},
-            {"point", gift.point},
-            {"isHidden", gift.isHidden},
-            {"regionMode", gift.regionMode},
-            {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
-            {"vffURL", gift.vffURL.toStdString()},
-            {"vffMD5", gift.vffMD5.toStdString()},
-            {"vffJson", gift.vffJson.toStdString()},
-            {"regions", Json(regionsJson)},
-        });
-    }
-
-    // Create rewards array
-    std::vector<Json> rewardsJson;
-    for (const auto &reward : response.rewards) {
-        rewardsJson.push_back(reward);
-    }
-
-    json = Json::object{
-        {"eventID", response.eventID.toStdString()},
-        {"userID", response.userID.toStdString()},
-        {"status", response.status},
-        {"eventName", response.eventName.toStdString()},
-        {"description", response.description.toStdString()},
-        {"startTime", response.startTime},
-        {"endTime", response.endTime},
-        {"realEndTime", response.realEndTime},
-        {"isAchieved", response.isAchieved},
-        {"giftIDs", Json(giftIDsJson)},
-        {"gifts", Json(giftsJson)},
-        {"goalPoints", response.goalPoints},
-        {"dailyGoalPoints", response.dailyGoalPoints},
-        {"displayStatus", response.displayStatus.toStdString()},
-        {"rewards", Json(rewardsJson)},
-        {"currentGoalPoints", response.currentGoalPoints},
-        {"currentDailyGoalPoints", response.currentDailyGoalPoints},
-    };
 
     return true;
 }
