@@ -633,12 +633,10 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
     // Send event created signal
     emit eventCreated(eventResponse);
     
-    // Show success message
-    QMessageBox::information(this, obs_module_text("CustomEvent.Success"), 
-                           obs_module_text("CustomEvent.Success.Created"));
-    
-    // Close dialog
-    accept();
+    disconnect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleCreateEvent);
+    createButton->setText(obs_module_text("CustomEvent.Stop"));
+    createButton->setStyleSheet("QPushButton {background-color: #007AFF; color: white;}");
+    connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleStopEvent);
 }
 
 void OneSevenLiveCustomEventDialog::handleStopEvent() {
@@ -668,16 +666,16 @@ void OneSevenLiveCustomEventDialog::handleStopEvent() {
                                 obs_module_text("CustomEvent.Error.StopFailed"));
             return;
         }
+
+        customEventData->status = 2;
         
         // Send event update signal
         emit eventUpdated(*customEventData);
-        
-        // Show success message
-        QMessageBox::information(this, obs_module_text("CustomEvent.Success"), 
-                               obs_module_text("CustomEvent.Success.Stopped"));
-        
-        // Close dialog
-        accept();
+
+        disconnect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleStopEvent);
+        createButton->setText(obs_module_text("CustomEvent.Close"));
+        // Connect Close button signal
+        connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleCloseEvent);
     }
 }
 
