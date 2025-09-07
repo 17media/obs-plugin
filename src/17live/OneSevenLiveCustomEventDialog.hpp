@@ -51,8 +51,8 @@ private:
     void handleCloseEvent();
 
     void onDateChanged();
-    void onGiftSelected(int giftIndex);
-    void onGiftTabChanged(int tabIndex);
+    void onGiftSelected(QPushButton* giftButton, QString giftID);
+    // void onGiftTabChanged(int tabIndex);
     void loadGiftTabs();
     void setupGiftTabsUI();
     void populateGiftTab(const OneSevenLiveGiftTab& giftTab, int tabIndex);
@@ -90,9 +90,8 @@ private:
     QScrollArea* giftsScrollArea;
     QWidget* giftsContainer;
     QGridLayout* giftsLayout;
-    QList<QPushButton*> giftButtons;
-    QList<int> selectedGiftIndices; // 支持多选礼物
-    static const int MAX_SELECTED_GIFTS = 4; // 最多选择4个礼物
+    QList<QString> selectedGiftIndices; // Support multiple gift selection
+    static const int MAX_SELECTED_GIFTS = 4; // Maximum 4 gifts can be selected
     
     // Gift Tab Data
     OneSevenLiveGiftTabsResponse giftTabsData;

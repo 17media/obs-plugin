@@ -1,12 +1,15 @@
+// Include project header first to ensure proper dependency resolution
+#include "OneSevenLiveCustomEventDialog.hpp"
+
 // C++ Standard Library includes
 #include <type_traits>
 #include <mutex>
+#include <string>
+#include <vector>
 
 // System includes
 #include <sys/types.h>
 #include <stdio.h>
-
-#include "OneSevenLiveCustomEventDialog.hpp"
 
 // OBS includes
 #include <obs-module.h>
@@ -329,7 +332,7 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
         "    background-color: #505050;"
         "}");
     
-    connect(giftTabWidget, &QTabWidget::currentChanged, this, &OneSevenLiveCustomEventDialog::onGiftTabChanged);
+    // connect(giftTabWidget, &QTabWidget::currentChanged, this, &OneSevenLiveCustomEventDialog::onGiftTabChanged);
     
     // Load gift tabs data
     loadGiftTabs();
@@ -491,27 +494,27 @@ void OneSevenLiveCustomEventDialog::onDateChanged() {
     dateEdit->setDate(selectedDate);
 }
 
-void OneSevenLiveCustomEventDialog::onGiftSelected(int giftIndex) {
+void OneSevenLiveCustomEventDialog::onGiftSelected(QPushButton* giftButton, QString giftID) {
     // Check if the gift is already selected
-    int indexInSelected = selectedGiftIndices.indexOf(giftIndex);
+    int indexInSelected = selectedGiftIndices.indexOf(giftID);
     
     if (indexInSelected != -1) {
         // If already selected, deselect it
         selectedGiftIndices.removeAt(indexInSelected);
-        giftButtons[giftIndex]->setChecked(false);
+        giftButton->setChecked(false);
     } else {
         // If not selected, check if maximum selection count is reached
         if (selectedGiftIndices.size() >= MAX_SELECTED_GIFTS) {
             // Maximum selection count reached, show warning and cancel current operation
             QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
                                 QString(obs_module_text("CustomEvent.Error.MaxGifts")).arg(MAX_SELECTED_GIFTS));
-            giftButtons[giftIndex]->setChecked(false);
+            giftButton->setChecked(false);
             return;
         }
         
         // Add to selected list
-        selectedGiftIndices.append(giftIndex);
-        giftButtons[giftIndex]->setChecked(true);
+        selectedGiftIndices.append(giftID);
+        giftButton->setChecked(true);
     }
 }
 
@@ -561,13 +564,9 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
     eventRequest.goalPoints = totalTargetSpinBox->value();
     
     // Add selected gift IDs
-    for (int index : selectedGiftIndices) {
-        if (index >= 0 && index < giftButtons.size()) {
-            // Get gift ID
-            QString giftID = giftButtons[index]->property("giftID").toString();
-            if (!giftID.isEmpty()) {
-                eventRequest.giftIDs.append(giftID);
-            }
+    for (QString giftID : selectedGiftIndices) {
+        if (!giftID.isEmpty()) {
+            eventRequest.giftIDs.append(giftID);
         }
     }
 
@@ -740,10 +739,12 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
                         for (const auto& gift : filteredGifts) {
                             tab.gifts.append(gift);
                         }
+                        
                         filteredGiftTabs.append(tab);
                     }
                 }
             }
+            
             setupGiftTabsUI();
         } else {
             obs_log(LOG_ERROR, "Failed to parse gift tabs response");
@@ -797,8 +798,6 @@ void OneSevenLiveCustomEventDialog::setupGiftTabsUI() {
         giftsLayout->setSpacing(8);
         giftsLayout->setContentsMargins(8, 8, 8, 8);
         
-        populateGiftTab(giftTab, i);
-        
         scrollArea->setWidget(giftsContainer);
         tabLayout->addWidget(scrollArea);
         
@@ -808,6 +807,8 @@ void OneSevenLiveCustomEventDialog::setupGiftTabsUI() {
         tabWidget->setProperty("giftsLayout", QVariant::fromValue(static_cast<void*>(giftsLayout)));
         tabWidget->setProperty("giftsContainer", QVariant::fromValue(static_cast<void*>(giftsContainer)));
         tabWidget->setProperty("tabIndex", i);
+
+        populateGiftTab(giftTab, i);
     }
 }
 
@@ -828,9 +829,8 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
     }
     
     // Create gift buttons for this tab
-    int maxGiftsPerTab = 12; // Show up to 12 gifts per tab (3 rows x 4 columns)
-    int giftsToShow = qMin(giftTab.gifts.size(), maxGiftsPerTab);
-    
+    int giftsToShow = giftTab.gifts.size();
+
     for (int i = 0; i < giftsToShow; ++i) {
         const auto& gift = giftTab.gifts[i];
         
@@ -917,9 +917,11 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         giftWidget->setProperty("giftID", gift.giftID);
         giftWidget->setProperty("giftIndex", i);
         giftWidget->setProperty("tabIndex", tabIndex);
+
+        QString giftID = gift.giftID;
         
-        connect(giftButton, &QPushButton::clicked, this, [this, i, tabIndex]() {
-            onGiftSelected(i);
+        connect(giftButton, &QPushButton::clicked, this, [this, i, tabIndex, giftButton, giftID]() {
+            onGiftSelected(giftButton, giftID);
         });
     }
     
@@ -927,21 +929,5 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
     QScrollArea* scrollArea = tabWidget->findChild<QScrollArea*>();
     if (scrollArea) {
         scrollArea->setWidget(giftsContainer);
-    }
-}
-
-void OneSevenLiveCustomEventDialog::onGiftTabChanged(int tabIndex) {
-    // Handle tab change if needed
-    obs_log(LOG_INFO, "Gift tab changed to index: %d", tabIndex);
-    
-    // Uncheck all gift buttons in all tabs
-    for (int i = 0; i < giftTabWidget->count(); ++i) {
-        QWidget* tabWidget = giftTabWidget->widget(i);
-        if (tabWidget) {
-            QList<QPushButton*> buttons = tabWidget->findChildren<QPushButton*>();
-            for (QPushButton* button : buttons) {
-                button->setChecked(false);
-            }
-        }
     }
 }
