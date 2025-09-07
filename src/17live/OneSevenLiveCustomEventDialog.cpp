@@ -72,9 +72,16 @@ OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(QWidget* parent,
         // Set targets
         dailyTargetEdit->setText(QString::number(customEvent->dailyGoalPoints));
         totalTargetEdit->setText(QString::number(customEvent->goalPoints));
-        
-        // TODO: Handle gift selection based on customEvent->giftIDs
-        // This will be implemented after loading gift tabs
+
+        // if customEventData->eventID is not empty, then disable all input and button widgets
+        // but keep createButton enabled
+        if (!customEvent->eventID.isEmpty()) {
+            eventTitleEdit->setEnabled(false);
+            dateEdit->setEnabled(false);
+            dailyTargetEdit->setEnabled(false);
+            totalTargetEdit->setEnabled(false);
+            descriptionEdit->setEnabled(false);
+        }
     }
     
     // Ensure all widgets are properly initialized
@@ -84,106 +91,6 @@ OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(QWidget* parent,
 OneSevenLiveCustomEventDialog::~OneSevenLiveCustomEventDialog() = default;
 
 void OneSevenLiveCustomEventDialog::setupUi() {
-    // Set dialog background to black with modern styling
-    // setStyleSheet(
-    //     "QDialog {"
-    //     "    background-color: #1a1a1a;"
-    //     "    color: #ffffff;"
-    //     "    font-family: 'Inter', 'Microsoft YaHei', sans-serif;"
-    //     "    font-style: normal;"
-    //     "}"
-        // "QLabel {"
-        // "    color: #ffffff;"
-        // "    font-size: 14px;"
-        // "    font-weight: 400;"
-        // "    margin: 5px 0;"
-        // "}"
-        // "QLineEdit, QTextEdit, QSpinBox, QDateEdit {"
-        // "    background-color: #2d2d2d;"
-        // "    border: 1px solid #404040;"
-        // "    border-radius: 2px;"
-        // "    padding: 8px 12px;"
-        // "    color: #ffffff;"
-        // "    font-size: 14px;"
-        // "    min-height: 20px;"
-        // "}"
-        // "QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDateEdit:focus {"
-        // "    border-color: #007acc;"
-        // "    outline: none;"
-        // "}"
-        // "QPushButton {"
-        // "    background-color: #2d2d2d;"
-        // "    border: 1px solid #404040;"
-        // "    border-radius: 2px;"
-        // "    padding: 8px 16px;"
-        // "    color: #ffffff;"
-        // "    font-size: 14px;"
-        // "    font-weight: 500;"
-        // "    min-height: 20px;"
-        // "}"
-        // "QPushButton:hover {"
-        // "    background-color: #3d3d3d;"
-        // "    border-color: #505050;"
-        // "}"
-        // "QPushButton:pressed {"
-        // "    background-color: #1d1d1d;"
-        // "}"
-        // "QPushButton#createButton {"
-        // "    background-color: #ff4757;"
-        // "    border-color: #ff4757;"
-        // "    color: #ffffff;"
-        // "    font-weight: 600;"
-        // "}"
-        // "QPushButton#createButton:hover {"
-        // "    background-color: #ff3742;"
-        // "}"
-        // "QPushButton#createButton:pressed {"
-        // "    background-color: #e63946;"
-        // "}"
-        // "QCalendarWidget {"
-        // "    background-color: #2d2d2d;"
-        // "    border: 1px solid #404040;"
-        // "    border-radius: 6px;"
-        // "    color: #ffffff;"
-        // "}"
-        // "QCalendarWidget QToolButton {"
-        // "    background-color: transparent;"
-        // "    border: none;"
-        // "    color: #ffffff;"
-        // "    font-size: 12px;"
-        // "    padding: 4px;"
-        // "}"
-        // "QCalendarWidget QToolButton:hover {"
-        // "    background-color: #3d3d3d;"
-        // "    border-radius: 4px;"
-        // "}"
-        // "QCalendarWidget QAbstractItemView {"
-        // "    background-color: #2d2d2d;"
-        // "    selection-background-color: #007acc;"
-        // "    color: #ffffff;"
-        // "}"
-        // "QScrollArea {"
-        // "    border: none;"
-        // "    background-color: #1a1a1a;"
-        // "}"
-        // "QScrollBar:vertical {"
-        // "    background-color: #2d2d2d;"
-        // "    width: 12px;"
-        // "    border-radius: 6px;"
-        // "}"
-        // "QScrollBar::handle:vertical {"
-        // "    background-color: #555555;"
-        // "    border-radius: 6px;"
-        // "    min-height: 20px;"
-        // "}"
-        // "QScrollBar::handle:vertical:hover {"
-        // "    background-color: #666666;"
-        // "}"
-        // "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
-        // "    border: none;"
-        // "    background: none;"
-        // "}");
-
     // Create main dialog layout
     QVBoxLayout* dialogLayout = new QVBoxLayout(this);
     dialogLayout->setSpacing(0);
@@ -218,9 +125,6 @@ void OneSevenLiveCustomEventDialog::setupUi() {
     setupEventTargetsSection();
     setupEventDescriptionSection();
     
-    // Add stretch to push content to top
-    // contentLayout->addStretch();
-
     setupBottomButtons(contentLayout);
     
     // Set content widget to scroll area
@@ -228,9 +132,6 @@ void OneSevenLiveCustomEventDialog::setupUi() {
     
     // Add scroll area to dialog layout
     dialogLayout->addWidget(scrollArea);
-    
-    // Setup bottom buttons directly with dialog layout
-    // setupBottomButtons(dialogLayout);
 }
 
 void OneSevenLiveCustomEventDialog::setupEventTitleSection() {
@@ -637,6 +538,23 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
     createButton->setText(obs_module_text("CustomEvent.Stop"));
     createButton->setStyleSheet("QPushButton {background-color: #007AFF; color: white;}");
     connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleStopEvent);
+
+    
+    eventTitleEdit->setEnabled(false);
+    dateEdit->setEnabled(false);
+    dailyTargetEdit->setEnabled(false);
+    totalTargetEdit->setEnabled(false);
+    descriptionEdit->setEnabled(false);
+    // set buttons in giftTabWidget to disabled
+    for (int i = 0; i < giftTabWidget->count(); i++) {
+        QWidget* tab = giftTabWidget->widget(i);
+        if (tab) {
+            QPushButton* giftButton = tab->findChild<QPushButton*>();
+            if (giftButton) {
+                giftButton->setEnabled(false);
+            }
+        }
+    }
 }
 
 void OneSevenLiveCustomEventDialog::handleStopEvent() {
@@ -746,6 +664,7 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
         if (JsonToOneSevenLiveGiftTabsResponse(giftTabsJson, giftTabsData)) {
             // Filter tabs based on allowed categories
             filteredGiftTabs.clear();
+            selectedGifts.clear();
             for (auto& tab : giftTabsData.tabs) {
                 // 确保使用QString类型进行比较，避免QString和std::string的比较
                 if (allowedGiftCategories.contains(tab.id)) {
@@ -796,6 +715,9 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
                         
                         if (shouldShow) {
                             filteredGifts.append(gift);
+                            if (customEventData && customEventData->giftIDs.size() > 0 && customEventData->giftIDs.contains(gift.giftID)) {
+                                selectedGifts.append(gift);
+                            }
                         }
                     }
                     if (filteredGifts.size() > 0) {
@@ -818,6 +740,14 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
         obs_log(LOG_ERROR, "Failed to load gift tabs from API");
         setupGiftTabsUI(); // Setup with placeholder data
     }
+
+    // get selected gifts' name
+    QList<QString> selectedGiftsName;
+    for (auto selectedGift : selectedGifts) {
+        selectedGiftsName.append(selectedGift.name);
+    }
+
+    selectedGiftsEdit->setText(selectedGiftsName.join(" / "));
 }
 
 void OneSevenLiveCustomEventDialog::setupGiftTabsUI() {
@@ -884,6 +814,11 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
     QWidget* giftsContainer = static_cast<QWidget*>(tabWidget->property("giftsContainer").value<void*>());
     
     if (!giftsLayout || !giftsContainer) return;
+
+    QList<QString> selectedGiftIds;
+    for (const auto &gift : selectedGifts) {
+        selectedGiftIds.append(gift.giftID);
+    }
     
     // Clear existing gift buttons for this tab
     QLayoutItem* item;
@@ -901,16 +836,6 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         // Create a container widget to hold image and text
         QWidget* giftWidget = new QWidget();
         giftWidget->setFixedSize(80, 140);
-        // giftWidget->setStyleSheet(
-        //     "QWidget {"
-        //     "    background-color: #404040;"
-        //     "    border: 2px solid #555555;"
-        //     "    border-radius: 8px;"
-        //     "}"
-        //     "QWidget:hover {"
-        //     "    background-color: #505050;"
-        //     "    border-color: #666666;"
-        //     "}");
         
         // Create vertical layout
         QVBoxLayout* layout = new QVBoxLayout(giftWidget);
@@ -957,13 +882,19 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         // Create name label
         QLabel* nameLabel = new QLabel(gift.name);
         nameLabel->setAlignment(Qt::AlignCenter);
-        nameLabel->setStyleSheet("color: white; font-size: 14px;");
+        nameLabel->setStyleSheet(
+            "color: white; font-size: 14px;"
+            "qproperty-wordWrap: true; "
+            "word-break: break-all;" 
+        );
+        nameLabel->setMaximumWidth(80);
         nameLabel->setWordWrap(true);
         
         // Create price label
         QLabel* pointLabel = new QLabel(QString::number(gift.point));
         pointLabel->setAlignment(Qt::AlignCenter);
         pointLabel->setStyleSheet("color: white; font-size: 14px;");
+        pointLabel->setMaximumWidth(80);
         pointLabel->setWordWrap(true);
         
         // Add to layout
@@ -971,11 +902,6 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         layout->addWidget(nameLabel);
         layout->addWidget(pointLabel);
         layout->addStretch();
-        
-        // Set layout stretch factors
-        // layout->setStretch(0, 5); // Image
-        // layout->setStretch(1, 2); // Name
-        // layout->setStretch(2, 1); // Point
         
         // Create a transparent button covering the entire widget to handle click events
         QPushButton* giftButton = new QPushButton(giftWidget);
@@ -1005,6 +931,14 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         giftWidget->setProperty("giftID", gift.giftID);
         giftWidget->setProperty("giftIndex", i);
         giftWidget->setProperty("tabIndex", tabIndex);
+
+        if (selectedGiftIds.contains(gift.giftID)) {
+            giftButton->setChecked(true);
+        }
+
+        if (customEventData && !customEventData->eventID.isEmpty()) {
+            giftButton->setEnabled(false);
+        }
 
         QString giftID = gift.giftID;
         QString giftName = gift.name;

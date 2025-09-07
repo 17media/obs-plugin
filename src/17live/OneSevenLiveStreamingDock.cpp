@@ -180,7 +180,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     customEventHeaderLayout = new QHBoxLayout(customEventHeader);
     customEventHeaderLayout->setContentsMargins(0, 10, 0, 10);
 
-    customEventLabel = new QLabel("自定活动（选填）");
+    customEventLabel = new QLabel(obs_module_text("CustomEvent.Dialog.Title"));
     customEventToggleButton = new QPushButton();
     customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
     customEventToggleButton->setStyleSheet(
@@ -192,10 +192,6 @@ void OneSevenLiveStreamingDock::setupUi() {
     customEventHeaderLayout->addWidget(customEventToggleButton);
 
     mainLayout->addWidget(customEventHeader);
-
-    // Initialize custom event dialog
-    customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
-    customEventDialogVisible = false;
 
     // Broadcast mode
     QVBoxLayout *broadcastModeLayout = new QVBoxLayout();
@@ -480,12 +476,10 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
 
         bool levelsSuccess = apiWrapper->GetArmySubscriptionLevels(region, language, levels);
 
-        bool customEventSuccess = apiWrapper->GetCustomEvent(userID, customEvent);
-
         // Use Qt::QueuedConnection to ensure UI updates in main thread
         QMetaObject::invokeMethod(
             this,
-            [this, roomInfoSuccess, configStreamerSuccess, userInfoSuccess, levelsSuccess, customEventSuccess]() {
+            [this, roomInfoSuccess, configStreamerSuccess, userInfoSuccess, levelsSuccess]() {
                 // Hide loading state
                 isLoading = false;
                 loadingOverlay->setVisible(false);
@@ -517,10 +511,6 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
 
                 if (!levelsSuccess) {
                     obs_log(LOG_WARNING, "Failed to get army subscription levels in loadRoomInfo");
-                }
-
-                if (!customEventSuccess) {
-                    obs_log(LOG_WARNING, "Failed to get custom event in loadRoomInfo");
                 }
             },
             Qt::QueuedConnection);
@@ -783,36 +773,27 @@ void OneSevenLiveStreamingDock::onArmyOnlyCheckChanged(int state) {
 }
 
 void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
-    customEventDialogVisible = !customEventDialogVisible;
-    
-    if (customEventDialogVisible) {
-        // Show dialog and update button icon to arrow-up
-        customEventToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
+    if (customEventDialog) {
+        // Hide dialog and update button icon to arrow-down
+        customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
         
-        // Close existing dialog if any
-        if (customEventDialog) {
-            customEventDialog->close();
-            delete customEventDialog;
-            customEventDialog = nullptr;
+        customEventDialog->close();
+        delete customEventDialog;
+        customEventDialog = nullptr;
+    } else {
+        std::string userID;
+        configManager->getConfigValue("UserID", userID);
+
+        if (!apiWrapper->GetCustomEvent(userID, customEvent)) {
+            obs_log(LOG_ERROR, "Failed to get custom event");
         }
         
-        // Create a new dialog with the current customEvent
         customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager, &customEvent);
         
         // Show the dialog
         customEventDialog->show();
         customEventDialog->raise();
         customEventDialog->activateWindow();
-    } else {
-        // Hide dialog and update button icon to arrow-down
-        customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
-        
-        // Close dialog if it exists
-        if (customEventDialog) {
-            customEventDialog->close();
-            delete customEventDialog;
-            customEventDialog = nullptr;
-        }
     }
 }
 

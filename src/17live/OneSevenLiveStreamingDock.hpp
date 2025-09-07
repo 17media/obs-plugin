@@ -80,7 +80,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QHBoxLayout *customEventHeaderLayout;
     QLabel *customEventLabel;
     QPushButton *customEventToggleButton;
-    OneSevenLiveCustomEventDialog *customEventDialog;
+    OneSevenLiveCustomEventDialog *customEventDialog = nullptr;
     bool customEventDialogVisible;
 
     // Party Live
