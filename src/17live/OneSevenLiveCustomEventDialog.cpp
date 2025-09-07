@@ -1,8 +1,18 @@
+// C++ Standard Library includes
+#include <type_traits>
+#include <mutex>
+
+// System includes
+#include <sys/types.h>
+#include <stdio.h>
+
 #include "OneSevenLiveCustomEventDialog.hpp"
 
+// OBS includes
 #include <obs-module.h>
 #include <plugin-support.h>
 
+// Qt includes
 #include <QApplication>
 #include <QDate>
 #include <QDateTime>
@@ -20,15 +30,16 @@
 #include <QLabel>
 #include <QGridLayout>
 
+// Project includes
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "OneSevenLiveConfigManager.hpp"
-#include "api/OneSevenLiveModels.hpp"
+
 #include "moc_OneSevenLiveCustomEventDialog.cpp"
 
 OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(QWidget* parent,
                                                            OneSevenLiveApiWrappers* apiWrapper_,
                                                            OneSevenLiveConfigManager* configManager_,
-                                                           const OneSevenLiveCustomEvent* customEvent)
+                                                           OneSevenLiveCustomEvent* customEvent)
     : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_), customEventData(customEvent) {
     setupUi();
     setWindowTitle(obs_module_text("CustomEvent.Dialog.Title"));
@@ -541,13 +552,13 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
     }
     
     // Create event data
-    OneSevenLiveCustomEvent eventData;
-    eventData.title = eventTitleEdit->text().trimmed();
-    eventData.endTime = QDateTime(dateEdit->date(), QTime(23, 59, 59)).toSecsSinceEpoch();
-    eventData.status = 1; // Event status - Active
-    eventData.description = descriptionEdit->toPlainText().trimmed();
-    eventData.dailyTarget = dailyTargetSpinBox->value();
-    eventData.totalTarget = totalTargetSpinBox->value();
+    OneSevenLiveCustomEvent eventRequest;
+    eventRequest.eventName = eventTitleEdit->text().trimmed();
+    eventRequest.endTime = QDateTime(dateEdit->date(), QTime(23, 59, 59)).toSecsSinceEpoch();
+    eventRequest.status = 1; // Event status - Active
+    eventRequest.description = descriptionEdit->toPlainText().trimmed();
+    eventRequest.dailyGoalPoints = dailyTargetSpinBox->value();
+    eventRequest.goalPoints = totalTargetSpinBox->value();
     
     // Add selected gift IDs
     for (int index : selectedGiftIndices) {
@@ -555,19 +566,23 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
             // Get gift ID
             QString giftID = giftButtons[index]->property("giftID").toString();
             if (!giftID.isEmpty()) {
-                eventData.giftIDs.append(giftID);
+                eventRequest.giftIDs.append(giftID);
             }
         }
     }
 
-    if (!apiWrapper->CreateCustomEvent(eventData, customEventData)) {
-        QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
+    OneSevenLiveCustomEvent eventResponse;
+
+    if (!apiWrapper->CreateCustomEvent(eventRequest, eventResponse)) {
+        QMessageBox::warning(this, obs_module_text("CustomEvent.Error"),
                             obs_module_text("CustomEvent.Error.CreateFailed"));
         return;
     }
+
+    customEventData = &eventResponse;
     
     // Send event created signal
-    emit eventCreated(eventData);
+    emit eventCreated(eventResponse);
     
     // Show success message
     QMessageBox::information(this, obs_module_text("CustomEvent.Success"), 
@@ -588,7 +603,7 @@ void OneSevenLiveCustomEventDialog::handleStopEvent() {
         request.status = 2;
         request.userID = customEventData->userID;
 
-        if (!apiWrapper->ChangeCustomEventStatus(eventData.eventID, request)) {
+        if (!apiWrapper->ChangeCustomEventStatus(customEventData->eventID.toStdString(), request)) {
             obs_log(LOG_ERROR, "Failed to change custom event status");
             QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
                                 obs_module_text("CustomEvent.Error.StopFailed"));
@@ -596,7 +611,7 @@ void OneSevenLiveCustomEventDialog::handleStopEvent() {
         }
         
         // Send event update signal
-        emit eventUpdated(eventData);
+        emit eventUpdated(*customEventData);
         
         // Show success message
         QMessageBox::information(this, obs_module_text("CustomEvent.Success"), 
@@ -617,7 +632,7 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
         request.status = 3;
         request.userID = customEventData->userID;
 
-        if (!apiWrapper->ChangeCustomEventStatus(eventData.eventID, request)) {
+        if (!apiWrapper->ChangeCustomEventStatus(customEventData->eventID.toStdString(), request)) {
             obs_log(LOG_ERROR, "Failed to change custom event status");
             QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
                                 obs_module_text("CustomEvent.Error.CloseFailed"));
@@ -625,7 +640,7 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
         }
         
         // Send event update signal
-        emit eventUpdated(eventData);
+        emit eventUpdated(*customEventData);
     }
 
     // Directly close the dialog
@@ -657,15 +672,19 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
     
     Json giftTabsJson;
     if (apiWrapper->GetGiftTabs(liveStreamID, region, giftTabsJson)) {
+        
         Json giftsJson;
         OneSevenLiveGiftsResponse giftsResponse;
-        JsonToOneSevenLiveGiftsResponse(giftTabsJson, giftsResponse);
+        configManager->loadGifts(giftsJson);
+
+        JsonToOneSevenLiveGiftsResponse(giftsJson, giftsResponse);
         QList<OneSevenLiveGift> gifts = giftsResponse.gifts;
 
         if (JsonToOneSevenLiveGiftTabsResponse(giftTabsJson, giftTabsData)) {
             // Filter tabs based on allowed categories
             filteredGiftTabs.clear();
-            for (const auto& tab : giftTabsData.tabs) {
+            for (auto& tab : giftTabsData.tabs) {
+                // 确保使用QString类型进行比较，避免QString和std::string的比较
                 if (allowedGiftCategories.contains(tab.id)) {
                     // Filter gifts based on rules
                     QList<OneSevenLiveGift> filteredGifts;
@@ -673,7 +692,8 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
                         // Find gift data from gifts by gift.id
                         OneSevenLiveGift gift;
                         for (const auto& giftItem : gifts) {
-                            if (giftItem.id == tabGift.id) {
+                            // 确保使用QString类型进行比较，避免QString和std::string的比较
+                            if (giftItem.giftID == tabGift.giftID) {
                                 gift = giftItem;
                                 break;
                             }
@@ -697,11 +717,13 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
                                 break;
                             case 2:
                                 // regionMode = 2: Show if streamer region is in gift regions
-                                shouldShow = gift.regions.contains(region);
+                                // 将std::string转换为QString，避免类型不匹配
+                                shouldShow = gift.regions.contains(QString::fromStdString(region));
                                 break;
                             case 3:
                                 // regionMode = 3: Don't show if streamer region is in gift regions
-                                shouldShow = !gift.regions.contains(region);
+                                // 将std::string转换为QString，避免类型不匹配
+                                shouldShow = !gift.regions.contains(QString::fromStdString(region));
                                 break;
                             default:
                                 // Default behavior for unknown regionMode
@@ -714,7 +736,10 @@ void OneSevenLiveCustomEventDialog::loadGiftTabs() {
                         }
                     }
                     if (filteredGifts.size() > 0) {
-                        tab.gifts = filteredGifts;
+                        tab.gifts.clear();
+                        for (const auto& gift : filteredGifts) {
+                            tab.gifts.append(gift);
+                        }
                         filteredGiftTabs.append(tab);
                     }
                 }
@@ -879,7 +904,7 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             "}");
         
         giftButton->setCheckable(true);
-        giftButton->setToolTip(gift.description);
+        giftButton->setToolTip(gift.name);
         
         int row = i / GIFT_GRID_COLUMNS;
         int col = i % GIFT_GRID_COLUMNS;
@@ -908,9 +933,6 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
 void OneSevenLiveCustomEventDialog::onGiftTabChanged(int tabIndex) {
     // Handle tab change if needed
     obs_log(LOG_INFO, "Gift tab changed to index: %d", tabIndex);
-    
-    // Clear previous selection when switching tabs
-    selectedGiftIndex = -1;
     
     // Uncheck all gift buttons in all tabs
     for (int i = 0; i < giftTabWidget->count(); ++i) {

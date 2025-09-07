@@ -1,5 +1,10 @@
 #pragma once
 
+// C++ Standard Library includes
+#include <type_traits>
+#include <mutex>
+
+// Qt includes
 #include <QDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -17,9 +22,8 @@
 #include <QComboBox>
 #include <QTabWidget>
 
-struct OneSevenLiveCustomEvent;
-struct OneSevenLiveGiftTab;
-struct OneSevenLiveGiftTabsResponse;
+#include "api/OneSevenLiveModels.hpp"
+
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
 
@@ -30,7 +34,7 @@ public:
     explicit OneSevenLiveCustomEventDialog(QWidget* parent = nullptr,
                                           OneSevenLiveApiWrappers* apiWrapper_ = nullptr,
                                           OneSevenLiveConfigManager* configManager_ = nullptr,
-                                          const OneSevenLiveCustomEvent* customEvent = nullptr);
+                                          OneSevenLiveCustomEvent* customEvent = nullptr);
     ~OneSevenLiveCustomEventDialog();
 
 private:
@@ -116,9 +120,10 @@ private:
     OneSevenLiveConfigManager* configManager;
     
     // Custom event data
-    const OneSevenLiveCustomEvent* customEventData;
+    OneSevenLiveCustomEvent* customEventData;
     
     // Constants
+    static const int MAX_TITLE_LENGTH = 20;
     static const int MAX_DESCRIPTION_LENGTH = 200;
     static constexpr int GIFT_GRID_ROWS = 3;
     static constexpr int GIFT_GRID_COLUMNS = 4;

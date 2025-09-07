@@ -790,7 +790,7 @@ void OneSevenLiveCoreManager::loadGifts() {
             std::string language;
             configManager->getConfigValue("Region", language);
             
-            std::string apiResult;
+            Json apiResult;
             bool success = apiWrapper->GetGifts(language, apiResult);
             
             if (success) {
