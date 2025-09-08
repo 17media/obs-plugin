@@ -8,12 +8,15 @@
 
 #include "utility/RemoteTextThread.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
+#include "OneSevenLiveConfigManager.hpp"
 #include "plugin-support.h"
 
 OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent, 
-                                           OneSevenLiveApiWrappers* apiWrapper_)
+                                           OneSevenLiveApiWrappers* apiWrapper_,
+                                           OneSevenLiveConfigManager* configManager_)
     : QDialog(parent),
-      apiWrapper(apiWrapper_) {
+      apiWrapper(apiWrapper_),
+      configManager(configManager_) {
     setWindowTitle(obs_module_text("Live.UserInfo"));
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     setMinimumSize(300, 400);
@@ -127,14 +130,14 @@ void OneSevenLiveUserDialog::setUserInfo(const OneSevenLiveRockZoneViewer& user)
     viewer = user;
 
     // Update UI
-    usernameLabel->setText(viewer.armyInfo.user.displayName);
-    userIdLabel->setText(QString(obs_module_text("Live.UserInfo.ID")).arg(viewer.armyInfo.user.openID));
+    usernameLabel->setText(viewer.displayUser.displayName);
+//    userIdLabel->setText(QString(obs_module_text("Live.UserInfo.ID")).arg(viewer.displayUser.openID));
     updateUserAvatar();
 }
 
 void OneSevenLiveUserDialog::updateUserAvatar() {
 
-    QString url = "https://cdn.17app.co/" + viewer.armyInfo.user.picture;
+    QString url = "https://cdn.17app.co/" + viewer.displayUser.picture;
     RemoteTextThread *thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
         
     QPointer<QLabel> safeAvatarLabel = avatarLabel;
@@ -169,11 +172,14 @@ void OneSevenLiveUserDialog::onPokeUserClicked() {
     if (!apiWrapper) {
         return;
     }
+    std::string roomID;
+    configManager->getConfigValue("RoomID", roomID);
 
     // Create poke request
     OneSevenLivePokeRequest request;
     OneSevenLivePokeResponse response;
-    request.userID = viewer.armyInfo.user.userID;
+    request.userID = viewer.displayUser.userID;
+    request.srcID = QString::fromStdString(roomID);
     request.isPokeBack = false;
 
     // Send request

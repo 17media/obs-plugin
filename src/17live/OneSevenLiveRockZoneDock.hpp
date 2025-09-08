@@ -31,7 +31,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     void viewAllFriendsClicked();
 
    private slots:
-    void onViewAllFriendsClicked();
+    void onPokeAllClicked();
     void handleTopLevelChanged(bool topLevel);
     void onUserItemClicked(QListWidgetItem* item);
 
@@ -44,7 +44,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     QListWidget* userList;
     QLabel* titleLabel;
     QLabel* userCountLabel;
-    QPushButton* viewAllFriendsButton;
+    QPushButton* pokeAllButton;
     QWidget* emptyContainer = nullptr;
 
     OneSevenLiveApiWrappers* apiWrapper = nullptr;

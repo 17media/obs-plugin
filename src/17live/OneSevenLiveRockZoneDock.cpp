@@ -113,8 +113,8 @@ void OneSevenLiveRockZoneDock::setupUi() {
     mainLayout->addWidget(userList);
 
     // Create bottom button
-    viewAllFriendsButton = new QPushButton(obs_module_text("Live.RockZone.ViewAllFriends"));
-    viewAllFriendsButton->setStyleSheet(
+    pokeAllButton = new QPushButton(obs_module_text("Live.RockZone.ViewAllFriends"));
+    pokeAllButton->setStyleSheet(
         "QPushButton {"
         "    background-color: #FF0001;"
         "    color: white;"
@@ -124,8 +124,8 @@ void OneSevenLiveRockZoneDock::setupUi() {
         "   font-size: 16px;"
         "   line-height: 24px;"
         "}");
-    viewAllFriendsButton->setFixedWidth(250);
-    mainLayout->addWidget(viewAllFriendsButton, 0, Qt::AlignHCenter);
+    pokeAllButton->setFixedWidth(250);
+    mainLayout->addWidget(pokeAllButton, 0, Qt::AlignHCenter);
 
     // Create loading status UI
     loadingOverlay = new QWidget(container);
@@ -170,8 +170,8 @@ void OneSevenLiveRockZoneDock::setupUi() {
 }
 
 void OneSevenLiveRockZoneDock::createConnections() {
-    connect(viewAllFriendsButton, &QPushButton::clicked, this,
-            &OneSevenLiveRockZoneDock::onViewAllFriendsClicked);
+    connect(pokeAllButton, &QPushButton::clicked, this,
+            &OneSevenLiveRockZoneDock::onPokeAllClicked);
     
     // Connect user list item click signal
     connect(userList, &QListWidget::itemClicked, this,
@@ -194,7 +194,7 @@ void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const OneSe
         "    border-radius: 20px;"
         "}");
     
-    QString url = "https://cdn.17app.co/" + user.armyInfo.user.picture;
+    QString url = "https://cdn.17app.co/" + user.displayUser.picture;
     RemoteTextThread *thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
 
     QPointer<QLabel> safeAvatarLabel = avatarLabel;
@@ -232,7 +232,7 @@ void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const OneSe
     userInfoLayout->setContentsMargins(0, 0, 0, 0);
     userInfoLayout->setSpacing(2);
 
-    QLabel* usernameLabel = new QLabel(user.armyInfo.user.displayName);
+    QLabel* usernameLabel = new QLabel(user.displayUser.displayName);
     usernameLabel->setStyleSheet(
         "QLabel {"
         "    color: white;"
@@ -383,18 +383,17 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     std::string userID;
                     configManager->getConfigValue("UserID", userID);
 
-                    // Fetch viewersList from users based on following rules:
-                    // 1. Don't show the streamer themselves, based on user ID, if it matches the current OBS login user
-                    // 2. Don't show viewers who haven't sent points, filter by userAttr.sentPoint > 0
-                    // 3. Because user data may be duplicated, need to merge, duplication occurs because the same user may have multiple badges (labels)
                     QList<QString> userIDs;
                     for (auto &user : users) {
-                        if (user.armyInfo.user.userID == QString::fromStdString(userID)) {
+                        if (user.displayUser.userID.isEmpty()) {
                             continue;
                         }
-                        if (user.userAttr.sentPoint > 0 && !userIDs.contains(user.armyInfo.user.userID)) {
+                        if (user.displayUser.userID == QString::fromStdString(userID)) {
+                            continue;
+                        }
+                        if (user.userAttr.sentPoint > 0 && !userIDs.contains(user.displayUser.userID)) {
                             viewersList.push_back(user);
-                            userIDs.push_back(user.armyInfo.user.userID);
+                            userIDs.push_back(user.displayUser.userID);
                         }
                     }
                     
@@ -438,9 +437,31 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
     thread->start();
 }
 
-void OneSevenLiveRockZoneDock::onViewAllFriendsClicked() {
-    // Emit signal to view all friends
-    emit viewAllFriendsClicked();
+void OneSevenLiveRockZoneDock::onPokeAllClicked() {
+    if (!apiWrapper) {
+        return;
+    }
+    std::string roomID;
+    configManager->getConfigValue("RoomID", roomID);
+
+    // Create poke request
+    OneSevenLivePokeAllRequest request;
+    OneSevenLivePokeResponse response;
+    request.liveStreamID = QString::fromStdString(roomID);
+    request.receiverGroup = 2;
+
+    // Send request
+    bool success = apiWrapper->PokeAll(request, response);
+
+    if (success) {
+        QMessageBox::information(this, 
+                               obs_module_text("Live.PokeSuccess"), 
+                               obs_module_text("Live.PokeSuccessMessage"));
+    } else {
+        QMessageBox::warning(this, 
+                           obs_module_text("Live.PokeError"), 
+                           obs_module_text("Live.PokeErrorMessage"));
+    }
 }
 
 void OneSevenLiveRockZoneDock::handleTopLevelChanged(bool topLevel) {
@@ -471,7 +492,7 @@ void OneSevenLiveRockZoneDock::onUserItemClicked(QListWidgetItem* item) {
     
     // Create user information dialog (if it doesn't exist)
     if (!userDialog) {
-        userDialog = new OneSevenLiveUserDialog(this, apiWrapper);
+        userDialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
     }
     
     // Set user information and display dialog

@@ -819,6 +819,8 @@ bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &js
         return false;
     }
 
+    obs_log(LOG_INFO, "GetRockViewers response: %s", json_out_resp.dump().c_str());
+
     obs_log(LOG_INFO, "GetRockViewers success");
     return true;
 }

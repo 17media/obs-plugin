@@ -11,6 +11,7 @@
 
 // Forward declarations
 class OneSevenLiveApiWrappers;
+class OneSevenLiveConfigManager;
 
 // User information dialog class
 class OneSevenLiveUserDialog : public QDialog {
@@ -18,7 +19,8 @@ class OneSevenLiveUserDialog : public QDialog {
 
 public:
     OneSevenLiveUserDialog(QWidget* parent = nullptr, 
-                          OneSevenLiveApiWrappers* apiWrapper = nullptr);
+                          OneSevenLiveApiWrappers* apiWrapper = nullptr,
+                          OneSevenLiveConfigManager* configManager = nullptr);
     ~OneSevenLiveUserDialog();
 
     // Set user information and display dialog
@@ -44,4 +46,5 @@ private:
 
     // API wrapper
     OneSevenLiveApiWrappers* apiWrapper;
+    OneSevenLiveConfigManager* configManager = nullptr;
 };

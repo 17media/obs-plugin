@@ -564,6 +564,156 @@ bool OneSevenLiveAnonymousInfoToJson(const OneSevenLiveAnonymousInfo &anonymousI
     return true;
 }
 
+// Convert JSON to OneSevenLiveDisplayUser
+bool JsonToOneSevenLiveDisplayUser(const Json &json, OneSevenLiveDisplayUser &displayUser) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    if (json["armyRank"].is_number()) {
+        displayUser.armyRank = json["armyRank"].int_value();
+    }
+
+    if (json["badgeURL"].is_string()) {
+        displayUser.badgeURL = QString::fromStdString(json["badgeURL"].string_value());
+    }
+
+    if (json["bgColor"].is_string()) {
+        displayUser.bgColor = QString::fromStdString(json["bgColor"].string_value());
+    }
+
+    if (json["checkinBdgURL"].is_string()) {
+        displayUser.checkinBdgURL = QString::fromStdString(json["checkinBdgURL"].string_value());
+    }
+
+    if (json["checkinLevel"].is_number()) {
+        displayUser.checkinLevel = json["checkinLevel"].int_value();
+    }
+
+    if (json["circleBadgeURL"].is_string()) {
+        displayUser.circleBadgeURL = QString::fromStdString(json["circleBadgeURL"].string_value());
+    }
+
+    if (json["displayName"].is_string()) {
+        displayUser.displayName = QString::fromStdString(json["displayName"].string_value());
+    }
+
+    if (json["fgColor"].is_string()) {
+        displayUser.fgColor = QString::fromStdString(json["fgColor"].string_value());
+    }
+
+    if (json["gloryroadInfo"].is_object()) {
+        JsonToOneSevenLiveGloryroadInfo(json["gloryroadInfo"], displayUser.gloryroadInfo);
+    }
+
+    if (json["gloryroadMode"].is_number()) {
+        displayUser.gloryroadMode = json["gloryroadMode"].int_value();
+    }
+
+    if (json["hasProgram"].is_bool()) {
+        displayUser.hasProgram = json["hasProgram"].bool_value();
+    }
+
+    if (json["isDirty"].is_bool()) {
+        displayUser.isDirty = json["isDirty"].bool_value();
+    }
+
+    if (json["isDirtyUser"].is_bool()) {
+        displayUser.isDirtyUser = json["isDirtyUser"].bool_value();
+    }
+
+    if (json["isGuardian"].is_bool()) {
+        displayUser.isGuardian = json["isGuardian"].bool_value();
+    }
+
+    if (json["isProducer"].is_bool()) {
+        displayUser.isProducer = json["isProducer"].bool_value();
+    }
+
+    if (json["isStreamer"].is_bool()) {
+        displayUser.isStreamer = json["isStreamer"].bool_value();
+    }
+
+    if (json["isVIP"].is_bool()) {
+        displayUser.isVIP = json["isVIP"].bool_value();
+    }
+
+    if (json["level"].is_number()) {
+        displayUser.level = json["level"].int_value();
+    }
+
+    if (json["mLevel"].is_number()) {
+        displayUser.mLevel = json["mLevel"].int_value();
+    }
+
+    if (json["pfxBadgeURL"].is_string()) {
+        displayUser.pfxBadgeURL = QString::fromStdString(json["pfxBadgeURL"].string_value());
+    }
+
+    if (json["picture"].is_string()) {
+        displayUser.picture = QString::fromStdString(json["picture"].string_value());
+    }
+
+    if (json["producer"].is_number()) {
+        displayUser.producer = json["producer"].int_value();
+    }
+
+    if (json["program"].is_number()) {
+        displayUser.program = json["program"].int_value();
+    }
+
+    if (json["topRightIconURL"].is_string()) {
+        displayUser.topRightIconURL = QString::fromStdString(json["topRightIconURL"].string_value());
+    }
+
+    if (json["userID"].is_string()) {
+        displayUser.userID = QString::fromStdString(json["userID"].string_value());
+    }
+
+    if (json["vipCharmURL"].is_string()) {
+        displayUser.vipCharmURL = QString::fromStdString(json["vipCharmURL"].string_value());
+    }
+
+    return true;
+}
+
+// Convert OneSevenLiveDisplayUser to JSON
+bool OneSevenLiveDisplayUserToJson(const OneSevenLiveDisplayUser &displayUser, Json &json) {
+    Json gloryroadInfoJson;
+    OneSevenLiveGloryroadInfoToJson(displayUser.gloryroadInfo, gloryroadInfoJson);
+
+    json = Json::object{
+        {"armyRank", displayUser.armyRank},
+        {"badgeURL", displayUser.badgeURL.toStdString()},
+        {"bgColor", displayUser.bgColor.toStdString()},
+        {"checkinBdgURL", displayUser.checkinBdgURL.toStdString()},
+        {"checkinLevel", displayUser.checkinLevel},
+        {"circleBadgeURL", displayUser.circleBadgeURL.toStdString()},
+        {"displayName", displayUser.displayName.toStdString()},
+        {"fgColor", displayUser.fgColor.toStdString()},
+        {"gloryroadInfo", gloryroadInfoJson},
+        {"gloryroadMode", displayUser.gloryroadMode},
+        {"hasProgram", displayUser.hasProgram},
+        {"isDirty", displayUser.isDirty},
+        {"isDirtyUser", displayUser.isDirtyUser},
+        {"isGuardian", displayUser.isGuardian},
+        {"isProducer", displayUser.isProducer},
+        {"isStreamer", displayUser.isStreamer},
+        {"isVIP", displayUser.isVIP},
+        {"level", displayUser.level},
+        {"mLevel", displayUser.mLevel},
+        {"pfxBadgeURL", displayUser.pfxBadgeURL.toStdString()},
+        {"picture", displayUser.picture.toStdString()},
+        {"producer", displayUser.producer},
+        {"program", displayUser.program},
+        {"topRightIconURL", displayUser.topRightIconURL.toStdString()},
+        {"userID", displayUser.userID.toStdString()},
+        {"vipCharmURL", displayUser.vipCharmURL.toStdString()},
+    };
+
+    return true;
+}
+
 // Convert JSON to OneSevenLiveRockZoneViewer
 bool JsonToOneSevenLiveRockZoneViewer(const Json &json, OneSevenLiveRockZoneViewer &viewer) {
     if (!json.is_object()) {
@@ -593,6 +743,10 @@ bool JsonToOneSevenLiveRockZoneViewer(const Json &json, OneSevenLiveRockZoneView
     if (json["armyLevel"].is_number()) {
         viewer.armyLevel = json["armyLevel"].int_value();
     }
+    
+    if (json["displayUser"].is_object()) {
+        JsonToOneSevenLiveDisplayUser(json["displayUser"], viewer.displayUser);
+    }
 
     return true;
 }
@@ -610,6 +764,9 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, 
 
     Json anonymousInfoJson;
     OneSevenLiveAnonymousInfoToJson(viewer.anonymousInfo, anonymousInfoJson);
+    
+    Json displayUserJson;
+    OneSevenLiveDisplayUserToJson(viewer.displayUser, displayUserJson);
 
     json = Json::object{
         {"type", viewer.type},
@@ -618,6 +775,7 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, 
         {"userAttr", userAttrJson},
         {"anonymousInfo", anonymousInfoJson},
         {"armyLevel", viewer.armyLevel},
+        {"displayUser", displayUserJson},
     };
 
     return true;

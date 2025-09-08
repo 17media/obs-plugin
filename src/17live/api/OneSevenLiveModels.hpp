@@ -1,12 +1,5 @@
 #pragma once
 
-// C++ Standard Library includes
-#include <string>
-#include <vector>
-#include <map>
-#include <memory>
-#include <limits>
-
 // Qt includes
 #include <QDateTime>
 #include <QList>
@@ -667,6 +660,36 @@ struct OneSevenLiveAnonymousInfo {
     QString pureText;
 };
 
+// Display user struct for rock zone viewer
+struct OneSevenLiveDisplayUser {
+    int armyRank;
+    QString badgeURL;
+    QString bgColor;
+    QString checkinBdgURL;
+    int checkinLevel;
+    QString circleBadgeURL;
+    QString displayName;
+    QString fgColor;
+    OneSevenLiveGloryroadInfo gloryroadInfo;
+    int gloryroadMode;
+    bool hasProgram;
+    bool isDirty;
+    bool isDirtyUser;
+    bool isGuardian;
+    bool isProducer;
+    bool isStreamer;
+    bool isVIP;
+    int level;
+    int mLevel;
+    QString pfxBadgeURL;
+    QString picture;
+    int producer;
+    int program;
+    QString topRightIconURL;
+    QString userID;
+    QString vipCharmURL;
+};
+
 // Rock zone viewer struct
 struct OneSevenLiveRockZoneViewer {
     int type;
@@ -675,7 +698,12 @@ struct OneSevenLiveRockZoneViewer {
     OneSevenLiveUserAttr userAttr;
     OneSevenLiveAnonymousInfo anonymousInfo;
     int armyLevel;
+    OneSevenLiveDisplayUser displayUser;
 };
+
+// Function declarations for display user JSON conversion
+bool JsonToOneSevenLiveDisplayUser(const Json &json, OneSevenLiveDisplayUser &displayUser);
+bool OneSevenLiveDisplayUserToJson(const OneSevenLiveDisplayUser &displayUser, Json &json);
 
 // Function declarations for rock zone viewers JSON conversion
 bool JsonToOneSevenLiveRockZoneViewer(const Json &json, OneSevenLiveRockZoneViewer &viewer);
