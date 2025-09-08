@@ -623,6 +623,20 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, 
     return true;
 }
 
+bool JsonToOneSevenLiveRockViewers(const Json &json, QList<OneSevenLiveRockZoneViewer> &viewers) {
+    if (!json.is_array()) {
+        return false;
+    }
+
+    for (const auto &itemJson : json.array_items()) {
+        OneSevenLiveRockZoneViewer viewer;
+        JsonToOneSevenLiveRockZoneViewer(itemJson, viewer);
+        viewers.append(viewer);
+    }
+
+    return true;
+}
+
 bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo) {
     if (!json.is_object()) {
         return false;

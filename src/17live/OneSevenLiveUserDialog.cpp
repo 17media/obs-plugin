@@ -1,9 +1,12 @@
 #include "OneSevenLiveUserDialog.hpp"
 
 #include <QMessageBox>
+#include <QPainter>
+#include <QPointer>
 
 #include <obs-module.h>
 
+#include "utility/RemoteTextThread.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
 
@@ -34,7 +37,7 @@ void OneSevenLiveUserDialog::setupUi() {
     mainLayout->setSpacing(20);
     mainLayout->setAlignment(Qt::AlignCenter);
 
-    // 用户头像
+    // User avatar
     avatarLabel = new QLabel();
     avatarLabel->setFixedSize(120, 120);
     avatarLabel->setAlignment(Qt::AlignCenter);
@@ -45,7 +48,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "}");
     mainLayout->addWidget(avatarLabel, 0, Qt::AlignHCenter);
 
-    // 用户名
+    // Username
     usernameLabel = new QLabel();
     usernameLabel->setAlignment(Qt::AlignCenter);
     usernameLabel->setStyleSheet(
@@ -56,7 +59,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "}");
     mainLayout->addWidget(usernameLabel);
 
-    // 用户ID
+    // User ID
     userIdLabel = new QLabel();
     userIdLabel->setAlignment(Qt::AlignCenter);
     userIdLabel->setStyleSheet(
@@ -66,11 +69,11 @@ void OneSevenLiveUserDialog::setupUi() {
         "}");
     mainLayout->addWidget(userIdLabel);
 
-    // 按钮区域
+    // Button area
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(10);
 
-    // 戳一下按钮
+    // Poke button
     pokeButton = new QPushButton(obs_module_text("Live.PokeUser"));
     pokeButton->setStyleSheet(
         "QPushButton {"
@@ -89,7 +92,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "    background-color: #B00001;"
         "}");
 
-    // 关闭按钮
+    // Close button
     closeButton = new QPushButton(obs_module_text("Close"));
     closeButton->setStyleSheet(
         "QPushButton {"
@@ -120,49 +123,60 @@ void OneSevenLiveUserDialog::createConnections() {
     connect(closeButton, &QPushButton::clicked, this, &OneSevenLiveUserDialog::onCloseClicked);
 }
 
-void OneSevenLiveUserDialog::setUserInfo(const QString& userId_, const QString& username_, const QByteArray& avatarData_) {
-    userId = userId_;
-    username = username_;
-    avatarData = avatarData_;
+void OneSevenLiveUserDialog::setUserInfo(const OneSevenLiveRockZoneViewer& user) {
+    viewer = user;
 
-    // 更新UI
-    usernameLabel->setText(username);
-    userIdLabel->setText(QString("ID: %1").arg(userId));
+    // Update UI
+    usernameLabel->setText(viewer.armyInfo.user.displayName);
+    userIdLabel->setText(QString(obs_module_text("Live.UserInfo.ID")).arg(viewer.armyInfo.user.openID));
     updateUserAvatar();
 }
 
 void OneSevenLiveUserDialog::updateUserAvatar() {
-    if (!avatarData.isEmpty()) {
-        QPixmap avatar;
-        avatar.loadFromData(avatarData);
-        avatar = avatar.scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+    QString url = "https://cdn.17app.co/" + viewer.armyInfo.user.picture;
+    RemoteTextThread *thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
         
-        // 创建圆形头像
-        QPixmap roundedAvatar(120, 120);
-        roundedAvatar.fill(Qt::transparent);
+    QPointer<QLabel> safeAvatarLabel = avatarLabel;
+    connect(thread, &RemoteTextThread::ImageResult, this, [this, safeAvatarLabel](const QByteArray &imageData, const QString &error) {
+        if (error.isEmpty() && !imageData.isEmpty()) {
+            QPixmap avatar;
+            avatar.loadFromData(imageData);
+            avatar = avatar.scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
         
-//        QPainter painter(&roundedAvatar);
-//        painter.setRenderHint(QPainter::Antialiasing);
-//        painter.setPen(Qt::NoPen);
-//        painter.setBrush(QBrush(avatar));
-//        painter.drawEllipse(0, 0, 120, 120);
+            // Create rounded avatar
+            QPixmap roundedAvatar(120, 120);
+            roundedAvatar.fill(Qt::transparent);
         
-        avatarLabel->setPixmap(roundedAvatar);
-    }
+            QPainter painter(&roundedAvatar);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(QBrush(avatar));
+            painter.drawEllipse(0, 0, 120, 120);
+                
+            if (safeAvatarLabel) {
+                safeAvatarLabel->setPixmap(roundedAvatar);
+            }
+        }
+    });
+    
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    
+    thread->start();
 }
 
 void OneSevenLiveUserDialog::onPokeUserClicked() {
-    if (!apiWrapper || userId.isEmpty()) {
+    if (!apiWrapper) {
         return;
     }
 
-    // 创建戳一下请求
+    // Create poke request
     OneSevenLivePokeRequest request;
     OneSevenLivePokeResponse response;
-    request.userID = userId;
+    request.userID = viewer.armyInfo.user.userID;
     request.isPokeBack = false;
 
-    // 发送请求
+    // Send request
     bool success = apiWrapper->PokeOne(request, response);
 
     if (success) {

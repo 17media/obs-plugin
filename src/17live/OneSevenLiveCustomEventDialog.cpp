@@ -1,16 +1,6 @@
 // Include project header first to ensure proper dependency resolution
 #include "OneSevenLiveCustomEventDialog.hpp"
 
-// C++ Standard Library includes
-#include <type_traits>
-#include <mutex>
-#include <string>
-#include <vector>
-
-// System includes
-#include <sys/types.h>
-#include <stdio.h>
-
 // OBS includes
 #include <obs-module.h>
 #include <plugin-support.h>
@@ -32,6 +22,7 @@
 #include <QTabWidget>
 #include <QLabel>
 #include <QGridLayout>
+#include <QPointer>
 
 // Project includes
 #include "api/OneSevenLiveApiWrappers.hpp"
@@ -862,14 +853,15 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
 
             RemoteTextThread *thread = new RemoteTextThread(iconUrl.toStdString(), "image/png", "", 0, true);
         
-            connect(thread, &RemoteTextThread::ImageResult, this, [this, imageLabel](const QByteArray &imageData, const QString &error) {
+            QPointer<QLabel> safeImageLabel = imageLabel;
+            connect(thread, &RemoteTextThread::ImageResult, this, [this, safeImageLabel](const QByteArray &imageData, const QString &error) {
                 if (error.isEmpty() && !imageData.isEmpty()) {
                     QPixmap pix;
-                    if (pix.loadFromData(imageData)) {
-                        imageLabel->setPixmap(pix.scaled(imageLabel->size(),
+                    if (pix.loadFromData(imageData) && safeImageLabel) {
+                        safeImageLabel->setPixmap(pix.scaled(safeImageLabel->size(),
                                                         Qt::KeepAspectRatio,
                                                         Qt::SmoothTransformation));
-                        imageLabel->setText("");
+                        safeImageLabel->setText("");
                     }
                 }
             });

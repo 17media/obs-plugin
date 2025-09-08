@@ -10,6 +10,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QPainter>
+#include <QPointer>
 
 #include "utility/RemoteTextThread.hpp"
 #include "OneSevenLiveConfigManager.hpp"
@@ -26,7 +27,7 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
     createConnections();
     refreshUserList();
 
-    // 添加延迟初始化以确保UI元素大小正确计算
+    // Add delayed initialization to ensure UI element sizes are correctly calculated
     QTimer::singleShot(0, this, [this]() {
         if (emptyContainer && emptyContainer->isVisible()) {
             emptyContainer->setGeometry(widget()->rect());
@@ -46,6 +47,7 @@ OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() {
 
 void OneSevenLiveRockZoneDock::setupUi() {
     QWidget* container = new QWidget(this);
+    container->setObjectName("container");
     container->setStyleSheet(
         "QWidget#container {"
         "    background-color: #000000;"
@@ -58,7 +60,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
 
-    // 创建标题栏
+    // Create title bar
     QHBoxLayout* titleLayout = new QHBoxLayout();
     titleLayout->setContentsMargins(0, 0, 0, 0);
     titleLayout->setSpacing(5);
@@ -84,7 +86,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
 
     mainLayout->addLayout(titleLayout);
 
-    // 创建用户列表
+    // Create user list
     userList = new QListWidget();
     userList->setStyleSheet(
         "QListWidget {"
@@ -110,7 +112,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
     userList->setSpacing(1);
     mainLayout->addWidget(userList);
 
-    // 创建底部按钮
+    // Create bottom button
     viewAllFriendsButton = new QPushButton(obs_module_text("Live.RockZone.ViewAllFriends"));
     viewAllFriendsButton->setStyleSheet(
         "QPushButton {"
@@ -125,6 +127,45 @@ void OneSevenLiveRockZoneDock::setupUi() {
     viewAllFriendsButton->setFixedWidth(250);
     mainLayout->addWidget(viewAllFriendsButton, 0, Qt::AlignHCenter);
 
+    // Create loading status UI
+    loadingOverlay = new QWidget(container);
+    loadingOverlay->setObjectName("loadingOverlay");
+    loadingOverlay->setStyleSheet(
+        "QWidget#loadingOverlay {"
+        "    background-color: rgba(30, 30, 30, 0.8);"
+        "    border-radius: 4px;"
+        "}");
+    loadingOverlay->setGeometry(container->rect());
+    loadingOverlay->hide();
+
+    QVBoxLayout* loadingLayout = new QVBoxLayout(loadingOverlay);
+    loadingLayout->setAlignment(Qt::AlignCenter);
+    loadingLayout->setSpacing(10);
+
+    loadingLabel = new QLabel(obs_module_text("Live.Settings.Loading"));
+    loadingLabel->setStyleSheet(
+        "QLabel {"
+        "    color: white;"
+        "    font-size: 16px;"
+        "    font-weight: bold;"
+        "}");
+    loadingLayout->addWidget(loadingLabel, 0, Qt::AlignHCenter);
+
+    loadingProgress = new QProgressBar();
+    loadingProgress->setRange(0, 0); // Set to indeterminate mode
+    loadingProgress->setFixedSize(200, 10);
+    loadingProgress->setTextVisible(false);
+    loadingProgress->setStyleSheet(
+        "QProgressBar {"
+        "    background-color: #333333;"
+        "    border-radius: 5px;"
+        "}"
+        "QProgressBar::chunk {"
+        "    background-color: #FF0001;"
+        "    border-radius: 5px;"
+        "}");
+    loadingLayout->addWidget(loadingProgress, 0, Qt::AlignHCenter);
+
     setWidget(container);
 }
 
@@ -132,19 +173,19 @@ void OneSevenLiveRockZoneDock::createConnections() {
     connect(viewAllFriendsButton, &QPushButton::clicked, this,
             &OneSevenLiveRockZoneDock::onViewAllFriendsClicked);
     
-    // 连接用户列表项点击信号
+    // Connect user list item click signal
     connect(userList, &QListWidget::itemClicked, this,
             &OneSevenLiveRockZoneDock::onUserItemClicked);
 }
 
-void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const RockZoneUser& user) {
+void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user) {
     QWidget* itemContainer = new QWidget(this);
 
     QHBoxLayout* mainLayout = new QHBoxLayout(itemContainer);
     mainLayout->setContentsMargins(5, 5, 5, 5);
     mainLayout->setSpacing(10);
 
-    // 用户头像
+    // User avatar
     QLabel* avatarLabel = new QLabel();
     avatarLabel->setFixedSize(40, 40);
     avatarLabel->setStyleSheet(
@@ -153,33 +194,45 @@ void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const RockZ
         "    border-radius: 20px;"
         "}");
     
-    // 如果有头像数据，则显示头像
-    if (!user.avatarData.isEmpty()) {
-        QPixmap avatar;
-        avatar.loadFromData(user.avatarData);
-        avatar = avatar.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QString url = "https://cdn.17app.co/" + user.armyInfo.user.picture;
+    RemoteTextThread *thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
+
+    QPointer<QLabel> safeAvatarLabel = avatarLabel;
         
-        // 创建圆形头像
-        QPixmap roundedAvatar(40, 40);
-        roundedAvatar.fill(Qt::transparent);
-        
-        QPainter painter(&roundedAvatar);
-        painter.setRenderHint(QPainter::Antialiasing);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QBrush(avatar));
-        painter.drawEllipse(0, 0, 40, 40);
-        
-        avatarLabel->setPixmap(roundedAvatar);
-    }
+    connect(thread, &RemoteTextThread::ImageResult, this, [this, safeAvatarLabel](const QByteArray &imageData, const QString &error) {
+        if (error.isEmpty() && !imageData.isEmpty()) {
+            QPixmap avatar;
+            avatar.loadFromData(imageData);
+            avatar = avatar.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            
+            // Create rounded avatar
+            QPixmap roundedAvatar(40, 40);
+            roundedAvatar.fill(Qt::transparent);
+            
+            QPainter painter(&roundedAvatar);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(QBrush(avatar));
+            painter.drawEllipse(0, 0, 40, 40);
+            
+            if (safeAvatarLabel) {
+                safeAvatarLabel->setPixmap(roundedAvatar);
+            }
+        }
+    });
+    
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    
+    thread->start();
     
     mainLayout->addWidget(avatarLabel);
 
-    // 用户信息（用户名和ID）
+    // User information (username and ID)
     QVBoxLayout* userInfoLayout = new QVBoxLayout();
     userInfoLayout->setContentsMargins(0, 0, 0, 0);
     userInfoLayout->setSpacing(2);
 
-    QLabel* usernameLabel = new QLabel(user.username);
+    QLabel* usernameLabel = new QLabel(user.armyInfo.user.displayName);
     usernameLabel->setStyleSheet(
         "QLabel {"
         "    color: white;"
@@ -187,15 +240,15 @@ void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const RockZ
         "    font-size: 14px;"
         "}");
 
-    QLabel* userIdLabel = new QLabel(user.userId);
-    userIdLabel->setStyleSheet(
-        "QLabel {"
-        "    color: #d9d9d9;"
-        "    font-size: 12px;"
-        "}");
+//    QLabel* userIdLabel = new QLabel(user.userAttr.checkinLevel);
+//    userIdLabel->setStyleSheet(
+//        "QLabel {"
+//        "    color: #d9d9d9;"
+//        "    font-size: 12px;"
+//        "}");
 
     userInfoLayout->addWidget(usernameLabel);
-    userInfoLayout->addWidget(userIdLabel);
+//    userInfoLayout->addWidget(userIdLabel);
 
     mainLayout->addLayout(userInfoLayout);
     mainLayout->addStretch();
@@ -206,15 +259,15 @@ void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const RockZ
 }
 
 void OneSevenLiveRockZoneDock::showEmptyListMessage() {
-    // 隐藏列表
+    // Hide list
     userList->setVisible(false);
 
-    // 如果空状态容器已存在，先删除它
+    // If empty state container exists, delete it first
     if (emptyContainer) {
         emptyContainer->deleteLater();
     }
 
-    // 创建空状态容器
+    // Create empty state container
     emptyContainer = new QWidget(widget());
     emptyContainer->setStyleSheet(
         "QWidget {"
@@ -222,16 +275,16 @@ void OneSevenLiveRockZoneDock::showEmptyListMessage() {
         "    border-radius: 4px;"
         "}");
 
-    // 设置空状态容器填充整个Dock区域
+    // Set empty state container to fill the entire Dock area
     emptyContainer->setGeometry(widget()->rect());
 
-    // 创建布局管理器
+    // Create layout manager
     QVBoxLayout* emptyLayout = new QVBoxLayout(emptyContainer);
     emptyLayout->setAlignment(Qt::AlignCenter);
     emptyLayout->setSpacing(20);
     emptyLayout->setContentsMargins(20, 20, 20, 20);
 
-    // 创建提示标签
+    // Create prompt label
     QLabel* emptyLabel = new QLabel(obs_module_text("Live.RockZone.Empty"));
     emptyLabel->setAlignment(Qt::AlignCenter);
     emptyLabel->setWordWrap(true);
@@ -244,10 +297,10 @@ void OneSevenLiveRockZoneDock::showEmptyListMessage() {
         "    padding: 0 10px;"
         "}");
 
-    // 添加到布局
+    // Add to layout
     emptyLayout->addWidget(emptyLabel);
 
-    // 显示空状态容器
+    // Show empty state container
     emptyContainer->show();
     emptyContainer->raise();
 }
@@ -257,6 +310,11 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
 
     if (emptyContainer && emptyContainer->isVisible()) {
         emptyContainer->setGeometry(widget()->rect());
+    }
+    
+    // Adjust loading overlay size
+    if (loadingOverlay) {
+        loadingOverlay->setGeometry(widget()->rect());
     }
 
     for (int i = 0; i < userList->count(); ++i) {
@@ -269,75 +327,127 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
 }
 
 void OneSevenLiveRockZoneDock::refreshUserList() {
+    // Show loading status
+    isLoading = true;
+    loadingOverlay->setVisible(true);
+    loadingOverlay->raise();  // Ensure overlay is on top
+    loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
+
+    // Disable all controls
+    QWidget* container = qobject_cast<QWidget*>(widget());
+    if (container) {
+        container->setEnabled(false);
+    }
+
     userList->clear();
 
     if (emptyContainer) {
-        // 如果空状态容器已存在，先删除它
+        // If empty state container exists, delete it first
         emptyContainer->deleteLater();
         emptyContainer = nullptr;
     }
 
-    // 模拟获取用户列表数据
-    // 实际应用中，这里应该调用API获取真实数据
-    usersList.clear();
+    // Create new thread for API call to avoid UI blocking
+    QThread* thread = new QThread;
+    QObject* worker = new QObject;
+    worker->moveToThread(thread);
+
+    connect(thread, &QThread::started, worker, [this, worker, thread]() {
+        // Execute API call in new thread
+        std::string roomID;
+        configManager->getConfigValue("RoomID", roomID);
+
+        Json response;
+        bool success = apiWrapper->GetRockViewers(roomID, response);
+
+        // Use Qt::QueuedConnection to ensure UI updates happen on the main thread
+        QMetaObject::invokeMethod(
+            this,
+            [this, success, response]() {
+                // Hide loading status
+                isLoading = false;
+                loadingOverlay->setVisible(false);
+
+                QWidget* container = qobject_cast<QWidget*>(widget());
+                if (container) {
+                    container->setEnabled(true);
+                }
+
+                if (success) {
+                    userList->clear();
+                    viewersList.clear();
+
+                    QList<OneSevenLiveRockZoneViewer> users;
+                    JsonToOneSevenLiveRockViewers(response, users);
+
+                    std::string userID;
+                    configManager->getConfigValue("UserID", userID);
+
+                    // Fetch viewersList from users based on following rules:
+                    // 1. Don't show the streamer themselves, based on user ID, if it matches the current OBS login user
+                    // 2. Don't show viewers who haven't sent points, filter by userAttr.sentPoint > 0
+                    // 3. Because user data may be duplicated, need to merge, duplication occurs because the same user may have multiple badges (labels)
+                    QList<QString> userIDs;
+                    for (auto &user : users) {
+                        if (user.armyInfo.user.userID == QString::fromStdString(userID)) {
+                            continue;
+                        }
+                        if (user.userAttr.sentPoint > 0 && !userIDs.contains(user.armyInfo.user.userID)) {
+                            viewersList.push_back(user);
+                            userIDs.push_back(user.armyInfo.user.userID);
+                        }
+                    }
+                    
+                    // Update UI
+                    if (viewersList.isEmpty()) {
+                        // Show empty list message
+                        showEmptyListMessage();
+                    } else {
+                        userList->setVisible(true);
+                        
+                        // Update user count label
+                        userCountLabel->setText(QString(obs_module_text("Live.RockZone.UserCount")).arg(viewersList.size()));
     
-    // 添加模拟数据
-    for (int i = 0; i < 5; i++) {
-        RockZoneUser user;
-        user.userId = QString("12345678901234567890").left(3 + i * 5);
-        user.username = QString("DamonDamonDamon123...");
-        // 实际应用中应该设置真实的头像URL
-        user.avatarUrl = "";
-        usersList.append(user);
-    }
 
-    if (usersList.isEmpty()) {
-        // 显示空列表提示
-        showEmptyListMessage();
-    } else {
-        userList->setVisible(true);
+                        // Display user list
+                        for (const auto& user : viewersList) {
+                            QListWidgetItem* item = new QListWidgetItem(userList);
+                            updateUserItem(item, user);
+                            userList->addItem(item);
+                        }
+                    }
+                } else {
+                    // Show error message
+                    QMessageBox::warning(
+                        this, obs_module_text("Live.Settings.Error"),
+                        QString::fromStdString(obs_module_text("Live.Settings.LoadError"))
+                            .arg(apiWrapper->getLastErrorMessage()));
+                    
+                    // Show empty list message
+                    showEmptyListMessage();
+                }
+            },
+            Qt::QueuedConnection);
 
-        // 更新用户数量提示
-        userCountLabel->setText(QString(obs_module_text("Live.RockZone.UserCount")).arg(usersList.size()));
-
-        // 显示用户列表
-        for (const auto& user : usersList) {
-            QListWidgetItem* item = new QListWidgetItem(userList);
-            updateUserItem(item, user);
-            userList->addItem(item);
-        }
-    }
-}
-
-void OneSevenLiveRockZoneDock::loadUserAvatar(const QString& url, RockZoneUser& user) {
-    if (url.isEmpty()) {
-        return;
-    }
-
-    RemoteTextThread *thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
-        
-    connect(thread, &RemoteTextThread::ImageResult, this, [this, &user](const QByteArray &imageData, const QString &error) {
-        if (error.isEmpty() && !imageData.isEmpty()) {
-            user.avatarData = imageData;
-            refreshUserList();
-        }
+        // Clean up after completion
+        thread->quit();
+        worker->deleteLater();
     });
-    
-    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-    
+
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
     thread->start();
 }
 
 void OneSevenLiveRockZoneDock::onViewAllFriendsClicked() {
-    // 发出查看所有朋友的信号
+    // Emit signal to view all friends
     emit viewAllFriendsClicked();
 }
 
 void OneSevenLiveRockZoneDock::handleTopLevelChanged(bool topLevel) {
     if (!topLevel) {
-        // 停靠状态
+        // Docked state
         adjustSize();
-        // 可能还需要强制更新布局或子部件大小
+        // May need to force update layout or child widget sizes
         for (int i = 0; i < userList->count(); ++i) {
             QListWidgetItem* item = userList->item(i);
             QWidget* itemWidget = userList->itemWidget(item);
@@ -350,21 +460,21 @@ void OneSevenLiveRockZoneDock::handleTopLevelChanged(bool topLevel) {
 }
 
 void OneSevenLiveRockZoneDock::onUserItemClicked(QListWidgetItem* item) {
-    // 获取点击的项目索引
+    // Get clicked item index
     int index = userList->row(item);
-    if (index < 0 || index >= usersList.size()) {
+    if (index < 0 || index >= viewersList.size()) {
         return;
     }
     
-    // 获取用户信息
-    const RockZoneUser& user = usersList.at(index);
+    // Get user information
+    const OneSevenLiveRockZoneViewer& user = viewersList.at(index);
     
-    // 创建用户信息对话框（如果不存在）
+    // Create user information dialog (if it doesn't exist)
     if (!userDialog) {
         userDialog = new OneSevenLiveUserDialog(this, apiWrapper);
     }
     
-    // 设置用户信息并显示对话框
-    userDialog->setUserInfo(user.userId, user.username, user.avatarData);
+    // Set user information and display dialog
+    userDialog->setUserInfo(user);
     userDialog->exec();
 }

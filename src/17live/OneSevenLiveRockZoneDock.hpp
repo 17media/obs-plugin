@@ -4,6 +4,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QLabel>
+#include <QProgressBar>
 
 #include "OneSevenLiveUserDialog.hpp"
 
@@ -11,14 +12,6 @@
 
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
-
-// 摇滚区用户信息结构体
-struct RockZoneUser {
-    QString userId;       // 用户ID
-    QString username;     // 用户名
-    QString avatarUrl;    // 头像URL
-    QByteArray avatarData; // 头像数据
-};
 
 class OneSevenLiveRockZoneDock : public QDockWidget {
     Q_OBJECT
@@ -45,9 +38,8 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
    private:
     void setupUi();
     void createConnections();
-    void updateUserItem(QListWidgetItem* item, const RockZoneUser& user);
+    void updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user);
     void showEmptyListMessage();
-    void loadUserAvatar(const QString& url, RockZoneUser& user);
 
     QListWidget* userList;
     QLabel* titleLabel;
@@ -58,8 +50,14 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     OneSevenLiveApiWrappers* apiWrapper = nullptr;
     OneSevenLiveConfigManager* configManager = nullptr;
 
-    QList<RockZoneUser> usersList;  // 存储用户列表
+    QList<OneSevenLiveRockZoneViewer> viewersList;
     
-    // 用户信息对话框
+    // User information dialog
     OneSevenLiveUserDialog* userDialog = nullptr;
+    
+    // Loading status UI
+    QWidget* loadingOverlay = nullptr;
+    QProgressBar* loadingProgress = nullptr;
+    QLabel* loadingLabel = nullptr;
+    bool isLoading = false;  // Indicates whether loading is in progress
 };

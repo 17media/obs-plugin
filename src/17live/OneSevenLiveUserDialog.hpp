@@ -1,11 +1,6 @@
 #pragma once
 
-// 标准库头文件
-#include <string>
-#include <vector>
-#include <type_traits>
-
-// Qt头文件
+// Qt headers
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
@@ -14,10 +9,10 @@
 
 #include "api/OneSevenLiveModels.hpp"
 
-// 前向声明
+// Forward declarations
 class OneSevenLiveApiWrappers;
 
-// 用户信息对话框类
+// User information dialog class
 class OneSevenLiveUserDialog : public QDialog {
     Q_OBJECT
 
@@ -26,8 +21,8 @@ public:
                           OneSevenLiveApiWrappers* apiWrapper = nullptr);
     ~OneSevenLiveUserDialog();
 
-    // 设置用户信息并显示对话框
-    void setUserInfo(const QString& userId, const QString& username, const QByteArray& avatarData);
+    // Set user information and display dialog
+    void setUserInfo(const OneSevenLiveRockZoneViewer& user);
 
 private slots:
     void onPokeUserClicked();
@@ -38,18 +33,15 @@ private:
     void createConnections();
     void updateUserAvatar();
 
-    // UI元素
+    // UI elements
     QLabel* avatarLabel;
     QLabel* usernameLabel;
     QLabel* userIdLabel;
     QPushButton* pokeButton;
     QPushButton* closeButton;
 
-    // 用户数据
-    QString userId;
-    QString username;
-    QByteArray avatarData;
+    OneSevenLiveRockZoneViewer viewer;
 
-    // API包装器
+    // API wrapper
     OneSevenLiveApiWrappers* apiWrapper;
 };
