@@ -61,6 +61,16 @@ const string ONESEVENLIVE_GET_GIFTTABS_URL =
 
 const string ONESEVENLIVE_GET_GIFTS_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/gifts";
 
+const string ONESEVENLIVE_GET_ROCKVIEWERS_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1/streamer/rockviewers?type=0&count=50&filterEmpty=true";
+
+const string ONESEVENLIVE_GET_ARMYNAME_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/army/custom/%1/name";
+
+const string ONESEVENLIVE_POKE_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/pokes";
+
+const string ONESEVENLIVE_POKE_ALL_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/pokes/pokeAll";
+
 OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
     currentOS = GetCurrentOS();
     currentOSVersion = GetCurrentOSVersion();
@@ -795,6 +805,24 @@ bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_ou
     return true;
 }
 
+bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &json_out_resp) {
+    obs_log(LOG_INFO, "GetRockViewers");
+
+    lastErrorMessage.clear();
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ROCKVIEWERS_URL).arg(roomID.c_str());
+    QByteArray url = urlStr.toUtf8();
+
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true)) {
+        obs_log(LOG_ERROR, "GetRockViewers error: %s", json_out_resp.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "GetRockViewers success");
+    return true;
+}
+
 bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID, OneSevenLiveCustomEvent &response) {
     obs_log(LOG_INFO, "GetCustomEvent start");
 
@@ -822,5 +850,130 @@ bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID, OneSeven
     }
 
     obs_log(LOG_INFO, "GetCustomEvent success");
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::GetArmyName(const std::string &userID, OneSevenLiveArmyNameResponse &response) {
+    obs_log(LOG_INFO, "GetArmyName start");
+    lastErrorMessage.clear();
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ARMYNAME_URL).arg(userID.c_str());
+    QByteArray url = urlStr.toUtf8();
+
+    std::string error;
+    Json json_out_resp;
+
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr,
+                       json_out_resp)) {
+        obs_log(LOG_ERROR, "GetArmyName error: %s", json_out_resp.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        return false;
+    }
+
+    if (!JsonToOneSevenLiveArmyNameResponse(json_out_resp, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        lastErrorMessage = "Failed to convert response to struct";
+        return false;
+    }
+
+    obs_log(LOG_INFO, "GetArmyName success");
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request, OneSevenLivePokeResponse &response) {
+    obs_log(LOG_INFO, "PokeOne start");
+
+    lastErrorMessage.clear();
+
+    QByteArray url = QByteArray(ONESEVENLIVE_POKE_URL.c_str());
+    obs_log(LOG_INFO, "PokeOne url: %s", ONESEVENLIVE_POKE_URL.c_str());
+
+    Json requestData;
+    if (!OneSevenLivePokeRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string postData = requestData.dump();
+    obs_log(LOG_INFO, "PokeOne requestData: %s", postData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
+        obs_log(LOG_ERROR, "PokeOne error: %s", json_out.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "PokeOne success");
+    obs_log(LOG_INFO, "poke response: %s", json_out.dump().c_str());
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "PokeOne error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    if (!JsonToOneSevenLivePokeResponse(json_out, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        lastErrorMessage = "Failed to convert response to struct";
+        return false;
+    }
+
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request, OneSevenLivePokeResponse &response) {
+    obs_log(LOG_INFO, "PokeAll start");
+
+    lastErrorMessage.clear();
+
+    QByteArray url = QByteArray(ONESEVENLIVE_POKE_ALL_URL.c_str());
+    obs_log(LOG_INFO, "PokeAll url: %s", ONESEVENLIVE_POKE_ALL_URL.c_str());
+
+    Json requestData;
+    if (!OneSevenLivePokeAllRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string postData = requestData.dump();
+    obs_log(LOG_INFO, "PokeAll requestData: %s", postData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
+        obs_log(LOG_ERROR, "PokeAll error: %s", json_out.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "PokeAll success");
+    obs_log(LOG_INFO, "poke all response: %s", json_out.dump().c_str());
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "PokeAll error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    if (!JsonToOneSevenLivePokeResponse(json_out, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        lastErrorMessage = "Failed to convert response to struct";
+        return false;
+    }
+
     return true;
 }

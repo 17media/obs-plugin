@@ -23,6 +23,7 @@
 #include "OneSevenLiveMenuManager.hpp"
 #include "OneSevenLiveStreamListDock.hpp"
 #include "OneSevenLiveStreamingDock.hpp"
+#include "OneSevenLiveRockZoneDock.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
@@ -126,6 +127,9 @@ bool OneSevenLiveCoreManager::initialize() {
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::liveListClicked, this,
                      &OneSevenLiveCoreManager::handleLiveListClicked);
+                     
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::rockZoneClicked, this,
+                     &OneSevenLiveCoreManager::handleRockZoneClicked);
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this,
                      &OneSevenLiveCoreManager::handleCheckUpdateClicked);
@@ -312,6 +316,13 @@ void OneSevenLiveCoreManager::shutdown() {
         liveListDock->deleteLater();
         liveListDock = nullptr;
     }
+    
+    if (rockZoneDock) {
+        rockZoneDock->disconnect(this);
+        rockZoneDock->close();
+        rockZoneDock->deleteLater();
+        rockZoneDock = nullptr;
+    }
 
     if (chatRoomDock) {
         chatRoomDock->disconnect(this);
@@ -462,7 +473,8 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
     if (menuManager) {
         menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                           streamingDock && streamingDock->isVisible(),
-                                          liveListDock && liveListDock->isVisible());
+                                          liveListDock && liveListDock->isVisible(),
+                                          rockZoneDock && rockZoneDock->isVisible());
     }
 }
 
@@ -561,6 +573,89 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         connect(streamingDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
 
         streamingDockFirstLoad = false;
+    }
+}
+
+void OneSevenLiveCoreManager::handleRockZoneClicked() {
+    obs_log(LOG_INFO, "handleRockZoneClicked");
+    
+    if (!rockZoneDock) {
+        createRockZoneDock();
+    } else {
+        rockZoneDock->setVisible(!rockZoneDock->isVisible());
+    }
+    
+    // Update menu item checked status
+    if (menuManager) {
+        menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+                                          streamingDock && streamingDock->isVisible(),
+                                          liveListDock && liveListDock->isVisible(),
+                                          rockZoneDock && rockZoneDock->isVisible());
+    }
+}
+
+void OneSevenLiveCoreManager::createRockZoneDock() {
+    if (rockZoneDock) {
+        return;
+    }
+    
+    OneSevenLiveLoginData loginData;
+    if (!configManager->getLoginData(loginData)) {
+        obs_log(LOG_ERROR, "Failed to get login data");
+        return;
+    }
+    
+    // Create and show rock zone window
+    rockZoneDock = new OneSevenLiveRockZoneDock(mainWindow, apiWrapper.get(), configManager.get());
+    rockZoneDock->setObjectName("OneSevenLiveRockZoneDock");
+    
+    rockZoneDock->setMinimumWidth(300);
+    rockZoneDock->setMinimumHeight(400);
+    
+    rockZoneDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    mainWindow->addDockWidget(Qt::RightDockWidgetArea, rockZoneDock);
+    
+    // Only restore state during startup, otherwise set floating and center
+    if (isStartupRestore) {
+        // During startup restoration, the state will be restored by initialize() method
+        rockZoneDock->setVisible(true);
+    } else {
+        // First time creation or manual creation - set floating and center
+        rockZoneDock->setFloating(true);
+        rockZoneDock->setVisible(true);
+        
+        // Center the dock on the main window
+        QRect mainWindowGeometry = mainWindow->geometry();
+        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - rockZoneDock->width()) / 2;
+        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - rockZoneDock->height()) / 2;
+        rockZoneDock->move(x, y);
+    }
+    
+    // Refresh user list
+    rockZoneDock->refreshUserList();
+    
+    if (rockZoneDockFirstLoad) {
+        // Connect view all friends signal
+        connect(rockZoneDock, &OneSevenLiveRockZoneDock::viewAllFriendsClicked, this, [this]() {
+            // Handle view all friends action
+            // This could open a web page or another dialog
+            QUrl url = QUrl(obs_module_text("RockZone.ViewAllFriends.Url"), QUrl::TolerantMode);
+            QDesktopServices::openUrl(url);
+        });
+        
+        // When dock is closed, uncheck menu item status
+        connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+                                              streamingDock && streamingDock->isVisible(),
+                                              liveListDock && liveListDock->isVisible(),
+                                              visible);
+            configManager->setDockVisibility("rockZone", visible);
+        });
+        
+        // Connect close signal to main window slot function
+        connect(rockZoneDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
+        
+        rockZoneDockFirstLoad = false;
     }
 }
 

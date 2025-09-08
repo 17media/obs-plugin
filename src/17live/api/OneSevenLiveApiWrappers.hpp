@@ -56,6 +56,7 @@ class OneSevenLiveApiWrappers : public QObject {
     bool GetAblyToken(const std::string &liveStreamID, Json &response);
     bool GetGiftTabs(const std::string &roomID, const std::string language, Json &response);
     bool GetGifts(const std::string language, Json &response);
+    bool GetRockViewers(const std::string &roomID, Json &response);
     bool GetUserInfo(const std::string userID, const std::string region, const std::string language,
                      OneSevenLiveUserInfo &response);
     bool GetConfig(const std::string region, const std::string language, Json &response);
@@ -69,6 +70,17 @@ class OneSevenLiveApiWrappers : public QObject {
     // GetCustomEvent
     // Get custom event information by userID
     bool GetCustomEvent(const std::string &userID, OneSevenLiveCustomEvent &response);
+    // GetArmyName
+    // Get army name information by userID
+    bool GetArmyName(const std::string &userID, OneSevenLiveArmyNameResponse &response);
+    
+    // PokeOne
+    // Send a poke to a user
+    bool PokeOne(const OneSevenLivePokeRequest &request, OneSevenLivePokeResponse &response);
+    
+    // PokeAll
+    // Send a poke to all users in a group
+    bool PokeAll(const OneSevenLivePokeAllRequest &request, OneSevenLivePokeResponse &response);
 
     /**
      * @brief Perform MD5 encryption on string

@@ -230,14 +230,16 @@ struct OneSevenLiveGloryroadInfo {
     QString badgeIconURL;
 };
 
-// Guild information struct
-struct OneSevenLiveClanInfo {
-    int joinCount;
-};
+bool JsonToOneSevenLiveGloryroadInfo(const Json &jsonData, OneSevenLiveGloryroadInfo &gloryroadInfo);
+bool OneSevenLiveGloryroadInfoToJson(const OneSevenLiveGloryroadInfo &gloryroadInfo, Json &jsonData);
 
 // League information struct
 struct OneSevenLiveLeagueInfo {
     bool shouldShowEntrance;
+};
+
+struct OneSevenLiveUserArmyInfo {
+    int joinCount;
 };
 
 // User information struct
@@ -251,7 +253,7 @@ struct OneSevenLiveStreamUserInfo : public OneSevenLiveUserInfo {
     QString version;
     QString deviceType;
     QString createClanID;
-    OneSevenLiveClanInfo clanInfo;
+    OneSevenLiveUserArmyInfo clanInfo;
     int chatMuteDuration;
     QString language;
     QString registerRegion;
@@ -612,5 +614,118 @@ struct OneSevenLiveGiftsResponse {
 // Function declarations for gifts JSON conversion
 bool JsonToOneSevenLiveGiftsResponse(const Json &json, OneSevenLiveGiftsResponse &response);
 bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, Json &json);
+
+// Rock Zone Viewer information structs
+
+// Label token struct for rock zone viewer
+struct OneSevenLiveLabelToken {
+    QString key;
+};
+
+// Army info user struct for rock zone viewer
+struct OneSevenLiveArmyInfoUser {
+    QString userID;
+    QString displayName;
+    QString picture;
+    QString name;
+    int level;
+    QString openID;
+    QString region;
+    OneSevenLiveGloryroadInfo gloryroadInfo;
+    int gloryroadMode;
+};
+
+// Army info struct for rock zone viewer
+struct OneSevenLiveArmyInfo {
+    OneSevenLiveArmyInfoUser user;
+    int rank;
+    qint64 pointContribution;
+    int seniority;
+    qint64 startTime;
+    qint64 endTime;
+    bool isOnLive;
+    int newStatus;
+    qint64 periodStartTime;
+};
+
+// User attributes struct for rock zone viewer
+struct OneSevenLiveUserAttr {
+    int level;
+    int sentPoint;
+    int checkinLevel;
+    int checkinCount;
+    QString checkinBdgURL;
+    int noteStatus;
+    int followStatus;
+    int gloryroadMode;
+    OneSevenLiveGloryroadInfo gloryroadInfo;
+};
+
+// Anonymous info struct for rock zone viewer
+struct OneSevenLiveAnonymousInfo {
+    bool isInvisible;
+    QString pureText;
+};
+
+// Rock zone viewer struct
+struct OneSevenLiveRockZoneViewer {
+    int type;
+    OneSevenLiveArmyInfo armyInfo;
+    OneSevenLiveLabelToken labelToken;
+    OneSevenLiveUserAttr userAttr;
+    OneSevenLiveAnonymousInfo anonymousInfo;
+    int armyLevel;
+};
+
+// Function declarations for rock zone viewers JSON conversion
+bool JsonToOneSevenLiveRockZoneViewer(const Json &json, OneSevenLiveRockZoneViewer &viewer);
+bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, Json &json);
+
+// Army name struct
+struct OneSevenLiveArmyName {
+    QString customName;
+    QString defaultName;
+};
+
+// Army rank name struct
+struct OneSevenLiveArmyRankName {
+    int rank;
+    int rankTier;
+    QString customName;
+    QString defaultName;
+};
+
+// Army name response struct
+struct OneSevenLiveArmyNameResponse {
+    OneSevenLiveArmyName armyName;
+    QList<OneSevenLiveArmyRankName> rankName;
+};
+
+// Function declarations for army name JSON conversion
+bool JsonToOneSevenLiveArmyNameResponse(const Json &json, OneSevenLiveArmyNameResponse &response);
+bool OneSevenLiveArmyNameResponseToJson(const OneSevenLiveArmyNameResponse &response, Json &json);
+
+// Poke request struct
+struct OneSevenLivePokeRequest {
+    bool isPokeBack;
+    QString srcID;
+    QString userID;
+};
+
+// Poke all request struct
+struct OneSevenLivePokeAllRequest {
+    QString liveStreamID;
+    int receiverGroup;
+};
+
+// Poke response struct
+struct OneSevenLivePokeResponse {
+    QString pokeAnimationID;
+};
+
+// Function declarations for poke JSON conversion
+bool JsonToOneSevenLivePokeResponse(const Json &json, OneSevenLivePokeResponse &response);
+bool OneSevenLivePokeRequestToJson(const OneSevenLivePokeRequest &request, Json &json);
+bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request, Json &json);
 
 

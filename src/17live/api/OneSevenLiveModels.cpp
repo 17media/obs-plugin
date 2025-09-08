@@ -189,6 +189,440 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
     return true;
 }
 
+bool JsonToOneSevenLiveArmyName(const Json &json, OneSevenLiveArmyName &armyName) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    armyName.customName = QString::fromStdString(json["customName"].string_value());
+    armyName.defaultName = QString::fromStdString(json["defaultName"].string_value());
+
+    return true;
+}
+
+bool OneSevenLiveArmyNameToJson(const OneSevenLiveArmyName &armyName, Json &json) {
+    json = Json::object{
+        {"customName", armyName.customName.toStdString()},
+        {"defaultName", armyName.defaultName.toStdString()},
+    };
+
+    return true;
+}
+
+bool JsonToOneSevenLiveArmyRankName(const Json &json, OneSevenLiveArmyRankName &rankName) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    rankName.rank = json["rank"].int_value();
+    rankName.rankTier = json["rankTier"].int_value();
+    rankName.customName = QString::fromStdString(json["customName"].string_value());
+    rankName.defaultName = QString::fromStdString(json["defaultName"].string_value());
+
+    return true;
+}
+
+bool OneSevenLiveArmyRankNameToJson(const OneSevenLiveArmyRankName &rankName, Json &json) {
+    json = Json::object{
+        {"rank", rankName.rank},
+        {"rankTier", rankName.rankTier},
+        {"customName", rankName.customName.toStdString()},
+        {"defaultName", rankName.defaultName.toStdString()},
+    };
+
+    return true;
+}
+
+bool JsonToOneSevenLiveArmyNameResponse(const Json &json, OneSevenLiveArmyNameResponse &response) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    // Parse armyName object
+    const auto &armyNameJson = json["armyName"];
+    if (armyNameJson.is_object()) {
+        if (!JsonToOneSevenLiveArmyName(armyNameJson, response.armyName)) {
+            return false;
+        }
+    }
+
+    // Parse rankName array
+    const auto &rankNameArray = json["rankName"];
+    if (rankNameArray.is_array()) {
+        for (const auto &rankNameJson : rankNameArray.array_items()) {
+            OneSevenLiveArmyRankName rankName;
+            if (JsonToOneSevenLiveArmyRankName(rankNameJson, rankName)) {
+                response.rankName.append(rankName);
+            }
+        }
+    }
+
+    return true;
+}
+
+bool OneSevenLiveArmyNameResponseToJson(const OneSevenLiveArmyNameResponse &response, Json &json) {
+    // Convert armyName object
+    Json armyNameJson;
+    OneSevenLiveArmyNameToJson(response.armyName, armyNameJson);
+
+    // Convert rankName array
+    std::vector<Json> rankNameJsonArray;
+    for (const auto &rankName : response.rankName) {
+        Json rankNameJson;
+        OneSevenLiveArmyRankNameToJson(rankName, rankNameJson);
+        rankNameJsonArray.push_back(rankNameJson);
+    }
+
+    json = Json::object{
+        {"armyName", armyNameJson},
+        {"rankName", Json(rankNameJsonArray)},
+    };
+
+    return true;
+}
+
+// Convert JSON to OneSevenLiveLabelToken
+bool JsonToOneSevenLiveLabelToken(const Json &json, OneSevenLiveLabelToken &labelToken) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    if (json["key"].is_string()) {
+        labelToken.key = QString::fromStdString(json["key"].string_value());
+    }
+
+    return true;
+}
+
+// Convert OneSevenLiveLabelToken to JSON
+bool OneSevenLiveLabelTokenToJson(const OneSevenLiveLabelToken &labelToken, Json &json) {
+    json = Json::object{
+        {"key", labelToken.key.toStdString()},
+    };
+
+    return true;
+}
+
+bool JsonToOneSevenLiveGloryroadInfo(const Json &jsonData, OneSevenLiveGloryroadInfo &gloryroadInfo) {
+    if (!jsonData.is_object()) {
+        return false;
+    }
+
+    // int point;
+    if (jsonData["point"].is_number()) {
+        gloryroadInfo.point = jsonData["point"].int_value();
+    }
+
+
+    // int level;
+    if (jsonData["level"].is_number()) {
+        gloryroadInfo.point = jsonData["level"].int_value();
+    }
+
+    // QString iconURL;
+    if (jsonData["iconURL"].is_string()) {
+        gloryroadInfo.iconURL = QString::fromStdString(jsonData["iconURL"].string_value());
+    }
+
+    // QString badgeIconURL;
+    if (jsonData["badgeIconURL"].is_string()) {
+        gloryroadInfo.badgeIconURL = QString::fromStdString(jsonData["badgeIconURL"].string_value());
+    }
+
+    return true;
+}
+// Convert JSON to OneSevenLiveArmyInfoUser
+bool JsonToOneSevenLiveArmyInfoUser(const Json &json, OneSevenLiveArmyInfoUser &user) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    if (json["userID"].is_string()) {
+        user.userID = QString::fromStdString(json["userID"].string_value());
+    }
+
+    if (json["displayName"].is_string()) {
+        user.displayName = QString::fromStdString(json["displayName"].string_value());
+    }
+
+    if (json["picture"].is_string()) {
+        user.picture = QString::fromStdString(json["picture"].string_value());
+    }
+
+    if (json["name"].is_string()) {
+        user.name = QString::fromStdString(json["name"].string_value());
+    }
+
+    if (json["level"].is_number()) {
+        user.level = json["level"].int_value();
+    }
+
+    if (json["openID"].is_string()) {
+        user.openID = QString::fromStdString(json["openID"].string_value());
+    }
+
+    if (json["region"].is_string()) {
+        user.region = QString::fromStdString(json["region"].string_value());
+    }
+
+    if (json["gloryroadInfo"].is_object()) {
+        JsonToOneSevenLiveGloryroadInfo(json["gloryroadInfo"], user.gloryroadInfo);
+    }
+
+    if (json["gloryroadMode"].is_number()) {
+        user.gloryroadMode = json["gloryroadMode"].int_value();
+    }
+
+    return true;
+}
+
+bool OneSevenLiveGloryroadInfoToJson(const OneSevenLiveGloryroadInfo &gloryroadInfo, Json &jsonData) {
+    jsonData = Json::object{
+        {"point", gloryroadInfo.point},
+        {"level", gloryroadInfo.level},
+        {"iconURL", gloryroadInfo.iconURL.toStdString()},
+        {"badgeIconURL", gloryroadInfo.badgeIconURL.toStdString()},
+    };
+
+    return true;
+}
+
+// Convert OneSevenLiveArmyInfoUser to JSON
+bool OneSevenLiveArmyInfoUserToJson(const OneSevenLiveArmyInfoUser &user, Json &json) {
+    Json gloryroadInfoJson;
+    OneSevenLiveGloryroadInfoToJson(user.gloryroadInfo, gloryroadInfoJson);
+
+    json = Json::object{
+        {"userID", user.userID.toStdString()},
+        {"displayName", user.displayName.toStdString()},
+        {"picture", user.picture.toStdString()},
+        {"name", user.name.toStdString()},
+        {"level", user.level},
+        {"openID", user.openID.toStdString()},
+        {"region", user.region.toStdString()},
+        {"gloryroadInfo", gloryroadInfoJson},
+        {"gloryroadMode", user.gloryroadMode},
+    };
+
+    return true;
+}
+
+// Convert JSON to OneSevenLiveArmyInfo
+bool JsonToOneSevenLiveArmyInfo(const Json &json, OneSevenLiveArmyInfo &armyInfo) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    if (json["user"].is_object()) {
+        JsonToOneSevenLiveArmyInfoUser(json["user"], armyInfo.user);
+    }
+
+    if (json["rank"].is_number()) {
+        armyInfo.rank = json["rank"].int_value();
+    }
+
+    if (json["pointContribution"].is_number()) {
+        armyInfo.pointContribution = json["pointContribution"].int_value();
+    }
+
+    if (json["seniority"].is_number()) {
+        armyInfo.seniority = json["seniority"].int_value();
+    }
+
+    if (json["startTime"].is_number()) {
+        armyInfo.startTime = json["startTime"].int_value();
+    }
+
+    if (json["endTime"].is_number()) {
+        armyInfo.endTime = json["endTime"].int_value();
+    }
+
+    if (json["isOnLive"].is_bool()) {
+        armyInfo.isOnLive = json["isOnLive"].bool_value();
+    }
+
+    if (json["newStatus"].is_number()) {
+        armyInfo.newStatus = json["newStatus"].int_value();
+    }
+
+    if (json["periodStartTime"].is_number()) {
+        armyInfo.periodStartTime = json["periodStartTime"].int_value();
+    }
+
+    return true;
+}
+
+// Convert OneSevenLiveArmyInfo to JSON
+bool OneSevenLiveArmyInfoToJson(const OneSevenLiveArmyInfo &armyInfo, Json &json) {
+    Json userJson;
+    OneSevenLiveArmyInfoUserToJson(armyInfo.user, userJson);
+
+    json = Json::object{
+        {"user", userJson},
+        {"rank", armyInfo.rank},
+        {"pointContribution", static_cast<int>(armyInfo.pointContribution)},
+        {"seniority", armyInfo.seniority},
+        {"startTime", static_cast<int>(armyInfo.startTime)},
+        {"endTime", static_cast<int>(armyInfo.endTime)},
+        {"isOnLive", armyInfo.isOnLive},
+        {"newStatus", armyInfo.newStatus},
+        {"periodStartTime", static_cast<int>(armyInfo.periodStartTime)},
+    };
+
+    return true;
+}
+
+// Convert JSON to OneSevenLiveUserAttr
+bool JsonToOneSevenLiveUserAttr(const Json &json, OneSevenLiveUserAttr &userAttr) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    if (json["level"].is_number()) {
+        userAttr.level = json["level"].int_value();
+    }
+
+    if (json["sentPoint"].is_number()) {
+        userAttr.sentPoint = json["sentPoint"].int_value();
+    }
+
+    if (json["checkinLevel"].is_number()) {
+        userAttr.checkinLevel = json["checkinLevel"].int_value();
+    }
+
+    if (json["checkinCount"].is_number()) {
+        userAttr.checkinCount = json["checkinCount"].int_value();
+    }
+
+    if (json["checkinBdgURL"].is_string()) {
+        userAttr.checkinBdgURL = QString::fromStdString(json["checkinBdgURL"].string_value());
+    }
+
+    if (json["noteStatus"].is_number()) {
+        userAttr.noteStatus = json["noteStatus"].int_value();
+    }
+
+    if (json["followStatus"].is_number()) {
+        userAttr.followStatus = json["followStatus"].int_value();
+    }
+
+    if (json["gloryroadMode"].is_number()) {
+        userAttr.gloryroadMode = json["gloryroadMode"].int_value();
+    }
+
+    if (json["gloryroadInfo"].is_object()) {
+        JsonToOneSevenLiveGloryroadInfo(json["gloryroadInfo"], userAttr.gloryroadInfo);
+    }
+
+    return true;
+}
+
+// Convert OneSevenLiveUserAttr to JSON
+bool OneSevenLiveUserAttrToJson(const OneSevenLiveUserAttr &userAttr, Json &json) {
+    Json gloryroadInfoJson;
+    OneSevenLiveGloryroadInfoToJson(userAttr.gloryroadInfo, gloryroadInfoJson);
+
+    json = Json::object{
+        {"level", userAttr.level},
+        {"sentPoint", userAttr.sentPoint},
+        {"checkinLevel", userAttr.checkinLevel},
+        {"checkinCount", userAttr.checkinCount},
+        {"checkinBdgURL", userAttr.checkinBdgURL.toStdString()},
+        {"noteStatus", userAttr.noteStatus},
+        {"followStatus", userAttr.followStatus},
+        {"gloryroadMode", userAttr.gloryroadMode},
+        {"gloryroadInfo", gloryroadInfoJson},
+    };
+
+    return true;
+}
+
+// Convert JSON to OneSevenLiveAnonymousInfo
+bool JsonToOneSevenLiveAnonymousInfo(const Json &json, OneSevenLiveAnonymousInfo &anonymousInfo) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    if (json["isInvisible"].is_bool()) {
+        anonymousInfo.isInvisible = json["isInvisible"].bool_value();
+    }
+
+    if (json["pureText"].is_string()) {
+        anonymousInfo.pureText = QString::fromStdString(json["pureText"].string_value());
+    }
+
+    return true;
+}
+
+// Convert OneSevenLiveAnonymousInfo to JSON
+bool OneSevenLiveAnonymousInfoToJson(const OneSevenLiveAnonymousInfo &anonymousInfo, Json &json) {
+    json = Json::object{
+        {"isInvisible", anonymousInfo.isInvisible},
+        {"pureText", anonymousInfo.pureText.toStdString()},
+    };
+
+    return true;
+}
+
+// Convert JSON to OneSevenLiveRockZoneViewer
+bool JsonToOneSevenLiveRockZoneViewer(const Json &json, OneSevenLiveRockZoneViewer &viewer) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    if (json["type"].is_number()) {
+        viewer.type = json["type"].int_value();
+    }
+
+    if (json["armyInfo"].is_object()) {
+        JsonToOneSevenLiveArmyInfo(json["armyInfo"], viewer.armyInfo);
+    }
+
+    if (json["labelToken"].is_object()) {
+        JsonToOneSevenLiveLabelToken(json["labelToken"], viewer.labelToken);
+    }
+
+    if (json["userAttr"].is_object()) {
+        JsonToOneSevenLiveUserAttr(json["userAttr"], viewer.userAttr);
+    }
+
+    if (json["anonymousInfo"].is_object()) {
+        JsonToOneSevenLiveAnonymousInfo(json["anonymousInfo"], viewer.anonymousInfo);
+    }
+
+    if (json["armyLevel"].is_number()) {
+        viewer.armyLevel = json["armyLevel"].int_value();
+    }
+
+    return true;
+}
+
+// Convert OneSevenLiveRockZoneViewer to JSON
+bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, Json &json) {
+    Json armyInfoJson;
+    OneSevenLiveArmyInfoToJson(viewer.armyInfo, armyInfoJson);
+
+    Json labelTokenJson;
+    OneSevenLiveLabelTokenToJson(viewer.labelToken, labelTokenJson);
+
+    Json userAttrJson;
+    OneSevenLiveUserAttrToJson(viewer.userAttr, userAttrJson);
+
+    Json anonymousInfoJson;
+    OneSevenLiveAnonymousInfoToJson(viewer.anonymousInfo, anonymousInfoJson);
+
+    json = Json::object{
+        {"type", viewer.type},
+        {"armyInfo", armyInfoJson},
+        {"labelToken", labelTokenJson},
+        {"userAttr", userAttrJson},
+        {"anonymousInfo", anonymousInfoJson},
+        {"armyLevel", viewer.armyLevel},
+    };
+
+    return true;
+}
+
 bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo) {
     if (!json.is_object()) {
         return false;
@@ -1214,7 +1648,7 @@ bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &resp
         
         // Create main JSON object
         json = Json::object{
-            {"giftLastUpdate", static_cast<double>(response.giftLastUpdate)},
+            {"giftLastUpdate", static_cast<int>(response.giftLastUpdate)},
             {"tabs", tabsArray}
         };
         
@@ -1292,7 +1726,7 @@ bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, 
         
         // Create main JSON object
         json = Json::object{
-            {"lastUpdate", static_cast<double>(response.lastUpdate)},
+            {"lastUpdate", static_cast<int>(response.lastUpdate)},
             {"gifts", giftsArray}
         };
         
@@ -1307,9 +1741,9 @@ bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &request, Json 
     json = Json::object{
         {"eventName", request.eventName.toStdString()},
         {"description", request.description.toStdString()},
-        {"endTime", static_cast<double>(request.endTime)},
-        {"dailyGoalPoints", static_cast<double>(request.dailyGoalPoints)},
-        {"goalPoints", static_cast<double>(request.goalPoints)},
+        {"endTime", static_cast<int>(request.endTime)},
+        {"dailyGoalPoints", static_cast<int>(request.dailyGoalPoints)},
+        {"goalPoints", static_cast<int>(request.goalPoints)},
         {"userID", request.userID.toStdString()},
     };
 
@@ -1384,6 +1818,30 @@ bool JsonToOneSevenLiveCustomEvent(const Json &json, OneSevenLiveCustomEvent &re
     for (const auto &rewardJson : rewardsJson) {
         response.rewards.append(rewardJson);
     }
+
+    return true;
+}
+
+bool OneSevenLivePokeRequestToJson(const OneSevenLivePokeRequest &request, Json &json) {
+    json = Json::object{
+        {"isPokeBack", request.isPokeBack},
+        {"srcID", request.srcID.toStdString()},
+        {"userID", request.userID.toStdString()},
+    };
+
+    return true;
+}
+
+bool JsonToOneSevenLivePokeResponse(const Json &json, OneSevenLivePokeResponse &response) {
+    response.pokeAnimationID = QString::fromStdString(json["pokeAnimationID"].string_value());
+    return true;
+}
+
+bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request, Json &json) {
+    json = Json::object{
+        {"liveStreamID", request.liveStreamID.toStdString()},
+        {"receiverGroup", request.receiverGroup},
+    };
 
     return true;
 }
