@@ -611,6 +611,8 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
     
     rockZoneDock->setMinimumWidth(300);
     rockZoneDock->setMinimumHeight(400);
+
+    rockZoneDock->resize(370, 500);
     
     rockZoneDock->setAllowedAreas(Qt::AllDockWidgetAreas);
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, rockZoneDock);

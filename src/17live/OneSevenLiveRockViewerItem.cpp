@@ -278,19 +278,40 @@ void OneSevenLiveRockViewerItem::setupUi() {
                 badgeRow->setSpacing(6);
                 badgeRow->setAlignment(Qt::AlignLeft);
             }
-            QLabel *lbl = new QLabel(labelText, this);
-            // Keep font and padding; background is custom-painted by event filter
-            lbl->setStyleSheet(
-            "QLabel {"
-            "    color: #FFFFFF;"
-            "    padding: 2px 12px 2px 6px;"  // extra right padding to separate text from svg
-            "    font-size: 11px;"
-            "}");
-            lbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-            // Install background painter: gradient  right-side svg overlay
-            auto *bg = new RockBadgeBgFilter(":/resources/user_images/ig_rock_viewer_badge.svg", lbl);
-            lbl->installEventFilter(bg);
-            badgeRow->addWidget(lbl, 0, Qt::AlignLeft);
+            // Build a composite badge: [Gradient text label] + [Right image]
+            QWidget *badge = new QWidget(this);
+            QHBoxLayout *badgeLayout = new QHBoxLayout(badge);
+            badgeLayout->setContentsMargins(0, 0, 0, 0);
+            badgeLayout->setSpacing(0); // no gap between left and right parts
+
+            // Left: text label with gradient background and rounded left corners
+            QLabel *leftLbl = new QLabel(labelText, badge);
+            leftLbl->setStyleSheet(
+                "QLabel {"
+                "    color: #FFFFFF;"
+                "    padding: 2px 6px;"
+                "    font-size: 11px;"
+                "    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F5487D, stop:1 #F69355);"
+                "    border-top-left-radius: 6px;"
+                "    border-bottom-left-radius: 6px;"
+                "    border-top-right-radius: 0px;"
+                "    border-bottom-right-radius: 0px;"
+                "}");
+            leftLbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+
+            // Right: fixed image piece to complete the badge shape
+            QLabel *rightImg = new QLabel(badge);
+            QIcon badgeIcon(":/resources/user_images/ig_rock_viewer_badge.svg");
+            const int iconH = qMax(14, leftLbl->sizeHint().height() - 4);
+            const int iconW = qRound(iconH * (8.0 / 14.0)); // svg aspect 8x14
+            rightImg->setPixmap(badgeIcon.pixmap(iconW, iconH));
+            rightImg->setFixedSize(iconW, iconH);
+            rightImg->setAlignment(Qt::AlignCenter);
+            rightImg->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+
+            badgeLayout->addWidget(leftLbl);
+            badgeLayout->addWidget(rightImg);
+            badgeRow->addWidget(badge, 0, Qt::AlignLeft);
         }
         if (badgeRow) {
             rightLayout->addLayout(badgeRow);
