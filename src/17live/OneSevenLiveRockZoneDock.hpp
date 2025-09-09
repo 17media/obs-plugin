@@ -38,7 +38,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
    private:
     void setupUi();
     void createConnections();
-    void updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user);
+    void updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user, const OneSevenLiveArmyNameResponse& armyNameResponse);
     void showEmptyListMessage();
 
     QListWidget* userList;

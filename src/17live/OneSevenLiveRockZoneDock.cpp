@@ -13,6 +13,7 @@
 #include <QPointer>
 #include <QPainterPath>
 #include <QSharedPointer>
+#include <QHash>
 
 #include "utility/RemoteTextThread.hpp"
 #include "OneSevenLiveConfigManager.hpp"
@@ -182,8 +183,8 @@ void OneSevenLiveRockZoneDock::createConnections() {
     //         &OneSevenLiveRockZoneDock::onUserItemClicked);
 }
 
-void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user) {
-    OneSevenLiveRockViewerItem *w = new OneSevenLiveRockViewerItem(user, apiWrapper, configManager, this);
+void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user, const OneSevenLiveArmyNameResponse& armyNameResponse) {
+    OneSevenLiveRockViewerItem *w = new OneSevenLiveRockViewerItem(user, apiWrapper, configManager, armyNameResponse, this);
     item->setSizeHint(w->sizeHint());
     userList->setItemWidget(item, w);
     
@@ -298,6 +299,14 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         Json response;
         bool success = apiWrapper->GetRockViewers(roomID, response);
 
+        std::string userID;
+        configManager->getConfigValue("UserID", userID);
+        Json armyResponse;
+
+        apiWrapper->GetArmyName(userID, armyResponse);
+        OneSevenLiveArmyNameResponse armyNameResponse;
+        JsonToOneSevenLiveArmyNameResponse(armyResponse, armyNameResponse);
+
         // Use Qt::QueuedConnection to ensure UI updates happen on the main thread
         QMetaObject::invokeMethod(
             this,
@@ -321,17 +330,31 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     std::string userID;
                     configManager->getConfigValue("UserID", userID);
 
-                    QList<QString> userIDs;
-                    for (auto &user : users) {
-                        if (user.displayUser.userID.isEmpty()) {
+                    // Merge viewers by userID and collect their types into badgeTypes
+                    QHash<QString, int> idIndex; // userID -> index in viewersList
+                    viewersList.clear();
+                    for (const auto &user : users) {
+                        const QString uid = user.displayUser.userID;
+                        if (uid.isEmpty()) {
                             continue;
                         }
-                        if (user.displayUser.userID == QString::fromStdString(userID)) {
+                        if (uid == QString::fromStdString(userID)) {
                             continue;
                         }
-                        if (user.userAttr.sentPoint > 0 && !userIDs.contains(user.displayUser.userID)) {
-                            viewersList.push_back(user);
-                            userIDs.push_back(user.displayUser.userID);
+                        if (user.userAttr.sentPoint <= 0) {
+                            continue;
+                        }
+                        if (idIndex.contains(uid)) {
+                            auto &existing = viewersList[idIndex.value(uid)];
+                            if (!existing.badgeTypes.contains(user.type)) {
+                                existing.badgeTypes.append(user.type);
+                            }
+                        } else {
+                            OneSevenLiveRockZoneViewer base = user;
+                            base.badgeTypes.clear();
+                            base.badgeTypes.append(user.type);
+                            viewersList.push_back(base);
+                            idIndex.insert(uid, viewersList.size() - 1);
                         }
                     }
                     

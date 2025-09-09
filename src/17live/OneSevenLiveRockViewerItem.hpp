@@ -16,6 +16,7 @@
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
 class RemoteTextThread;
+struct OneSevenLiveArmyNameResponse;
 
 // Rock Zone viewer list item widget
 class OneSevenLiveRockViewerItem : public QWidget {
@@ -25,6 +26,7 @@ public:
     explicit OneSevenLiveRockViewerItem(const OneSevenLiveRockZoneViewer &user, 
                                        OneSevenLiveApiWrappers *apiWrapper = nullptr,
                                        OneSevenLiveConfigManager *configManager = nullptr,
+                                       const OneSevenLiveArmyNameResponse *armyNameResponse = nullptr,
                                        QWidget *parent = nullptr);
 
     QSize sizeHint() const override;
@@ -39,6 +41,7 @@ private:
     OneSevenLiveRockZoneViewer user;
     OneSevenLiveApiWrappers *apiWrapper;
     OneSevenLiveConfigManager *configManager;
+    const OneSevenLiveArmyNameResponse *armyNameResponse;
 
     static QString buildUrl(const QString &path);
     void setupUi();

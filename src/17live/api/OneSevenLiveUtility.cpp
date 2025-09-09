@@ -105,22 +105,21 @@ static inline bool isJa(const QString &locale) {
     return locale.startsWith("ja", Qt::CaseInsensitive) || locale.startsWith("jp", Qt::CaseInsensitive);
 }
 
-QString OneSevenLiveUtility::badgeLabel(const OneSevenLiveRockZoneViewer &viewer,
+QString OneSevenLiveUtility::badgeLabel(int badgeType, int rank,
                                         const OneSevenLiveArmyNameResponse *armyResp) {
-    switch (viewer.type) {
+    switch (badgeType) {
     case 0: // NORMAL
         return QString();
     case 1: // GIFT_RANK_ONE
-        return obs_module_text("Live.Badge.TopContributor");
+        return obs_module_text("RockZone.Badge.TopContributor");
     case 2: // GUARDIAN
-        return obs_module_text("Live.Badge.Guardian");
+        return obs_module_text("RockZone.Badge.Guardian");
     case 3: { // ARMY -> need rankTier/customName from locale template
         if (!armyResp)
             return QString();
-        const int targetRank = viewer.armyInfo.rank;
         for (const auto &rn : armyResp->rankName) {
-            if (rn.rank == targetRank) {
-                QString text = QString(obs_module_text("Live.Badge.Army.Template")).arg(QString::number(rn.rankTier), rn.customName);
+            if (rn.rank == rank) {
+                QString text = QString(obs_module_text("RockZone.Badge.Army.Template")).arg(QString::number(rn.rankTier), rn.customName);
                 return text;
             }
         }

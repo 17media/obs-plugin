@@ -8,13 +8,18 @@
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveUtility.hpp"
+#include <QIcon>
+#include <QPainter>
+#include <QPainterPath>
+#include <QLinearGradient>
 
 #include "moc_OneSevenLiveRockViewerItem.cpp"
 OneSevenLiveRockViewerItem::OneSevenLiveRockViewerItem(const OneSevenLiveRockZoneViewer &u,
                                                        OneSevenLiveApiWrappers *apiWrapper_,
                                                        OneSevenLiveConfigManager *configManager_,
+                                                       const OneSevenLiveArmyNameResponse *armyNameResponse_,
                                                        QWidget *parent)
-    : QWidget(parent), user(u), apiWrapper(apiWrapper_), configManager(configManager_) {
+    : QWidget(parent), user(u), apiWrapper(apiWrapper_), configManager(configManager_), armyNameResponse(armyNameResponse_) {
     setupUi();
 }
 
@@ -165,32 +170,38 @@ void OneSevenLiveRockViewerItem::setupUi() {
         rightLayout->addLayout(nameRow);
     }
 
-    // 2) Medals list
+    // 2) Badge list
     {
-        QHBoxLayout *medalsRow = new QHBoxLayout();
-        medalsRow->setContentsMargins(0, 0, 0, 0);
-        medalsRow->setSpacing(6);
-        medalsRow->setAlignment(Qt::AlignCenter);
-        auto addMedalResource = [&](const QString &resPath) {
-            if (resPath.isEmpty()) return;
-            QLabel *icon = new QLabel(this);
-            icon->setFixedSize(18, 18);
-            icon->setStyleSheet("QLabel { background-color: transparent; }");
-            icon->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-            QPixmap pm;
-            pm.load(resPath);
-            if (!pm.isNull()) {
-                pm = pm.scaled(icon->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-                icon->setPixmap(pm);
+        // Badge labels based on merged badgeTypes; skip if none or all empty
+        QHBoxLayout *badgeRow = nullptr;
+        for (int t : user.badgeTypes) {
+            const QString labelText = OneSevenLiveUtility::badgeLabel(t, user.armyInfo.rank, armyNameResponse);
+            if (labelText.isEmpty()) {
+                continue;
             }
-            medalsRow->addWidget(icon);
-        };
-
-        // Use local resource images to unify style and reduce network requests
-        addMedalResource(OneSevenLiveUtility::mLevelBadgeResource(user));
-        addMedalResource(OneSevenLiveUtility::checkingLevelBadgeResource(user));
-
-        rightLayout->addLayout(medalsRow);
+            if (!badgeRow) {
+                badgeRow = new QHBoxLayout();
+                badgeRow->setContentsMargins(0, 0, 0, 0);
+                badgeRow->setSpacing(6);
+                badgeRow->setAlignment(Qt::AlignCenter);
+            }
+            QLabel *lbl = new QLabel(labelText, this);
+            // Keep font and padding; background is custom-painted by event filter
+            lbl->setStyleSheet(
+            "QLabel {"
+            "    color: #FFFFFF;"
+            "    padding: 2px 12px 2px 6px;"  // extra right padding to separate text from svg
+            "    font-size: 11px;"
+            "}");
+            lbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+            // Install background painter: gradient  right-side svg overlay
+            auto *bg = new RockBadgeBgFilter(":/resources/user_images/ig_rock_viewer_badge.svg", lbl);
+            lbl->installEventFilter(bg);
+            badgeRow->addWidget(lbl, 0, Qt::AlignCenter);
+        }
+        if (badgeRow) {
+            rightLayout->addLayout(badgeRow);
+        }
     }
 
     // 3) Invested points
@@ -226,3 +237,57 @@ void OneSevenLiveRockViewerItem::mousePressEvent(QMouseEvent *event) {
     }
     QWidget::mousePressEvent(event);
 }
+
+// Painter for badge label background: left linear gradient and right-side SVG overlay
+namespace {
+class RockBadgeBgFilter : public QObject {
+public:
+    explicit RockBadgeBgFilter(const QString &svgResPath, QObject *parent = nullptr)
+        : QObject(parent), icon(svgResPath) {}
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *ev) override {
+        if (ev->type() != QEvent::Paint) return QObject::eventFilter(obj, ev);
+
+        QLabel *lbl = qobject_cast<QLabel *>(obj);
+        if (!lbl) return QObject::eventFilter(obj, ev);
+
+        QPainter p(lbl);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        const QRect r = lbl->rect();
+
+        // Rounded rect background with horizontal gradient (F5487D -> F69355)
+        QPainterPath path;
+        const qreal radius = 6.0;
+        path.addRoundedRect(r.adjusted(0, 0, -1, -1), radius, radius);
+
+        QLinearGradient grad(r.topLeft(), r.topRight());
+        grad.setColorAt(0.0, QColor("#F5487D"));
+        grad.setColorAt(1.0, QColor("#F69355"));
+        p.fillPath(path, grad);
+
+        // Compute space for right svg badge
+        const int h = qMax(12, r.height() - 4);
+        const int svgW = qRound(h * (8.0 / 14.0)); // match svg aspect ratio 8x14
+        const int rightPad = svgW  6;             // spacing from right edge
+
+        // Draw text (centered within content area excluding svg area)
+        QRect textRect = r.adjusted(6, 0, -rightPad, 0);
+        p.setPen(QColor("#FFFFFF"));
+        p.setFont(lbl->font());
+        p.drawText(textRect, Qt::AlignCenter, lbl->text());
+
+        // Render svg at right side
+        if (!icon.isNull()) {
+            const int y = r.top()  (r.height() - h) / 2;
+            const int x = r.right() - svgW - 4;
+            QPixmap pm = icon.pixmap(svgW, h);
+            p.drawPixmap(QRect(x, y, svgW, h), pm);
+        }
+        return true; // handled
+    }
+
+private:
+    QIcon icon;
+};
+} // namespace

@@ -41,6 +41,6 @@ public:
     //   zh/ja: "階級 %1 (%2)"
     //   en:    "Rank %1 (%2)"
     // If armyResp is null or no matching rank is found, returns empty string for ARMY.
-    static QString badgeLabel(const OneSevenLiveRockZoneViewer &viewer,
+    static QString badgeLabel(int badgeType, int rank,
                               const OneSevenLiveArmyNameResponse *armyResp = nullptr);
 };

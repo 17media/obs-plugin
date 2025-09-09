@@ -693,6 +693,7 @@ struct OneSevenLiveDisplayUser {
 // Rock zone viewer struct
 struct OneSevenLiveRockZoneViewer {
     int type;
+    QList<int> badgeTypes; // just for merge badge
     OneSevenLiveArmyInfo armyInfo;
     OneSevenLiveLabelToken labelToken;
     OneSevenLiveUserAttr userAttr;
