@@ -54,7 +54,7 @@ protected:
         QRect textRect = r.adjusted(6, 0, -rightPad, 0);
         p.setPen(QColor("#FFFFFF"));
         p.setFont(lbl->font());
-        p.drawText(textRect, Qt::AlignCenter, lbl->text());
+        p.drawText(textRect, Qt::AlignLeft, lbl->text());
 
         // Render svg at right side
         if (!icon.isNull()) {
@@ -95,14 +95,14 @@ void OneSevenLiveRockViewerItem::setupUi() {
     // allowing the outer widget to stretch with the QListWidget viewport
     QHBoxLayout *rootLayout = new QHBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 0, 0);
-    rootLayout->setAlignment(Qt::AlignCenter);
+    rootLayout->setAlignment(Qt::AlignLeft);
 
     QWidget *card = new QWidget(this);
     card->setFixedSize(350, 80);
     QHBoxLayout *mainLayout = new QHBoxLayout(card);
     mainLayout->setContentsMargins(10, 6, 10, 6); // item padding ~10
     mainLayout->setSpacing(10);
-    mainLayout->setAlignment(Qt::AlignCenter); // center content
+    mainLayout->setAlignment(Qt::AlignLeft);
 
     // Make the whole item look clickable
     setCursor(Qt::PointingHandCursor);
@@ -169,9 +169,9 @@ void OneSevenLiveRockViewerItem::setupUi() {
                 // Prepare 65x67 canvas and draw 55x57 image centered with 5px padding
                 QPixmap src;
                 src.loadFromData(imageData);
-                QPixmap scaled = src.scaled(55, 57, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+                QPixmap scaled = src.scaled(45, 47, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 
-                QPixmap canvas(65, 67);
+                QPixmap canvas(55, 57);
                 canvas.fill(Qt::transparent);
                 QPainter painter(&canvas);
                 painter.setRenderHint(QPainter::Antialiasing);
@@ -220,14 +220,14 @@ void OneSevenLiveRockViewerItem::setupUi() {
     QVBoxLayout *rightLayout = new QVBoxLayout();
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(4);
-    rightLayout->setAlignment(Qt::AlignCenter); // center content in right column
+    rightLayout->setAlignment(Qt::AlignLeft); // center content in right column
 
     // 1) Username  Level badge
     {
         QHBoxLayout *nameRow = new QHBoxLayout();
         nameRow->setContentsMargins(0, 0, 0, 0);
         nameRow->setSpacing(6);
-        nameRow->setAlignment(Qt::AlignCenter);
+        nameRow->setAlignment(Qt::AlignLeft);
 
         QLabel *usernameLabel = new QLabel(user.displayUser.displayName, this);
         usernameLabel->setStyleSheet(
@@ -236,7 +236,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
             "    font-weight: bold;"
             "    font-size: 14px;"
             "}");
-        usernameLabel->setAlignment(Qt::AlignCenter);
+        usernameLabel->setAlignment(Qt::AlignLeft);
         usernameLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
         usernameLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
 
@@ -256,7 +256,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
             }
         }
 
-        nameRow->addWidget(usernameLabel, 0, Qt::AlignCenter);
+        nameRow->addWidget(usernameLabel, 0, Qt::AlignLeft);
         if (checkingLabel) {
             nameRow->addWidget(checkingLabel, 0, Qt::AlignVCenter);
         }
@@ -276,7 +276,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
                 badgeRow = new QHBoxLayout();
                 badgeRow->setContentsMargins(0, 0, 0, 0);
                 badgeRow->setSpacing(6);
-                badgeRow->setAlignment(Qt::AlignCenter);
+                badgeRow->setAlignment(Qt::AlignLeft);
             }
             QLabel *lbl = new QLabel(labelText, this);
             // Keep font and padding; background is custom-painted by event filter
@@ -290,7 +290,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
             // Install background painter: gradient  right-side svg overlay
             auto *bg = new RockBadgeBgFilter(":/resources/user_images/ig_rock_viewer_badge.svg", lbl);
             lbl->installEventFilter(bg);
-            badgeRow->addWidget(lbl, 0, Qt::AlignCenter);
+            badgeRow->addWidget(lbl, 0, Qt::AlignLeft);
         }
         if (badgeRow) {
             rightLayout->addLayout(badgeRow);
@@ -306,15 +306,15 @@ void OneSevenLiveRockViewerItem::setupUi() {
     //         "    color: #D9D9D9;"
     //         "    font-size: 12px;"
     //         "}");
-    //     pointsLabel->setAlignment(Qt::AlignCenter);
+    //     pointsLabel->setAlignment(Qt::AlignLeft);
     //     pointsLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    //     rightLayout->addWidget(pointsLabel, 0, Qt::AlignCenter);
+    //     rightLayout->addWidget(pointsLabel, 0, Qt::AlignLeft);
     // }
 
     mainLayout->addLayout(rightLayout, 1);
 
     // Mount card to root centered layout
-    rootLayout->addWidget(card, 0, Qt::AlignCenter);
+    rootLayout->addWidget(card, 0, Qt::AlignLeft);
     setLayout(rootLayout);
 }
 

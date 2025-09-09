@@ -635,14 +635,6 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
     rockZoneDock->refreshUserList();
     
     if (rockZoneDockFirstLoad) {
-        // Connect view all friends signal
-        connect(rockZoneDock, &OneSevenLiveRockZoneDock::viewAllFriendsClicked, this, [this]() {
-            // Handle view all friends action
-            // This could open a web page or another dialog
-            QUrl url = QUrl(obs_module_text("RockZone.ViewAllFriends.Url"), QUrl::TolerantMode);
-            QDesktopServices::openUrl(url);
-        });
-        
         // When dock is closed, uncheck menu item status
         connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),

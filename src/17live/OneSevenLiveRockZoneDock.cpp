@@ -72,13 +72,16 @@ void OneSevenLiveRockZoneDock::setupUi() {
         hintLayout->setSpacing(8);
         hintLayout->setAlignment(Qt::AlignHCenter);
 
+
         QLabel* icon = new QLabel(container);
         icon->setFixedSize(20, 20);
-        icon->setPixmap(QPixmap(":/resources/alert.svg").scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        icon->setPixmap(QPixmap(":/resources/exclaimark.svg").scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
         QLabel* hintText = new QLabel(obs_module_text("RockZone.Hint"), container);
         hintText->setStyleSheet("color: #FFFFFF; font-size: 14px;");
 
+        // Add leading stretch to center contents
+        hintLayout->addStretch();
         hintLayout->addWidget(icon);
         hintLayout->addWidget(hintText);
         hintLayout->addStretch();
@@ -98,7 +101,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
         "QListWidget::item {"
         "   background-color: #000000;"
         "   border-radius: 0px;"
-        "   padding: 10px;"
+        // "   padding: 10px;"
         "   margin: 0px;"
         "}"
         "QListWidget::item:selected {"
@@ -111,7 +114,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
         "}");
     userList->setResizeMode(QListWidget::Adjust);
     userList->setWordWrap(true);
-    userList->setSpacing(5);
+    userList->setSpacing(1);
     mainLayout->addWidget(userList);
 
     mainLayout->addSpacing(40);
