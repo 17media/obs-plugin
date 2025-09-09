@@ -97,7 +97,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
         "QListWidget::item {"
         "   background-color: #000000;"
         "   border-radius: 0px;"
-        "   padding: 5px;"
+        "   padding: 10px;"
         "   margin: 0px;"
         "}"
         "QListWidget::item:selected {"
@@ -110,7 +110,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
         "}");
     userList->setResizeMode(QListWidget::Adjust);
     userList->setWordWrap(true);
-    userList->setSpacing(1);
+    userList->setSpacing(5);
     mainLayout->addWidget(userList);
 
     mainLayout->addSpacing(40);
