@@ -24,7 +24,7 @@
 OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
                                                OneSevenLiveApiWrappers* apiWrapper_,
                                                OneSevenLiveConfigManager* configManager_)
-    : QDockWidget(obs_module_text("Live.RockZone"), parent),
+    : QDockWidget(obs_module_text("RockZone.Title"), parent),
       apiWrapper(apiWrapper_),
       configManager(configManager_) {
     setupUi();
@@ -64,31 +64,28 @@ void OneSevenLiveRockZoneDock::setupUi() {
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
 
-    // Create title bar
-    QHBoxLayout* titleLayout = new QHBoxLayout();
-    titleLayout->setContentsMargins(0, 0, 0, 0);
-    titleLayout->setSpacing(5);
+    // Create hint bar
+    {
+        QHBoxLayout* hintLayout = new QHBoxLayout();
+        hintLayout->setContentsMargins(0, 40, 0, 20);
+        hintLayout->setSpacing(8);
+        hintLayout->setAlignment(Qt::AlignHCenter);
 
-    titleLabel = new QLabel(obs_module_text("Live.RockZone"));
-    titleLabel->setStyleSheet(
-        "QLabel {"
-        "    color: white;"
-        "    font-weight: bold;"
-        "    font-size: 16px;"
-        "}");
+        QLabel* icon = new QLabel(container);
+        icon->setFixedSize(20, 20);
+        icon->setPixmap(QPixmap(":/resources/alert.svg").scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
-    userCountLabel = new QLabel();
-    userCountLabel->setStyleSheet(
-        "QLabel {"
-        "    color: gray;"
-        "    font-size: 12px;"
-        "}");
+        QLabel* hintText = new QLabel(obs_module_text("RockZone.Hint"), container);
+        hintText->setStyleSheet("color: #FFFFFF; font-size: 14px;");
 
-    titleLayout->addWidget(titleLabel);
-    titleLayout->addWidget(userCountLabel);
-    titleLayout->addStretch();
+        hintLayout->addWidget(icon);
+        hintLayout->addWidget(hintText);
+        hintLayout->addStretch();
 
-    mainLayout->addLayout(titleLayout);
+        QWidget* hintContainer = new QWidget(container);
+        hintContainer->setLayout(hintLayout);
+        mainLayout->addWidget(hintContainer);
+    }
 
     // Create user list
     userList = new QListWidget();
@@ -116,13 +113,15 @@ void OneSevenLiveRockZoneDock::setupUi() {
     userList->setSpacing(1);
     mainLayout->addWidget(userList);
 
+    mainLayout->addSpacing(40);
+
     // Create bottom button
-    pokeAllButton = new QPushButton(obs_module_text("Live.RockZone.ViewAllFriends"));
+    pokeAllButton = new QPushButton(obs_module_text("RockZone.PokeAll"));
     pokeAllButton->setStyleSheet(
         "QPushButton {"
         "    background-color: #FF0001;"
         "    color: white;"
-        "    border-radius: 4px;"
+        "    border-radius: 2px;"
         "    padding: 8px;"
         "   font-weight: 600;"
         "   font-size: 16px;"
