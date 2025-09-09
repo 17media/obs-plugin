@@ -1,19 +1,3 @@
-// System includes
-#include <sys/types.h>
-#include <stdio.h>
-
-// C++ Standard Library includes
-#include <cstdio>
-#include <cstdlib>
-#include <climits>
-#include <string>
-#include <vector>
-#include <map>
-#include <memory>
-#include <algorithm>
-#include <iostream>
-#include <limits>
-
 // OBS includes
 #include <obs-module.h>
 #include "plugin-support.h"

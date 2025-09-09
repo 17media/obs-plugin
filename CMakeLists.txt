@@ -115,6 +115,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
   src/17live/OneSevenLiveStreamListDock.cpp
   src/17live/OneSevenLiveRockZoneDock.cpp
   src/17live/OneSevenLiveUserDialog.cpp
+  src/17live/OneSevenLiveRockViewerItem.cpp
+  src/17live/api/OneSevenLiveUtility.cpp
   src/17live/OneSevenLiveHttpServer.cpp
   src/17live/OneSevenLiveUpdateManager.cpp
   resources.qrc)

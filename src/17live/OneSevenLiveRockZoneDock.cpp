@@ -11,11 +11,15 @@
 #include <QVBoxLayout>
 #include <QPainter>
 #include <QPointer>
+#include <QPainterPath>
+#include <QSharedPointer>
 
 #include "utility/RemoteTextThread.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
+#include "OneSevenLiveRockViewerItem.hpp"
+#include "OneSevenLiveUserDialog.hpp"
 
 OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
                                                OneSevenLiveApiWrappers* apiWrapper_,
@@ -174,88 +178,23 @@ void OneSevenLiveRockZoneDock::createConnections() {
             &OneSevenLiveRockZoneDock::onPokeAllClicked);
     
     // Connect user list item click signal
-    connect(userList, &QListWidget::itemClicked, this,
-            &OneSevenLiveRockZoneDock::onUserItemClicked);
+    // Disabled because OneSevenLiveRockViewerItem handles click and opens the dialog
+    // connect(userList, &QListWidget::itemClicked, this,
+    //         &OneSevenLiveRockZoneDock::onUserItemClicked);
 }
 
 void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user) {
-    QWidget* itemContainer = new QWidget(this);
-
-    QHBoxLayout* mainLayout = new QHBoxLayout(itemContainer);
-    mainLayout->setContentsMargins(5, 5, 5, 5);
-    mainLayout->setSpacing(10);
-
-    // User avatar
-    QLabel* avatarLabel = new QLabel();
-    avatarLabel->setFixedSize(40, 40);
-    avatarLabel->setStyleSheet(
-        "QLabel {"
-        "    background-color: #333333;"
-        "    border-radius: 20px;"
-        "}");
+    OneSevenLiveRockViewerItem *w = new OneSevenLiveRockViewerItem(user, apiWrapper, configManager, this);
+    item->setSizeHint(w->sizeHint());
+    userList->setItemWidget(item, w);
     
-    QString url = "https://cdn.17app.co/" + user.displayUser.picture;
-    RemoteTextThread *thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
-
-    QPointer<QLabel> safeAvatarLabel = avatarLabel;
-        
-    connect(thread, &RemoteTextThread::ImageResult, this, [this, safeAvatarLabel](const QByteArray &imageData, const QString &error) {
-        if (error.isEmpty() && !imageData.isEmpty()) {
-            QPixmap avatar;
-            avatar.loadFromData(imageData);
-            avatar = avatar.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-            
-            // Create rounded avatar
-            QPixmap roundedAvatar(40, 40);
-            roundedAvatar.fill(Qt::transparent);
-            
-            QPainter painter(&roundedAvatar);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(QBrush(avatar));
-            painter.drawEllipse(0, 0, 40, 40);
-            
-            if (safeAvatarLabel) {
-                safeAvatarLabel->setPixmap(roundedAvatar);
-            }
-        }
+    // Click: open user dialog
+    connect(w, &OneSevenLiveRockViewerItem::clicked, this, [this](const OneSevenLiveRockZoneViewer &viewer){
+        OneSevenLiveUserDialog *dialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setUserInfo(viewer);
+        dialog->show();
     });
-    
-    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-    
-    thread->start();
-    
-    mainLayout->addWidget(avatarLabel);
-
-    // User information (username and ID)
-    QVBoxLayout* userInfoLayout = new QVBoxLayout();
-    userInfoLayout->setContentsMargins(0, 0, 0, 0);
-    userInfoLayout->setSpacing(2);
-
-    QLabel* usernameLabel = new QLabel(user.displayUser.displayName);
-    usernameLabel->setStyleSheet(
-        "QLabel {"
-        "    color: white;"
-        "    font-weight: bold;"
-        "    font-size: 14px;"
-        "}");
-
-//    QLabel* userIdLabel = new QLabel(user.userAttr.checkinLevel);
-//    userIdLabel->setStyleSheet(
-//        "QLabel {"
-//        "    color: #d9d9d9;"
-//        "    font-size: 12px;"
-//        "}");
-
-    userInfoLayout->addWidget(usernameLabel);
-//    userInfoLayout->addWidget(userIdLabel);
-
-    mainLayout->addLayout(userInfoLayout);
-    mainLayout->addStretch();
-
-    itemContainer->setLayout(mainLayout);
-    item->setSizeHint(QSize(-1, 50));
-    userList->setItemWidget(item, itemContainer);
 }
 
 void OneSevenLiveRockZoneDock::showEmptyListMessage() {
