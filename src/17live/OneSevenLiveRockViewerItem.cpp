@@ -236,7 +236,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
             "    font-weight: bold;"
             "    font-size: 14px;"
             "}");
-        usernameLabel->setAlignment(Qt::AlignLeft);
+        usernameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         usernameLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
         usernameLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
 
@@ -256,7 +256,8 @@ void OneSevenLiveRockViewerItem::setupUi() {
             }
         }
 
-        nameRow->addWidget(usernameLabel, 0, Qt::AlignLeft);
+        // Keep left order and vertically center within the row
+        nameRow->addWidget(usernameLabel, 0, Qt::AlignLeft | Qt::AlignVCenter);
         if (checkingLabel) {
             nameRow->addWidget(checkingLabel, 0, Qt::AlignVCenter);
         }
@@ -291,18 +292,21 @@ void OneSevenLiveRockViewerItem::setupUi() {
                 "    color: #FFFFFF;"
                 "    padding: 2px 6px;"
                 "    font-size: 11px;"
-                "    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F5487D, stop:1 #F69355);"
+                "    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F69355, stop:1 #F5487D);"
                 "    border-top-left-radius: 6px;"
                 "    border-bottom-left-radius: 6px;"
                 "    border-top-right-radius: 0px;"
                 "    border-bottom-right-radius: 0px;"
                 "}");
             leftLbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+            leftLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            const int targetH = leftLbl->sizeHint().height();
+            leftLbl->setFixedHeight(targetH);
 
             // Right: fixed image piece to complete the badge shape
             QLabel *rightImg = new QLabel(badge);
             QIcon badgeIcon(":/resources/user_images/ig_rock_viewer_badge.svg");
-            const int iconH = qMax(14, leftLbl->sizeHint().height() - 4);
+            const int iconH = targetH; // keep exact same height as left label
             const int iconW = qRound(iconH * (8.0 / 14.0)); // svg aspect 8x14
             rightImg->setPixmap(badgeIcon.pixmap(iconW, iconH));
             rightImg->setFixedSize(iconW, iconH);
