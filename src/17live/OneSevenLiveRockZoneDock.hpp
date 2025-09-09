@@ -42,8 +42,6 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     void showEmptyListMessage();
 
     QListWidget* userList;
-    QLabel* titleLabel;
-    QLabel* userCountLabel;
     QPushButton* pokeAllButton;
     QWidget* emptyContainer = nullptr;
 

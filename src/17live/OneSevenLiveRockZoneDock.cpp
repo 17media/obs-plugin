@@ -301,16 +301,14 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
 
         std::string userID;
         configManager->getConfigValue("UserID", userID);
-        Json armyResponse;
-
-        apiWrapper->GetArmyName(userID, armyResponse);
         OneSevenLiveArmyNameResponse armyNameResponse;
-        JsonToOneSevenLiveArmyNameResponse(armyResponse, armyNameResponse);
+
+        apiWrapper->GetArmyName(userID, armyNameResponse);
 
         // Use Qt::QueuedConnection to ensure UI updates happen on the main thread
         QMetaObject::invokeMethod(
             this,
-            [this, success, response]() {
+            [this, success, response, armyNameResponse]() {
                 // Hide loading status
                 isLoading = false;
                 loadingOverlay->setVisible(false);
@@ -364,15 +362,11 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         showEmptyListMessage();
                     } else {
                         userList->setVisible(true);
-                        
-                        // Update user count label
-                        userCountLabel->setText(QString(obs_module_text("Live.RockZone.UserCount")).arg(viewersList.size()));
-    
 
                         // Display user list
                         for (const auto& user : viewersList) {
                             QListWidgetItem* item = new QListWidgetItem(userList);
-                            updateUserItem(item, user);
+                            updateUserItem(item, user, armyNameResponse);
                             userList->addItem(item);
                         }
                     }

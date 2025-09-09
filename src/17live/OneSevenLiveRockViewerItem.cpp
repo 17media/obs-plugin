@@ -12,12 +12,70 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QLinearGradient>
+#include <QEvent>
+#include <QLabel>
+#include <QPixmap>
+#include <QColor>
+
+// Painter for badge label background: left linear gradient and right-side SVG overlay
+namespace {
+class RockBadgeBgFilter : public QObject {
+public:
+    explicit RockBadgeBgFilter(const QString &svgResPath, QObject *parent = nullptr)
+        : QObject(parent), icon(svgResPath) {}
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *ev) override {
+        if (ev->type() != QEvent::Paint) return QObject::eventFilter(obj, ev);
+
+        QLabel *lbl = qobject_cast<QLabel *>(obj);
+        if (!lbl) return QObject::eventFilter(obj, ev);
+
+        QPainter p(lbl);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        const QRect r = lbl->rect();
+
+        // Rounded rect background with horizontal gradient (F5487D -> F69355)
+        QPainterPath path;
+        const qreal radius = 6.0;
+        path.addRoundedRect(r.adjusted(0, 0, -1, -1), radius, radius);
+
+        QLinearGradient grad(r.topLeft(), r.topRight());
+        grad.setColorAt(0.0, QColor("#F5487D"));
+        grad.setColorAt(1.0, QColor("#F69355"));
+        p.fillPath(path, grad);
+
+        // Compute space for right svg badge
+        const int h = qMax(12, r.height() - 4);
+        const int svgW = qRound(h * (8.0 / 14.0)); // match svg aspect ratio 8x14
+        const int rightPad = svgW + 6;             // spacing from right edge
+
+        // Draw text (centered within content area excluding svg area)
+        QRect textRect = r.adjusted(6, 0, -rightPad, 0);
+        p.setPen(QColor("#FFFFFF"));
+        p.setFont(lbl->font());
+        p.drawText(textRect, Qt::AlignCenter, lbl->text());
+
+        // Render svg at right side
+        if (!icon.isNull()) {
+            const int y = r.top() + (r.height() - h) / 2;
+            const int x = r.right() - svgW - 4;
+            QPixmap pm = icon.pixmap(svgW, h);
+            p.drawPixmap(QRect(x, y, svgW, h), pm);
+        }
+        return true; // handled
+    }
+
+private:
+    QIcon icon;
+};
+} // namespace
 
 #include "moc_OneSevenLiveRockViewerItem.cpp"
 OneSevenLiveRockViewerItem::OneSevenLiveRockViewerItem(const OneSevenLiveRockZoneViewer &u,
                                                        OneSevenLiveApiWrappers *apiWrapper_,
                                                        OneSevenLiveConfigManager *configManager_,
-                                                       const OneSevenLiveArmyNameResponse *armyNameResponse_,
+                                                       const OneSevenLiveArmyNameResponse &armyNameResponse_,
                                                        QWidget *parent)
     : QWidget(parent), user(u), apiWrapper(apiWrapper_), configManager(configManager_), armyNameResponse(armyNameResponse_) {
     setupUi();
@@ -28,7 +86,7 @@ QSize OneSevenLiveRockViewerItem::sizeHint() const { return QSize(350, 80); }
 QString OneSevenLiveRockViewerItem::buildUrl(const QString &path) {
     if (path.isEmpty()) return QString();
     if (path.startsWith("http://") || path.startsWith("https://")) return path;
-    return QString("https://cdn.17app.co/")  path;
+    return QString("https://cdn.17app.co/") + path;
 }
 
 void OneSevenLiveRockViewerItem::setupUi() {
@@ -61,24 +119,46 @@ void OneSevenLiveRockViewerItem::setupUi() {
     auto frameReady = QSharedPointer<bool>::create(false);
     auto composedPixmap = QSharedPointer<QPixmap>::create(); // final 65x67 canvas
     auto framePixmap = QSharedPointer<QPixmap>::create();
+    auto levelReady = QSharedPointer<bool>::create(false);
+    auto levelPixmap = QSharedPointer<QPixmap>::create();
 
     QPointer<QLabel> safeAvatarLabel = avatarLabel;
 
     // Compose function: draw frame over avatar if available
-    auto composeAndSet = [safeAvatarLabel, avatarReady, frameReady, composedPixmap, framePixmap]() {
-        if (!safeAvatarLabel) return;
-        if (!(*avatarReady)) return; // need avatar first
+    auto composeAndSet = [safeAvatarLabel, avatarReady, frameReady, composedPixmap, framePixmap, levelReady, levelPixmap]() {
+         if (!safeAvatarLabel) return;
+         if (!(*avatarReady)) return; // need avatar first
 
-        QPixmap canvas = *composedPixmap;
-        if (*frameReady && !framePixmap->isNull()) {
+         QPixmap canvas = *composedPixmap;
+         if (*frameReady && !framePixmap->isNull()) {
+             QPainter painter(&canvas);
+             painter.setRenderHint(QPainter::Antialiasing);
+             // Overlay scaled to full canvas to match visual frame
+             painter.drawPixmap(0, 0, framePixmap->scaled(canvas.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+
+            // Draw mLevel icon (12x12) at bottom-right, on top of frame
+            if (*levelReady && !levelPixmap->isNull()) {
+                const int badgeW = 12;
+                const int badgeH = 12;
+                const int x = canvas.width() - badgeW;
+                const int y = canvas.height() - badgeH;
+                painter.drawPixmap(x, y, levelPixmap->scaled(badgeW, badgeH, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+            }
+            painter.end();
+         }
+        // If there is no frame, still draw mLevel icon
+        if (!(*frameReady) && *levelReady && !levelPixmap->isNull()) {
             QPainter painter(&canvas);
             painter.setRenderHint(QPainter::Antialiasing);
-            // Overlay scaled to full canvas to match visual frame
-            painter.drawPixmap(0, 0, framePixmap->scaled(canvas.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+            const int badgeW = 12;
+            const int badgeH = 12;
+            const int x = canvas.width() - badgeW;
+            const int y = canvas.height() - badgeH;
+            painter.drawPixmap(x, y, levelPixmap->scaled(badgeW, badgeH, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
             painter.end();
         }
-        safeAvatarLabel->setPixmap(canvas);
-    };
+         safeAvatarLabel->setPixmap(canvas);
+     };
 
     // Load avatar image
     {
@@ -116,6 +196,19 @@ void OneSevenLiveRockViewerItem::setupUi() {
             if (!overlay.isNull()) {
                 *framePixmap = overlay; // will be scaled during compose
                 *frameReady = true;
+                 composeAndSet();
+             }
+         }
+     }
+
+     // add mLevel icon if available
+    {
+        const QString levelRes = OneSevenLiveUtility::mLevelBadgeResource(user);
+        if (!levelRes.isEmpty()) {
+            QPixmap lvl;
+            if (lvl.load(levelRes)) {
+                *levelPixmap = lvl;
+                *levelReady = true;
                 composeAndSet();
             }
         }
@@ -175,7 +268,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
         // Badge labels based on merged badgeTypes; skip if none or all empty
         QHBoxLayout *badgeRow = nullptr;
         for (int t : user.badgeTypes) {
-            const QString labelText = OneSevenLiveUtility::badgeLabel(t, user.armyInfo.rank, armyNameResponse);
+            const QString labelText = OneSevenLiveUtility::badgeLabel(t, user.armyInfo.rank, &armyNameResponse);
             if (labelText.isEmpty()) {
                 continue;
             }
@@ -220,12 +313,6 @@ void OneSevenLiveRockViewerItem::setupUi() {
 
     mainLayout->addLayout(rightLayout, 1);
 
--    // Fix item size to avoid overlap and enforce design width/height
--    setFixedSize(350, 80);
--    setLayout(mainLayout);
--    // Mount card to root centered layout
--    rootLayout->addWidget(card, 0, Qt::AlignCenter);
--    setLayout(rootLayout);
     // Mount card to root centered layout
     rootLayout->addWidget(card, 0, Qt::AlignCenter);
     setLayout(rootLayout);
@@ -237,57 +324,3 @@ void OneSevenLiveRockViewerItem::mousePressEvent(QMouseEvent *event) {
     }
     QWidget::mousePressEvent(event);
 }
-
-// Painter for badge label background: left linear gradient and right-side SVG overlay
-namespace {
-class RockBadgeBgFilter : public QObject {
-public:
-    explicit RockBadgeBgFilter(const QString &svgResPath, QObject *parent = nullptr)
-        : QObject(parent), icon(svgResPath) {}
-
-protected:
-    bool eventFilter(QObject *obj, QEvent *ev) override {
-        if (ev->type() != QEvent::Paint) return QObject::eventFilter(obj, ev);
-
-        QLabel *lbl = qobject_cast<QLabel *>(obj);
-        if (!lbl) return QObject::eventFilter(obj, ev);
-
-        QPainter p(lbl);
-        p.setRenderHint(QPainter::Antialiasing, true);
-        const QRect r = lbl->rect();
-
-        // Rounded rect background with horizontal gradient (F5487D -> F69355)
-        QPainterPath path;
-        const qreal radius = 6.0;
-        path.addRoundedRect(r.adjusted(0, 0, -1, -1), radius, radius);
-
-        QLinearGradient grad(r.topLeft(), r.topRight());
-        grad.setColorAt(0.0, QColor("#F5487D"));
-        grad.setColorAt(1.0, QColor("#F69355"));
-        p.fillPath(path, grad);
-
-        // Compute space for right svg badge
-        const int h = qMax(12, r.height() - 4);
-        const int svgW = qRound(h * (8.0 / 14.0)); // match svg aspect ratio 8x14
-        const int rightPad = svgW  6;             // spacing from right edge
-
-        // Draw text (centered within content area excluding svg area)
-        QRect textRect = r.adjusted(6, 0, -rightPad, 0);
-        p.setPen(QColor("#FFFFFF"));
-        p.setFont(lbl->font());
-        p.drawText(textRect, Qt::AlignCenter, lbl->text());
-
-        // Render svg at right side
-        if (!icon.isNull()) {
-            const int y = r.top()  (r.height() - h) / 2;
-            const int x = r.right() - svgW - 4;
-            QPixmap pm = icon.pixmap(svgW, h);
-            p.drawPixmap(QRect(x, y, svgW, h), pm);
-        }
-        return true; // handled
-    }
-
-private:
-    QIcon icon;
-};
-} // namespace
