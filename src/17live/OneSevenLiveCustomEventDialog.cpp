@@ -498,7 +498,7 @@ void OneSevenLiveCustomEventDialog::loadGiftTabsAsync() {
                 selectedGiftsEdit->setText(selectedGiftsName.join(" / "));
 
             // Disable gift buttons if event exists
-            if (customEvent.eventID.isEmpty() && giftTabWidget) {
+            if (!customEvent.eventID.isEmpty() && giftTabWidget) {
                 for (int i = 0; i < giftTabWidget->count(); ++i) {
                     QWidget* tab = giftTabWidget->widget(i);
                     if (!tab) continue;
@@ -1039,7 +1039,7 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             giftButton->setChecked(true);
         }
 
-        if (customEvent.eventID.isEmpty()) {
+        if (!customEvent.eventID.isEmpty()) {
             giftButton->setEnabled(false);
         }
 
