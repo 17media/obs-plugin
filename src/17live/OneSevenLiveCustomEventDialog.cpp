@@ -217,7 +217,7 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
     selectedGiftsEdit = new QLineEdit(this);
     selectedGiftsEdit->setObjectName("selectedGiftsEdit");
     selectedGiftsEdit->setPlaceholderText(obs_module_text("CustomEvent.SelectedGifts.Placeholder"));
-    
+    selectedGiftsEdit->setReadOnly(true);
     // Initialize allowed gift categories
     allowedGiftCategories << "luckyBag" << "TreasureChest" << "Event" << "army" 
                          << "Birthday" << "Texture" << "LevelUp" << "Extravagant" 
