@@ -769,16 +769,8 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
         delete customEventDialog;
         customEventDialog = nullptr;
     } else {
-        std::string userID;
-        configManager->getConfigValue("UserID", userID);
-
-        if (!apiWrapper->GetCustomEvent(userID, customEvent)) {
-            obs_log(LOG_ERROR, "Failed to get custom event");
-        }
-
-        obs_log(LOG_INFO, "id=%s, customEvent.status = %d", customEvent.eventID, customEvent.status);
-        
-        customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager, &customEvent);
+        // Open dialog first; dialog will fetch custom event asynchronously
+        customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
         
         // Show the dialog
         customEventDialog->show();

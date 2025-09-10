@@ -24,19 +24,17 @@
 #include <QLabel>
 #include <QGridLayout>
 #include <QPointer>
+#include <QThread>
 
 // Project includes
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "utility/RemoteTextThread.hpp"
 
-#include "moc_OneSevenLiveCustomEventDialog.cpp"
-
 OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(QWidget* parent,
                                                            OneSevenLiveApiWrappers* apiWrapper_,
-                                                           OneSevenLiveConfigManager* configManager_,
-                                                           OneSevenLiveCustomEvent* customEvent)
-    : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_), customEventData(customEvent) {
+                                                           OneSevenLiveConfigManager* configManager_)
+    : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_) {
     setupUi();
     setWindowTitle(obs_module_text("CustomEvent.Dialog.Title"));
     setFixedWidth(450);
@@ -47,34 +45,8 @@ OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(QWidget* parent,
     setAttribute(Qt::WA_DeleteOnClose, false);
     setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
     
-    // If customEvent is provided, populate the dialog with its data
-    if (customEvent) {
-        // Populate dialog fields with customEvent data
-        eventTitleEdit->setText(customEvent->eventName);
-        
-        // Set date from endTime timestamp
-        if (customEvent->endTime > 0) {
-            QDateTime endDateTime = QDateTime::fromSecsSinceEpoch(customEvent->endTime);
-            dateEdit->setDate(endDateTime.date());
-        }
-        
-        // Set description
-        descriptionEdit->setText(customEvent->description);
-        
-        // Set targets
-        dailyTargetEdit->setText(QString::number(customEvent->dailyGoalPoints));
-        totalTargetEdit->setText(QString::number(customEvent->goalPoints));
-
-        // if customEventData->eventID is not empty, then disable all input and button widgets
-        // but keep createButton enabled
-        if (!customEvent->eventID.isEmpty()) {
-            eventTitleEdit->setEnabled(false);
-            dateEdit->setEnabled(false);
-            dailyTargetEdit->setEnabled(false);
-            totalTargetEdit->setEnabled(false);
-            descriptionEdit->setEnabled(false);
-        }
-    }
+    fetchCustomEventAsync();
+    loadGiftTabsAsync();
     
     // Ensure all widgets are properly initialized
     update();
@@ -250,8 +222,10 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
     
     // connect(giftTabWidget, &QTabWidget::currentChanged, this, &OneSevenLiveCustomEventDialog::onGiftTabChanged);
     
-    // Load gift tabs data
-    loadGiftTabs();
+    // Load gift tabs data (async to avoid blocking UI)
+    // Show placeholder immediately
+    setupGiftTabsUI();
+    loadGiftTabsAsync();
     
     // Create form layout for gifts section
     QFormLayout* giftsFormLayout = new QFormLayout();
@@ -377,7 +351,7 @@ void OneSevenLiveCustomEventDialog::setupBottomButtons(QVBoxLayout* parentLayout
     buttonLayout->addStretch();
     
     // Determine which button to display based on customEventData status
-    if (!customEventData || customEventData->eventID.isEmpty()) {
+    if (customEvent.eventID.isEmpty()) {
         // When customEvent doesn't exist or eventID is empty, display Create button
         createButton = new QPushButton(obs_module_text("CustomEvent.Create"), this);
         createButton->setObjectName("createButton");
@@ -389,7 +363,7 @@ void OneSevenLiveCustomEventDialog::setupBottomButtons(QVBoxLayout* parentLayout
         
         // Connect Create button signal
         connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleCreateEvent);
-    } else if (customEventData->status == 1) {
+    } else if (customEvent.status == 1) {
         // When customEvent exists and status=1, display Stop button
         createButton = new QPushButton(obs_module_text("CustomEvent.Stop"), this);
         // button color #007AFF
@@ -402,7 +376,7 @@ void OneSevenLiveCustomEventDialog::setupBottomButtons(QVBoxLayout* parentLayout
         
         // Connect Stop button signal
         connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleStopEvent);
-    } else if (customEventData->status == 2) {
+    } else if (customEvent.status == 2) {
         // When customEvent exists and status=2, display Close button
         createButton = new QPushButton(obs_module_text("CustomEvent.Close"), this);
         // button color #007AFF
@@ -419,6 +393,257 @@ void OneSevenLiveCustomEventDialog::setupBottomButtons(QVBoxLayout* parentLayout
     
     // Add button container to parent layout
     parentLayout->addWidget(buttonContainer);
+}
+
+
+void OneSevenLiveCustomEventDialog::loadGiftTabsAsync() {
+    QThread* thread = new QThread(this);
+    QObject* worker = new QObject();
+    worker->moveToThread(thread);
+
+    connect(thread, &QThread::started, worker, [this, worker, thread]() {
+        QList<OneSevenLiveGiftTab> localFilteredGiftTabs;
+        QList<OneSevenLiveGift> localSelectedGifts;
+        OneSevenLiveGiftTabsResponse localGiftTabsData;
+
+        if (!apiWrapper || !configManager) {
+            QMetaObject::invokeMethod(this, [this, thread]() {
+                setupGiftTabsUI();
+                thread->quit();
+            }, Qt::QueuedConnection);
+            return;
+        }
+
+        std::string roomID;
+        std::string region;
+        if (!configManager->getConfigValue("RoomID", roomID) || !configManager->getConfigValue("Region", region)) {
+            QMetaObject::invokeMethod(this, [this, thread]() {
+                setupGiftTabsUI();
+                thread->quit();
+            }, Qt::QueuedConnection);
+            return;
+        }
+
+        Json giftTabsJson;
+        if (!apiWrapper->GetGiftTabs(roomID, region, giftTabsJson)) {
+            QMetaObject::invokeMethod(this, [this, thread]() {
+                setupGiftTabsUI();
+                thread->quit();
+            }, Qt::QueuedConnection);
+            return;
+        }
+
+        Json giftsJson;
+        OneSevenLiveGiftsResponse giftsResponse;
+        configManager->loadGifts(giftsJson);
+        JsonToOneSevenLiveGiftsResponse(giftsJson, giftsResponse);
+        QList<OneSevenLiveGift> gifts = giftsResponse.gifts;
+
+        if (JsonToOneSevenLiveGiftTabsResponse(giftTabsJson, localGiftTabsData)) {
+            for (auto &tab : localGiftTabsData.tabs) {
+                if (allowedGiftCategories.contains(tab.id)) {
+                    QList<OneSevenLiveGift> filteredGifts;
+                    for (const auto &tabGift : tab.gifts) {
+                        OneSevenLiveGift gift;
+                        for (const auto &giftItem : gifts) {
+                            if (giftItem.giftID == tabGift.giftID) {
+                                gift = giftItem;
+                                break;
+                            }
+                        }
+                        if (gift.isHidden == 1) {
+                            continue;
+                        }
+                        bool shouldShow = false;
+                        switch (gift.regionMode) {
+                            case 1:
+                                shouldShow = true;
+                                break;
+                            case 2:
+                                shouldShow = gift.regions.contains(QString::fromStdString(region));
+                                break;
+                            case 3:
+                                shouldShow = !gift.regions.contains(QString::fromStdString(region));
+                                break;
+                            default:
+                                shouldShow = false;
+                                break;
+                        }
+                        if (shouldShow) {
+                            filteredGifts.append(gift);
+                            if (customEvent.giftIDs.size() > 0 && customEvent.giftIDs.contains(gift.giftID)) {
+                                localSelectedGifts.append(gift);
+                            }
+                        }
+                    }
+                    if (!filteredGifts.isEmpty()) {
+                        tab.gifts = filteredGifts;
+                        localFilteredGiftTabs.append(tab);
+                    }
+                }
+            }
+        }
+
+        QMetaObject::invokeMethod(this, [this, thread, localFilteredGiftTabs, localSelectedGifts]() {
+            filteredGiftTabs = localFilteredGiftTabs;
+            selectedGifts = localSelectedGifts;
+            setupGiftTabsUI();
+
+            // update selected gifts' name
+            QList<QString> selectedGiftsName;
+            for (auto selectedGift : selectedGifts) {
+                selectedGiftsName.append(selectedGift.name);
+            }
+            if (selectedGiftsEdit)
+                selectedGiftsEdit->setText(selectedGiftsName.join(" / "));
+
+            // Disable gift buttons if event exists
+            if (customEvent.eventID.isEmpty() && giftTabWidget) {
+                for (int i = 0; i < giftTabWidget->count(); ++i) {
+                    QWidget* tab = giftTabWidget->widget(i);
+                    if (!tab) continue;
+                    const auto buttons = tab->findChildren<QPushButton*>();
+                    for (auto* btn : buttons) {
+                        if (btn->property("giftID").isValid())
+                            btn->setEnabled(false);
+                    }
+                }
+            }
+
+            // Reflect selection
+            updateGiftSelectionUIFromCustomEvent();
+
+            thread->quit();
+        }, Qt::QueuedConnection);
+    });
+
+    connect(thread, &QThread::finished, worker, &QObject::deleteLater);
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
+}
+
+
+
+
+
+void OneSevenLiveCustomEventDialog::fetchCustomEventAsync() {
+    // Create a new thread and lightweight worker, following RockZoneDock pattern
+    QThread* thread = new QThread(this);
+    QObject* worker = new QObject();
+    worker->moveToThread(thread);
+
+    connect(thread, &QThread::started, worker, [this, worker, thread]() {
+        std::string userID;
+        if (configManager) {
+            configManager->getConfigValue("UserID", userID);
+        }
+
+        bool ok = false;
+        if (apiWrapper) {
+            ok = apiWrapper->GetCustomEvent(userID, customEvent);
+        }
+
+        QMetaObject::invokeMethod(
+            this,
+            [this, ok, thread]() {
+                // Update UI on main thread
+                if (!ok) {
+                    obs_log(LOG_ERROR, "Failed to get custom event");
+                } else {
+                    obs_log(LOG_INFO, "id=%s, customEvent.status = %d", customEvent.eventID.toStdString().c_str(), customEvent.status);
+                    
+                    // Populate fields
+                    eventTitleEdit->setText(customEvent.eventName);
+                    if (customEvent.endTime > 0) {
+                        QDateTime endDateTime = QDateTime::fromSecsSinceEpoch(customEvent.endTime);
+                        dateEdit->setDate(endDateTime.date());
+                    }
+                    descriptionEdit->setText(customEvent.description);
+                    dailyTargetEdit->setText(QString::number(customEvent.dailyGoalPoints));
+                    totalTargetEdit->setText(QString::number(customEvent.goalPoints));
+
+                    // If event exists, lock down inputs and switch bottom button accordingly
+                    if (!customEvent.eventID.isEmpty()) {
+                        eventTitleEdit->setEnabled(false);
+                        dateEdit->setEnabled(false);
+                        dailyTargetEdit->setEnabled(false);
+                        totalTargetEdit->setEnabled(false);
+                        descriptionEdit->setEnabled(false);
+                        // Disable gift selection buttons
+                        if (giftTabWidget) {
+                            for (int i = 0; i < giftTabWidget->count(); ++i) {
+                                QWidget* tab = giftTabWidget->widget(i);
+                                if (!tab) continue;
+                                const auto buttons = tab->findChildren<QPushButton*>();
+                                for (auto* btn : buttons) {
+                                    if (btn->property("giftID").isValid())
+                                        btn->setEnabled(false);
+                                }
+                            }
+                        }
+
+                        // Update bottom button state
+                        if (createButton) {
+                            // Disconnect previous connections to avoid duplicates
+                            createButton->disconnect();
+                            if (customEvent.status == 1) {
+                                createButton->setText(obs_module_text("CustomEvent.Stop"));
+                                createButton->setStyleSheet("QPushButton {background-color: #007AFF; color: white;}");
+                                createButton->setObjectName("stopButton");
+                                connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleStopEvent);
+                            } else if (customEvent.status == 2) {
+                                createButton->setText(obs_module_text("CustomEvent.Close"));
+                                createButton->setStyleSheet("QPushButton {background-color: #007AFF; color: white;}");
+                                createButton->setObjectName("closeButton");
+                                connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleCloseEvent);
+                            } else {
+                                // Fallback to Create
+                                createButton->setText(obs_module_text("CustomEvent.Create"));
+                                createButton->setStyleSheet("QPushButton { background-color: #FF0001; color: white; }");
+                                createButton->setObjectName("createButton");
+                                connect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleCreateEvent);
+                            }
+                        }
+                    }
+
+                    // 同步更新礼物选中状态（无论两者先后）
+                    updateGiftSelectionUIFromCustomEvent();
+                }
+
+                // Stop thread after UI update
+                thread->quit();
+            },
+            Qt::QueuedConnection);
+    });
+
+    connect(thread, &QThread::finished, worker, &QObject::deleteLater);
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
+}
+
+void OneSevenLiveCustomEventDialog::updateGiftSelectionUIFromCustomEvent() {
+    if (!giftTabWidget)
+        return;
+
+    QList<QString> targetGiftIDs;
+    if (customEvent.giftIDs.isEmpty()) {
+        targetGiftIDs = customEvent.giftIDs;
+    } else {
+        for (const auto &g : selectedGifts) targetGiftIDs.append(g.giftID);
+    }
+
+    for (int i = 0; i < giftTabWidget->count(); ++i) {
+        QWidget* tab = giftTabWidget->widget(i);
+        if (!tab) continue;
+        const auto buttons = tab->findChildren<QPushButton*>();
+        for (auto* btn : buttons) {
+            QVariant giftIdVar = btn->property("giftID");
+            if (!giftIdVar.isValid()) continue;
+            const QString giftID = giftIdVar.toString();
+            QSignalBlocker blocker(btn); // prevent toggled signal loop
+            btn->setChecked(targetGiftIDs.contains(giftID));
+        }
+    }
 }
 
 void OneSevenLiveCustomEventDialog::onDateChanged() {
@@ -513,18 +738,14 @@ void OneSevenLiveCustomEventDialog::handleCreateEvent() {
         eventRequest.giftIDs.append(gift.giftID);
     }
 
-    OneSevenLiveCustomEvent eventResponse;
-
-    if (!apiWrapper->CreateCustomEvent(eventRequest, eventResponse)) {
+    if (!apiWrapper->CreateCustomEvent(eventRequest, customEvent)) {
         QMessageBox::warning(this, obs_module_text("CustomEvent.Error"),
                             obs_module_text("CustomEvent.Error.CreateFailed"));
         return;
     }
 
-    customEventData = &eventResponse;
-    
     // Send event created signal
-    emit eventCreated(eventResponse);
+    emit eventCreated(customEvent);
     
     disconnect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleCreateEvent);
     createButton->setText(obs_module_text("CustomEvent.Stop"));
@@ -564,23 +785,23 @@ void OneSevenLiveCustomEventDialog::handleStopEvent() {
     if (reply == QMessageBox::Yes) {
         OneSevenLiveCustomEventStatusRequest request;
         request.status = 2;
-        request.userID = customEventData->userID;
+        request.userID = customEvent.userID;
 
         obs_log(LOG_INFO, "Stopping custom event... userID: %s, eventID: %s", 
-                customEventData->userID.toStdString().c_str(), 
-                customEventData->eventID.toStdString().c_str());
+                customEvent.userID.toStdString().c_str(), 
+                customEvent.eventID.toStdString().c_str());
 
-        if (!apiWrapper->ChangeCustomEventStatus(customEventData->eventID.toStdString(), request)) {
+        if (!apiWrapper->ChangeCustomEventStatus(customEvent.eventID.toStdString(), request)) {
             obs_log(LOG_ERROR, "Failed to change custom event status");
             QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
                                 obs_module_text("CustomEvent.Error.StopFailed"));
             return;
         }
 
-        customEventData->status = 2;
+        customEvent.status = 2;
         
         // Send event update signal
-        emit eventUpdated(*customEventData);
+        emit eventUpdated(customEvent);
 
         disconnect(createButton, &QPushButton::clicked, this, &OneSevenLiveCustomEventDialog::handleStopEvent);
         createButton->setText(obs_module_text("CustomEvent.Close"));
@@ -603,9 +824,9 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
     if (reply == QMessageBox::Yes) {
        OneSevenLiveCustomEventStatusRequest request;
         request.status = 3;
-        request.userID = customEventData->userID;
+        request.userID = customEvent.userID;
 
-        if (!apiWrapper->ChangeCustomEventStatus(customEventData->eventID.toStdString(), request)) {
+        if (!apiWrapper->ChangeCustomEventStatus(customEvent.eventID.toStdString(), request)) {
             obs_log(LOG_ERROR, "Failed to change custom event status");
             QMessageBox::warning(this, obs_module_text("CustomEvent.Error"), 
                                 obs_module_text("CustomEvent.Error.CloseFailed"));
@@ -613,135 +834,15 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
         }
         
         // Send event update signal
-        customEventData->status = 3;
-        emit eventUpdated(*customEventData);
+        customEvent.status = 3;
+        emit eventUpdated(customEvent);
     }
 
     // Directly close the dialog
     accept();
 }
 
-void OneSevenLiveCustomEventDialog::loadGiftTabs() {
-    if (!apiWrapper) {
-        obs_log(LOG_WARNING, "API wrapper not available, using placeholder gift tabs");
-        setupGiftTabsUI();
-        return;
-    }
-    
-    // TODO: Get live stream ID from current session
-    std::string roomID;
-    std::string region;
 
-    if (!configManager->getConfigValue("RoomID", roomID)) {
-        obs_log(LOG_ERROR, "Failed to get live stream ID from config manager");
-        setupGiftTabsUI();
-        return;
-    }
-
-    if (!configManager->getConfigValue("Region", region)) {
-        obs_log(LOG_ERROR, "Failed to get region from config manager");
-        setupGiftTabsUI();
-        return;
-    }
-    
-    Json giftTabsJson;
-    if (apiWrapper->GetGiftTabs(roomID, region, giftTabsJson)) {
-        
-        Json giftsJson;
-        OneSevenLiveGiftsResponse giftsResponse;
-        configManager->loadGifts(giftsJson);
-
-        JsonToOneSevenLiveGiftsResponse(giftsJson, giftsResponse);
-        QList<OneSevenLiveGift> gifts = giftsResponse.gifts;
-
-        if (JsonToOneSevenLiveGiftTabsResponse(giftTabsJson, giftTabsData)) {
-            // Filter tabs based on allowed categories
-            filteredGiftTabs.clear();
-            selectedGifts.clear();
-            for (auto& tab : giftTabsData.tabs) {
-                // 确保使用QString类型进行比较，避免QString和std::string的比较
-                if (allowedGiftCategories.contains(tab.id)) {
-                    // Filter gifts based on rules
-                    QList<OneSevenLiveGift> filteredGifts;
-                    for (const auto& tabGift : tab.gifts) {
-                        // Find gift data from gifts by gift.id
-                        OneSevenLiveGift gift;
-                        for (const auto& giftItem : gifts) {
-                            // 确保使用QString类型进行比较，避免QString和std::string的比较
-                            if (giftItem.giftID == tabGift.giftID) {
-                                gift = giftItem;
-                                break;
-                            }
-                        }
-
-                        // Rule 1: Skip if isHidden = 1
-                        if (gift.isHidden == 1) {
-                            continue;
-                        }
-                        
-                        // Rule 2: Filter based on regionMode
-                        bool shouldShow = false;
-                        switch (gift.regionMode) {
-                            case 0:
-                                // regionMode = 0: Don't show
-                                shouldShow = false;
-                                break;
-                            case 1:
-                                // regionMode = 1: Always show
-                                shouldShow = true;
-                                break;
-                            case 2:
-                                // regionMode = 2: Show if streamer region is in gift regions
-                                // 将std::string转换为QString，避免类型不匹配
-                                shouldShow = gift.regions.contains(QString::fromStdString(region));
-                                break;
-                            case 3:
-                                // regionMode = 3: Don't show if streamer region is in gift regions
-                                // 将std::string转换为QString，避免类型不匹配
-                                shouldShow = !gift.regions.contains(QString::fromStdString(region));
-                                break;
-                            default:
-                                // Default behavior for unknown regionMode
-                                shouldShow = false;
-                                break;
-                        }
-                        
-                        if (shouldShow) {
-                            filteredGifts.append(gift);
-                            if (customEventData && customEventData->giftIDs.size() > 0 && customEventData->giftIDs.contains(gift.giftID)) {
-                                selectedGifts.append(gift);
-                            }
-                        }
-                    }
-                    if (filteredGifts.size() > 0) {
-                        tab.gifts.clear();
-                        for (const auto& gift : filteredGifts) {
-                            tab.gifts.append(gift);
-                        }
-                        
-                        filteredGiftTabs.append(tab);
-                    }
-                }
-            }
-            
-            setupGiftTabsUI();
-        } else {
-            obs_log(LOG_ERROR, "Failed to parse gift tabs response");
-            setupGiftTabsUI(); // Setup with placeholder data
-        }
-    } else {
-        obs_log(LOG_ERROR, "Failed to load gift tabs from API");
-        setupGiftTabsUI(); // Setup with placeholder data
-    }
-
-    // get selected gifts' name
-    QList<QString> selectedGiftsName;
-    for (auto selectedGift : selectedGifts) {
-        selectedGiftsName.append(selectedGift.name);
-    }
-
-    selectedGiftsEdit->setText(selectedGiftsName.join(" / "));
-}
 
 void OneSevenLiveCustomEventDialog::setupGiftTabsUI() {
     // Clear existing tabs
@@ -938,7 +1039,7 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             giftButton->setChecked(true);
         }
 
-        if (customEventData && !customEventData->eventID.isEmpty()) {
+        if (customEvent.eventID.isEmpty()) {
             giftButton->setEnabled(false);
         }
 

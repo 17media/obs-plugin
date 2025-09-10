@@ -3,6 +3,9 @@
 // C++ Standard Library includes
 #include <type_traits>
 #include <mutex>
+#include <string>
+#include <limits>
+#include <chrono>
 
 // Qt includes
 #include <QDialog>
@@ -33,8 +36,7 @@ class OneSevenLiveCustomEventDialog : public QDialog {
 public:
     explicit OneSevenLiveCustomEventDialog(QWidget* parent = nullptr,
                                           OneSevenLiveApiWrappers* apiWrapper_ = nullptr,
-                                          OneSevenLiveConfigManager* configManager_ = nullptr,
-                                          OneSevenLiveCustomEvent* customEvent = nullptr);
+                                          OneSevenLiveConfigManager* configManager_ = nullptr);
     ~OneSevenLiveCustomEventDialog();
 
 private:
@@ -53,9 +55,21 @@ private:
     void onDateChanged();
     void onGiftSelected(QPushButton* giftButton, OneSevenLiveGift gift);
     // void onGiftTabChanged(int tabIndex);
-    void loadGiftTabs();
+
+
+    // Async
+    // 异步获取自定义活动数据
+    void fetchCustomEventAsync();
+    // 异步加载礼物标签，避免阻塞主线程
+    void loadGiftTabsAsync();
+    // 基于 customEvent 数据刷新礼物选择与UI勾选状态
+    void updateGiftSelectionUIFromCustomEvent();
+    
+    // Gift UI setup functions
     void setupGiftTabsUI();
     void populateGiftTab(const OneSevenLiveGiftTab& giftTab, int tabIndex);
+    
+    OneSevenLiveCustomEvent customEvent;
     
 signals:
     /**
@@ -118,9 +132,6 @@ private:
     OneSevenLiveApiWrappers* apiWrapper;
     // Config manager
     OneSevenLiveConfigManager* configManager;
-    
-    // Custom event data
-    OneSevenLiveCustomEvent* customEventData;
     
     // Constants
     static const int MAX_TITLE_LENGTH = 20;
