@@ -9,7 +9,7 @@ struct OneSevenLiveArmyNameResponse;
 // Utility for mapping 17LIVE data to local Qt resource paths or display strings
 // All image paths returned are Qt resource URLs like ":/resources/user_images/<file>.png"
 class OneSevenLiveUtility {
-public:
+   public:
     // Avatar frame (circle) over the user's picture based on viewer.type
     // - type = 0: no frame
     // - type = 1: GIFT_RANK_ONE -> ig-firstrank-badge.png

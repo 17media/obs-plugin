@@ -34,7 +34,7 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
 
     liveListAction = dockSubMenu->addAction(obs_module_text("Menu.LiveList"));
     connect(liveListAction, &QAction::triggered, this, [this]() { emit liveListClicked(); });
-    
+
     menu->addSeparator();
 
     // Common menu
@@ -131,7 +131,7 @@ void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool br
         liveListAction->setCheckable(true);
         liveListAction->setChecked(isLiveListVisible);
     }
-    
+
     if (rockZoneAction) {
         rockZoneAction->setCheckable(true);
         rockZoneAction->setChecked(isRockZoneVisible);

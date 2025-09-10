@@ -80,7 +80,7 @@ void RemoteTextThread::run() {
         curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error);
         curl_easy_setopt(curl.get(), CURLOPT_FAILONERROR, 1L);
-        
+
         if (isImageRequest) {
             curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, binary_write);
             curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &binary_data);
@@ -88,7 +88,7 @@ void RemoteTextThread::run() {
             curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, string_write);
             curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &str);
         }
-        
+
         curl_obs_set_revoke_setting(curl.get());
 
         if (timeoutSec)

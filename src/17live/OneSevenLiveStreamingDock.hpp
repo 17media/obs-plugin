@@ -136,7 +136,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl,
                                const std::string &streamKey);
     void saveWhipStreamingSettings(const std::string &liveStreamID, const std::string &whipServer,
-                                  const std::string &whipToken);
+                                   const std::string &whipToken);
     void stopStreaming();
 
     void createLive(const OneSevenLiveRtmpRequest &request);

@@ -1,25 +1,25 @@
 #pragma once
 
+#include <QMutex>
 #include <QObject>
 #include <QThread>
-#include <QMutex>
 #include <QWaitCondition>
 
 class DownloadWorker : public QObject {
     Q_OBJECT
-public:
+   public:
     DownloadWorker(const QString& url, const QString& filePath);
 
     void cancel();
 
-signals:
+   signals:
     void progress(int value);
     void finished(bool success, const QString& error);
 
-public slots:
+   public slots:
     void process();
 
-private:
+   private:
     QString downloadUrl;
     QString filePath;
     bool canceled;

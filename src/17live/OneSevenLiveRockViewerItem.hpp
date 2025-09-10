@@ -1,14 +1,14 @@
 #pragma once
 
-#include <QWidget>
 #include <QHBoxLayout>
-#include <QVBoxLayout>
 #include <QLabel>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPointer>
 #include <QSharedPointer>
 #include <QThread>
+#include <QVBoxLayout>
+#include <QWidget>
 
 #include "api/OneSevenLiveModels.hpp"
 
@@ -21,22 +21,22 @@ class RemoteTextThread;
 class OneSevenLiveRockViewerItem : public QWidget {
     Q_OBJECT
 
-public:
-    explicit OneSevenLiveRockViewerItem(const OneSevenLiveRockZoneViewer &user, 
-                                       OneSevenLiveApiWrappers *apiWrapper = nullptr,
-                                       OneSevenLiveConfigManager *configManager = nullptr,
-                                       const OneSevenLiveArmyNameResponse &armyNameResponse = {},
-                                       QWidget *parent = nullptr);
+   public:
+    explicit OneSevenLiveRockViewerItem(const OneSevenLiveRockZoneViewer &user,
+                                        OneSevenLiveApiWrappers *apiWrapper = nullptr,
+                                        OneSevenLiveConfigManager *configManager = nullptr,
+                                        const OneSevenLiveArmyNameResponse &armyNameResponse = {},
+                                        QWidget *parent = nullptr);
 
     QSize sizeHint() const override;
 
-signals:
+   signals:
     void clicked(const OneSevenLiveRockZoneViewer &user);
 
-protected:
+   protected:
     void mousePressEvent(QMouseEvent *event) override;
 
-private:
+   private:
     OneSevenLiveRockZoneViewer user;
     OneSevenLiveApiWrappers *apiWrapper;
     OneSevenLiveConfigManager *configManager;

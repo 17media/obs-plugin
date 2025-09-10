@@ -1,13 +1,12 @@
 #pragma once
 
 #include <QDockWidget>
-#include <QListWidget>
-#include <QPushButton>
 #include <QLabel>
+#include <QListWidget>
 #include <QProgressBar>
+#include <QPushButton>
 
 #include "OneSevenLiveUserDialog.hpp"
-
 #include "api/OneSevenLiveModels.hpp"
 
 class OneSevenLiveApiWrappers;
@@ -18,8 +17,8 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
 
    public:
     OneSevenLiveRockZoneDock(QWidget* parent = nullptr,
-                           OneSevenLiveApiWrappers* apiWrapper = nullptr,
-                           OneSevenLiveConfigManager* configManager = nullptr);
+                             OneSevenLiveApiWrappers* apiWrapper = nullptr,
+                             OneSevenLiveConfigManager* configManager = nullptr);
     ~OneSevenLiveRockZoneDock();
 
     void refreshUserList();
@@ -38,7 +37,8 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
    private:
     void setupUi();
     void createConnections();
-    void updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user, const OneSevenLiveArmyNameResponse& armyNameResponse);
+    void updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user,
+                        const OneSevenLiveArmyNameResponse& armyNameResponse);
     void showEmptyListMessage();
 
     QListWidget* userList;
@@ -49,10 +49,10 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     OneSevenLiveConfigManager* configManager = nullptr;
 
     QList<OneSevenLiveRockZoneViewer> viewersList;
-    
+
     // User information dialog
     OneSevenLiveUserDialog* userDialog = nullptr;
-    
+
     // Loading status UI
     QWidget* loadingOverlay = nullptr;
     QProgressBar* loadingProgress = nullptr;

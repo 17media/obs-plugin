@@ -5,26 +5,26 @@
 
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QHash>
 #include <QLabel>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPointer>
+#include <QSharedPointer>
 #include <QTimer>
 #include <QVBoxLayout>
-#include <QPainter>
-#include <QPointer>
-#include <QPainterPath>
-#include <QSharedPointer>
-#include <QHash>
 
-#include "utility/RemoteTextThread.hpp"
 #include "OneSevenLiveConfigManager.hpp"
-#include "api/OneSevenLiveApiWrappers.hpp"
-#include "plugin-support.h"
 #include "OneSevenLiveRockViewerItem.hpp"
 #include "OneSevenLiveUserDialog.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
+#include "plugin-support.h"
+#include "utility/RemoteTextThread.hpp"
 
 OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
-                                               OneSevenLiveApiWrappers* apiWrapper_,
-                                               OneSevenLiveConfigManager* configManager_)
+                                                   OneSevenLiveApiWrappers* apiWrapper_,
+                                                   OneSevenLiveConfigManager* configManager_)
     : QDockWidget(obs_module_text("RockZone.Title"), parent),
       apiWrapper(apiWrapper_),
       configManager(configManager_) {
@@ -72,10 +72,10 @@ void OneSevenLiveRockZoneDock::setupUi() {
         hintLayout->setSpacing(8);
         hintLayout->setAlignment(Qt::AlignHCenter);
 
-
         QLabel* icon = new QLabel(container);
         icon->setFixedSize(20, 20);
-        icon->setPixmap(QPixmap(":/resources/exclaimark.svg").scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        icon->setPixmap(QPixmap(":/resources/exclaimark.svg")
+                            .scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
         QLabel* hintText = new QLabel(obs_module_text("RockZone.Hint"), container);
         hintText->setStyleSheet("color: #FFFFFF; font-size: 14px;");
@@ -159,7 +159,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
     loadingLayout->addWidget(loadingLabel, 0, Qt::AlignHCenter);
 
     loadingProgress = new QProgressBar();
-    loadingProgress->setRange(0, 0); // Set to indeterminate mode
+    loadingProgress->setRange(0, 0);  // Set to indeterminate mode
     loadingProgress->setFixedSize(200, 10);
     loadingProgress->setTextVisible(false);
     loadingProgress->setStyleSheet(
@@ -179,25 +179,30 @@ void OneSevenLiveRockZoneDock::setupUi() {
 void OneSevenLiveRockZoneDock::createConnections() {
     connect(pokeAllButton, &QPushButton::clicked, this,
             &OneSevenLiveRockZoneDock::onPokeAllClicked);
-    
+
     // Connect user list item click signal
     // Disabled because OneSevenLiveRockViewerItem handles click and opens the dialog
     // connect(userList, &QListWidget::itemClicked, this,
     //         &OneSevenLiveRockZoneDock::onUserItemClicked);
 }
 
-void OneSevenLiveRockZoneDock::updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user, const OneSevenLiveArmyNameResponse& armyNameResponse) {
-    OneSevenLiveRockViewerItem *w = new OneSevenLiveRockViewerItem(user, apiWrapper, configManager, armyNameResponse, this);
+void OneSevenLiveRockZoneDock::updateUserItem(
+    QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user,
+    const OneSevenLiveArmyNameResponse& armyNameResponse) {
+    OneSevenLiveRockViewerItem* w =
+        new OneSevenLiveRockViewerItem(user, apiWrapper, configManager, armyNameResponse, this);
     item->setSizeHint(w->sizeHint());
     userList->setItemWidget(item, w);
-    
+
     // Click: open user dialog
-    connect(w, &OneSevenLiveRockViewerItem::clicked, this, [this](const OneSevenLiveRockZoneViewer &viewer){
-        OneSevenLiveUserDialog *dialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
-        dialog->setAttribute(Qt::WA_DeleteOnClose);
-        dialog->setUserInfo(viewer);
-        dialog->show();
-    });
+    connect(w, &OneSevenLiveRockViewerItem::clicked, this,
+            [this](const OneSevenLiveRockZoneViewer& viewer) {
+                OneSevenLiveUserDialog* dialog =
+                    new OneSevenLiveUserDialog(this, apiWrapper, configManager);
+                dialog->setAttribute(Qt::WA_DeleteOnClose);
+                dialog->setUserInfo(viewer);
+                dialog->show();
+            });
 }
 
 void OneSevenLiveRockZoneDock::showEmptyListMessage() {
@@ -253,7 +258,7 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
     if (emptyContainer && emptyContainer->isVisible()) {
         emptyContainer->setGeometry(widget()->rect());
     }
-    
+
     // Adjust loading overlay size
     if (loadingOverlay) {
         loadingOverlay->setGeometry(widget()->rect());
@@ -332,9 +337,9 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     configManager->getConfigValue("UserID", userID);
 
                     // Merge viewers by userID and collect their types into badgeTypes
-                    QHash<QString, int> idIndex; // userID -> index in viewersList
+                    QHash<QString, int> idIndex;  // userID -> index in viewersList
                     viewersList.clear();
-                    for (const auto &user : users) {
+                    for (const auto& user : users) {
                         const QString uid = user.displayUser.userID;
                         if (uid.isEmpty()) {
                             continue;
@@ -346,7 +351,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             continue;
                         }
                         if (idIndex.contains(uid)) {
-                            auto &existing = viewersList[idIndex.value(uid)];
+                            auto& existing = viewersList[idIndex.value(uid)];
                             if (!existing.badgeTypes.contains(user.type)) {
                                 existing.badgeTypes.append(user.type);
                             }
@@ -358,7 +363,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             idIndex.insert(uid, viewersList.size() - 1);
                         }
                     }
-                    
+
                     // Update UI
                     if (viewersList.isEmpty()) {
                         // Show empty list message
@@ -379,7 +384,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         this, obs_module_text("Live.Settings.Error"),
                         QString::fromStdString(obs_module_text("Live.Settings.LoadError"))
                             .arg(apiWrapper->getLastErrorMessage()));
-                    
+
                     // Show empty list message
                     showEmptyListMessage();
                 }
@@ -412,13 +417,11 @@ void OneSevenLiveRockZoneDock::onPokeAllClicked() {
     bool success = apiWrapper->PokeAll(request, response);
 
     if (success) {
-        QMessageBox::information(this, 
-                               obs_module_text("Live.PokeSuccess"), 
-                               obs_module_text("Live.PokeSuccessMessage"));
+        QMessageBox::information(this, obs_module_text("Live.PokeSuccess"),
+                                 obs_module_text("Live.PokeSuccessMessage"));
     } else {
-        QMessageBox::warning(this, 
-                           obs_module_text("Live.PokeError"), 
-                           obs_module_text("Live.PokeErrorMessage"));
+        QMessageBox::warning(this, obs_module_text("Live.PokeError"),
+                             obs_module_text("Live.PokeErrorMessage"));
     }
 }
 
@@ -444,15 +447,15 @@ void OneSevenLiveRockZoneDock::onUserItemClicked(QListWidgetItem* item) {
     if (index < 0 || index >= viewersList.size()) {
         return;
     }
-    
+
     // Get user information
     const OneSevenLiveRockZoneViewer& user = viewersList.at(index);
-    
+
     // Create user information dialog (if it doesn't exist)
     if (!userDialog) {
         userDialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
     }
-    
+
     // Set user information and display dialog
     userDialog->setUserInfo(user);
     userDialog->exec();

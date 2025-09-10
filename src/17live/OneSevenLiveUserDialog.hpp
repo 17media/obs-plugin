@@ -2,10 +2,10 @@
 
 // Qt headers
 #include <QtWidgets/QDialog>
+#include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QVBoxLayout>
-#include <QtWidgets/QHBoxLayout>
 
 #include "api/OneSevenLiveModels.hpp"
 
@@ -17,20 +17,19 @@ class OneSevenLiveConfigManager;
 class OneSevenLiveUserDialog : public QDialog {
     Q_OBJECT
 
-public:
-    OneSevenLiveUserDialog(QWidget* parent = nullptr, 
-                          OneSevenLiveApiWrappers* apiWrapper = nullptr,
-                          OneSevenLiveConfigManager* configManager = nullptr);
+   public:
+    OneSevenLiveUserDialog(QWidget* parent = nullptr, OneSevenLiveApiWrappers* apiWrapper = nullptr,
+                           OneSevenLiveConfigManager* configManager = nullptr);
     ~OneSevenLiveUserDialog();
 
     // Set user information and display dialog
     void setUserInfo(const OneSevenLiveRockZoneViewer& user);
 
-private slots:
+   private slots:
     void onPokeUserClicked();
     void onCloseClicked();
 
-private:
+   private:
     void setupUi();
     void createConnections();
     void updateUserAvatar();

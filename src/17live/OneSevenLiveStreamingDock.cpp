@@ -282,11 +282,11 @@ void OneSevenLiveStreamingDock::setupUi() {
     GroupCallContainer = new QWidget();
     GroupCallContainerLayout = new QHBoxLayout(GroupCallContainer);
     GroupCallContainerLayout->setContentsMargins(0, 0, 0, 0);
-    
+
     QHBoxLayout *groupCallLabelLayout = new QHBoxLayout();
     GroupCallLabel = new QLabel(obs_module_text("Live.Settings.GroupCall"));
     GroupCallLabel->setStyleSheet("font-weight: bold;");
-    
+
     // Help button with question icon
     GroupCallHelpButton = new QPushButton();
     GroupCallHelpButton->setIcon(QIcon(":/resources/question.svg"));
@@ -308,13 +308,13 @@ void OneSevenLiveStreamingDock::setupUi() {
     groupCallLeftLayout->addLayout(groupCallLabelLayout);
     groupCallLeftLayout->addWidget(groupCallTip);
     groupCallLeftLayout->setSpacing(2);  // Adjust spacing between title and hint
-    
+
     GroupCallCheck = new QCheckBox();
-    
+
     GroupCallContainerLayout->addLayout(groupCallLeftLayout);
     GroupCallContainerLayout->addStretch();
     GroupCallContainerLayout->addWidget(GroupCallCheck);
-    
+
     mainLayout->addWidget(GroupCallContainer);
 
     // Switch options
@@ -764,23 +764,23 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
     if (customEventDialog) {
         // Hide dialog and update button icon to arrow-down
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
-        
+
         customEventDialog->close();
         delete customEventDialog;
         customEventDialog = nullptr;
     } else {
         // Open dialog first; dialog will fetch custom event asynchronously
         customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
-        
+
         // Connect dialog close signal to reset button state
         connect(customEventDialog, &QDialog::finished, this, [this]() {
             customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
             customEventDialog = nullptr;
         });
-        
+
         // Update button icon to arrow-up when dialog is opened
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
-        
+
         // Show the dialog
         customEventDialog->show();
         customEventDialog->raise();
@@ -952,7 +952,8 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
                 obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
 
                 if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::NotStarted)) {
-                    obs_log(LOG_INFO, "Room is starting live stream, don't proceed with live creation");
+                    obs_log(LOG_INFO,
+                            "Room is starting live stream, don't proceed with live creation");
                     return;
                 }
 
@@ -1000,7 +1001,8 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
                 obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
 
                 if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::NotStarted)) {
-                    obs_log(LOG_INFO, "Room is starting live stream, don't proceed with live creation");
+                    obs_log(LOG_INFO,
+                            "Room is starting live stream, don't proceed with live creation");
                     return;
                 }
 
@@ -1046,30 +1048,31 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID,
                                           bool autoRecording, bool skip) {
     // Check if WHIP information is available
     bool hasWhipInfo = !response.whipInfo.server.isEmpty() && !response.whipInfo.token.isEmpty();
-    
+
     if (hasWhipInfo) {
         // WHIP mode
         obs_log(LOG_INFO, "Using WHIP streaming mode");
-        
+
         // Save WHIP streaming settings
         configManager->setWhipStreamingInfo(response.liveStreamID.toStdString(),
-                                           response.whipInfo.server.toStdString(),
-                                           response.whipInfo.token.toStdString());
+                                            response.whipInfo.server.toStdString(),
+                                            response.whipInfo.token.toStdString());
         configManager->setWhipMode(true);
-        
+
         saveWhipStreamingSettings(response.liveStreamID.toStdString(),
-                                 response.whipInfo.server.toStdString(),
-                                 response.whipInfo.token.toStdString());
+                                  response.whipInfo.server.toStdString(),
+                                  response.whipInfo.token.toStdString());
     } else {
         // RTMP mode
         obs_log(LOG_INFO, "Using RTMP streaming mode");
-        
+
         QString streamUrl;
         QString streamKey;
 
         // Regular expression /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ to parse response.rtmpURL
         // First captured group is streamUrl, second captured group is streamKey
-        // Example: rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
+        // Example:
+        // rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
         QRegularExpression re("(^.+://[^/]+/[^/]+)/(.+)$");
         QRegularExpressionMatch match = re.match(response.rtmpURL);
         if (match.hasMatch()) {
@@ -1080,8 +1083,8 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID,
             return;
         }
 
-        configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(),
-                                        streamKey.toStdString());
+        configManager->setStreamingInfo(response.liveStreamID.toStdString(),
+                                        streamUrl.toStdString(), streamKey.toStdString());
         configManager->setWhipMode(false);
 
         saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(),
@@ -1209,37 +1212,37 @@ void OneSevenLiveStreamingDock::saveStreamingSettings(const std::string &liveStr
 }
 
 void OneSevenLiveStreamingDock::saveWhipStreamingSettings(const std::string &liveStreamID,
-                                                         const std::string &whipServer,
-                                                         const std::string &whipToken) {
+                                                          const std::string &whipServer,
+                                                          const std::string &whipToken) {
     // Handle WHIP streaming settings
     obs_log(LOG_INFO, "saveWhipStreamingSettings %s", liveStreamID.c_str());
     obs_log(LOG_INFO, "whipServer: %s", whipServer.c_str());
     obs_log(LOG_INFO, "whipToken: %s", whipToken.c_str());
-    
+
     // Get or create WHIP service
     obs_service_t *service = obs_service_create("whip_custom", "whip_service", NULL, NULL);
     if (!service) {
         obs_log(LOG_ERROR, "Failed to create WHIP service");
         return;
     }
-    
+
     // Set WHIP server and token
     obs_data_t *settings = obs_service_get_settings(service);
     obs_data_set_string(settings, "server", whipServer.c_str());
     obs_data_set_string(settings, "bearer_token", whipToken.c_str());
-    
+
     // Apply settings
     obs_service_update(service, settings);
     obs_data_release(settings);
-    
+
     // Set as current streaming service
     obs_frontend_set_streaming_service(service);
 
     obs_frontend_save_streaming_service();
-    
+
     // Release resources
     obs_service_release(service);
-    
+
     obs_log(LOG_INFO, "WHIP service configured successfully");
 }
 
@@ -1380,14 +1383,15 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     currentLiveStatus = status;
 
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
-    
+
     // Disable ALL controls above the bottom buttons when streaming is active
     // Only keep save and create live buttons enabled
     bool isStreaming = (status == OneSevenLiveStreamingStatus::Live ||
                         status == OneSevenLiveStreamingStatus::Streaming);
 
-    auto setEnabledSafe = [&](QWidget* w, bool enabled) {
-        if (w) w->setEnabled(enabled);
+    auto setEnabledSafe = [&](QWidget *w, bool enabled) {
+        if (w)
+            w->setEnabled(enabled);
     };
 
     bool enable = !isStreaming;
@@ -1442,14 +1446,15 @@ void OneSevenLiveStreamingDock::onGroupCallHelpClicked() {
     helpDialog.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
     // helpDialog.setWindowTitle(obs_module_text("Live.Settings.GroupCall.Help.Title"));
     helpDialog.setIcon(QMessageBox::NoIcon);
-    
+
     helpDialog.setText(obs_module_text("Live.Settings.GroupCall.Help.Content"));
-    
-    helpDialog.addButton(obs_module_text("Live.Settings.GroupCall.Help.Button"), QMessageBox::AcceptRole);
-    
+
+    helpDialog.addButton(obs_module_text("Live.Settings.GroupCall.Help.Button"),
+                         QMessageBox::AcceptRole);
+
     // Set dialog size
     helpDialog.setMinimumWidth(400);
-    
+
     // Apply modern dark theme styling
     helpDialog.setStyleSheet(
         "QMessageBox {"
@@ -1479,15 +1484,14 @@ void OneSevenLiveStreamingDock::onGroupCallHelpClicked() {
         "    font-size: 14px;"
         "    font-weight: bold;"
         "    margin: 0 auto;"
-        "}"
-    );
-    
+        "}");
+
     helpDialog.exec();
 }
 
 void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event) {
     QDockWidget::resizeEvent(event);
-    
+
     // Update loading overlay size and position to always cover the entire visible area
     if (loadingOverlay && widget()) {
         QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());

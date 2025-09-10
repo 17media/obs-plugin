@@ -17,10 +17,10 @@
 
 #pragma once
 
+#include <QThread>
+#include <chrono>
 #include <string>
 #include <vector>
-#include <chrono>
-#include <QThread>
 
 class RemoteTextThread : public QThread {
     Q_OBJECT
@@ -44,8 +44,11 @@ class RemoteTextThread : public QThread {
     inline RemoteTextThread(std::string url_, std::string contentType_ = std::string(),
                             std::string postData_ = std::string(), int timeoutSec_ = 0,
                             bool isImageRequest_ = false)
-        : url(url_), contentType(contentType_), postData(postData_), 
-          timeoutSec(timeoutSec_), isImageRequest(isImageRequest_) {}
+        : url(url_),
+          contentType(contentType_),
+          postData(postData_),
+          timeoutSec(timeoutSec_),
+          isImageRequest(isImageRequest_) {}
 
     inline RemoteTextThread(std::string url_, std::vector<std::string> &&extraHeaders_,
                             std::string contentType_ = std::string(),

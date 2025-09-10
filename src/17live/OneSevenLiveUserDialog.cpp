@@ -1,24 +1,22 @@
 #include "OneSevenLiveUserDialog.hpp"
 
-#include <QMessageBox>
-#include <QPainter>
-#include <QPointer>
-#include <QIcon>
-#include <QPixmap>
-
 #include <obs-module.h>
 
-#include "utility/RemoteTextThread.hpp"
-#include "api/OneSevenLiveApiWrappers.hpp"
-#include "OneSevenLiveConfigManager.hpp"
-#include "plugin-support.h"
+#include <QIcon>
+#include <QMessageBox>
+#include <QPainter>
+#include <QPixmap>
+#include <QPointer>
 
-OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent, 
-                                           OneSevenLiveApiWrappers* apiWrapper_,
-                                           OneSevenLiveConfigManager* configManager_)
-    : QDialog(parent),
-      apiWrapper(apiWrapper_),
-      configManager(configManager_) {
+#include "OneSevenLiveConfigManager.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
+#include "plugin-support.h"
+#include "utility/RemoteTextThread.hpp"
+
+OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent,
+                                               OneSevenLiveApiWrappers* apiWrapper_,
+                                               OneSevenLiveConfigManager* configManager_)
+    : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_) {
     setWindowTitle(QString());
     setWindowFlags(Qt::FramelessWindowHint | Qt::Dialog);
     setAttribute(Qt::WA_TranslucentBackground, true);
@@ -27,9 +25,9 @@ OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent,
 
     setupUi();
     createConnections();
- }
+}
 
- OneSevenLiveUserDialog::~OneSevenLiveUserDialog() = default;
+OneSevenLiveUserDialog::~OneSevenLiveUserDialog() = default;
 
 void OneSevenLiveUserDialog::setupUi() {
     // Root layout (no margins/spacings to fit 250x300 exactly)
@@ -49,9 +47,10 @@ void OneSevenLiveUserDialog::setupUi() {
     // QWidget* topBg = new QWidget(card);
     // topBg->setObjectName("topBg");
     // topBg->setFixedHeight(128);
-    // topBg->setStyleSheet("#topBg { background-color: #3C404C; background-image: url(:/resources/user_images/user_bg.png); background-position: center; background-repeat: no-repeat; border-top-left-radius: 2px; border-top-right-radius: 2px; }");
-    // QHBoxLayout* topBgLayout = new QHBoxLayout(topBg);
-    // topBgLayout->setContentsMargins(0, 0, 6, 0);
+    // topBg->setStyleSheet("#topBg { background-color: #3C404C; background-image:
+    // url(:/resources/user_images/user_bg.png); background-position: center; background-repeat:
+    // no-repeat; border-top-left-radius: 2px; border-top-right-radius: 2px; }"); QHBoxLayout*
+    // topBgLayout = new QHBoxLayout(topBg); topBgLayout->setContentsMargins(0, 0, 6, 0);
     // topBgLayout->addStretch();
 
     // Close icon button at top-right
@@ -62,7 +61,9 @@ void OneSevenLiveUserDialog::setupUi() {
     closeButton->setIconSize(QSize(20, 20));
     closeButton->setFixedSize(30, 30);
     closeButton->setCursor(Qt::PointingHandCursor);
-    closeButton->setStyleSheet("QPushButton { background: transparent; border: none; } QPushButton:hover { background: rgba(255,255,255,0.08); border-radius: 4px; }");
+    closeButton->setStyleSheet(
+        "QPushButton { background: transparent; border: none; } QPushButton:hover { background: "
+        "rgba(255,255,255,0.08); border-radius: 4px; }");
     // topBgLayout->addWidget(closeButton, 0, Qt::AlignTop | Qt::AlignRight);
     cardLayout->addWidget(closeButton, 0, Qt::AlignTop | Qt::AlignRight);
 
@@ -77,7 +78,7 @@ void OneSevenLiveUserDialog::setupUi() {
     // const int overlapIntoTop = topBgHeight - desiredTopFromDialog; // 128 - 20 = 108
     // bodyLayout->setContentsMargins(20, -overlapIntoTop, 20, 20);
     bodyLayout->setContentsMargins(0, 0, 0, 0);
-    bodyLayout->setSpacing(0); // control exact gaps manually
+    bodyLayout->setSpacing(0);  // control exact gaps manually
 
     // User avatar (120x120, ~20px from top)
     avatarLabel = new QLabel();
@@ -147,40 +148,40 @@ void OneSevenLiveUserDialog::setUserInfo(const OneSevenLiveRockZoneViewer& user)
 
     // Update UI
     usernameLabel->setText(viewer.displayUser.displayName);
-//    userIdLabel->setText(QString(obs_module_text("Live.UserInfo.ID")).arg(viewer.displayUser.openID));
+    //    userIdLabel->setText(QString(obs_module_text("Live.UserInfo.ID")).arg(viewer.displayUser.openID));
     updateUserAvatar();
 }
 
 void OneSevenLiveUserDialog::updateUserAvatar() {
-
     QString url = "https://cdn.17app.co/" + viewer.displayUser.picture;
-    RemoteTextThread *thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
-        
+    RemoteTextThread* thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
+
     QPointer<QLabel> safeAvatarLabel = avatarLabel;
-    connect(thread, &RemoteTextThread::ImageResult, this, [this, safeAvatarLabel](const QByteArray &imageData, const QString &error) {
-        if (error.isEmpty() && !imageData.isEmpty()) {
-            QPixmap avatar;
-            avatar.loadFromData(imageData);
-            avatar = avatar.scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        
-            // Create rounded avatar
-            QPixmap roundedAvatar(120, 120);
-            roundedAvatar.fill(Qt::transparent);
-        
-            QPainter painter(&roundedAvatar);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(QBrush(avatar));
-            painter.drawEllipse(0, 0, 120, 120);
-            
-            if (safeAvatarLabel) {
-                safeAvatarLabel->setPixmap(roundedAvatar);
-            }
-        }
-    });
-    
+    connect(thread, &RemoteTextThread::ImageResult, this,
+            [this, safeAvatarLabel](const QByteArray& imageData, const QString& error) {
+                if (error.isEmpty() && !imageData.isEmpty()) {
+                    QPixmap avatar;
+                    avatar.loadFromData(imageData);
+                    avatar = avatar.scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+                    // Create rounded avatar
+                    QPixmap roundedAvatar(120, 120);
+                    roundedAvatar.fill(Qt::transparent);
+
+                    QPainter painter(&roundedAvatar);
+                    painter.setRenderHint(QPainter::Antialiasing);
+                    painter.setPen(Qt::NoPen);
+                    painter.setBrush(QBrush(avatar));
+                    painter.drawEllipse(0, 0, 120, 120);
+
+                    if (safeAvatarLabel) {
+                        safeAvatarLabel->setPixmap(roundedAvatar);
+                    }
+                }
+            });
+
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-    
+
     thread->start();
 }
 
@@ -202,13 +203,11 @@ void OneSevenLiveUserDialog::onPokeUserClicked() {
     bool success = apiWrapper->PokeOne(request, response);
 
     if (success) {
-        QMessageBox::information(this, 
-                            obs_module_text("Live.PokeSuccess"), 
-                            obs_module_text("Live.PokeSuccessMessage"));
+        QMessageBox::information(this, obs_module_text("Live.PokeSuccess"),
+                                 obs_module_text("Live.PokeSuccessMessage"));
     } else {
-        QMessageBox::warning(this, 
-                        obs_module_text("Live.PokeError"), 
-                        obs_module_text("Live.PokeErrorMessage"));
+        QMessageBox::warning(this, obs_module_text("Live.PokeError"),
+                             obs_module_text("Live.PokeErrorMessage"));
     }
 }
 

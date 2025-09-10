@@ -223,8 +223,10 @@ struct OneSevenLiveGloryroadInfo {
     QString badgeIconURL;
 };
 
-bool JsonToOneSevenLiveGloryroadInfo(const Json &jsonData, OneSevenLiveGloryroadInfo &gloryroadInfo);
-bool OneSevenLiveGloryroadInfoToJson(const OneSevenLiveGloryroadInfo &gloryroadInfo, Json &jsonData);
+bool JsonToOneSevenLiveGloryroadInfo(const Json &jsonData,
+                                     OneSevenLiveGloryroadInfo &gloryroadInfo);
+bool OneSevenLiveGloryroadInfoToJson(const OneSevenLiveGloryroadInfo &gloryroadInfo,
+                                     Json &jsonData);
 
 // League information struct
 struct OneSevenLiveLeagueInfo {
@@ -403,7 +405,7 @@ struct OneSevenLiveRtmpResponse {
     QList<OneSevenLiveRtmpUrl> rtmpURLs;  // Reuse existing OneSevenLiveRtmpUrl struct
     OneSevenLiveAchievementValueState achievementValueState;
     bool subtitleEnabled;
-    OneSevenLiveWhipInfo whipInfo;        // WHIP information
+    OneSevenLiveWhipInfo whipInfo;  // WHIP information
 };
 
 bool JsonToOneSevenLiveRtmpResponse(const Json &json, OneSevenLiveRtmpResponse &response);
@@ -481,21 +483,22 @@ struct OneSevenLiveCustomEvent {
     qint64 goalPoints;
     qint64 dailyGoalPoints;
     QString displayStatus;
-    QList<Json> rewards; // Using Json type because rewards structure is not defined
+    QList<Json> rewards;  // Using Json type because rewards structure is not defined
     qint64 currentGoalPoints;
     qint64 currentDailyGoalPoints;
 };
 
 // Stop custom event request struct
 struct OneSevenLiveCustomEventStatusRequest {
-    int status; // Status 2 means stop
+    int status;  // Status 2 means stop
     QString userID;
 };
 
 bool JsonToOneSevenLiveCustomEvent(const Json &json, OneSevenLiveCustomEvent &response);
 bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &request, Json &json);
 
-bool OneSevenLiveChangeCustomEventStatusRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json);
+bool OneSevenLiveChangeCustomEventStatusRequestToJson(
+    const OneSevenLiveCustomEventStatusRequest &request, Json &json);
 
 // Box gacha struct
 struct OneSevenLiveBoxGacha {
@@ -693,7 +696,7 @@ struct OneSevenLiveDisplayUser {
 // Rock zone viewer struct
 struct OneSevenLiveRockZoneViewer {
     int type;
-    QList<int> badgeTypes; // just for merge badge
+    QList<int> badgeTypes;  // just for merge badge
     OneSevenLiveArmyInfo armyInfo;
     OneSevenLiveLabelToken labelToken;
     OneSevenLiveUserAttr userAttr;
@@ -758,5 +761,3 @@ struct OneSevenLivePokeResponse {
 bool JsonToOneSevenLivePokeResponse(const Json &json, OneSevenLivePokeResponse &response);
 bool OneSevenLivePokeRequestToJson(const OneSevenLivePokeRequest &request, Json &json);
 bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request, Json &json);
-
-

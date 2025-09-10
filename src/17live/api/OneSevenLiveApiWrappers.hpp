@@ -63,21 +63,23 @@ class OneSevenLiveApiWrappers : public QObject {
     bool GetArmySubscriptionLevels(const std::string region, const std::string language,
                                    OneSevenLiveArmySubscriptionLevels &levels);
     bool GetRtmpByProvider(const std::string provider, OneSevenLiveRtmpResponse &response);
-    bool CreateCustomEvent(const OneSevenLiveCustomEvent &request, OneSevenLiveCustomEvent &response);
+    bool CreateCustomEvent(const OneSevenLiveCustomEvent &request,
+                           OneSevenLiveCustomEvent &response);
     // ChangeCustomEventStatus
     // OneSevenLiveCustomEventStatusRequest.status = 2: stop event = 3: close event
-    bool ChangeCustomEventStatus(const std::string &eventID, const OneSevenLiveCustomEventStatusRequest &request);
+    bool ChangeCustomEventStatus(const std::string &eventID,
+                                 const OneSevenLiveCustomEventStatusRequest &request);
     // GetCustomEvent
     // Get custom event information by userID
     bool GetCustomEvent(const std::string &userID, OneSevenLiveCustomEvent &response);
     // GetArmyName
     // Get army name information by userID
     bool GetArmyName(const std::string &userID, OneSevenLiveArmyNameResponse &response);
-    
+
     // PokeOne
     // Send a poke to a user
     bool PokeOne(const OneSevenLivePokeRequest &request, OneSevenLivePokeResponse &response);
-    
+
     // PokeAll
     // Send a poke to all users in a group
     bool PokeAll(const OneSevenLivePokeAllRequest &request, OneSevenLivePokeResponse &response);

@@ -153,7 +153,7 @@ class OneSevenLiveCoreManager : public QObject {
     bool liveListDockFirstLoad = true;
     OneSevenLiveStreamListDock* liveListDock{nullptr};
     void handleLiveListClicked();
-    
+
     bool rockZoneDockFirstLoad = true;
     OneSevenLiveRockZoneDock* rockZoneDock{nullptr};
     void handleRockZoneClicked();
@@ -173,8 +173,8 @@ class OneSevenLiveCoreManager : public QObject {
     // Version update related methods
     void handleCheckUpdateClicked();
     void checkForUpdates();
-    
+
     void loadGifts();
-    
+
     class OneSevenLiveUpdateManager* updateManager = nullptr;
 };

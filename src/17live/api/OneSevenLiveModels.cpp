@@ -1,5 +1,6 @@
 // OBS includes
 #include <obs-module.h>
+
 #include "plugin-support.h"
 
 // Qt includes
@@ -287,7 +288,8 @@ bool OneSevenLiveLabelTokenToJson(const OneSevenLiveLabelToken &labelToken, Json
     return true;
 }
 
-bool JsonToOneSevenLiveGloryroadInfo(const Json &jsonData, OneSevenLiveGloryroadInfo &gloryroadInfo) {
+bool JsonToOneSevenLiveGloryroadInfo(const Json &jsonData,
+                                     OneSevenLiveGloryroadInfo &gloryroadInfo) {
     if (!jsonData.is_object()) {
         return false;
     }
@@ -296,7 +298,6 @@ bool JsonToOneSevenLiveGloryroadInfo(const Json &jsonData, OneSevenLiveGloryroad
     if (jsonData["point"].is_number()) {
         gloryroadInfo.point = jsonData["point"].int_value();
     }
-
 
     // int level;
     if (jsonData["level"].is_number()) {
@@ -310,11 +311,13 @@ bool JsonToOneSevenLiveGloryroadInfo(const Json &jsonData, OneSevenLiveGloryroad
 
     // QString badgeIconURL;
     if (jsonData["badgeIconURL"].is_string()) {
-        gloryroadInfo.badgeIconURL = QString::fromStdString(jsonData["badgeIconURL"].string_value());
+        gloryroadInfo.badgeIconURL =
+            QString::fromStdString(jsonData["badgeIconURL"].string_value());
     }
 
     return true;
 }
+
 // Convert JSON to OneSevenLiveArmyInfoUser
 bool JsonToOneSevenLiveArmyInfoUser(const Json &json, OneSevenLiveArmyInfoUser &user) {
     if (!json.is_object()) {
@@ -360,7 +363,8 @@ bool JsonToOneSevenLiveArmyInfoUser(const Json &json, OneSevenLiveArmyInfoUser &
     return true;
 }
 
-bool OneSevenLiveGloryroadInfoToJson(const OneSevenLiveGloryroadInfo &gloryroadInfo, Json &jsonData) {
+bool OneSevenLiveGloryroadInfoToJson(const OneSevenLiveGloryroadInfo &gloryroadInfo,
+                                     Json &jsonData) {
     jsonData = Json::object{
         {"point", gloryroadInfo.point},
         {"level", gloryroadInfo.level},
@@ -647,7 +651,8 @@ bool JsonToOneSevenLiveDisplayUser(const Json &json, OneSevenLiveDisplayUser &di
     }
 
     if (json["topRightIconURL"].is_string()) {
-        displayUser.topRightIconURL = QString::fromStdString(json["topRightIconURL"].string_value());
+        displayUser.topRightIconURL =
+            QString::fromStdString(json["topRightIconURL"].string_value());
     }
 
     if (json["userID"].is_string()) {
@@ -727,7 +732,7 @@ bool JsonToOneSevenLiveRockZoneViewer(const Json &json, OneSevenLiveRockZoneView
     if (json["armyLevel"].is_number()) {
         viewer.armyLevel = json["armyLevel"].int_value();
     }
-    
+
     if (json["displayUser"].is_object()) {
         JsonToOneSevenLiveDisplayUser(json["displayUser"], viewer.displayUser);
     }
@@ -748,7 +753,7 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, 
 
     Json anonymousInfoJson;
     OneSevenLiveAnonymousInfoToJson(viewer.anonymousInfo, anonymousInfoJson);
-    
+
     Json displayUserJson;
     OneSevenLiveDisplayUserToJson(viewer.displayUser, displayUserJson);
 
@@ -1716,7 +1721,7 @@ bool JsonToOneSevenLiveGiftTabsResponse(const Json &json, OneSevenLiveGiftTabsRe
     try {
         // Parse giftLastUpdate
         response.giftLastUpdate = json["giftLastUpdate"].int_value();
-        
+
         // Parse tabs array
         if (json["tabs"].is_array()) {
             const auto &tabsArray = json["tabs"].array_items();
@@ -1725,7 +1730,7 @@ bool JsonToOneSevenLiveGiftTabsResponse(const Json &json, OneSevenLiveGiftTabsRe
                 tab.id = QString::fromStdString(tabItem["id"].string_value());
                 tab.type = tabItem["type"].int_value();
                 tab.name = QString::fromStdString(tabItem["name"].string_value());
-                
+
                 // Parse gifts array
                 if (tabItem["gifts"].is_array()) {
                     const auto &giftsArray = tabItem["gifts"].array_items();
@@ -1736,11 +1741,12 @@ bool JsonToOneSevenLiveGiftTabsResponse(const Json &json, OneSevenLiveGiftTabsRe
                         gift.regionMode = giftItem["regionMode"].int_value();
                         gift.name = QString::fromStdString(giftItem["name"].string_value());
                         gift.point = giftItem["point"].int_value();
-                        gift.leaderboardIcon = QString::fromStdString(giftItem["leaderboardIcon"].string_value());
+                        gift.leaderboardIcon =
+                            QString::fromStdString(giftItem["leaderboardIcon"].string_value());
                         gift.vffURL = QString::fromStdString(giftItem["vffURL"].string_value());
                         gift.vffMD5 = QString::fromStdString(giftItem["vffMD5"].string_value());
                         gift.vffJson = QString::fromStdString(giftItem["vffJson"].string_value());
-                        
+
                         // Parse regions array
                         if (giftItem["regions"].is_array()) {
                             const auto &regionsArray = giftItem["regions"].array_items();
@@ -1748,15 +1754,15 @@ bool JsonToOneSevenLiveGiftTabsResponse(const Json &json, OneSevenLiveGiftTabsRe
                                 gift.regions.append(QString::fromStdString(region.string_value()));
                             }
                         }
-                        
+
                         tab.gifts.append(gift);
                     }
                 }
-                
+
                 response.tabs.append(tab);
             }
         }
-        
+
         return true;
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveGiftTabsResponse error: %s", e.what());
@@ -1777,37 +1783,32 @@ bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &resp
                 for (const auto &region : gift.regions) {
                     regionsArray.push_back(Json(region.toStdString()));
                 }
-                
-                Json giftJson = Json::object{
-                    {"giftID", gift.giftID.toStdString()},
-                    {"isHidden", gift.isHidden},
-                    {"regionMode", gift.regionMode},
-                    {"name", gift.name.toStdString()},
-                    {"point", gift.point},
-                    {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
-                    {"vffURL", gift.vffURL.toStdString()},
-                    {"vffMD5", gift.vffMD5.toStdString()},
-                    {"vffJson", gift.vffJson.toStdString()},
-                    {"regions", regionsArray}
-                };
+
+                Json giftJson =
+                    Json::object{{"giftID", gift.giftID.toStdString()},
+                                 {"isHidden", gift.isHidden},
+                                 {"regionMode", gift.regionMode},
+                                 {"name", gift.name.toStdString()},
+                                 {"point", gift.point},
+                                 {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
+                                 {"vffURL", gift.vffURL.toStdString()},
+                                 {"vffMD5", gift.vffMD5.toStdString()},
+                                 {"vffJson", gift.vffJson.toStdString()},
+                                 {"regions", regionsArray}};
                 giftsArray.push_back(giftJson);
             }
-            
-            Json tabJson = Json::object{
-                {"id", tab.id.toStdString()},
-                {"type", tab.type},
-                {"name", tab.name.toStdString()},
-                {"gifts", giftsArray}
-            };
+
+            Json tabJson = Json::object{{"id", tab.id.toStdString()},
+                                        {"type", tab.type},
+                                        {"name", tab.name.toStdString()},
+                                        {"gifts", giftsArray}};
             tabsArray.push_back(tabJson);
         }
-        
+
         // Create main JSON object
-        json = Json::object{
-            {"giftLastUpdate", static_cast<int>(response.giftLastUpdate)},
-            {"tabs", tabsArray}
-        };
-        
+        json = Json::object{{"giftLastUpdate", static_cast<int>(response.giftLastUpdate)},
+                            {"tabs", tabsArray}};
+
         return true;
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveGiftTabsResponseToJson error: %s", e.what());
@@ -1819,7 +1820,7 @@ bool JsonToOneSevenLiveGiftsResponse(const Json &json, OneSevenLiveGiftsResponse
     try {
         // Parse lastUpdate
         response.lastUpdate = json["lastUpdate"].int_value();
-        
+
         // Parse gifts array
         if (json["gifts"].is_array()) {
             const auto &giftsArray = json["gifts"].array_items();
@@ -1830,11 +1831,12 @@ bool JsonToOneSevenLiveGiftsResponse(const Json &json, OneSevenLiveGiftsResponse
                 gift.regionMode = giftItem["regionMode"].int_value();
                 gift.name = QString::fromStdString(giftItem["name"].string_value());
                 gift.point = giftItem["point"].int_value();
-                gift.leaderboardIcon = QString::fromStdString(giftItem["leaderboardIcon"].string_value());
+                gift.leaderboardIcon =
+                    QString::fromStdString(giftItem["leaderboardIcon"].string_value());
                 gift.vffURL = QString::fromStdString(giftItem["vffURL"].string_value());
                 gift.vffMD5 = QString::fromStdString(giftItem["vffMD5"].string_value());
                 gift.vffJson = QString::fromStdString(giftItem["vffJson"].string_value());
-                
+
                 // Parse regions array
                 if (giftItem["regions"].is_array()) {
                     const auto &regionsArray = giftItem["regions"].array_items();
@@ -1842,11 +1844,11 @@ bool JsonToOneSevenLiveGiftsResponse(const Json &json, OneSevenLiveGiftsResponse
                         gift.regions.append(QString::fromStdString(region.string_value()));
                     }
                 }
-                
+
                 response.gifts.append(gift);
             }
         }
-        
+
         return true;
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveGiftsResponse error: %s", e.what());
@@ -1864,28 +1866,24 @@ bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, 
             for (const auto &region : gift.regions) {
                 regionsArray.push_back(Json(region.toStdString()));
             }
-            
-            Json giftJson = Json::object{
-                {"giftID", gift.giftID.toStdString()},
-                {"isHidden", gift.isHidden},
-                {"regionMode", gift.regionMode},
-                {"name", gift.name.toStdString()},
-                {"point", gift.point},
-                {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
-                {"vffURL", gift.vffURL.toStdString()},
-                {"vffMD5", gift.vffMD5.toStdString()},
-                {"vffJson", gift.vffJson.toStdString()},
-                {"regions", regionsArray}
-            };
+
+            Json giftJson = Json::object{{"giftID", gift.giftID.toStdString()},
+                                         {"isHidden", gift.isHidden},
+                                         {"regionMode", gift.regionMode},
+                                         {"name", gift.name.toStdString()},
+                                         {"point", gift.point},
+                                         {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
+                                         {"vffURL", gift.vffURL.toStdString()},
+                                         {"vffMD5", gift.vffMD5.toStdString()},
+                                         {"vffJson", gift.vffJson.toStdString()},
+                                         {"regions", regionsArray}};
             giftsArray.push_back(giftJson);
         }
-        
+
         // Create main JSON object
-        json = Json::object{
-            {"lastUpdate", static_cast<int>(response.lastUpdate)},
-            {"gifts", giftsArray}
-        };
-        
+        json = Json::object{{"lastUpdate", static_cast<int>(response.lastUpdate)},
+                            {"gifts", giftsArray}};
+
         return true;
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveGiftsResponseToJson error: %s", e.what());
@@ -1915,7 +1913,8 @@ bool OneSevenLiveCustomEventToJson(const OneSevenLiveCustomEvent &request, Json 
     return true;
 }
 
-bool OneSevenLiveChangeCustomEventStatusRequestToJson(const OneSevenLiveCustomEventStatusRequest &request, Json &json) {
+bool OneSevenLiveChangeCustomEventStatusRequestToJson(
+    const OneSevenLiveCustomEventStatusRequest &request, Json &json) {
     json = Json::object{
         {"status", request.status},
         {"userID", request.userID.toStdString()},
@@ -1959,13 +1958,13 @@ bool JsonToOneSevenLiveCustomEvent(const Json &json, OneSevenLiveCustomEvent &re
         gift.vffURL = QString::fromStdString(giftJson["vffURL"].string_value());
         gift.vffMD5 = QString::fromStdString(giftJson["vffMD5"].string_value());
         gift.vffJson = QString::fromStdString(giftJson["vffJson"].string_value());
-        
+
         // Process regions array
         auto regionsJson = giftJson["regions"].array_items();
         for (const auto &regionJson : regionsJson) {
             gift.regions.append(QString::fromStdString(regionJson.string_value()));
         }
-        
+
         response.gifts.append(gift);
     }
 

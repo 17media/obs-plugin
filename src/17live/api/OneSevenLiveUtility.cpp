@@ -10,23 +10,23 @@ static inline QString res(const char *name) {
 
 QString OneSevenLiveUtility::avatarFrameResource(const OneSevenLiveRockZoneViewer &viewer) {
     switch (viewer.type) {
-    case 0: // NORMAL
+    case 0:  // NORMAL
         return QString();
-    case 1: // GIFT_RANK_ONE
+    case 1:  // GIFT_RANK_ONE
         return res("ig-firstrank-badge.png");
-    case 2: // GUARDIAN
+    case 2:  // GUARDIAN
         return res("ig-guardian-badge.png");
-    case 3: { // ARMY -> by armyInfo.rank
+    case 3: {  // ARMY -> by armyInfo.rank
         switch (viewer.armyInfo.rank) {
-        case 1: // SERGEANT
+        case 1:  // SERGEANT
             return res("ig-sergeant-badge.png");
-        case 2: // CAPTAIN
+        case 2:  // CAPTAIN
             return res("ig-captain-badge.png");
-        case 3: // COLONEL
+        case 3:  // COLONEL
             return res("ig-colonel-badge.png");
-        case 4: // GENERAL
+        case 4:  // GENERAL
             return res("ig-general-badge.png");
-        case 5: // CORPORAL
+        case 5:  // CORPORAL
             return res("ig-corporal-badge.png");
         default:
             return QString();
@@ -101,25 +101,28 @@ QString OneSevenLiveUtility::checkingLevelBadgeResource(const OneSevenLiveRockZo
 static inline bool isZh(const QString &locale) {
     return locale.startsWith("zh", Qt::CaseInsensitive);
 }
+
 static inline bool isJa(const QString &locale) {
-    return locale.startsWith("ja", Qt::CaseInsensitive) || locale.startsWith("jp", Qt::CaseInsensitive);
+    return locale.startsWith("ja", Qt::CaseInsensitive) ||
+           locale.startsWith("jp", Qt::CaseInsensitive);
 }
 
 QString OneSevenLiveUtility::badgeLabel(int badgeType, int rank,
                                         const OneSevenLiveArmyNameResponse *armyResp) {
     switch (badgeType) {
-    case 0: // NORMAL
+    case 0:  // NORMAL
         return QString();
-    case 1: // GIFT_RANK_ONE
+    case 1:  // GIFT_RANK_ONE
         return obs_module_text("RockZone.Badge.TopContributor");
-    case 2: // GUARDIAN
+    case 2:  // GUARDIAN
         return obs_module_text("RockZone.Badge.Guardian");
-    case 3: { // ARMY -> need rankTier/customName from locale template
+    case 3: {  // ARMY -> need rankTier/customName from locale template
         if (!armyResp)
             return QString();
         for (const auto &rn : armyResp->rankName) {
             if (rn.rank == rank) {
-                QString text = QString(obs_module_text("RockZone.Badge.Army.Template")).arg(QString::number(rn.rankTier), rn.customName);
+                QString text = QString(obs_module_text("RockZone.Badge.Army.Template"))
+                                   .arg(QString::number(rn.rankTier), rn.customName);
                 return text;
             }
         }

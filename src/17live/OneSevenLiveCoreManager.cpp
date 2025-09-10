@@ -6,27 +6,27 @@
 #include <QApplication>
 #include <QDesktopServices>
 #include <QDockWidget>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
 #include <thread>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
 #include "OneSevenLiveLoginDialog.hpp"
 #include "OneSevenLiveMenuManager.hpp"
+#include "OneSevenLiveRockZoneDock.hpp"
 #include "OneSevenLiveStreamListDock.hpp"
 #include "OneSevenLiveStreamingDock.hpp"
-#include "OneSevenLiveRockZoneDock.hpp"
+#include "OneSevenLiveUpdateManager.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include "OneSevenLiveUpdateManager.hpp"
 #include "json11.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
@@ -127,7 +127,7 @@ bool OneSevenLiveCoreManager::initialize() {
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::liveListClicked, this,
                      &OneSevenLiveCoreManager::handleLiveListClicked);
-                     
+
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::rockZoneClicked, this,
                      &OneSevenLiveCoreManager::handleRockZoneClicked);
 
@@ -149,62 +149,68 @@ bool OneSevenLiveCoreManager::initialize() {
     updateManager = new OneSevenLiveUpdateManager(this);
 
     // Connect update manager signals
-    QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateAvailable, this, [this](const QString& latestVersion, const QJsonArray& assets) {
-        QMessageBox msgBox(mainWindow);
-        msgBox.setWindowTitle(obs_module_text("Update.NewVersionFound"));
-        msgBox.setText(QString(obs_module_text("Update.NewVersionFound.Message")).arg(latestVersion));
-        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-        msgBox.setDefaultButton(QMessageBox::Yes);
+    QObject::connect(
+        updateManager, &OneSevenLiveUpdateManager::updateAvailable, this,
+        [this](const QString& latestVersion, const QJsonArray& assets) {
+            QMessageBox msgBox(mainWindow);
+            msgBox.setWindowTitle(obs_module_text("Update.NewVersionFound"));
+            msgBox.setText(
+                QString(obs_module_text("Update.NewVersionFound.Message")).arg(latestVersion));
+            msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+            msgBox.setDefaultButton(QMessageBox::Yes);
 
-        if (msgBox.exec() == QMessageBox::Yes) {
-            // open download page obs_module_text("Menu.CheckUpdate.Url")
-            QDesktopServices::openUrl(QUrl(obs_module_text("Menu.CheckUpdate.Url")));
+            if (msgBox.exec() == QMessageBox::Yes) {
+                // open download page obs_module_text("Menu.CheckUpdate.Url")
+                QDesktopServices::openUrl(QUrl(obs_module_text("Menu.CheckUpdate.Url")));
 
-            // QString systemInfo = updateManager->getSystemInfo();
-            // QString downloadUrl;
-            // QString fileName;
+                // QString systemInfo = updateManager->getSystemInfo();
+                // QString downloadUrl;
+                // QString fileName;
 
-            // for (QJsonValue assetValue : assets) {
-            //     QJsonObject asset = assetValue.toObject();
-            //     QString assetName = asset["name"].toString();
+                // for (QJsonValue assetValue : assets) {
+                //     QJsonObject asset = assetValue.toObject();
+                //     QString assetName = asset["name"].toString();
 
-            //     obs_log(LOG_INFO, "Asset name: %s", assetName.toStdString().c_str());
-            //     obs_log(LOG_INFO, "systemInfo: %s", systemInfo.toStdString().c_str());
+                //     obs_log(LOG_INFO, "Asset name: %s", assetName.toStdString().c_str());
+                //     obs_log(LOG_INFO, "systemInfo: %s", systemInfo.toStdString().c_str());
 
-            //     if (systemInfo.contains("macOS")) {
-            //         if (systemInfo.contains("arm64") && assetName.contains("macAppleSilicon")) {
-            //             downloadUrl = asset["browser_download_url"].toString();
-            //             fileName = assetName;
-            //             break;
-            //         } else if (systemInfo.contains("x86_64") && assetName.contains("macIntel")) {
-            //             downloadUrl = asset["browser_download_url"].toString();
-            //             fileName = assetName;
-            //             break;
-            //         }
-            //     } else if (systemInfo.contains("Windows") && assetName.contains("windows")) {
-            //         downloadUrl = asset["browser_download_url"].toString();
-            //         fileName = assetName;
-            //         break;
-            //     }
-            // }
+                //     if (systemInfo.contains("macOS")) {
+                //         if (systemInfo.contains("arm64") &&
+                //         assetName.contains("macAppleSilicon")) {
+                //             downloadUrl = asset["browser_download_url"].toString();
+                //             fileName = assetName;
+                //             break;
+                //         } else if (systemInfo.contains("x86_64") &&
+                //         assetName.contains("macIntel")) {
+                //             downloadUrl = asset["browser_download_url"].toString();
+                //             fileName = assetName;
+                //             break;
+                //         }
+                //     } else if (systemInfo.contains("Windows") && assetName.contains("windows")) {
+                //         downloadUrl = asset["browser_download_url"].toString();
+                //         fileName = assetName;
+                //         break;
+                //     }
+                // }
 
-            // if (downloadUrl.isEmpty()) {
-            //     QMessageBox::warning(mainWindow, obs_module_text("Update.DownloadFailed"),
-            //                          obs_module_text("Update.DownloadFailed.NoPackage"));
-            //     return;
-            // }
+                // if (downloadUrl.isEmpty()) {
+                //     QMessageBox::warning(mainWindow, obs_module_text("Update.DownloadFailed"),
+                //                          obs_module_text("Update.DownloadFailed.NoPackage"));
+                //     return;
+                // }
 
-            // updateManager->downloadUpdate(downloadUrl, fileName);
-        }
-    });
+                // updateManager->downloadUpdate(downloadUrl, fileName);
+            }
+        });
 
-    QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateNotAvailable, this, [this]() {
-        obs_log(LOG_INFO, "Update check: no new version available.");
-    });
+    QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateNotAvailable, this,
+                     [this]() { obs_log(LOG_INFO, "Update check: no new version available."); });
 
-    QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateCheckFailed, this, [this](const QString& error) {
-        obs_log(LOG_WARNING, "Update check failed: %s", error.toUtf8().constData());
-    });
+    QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateCheckFailed, this,
+                     [this](const QString& error) {
+                         obs_log(LOG_WARNING, "Update check failed: %s",
+                                 error.toUtf8().constData());
+                     });
 
     // Load meta data
     if (!LoadMetaData()) {
@@ -222,14 +228,12 @@ bool OneSevenLiveCoreManager::initialize() {
     initialized = true;
 
     // Check for updates
-    std::thread updateThread([this]() {
-        updateManager->checkForUpdates();
-    });
+    std::thread updateThread([this]() { updateManager->checkForUpdates(); });
     updateThread.detach();
-    
+
     // Restore dock states on startup if they were previously saved
     isStartupRestore = true;
-    
+
     // Check if there are saved dock states and restore them
     QByteArray dockState = configManager->getDockState();
     if (!dockState.isEmpty() && mainWindow && mainWindow->isVisible()) {
@@ -237,23 +241,23 @@ bool OneSevenLiveCoreManager::initialize() {
         if (configManager->getDockVisibility("streaming")) {
             createStreamingDock();
         }
-        
+
         // Restore live list dock if it was previously shown
         if (configManager->getDockVisibility("liveList")) {
             handleLiveListClicked();
         }
-        
+
         // Restore chat room dock if it was previously shown
         if (configManager->getDockVisibility("chatRoom")) {
             handleChatRoomClicked();
         }
-        
+
         // Apply the saved dock layout
         mainWindow->restoreState(dockState);
     }
-    
+
     isStartupRestore = false;
-    
+
     return true;
 }
 
@@ -262,7 +266,6 @@ void OneSevenLiveCoreManager::handleCheckUpdateClicked() {
         updateManager->checkForUpdates();
     }
 }
-
 
 void OneSevenLiveCoreManager::load17LiveConfig() {
     // In the initialize method, add the following code after initializing configManager
@@ -316,7 +319,7 @@ void OneSevenLiveCoreManager::shutdown() {
         liveListDock->deleteLater();
         liveListDock = nullptr;
     }
-    
+
     if (rockZoneDock) {
         rockZoneDock->disconnect(this);
         rockZoneDock->close();
@@ -471,10 +474,9 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
-                                          streamingDock && streamingDock->isVisible(),
-                                          liveListDock && liveListDock->isVisible(),
-                                          rockZoneDock && rockZoneDock->isVisible());
+        menuManager->updateDockVisibility(
+            chatRoomDock && chatRoomDock->isVisible(), streamingDock && streamingDock->isVisible(),
+            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible());
     }
 }
 
@@ -508,11 +510,12 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         // First time creation or manual creation - set floating and center
         streamingDock->setFloating(true);
         streamingDock->setVisible(true);
-        
+
         // Center the dock on the main window
         QRect mainWindowGeometry = mainWindow->geometry();
         int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - streamingDock->width()) / 2;
-        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
+        int y =
+            mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
         streamingDock->move(x, y);
     }
 
@@ -578,19 +581,18 @@ void OneSevenLiveCoreManager::createStreamingDock() {
 
 void OneSevenLiveCoreManager::handleRockZoneClicked() {
     obs_log(LOG_INFO, "handleRockZoneClicked");
-    
+
     if (!rockZoneDock) {
         createRockZoneDock();
     } else {
         rockZoneDock->setVisible(!rockZoneDock->isVisible());
     }
-    
+
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
-                                          streamingDock && streamingDock->isVisible(),
-                                          liveListDock && liveListDock->isVisible(),
-                                          rockZoneDock && rockZoneDock->isVisible());
+        menuManager->updateDockVisibility(
+            chatRoomDock && chatRoomDock->isVisible(), streamingDock && streamingDock->isVisible(),
+            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible());
     }
 }
 
@@ -598,25 +600,25 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
     if (rockZoneDock) {
         return;
     }
-    
+
     OneSevenLiveLoginData loginData;
     if (!configManager->getLoginData(loginData)) {
         obs_log(LOG_ERROR, "Failed to get login data");
         return;
     }
-    
+
     // Create and show rock zone window
     rockZoneDock = new OneSevenLiveRockZoneDock(mainWindow, apiWrapper.get(), configManager.get());
     rockZoneDock->setObjectName("OneSevenLiveRockZoneDock");
-    
+
     rockZoneDock->setMinimumWidth(300);
     rockZoneDock->setMinimumHeight(400);
 
     rockZoneDock->resize(370, 500);
-    
+
     rockZoneDock->setAllowedAreas(Qt::AllDockWidgetAreas);
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, rockZoneDock);
-    
+
     // Only restore state during startup, otherwise set floating and center
     if (isStartupRestore) {
         // During startup restoration, the state will be restored by initialize() method
@@ -625,30 +627,29 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         // First time creation or manual creation - set floating and center
         rockZoneDock->setFloating(true);
         rockZoneDock->setVisible(true);
-        
+
         // Center the dock on the main window
         QRect mainWindowGeometry = mainWindow->geometry();
         int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - rockZoneDock->width()) / 2;
         int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - rockZoneDock->height()) / 2;
         rockZoneDock->move(x, y);
     }
-    
+
     // Refresh user list
     rockZoneDock->refreshUserList();
-    
+
     if (rockZoneDockFirstLoad) {
         // When dock is closed, uncheck menu item status
         connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(),
-                                              visible);
+                                              liveListDock && liveListDock->isVisible(), visible);
             configManager->setDockVisibility("rockZone", visible);
         });
-        
+
         // Connect close signal to main window slot function
         connect(rockZoneDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
-        
+
         rockZoneDockFirstLoad = false;
     }
 }
@@ -673,11 +674,13 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
             // First time creation or manual creation - set floating and center
             liveListDock->setFloating(true);
             liveListDock->setVisible(true);
-            
+
             // Center the dock on the main window
             QRect mainWindowGeometry = mainWindow->geometry();
-            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - liveListDock->width()) / 2;
-            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - liveListDock->height()) / 2;
+            int x =
+                mainWindowGeometry.x() + (mainWindowGeometry.width() - liveListDock->width()) / 2;
+            int y =
+                mainWindowGeometry.y() + (mainWindowGeometry.height() - liveListDock->height()) / 2;
             liveListDock->move(x, y);
         }
 
@@ -855,7 +858,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         // First time creation or manual creation - set floating and center
         chatRoomDock->setFloating(true);
         chatRoomDock->setVisible(true);
-        
+
         // Center the dock on the main window
         QRect mainWindowGeometry = mainWindow->geometry();
         int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatRoomDock->width()) / 2;
@@ -872,16 +875,16 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
 
 void OneSevenLiveCoreManager::loadGifts() {
     obs_log(LOG_INFO, "Starting to load gifts asynchronously");
-    
+
     // Run gift loading in a separate thread to avoid blocking main thread
     std::thread giftLoadThread([this]() {
         try {
             std::string language;
             configManager->getConfigValue("Region", language);
-            
+
             Json apiResult;
             bool success = apiWrapper->GetGifts(language, apiResult);
-            
+
             if (success) {
                 configManager->saveGifts(apiResult);
                 obs_log(LOG_INFO, "Gifts loaded and saved successfully");
@@ -894,6 +897,6 @@ void OneSevenLiveCoreManager::loadGifts() {
             obs_log(LOG_ERROR, "Unknown exception while loading gifts");
         }
     });
-    
+
     giftLoadThread.detach();
 }

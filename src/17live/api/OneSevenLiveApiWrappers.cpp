@@ -47,11 +47,14 @@ const string ONESEVENLIVE_GET_CONFIG_URL = string(ONESEVENLIVE_API_URL) + "/api/
 const string ONESEVENLIVE_GET_USERINFO_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/users/%1/info?onLive=1";
 
-const string ONESEVENLIVE_CREATE_CUSTOMEVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent";
+const string ONESEVENLIVE_CREATE_CUSTOMEVENT_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent";
 
-const string ONESEVENLIVE_GET_CUSTOMEVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEventV2";
+const string ONESEVENLIVE_GET_CUSTOMEVENT_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEventV2";
 
-const string ONESEVENLIVE_CHANGE_CUSTOMEVENT_STATUS_URL  = string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent/%1";
+const string ONESEVENLIVE_CHANGE_CUSTOMEVENT_STATUS_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent/%1";
 
 const string ONESEVENLIVE_GET_ABLY_TOKEN_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/messenger/token?type=3&roomID=%1";
@@ -62,7 +65,8 @@ const string ONESEVENLIVE_GET_GIFTTABS_URL =
 const string ONESEVENLIVE_GET_GIFTS_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/gifts";
 
 const string ONESEVENLIVE_GET_ROCKVIEWERS_URL =
-    string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1/streamer/rockviewers?type=0&count=50&filterEmpty=true";
+    string(ONESEVENLIVE_API_URL) +
+    "/api/v1/lives/%1/streamer/rockviewers?type=0&count=50&filterEmpty=true";
 
 const string ONESEVENLIVE_GET_ARMYNAME_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/army/custom/%1/name";
@@ -485,10 +489,8 @@ bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID,
     return true;
 }
 
-
-
 bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEvent &request,
-                                              OneSevenLiveCustomEvent &response) {
+                                                OneSevenLiveCustomEvent &response) {
     obs_log(LOG_INFO, "CreateCustomEvent start");
 
     lastErrorMessage.clear();
@@ -534,8 +536,8 @@ bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEvent &r
     return true;
 }
 
-bool OneSevenLiveApiWrappers::ChangeCustomEventStatus(const std::string &eventID,
-                                            const OneSevenLiveCustomEventStatusRequest &request) {
+bool OneSevenLiveApiWrappers::ChangeCustomEventStatus(
+    const std::string &eventID, const OneSevenLiveCustomEventStatusRequest &request) {
     obs_log(LOG_INFO, "ChangeCustomEventStatus start");
 
     lastErrorMessage.clear();
@@ -545,7 +547,7 @@ bool OneSevenLiveApiWrappers::ChangeCustomEventStatus(const std::string &eventID
         QString::fromStdString(ONESEVENLIVE_CHANGE_CUSTOMEVENT_STATUS_URL).arg(eventID.c_str());
     obs_log(LOG_INFO, "ChangeCustomEventStatus url: %s", urlStr.toStdString().c_str());
     QByteArray url = urlStr.toUtf8();
-    
+
     Json requestData;
     if (!OneSevenLiveChangeCustomEventStatusRequestToJson(request, requestData)) {
         obs_log(LOG_ERROR, "Failed to convert request to JSON");
@@ -565,7 +567,7 @@ bool OneSevenLiveApiWrappers::ChangeCustomEventStatus(const std::string &eventID
             obs_log(LOG_ERROR, "ChangeCustomEventStatus error: %s", json_out.dump().c_str());
             // lastErrorMessage = errorCode + errorMessage
             lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
-                            QString::fromStdString(json_out["errorMessage"].string_value());
+                               QString::fromStdString(json_out["errorMessage"].string_value());
         }
         return false;
     }
@@ -760,14 +762,13 @@ bool OneSevenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json
     return true;
 }
 
-bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &roomID,
-                                          const std::string language, Json &json_out_resp) {
+bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &roomID, const std::string language,
+                                          Json &json_out_resp) {
     obs_log(LOG_INFO, "GetGiftTabs");
 
     lastErrorMessage.clear();
 
-    QString urlStr =
-        QString::fromStdString(ONESEVENLIVE_GET_GIFTTABS_URL).arg(roomID.c_str());
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_GIFTTABS_URL).arg(roomID.c_str());
     QByteArray url = urlStr.toUtf8();
 
     std::vector<std::string> extraHeaders = {"Language: " + language};
@@ -812,7 +813,8 @@ bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &js
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ROCKVIEWERS_URL).arg(roomID.c_str());
     QByteArray url = urlStr.toUtf8();
 
-    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true)) {
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0,
+                       true)) {
         obs_log(LOG_ERROR, "GetRockViewers error: %s", json_out_resp.dump().c_str());
         lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
                            QString::fromStdString(json_out_resp["errorMessage"].string_value());
@@ -823,13 +825,15 @@ bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &js
     return true;
 }
 
-bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID, OneSevenLiveCustomEvent &response) {
+bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID,
+                                             OneSevenLiveCustomEvent &response) {
     obs_log(LOG_INFO, "GetCustomEvent start");
 
     lastErrorMessage.clear();
 
     // Build request URL with query parameter
-    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CUSTOMEVENT_URL) + "?userID=" + QString::fromStdString(userID);
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CUSTOMEVENT_URL) +
+                     "?userID=" + QString::fromStdString(userID);
     QByteArray url = urlStr.toUtf8();
 
     Json json_out;
@@ -853,7 +857,8 @@ bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID, OneSeven
     return true;
 }
 
-bool OneSevenLiveApiWrappers::GetArmyName(const std::string &userID, OneSevenLiveArmyNameResponse &response) {
+bool OneSevenLiveApiWrappers::GetArmyName(const std::string &userID,
+                                          OneSevenLiveArmyNameResponse &response) {
     obs_log(LOG_INFO, "GetArmyName start");
     lastErrorMessage.clear();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ARMYNAME_URL).arg(userID.c_str());
@@ -862,8 +867,7 @@ bool OneSevenLiveApiWrappers::GetArmyName(const std::string &userID, OneSevenLiv
     std::string error;
     Json json_out_resp;
 
-    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr,
-                       json_out_resp)) {
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp)) {
         obs_log(LOG_ERROR, "GetArmyName error: %s", json_out_resp.dump().c_str());
         lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
                            QString::fromStdString(json_out_resp["errorMessage"].string_value());
@@ -880,7 +884,8 @@ bool OneSevenLiveApiWrappers::GetArmyName(const std::string &userID, OneSevenLiv
     return true;
 }
 
-bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request, OneSevenLivePokeResponse &response) {
+bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request,
+                                      OneSevenLivePokeResponse &response) {
     obs_log(LOG_INFO, "PokeOne start");
 
     lastErrorMessage.clear();
@@ -929,7 +934,8 @@ bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request, On
     return true;
 }
 
-bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request, OneSevenLivePokeResponse &response) {
+bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request,
+                                      OneSevenLivePokeResponse &response) {
     obs_log(LOG_INFO, "PokeAll start");
 
     lastErrorMessage.clear();
