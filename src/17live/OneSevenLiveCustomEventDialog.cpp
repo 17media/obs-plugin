@@ -1013,7 +1013,7 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         giftButton->setToolTip(gift.name);
         // Initial state: no icon when unchecked
         giftButton->setIcon(QIcon());
-        giftButton->setIconSize(QSize(20, 20));
+        giftButton->setIconSize(QSize(40, 40));
         // Only show icon when checked (hide when unchecked)
         connect(giftButton, &QPushButton::toggled, this, [giftButton](bool checked){
             if (checked) {
