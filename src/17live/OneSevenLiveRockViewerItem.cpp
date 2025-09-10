@@ -100,7 +100,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
     QWidget *card = new QWidget(this);
     card->setFixedSize(350, 80);
     QHBoxLayout *mainLayout = new QHBoxLayout(card);
-    mainLayout->setContentsMargins(10, 6, 10, 6); // item padding ~10
+    mainLayout->setContentsMargins(0, 0, 0, 0); // item padding ~10
     mainLayout->setSpacing(10);
     mainLayout->setAlignment(Qt::AlignLeft);
 

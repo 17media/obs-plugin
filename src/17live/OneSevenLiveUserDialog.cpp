@@ -3,6 +3,8 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPointer>
+#include <QIcon>
+#include <QPixmap>
 
 #include <obs-module.h>
 
@@ -17,41 +19,77 @@ OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent,
     : QDialog(parent),
       apiWrapper(apiWrapper_),
       configManager(configManager_) {
-    setWindowTitle(obs_module_text("Live.UserInfo"));
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-    setMinimumSize(300, 400);
-    setStyleSheet(
-        "QDialog {"
-        "    background-color: #000000;"
-        "    color: #FFFFFF;"
-        "    font-family: 'Inter';"
-        "    font-style: normal;"
-        "}");
+    setWindowTitle(QString());
+    setWindowFlags(Qt::FramelessWindowHint | Qt::Dialog);
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    setFixedSize(250, 300);
+    setStyleSheet("QDialog { background-color: transparent; }");
 
     setupUi();
     createConnections();
-}
+ }
 
-OneSevenLiveUserDialog::~OneSevenLiveUserDialog() = default;
+ OneSevenLiveUserDialog::~OneSevenLiveUserDialog() = default;
 
 void OneSevenLiveUserDialog::setupUi() {
+    // Root layout (no margins/spacings to fit 250x300 exactly)
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(20, 20, 20, 20);
-    mainLayout->setSpacing(20);
-    mainLayout->setAlignment(Qt::AlignCenter);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
 
-    // User avatar
+    // Card container with rounded corners and background color
+    QWidget* card = new QWidget(this);
+    card->setObjectName("card");
+    card->setStyleSheet("#card { background-color: #3C404C; border-radius: 2px; }");
+    QVBoxLayout* cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(0, 0, 0, 0);
+    cardLayout->setSpacing(0);
+
+    // Top background area (128px)
+    // QWidget* topBg = new QWidget(card);
+    // topBg->setObjectName("topBg");
+    // topBg->setFixedHeight(128);
+    // topBg->setStyleSheet("#topBg { background-color: #3C404C; background-image: url(:/resources/user_images/user_bg.png); background-position: center; background-repeat: no-repeat; border-top-left-radius: 2px; border-top-right-radius: 2px; }");
+    // QHBoxLayout* topBgLayout = new QHBoxLayout(topBg);
+    // topBgLayout->setContentsMargins(0, 0, 6, 0);
+    // topBgLayout->addStretch();
+
+    // Close icon button at top-right
+    // closeButton = new QPushButton(topBg);
+    closeButton = new QPushButton(card);
+    closeButton->setFlat(true);
+    closeButton->setIcon(QIcon(":/resources/close.svg"));
+    closeButton->setIconSize(QSize(20, 20));
+    closeButton->setFixedSize(30, 30);
+    closeButton->setCursor(Qt::PointingHandCursor);
+    closeButton->setStyleSheet("QPushButton { background: transparent; border: none; } QPushButton:hover { background: rgba(255,255,255,0.08); border-radius: 4px; }");
+    // topBgLayout->addWidget(closeButton, 0, Qt::AlignTop | Qt::AlignRight);
+    cardLayout->addWidget(closeButton, 0, Qt::AlignTop | Qt::AlignRight);
+
+    // cardLayout->addWidget(topBg);
+
+    // Body area (overlap into top area so avatar is ~20px from dialog top)
+    QWidget* body = new QWidget(card);
+    QVBoxLayout* bodyLayout = new QVBoxLayout(body);
+    // Move body content upward so avatar top sits ~20px from dialog top
+    // const int topBgHeight = 128; // must match topBg->setFixedHeight(128)
+    // const int desiredTopFromDialog = 20;
+    // const int overlapIntoTop = topBgHeight - desiredTopFromDialog; // 128 - 20 = 108
+    // bodyLayout->setContentsMargins(20, -overlapIntoTop, 20, 20);
+    bodyLayout->setContentsMargins(0, 0, 0, 0);
+    bodyLayout->setSpacing(0); // control exact gaps manually
+
+    // User avatar (120x120, ~20px from top)
     avatarLabel = new QLabel();
     avatarLabel->setFixedSize(120, 120);
     avatarLabel->setAlignment(Qt::AlignCenter);
-    avatarLabel->setStyleSheet(
-        "QLabel {"
-        "    background-color: #333333;"
-        "    border-radius: 60px;"
-        "}");
-    mainLayout->addWidget(avatarLabel, 0, Qt::AlignHCenter);
+    avatarLabel->setStyleSheet("QLabel { background-color: transparent; border-radius: 60px; }");
+    bodyLayout->addWidget(avatarLabel, 0, Qt::AlignHCenter);
 
-    // Username
+    // Ensure ~10px spacing between avatar and username
+    bodyLayout->addSpacing(10);
+
+    // Username (10px below avatar by explicit spacing)
     usernameLabel = new QLabel();
     usernameLabel->setAlignment(Qt::AlignCenter);
     usernameLabel->setStyleSheet(
@@ -60,23 +98,20 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-weight: bold;"
         "    font-size: 18px;"
         "}");
-    mainLayout->addWidget(usernameLabel);
+    bodyLayout->addWidget(usernameLabel, 0, Qt::AlignHCenter);
 
-    // User ID
+    // Optional: User ID (kept from original, centered)
     userIdLabel = new QLabel();
     userIdLabel->setAlignment(Qt::AlignCenter);
-    userIdLabel->setStyleSheet(
-        "QLabel {"
-        "    color: #d9d9d9;"
-        "    font-size: 14px;"
-        "}");
-    mainLayout->addWidget(userIdLabel);
+    userIdLabel->setStyleSheet("QLabel { color: #d9d9d9; font-size: 14px; }");
+    bodyLayout->addWidget(userIdLabel);
 
-    // Button area
+    // Button area - center the poke button
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(10);
+    buttonLayout->setAlignment(Qt::AlignHCenter);
 
-    // Poke button
+    // Poke button (centered)
     pokeButton = new QPushButton(obs_module_text("Live.PokeUser"));
     pokeButton->setStyleSheet(
         "QPushButton {"
@@ -94,31 +129,12 @@ void OneSevenLiveUserDialog::setupUi() {
         "QPushButton:pressed {"
         "    background-color: #B00001;"
         "}");
-
-    // Close button
-    closeButton = new QPushButton(obs_module_text("Close"));
-    closeButton->setStyleSheet(
-        "QPushButton {"
-        "    background-color: #333333;"
-        "    color: white;"
-        "    border-radius: 4px;"
-        "    padding: 8px 16px;"
-        "    font-weight: 600;"
-        "    font-size: 16px;"
-        "    line-height: 24px;"
-        "}"
-        "QPushButton:hover {"
-        "    background-color: #444444;"
-        "}"
-        "QPushButton:pressed {"
-        "    background-color: #222222;"
-        "}");
-
     buttonLayout->addWidget(pokeButton);
-    buttonLayout->addWidget(closeButton);
+    bodyLayout->addLayout(buttonLayout);
+    bodyLayout->addStretch();
 
-    mainLayout->addLayout(buttonLayout);
-    mainLayout->addStretch();
+    cardLayout->addWidget(body);
+    mainLayout->addWidget(card);
 }
 
 void OneSevenLiveUserDialog::createConnections() {
@@ -156,7 +172,7 @@ void OneSevenLiveUserDialog::updateUserAvatar() {
             painter.setPen(Qt::NoPen);
             painter.setBrush(QBrush(avatar));
             painter.drawEllipse(0, 0, 120, 120);
-                
+            
             if (safeAvatarLabel) {
                 safeAvatarLabel->setPixmap(roundedAvatar);
             }
@@ -187,12 +203,12 @@ void OneSevenLiveUserDialog::onPokeUserClicked() {
 
     if (success) {
         QMessageBox::information(this, 
-                               obs_module_text("Live.PokeSuccess"), 
-                               obs_module_text("Live.PokeSuccessMessage"));
+                            obs_module_text("Live.PokeSuccess"), 
+                            obs_module_text("Live.PokeSuccessMessage"));
     } else {
         QMessageBox::warning(this, 
-                           obs_module_text("Live.PokeError"), 
-                           obs_module_text("Live.PokeErrorMessage"));
+                        obs_module_text("Live.PokeError"), 
+                        obs_module_text("Live.PokeErrorMessage"));
     }
 }
 
