@@ -25,6 +25,7 @@
 #include <QThread>
 #include <QToolTip>
 #include <QVBoxLayout>
+#include <QTextCharFormat>
 
 // Project includes
 #include "OneSevenLiveConfigManager.hpp"
@@ -140,11 +141,34 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
 
     // Date input with format
     dateEdit = new QDateEdit(this);
-    dateEdit->setDate(QDate::currentDate().addDays(1));
-    dateEdit->setMinimumDate(QDate::currentDate().addDays(1));
-    dateEdit->setMaximumDate(QDate::currentDate().addDays(30));
+    QDate today = QDate::currentDate();
+    QDate maxDate = QDate::currentDate().addDays(30);
+
+    dateEdit->setDate(today);
+    dateEdit->setMinimumDate(today);
+    dateEdit->setMaximumDate(maxDate);
     dateEdit->setDisplayFormat("yyyy/MM/dd");
     dateEdit->setCalendarPopup(true);
+    
+    // Get the calendar widget and configure it to disable dates beyond max range
+    calendar = dateEdit->calendarWidget();
+    if (calendar) {
+        calendar->setMinimumDate(today);
+        calendar->setMaximumDate(maxDate);
+        calendar->setSelectedDate(today);
+        calendar->setGridVisible(true);
+
+        QDate minDate = today.addYears(-1);
+        QDate lastDate = today.addYears(1);
+        QTextCharFormat disabledFormat;
+        disabledFormat.setForeground(Qt::gray);
+        for (QDate date = minDate; date < today; date = date.addDays(1)) {
+            calendar->setDateTextFormat(date, disabledFormat);
+        }
+        for (QDate date = lastDate; date > maxDate; date = date.addDays(-1)) {
+            calendar->setDateTextFormat(date, disabledFormat);
+        }
+    }
 
     // Create form layout for date section
     QFormLayout* dateFormLayout = new QFormLayout();
@@ -154,28 +178,6 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     // Set field growth policy
     dateFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     dateFormLayout->addRow(dateLabel, dateEdit);
-
-    // Calendar widget
-    // calendarFrame = new QFrame(this);
-    // calendarFrame->setFixedHeight(200);
-
-    // QVBoxLayout* calendarLayout = new QVBoxLayout(calendarFrame);
-    // calendarLayout->setContentsMargins(5, 5, 5, 5);
-
-    // calendar = new QCalendarWidget(this);
-    // calendar->setMinimumDate(QDate::currentDate().addDays(1));
-    // calendar->setMaximumDate(QDate::currentDate().addDays(30));
-    // calendar->setSelectedDate(QDate::currentDate().addDays(1));
-    // calendar->setGridVisible(true);
-
-    // calendarLayout->addWidget(calendar);
-
-    // // Connect calendar to date edit
-    // connect(calendar, &QCalendarWidget::selectionChanged, this,
-    // &OneSevenLiveCustomEventDialog::onDateChanged); connect(dateEdit, &QDateEdit::dateChanged,
-    // this, [this](const QDate& date) {
-    //     calendar->setSelectedDate(date);
-    // });
 
     mainLayout->addLayout(dateFormLayout);
     // mainLayout->addWidget(calendarFrame);
@@ -1009,12 +1011,9 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         }
 
         // Create name label
-        QLabel* nameLabel = new QLabel(gift.name);
+        QLabel* nameLabel = new QLabel(QString("<p style='word-break: break-all;'>%1</p>").arg(gift.name));
         nameLabel->setAlignment(Qt::AlignCenter);
-        nameLabel->setStyleSheet(
-            "color: white; font-size: 14px;"
-            "qproperty-wordWrap: true; "
-            "word-break: break-all;");
+        nameLabel->setStyleSheet("color: white; font-size: 14px;");
         nameLabel->setMaximumWidth(80);
         nameLabel->setWordWrap(true);
 
