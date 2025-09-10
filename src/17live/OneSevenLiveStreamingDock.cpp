@@ -1380,14 +1380,60 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
 
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
     
-    // Disable archive and vlive settings when streaming is active to avoid user confusion
-    bool isStreaming = (status == OneSevenLiveStreamingStatus::Live || 
-                       status == OneSevenLiveStreamingStatus::Streaming);
-    
-    archiveStreamCheck->setEnabled(!isStreaming);
-    autoPreviewCheck->setEnabled(!isStreaming);
-    clipIdentityCombo->setEnabled(!isStreaming);
-    virtualStreamerCheck->setEnabled(!isStreaming);
+    // Disable ALL controls above the bottom buttons when streaming is active
+    // Only keep save and create live buttons enabled
+    bool isStreaming = (status == OneSevenLiveStreamingStatus::Live ||
+                        status == OneSevenLiveStreamingStatus::Streaming);
+
+    auto setEnabledSafe = [&](QWidget* w, bool enabled) {
+        if (w) w->setEnabled(enabled);
+    };
+
+    bool enable = !isStreaming;
+
+    // Basic info
+    setEnabledSafe(titleEdit, enable);
+    setEnabledSafe(categoryCombo, enable);
+
+    // Tags
+    setEnabledSafe(tagEdit, enable);
+    setEnabledSafe(addTagButton, enable);
+    setEnabledSafe(tagsContainer, enable);
+
+    // Layout (portrait/landscape)
+    setEnabledSafe(portraitStreamRadio, enable);
+    setEnabledSafe(landscapeStreamRadio, enable);
+
+    // Event selection
+    setEnabledSafe(activityCombo, enable);
+
+    // Custom Event
+    setEnabledSafe(customEventHeader, enable);
+    setEnabledSafe(customEventToggleButton, enable);
+
+    // Army-only section
+    setEnabledSafe(armyOnlyHeader, enable);
+    setEnabledSafe(armyOnlyContainer, enable);
+    setEnabledSafe(armyOnlyToggleButton, enable);
+    setEnabledSafe(armyOnlyCheck, enable);
+    setEnabledSafe(requiredArmyRankCombo, enable);
+    setEnabledSafe(showInHotPageCheck, enable);
+    setEnabledSafe(liveNotificationCheck, enable);
+
+    // Party Live (Group Call)
+    setEnabledSafe(GroupCallContainer, enable);
+    setEnabledSafe(GroupCallHelpButton, enable);
+    setEnabledSafe(GroupCallCheck, enable);
+
+    // Archive / Preview / Clip / Virtual Liver
+    setEnabledSafe(archiveStreamCheck, enable);
+    setEnabledSafe(autoPreviewCheck, enable);
+    setEnabledSafe(clipIdentityCombo, enable);
+    setEnabledSafe(virtualStreamerCheck, enable);
+
+    // Keep bottom buttons enabled regardless of streaming status
+    setEnabledSafe(saveConfigButton, true);
+    setEnabledSafe(createLiveButton, true);
 }
 
 void OneSevenLiveStreamingDock::onGroupCallHelpClicked() {
