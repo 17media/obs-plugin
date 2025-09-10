@@ -13,7 +13,7 @@
     </filter>
   </defs>
   <g fill="none" fill-rule="evenodd">
-    <rect width="47.881" height="47.881" fill="#000" fill-opacity=".2" rx="6"></rect>
+    <rect width="47.881" height="47.881" fill="transparent" rx="6"></rect>
     <g stroke="#FFF" stroke-width="1.917" filter="url(#prefix__a___znv8CGZ1)"
       transform="translate(14.034 14.034)">
       <circle cx="9.906" cy="9.906" r="9.906" fill="#28232D"></circle>

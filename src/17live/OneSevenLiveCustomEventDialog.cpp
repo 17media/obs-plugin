@@ -32,6 +32,21 @@
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "utility/RemoteTextThread.hpp"
 
+static QString insertZeroWidthSpaces(const QString &s, int maxChunk = 10) {
+    QString out;
+    int count = 0;
+    for (QChar ch : s) {
+        out.append(ch);
+        ++count;
+        if (count >= maxChunk) {
+            out.append(QChar(0x200B)); // zero-width space
+            count = 0;
+        }
+        if (ch.isSpace()) count = 0;
+    }
+    return out;
+}
+
 OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(
     QWidget* parent, OneSevenLiveApiWrappers* apiWrapper_,
     OneSevenLiveConfigManager* configManager_)
@@ -309,25 +324,7 @@ void OneSevenLiveCustomEventDialog::setupEventDescriptionSection() {
 
     descriptionEdit = new QTextEdit(this);
     descriptionEdit->setPlaceholderText(obs_module_text("CustomEvent.Description.Placeholder"));
-    // descriptionEdit->setStyleSheet(
-    //     "QTextEdit {"
-    //     "    background-color: #3a3a3a;"
-    //     "    border: 1px solid #555555;"
-    //     "    color: #ffffff;"
-    //     "}");
-
-    // Connect text change to update character count
-    // connect(descriptionEdit, &QTextEdit::textChanged, this, [this]() {
-    //     int length = descriptionEdit->toPlainText().length();
-    //     characterCountLabel->setText(QString("%1 / %2").arg(length).arg(MAX_DESCRIPTION_LENGTH));
-
-    //     if (length > MAX_DESCRIPTION_LENGTH) {
-    //         characterCountLabel->setStyleSheet("color: #ff4757; font-size: 12px;");
-    //     } else {
-    //         characterCountLabel->setStyleSheet("color: #888888; font-size: 12px;");
-    //     }
-    // });
-
+    
     // Create form layout for description section
     QFormLayout* descriptionFormLayout = new QFormLayout();
     descriptionFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
@@ -1011,16 +1008,16 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         }
 
         // Create name label
-        QLabel* nameLabel = new QLabel(QString("<p style='word-break: break-all;'>%1</p>").arg(gift.name));
+        QLabel* nameLabel = new QLabel(insertZeroWidthSpaces(gift.name));
         nameLabel->setAlignment(Qt::AlignCenter);
-        nameLabel->setStyleSheet("color: white; font-size: 14px;");
+        nameLabel->setStyleSheet("color: white; font-size: 13px;");
         nameLabel->setMaximumWidth(80);
         nameLabel->setWordWrap(true);
 
         // Create price label
         QLabel* pointLabel = new QLabel(QString::number(gift.point));
         pointLabel->setAlignment(Qt::AlignCenter);
-        pointLabel->setStyleSheet("color: white; font-size: 14px;");
+        pointLabel->setStyleSheet("color: white; font-size: 13px;");
         pointLabel->setMaximumWidth(80);
         pointLabel->setWordWrap(true);
 
@@ -1038,6 +1035,12 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             "QPushButton {"
             "    background-color: transparent;"
             "    border: none;"
+            "    padding-top: -40px;"
+            "}"
+            "QPushButton:checked {"
+            "    background-color: rgba(128, 128, 128, 0.3);"
+            "    border: 1px solid rgba(128, 128, 128, 0.5);"
+            "    padding-top: -40px;"
             "}");
 
         giftButton->setCheckable(true);
