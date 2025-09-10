@@ -819,69 +819,6 @@ bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &js
         return false;
     }
 
-    // to test, read json file from /Users/zhuyu/workspace/mk/17live/dev/17live_dev/mock/test_100_viewers.json
-    // merge with json_out_resp
-    do {
-        QFile file("/Users/zhuyu/workspace/mk/17live/dev/17live_dev/mock/test_100_viewers.json");
-        if (!file.exists()) {
-            break; // no test data, skip
-        }
-        if (!file.open(QIODevice::ReadOnly)) {
-            obs_log(LOG_WARNING, "GetRockViewers: cannot open test viewers file");
-            break;
-        }
-        QByteArray content = file.readAll();
-        file.close();
-
-        std::string parse_err;
-        Json test_json = Json::parse(content.constData(), parse_err);
-        if (!parse_err.empty()) {
-            obs_log(LOG_WARNING, "GetRockViewers: parse test viewers failed: %s", parse_err.c_str());
-            break;
-        }
-
-        // Determine arrays to merge
-        Json test_array_json;
-        if (test_json.is_array()) {
-            test_array_json = test_json;
-        } else if (test_json.is_object() && test_json["viewers"].is_array()) {
-            test_array_json = test_json["viewers"];
-        } else {
-            obs_log(LOG_WARNING, "GetRockViewers: test viewers json is neither array nor object with 'viewers'");
-            break;
-        }
-
-        std::vector<Json> merged;
-        bool original_is_array = false;
-        if (json_out_resp.is_array()) {
-            merged = json_out_resp.array_items();
-            original_is_array = true;
-        } else if (json_out_resp.is_object() && json_out_resp["viewers"].is_array()) {
-            merged = json_out_resp["viewers"].array_items();
-        } else if (json_out_resp.is_null()) {
-            // nothing returned, start fresh
-        } else {
-            // unexpected type, try best effort by turning into array
-        }
-
-        for (const auto &item : test_array_json.array_items()) {
-            merged.push_back(item);
-        }
-
-        if (original_is_array) {
-            json_out_resp = Json(merged);
-        } else if (json_out_resp.is_object()) {
-            auto obj = json_out_resp.object_items();
-            obj["viewers"] = Json(merged);
-            json_out_resp = Json(obj);
-        } else {
-            json_out_resp = Json(merged);
-        }
-
-        obs_log(LOG_INFO, "GetRockViewers: merged %zu test viewers", test_array_json.array_items().size());
-    } while (false);
-
-
     obs_log(LOG_INFO, "GetRockViewers success");
     return true;
 }

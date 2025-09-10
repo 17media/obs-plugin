@@ -112,7 +112,7 @@ void OneSevenLiveUserDialog::setupUi() {
     buttonLayout->setAlignment(Qt::AlignHCenter);
 
     // Poke button (centered)
-    pokeButton = new QPushButton(obs_module_text("Live.PokeUser"));
+    pokeButton = new QPushButton(obs_module_text("RockZone.PokeUser"));
     pokeButton->setStyleSheet(
         "QPushButton {"
         "    background-color: #FF0001;"
