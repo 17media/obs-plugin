@@ -606,7 +606,7 @@ void OneSevenLiveCustomEventDialog::fetchCustomEventAsync() {
                         }
                     }
 
-                    // 同步更新礼物选中状态（无论两者先后）
+                    // Synchronously update gift selection state (regardless of order)
                     updateGiftSelectionUIFromCustomEvent();
                 }
 

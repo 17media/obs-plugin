@@ -1,11 +1,5 @@
 #pragma once
 
-// C++ Standard Library includes
-#include <type_traits>
-#include <mutex>
-#include <string>
-#include <limits>
-#include <chrono>
 
 // Qt includes
 #include <QDialog>
@@ -58,11 +52,11 @@ private:
 
 
     // Async
-    // 异步获取自定义活动数据
+    // Asynchronously fetch custom event data
     void fetchCustomEventAsync();
-    // 异步加载礼物标签，避免阻塞主线程
+    // Asynchronously load gift tabs to avoid blocking the main thread
     void loadGiftTabsAsync();
-    // 基于 customEvent 数据刷新礼物选择与UI勾选状态
+    // Refresh gift selection and UI checked state based on customEvent data
     void updateGiftSelectionUIFromCustomEvent();
     
     // Gift UI setup functions

@@ -38,7 +38,7 @@ public:
     // Badge label (text) for a single viewer by type.
     // locale: examples "zh-CN", "zh-TW", "en-US", "ja-JP". Any non-zh/ja falls back to English.
     // For type = 3 (ARMY), if armyResp is provided, it will format:
-    //   zh/ja: "階級 %1 (%2)"
+    //   zh/ja: "Rank %1 (%2)"
     //   en:    "Rank %1 (%2)"
     // If armyResp is null or no matching rank is found, returns empty string for ARMY.
     static QString badgeLabel(int badgeType, int rank,
