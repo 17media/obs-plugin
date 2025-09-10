@@ -268,14 +268,8 @@ void OneSevenLiveCustomEventDialog::setupEventTargetsSection() {
     dailyTargetLabel->setStyleSheet("font-weight: 600;");
 
     dailyTargetEdit = new QLineEdit(this);
-    // dailyTargetEdit->setValidator(new QIntValidator(1, 999999999, this));
+    dailyTargetEdit->setValidator(new QIntValidator(1, 999999999, this));
     dailyTargetEdit->setPlaceholderText(obs_module_text("CustomEvent.DailyGoal.Placeholder"));
-    // dailyTargetEdit->setStyleSheet(
-    //     "QLineEdit {"
-    //     "    background-color: #3a3a3a;"
-    //     "    border: 1px solid #555555;"
-    //     "    color: #ffffff;"
-    //     "}");
 
     // Create form layout for daily target
     QFormLayout* dailyTargetFormLayout = new QFormLayout();
@@ -293,14 +287,8 @@ void OneSevenLiveCustomEventDialog::setupEventTargetsSection() {
     totalTargetLabel->setStyleSheet("font-weight: 600;");
 
     totalTargetEdit = new QLineEdit(this);
-    // totalTargetEdit->setValidator(new QIntValidator(1, 999999999, this));
+    totalTargetEdit->setValidator(new QIntValidator(1, 999999999, this));
     totalTargetEdit->setPlaceholderText(obs_module_text("CustomEvent.TotalGoal.Placeholder"));
-    // totalTargetEdit->setStyleSheet(
-    //     "QLineEdit {"
-    //     "    background-color: #3a3a3a;"
-    //     "    border: 1px solid #555555;"
-    //     "    color: #ffffff;"
-    //     "}");
 
     // Create form layout for total target
     QFormLayout* totalTargetFormLayout = new QFormLayout();
