@@ -772,6 +772,15 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
         // Open dialog first; dialog will fetch custom event asynchronously
         customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
         
+        // Connect dialog close signal to reset button state
+        connect(customEventDialog, &QDialog::finished, this, [this]() {
+            customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
+            customEventDialog = nullptr;
+        });
+        
+        // Update button icon to arrow-up when dialog is opened
+        customEventToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
+        
         // Show the dialog
         customEventDialog->show();
         customEventDialog->raise();
