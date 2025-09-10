@@ -12,6 +12,7 @@
 #include <QHBoxLayout>
 #include <QMessageBox>
 #include <QPixmap>
+#include <QIcon>
 #include <QStyle>
 #include <QToolTip>
 #include <QVBoxLayout>
@@ -904,13 +905,21 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             "    background-color: transparent;"
             "    border: none;"
             "}"
-            "QPushButton:checked {"
-            "    background-color: rgba(0, 122, 204, 150);"
-            "    border-radius: 2px;"
-            "}");
+        );
         
         giftButton->setCheckable(true);
         giftButton->setToolTip(gift.name);
+        // Initial state: no icon when unchecked
+        giftButton->setIcon(QIcon());
+        giftButton->setIconSize(QSize(20, 20));
+        // Only show icon when checked (hide when unchecked)
+        connect(giftButton, &QPushButton::toggled, this, [giftButton](bool checked){
+            if (checked) {
+                giftButton->setIcon(QIcon(":/resources/circle-check.svg"));
+            } else {
+                giftButton->setIcon(QIcon());
+            }
+        });
         
         int row = i / GIFT_GRID_COLUMNS;
         int col = i % GIFT_GRID_COLUMNS;
