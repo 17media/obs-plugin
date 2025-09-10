@@ -575,18 +575,6 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
         updateUIValues();
     }
 
-    // Check feature 207 to control createLiveButton state
-    OneSevenLiveConfig config;
-    if (configManager->getConfig(config)) {
-        bool isFeature207Enabled = (config.addOns.features["207"] == 1);
-        createLiveButton->setEnabled(isFeature207Enabled);
-
-        if (!isFeature207Enabled) {
-            // if disabled, skip following checking, just return
-            return;
-        }
-    }
-
     // How to handle when web has already started streaming
     if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)) {
         // Add user prompt dialog to ask for next operation
@@ -787,6 +775,8 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
         if (!apiWrapper->GetCustomEvent(userID, customEvent)) {
             obs_log(LOG_ERROR, "Failed to get custom event");
         }
+
+        obs_log(LOG_INFO, "id=%s, customEvent.status = %d", customEvent.eventID, customEvent.status);
         
         customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager, &customEvent);
         
@@ -1028,6 +1018,18 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
 
 void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "createLive");
+
+    // Check feature 207 to control createLiveButton state
+    OneSevenLiveConfig config;
+    if (configManager->getConfig(config)) {
+        bool isFeature207Enabled = (config.addOns.features["207"] == 1);
+
+        if (!isFeature207Enabled) {
+            QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                                 obs_module_text("Live.Create.Feature207Disabled"));
+            return;
+        }
+    }
 
     OneSevenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {

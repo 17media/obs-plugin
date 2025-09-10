@@ -613,6 +613,7 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
         }
         
         // Send event update signal
+        customEventData->status = 3;
         emit eventUpdated(*customEventData);
     }
 
