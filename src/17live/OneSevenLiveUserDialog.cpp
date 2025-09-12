@@ -4,6 +4,7 @@
 
 #include <QIcon>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
 #include <QPointer>
@@ -18,10 +19,11 @@ OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent,
                                                OneSevenLiveConfigManager* configManager_)
     : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_) {
     setWindowTitle(QString());
-    setWindowFlags(Qt::FramelessWindowHint | Qt::Dialog);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground, true);
     setFixedSize(250, 300);
     setStyleSheet("QDialog { background-color: transparent; }");
+    setModal(false);
 
     setupUi();
     createConnections();
@@ -213,4 +215,26 @@ void OneSevenLiveUserDialog::onPokeUserClicked() {
 
 void OneSevenLiveUserDialog::onCloseClicked() {
     close();
+}
+
+void OneSevenLiveUserDialog::mousePressEvent(QMouseEvent* event) {
+    if (event->button() == Qt::LeftButton) {
+        dragging = true;
+        dragStartPosition = event->globalPosition().toPoint() - frameGeometry().topLeft();
+        event->accept();
+    }
+}
+
+void OneSevenLiveUserDialog::mouseMoveEvent(QMouseEvent* event) {
+    if (dragging && (event->buttons() & Qt::LeftButton)) {
+        move(event->globalPosition().toPoint() - dragStartPosition);
+        event->accept();
+    }
+}
+
+void OneSevenLiveUserDialog::mouseReleaseEvent(QMouseEvent* event) {
+    if (event->button() == Qt::LeftButton) {
+        dragging = false;
+        event->accept();
+    }
 }

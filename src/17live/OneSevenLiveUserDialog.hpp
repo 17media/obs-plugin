@@ -29,6 +29,11 @@ class OneSevenLiveUserDialog : public QDialog {
     void onPokeUserClicked();
     void onCloseClicked();
 
+   protected:
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+
    private:
     void setupUi();
     void createConnections();
@@ -46,4 +51,8 @@ class OneSevenLiveUserDialog : public QDialog {
     // API wrapper
     OneSevenLiveApiWrappers* apiWrapper;
     OneSevenLiveConfigManager* configManager = nullptr;
+
+    // Dragging functionality
+    bool dragging = false;
+    QPoint dragStartPosition;
 };
