@@ -693,6 +693,14 @@ struct OneSevenLiveDisplayUser {
     QString vipCharmURL;
 };
 
+// Gift rank one struct
+struct OneSevenLiveGiftRankOne {
+    QString displayName;
+    QString picture;
+    qint64 timestampMs;
+    QString userID;
+};
+
 // Rock zone viewer struct
 struct OneSevenLiveRockZoneViewer {
     int type;
@@ -703,7 +711,12 @@ struct OneSevenLiveRockZoneViewer {
     OneSevenLiveAnonymousInfo anonymousInfo;
     int armyLevel;
     OneSevenLiveDisplayUser displayUser;
+    OneSevenLiveGiftRankOne giftRankOne;
 };
+
+// Function declarations for gift rank one JSON conversion
+bool JsonToOneSevenLiveGiftRankOne(const Json &json, OneSevenLiveGiftRankOne &giftRankOne);
+bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne, Json &json);
 
 // Function declarations for display user JSON conversion
 bool JsonToOneSevenLiveDisplayUser(const Json &json, OneSevenLiveDisplayUser &displayUser);

@@ -22,6 +22,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     ~OneSevenLiveRockZoneDock();
 
     void refreshUserList();
+    void clearArmyNameCache();
 
    protected:
     void resizeEvent(QResizeEvent* event) override;
@@ -49,6 +50,10 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     OneSevenLiveConfigManager* configManager = nullptr;
 
     QList<OneSevenLiveRockZoneViewer> viewersList;
+
+    // Cached army name response to avoid repeated API calls
+    OneSevenLiveArmyNameResponse cachedArmyNameResponse;
+    bool armyNameCached = false;
 
     // User information dialog
     OneSevenLiveUserDialog* userDialog = nullptr;

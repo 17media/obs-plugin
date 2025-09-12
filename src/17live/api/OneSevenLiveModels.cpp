@@ -703,6 +703,43 @@ bool OneSevenLiveDisplayUserToJson(const OneSevenLiveDisplayUser &displayUser, J
     return true;
 }
 
+// Convert JSON to OneSevenLiveGiftRankOne
+bool JsonToOneSevenLiveGiftRankOne(const Json &json, OneSevenLiveGiftRankOne &giftRankOne) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    if (json["displayName"].is_string()) {
+        giftRankOne.displayName = QString::fromStdString(json["displayName"].string_value());
+    }
+
+    if (json["picture"].is_string()) {
+        giftRankOne.picture = QString::fromStdString(json["picture"].string_value());
+    }
+
+    if (json["timestampMs"].is_number()) {
+        giftRankOne.timestampMs = static_cast<qint64>(json["timestampMs"].number_value());
+    }
+
+    if (json["userID"].is_string()) {
+        giftRankOne.userID = QString::fromStdString(json["userID"].string_value());
+    }
+
+    return true;
+}
+
+// Convert OneSevenLiveGiftRankOne to JSON
+bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne, Json &json) {
+    json = Json::object{
+        {"displayName", giftRankOne.displayName.toStdString()},
+        {"picture", giftRankOne.picture.toStdString()},
+        {"timestampMs", static_cast<int>(giftRankOne.timestampMs)},
+        {"userID", giftRankOne.userID.toStdString()},
+    };
+
+    return true;
+}
+
 // Convert JSON to OneSevenLiveRockZoneViewer
 bool JsonToOneSevenLiveRockZoneViewer(const Json &json, OneSevenLiveRockZoneViewer &viewer) {
     if (!json.is_object()) {
@@ -737,6 +774,10 @@ bool JsonToOneSevenLiveRockZoneViewer(const Json &json, OneSevenLiveRockZoneView
         JsonToOneSevenLiveDisplayUser(json["displayUser"], viewer.displayUser);
     }
 
+    if (json["giftRankOne"].is_object()) {
+        JsonToOneSevenLiveGiftRankOne(json["giftRankOne"], viewer.giftRankOne);
+    }
+
     return true;
 }
 
@@ -757,6 +798,9 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, 
     Json displayUserJson;
     OneSevenLiveDisplayUserToJson(viewer.displayUser, displayUserJson);
 
+    Json giftRankOneJson;
+    OneSevenLiveGiftRankOneToJson(viewer.giftRankOne, giftRankOneJson);
+
     json = Json::object{
         {"type", viewer.type},
         {"armyInfo", armyInfoJson},
@@ -765,6 +809,7 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, 
         {"anonymousInfo", anonymousInfoJson},
         {"armyLevel", viewer.armyLevel},
         {"displayUser", displayUserJson},
+        {"giftRankOne", giftRankOneJson},
     };
 
     return true;

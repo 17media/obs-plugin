@@ -311,7 +311,14 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         configManager->getConfigValue("UserID", userID);
         OneSevenLiveArmyNameResponse armyNameResponse;
 
-        apiWrapper->GetArmyName(userID, armyNameResponse);
+        // Only call GetArmyName if not cached
+        if (!armyNameCached) {
+            apiWrapper->GetArmyName(userID, armyNameResponse);
+            cachedArmyNameResponse = armyNameResponse;
+            armyNameCached = true;
+        } else {
+            armyNameResponse = cachedArmyNameResponse;
+        }
 
         // Use Qt::QueuedConnection to ensure UI updates happen on the main thread
         QMetaObject::invokeMethod(
@@ -355,8 +362,17 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             if (!existing.badgeTypes.contains(user.type)) {
                                 existing.badgeTypes.append(user.type);
                             }
+                            if (!existing.giftRankOne.userID.isEmpty()) {
+                                existing.displayUser = user.displayUser;
+                            }
                         } else {
                             OneSevenLiveRockZoneViewer base = user;
+                            if (base.displayUser.userID.isEmpty()) {
+                                base.displayUser.userID = base.giftRankOne.userID;
+                                base.displayUser.displayName = base.giftRankOne.displayName;
+                                base.displayUser.picture = base.giftRankOne.picture;
+                            }
+                            
                             base.badgeTypes.clear();
                             base.badgeTypes.append(user.type);
                             viewersList.push_back(base);
@@ -398,6 +414,11 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
 
     connect(thread, &QThread::finished, thread, &QThread::deleteLater);
     thread->start();
+}
+
+void OneSevenLiveRockZoneDock::clearArmyNameCache() {
+    armyNameCached = false;
+    cachedArmyNameResponse = OneSevenLiveArmyNameResponse();
 }
 
 void OneSevenLiveRockZoneDock::onPokeAllClicked() {
