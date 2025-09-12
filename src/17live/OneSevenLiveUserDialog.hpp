@@ -6,6 +6,8 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QVBoxLayout>
+#include <QThread>
+#include <QPointer>
 
 #include "api/OneSevenLiveModels.hpp"
 
@@ -38,11 +40,16 @@ class OneSevenLiveUserDialog : public QDialog {
     void setupUi();
     void createConnections();
     void updateUserAvatar();
+    void fetchUserInfo();
+    void updateUserStats(const OneSevenLiveUserInfo& userInfo);
 
     // UI elements
     QLabel* avatarLabel;
     QLabel* usernameLabel;
     QLabel* userIdLabel;
+    QLabel* followersLabel;
+    QLabel* followingLabel;
+    QLabel* likesLabel;
     QPushButton* pokeButton;
     QPushButton* closeButton;
 

@@ -315,8 +315,7 @@ void OneSevenLiveRockZoneDock::onPokeAllClicked() {
         QMessageBox::information(this, obs_module_text("Live.PokeSuccess"),
                                  obs_module_text("Live.PokeSuccessMessage"));
     } else {
-        QMessageBox::warning(this, obs_module_text("Live.PokeError"),
-                             obs_module_text("Live.PokeErrorMessage"));
+        obs_log(LOG_WARNING, "PokeAll failed %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
     }
 }
 

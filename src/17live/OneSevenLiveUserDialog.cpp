@@ -8,11 +8,14 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPointer>
+#include <QThread>
+#include <QMetaObject>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
 #include "utility/RemoteTextThread.hpp"
+#include "utility/Common.hpp"
 
 OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent,
                                                OneSevenLiveApiWrappers* apiWrapper_,
@@ -21,7 +24,7 @@ OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent,
     setWindowTitle(QString());
     setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground, true);
-    setFixedSize(250, 300);
+    setFixedSize(250, 320);
     setStyleSheet("QDialog { background-color: transparent; }");
     setModal(false);
 
@@ -45,18 +48,6 @@ void OneSevenLiveUserDialog::setupUi() {
     cardLayout->setContentsMargins(0, 0, 0, 0);
     cardLayout->setSpacing(0);
 
-    // Top background area (128px)
-    // QWidget* topBg = new QWidget(card);
-    // topBg->setObjectName("topBg");
-    // topBg->setFixedHeight(128);
-    // topBg->setStyleSheet("#topBg { background-color: #3C404C; background-image:
-    // url(:/resources/user_images/user_bg.png); background-position: center; background-repeat:
-    // no-repeat; border-top-left-radius: 2px; border-top-right-radius: 2px; }"); QHBoxLayout*
-    // topBgLayout = new QHBoxLayout(topBg); topBgLayout->setContentsMargins(0, 0, 6, 0);
-    // topBgLayout->addStretch();
-
-    // Close icon button at top-right
-    // closeButton = new QPushButton(topBg);
     closeButton = new QPushButton(card);
     closeButton->setFlat(true);
     closeButton->setIcon(QIcon(":/resources/close.svg"));
@@ -66,23 +57,14 @@ void OneSevenLiveUserDialog::setupUi() {
     closeButton->setStyleSheet(
         "QPushButton { background: transparent; border: none; } QPushButton:hover { background: "
         "rgba(255,255,255,0.08); border-radius: 4px; }");
-    // topBgLayout->addWidget(closeButton, 0, Qt::AlignTop | Qt::AlignRight);
     cardLayout->addWidget(closeButton, 0, Qt::AlignTop | Qt::AlignRight);
-
-    // cardLayout->addWidget(topBg);
 
     // Body area (overlap into top area so avatar is ~20px from dialog top)
     QWidget* body = new QWidget(card);
     QVBoxLayout* bodyLayout = new QVBoxLayout(body);
-    // Move body content upward so avatar top sits ~20px from dialog top
-    // const int topBgHeight = 128; // must match topBg->setFixedHeight(128)
-    // const int desiredTopFromDialog = 20;
-    // const int overlapIntoTop = topBgHeight - desiredTopFromDialog; // 128 - 20 = 108
-    // bodyLayout->setContentsMargins(20, -overlapIntoTop, 20, 20);
     bodyLayout->setContentsMargins(0, 0, 0, 0);
     bodyLayout->setSpacing(0);  // control exact gaps manually
 
-    // User avatar (120x120, ~20px from top)
     avatarLabel = new QLabel();
     avatarLabel->setFixedSize(120, 120);
     avatarLabel->setAlignment(Qt::AlignCenter);
@@ -103,11 +85,95 @@ void OneSevenLiveUserDialog::setupUi() {
         "}");
     bodyLayout->addWidget(usernameLabel, 0, Qt::AlignHCenter);
 
-    // Optional: User ID (kept from original, centered)
-    userIdLabel = new QLabel();
-    userIdLabel->setAlignment(Qt::AlignCenter);
-    userIdLabel->setStyleSheet("QLabel { color: #d9d9d9; font-size: 14px; }");
-    bodyLayout->addWidget(userIdLabel);
+    // User stats area
+    bodyLayout->addSpacing(15);
+    
+    QHBoxLayout* statsLayout = new QHBoxLayout();
+    statsLayout->setSpacing(20);
+    statsLayout->setAlignment(Qt::AlignHCenter);
+    
+    // Followers
+    QVBoxLayout* followersLayout = new QVBoxLayout();
+    followersLayout->setSpacing(2);
+    followersLayout->setAlignment(Qt::AlignCenter);
+    
+    followersLabel = new QLabel("--");
+    followersLabel->setAlignment(Qt::AlignCenter);
+    followersLabel->setStyleSheet(
+        "QLabel {"
+        "    color: white;"
+        "    font-weight: bold;"
+        "    font-size: 16px;"
+        "}");
+    
+    QLabel* followersText = new QLabel("粉絲數");
+    followersText->setAlignment(Qt::AlignCenter);
+    followersText->setStyleSheet(
+        "QLabel {"
+        "    color: #CCCCCC;"
+        "    font-size: 12px;"
+        "}");
+    
+    followersLayout->addWidget(followersLabel);
+    followersLayout->addWidget(followersText);
+    
+    // Following
+    QVBoxLayout* followingLayout = new QVBoxLayout();
+    followingLayout->setSpacing(2);
+    followingLayout->setAlignment(Qt::AlignCenter);
+    
+    followingLabel = new QLabel("--");
+    followingLabel->setAlignment(Qt::AlignCenter);
+    followingLabel->setStyleSheet(
+        "QLabel {"
+        "    color: white;"
+        "    font-weight: bold;"
+        "    font-size: 16px;"
+        "}");
+    
+    QLabel* followingText = new QLabel("追蹤中");
+    followingText->setAlignment(Qt::AlignCenter);
+    followingText->setStyleSheet(
+        "QLabel {"
+        "    color: #CCCCCC;"
+        "    font-size: 12px;"
+        "}");
+    
+    followingLayout->addWidget(followingLabel);
+    followingLayout->addWidget(followingText);
+    
+    // Likes
+    QVBoxLayout* likesLayout = new QVBoxLayout();
+    likesLayout->setSpacing(2);
+    likesLayout->setAlignment(Qt::AlignCenter);
+    
+    likesLabel = new QLabel("--");
+    likesLabel->setAlignment(Qt::AlignCenter);
+    likesLabel->setStyleSheet(
+        "QLabel {"
+        "    color: white;"
+        "    font-weight: bold;"
+        "    font-size: 16px;"
+        "}");
+    
+    QLabel* likesText = new QLabel("愛心數");
+    likesText->setAlignment(Qt::AlignCenter);
+    likesText->setStyleSheet(
+        "QLabel {"
+        "    color: #CCCCCC;"
+        "    font-size: 12px;"
+        "}");
+    
+    likesLayout->addWidget(likesLabel);
+    likesLayout->addWidget(likesText);
+    
+    // Add to stats layout
+    statsLayout->addLayout(followersLayout);
+    statsLayout->addLayout(followingLayout);
+    statsLayout->addLayout(likesLayout);
+    
+    bodyLayout->addLayout(statsLayout);
+    bodyLayout->addSpacing(15);
 
     // Button area - center the poke button
     QHBoxLayout* buttonLayout = new QHBoxLayout();
@@ -132,6 +198,8 @@ void OneSevenLiveUserDialog::setupUi() {
         "QPushButton:pressed {"
         "    background-color: #B00001;"
         "}");
+    pokeButton->setFixedHeight(30);
+    pokeButton->setFixedWidth(200);
     buttonLayout->addWidget(pokeButton);
     bodyLayout->addLayout(buttonLayout);
     bodyLayout->addStretch();
@@ -150,8 +218,10 @@ void OneSevenLiveUserDialog::setUserInfo(const OneSevenLiveRockZoneViewer& user)
 
     // Update UI
     usernameLabel->setText(viewer.displayUser.displayName);
-    //    userIdLabel->setText(QString(obs_module_text("Live.UserInfo.ID")).arg(viewer.displayUser.openID));
     updateUserAvatar();
+    
+    // Fetch detailed user information asynchronously
+    fetchUserInfo();
 }
 
 void OneSevenLiveUserDialog::updateUserAvatar() {
@@ -204,12 +274,8 @@ void OneSevenLiveUserDialog::onPokeUserClicked() {
     // Send request
     bool success = apiWrapper->PokeOne(request, response);
 
-    if (success) {
-        QMessageBox::information(this, obs_module_text("Live.PokeSuccess"),
-                                 obs_module_text("Live.PokeSuccessMessage"));
-    } else {
-        QMessageBox::warning(this, obs_module_text("Live.PokeError"),
-                             obs_module_text("Live.PokeErrorMessage"));
+    if (!success) {
+        obs_log(LOG_ERROR, "Failed to poke user %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
     }
 }
 
@@ -237,4 +303,65 @@ void OneSevenLiveUserDialog::mouseReleaseEvent(QMouseEvent* event) {
         dragging = false;
         event->accept();
     }
+}
+
+void OneSevenLiveUserDialog::fetchUserInfo() {
+    if (!apiWrapper || viewer.displayUser.userID.isEmpty()) {
+        return;
+    }
+    
+    // Create a worker thread to fetch user info
+    QThread* workerThread = new QThread();
+    
+    // Get user ID and region from config
+    std::string region;
+    std::string language = GetCurrentLanguage();
+    configManager->getConfigValue("Region", region);
+    
+    if (region.empty()) {
+        region = "TW";  // Default region
+    }
+    
+    QString userID = viewer.displayUser.userID;
+    
+    // Use QPointer to safely access this object
+    QPointer<OneSevenLiveUserDialog> safeThis = this;
+    
+    // Connect worker thread to perform API call
+    connect(workerThread, &QThread::started, [=]() {
+        OneSevenLiveUserInfo userInfo;
+        bool success = apiWrapper->GetUserInfo(userID.toStdString(), region, language, userInfo);
+
+        // Post result back to main thread
+        QMetaObject::invokeMethod(safeThis, [=]() {
+            if (safeThis && success) {
+                safeThis->updateUserStats(userInfo);
+            }
+        }, Qt::QueuedConnection);
+        
+        // Clean up thread
+        workerThread->quit();
+    });
+    
+    connect(workerThread, &QThread::finished, workerThread, &QObject::deleteLater);
+    
+    workerThread->start();
+}
+
+void OneSevenLiveUserDialog::updateUserStats(const OneSevenLiveUserInfo& userInfo) {
+    // Format numbers with K/M suffixes for large values
+    auto formatNumber = [](int number) -> QString {
+        if (number >= 1000000) {
+            return QString("%1m").arg(number / 1000000.0, 0, 'f', 1);
+        } else if (number >= 1000) {
+            return QString("%1k").arg(number / 1000.0, 0, 'f', 1);
+        } else {
+            return QString::number(number);
+        }
+    };
+    
+    // Update UI labels with formatted numbers
+    followersLabel->setText(formatNumber(userInfo.followerCount));
+    followingLabel->setText(formatNumber(userInfo.followingCount));
+    likesLabel->setText(formatNumber(userInfo.likeCount));
 }

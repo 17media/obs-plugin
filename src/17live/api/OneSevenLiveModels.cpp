@@ -1603,11 +1603,114 @@ bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo
     }
 
     try {
+        // Basic user information
+        userInfo.userID = QString::fromStdString(json["userID"].string_value());
+        userInfo.openID = QString::fromStdString(json["openID"].string_value());
+        userInfo.displayName = QString::fromStdString(json["displayName"].string_value());
+        userInfo.name = QString::fromStdString(json["name"].string_value());
+        userInfo.bio = QString::fromStdString(json["bio"].string_value());
+        userInfo.picture = QString::fromStdString(json["picture"].string_value());
+        userInfo.website = QString::fromStdString(json["website"].string_value());
+        
+        // Numeric fields
+        userInfo.followerCount = json["followerCount"].int_value();
+        userInfo.followingCount = json["followingCount"].int_value();
+        userInfo.receivedLikeCount = json["receivedLikeCount"].int_value();
+        userInfo.likeCount = json["likeCount"].int_value();
+        userInfo.isFollowing = json["isFollowing"].int_value();
+        userInfo.isNotif = json["isNotif"].int_value();
+        userInfo.isBlocked = json["isBlocked"].int_value();
+        
+        // Timestamp fields
+        userInfo.followTime = static_cast<qint64>(json["followTime"].number_value());
+        userInfo.followRequestTime = static_cast<qint64>(json["followRequestTime"].number_value());
+        userInfo.roomID = static_cast<qint64>(json["roomID"].number_value());
+        
+        // Additional string fields
+        userInfo.privacyMode = QString::fromStdString(json["privacyMode"].string_value());
+        userInfo.revenueShareIndicator = QString::fromStdString(json["revenueShareIndicator"].string_value());
+        userInfo.region = QString::fromStdString(json["region"].string_value());
+        userInfo.lastLiveRegion = QString::fromStdString(json["lastLiveRegion"].string_value());
+        userInfo.extIDAppleTransfer = QString::fromStdString(json["extIDAppleTransfer"].string_value());
+        userInfo.commentShadowColor = QString::fromStdString(json["commentShadowColor"].string_value());
+        
+        // Additional numeric fields
+        userInfo.ballerLevel = json["ballerLevel"].int_value();
+        userInfo.postCount = json["postCount"].int_value();
+        userInfo.isCelebrity = json["isCelebrity"].int_value();
+        userInfo.baller = json["baller"].int_value();
+        userInfo.level = json["level"].int_value();
+        userInfo.followPrivacyMode = json["followPrivacyMode"].int_value();
+        userInfo.clanStatus = json["clanStatus"].int_value();
+        userInfo.hideAllPointToLeaderboard = json["hideAllPointToLeaderboard"].int_value();
+        userInfo.enableShop = json["enableShop"].int_value();
+        userInfo.gloryroadMode = json["gloryroadMode"].int_value();
+        userInfo.avatarOnboardingPhase = json["avatarOnboardingPhase"].int_value();
+        userInfo.isEmailVerified = json["isEmailVerified"].int_value();
+        
+        // Additional timestamp fields
+        userInfo.lastLiveTimestamp = static_cast<qint64>(json["lastLiveTimestamp"].number_value());
+        userInfo.lastCreateLiveTimestamp = static_cast<qint64>(json["lastCreateLiveTimestamp"].number_value());
+        
+        // Boolean fields
+        userInfo.streamerRecapEnable = json["streamerRecapEnable"].bool_value();
+        userInfo.newbieDisplayAllGiftTabsToast = json["newbieDisplayAllGiftTabsToast"].bool_value();
+        userInfo.isUnderaged = json["isUnderaged"].bool_value();
+        userInfo.isFreePrivateMsgEnabled = json["isFreePrivateMsgEnabled"].bool_value();
+        userInfo.isVliverOnlyModeEnabled = json["isVliverOnlyModeEnabled"].bool_value();
+        
+        // Array fields
+        if (json["badgeInfo"].is_array()) {
+            userInfo.badgeInfo.clear();
+            for (const auto &item : json["badgeInfo"].array_items()) {
+                userInfo.badgeInfo.append(QString::fromStdString(item.string_value()));
+            }
+        }
+        
+        if (json["loyaltyInfo"].is_array()) {
+            userInfo.loyaltyInfo.clear();
+            for (const auto &item : json["loyaltyInfo"].array_items()) {
+                userInfo.loyaltyInfo.append(QString::fromStdString(item.string_value()));
+            }
+        }
+        
+        if (json["lastUsedHashtags"].is_array()) {
+            userInfo.lastUsedHashtags.clear();
+            for (const auto &item : json["lastUsedHashtags"].array_items()) {
+                userInfo.lastUsedHashtags.append(QString::fromStdString(item.string_value()));
+            }
+        }
+        
+        if (json["levelBadges"].is_array()) {
+            userInfo.levelBadges.clear();
+            for (const auto &item : json["levelBadges"].array_items()) {
+                userInfo.levelBadges.append(QString::fromStdString(item.string_value()));
+            }
+        }
+        
+        // QVariantMap field
+        if (json["monthlyVIPBadges"].is_object()) {
+            userInfo.monthlyVIPBadges.clear();
+            for (const auto &item : json["monthlyVIPBadges"].object_items()) {
+                const std::string &key = item.first;
+                const Json &value = item.second;
+                if (value.is_string()) {
+                    userInfo.monthlyVIPBadges[QString::fromStdString(key)] = QString::fromStdString(value.string_value());
+                } else if (value.is_number()) {
+                    userInfo.monthlyVIPBadges[QString::fromStdString(key)] = value.number_value();
+                } else if (value.is_bool()) {
+                    userInfo.monthlyVIPBadges[QString::fromStdString(key)] = value.bool_value();
+                }
+            }
+        }
+        
+        // OnliveInfo nested object
         OneSevenLiveOnliveInfo onliveInfo;
         if (json["onliveInfo"].is_object()) {
             onliveInfo.premiumType = json["onliveInfo"]["premiumType"].int_value();
         }
         userInfo.onliveInfo = onliveInfo;
+        
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "Error parsing JSON: %s", e.what());
         return false;

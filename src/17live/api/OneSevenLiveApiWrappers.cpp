@@ -807,7 +807,7 @@ bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_ou
 }
 
 bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &json_out_resp) {
-    obs_log(LOG_INFO, "GetRockViewers");
+    // obs_log(LOG_INFO, "GetRockViewers");
 
     lastErrorMessage.clear();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ROCKVIEWERS_URL).arg(roomID.c_str());
@@ -821,7 +821,7 @@ bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &js
         return false;
     }
 
-    obs_log(LOG_INFO, "GetRockViewers success");
+    // obs_log(LOG_INFO, "GetRockViewers success");
     return true;
 }
 
