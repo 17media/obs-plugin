@@ -252,8 +252,22 @@ bool OneSevenLiveCoreManager::initialize() {
             handleChatRoomClicked();
         }
 
+        // Restore rock zone dock if it was previously shown
+        if (configManager->getDockVisibility("rockZone")) {
+            handleRockZoneClicked();
+        }
+
         // Apply the saved dock layout
         mainWindow->restoreState(dockState);
+        
+        // Update menu visibility status after restoration
+        if (menuManager) {
+            menuManager->updateDockVisibility(
+                chatRoomDock && chatRoomDock->isVisible(),
+                streamingDock && streamingDock->isVisible(),
+                liveListDock && liveListDock->isVisible(),
+                rockZoneDock && rockZoneDock->isVisible());
+        }
     }
 
     isStartupRestore = false;
