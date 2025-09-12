@@ -635,9 +635,6 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         rockZoneDock->move(x, y);
     }
 
-    // Refresh user list
-    rockZoneDock->refreshUserList();
-
     if (rockZoneDockFirstLoad) {
         // When dock is closed, uncheck menu item status
         connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {

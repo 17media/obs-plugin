@@ -5,6 +5,7 @@
 #include <QListWidget>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QTimer>
 
 #include "OneSevenLiveUserDialog.hpp"
 #include "api/OneSevenLiveModels.hpp"
@@ -40,11 +41,9 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     void createConnections();
     void updateUserItem(QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user,
                         const OneSevenLiveArmyNameResponse& armyNameResponse);
-    void showEmptyListMessage();
 
     QListWidget* userList;
     QPushButton* pokeAllButton;
-    QWidget* emptyContainer = nullptr;
 
     OneSevenLiveApiWrappers* apiWrapper = nullptr;
     OneSevenLiveConfigManager* configManager = nullptr;
@@ -58,9 +57,6 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     // User information dialog
     OneSevenLiveUserDialog* userDialog = nullptr;
 
-    // Loading status UI
-    QWidget* loadingOverlay = nullptr;
-    QProgressBar* loadingProgress = nullptr;
-    QLabel* loadingLabel = nullptr;
-    bool isLoading = false;  // Indicates whether loading is in progress
+    // Auto refresh timer
+    QTimer* refreshTimer = nullptr;
 };

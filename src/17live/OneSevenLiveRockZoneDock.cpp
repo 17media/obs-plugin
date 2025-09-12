@@ -30,14 +30,14 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
       configManager(configManager_) {
     setupUi();
     createConnections();
+    
+    // Initialize auto refresh timer
+    refreshTimer = new QTimer(this);
+    refreshTimer->setInterval(5000); // 5 seconds
+    connect(refreshTimer, &QTimer::timeout, this, &OneSevenLiveRockZoneDock::refreshUserList);
+    
     refreshUserList();
-
-    // Add delayed initialization to ensure UI element sizes are correctly calculated
-    QTimer::singleShot(0, this, [this]() {
-        if (emptyContainer && emptyContainer->isVisible()) {
-            emptyContainer->setGeometry(widget()->rect());
-        }
-    });
+    refreshTimer->start();
 
     connect(this, &QDockWidget::topLevelChanged, this,
             &OneSevenLiveRockZoneDock::handleTopLevelChanged);
@@ -134,45 +134,6 @@ void OneSevenLiveRockZoneDock::setupUi() {
     pokeAllButton->setFixedWidth(250);
     mainLayout->addWidget(pokeAllButton, 0, Qt::AlignHCenter);
 
-    // Create loading status UI
-    loadingOverlay = new QWidget(container);
-    loadingOverlay->setObjectName("loadingOverlay");
-    loadingOverlay->setStyleSheet(
-        "QWidget#loadingOverlay {"
-        "    background-color: rgba(30, 30, 30, 0.8);"
-        "    border-radius: 4px;"
-        "}");
-    loadingOverlay->setGeometry(container->rect());
-    loadingOverlay->hide();
-
-    QVBoxLayout* loadingLayout = new QVBoxLayout(loadingOverlay);
-    loadingLayout->setAlignment(Qt::AlignCenter);
-    loadingLayout->setSpacing(10);
-
-    loadingLabel = new QLabel(obs_module_text("Live.Settings.Loading"));
-    loadingLabel->setStyleSheet(
-        "QLabel {"
-        "    color: white;"
-        "    font-size: 16px;"
-        "    font-weight: bold;"
-        "}");
-    loadingLayout->addWidget(loadingLabel, 0, Qt::AlignHCenter);
-
-    loadingProgress = new QProgressBar();
-    loadingProgress->setRange(0, 0);  // Set to indeterminate mode
-    loadingProgress->setFixedSize(200, 10);
-    loadingProgress->setTextVisible(false);
-    loadingProgress->setStyleSheet(
-        "QProgressBar {"
-        "    background-color: #333333;"
-        "    border-radius: 5px;"
-        "}"
-        "QProgressBar::chunk {"
-        "    background-color: #FF0001;"
-        "    border-radius: 5px;"
-        "}");
-    loadingLayout->addWidget(loadingProgress, 0, Qt::AlignHCenter);
-
     setWidget(container);
 }
 
@@ -205,64 +166,12 @@ void OneSevenLiveRockZoneDock::updateUserItem(
             });
 }
 
-void OneSevenLiveRockZoneDock::showEmptyListMessage() {
-    // Hide list
-    userList->setVisible(false);
 
-    // If empty state container exists, delete it first
-    if (emptyContainer) {
-        emptyContainer->deleteLater();
-    }
-
-    // Create empty state container
-    emptyContainer = new QWidget(widget());
-    emptyContainer->setStyleSheet(
-        "QWidget {"
-        "    background-color: #1e1e1e;"
-        "    border-radius: 4px;"
-        "}");
-
-    // Set empty state container to fill the entire Dock area
-    emptyContainer->setGeometry(widget()->rect());
-
-    // Create layout manager
-    QVBoxLayout* emptyLayout = new QVBoxLayout(emptyContainer);
-    emptyLayout->setAlignment(Qt::AlignCenter);
-    emptyLayout->setSpacing(20);
-    emptyLayout->setContentsMargins(20, 20, 20, 20);
-
-    // Create prompt label
-    QLabel* emptyLabel = new QLabel(obs_module_text("Live.RockZone.Empty"));
-    emptyLabel->setAlignment(Qt::AlignCenter);
-    emptyLabel->setWordWrap(true);
-    emptyLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    emptyLabel->setStyleSheet(
-        "QLabel {"
-        "    color: #888888;"
-        "    font-size: 16px;"
-        "    font-weight: bold;"
-        "    padding: 0 10px;"
-        "}");
-
-    // Add to layout
-    emptyLayout->addWidget(emptyLabel);
-
-    // Show empty state container
-    emptyContainer->show();
-    emptyContainer->raise();
-}
 
 void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
 
-    if (emptyContainer && emptyContainer->isVisible()) {
-        emptyContainer->setGeometry(widget()->rect());
-    }
-
-    // Adjust loading overlay size
-    if (loadingOverlay) {
-        loadingOverlay->setGeometry(widget()->rect());
-    }
+    if (!userList) return;
 
     for (int i = 0; i < userList->count(); ++i) {
         QListWidgetItem* item = userList->item(i);
@@ -274,25 +183,7 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
 }
 
 void OneSevenLiveRockZoneDock::refreshUserList() {
-    // Show loading status
-    isLoading = true;
-    loadingOverlay->setVisible(true);
-    loadingOverlay->raise();  // Ensure overlay is on top
-    loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
-
-    // Disable all controls
-    QWidget* container = qobject_cast<QWidget*>(widget());
-    if (container) {
-        container->setEnabled(false);
-    }
-
     userList->clear();
-
-    if (emptyContainer) {
-        // If empty state container exists, delete it first
-        emptyContainer->deleteLater();
-        emptyContainer = nullptr;
-    }
 
     // Create new thread for API call to avoid UI blocking
     QThread* thread = new QThread;
@@ -324,15 +215,6 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         QMetaObject::invokeMethod(
             this,
             [this, success, response, armyNameResponse]() {
-                // Hide loading status
-                isLoading = false;
-                loadingOverlay->setVisible(false);
-
-                QWidget* container = qobject_cast<QWidget*>(widget());
-                if (container) {
-                    container->setEnabled(true);
-                }
-
                 if (success) {
                     userList->clear();
                     viewersList.clear();
@@ -347,7 +229,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     QHash<QString, int> idIndex;  // userID -> index in viewersList
                     viewersList.clear();
                     for (const auto& user : users) {
-                        const QString uid = user.displayUser.userID;
+                        const QString uid = user.displayUser.userID.isEmpty() ? user.giftRankOne.userID : user.displayUser.userID;
                         if (uid.isEmpty()) {
                             continue;
                         }
@@ -381,18 +263,13 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     }
 
                     // Update UI
-                    if (viewersList.isEmpty()) {
-                        // Show empty list message
-                        showEmptyListMessage();
-                    } else {
-                        userList->setVisible(true);
+                    userList->setVisible(true);
 
-                        // Display user list
-                        for (const auto& user : viewersList) {
-                            QListWidgetItem* item = new QListWidgetItem(userList);
-                            updateUserItem(item, user, armyNameResponse);
-                            userList->addItem(item);
-                        }
+                    // Display user list
+                    for (const auto& user : viewersList) {
+                        QListWidgetItem* item = new QListWidgetItem(userList);
+                        updateUserItem(item, user, armyNameResponse);
+                        userList->addItem(item);
                     }
                 } else {
                     // Show error message
@@ -400,9 +277,6 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         this, obs_module_text("Live.Settings.Error"),
                         QString::fromStdString(obs_module_text("Live.Settings.LoadError"))
                             .arg(apiWrapper->getLastErrorMessage()));
-
-                    // Show empty list message
-                    showEmptyListMessage();
                 }
             },
             Qt::QueuedConnection);
