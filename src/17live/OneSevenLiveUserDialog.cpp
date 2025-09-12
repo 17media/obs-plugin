@@ -106,7 +106,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-size: 16px;"
         "}");
     
-    QLabel* followersText = new QLabel("粉絲數");
+    QLabel* followersText = new QLabel(obs_module_text("RockZone.Followers"));
     followersText->setAlignment(Qt::AlignCenter);
     followersText->setStyleSheet(
         "QLabel {"
@@ -131,7 +131,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-size: 16px;"
         "}");
     
-    QLabel* followingText = new QLabel("追蹤中");
+    QLabel* followingText = new QLabel(obs_module_text("RockZone.Following"));
     followingText->setAlignment(Qt::AlignCenter);
     followingText->setStyleSheet(
         "QLabel {"
@@ -156,7 +156,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-size: 16px;"
         "}");
     
-    QLabel* likesText = new QLabel("愛心數");
+    QLabel* likesText = new QLabel(obs_module_text("RockZone.Likes"));
     likesText->setAlignment(Qt::AlignCenter);
     likesText->setStyleSheet(
         "QLabel {"
