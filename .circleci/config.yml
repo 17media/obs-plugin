@@ -123,10 +123,10 @@ jobs:
           destination: packages
       
       # Persist package for potential deployment
-       - persist_to_workspace:
-           root: ~/project
-           paths:
-             - "*.pkg"
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - "*.pkg"
 
   # macOS Intel build job
   build-macos-intel:
