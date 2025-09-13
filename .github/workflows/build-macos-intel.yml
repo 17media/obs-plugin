@@ -98,6 +98,7 @@ jobs:
         env:
           MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'temp-keychain-password' }}
         run: |
           if [ -z "$MACOS_CERTIFICATE_BASE64" ] || [ -z "$MACOS_CERTIFICATE_PASSWORD" ]; then
             echo "Certificate secrets not available, skipping signing..."
@@ -114,10 +115,6 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           
           rm certificate.p12
-        env:
-          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'temp-keychain-password' }}
       
       - name: Create and Sign Package
         if: ${{ github.event.inputs.create_package == 'true' }}

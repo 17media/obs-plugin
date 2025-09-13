@@ -127,9 +127,6 @@ jobs:
           Write-Host "Certificate imported: $($cert.Thumbprint)"
           
           Remove-Item "certificate.pfx"
-        env:
-          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       
       - name: Create NSIS Installer Script
         shell: pwsh
@@ -256,6 +253,7 @@ jobs:
         env:
           WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
         run: |
           if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
             Write-Host "Certificate secrets not available, skipping signing..."
@@ -274,8 +272,6 @@ jobs:
           } else {
             Write-Host "Failed to sign installer, but continuing..."
           }
-        env:
-          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
       
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
