@@ -36,6 +36,11 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
     refreshTimer->setInterval(5000); // 5 seconds
     connect(refreshTimer, &QTimer::timeout, this, &OneSevenLiveRockZoneDock::refreshUserList);
     
+    // Initialize cooldown timer
+    cooldownTimer = new QTimer(this);
+    cooldownTimer->setInterval(1000); // 1 second
+    connect(cooldownTimer, &QTimer::timeout, this, &OneSevenLiveRockZoneDock::onCooldownTimerTimeout);
+    
     refreshUserList();
     refreshTimer->start();
 
@@ -134,9 +139,16 @@ void OneSevenLiveRockZoneDock::setupUi() {
         "   font-weight: 600;"
         "   font-size: 16px;"
         "   line-height: 24px;"
+        "}"
+        "QPushButton:disabled {"
+        "    background-color: #808080;"
+        "    color: #C0C0C0;"
         "}");
     pokeAllButton->setFixedWidth(250);
     mainLayout->addWidget(pokeAllButton, 0, Qt::AlignHCenter);
+
+    // Save original button text
+    originalButtonText = pokeAllButton->text();
 
     setWidget(container);
 }
@@ -327,6 +339,12 @@ void OneSevenLiveRockZoneDock::onPokeAllClicked() {
     if (!apiWrapper) {
         return;
     }
+    
+    // Check if button is already in cooldown
+    if (!pokeAllButton->isEnabled()) {
+        return;
+    }
+    
     std::string roomID;
     configManager->getConfigValue("RoomID", roomID);
 
@@ -340,8 +358,11 @@ void OneSevenLiveRockZoneDock::onPokeAllClicked() {
     bool success = apiWrapper->PokeAll(request, response);
 
     if (success) {
-        QMessageBox::information(this, obs_module_text("Live.PokeSuccess"),
-                                 obs_module_text("Live.PokeSuccessMessage"));
+        // Start cooldown timer
+        cooldownSeconds = 20;
+        pokeAllButton->setEnabled(false);
+        pokeAllButton->setText(QString("0:%1").arg(cooldownSeconds, 2, 10, QChar('0')));
+        cooldownTimer->start();
     } else {
         obs_log(LOG_WARNING, "PokeAll failed %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
     }
@@ -381,4 +402,18 @@ void OneSevenLiveRockZoneDock::onUserItemClicked(QListWidgetItem* item) {
     // Set user information and display dialog
     userDialog->setUserInfo(user);
     userDialog->exec();
+}
+
+void OneSevenLiveRockZoneDock::onCooldownTimerTimeout() {
+    cooldownSeconds--;
+    
+    if (cooldownSeconds <= 0) {
+        // Cooldown finished
+        cooldownTimer->stop();
+        pokeAllButton->setEnabled(true);
+        pokeAllButton->setText(originalButtonText);
+    } else {
+        // Update countdown display
+        pokeAllButton->setText(QString("0:%1").arg(cooldownSeconds, 2, 10, QChar('0')));
+    }
 }

@@ -37,6 +37,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     void onPokeAllClicked();
     void handleTopLevelChanged(bool topLevel);
     void onUserItemClicked(QListWidgetItem* item);
+    void onCooldownTimerTimeout();
 
    private:
     void setupUi();
@@ -62,4 +63,9 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
 
     // Auto refresh timer
     QTimer* refreshTimer = nullptr;
+    
+    // Cooldown timer for poke all button
+    QTimer* cooldownTimer = nullptr;
+    int cooldownSeconds = 0;
+    QString originalButtonText;
 };
