@@ -774,3 +774,11 @@ struct OneSevenLivePokeResponse {
 bool JsonToOneSevenLivePokeResponse(const Json &json, OneSevenLivePokeResponse &response);
 bool OneSevenLivePokeRequestToJson(const OneSevenLivePokeRequest &request, Json &json);
 bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request, Json &json);
+
+// Change event request struct
+struct OneSevenLiveChangeEventRequest {
+    qint64 eventID;
+};
+
+// Function declarations for change event JSON conversion
+bool OneSevenLiveChangeEventRequestToJson(const OneSevenLiveChangeEventRequest &request, Json &json);

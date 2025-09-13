@@ -75,6 +75,8 @@ const string ONESEVENLIVE_POKE_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/pok
 
 const string ONESEVENLIVE_POKE_ALL_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/pokes/pokeAll";
 
+const string ONESEVENLIVE_CHANGE_EVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/liveStreams/event";
+
 OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
     currentOS = GetCurrentOS();
     currentOSVersion = GetCurrentOSVersion();
@@ -276,6 +278,49 @@ bool OneSevenLiveApiWrappers::OneSevenLiveApiWrappers::GetSelfInfo(
     loginData.userInfo.displayName = QString::fromStdString(json_out["displayName"].string_value());
     loginData.userInfo.roomID = json_out["roomID"].int_value();
     loginData.userInfo.userID = QString::fromStdString(json_out["userID"].string_value());
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::ChangeEvent(const OneSevenLiveChangeEventRequest &request) {
+    obs_log(LOG_INFO, "ChangeEvent start");
+
+    lastErrorMessage.clear();
+
+    QByteArray url = QByteArray(ONESEVENLIVE_CHANGE_EVENT_URL.c_str());
+    obs_log(LOG_INFO, "ChangeEvent url: %s", ONESEVENLIVE_CHANGE_EVENT_URL.c_str());
+
+    Json requestData;
+    if (!OneSevenLiveChangeEventRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string postData = requestData.dump();
+    obs_log(LOG_INFO, "ChangeEvent requestData: %s", postData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
+        obs_log(LOG_ERROR, "ChangeEvent error: %s", json_out.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "ChangeEvent success");
+    obs_log(LOG_INFO, "change event response: %s", json_out.dump().c_str());
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "ChangeEvent error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
     return true;
 }
 

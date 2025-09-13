@@ -84,6 +84,10 @@ class OneSevenLiveApiWrappers : public QObject {
     // Send a poke to all users in a group
     bool PokeAll(const OneSevenLivePokeAllRequest &request, OneSevenLivePokeResponse &response);
 
+    // ChangeEvent
+    // Change event for live stream
+    bool ChangeEvent(const OneSevenLiveChangeEventRequest &request);
+
     /**
      * @brief Perform MD5 encryption on string
      * @param str String to be encrypted

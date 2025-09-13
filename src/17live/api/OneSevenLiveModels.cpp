@@ -174,6 +174,14 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
     return true;
 }
 
+bool OneSevenLiveChangeEventRequestToJson(const OneSevenLiveChangeEventRequest &request, Json &json) {
+    json = Json::object{
+        {"eventID", static_cast<int>(request.eventID)},
+    };
+
+    return true;
+}
+
 bool JsonToOneSevenLiveArmyName(const Json &json, OneSevenLiveArmyName &armyName) {
     if (!json.is_object()) {
         return false;
