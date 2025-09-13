@@ -169,6 +169,9 @@ jobs:
             # Install CMake (version 3.28 or higher)
             choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
             
+            # Install NSIS for creating Windows installer
+            choco install nsis -y
+            
             # Verify CMake version
             refreshenv
             $cmakeVersion = (cmake --version | Select-String -Pattern "cmake version" | ForEach-Object { $_.ToString().Split(' ')[2] })
@@ -347,8 +350,24 @@ jobs:
       # Build NSIS installer
       - run:
           name: Build NSIS Installer
+          shell: powershell
           command: |
-            makensis installer.nsi
+            # Refresh environment to pick up NSIS installation
+            refreshenv
+            
+            # Use full path to makensis or ensure it's in PATH
+            if (Get-Command makensis -ErrorAction SilentlyContinue) {
+              makensis installer.nsi
+            } else {
+              # Try common NSIS installation paths
+              $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
+              if (Test-Path $nsisPath) {
+                & $nsisPath installer.nsi
+              } else {
+                Write-Error "NSIS makensis not found. Please ensure NSIS is properly installed."
+                exit 1
+              }
+            }
       
       # Sign installer if certificate is available
       - run:
