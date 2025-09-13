@@ -26,6 +26,7 @@
 #include <QToolTip>
 #include <QVBoxLayout>
 #include <QTextCharFormat>
+#include <QStyleFactory>
 
 // Project includes
 #include "OneSevenLiveConfigManager.hpp"
@@ -215,7 +216,7 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
 
     // Create tab widget for gift categories
     giftTabWidget = new QTabWidget(this);
-    // giftTabWidget->setFixedHeight(180);
+    
     giftTabWidget->setFixedSize(430, 250);
     giftTabWidget->setStyleSheet(
         "QTabWidget::pane {"
@@ -237,9 +238,13 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
         "QTabBar::tab:hover {"
         "    background-color: #505050;"
         "}");
-
-    // connect(giftTabWidget, &QTabWidget::currentChanged, this,
-    // &OneSevenLiveCustomEventDialog::onGiftTabChanged);
+    
+#ifdef Q_OS_MACOS
+    // Enable tab scrolling arrows on macOS
+    giftTabWidget->setUsesScrollButtons(true);
+    giftTabWidget->tabBar()->setExpanding(false);
+    giftTabWidget->tabBar()->setStyle(QStyleFactory::create("Fusion"));
+#endif
 
     // Load gift tabs data (async to avoid blocking UI)
     // Show placeholder immediately
