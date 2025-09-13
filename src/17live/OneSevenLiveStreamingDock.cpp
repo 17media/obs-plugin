@@ -1280,6 +1280,7 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
     int eventIndex = eventCombo->findData(QVariant(request.eventID));
     if (eventIndex >= 0) {
         eventCombo->setCurrentIndex(eventIndex);
+        previousEventIndex = eventIndex;  // Initialize previous event index
     }
 
     // Clear and reload tag list
@@ -1522,17 +1523,53 @@ void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event) {
 }
 
 void OneSevenLiveStreamingDock::onEventChanged(int index) {
-    // Only handle category changes during live streaming
+    // Only handle event changes during live streaming
     if (currentLiveStatus != OneSevenLiveStreamingStatus::Live && 
         currentLiveStatus != OneSevenLiveStreamingStatus::Streaming) {
+        previousEventIndex = index;
         return;
     }
     
     // If cooldown is active, ignore the change
     if (eventCooldownTimer && eventCooldownTimer->isActive()) {
-        obs_log(LOG_INFO, "Category change ignored due to cooldown");
+        obs_log(LOG_INFO, "Event change ignored due to cooldown");
+        // Restore previous selection
+        if (previousEventIndex >= 0 && previousEventIndex < eventCombo->count()) {
+            eventCombo->blockSignals(true);
+            eventCombo->setCurrentIndex(previousEventIndex);
+            eventCombo->blockSignals(false);
+        }
         return;
     }
+    
+    // Show confirmation dialog
+    QString eventName = eventCombo->itemText(index);
+    QString title = obs_module_text("Live.EventChange.Confirm.Title");
+    QString message = QString(obs_module_text("Live.EventChange.Confirm.Message")).arg(eventName);
+    QString cancelText = obs_module_text("Live.EventChange.Confirm.Cancel");
+    QString confirmText = obs_module_text("Live.EventChange.Confirm.Confirm");
+    
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle(title);
+    msgBox.setText(message);
+    msgBox.addButton(cancelText, QMessageBox::RejectRole);
+    QPushButton *confirmButton = msgBox.addButton(confirmText, QMessageBox::AcceptRole);
+    msgBox.setDefaultButton(confirmButton);
+    
+    int result = msgBox.exec();
+    
+    // If user cancels, restore previous selection
+    if (result == QMessageBox::Rejected) {
+        if (previousEventIndex >= 0 && previousEventIndex < eventCombo->count()) {
+            eventCombo->blockSignals(true);
+            eventCombo->setCurrentIndex(previousEventIndex);
+            eventCombo->blockSignals(false);
+        }
+        return;
+    }
+    
+    // User confirmed, proceed with event change
+    previousEventIndex = index;
     
     // Get current event data
     QVariant eventIDVariant = eventCombo->itemData(index);

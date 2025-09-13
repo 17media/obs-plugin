@@ -165,6 +165,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QTimer *eventCooldownTimer = nullptr;
     int eventCooldownRemaining = 0;  // Remaining cooldown time in seconds
     QString originalCategoryText = "";   // Original category text before cooldown
+    int previousEventIndex = -1;  // Store previous event index for confirmation dialog
 
    protected:
     void resizeEvent(QResizeEvent *event) override;
