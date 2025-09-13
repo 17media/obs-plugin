@@ -96,7 +96,7 @@ jobs:
           cmake --build --preset macos --config Release
       
       - name: Import Signing Certificate
-        if: ${{ secrets.MACOS_CERTIFICATE_BASE64 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' }}
+        if: ${{ secrets.MACOS_CERTIFICATE_BASE64 && secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
           echo "Importing signing certificate..."
           echo $MACOS_CERTIFICATE_BASE64 | base64 --decode > certificate.p12

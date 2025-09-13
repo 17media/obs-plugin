@@ -109,7 +109,7 @@ jobs:
           cmake --build --preset windows-x64 --config Release
       
       - name: Import Signing Certificate
-        if: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
+        if: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 && secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         shell: pwsh
         run: |
           Write-Host "Importing signing certificate..."
@@ -246,7 +246,7 @@ jobs:
           }
       
       - name: Sign Installer
-        if: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
+        if: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 && secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         shell: pwsh
         run: |
           Write-Host "Signing installer..."
