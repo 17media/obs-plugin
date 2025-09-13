@@ -174,7 +174,7 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
         calendar->setGridVisible(true);
 
         QDate minDate = today.addMonths(-1);
-        QDate lastDate = today.addMonths(1);
+        QDate lastDate = maxDate.addMonths(1);
         QTextCharFormat disabledFormat;
         disabledFormat.setForeground(Qt::gray);
         for (QDate date = minDate; date < today; date = date.addDays(1)) {
