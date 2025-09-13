@@ -133,7 +133,7 @@ jobs:
       
       # Store artifacts
       - store_artifacts:
-          path: ~/project
+          path: ~/project/*.pkg
           destination: packages
       
       # Persist package for potential deployment
@@ -374,7 +374,7 @@ jobs:
       
       # Store artifacts
       - store_artifacts:
-          path: .
+          path: ./*.exe
           destination: packages
       
       # Persist installer for potential deployment
