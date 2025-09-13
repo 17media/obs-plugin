@@ -57,13 +57,6 @@ jobs:
               VERSION=${VERSION:-0.0.0}
             fi
             echo "export VERSION=$VERSION" >> $BASH_ENV
-            
-            # Set package suffix based on environment
-            if [ "${BUILD_ENV:-stage}" == "production" ]; then
-              echo "export PKG_SUFFIX=" >> $BASH_ENV
-            else
-              echo "export PKG_SUFFIX=-stage" >> $BASH_ENV
-            fi
       
       # Configure CMake
       - run:
@@ -102,7 +95,7 @@ jobs:
           name: Create Package
           command: |
             source $BASH_ENV
-            PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}${PKG_SUFFIX}.pkg"
+            PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}.pkg"
             
             # Create unsigned package first
             sudo pkgbuild --root build_macos/Release \
@@ -115,7 +108,7 @@ jobs:
             # Sign package if certificate is available
             if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$DEVELOPER_ID_INSTALLER" ]; then
               echo "Signing package..."
-              SIGNED_PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}${PKG_SUFFIX}-signed.pkg"
+              SIGNED_PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}-signed.pkg"
               productsign --sign "$DEVELOPER_ID_INSTALLER" "$PKG_NAME" "$SIGNED_PKG_NAME"
               mv "$SIGNED_PKG_NAME" "$PKG_NAME"
             else
@@ -134,6 +127,127 @@ jobs:
            root: ~/project
            paths:
              - "*.pkg"
+
+  # macOS Intel build job
+  build-macos-intel:
+    macos:
+      xcode: 15.0.0
+    resource_class: macos.x86.medium.gen2
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+    steps:
+      - checkout
+      
+      # Debug environment variables
+      - run:
+          name: Debug Environment Variables
+          command: |
+            echo "Current environment: ${BUILD_ENV:-stage}"
+            echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
+            echo "BUILD_ENV: ${BUILD_ENV:-stage}"
+            echo "VERSION: ${VERSION:-0.0.0}"
+      
+      # Install dependencies
+      - run:
+          name: Install Dependencies
+          command: |
+            # Install Node.js
+            brew install node@20
+            echo 'export PATH="/usr/local/opt/node@20/bin:$PATH"' >> ~/.bash_profile
+            source ~/.bash_profile
+            
+            # Install CMake if not available
+            brew install cmake
+      
+      # Setup Node.js and build web components
+      - run:
+          name: Install and Build Web Components
+          command: |
+            cd web/ably_chat
+            npm install
+            npm run build
+      
+      # Set environment variables and version
+      - run:
+          name: Set Environment and Version
+          command: |
+            # Extract version from tag or use default
+            if [ -n "$CIRCLE_TAG" ]; then
+              VERSION=${CIRCLE_TAG#v}
+            else
+              VERSION=${VERSION:-0.0.0}
+            fi
+            echo "export VERSION=$VERSION" >> $BASH_ENV
+      
+      # Configure CMake
+      - run:
+          name: CMake Configure
+          command: |
+            source $BASH_ENV
+            cmake --preset macos \
+              -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" \
+              -DCMAKE_PROJECT_VERSION="$VERSION"
+      
+      # Build the project
+      - run:
+          name: Build Project
+          command: |
+            cmake --build --preset macos --config Release
+      
+      # Import signing certificate if available
+      - run:
+          name: Import Signing Certificate
+          command: |
+            if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
+              echo "Importing signing certificate..."
+              echo $MACOS_CERTIFICATE_BASE64 | base64 --decode > certificate.p12
+              security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+              security default-keychain -s build.keychain
+              security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+              security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+              security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+              rm certificate.p12
+            else
+              echo "No signing certificate provided, skipping code signing"
+            fi
+      
+      # Create and sign package
+      - run:
+          name: Create Package
+          command: |
+            source $BASH_ENV
+            PKG_NAME="17liveOBSPlugin-macIntel-v${VERSION}.pkg"
+            
+            # Create unsigned package first
+            sudo pkgbuild --root build_macos/Release \
+                          --identifier com.17live.obsplugin \
+                          --version "$VERSION" \
+                          --install-location "/Applications/OBS.app/Contents/PlugIns" \
+                          --scripts package/macOS/misc \
+                          "$PKG_NAME"
+            
+            # Sign package if certificate is available
+            if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$DEVELOPER_ID_INSTALLER" ]; then
+              echo "Signing package..."
+              SIGNED_PKG_NAME="17liveOBSPlugin-macIntel-v${VERSION}-signed.pkg"
+              productsign --sign "$DEVELOPER_ID_INSTALLER" "$PKG_NAME" "$SIGNED_PKG_NAME"
+              mv "$SIGNED_PKG_NAME" "$PKG_NAME"
+            else
+              echo "No signing certificate provided, package will be unsigned"
+            fi
+            
+            echo "export PKG_NAME=$PKG_NAME" >> $BASH_ENV
+      
+      # Store artifacts
+      - store_artifacts:
+          path: ~/project
+          destination: packages
+      
+      # Persist package for potential deployment
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - "*.pkg"
 
   # Windows x64 build job
   build-windows-x64:
@@ -190,12 +304,8 @@ jobs:
               $version = if ($env:VERSION) { $env:VERSION } else { '0.0.0' }
             }
             
-            # Set package suffix based on environment
-            $pkgSuffix = if ($env:BUILD_ENV -eq 'production') { '' } else { '-stage' }
-            
             # Set environment variables for subsequent steps
             echo "VERSION=$version" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
-            echo "PKG_SUFFIX=$pkgSuffix" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
       
       # Configure CMake
       - run:
@@ -234,8 +344,7 @@ jobs:
           name: Create NSIS Installer Script
           command: |
             $version = $env:VERSION
-            $pkgSuffix = $env:PKG_SUFFIX
-            $installerName = "17liveOBSPlugin-Windows-x64-v$version$pkgSuffix.exe"
+            $installerName = "17liveOBSPlugin-Windows-x64-v$version.exe"
             
             $nsisScript = @"
             !define PRODUCT_NAME "17Live OBS Plugin"
@@ -350,7 +459,7 @@ workflows:
               ignore: /.*/
           context:
             - macos-signing
-            - build-env-prod
+            - build-obsplugin-env-prod
       - build-macos-intel:
           filters:
             tags:
@@ -359,7 +468,7 @@ workflows:
               ignore: /.*/
           context:
             - macos-signing
-            - build-env-prod
+            - build-obsplugin-env-prod
       - build-windows-x64:
           filters:
             tags:
@@ -368,7 +477,7 @@ workflows:
               ignore: /.*/
           context:
             - windows-signing
-            - build-env-prod
+            - build-obsplugin-env-prod
   
   # Stage build workflow - triggered by tags like v1.0.0-stage
   build-stage:
@@ -381,7 +490,7 @@ workflows:
               ignore: /.*/
           context:
             - macos-signing
-            - build-env-stage
+            - build-obsplugin-env-stag
       - build-macos-intel:
           filters:
             tags:
@@ -390,7 +499,7 @@ workflows:
               ignore: /.*/
           context:
             - macos-signing
-            - build-env-stage
+            - build-obsplugin-env-stag
       - build-windows-x64:
           filters:
             tags:
@@ -399,7 +508,7 @@ workflows:
               ignore: /.*/
           context:
             - windows-signing
-            - build-env-stage
+            - build-obsplugin-env-stag
   
   # Manual build workflow for testing
   manual-build:
@@ -411,16 +520,16 @@ workflows:
             - hold
           context:
             - macos-signing
-            - build-env-stage
+            - build-obsplugin-env-stag
       - build-macos-intel:
           requires:
             - hold
           context:
             - macos-signing
-            - build-env-stage
+            - build-obsplugin-env-stag
       - build-windows-x64:
           requires:
             - hold
           context:
             - windows-signing
-            - build-env-stage
+            - build-obsplugin-env-stag
