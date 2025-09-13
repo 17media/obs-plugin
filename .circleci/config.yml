@@ -283,61 +283,61 @@ jobs:
             
             Section "MainSection" SEC01
               # Install DLL and PDB files to obs-plugins\64bit
-              SetOutPath "\$INSTDIR\obs-plugins\64bit"
+              SetOutPath "$INSTDIR\obs-plugins\64bit"
               SetOverwrite ifnewer
               File "build_x64\rundir\Release\obs-17live.dll"
               File "build_x64\rundir\Release\obs-17live.pdb"
               
               # Install data directory to data\obs-plugins
-              SetOutPath "\$INSTDIR\data\obs-plugins"
+              SetOutPath "$INSTDIR\data\obs-plugins"
               File /r "build_x64\rundir\Release\obs-17live"
               
               # Create start menu shortcuts
-              CreateDirectory "\$SMPROGRAMS\17Live OBS Plugin"
+              CreateDirectory "$SMPROGRAMS\17Live OBS Plugin"
               
               # Write registry entries
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "InstallPath" "\$INSTDIR"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "InstallPath" "$INSTDIR"
               WriteRegStr HKLM "Software\17Live\OBSPlugin" "Version" "$version"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageId" "\$\{PACKAGE_ID}"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageName" "\$\{PACKAGE_NAME}"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "Manufacturer" "\$\{PRODUCT_PUBLISHER}"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "UpgradeCode" "\$\{UPGRADE_CODE}"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageId" "${PACKAGE_ID}"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageName" "${PACKAGE_NAME}"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "Manufacturer" "${PRODUCT_PUBLISHER}"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "UpgradeCode" "${UPGRADE_CODE}"
             SectionEnd
             
             Section -AdditionalIcons
-              WriteIniStr "\$INSTDIR\17live.url" "InternetShortcut" "URL" "\$\{PRODUCT_WEB_SITE}"
-              CreateShortCut "\$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "\$INSTDIR\17live.url"
-              CreateShortCut "\$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk" "\$INSTDIR\uninst.exe"
+              WriteIniStr "$INSTDIR\17live.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
+              CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "$INSTDIR\17live.url"
+              CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk" "$INSTDIR\uninst.exe"
             SectionEnd
             
             Section -Post
-              WriteUninstaller "\$INSTDIR\uninst.exe"
-              WriteRegStr HKLM "\$\{PRODUCT_DIR_REGKEY}" "" "\$INSTDIR\obs-17live-plugin.exe"
-              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "DisplayName" "\$\{PRODUCT_NAME}"
-              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "UninstallString" "\$INSTDIR\uninst.exe"
-              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "DisplayVersion" "\$\{PRODUCT_VERSION}"
-              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "URLInfoAbout" "\$\{PRODUCT_WEB_SITE}"
-              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "Publisher" "\$\{PRODUCT_PUBLISHER}"
-              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "PackageId" "\$\{PACKAGE_ID}"
-              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "PackageName" "\$\{PACKAGE_NAME}"
-              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "UpgradeCode" "\$\{UPGRADE_CODE}"
+              WriteUninstaller "$INSTDIR\uninst.exe"
+              WriteRegStr HKLM "${PRODUCT_DIR_REGKEY}" "" "$INSTDIR\obs-17live-plugin.exe"
+              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "${PRODUCT_NAME}"
+              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\uninst.exe"
+              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
+              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
+              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
+              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "PackageId" "${PACKAGE_ID}"
+              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "PackageName" "${PACKAGE_NAME}"
+              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UpgradeCode" "${UPGRADE_CODE}"
             SectionEnd
             
             Section Uninstall
               # Remove plugin files
-              Delete "\$INSTDIR\obs-plugins\64bit\obs-17live.dll"
-              Delete "\$INSTDIR\obs-plugins\64bit\obs-17live.pdb"
-              RMDir /r "\$INSTDIR\data\obs-plugins\obs-17live"
+              Delete "$INSTDIR\obs-plugins\64bit\obs-17live.dll"
+              Delete "$INSTDIR\obs-plugins\64bit\obs-17live.pdb"
+              RMDir /r "$INSTDIR\data\obs-plugins\obs-17live"
               
               # Remove shortcuts and registry entries
-              Delete "\$INSTDIR\17live.url"
-              Delete "\$INSTDIR\uninst.exe"
-              Delete "\$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk"
-              Delete "\$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
-              RMDir "\$SMPROGRAMS\17Live OBS Plugin"
+              Delete "$INSTDIR\17live.url"
+              Delete "$INSTDIR\uninst.exe"
+              Delete "$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk"
+              Delete "$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
+              RMDir "$SMPROGRAMS\17Live OBS Plugin"
               
-              DeleteRegKey \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}"
-              DeleteRegKey HKLM "\$\{PRODUCT_DIR_REGKEY}"
+              DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
+              DeleteRegKey HKLM "${PRODUCT_DIR_REGKEY}"
               DeleteRegKey HKLM "Software\17Live\OBSPlugin"
               
               SetAutoClose true
