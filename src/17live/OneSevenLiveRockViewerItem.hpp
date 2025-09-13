@@ -21,7 +21,7 @@ class RemoteTextThread;
 class OneSevenLiveRockViewerItem : public QWidget {
     Q_OBJECT
 
-   public:
+public:
     explicit OneSevenLiveRockViewerItem(const OneSevenLiveRockZoneViewer &user,
                                         OneSevenLiveApiWrappers *apiWrapper = nullptr,
                                         OneSevenLiveConfigManager *configManager = nullptr,
@@ -29,19 +29,26 @@ class OneSevenLiveRockViewerItem : public QWidget {
                                         QWidget *parent = nullptr);
 
     QSize sizeHint() const override;
+    void updateData(const OneSevenLiveRockZoneViewer& user,
+                    const OneSevenLiveArmyNameResponse& armyNameResponse);
 
-   signals:
+signals:
     void clicked(const OneSevenLiveRockZoneViewer &user);
 
-   protected:
+protected:
     void mousePressEvent(QMouseEvent *event) override;
 
-   private:
+private:
+    QLabel *usernameLabel;
+
     OneSevenLiveRockZoneViewer user;
     OneSevenLiveApiWrappers *apiWrapper;
     OneSevenLiveConfigManager *configManager;
-    const OneSevenLiveArmyNameResponse armyNameResponse;
+    OneSevenLiveArmyNameResponse armyNameResponse;
 
     static QString buildUrl(const QString &path);
     void setupUi();
+    QLabel* setupAvatar();
+    QHBoxLayout* setupNameRow();
+    QHBoxLayout* setupBadgeRow();
 };

@@ -17,62 +17,6 @@
 #include "api/OneSevenLiveUtility.hpp"
 #include "utility/RemoteTextThread.hpp"
 
-// Painter for badge label background: left linear gradient and right-side SVG overlay
-namespace {
-    class RockBadgeBgFilter : public QObject {
-       public:
-        explicit RockBadgeBgFilter(const QString &svgResPath, QObject *parent = nullptr)
-            : QObject(parent), icon(svgResPath) {}
-
-       protected:
-        bool eventFilter(QObject *obj, QEvent *ev) override {
-            if (ev->type() != QEvent::Paint)
-                return QObject::eventFilter(obj, ev);
-
-            QLabel *lbl = qobject_cast<QLabel *>(obj);
-            if (!lbl)
-                return QObject::eventFilter(obj, ev);
-
-            QPainter p(lbl);
-            p.setRenderHint(QPainter::Antialiasing, true);
-            const QRect r = lbl->rect();
-
-            // Rounded rect background with horizontal gradient (F5487D -> F69355)
-            QPainterPath path;
-            const qreal radius = 6.0;
-            path.addRoundedRect(r.adjusted(0, 0, -1, -1), radius, radius);
-
-            QLinearGradient grad(r.topLeft(), r.topRight());
-            grad.setColorAt(0.0, QColor("#F5487D"));
-            grad.setColorAt(1.0, QColor("#F69355"));
-            p.fillPath(path, grad);
-
-            // Compute space for right svg badge
-            const int h = qMax(12, r.height() - 4);
-            const int svgW = qRound(h * (8.0 / 14.0));  // match svg aspect ratio 8x14
-            const int rightPad = svgW + 6;              // spacing from right edge
-
-            // Draw text (centered within content area excluding svg area)
-            QRect textRect = r.adjusted(6, 0, -rightPad, 0);
-            p.setPen(QColor("#FFFFFF"));
-            p.setFont(lbl->font());
-            p.drawText(textRect, Qt::AlignLeft, lbl->text());
-
-            // Render svg at right side
-            if (!icon.isNull()) {
-                const int y = r.top() + (r.height() - h) / 2;
-                const int x = r.right() - svgW - 4;
-                QPixmap pm = icon.pixmap(svgW, h);
-                p.drawPixmap(QRect(x, y, svgW, h), pm);
-            }
-            return true;  // handled
-        }
-
-       private:
-        QIcon icon;
-    };
-}  // namespace
-
 #include "moc_OneSevenLiveRockViewerItem.cpp"
 
 OneSevenLiveRockViewerItem::OneSevenLiveRockViewerItem(
@@ -116,6 +60,48 @@ void OneSevenLiveRockViewerItem::setupUi() {
     // Make the whole item look clickable
     setCursor(Qt::PointingHandCursor);
 
+    // Setup avatar area
+    QLabel *avatarLabel = setupAvatar();
+    mainLayout->addWidget(avatarLabel);
+
+    // Right side: 3 vertical sections
+    QVBoxLayout *rightLayout = new QVBoxLayout();
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(4);
+    rightLayout->setAlignment(Qt::AlignLeft);  // center content in right column
+
+    // Setup name row
+    QHBoxLayout *nameRow = setupNameRow();
+    rightLayout->addLayout(nameRow);
+
+    // Setup badge row
+    QHBoxLayout *badgeRow = setupBadgeRow();
+    if (badgeRow) {
+        rightLayout->addLayout(badgeRow);
+    }
+
+    // 3) Invested points
+    // {
+    //     int points = user.armyInfo.pointContribution; // invest points
+    //     QLabel *pointsLabel = new QLabel(QString::number(points), this);
+    //     pointsLabel->setStyleSheet(
+    //         "QLabel {"
+    //         "    color: #D9D9D9;"
+    //         "    font-size: 12px;"
+    //         "}");
+    //     pointsLabel->setAlignment(Qt::AlignLeft);
+    //     pointsLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    //     rightLayout->addWidget(pointsLabel, 0, Qt::AlignLeft);
+    // }
+
+    mainLayout->addLayout(rightLayout, 1);
+
+    // Mount card to root centered layout
+    rootLayout->addWidget(card, 0, Qt::AlignLeft);
+    setLayout(rootLayout);
+}
+
+QLabel* OneSevenLiveRockViewerItem::setupAvatar() {
     // Left: Avatar with overlay frame
     QLabel *avatarLabel = new QLabel(this);
     avatarLabel->setFixedSize(65, 67);  // avatar area 65x67
@@ -236,136 +222,106 @@ void OneSevenLiveRockViewerItem::setupUi() {
         }
     }
 
-    mainLayout->addWidget(avatarLabel);
+    return avatarLabel;
+}
 
-    // Right side: 3 vertical sections
-    QVBoxLayout *rightLayout = new QVBoxLayout();
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-    rightLayout->setSpacing(4);
-    rightLayout->setAlignment(Qt::AlignLeft);  // center content in right column
-
+QHBoxLayout* OneSevenLiveRockViewerItem::setupNameRow() {
     // 1) Username  Level badge
-    {
-        QHBoxLayout *nameRow = new QHBoxLayout();
-        nameRow->setContentsMargins(0, 0, 0, 0);
-        nameRow->setSpacing(6);
-        nameRow->setAlignment(Qt::AlignLeft);
+    QHBoxLayout *nameRow = new QHBoxLayout();
+    nameRow->setContentsMargins(0, 0, 0, 0);
+    nameRow->setSpacing(6);
+    nameRow->setAlignment(Qt::AlignLeft);
 
-        QLabel *usernameLabel = new QLabel(user.displayUser.displayName, this);
-        usernameLabel->setStyleSheet(
-            "QLabel {"
-            "    color: #FFFFFF;"
-            "    font-weight: bold;"
-            "    font-size: 14px;"
-            "}");
-        usernameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        usernameLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-        usernameLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    usernameLabel = new QLabel(user.displayUser.displayName, this);
+    usernameLabel->setStyleSheet(
+        "QLabel {"
+        "    color: #FFFFFF;"
+        "    font-weight: bold;"
+        "    font-size: 14px;"
+        "}");
+    usernameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    usernameLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    usernameLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    
+    nameRow->addWidget(usernameLabel, 0, Qt::AlignLeft | Qt::AlignVCenter);
 
-        // Replace level text badge with checking-level background image (if available)
-        QString checkingRes = OneSevenLiveUtility::checkingLevelBadgeResource(user);
-        QLabel *checkingLabel = nullptr;
-        if (!checkingRes.isEmpty()) {
-            QPixmap checkingPm;
-            if (checkingPm.load(checkingRes)) {
-                checkingLabel = new QLabel(this);
-                checkingLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-                checkingLabel->setStyleSheet("QLabel { background-color: transparent; }");
-                int badgeHeight = 16;  // match previous visual height
-                checkingLabel->setPixmap(
-                    checkingPm.scaledToHeight(badgeHeight, Qt::SmoothTransformation));
-                checkingLabel->setFixedHeight(badgeHeight);
-                checkingLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-            }
-        }
-
-        // Keep left order and vertically center within the row
-        nameRow->addWidget(usernameLabel, 0, Qt::AlignLeft | Qt::AlignVCenter);
-        if (checkingLabel) {
+    // Replace level text badge with checking-level background image (if available)
+    QString checkingRes = OneSevenLiveUtility::checkingLevelBadgeResource(user);
+    if (!checkingRes.isEmpty()) {
+        QPixmap checkingPm;
+        if (checkingPm.load(checkingRes)) {
+            QLabel *checkingLabel = new QLabel(this);
+            checkingLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+            checkingLabel->setStyleSheet("QLabel { background-color: transparent; }");
+            int badgeHeight = 16;  // match previous visual height
+            checkingLabel->setPixmap(
+                checkingPm.scaledToHeight(badgeHeight, Qt::SmoothTransformation));
+            checkingLabel->setFixedHeight(badgeHeight);
+            checkingLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
             nameRow->addWidget(checkingLabel, 0, Qt::AlignVCenter);
         }
-        rightLayout->addLayout(nameRow);
     }
+    
+    return nameRow;
+}
 
+QHBoxLayout* OneSevenLiveRockViewerItem::setupBadgeRow() {
     // 2) Badge list
-    {
-        // Badge labels based on merged badgeTypes; skip if none or all empty
-        QHBoxLayout *badgeRow = nullptr;
-        for (int t : user.badgeTypes) {
-            const QString labelText =
-                OneSevenLiveUtility::badgeLabel(t, user.armyInfo.rank, &armyNameResponse);
-            if (labelText.isEmpty()) {
-                continue;
-            }
-            if (!badgeRow) {
-                badgeRow = new QHBoxLayout();
-                badgeRow->setContentsMargins(0, 0, 0, 0);
-                badgeRow->setSpacing(6);
-                badgeRow->setAlignment(Qt::AlignLeft);
-            }
-            // Build a composite badge: [Gradient text label] + [Right image]
-            QWidget *badge = new QWidget(this);
-            QHBoxLayout *badgeLayout = new QHBoxLayout(badge);
-            badgeLayout->setContentsMargins(0, 0, 0, 0);
-            badgeLayout->setSpacing(0);  // no gap between left and right parts
-
-            // Left: text label with gradient background and rounded left corners
-            QLabel *leftLbl = new QLabel(labelText, badge);
-            leftLbl->setStyleSheet(
-                "QLabel {"
-                "    color: #FFFFFF;"
-                "    padding: 2px 6px;"
-                "    font-size: 11px;"
-                "    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F69355, stop:1 "
-                "#F5487D);"
-                "    border-top-left-radius: 6px;"
-                "    border-bottom-left-radius: 6px;"
-                "    border-top-right-radius: 0px;"
-                "    border-bottom-right-radius: 0px;"
-                "}");
-            leftLbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-            leftLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            const int targetH = leftLbl->sizeHint().height();
-            leftLbl->setFixedHeight(targetH);
-
-            // Right: fixed image piece to complete the badge shape
-            QLabel *rightImg = new QLabel(badge);
-            QIcon badgeIcon(":/resources/user_images/ig_rock_viewer_badge.svg");
-            const int iconH = targetH;                       // keep exact same height as left label
-            const int iconW = qRound(iconH * (8.0 / 14.0));  // svg aspect 8x14
-            rightImg->setPixmap(badgeIcon.pixmap(iconW, iconH));
-            rightImg->setFixedSize(iconW, iconH);
-            rightImg->setAlignment(Qt::AlignCenter);
-            rightImg->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-
-            badgeLayout->addWidget(leftLbl);
-            badgeLayout->addWidget(rightImg);
-            badgeRow->addWidget(badge, 0, Qt::AlignLeft);
+    // Badge labels based on merged badgeTypes; skip if none or all empty
+    QHBoxLayout *badgeRow = nullptr;
+    for (int t : user.badgeTypes) {
+        const QString labelText =
+            OneSevenLiveUtility::badgeLabel(t, user.armyInfo.rank, &armyNameResponse);
+        if (labelText.isEmpty()) {
+            continue;
         }
-        if (badgeRow) {
-            rightLayout->addLayout(badgeRow);
+        if (!badgeRow) {
+            badgeRow = new QHBoxLayout();
+            badgeRow->setContentsMargins(0, 0, 0, 0);
+            badgeRow->setSpacing(6);
+            badgeRow->setAlignment(Qt::AlignLeft);
         }
+        // Build a composite badge: [Gradient text label] + [Right image]
+        QWidget *badge = new QWidget(this);
+        QHBoxLayout *badgeLayout = new QHBoxLayout(badge);
+        badgeLayout->setContentsMargins(0, 0, 0, 0);
+        badgeLayout->setSpacing(0);  // no gap between left and right parts
+
+        // Left: text label with gradient background and rounded left corners
+        QLabel *leftLbl = new QLabel(labelText, badge);
+        leftLbl->setStyleSheet(
+            "QLabel {"
+            "    color: #FFFFFF;"
+            "    padding: 2px 6px;"
+            "    font-size: 11px;"
+            "    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F69355, stop:1 "
+            "#F5487D);"
+            "    border-top-left-radius: 6px;"
+            "    border-bottom-left-radius: 6px;"
+            "    border-top-right-radius: 0px;"
+            "    border-bottom-right-radius: 0px;"
+            "}");
+        leftLbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        leftLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        const int targetH = leftLbl->sizeHint().height();
+        leftLbl->setFixedHeight(targetH);
+
+        // Right: fixed image piece to complete the badge shape
+        QLabel *rightImg = new QLabel(badge);
+        QIcon badgeIcon(":/resources/user_images/ig_rock_viewer_badge.svg");
+        const int iconH = targetH;                       // keep exact same height as left label
+        const int iconW = qRound(iconH * (8.0 / 14.0));  // svg aspect 8x14
+        rightImg->setPixmap(badgeIcon.pixmap(iconW, iconH));
+        rightImg->setFixedSize(iconW, iconH);
+        rightImg->setAlignment(Qt::AlignCenter);
+        rightImg->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+
+        badgeLayout->addWidget(leftLbl);
+        badgeLayout->addWidget(rightImg);
+        badgeRow->addWidget(badge, 0, Qt::AlignLeft);
     }
-
-    // 3) Invested points
-    // {
-    //     int points = user.armyInfo.pointContribution; // invest points
-    //     QLabel *pointsLabel = new QLabel(QString::number(points), this);
-    //     pointsLabel->setStyleSheet(
-    //         "QLabel {"
-    //         "    color: #D9D9D9;"
-    //         "    font-size: 12px;"
-    //         "}");
-    //     pointsLabel->setAlignment(Qt::AlignLeft);
-    //     pointsLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    //     rightLayout->addWidget(pointsLabel, 0, Qt::AlignLeft);
-    // }
-
-    mainLayout->addLayout(rightLayout, 1);
-
-    // Mount card to root centered layout
-    rootLayout->addWidget(card, 0, Qt::AlignLeft);
-    setLayout(rootLayout);
+    
+    return badgeRow;
 }
 
 void OneSevenLiveRockViewerItem::mousePressEvent(QMouseEvent *event) {
@@ -373,4 +329,17 @@ void OneSevenLiveRockViewerItem::mousePressEvent(QMouseEvent *event) {
         emit clicked(user);
     }
     QWidget::mousePressEvent(event);
+}
+
+void OneSevenLiveRockViewerItem::updateData(
+    const OneSevenLiveRockZoneViewer& user,
+    const OneSevenLiveArmyNameResponse& armyNameResponse)
+{
+    this->user = user;
+    this->armyNameResponse = armyNameResponse;
+
+    // TODO:
+    
+    // this->updateGeometry();
+    // this->repaint();
 }

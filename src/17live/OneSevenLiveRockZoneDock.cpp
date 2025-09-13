@@ -40,7 +40,11 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
     refreshTimer->start();
 
     connect(this, &QDockWidget::topLevelChanged, this,
-            &OneSevenLiveRockZoneDock::handleTopLevelChanged);
+        &OneSevenLiveRockZoneDock::handleTopLevelChanged);
+
+    connect(userList, &QObject::destroyed, this, [this]() {
+        userItemMap.clear(); 
+    });
 }
 
 OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() {
@@ -148,25 +152,30 @@ void OneSevenLiveRockZoneDock::createConnections() {
 }
 
 void OneSevenLiveRockZoneDock::updateUserItem(
-    QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user,
-    const OneSevenLiveArmyNameResponse& armyNameResponse) {
+    QListWidgetItem* item,
+    const OneSevenLiveRockZoneViewer& user,
+    const OneSevenLiveArmyNameResponse& armyNameResponse)
+{
     OneSevenLiveRockViewerItem* w =
-        new OneSevenLiveRockViewerItem(user, apiWrapper, configManager, armyNameResponse, this);
-    item->setSizeHint(w->sizeHint());
-    userList->setItemWidget(item, w);
+        qobject_cast<OneSevenLiveRockViewerItem*>(userList->itemWidget(item));
 
-    // Click: open user dialog
-    connect(w, &OneSevenLiveRockViewerItem::clicked, this,
-            [this](const OneSevenLiveRockZoneViewer& viewer) {
-                OneSevenLiveUserDialog* dialog =
-                    new OneSevenLiveUserDialog(this, apiWrapper, configManager);
-                dialog->setAttribute(Qt::WA_DeleteOnClose);
-                dialog->setUserInfo(viewer);
-                dialog->show();
-            });
+    if (!w) {
+        w = new OneSevenLiveRockViewerItem(user, apiWrapper, configManager, armyNameResponse, this);
+        item->setSizeHint(w->sizeHint());
+        userList->setItemWidget(item, w);
+
+        connect(w, &OneSevenLiveRockViewerItem::clicked, this,
+                [this](const OneSevenLiveRockZoneViewer& viewer) {
+                    OneSevenLiveUserDialog* dialog =
+                        new OneSevenLiveUserDialog(this, apiWrapper, configManager);
+                    dialog->setAttribute(Qt::WA_DeleteOnClose);
+                    dialog->setUserInfo(viewer);
+                    dialog->show();
+                });
+    } else {
+        w->updateData(user, armyNameResponse);
+    }
 }
-
-
 
 void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
@@ -183,23 +192,23 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
 }
 
 void OneSevenLiveRockZoneDock::refreshUserList() {
-    userList->clear();
+    std::string roomID;
+    configManager->getConfigValue("RoomID", roomID);
+
+    std::string userID;
+    configManager->getConfigValue("UserID", userID);
 
     // Create new thread for API call to avoid UI blocking
     QThread* thread = new QThread;
     QObject* worker = new QObject;
     worker->moveToThread(thread);
 
-    connect(thread, &QThread::started, worker, [this, worker, thread]() {
+    connect(thread, &QThread::started, worker, [this, worker, thread, roomID, userID]() {
         // Execute API call in new thread
-        std::string roomID;
-        configManager->getConfigValue("RoomID", roomID);
-
         Json response;
         bool success = apiWrapper->GetRockViewers(roomID, response);
 
-        std::string userID;
-        configManager->getConfigValue("UserID", userID);
+        
         OneSevenLiveArmyNameResponse armyNameResponse;
 
         // Only call GetArmyName if not cached
@@ -214,16 +223,10 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         // Use Qt::QueuedConnection to ensure UI updates happen on the main thread
         QMetaObject::invokeMethod(
             this,
-            [this, success, response, armyNameResponse]() {
+            [this, success, response, armyNameResponse, userID]() {
                 if (success) {
-                    userList->clear();
-                    viewersList.clear();
-
                     QList<OneSevenLiveRockZoneViewer> users;
                     JsonToOneSevenLiveRockViewers(response, users);
-
-                    std::string userID;
-                    configManager->getConfigValue("UserID", userID);
 
                     // Merge viewers by userID and collect their types into badgeTypes
                     QHash<QString, int> idIndex;  // userID -> index in viewersList
@@ -265,18 +268,43 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     // Update UI
                     userList->setVisible(true);
 
-                    // Display user list
+                    // --- Incremental Update Section ---
+                    QSet<QString> newUserIDs;
                     for (const auto& user : viewersList) {
-                        QListWidgetItem* item = new QListWidgetItem(userList);
-                        updateUserItem(item, user, armyNameResponse);
-                        userList->addItem(item);
+                        QString uid = user.displayUser.userID;
+                        newUserIDs.insert(uid);
+
+                        if (userItemMap.contains(uid)) {
+                            // Existing user, update item
+                            QListWidgetItem* item = userItemMap.value(uid);
+                            updateUserItem(item, user, armyNameResponse);
+                        } else {
+                            // New user
+                            QListWidgetItem* item = new QListWidgetItem(userList);
+                            updateUserItem(item, user, armyNameResponse);
+                            userList->addItem(item);
+                            userItemMap.insert(uid, item);
+                        }
+                    }
+
+                    // Remove users that no longer exist
+                    auto it = userItemMap.begin();
+                    while (it != userItemMap.end()) {
+                        if (!newUserIDs.contains(it.key())) {
+                            QListWidgetItem *item = it.value();
+                            int row = userList->row(item);
+                            if (row >= 0) {
+                                QListWidgetItem *removed = userList->takeItem(row);
+                                delete removed;
+                            }
+                            it = userItemMap.erase(it);
+                        } else {
+                            ++it;
+                        }
                     }
                 } else {
                     // Show error message
-                    QMessageBox::warning(
-                        this, obs_module_text("Live.Settings.Error"),
-                        QString::fromStdString(obs_module_text("Live.Settings.LoadError"))
-                            .arg(apiWrapper->getLastErrorMessage()));
+                    obs_log(LOG_ERROR, "Failed to refresh rock viewers list: %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
                 }
             },
             Qt::QueuedConnection);

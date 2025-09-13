@@ -6,6 +6,8 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTimer>
+#include <QHash>
+#include <QListWidgetItem>
 
 #include "OneSevenLiveUserDialog.hpp"
 #include "api/OneSevenLiveModels.hpp"
@@ -49,6 +51,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     OneSevenLiveConfigManager* configManager = nullptr;
 
     QList<OneSevenLiveRockZoneViewer> viewersList;
+    QHash<QString, QListWidgetItem*> userItemMap;
 
     // Cached army name response to avoid repeated API calls
     OneSevenLiveArmyNameResponse cachedArmyNameResponse;
