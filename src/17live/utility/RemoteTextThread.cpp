@@ -100,8 +100,8 @@ void RemoteTextThread::run() {
 
         code = curl_easy_perform(curl.get());
         if (code != CURLE_OK) {
-            blog(LOG_WARNING, "RemoteTextThread: HTTP request failed. %s",
-                 strlen(error) ? error : curl_easy_strerror(code));
+            blog(LOG_WARNING, "RemoteTextThread: HTTP request failed. %s [url: %s]",
+                 strlen(error) ? error : curl_easy_strerror(code), url.c_str());
             if (isImageRequest) {
                 emit ImageResult(QByteArray(), QT_UTF8(error));
             } else {
