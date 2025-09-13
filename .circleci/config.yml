@@ -253,7 +253,7 @@ jobs:
             $version = $env:VERSION
             $installerName = "17liveOBSPlugin-Windows-x64-v$version.exe"
             
-            $nsisScript = @'
+            $nsisScript = @"
             !define PRODUCT_NAME "17Live OBS Plugin"
             !define PRODUCT_VERSION "$version"
             !define PRODUCT_PUBLISHER "17Live Limited"
@@ -342,7 +342,7 @@ jobs:
               
               SetAutoClose true
             SectionEnd
-            '@
+            "@
             
             $nsisScript | Out-File -FilePath "installer.nsi" -Encoding utf8
             echo "INSTALLER_NAME=$installerName" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
@@ -393,14 +393,14 @@ jobs:
       
       # Store artifacts
       - store_artifacts:
-          path: $INSTALLER_NAME
+          path: 17liveOBSPlugin-Windows-x64-v*.exe
           destination: packages
       
       # Persist installer for potential deployment
       - persist_to_workspace:
           root: .
           paths:
-            - $INSTALLER_NAME
+            - "17liveOBSPlugin-Windows-x64-v*.exe"
 
 workflows:
   version: 2
