@@ -28,6 +28,12 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
     : QDockWidget(obs_module_text("Live.Settings"), parent),
       apiWrapper(apiWrapper_),
       configManager(configManager_) {
+    // Initialize category cooldown timer
+    eventCooldownTimer = new QTimer(this);
+    eventCooldownTimer->setSingleShot(false);
+    eventCooldownTimer->setInterval(1000); // 1 second interval
+    connect(eventCooldownTimer, &QTimer::timeout, this, &OneSevenLiveStreamingDock::onEventCooldownTimeout);
+    
     setupUi();
     createConnections();
 }
@@ -162,12 +168,12 @@ void OneSevenLiveStreamingDock::setupUi() {
     eventContainer->addWidget(eventLabel);
 
     // Dropdown box
-    activityCombo = new QComboBox();
-    eventContainer->addWidget(activityCombo);
+    eventCombo = new QComboBox();
+    eventContainer->addWidget(eventCombo);
 
     // Create hint label and align right
     QHBoxLayout *hintLayout = new QHBoxLayout();
-    QLabel *hintLabel = new QLabel(obs_module_text("Live.Settings.Event.Tip"));
+    hintLabel = new QLabel(obs_module_text("Live.Settings.Event.Tip"));
     hintLabel->setStyleSheet("color: gray; font-size: 12px;");
     hintLayout->addStretch();  // Add flexible space to align hint text to the right
     hintLayout->addWidget(hintLabel);
@@ -541,7 +547,7 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
         if (eventName.isEmpty()) {
             continue;  // Skip if name is empty or null
         }
-        activityCombo->addItem(eventName, event.ID);
+        eventCombo->addItem(eventName, event.ID);
     }
 
     // Set streaming format
@@ -692,12 +698,12 @@ void OneSevenLiveStreamingDock::updateUIValues() {
             for (int i = 0; i < roomInfo.eventList.size(); i++) {
                 if (roomInfo.eventList[i].type == 2) {
                     qint64 eventID = roomInfo.eventList[i].ID;
-                    currentEventIndex = activityCombo->findData(eventID);
+                    currentEventIndex = eventCombo->findData(eventID);
                     break;
                 }
             }
         }
-        activityCombo->setCurrentIndex(currentEventIndex);
+        eventCombo->setCurrentIndex(currentEventIndex);
     }
 }
 
@@ -727,6 +733,10 @@ void OneSevenLiveStreamingDock::createConnections() {
     // Party live help button
     connect(GroupCallHelpButton, &QPushButton::clicked, this,
             &OneSevenLiveStreamingDock::onGroupCallHelpClicked);
+
+    // Event change event
+    connect(eventCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &OneSevenLiveStreamingDock::onEventChanged);
 }
 
 void OneSevenLiveStreamingDock::onArmyOnlyToggleClicked() {
@@ -1266,10 +1276,10 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
 
     titleEdit->setText(request.caption);
 
-    // If your activityCombo uses setItemData to set eventID, find the corresponding index here
-    int eventIndex = activityCombo->findData(QVariant(request.eventID));
+    // If your eventCombo uses setItemData to set eventID, find the corresponding index here
+    int eventIndex = eventCombo->findData(QVariant(request.eventID));
     if (eventIndex >= 0) {
-        activityCombo->setCurrentIndex(eventIndex);
+        eventCombo->setCurrentIndex(eventIndex);
     }
 
     // Clear and reload tag list
@@ -1333,7 +1343,7 @@ bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &reque
     request.userID = roomInfo.userID;
     request.caption = titleEdit->text();
     request.device = "OBS";
-    int eventID = activityCombo->currentData().toInt();
+    int eventID = eventCombo->currentData().toInt();
     request.eventID = eventID;
     request.hashtags = tagsList;
     request.landscape = landscapeStreamRadio->isChecked();
@@ -1399,6 +1409,16 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     // Basic info
     setEnabledSafe(titleEdit, enable);
     setEnabledSafe(categoryCombo, enable);
+    
+    // Special handling for eventCombo during live streaming
+    if (isStreaming) {
+        // During live streaming, eventCombo should be enabled unless cooldown is active
+        bool eventEnabled = !eventCooldownTimer || !eventCooldownTimer->isActive();
+        setEnabledSafe(eventCombo, eventEnabled);
+    } else {
+        // For other states, use normal enabled logic
+        setEnabledSafe(eventCombo, enable);
+    }
 
     // Tags
     setEnabledSafe(tagEdit, enable);
@@ -1408,9 +1428,6 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     // Layout (portrait/landscape)
     setEnabledSafe(portraitStreamRadio, enable);
     setEnabledSafe(landscapeStreamRadio, enable);
-
-    // Event selection
-    setEnabledSafe(activityCombo, enable);
 
     // Custom Event
     setEnabledSafe(customEventHeader, enable);
@@ -1501,5 +1518,85 @@ void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event) {
                 QRect(0, 0, scrollArea->viewport()->width(), scrollArea->viewport()->height()));
             loadingOverlay->raise();  // Ensure overlay is on top
         }
+    }
+}
+
+void OneSevenLiveStreamingDock::onEventChanged(int index) {
+    // Only handle category changes during live streaming
+    if (currentLiveStatus != OneSevenLiveStreamingStatus::Live && 
+        currentLiveStatus != OneSevenLiveStreamingStatus::Streaming) {
+        return;
+    }
+    
+    // If cooldown is active, ignore the change
+    if (eventCooldownTimer && eventCooldownTimer->isActive()) {
+        obs_log(LOG_INFO, "Category change ignored due to cooldown");
+        return;
+    }
+    
+    // Get current event data
+    QVariant eventIDVariant = eventCombo->itemData(index);
+    if (!eventIDVariant.isValid()) {
+        obs_log(LOG_WARNING, "No event ID found for event index %d", index);
+        return;
+    }
+    
+    qint64 eventID = eventIDVariant.toLongLong();
+    if (eventID == 0) {
+        obs_log(LOG_WARNING, "Invalid event ID for event index %d", index);
+        return;
+    }
+    
+    // Call ChangeEvent API
+    OneSevenLiveChangeEventRequest request;
+    request.eventID = eventID;
+    
+    bool success = apiWrapper->ChangeEvent(request);
+    if (success) {
+        obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
+        
+        // Start cooldown timer (5 minutes = 300 seconds)
+        eventCooldownRemaining = 300;
+        originalCategoryText = eventCombo->currentText();
+        eventCooldownTimer->start();
+        
+        // Disable event combo during cooldown
+        eventCombo->setEnabled(false);
+        
+        // Update hint label to show cooldown
+        onEventCooldownTimeout(); // Update display immediately
+    } else {
+        obs_log(LOG_ERROR, "Failed to change event to: %lld", eventID);
+        QMessageBox::warning(this, obs_module_text("Live.Common.Notice"), 
+                           obs_module_text("Live.ChangeEvent.Failed"));
+    }
+}
+
+void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
+    if (eventCooldownRemaining > 0) {
+        eventCooldownRemaining--;
+        
+        // Update hint label to show remaining time
+        int minutes = eventCooldownRemaining / 60;
+        int seconds = eventCooldownRemaining % 60;
+        QString cooldownText = QString(obs_module_text("Live.EventChange.CoolDown"))
+            .arg(minutes, 2, 10, QChar('0'))
+            .arg(seconds, 2, 10, QChar('0'));
+        
+        hintLabel->setText(cooldownText);
+        hintLabel->setStyleSheet("color: orange; font-size: 12px;");
+    } else {
+        // Cooldown finished
+        eventCooldownTimer->stop();
+        
+        // Restore original hint text
+        hintLabel->setText(obs_module_text("Live.Settings.Event.Tip"));
+        hintLabel->setStyleSheet("color: gray; font-size: 12px;");
+        
+        // Re-enable event combo based on current live status
+        // Call updateLiveStatus to ensure consistent state handling across all UI elements
+        updateLiveStatus(currentLiveStatus);
+        
+        obs_log(LOG_INFO, "Event change cooldown finished");
     }
 }

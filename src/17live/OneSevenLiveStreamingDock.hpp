@@ -9,6 +9,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -71,8 +72,9 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QCheckBox *liveNotificationCheck;
     bool armyOnlyExpanded;
 
-    QComboBox *activityCombo;
-    QComboBox *customActivityCombo;
+    QComboBox *eventCombo;
+    QLabel *hintLabel;  // Event hint label
+    QComboBox *customeventCombo;
     QComboBox *viewerLimitCombo;
 
     // Custom Event
@@ -127,6 +129,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void onArmyOnlyCheckChanged(int state);  // Triggered when armyOnlyCheck state changes
     void onCustomEventToggleClicked();       // Custom event toggle button click event
     void onGroupCallHelpClicked();           // Party live help button click event
+    void onEventChanged(int index);       // Event change event handler
+    void onEventCooldownTimeout();        // Event cooldown timer timeout handler
 
    private:
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);
@@ -156,6 +160,11 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QString currentInfoUuid = "";
     bool isLoading = false;  // Indicates whether loading is in progress
     OneSevenLiveStreamingStatus currentLiveStatus = OneSevenLiveStreamingStatus::NotStarted;
+    
+    // Category change cooldown timer
+    QTimer *eventCooldownTimer = nullptr;
+    int eventCooldownRemaining = 0;  // Remaining cooldown time in seconds
+    QString originalCategoryText = "";   // Original category text before cooldown
 
    protected:
     void resizeEvent(QResizeEvent *event) override;
