@@ -94,8 +94,15 @@ jobs:
           CREATE_PACKAGE: ${{ github.event.inputs.create_package }}
       
       - name: Import Signing Certificate
-        if: ${{ github.event.inputs.create_package == 'true' && secrets.MACOS_CERTIFICATE_BASE64 && secrets.MACOS_CERTIFICATE_PASSWORD }}
+        if: ${{ github.event.inputs.create_package == 'true' }}
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
+          if [ -z "$MACOS_CERTIFICATE_BASE64" ] || [ -z "$MACOS_CERTIFICATE_PASSWORD" ]; then
+            echo "Certificate secrets not available, skipping signing..."
+            exit 0
+          fi
           echo "Importing signing certificate..."
           echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
           

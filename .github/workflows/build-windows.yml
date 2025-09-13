@@ -109,9 +109,15 @@ jobs:
           cmake --build --preset windows-x64 --config Release
       
       - name: Import Signing Certificate
-        if: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 && secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            Write-Host "Certificate secrets not available, skipping signing..."
+            return
+          }
           Write-Host "Importing signing certificate..."
           $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
           [System.IO.File]::WriteAllBytes("certificate.pfx", $certBytes)
@@ -246,9 +252,15 @@ jobs:
           }
       
       - name: Sign Installer
-        if: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 && secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            Write-Host "Certificate secrets not available, skipping signing..."
+            return
+          }
           Write-Host "Signing installer..."
           $installerName = $env:INSTALLER_NAME
           
