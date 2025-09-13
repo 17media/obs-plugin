@@ -305,22 +305,22 @@ jobs:
             SectionEnd
             
             Section -AdditionalIcons
-              WriteIniStr "`$INSTDIR\17live.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
+              WriteIniStr "`$INSTDIR\17live.url" "InternetShortcut" "URL" "`${PRODUCT_WEB_SITE}"
               CreateShortCut "`$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "`$INSTDIR\17live.url"
               CreateShortCut "`$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk" "`$INSTDIR\uninst.exe"
             SectionEnd
             
             Section -Post
               WriteUninstaller "`$INSTDIR\uninst.exe"
-              WriteRegStr HKLM "${PRODUCT_DIR_REGKEY}" "" "`$INSTDIR\obs-17live-plugin.exe"
-              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "${PRODUCT_NAME}"
-              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString" "`$INSTDIR\uninst.exe"
-              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
-              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
-              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
-              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "PackageId" "${PACKAGE_ID}"
-              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "PackageName" "${PACKAGE_NAME}"
-              WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UpgradeCode" "${UPGRADE_CODE}"
+              WriteRegStr HKLM "`${PRODUCT_DIR_REGKEY}" "" "`$INSTDIR\obs-17live-plugin.exe"
+              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "DisplayName" "`${PRODUCT_NAME}"
+              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "UninstallString" "`$INSTDIR\uninst.exe"
+              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "DisplayVersion" "`${PRODUCT_VERSION}"
+              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "URLInfoAbout" "`${PRODUCT_WEB_SITE}"
+              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "Publisher" "`${PRODUCT_PUBLISHER}"
+              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "PackageId" "`${PACKAGE_ID}"
+              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "PackageName" "`${PACKAGE_NAME}"
+              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "UpgradeCode" "`${UPGRADE_CODE}"
             SectionEnd
             
             Section Uninstall
@@ -336,8 +336,8 @@ jobs:
               Delete "`$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
               RMDir "`$SMPROGRAMS\17Live OBS Plugin"
               
-              DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
-              DeleteRegKey HKLM "${PRODUCT_DIR_REGKEY}"
+              DeleteRegKey `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}"
+              DeleteRegKey HKLM "`${PRODUCT_DIR_REGKEY}"
               DeleteRegKey HKLM "Software\17Live\OBSPlugin"
               
               SetAutoClose true
