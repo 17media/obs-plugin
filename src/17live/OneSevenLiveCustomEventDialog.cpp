@@ -1028,12 +1028,12 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             "QPushButton {"
             "    background-color: transparent;"
             "    border: none;"
-            "    padding-top: -40px;"
+            "    padding: 0px;"
             "}"
             "QPushButton:checked {"
             "    background-color: rgba(128, 128, 128, 0.3);"
             "    border: 1px solid rgba(128, 128, 128, 0.5);"
-            "    padding-top: -40px;"
+            "    padding: 0px;"
             "}");
 
         giftButton->setCheckable(true);
