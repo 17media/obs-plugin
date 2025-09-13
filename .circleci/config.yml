@@ -21,6 +21,7 @@ jobs:
     resource_class: macos.m1.medium.gen1
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
+      VERSION: << pipeline.parameters.version >>
     steps:
       - checkout
       
@@ -440,21 +441,15 @@ workflows:
           context:
             - macos-signing
             - build-obsplugin-env-stag
-          environment:
-            VERSION: << pipeline.parameters.version >>
       - build-macos-intel:
           requires:
             - hold
           context:
             - macos-signing
             - build-obsplugin-env-stag
-          environment:
-            VERSION: << pipeline.parameters.version >>
       - build-windows-x64:
           requires:
             - hold
           context:
             - windows-signing
             - build-obsplugin-env-stag
-          environment:
-            VERSION: << pipeline.parameters.version >>
