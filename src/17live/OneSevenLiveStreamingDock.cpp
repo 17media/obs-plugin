@@ -1430,10 +1430,6 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     setEnabledSafe(portraitStreamRadio, enable);
     setEnabledSafe(landscapeStreamRadio, enable);
 
-    // Custom Event
-    setEnabledSafe(customEventHeader, enable);
-    setEnabledSafe(customEventToggleButton, enable);
-
     // Army-only section
     setEnabledSafe(armyOnlyHeader, enable);
     setEnabledSafe(armyOnlyContainer, enable);
