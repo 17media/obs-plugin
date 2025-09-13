@@ -133,14 +133,14 @@ jobs:
       
       # Store artifacts
       - store_artifacts:
-          path: ~/project/$PKG_NAME
+          path: ~/project/17liveOBSPlugin-macAppleSilicon-v*.pkg
           destination: packages
       
       # Persist package for potential deployment
       - persist_to_workspace:
           root: ~/project
           paths:
-            - "$PKG_NAME"
+            - "17liveOBSPlugin-macAppleSilicon-v*.pkg"
 
   # Windows x64 build job
   build-windows-x64:
