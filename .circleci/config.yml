@@ -279,7 +279,7 @@ jobs:
             # Install NSIS
             choco install nsis -y
             
-            # Install Visual Studio Build Tools
+            # Install Visual Studio Build Tools 2022
             choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
             
             # Refresh environment
@@ -311,9 +311,7 @@ jobs:
       - run:
           name: CMake Configure
           command: |
-            cmake --preset windows-x64 `
-              -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" `
-              -DCMAKE_PROJECT_VERSION="$env:VERSION"
+            cmake --preset windows-x64 -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
       
       # Build the project
       - run:
@@ -349,8 +347,11 @@ jobs:
             $nsisScript = @"
             !define PRODUCT_NAME "17Live OBS Plugin"
             !define PRODUCT_VERSION "$version"
-            !define PRODUCT_PUBLISHER "17Live"
+            !define PRODUCT_PUBLISHER "17Live Limited"
             !define PRODUCT_WEB_SITE "https://17.live"
+            !define PACKAGE_ID "OneSevenLive.ObsPlugin"
+            !define PACKAGE_NAME "OneSevenLiveOBSPlugin"
+            !define UPGRADE_CODE "b81d9705-e5b2-475f-8de8-4d02d297c073"
             !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\obs-17live-plugin"
             !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\17LiveOBSPlugin"
             !define PRODUCT_UNINST_ROOT_KEY "HKLM"
@@ -359,18 +360,39 @@ jobs:
             
             Name "17Live OBS Plugin"
             OutFile "$installerName"
-            InstallDir "C:\Program Files\obs-studio\obs-plugins\64bit"
-            InstallDirRegKey HKLM "Software\17Live\OBSPlugin" "InstallPath"
+            InstallDir "C:\Program Files\obs-studio"
+            InstallDirRegKey HKLM "Software\OBS Studio" "InstallPath"
             ShowInstDetails show
             ShowUnInstDetails show
+            RequestExecutionLevel admin
+            
+            Page directory
+            Page instfiles
+            
+            UninstPage uninstConfirm
+            UninstPage instfiles
             
             Section "MainSection" SEC01
-              SetOutPath "\$INSTDIR"
+              # Install DLL and PDB files to obs-plugins\64bit
+              SetOutPath "\$INSTDIR\obs-plugins\64bit"
               SetOverwrite ifnewer
-              File /r "build_windows_x64\Release\*"
+              File "build_x64\rundir\Release\obs-17live.dll"
+              File "build_x64\rundir\Release\obs-17live.pdb"
+              
+              # Install data directory to data\obs-plugins
+              SetOutPath "\$INSTDIR\data\obs-plugins"
+              File /r "build_x64\rundir\Release\obs-17live"
+              
+              # Create start menu shortcuts
               CreateDirectory "\$SMPROGRAMS\17Live OBS Plugin"
+              
+              # Write registry entries
               WriteRegStr HKLM "Software\17Live\OBSPlugin" "InstallPath" "\$INSTDIR"
               WriteRegStr HKLM "Software\17Live\OBSPlugin" "Version" "$version"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageId" "\$\{PACKAGE_ID}"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageName" "\$\{PACKAGE_NAME}"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "Manufacturer" "\$\{PRODUCT_PUBLISHER}"
+              WriteRegStr HKLM "Software\17Live\OBSPlugin" "UpgradeCode" "\$\{UPGRADE_CODE}"
             SectionEnd
             
             Section -AdditionalIcons
@@ -387,18 +409,28 @@ jobs:
               WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "DisplayVersion" "\$\{PRODUCT_VERSION}"
               WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "URLInfoAbout" "\$\{PRODUCT_WEB_SITE}"
               WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "Publisher" "\$\{PRODUCT_PUBLISHER}"
+              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "PackageId" "\$\{PACKAGE_ID}"
+              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "PackageName" "\$\{PACKAGE_NAME}"
+              WriteRegStr \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}" "UpgradeCode" "\$\{UPGRADE_CODE}"
             SectionEnd
             
             Section Uninstall
+              # Remove plugin files
+              Delete "\$INSTDIR\obs-plugins\64bit\obs-17live.dll"
+              Delete "\$INSTDIR\obs-plugins\64bit\obs-17live.pdb"
+              RMDir /r "\$INSTDIR\data\obs-plugins\obs-17live"
+              
+              # Remove shortcuts and registry entries
               Delete "\$INSTDIR\17live.url"
               Delete "\$INSTDIR\uninst.exe"
               Delete "\$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk"
               Delete "\$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
               RMDir "\$SMPROGRAMS\17Live OBS Plugin"
-              RMDir /r "\$INSTDIR"
+              
               DeleteRegKey \$\{PRODUCT_UNINST_ROOT_KEY} "\$\{PRODUCT_UNINST_KEY}"
               DeleteRegKey HKLM "\$\{PRODUCT_DIR_REGKEY}"
               DeleteRegKey HKLM "Software\17Live\OBSPlugin"
+              
               SetAutoClose true
             SectionEnd
 "@
