@@ -1,5 +1,12 @@
 version: 2.1
 
+# Pipeline parameters
+parameters:
+  version:
+    type: string
+    default: "0.0.0"
+    description: "Version number for manual builds (e.g., 1.0.0)"
+
 # Import orbs for different platforms
 orbs:
   macos: circleci/macos@2.4.1
@@ -433,9 +440,21 @@ workflows:
           context:
             - macos-signing
             - build-obsplugin-env-stag
+          environment:
+            VERSION: << pipeline.parameters.version >>
+      - build-macos-intel:
+          requires:
+            - hold
+          context:
+            - macos-signing
+            - build-obsplugin-env-stag
+          environment:
+            VERSION: << pipeline.parameters.version >>
       - build-windows-x64:
           requires:
             - hold
           context:
             - windows-signing
             - build-obsplugin-env-stag
+          environment:
+            VERSION: << pipeline.parameters.version >>
