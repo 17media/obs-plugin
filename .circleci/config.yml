@@ -133,14 +133,14 @@ jobs:
       
       # Store artifacts
       - store_artifacts:
-          path: ~/project/*.pkg
+          path: ~/project/$PKG_NAME
           destination: packages
       
       # Persist package for potential deployment
       - persist_to_workspace:
           root: ~/project
           paths:
-            - "*.pkg"
+            - "$PKG_NAME"
 
   # Windows x64 build job
   build-windows-x64:
@@ -393,14 +393,14 @@ jobs:
       
       # Store artifacts
       - store_artifacts:
-          path: ./*.exe
+          path: $INSTALLER_NAME
           destination: packages
       
       # Persist installer for potential deployment
       - persist_to_workspace:
           root: .
           paths:
-            - "*.exe"
+            - $INSTALLER_NAME
 
 workflows:
   version: 2
