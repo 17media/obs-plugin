@@ -9,13 +9,15 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QTimer>
+#include <QVBoxLayout>
 #include <QWidget>
 
 #include "api/OneSevenLiveModels.hpp"
 
 class OneSevenLiveApiWrappers;
-
 class OneSevenLiveConfigManager;
+class OneSevenLiveCustomEventDialog;
 
 class OneSevenLiveStreamingDock : public QDockWidget {
     Q_OBJECT
@@ -70,9 +72,25 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QCheckBox *liveNotificationCheck;
     bool armyOnlyExpanded;
 
-    QComboBox *activityCombo;
-    QComboBox *customActivityCombo;
+    QComboBox *eventCombo;
+    QLabel *hintLabel;  // Event hint label
+    QComboBox *customeventCombo;
     QComboBox *viewerLimitCombo;
+
+    // Custom Event
+    QWidget *customEventHeader;
+    QHBoxLayout *customEventHeaderLayout;
+    QLabel *customEventLabel;
+    QPushButton *customEventToggleButton;
+    OneSevenLiveCustomEventDialog *customEventDialog = nullptr;
+    bool customEventDialogVisible;
+
+    // Party Live
+    QWidget *GroupCallContainer;
+    QHBoxLayout *GroupCallContainerLayout;
+    QLabel *GroupCallLabel;
+    QPushButton *GroupCallHelpButton;
+    QCheckBox *GroupCallCheck;
 
     // Switches
     QCheckBox *archiveStreamCheck;
@@ -94,6 +112,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     OneSevenLiveConfigStreamer configStreamer;
     OneSevenLiveUserInfo userInfo;
     OneSevenLiveArmySubscriptionLevels levels;
+    OneSevenLiveCustomEvent customEvent;
 
    signals:
     void streamInfoSaved();
@@ -108,6 +127,10 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void onSaveConfigClicked();
     void onArmyOnlyToggleClicked();          // New collapse/expand button click event
     void onArmyOnlyCheckChanged(int state);  // Triggered when armyOnlyCheck state changes
+    void onCustomEventToggleClicked();       // Custom event toggle button click event
+    void onGroupCallHelpClicked();           // Party live help button click event
+    void onEventChanged(int index);       // Event change event handler
+    void onEventCooldownTimeout();        // Event cooldown timer timeout handler
 
    private:
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);
@@ -116,6 +139,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
 
     void saveStreamingSettings(const std::string &liveStreamID, const std::string &streamUrl,
                                const std::string &streamKey);
+    void saveWhipStreamingSettings(const std::string &liveStreamID, const std::string &whipServer,
+                                   const std::string &whipToken);
     void stopStreaming();
 
     void createLive(const OneSevenLiveRtmpRequest &request);
@@ -135,6 +160,12 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QString currentInfoUuid = "";
     bool isLoading = false;  // Indicates whether loading is in progress
     OneSevenLiveStreamingStatus currentLiveStatus = OneSevenLiveStreamingStatus::NotStarted;
+    
+    // Category change cooldown timer
+    QTimer *eventCooldownTimer = nullptr;
+    int eventCooldownRemaining = 0;  // Remaining cooldown time in seconds
+    QString originalCategoryText = "";   // Original category text before cooldown
+    int previousEventIndex = -1;  // Store previous event index for confirmation dialog
 
    protected:
     void resizeEvent(QResizeEvent *event) override;

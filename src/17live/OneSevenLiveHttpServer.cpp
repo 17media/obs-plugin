@@ -187,10 +187,12 @@ bool OneSevenLiveHttpServer::start() {
                 configManager->getConfigValue("RoomID", roomID);
                 success = apiWrapper->GetAblyToken(roomID, apiResult);
             } else if (action == ACTION_GETGIFTS) {
-                std::string language;
-                configManager->getConfigValue("Region", language);
-                success = apiWrapper->GetGifts(language, apiResult);
-                configManager->saveGifts(apiResult);
+                if (!configManager->loadGifts(apiResult)) {
+                    std::string language;
+                    configManager->getConfigValue("Region", language);
+                    success = apiWrapper->GetGifts(language, apiResult);
+                    configManager->saveGifts(apiResult);
+                }
             } else if (action == ACTION_GETROOMINFO) {
                 OneSevenLiveLoginData loginData;
                 configManager->getLoginData(loginData);

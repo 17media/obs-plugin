@@ -54,14 +54,39 @@ class OneSevenLiveApiWrappers : public QObject {
     bool GetConfigStreamer(const std::string region, const std::string language,
                            OneSevenLiveConfigStreamer &response);
     bool GetAblyToken(const std::string &liveStreamID, Json &response);
-    bool GetGiftTabs(const std::string &liveStreamID, const std::string language, Json &response);
+    bool GetGiftTabs(const std::string &roomID, const std::string language, Json &response);
     bool GetGifts(const std::string language, Json &response);
+    bool GetRockViewers(const std::string &roomID, Json &response);
     bool GetUserInfo(const std::string userID, const std::string region, const std::string language,
                      OneSevenLiveUserInfo &response);
     bool GetConfig(const std::string region, const std::string language, Json &response);
     bool GetArmySubscriptionLevels(const std::string region, const std::string language,
                                    OneSevenLiveArmySubscriptionLevels &levels);
     bool GetRtmpByProvider(const std::string provider, OneSevenLiveRtmpResponse &response);
+    bool CreateCustomEvent(const OneSevenLiveCustomEvent &request,
+                           OneSevenLiveCustomEvent &response);
+    // ChangeCustomEventStatus
+    // OneSevenLiveCustomEventStatusRequest.status = 2: stop event = 3: close event
+    bool ChangeCustomEventStatus(const std::string &eventID,
+                                 const OneSevenLiveCustomEventStatusRequest &request);
+    // GetCustomEvent
+    // Get custom event information by userID
+    bool GetCustomEvent(const std::string &userID, OneSevenLiveCustomEvent &response);
+    // GetArmyName
+    // Get army name information by userID
+    bool GetArmyName(const std::string &userID, OneSevenLiveArmyNameResponse &response);
+
+    // PokeOne
+    // Send a poke to a user
+    bool PokeOne(const OneSevenLivePokeRequest &request, OneSevenLivePokeResponse &response);
+
+    // PokeAll
+    // Send a poke to all users in a group
+    bool PokeAll(const OneSevenLivePokeAllRequest &request, OneSevenLivePokeResponse &response);
+
+    // ChangeEvent
+    // Change event for live stream
+    bool ChangeEvent(const OneSevenLiveChangeEventRequest &request);
 
     /**
      * @brief Perform MD5 encryption on string

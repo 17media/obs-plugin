@@ -70,7 +70,7 @@ function(_setup_obs_studio)
         OUTPUT_STRIP_TRAILING_WHITESPACE
       )
       message(STATUS "CMAKE_OSX_SYSROOT: ${CMAKE_OSX_SYSROOT}")
-      
+
       set(_cmake_osx_sysroot "-DCMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT}")
       message(STATUS "_cmake_osx_sysroot: ${_cmake_osx_sysroot}")
     endif()
@@ -79,11 +79,11 @@ function(_setup_obs_studio)
   message(STATUS "Configure ${label} (${arch})")
   execute_process(
     COMMAND
-      "${CMAKE_COMMAND}" -S "${dependencies_dir}/${_obs_destination}" -B
-      "${dependencies_dir}/${_obs_destination}/build_${arch}" -G ${_cmake_generator} "${_cmake_arch}"
-      -DOBS_CMAKE_VERSION:STRING=3.0.0 -DENABLE_PLUGINS:BOOL=OFF -DENABLE_UI:BOOL=OFF
-      -DOBS_VERSION_OVERRIDE:STRING=${_obs_version} "-DCMAKE_PREFIX_PATH='${CMAKE_PREFIX_PATH}'" ${_is_fresh}
-      ${_cmake_extra} ${_cmake_osx_sysroot}
+    "${CMAKE_COMMAND}" -S "${dependencies_dir}/${_obs_destination}" -B
+    "${dependencies_dir}/${_obs_destination}/build_${arch}" -G ${_cmake_generator} "${_cmake_arch}"
+    -DOBS_CMAKE_VERSION:STRING=3.0.0 -DENABLE_PLUGINS:BOOL=OFF -DENABLE_UI:BOOL=OFF
+    -DOBS_VERSION_OVERRIDE:STRING=${_obs_version} "-DCMAKE_PREFIX_PATH='${CMAKE_PREFIX_PATH}'" ${_is_fresh}
+    ${_cmake_extra} ${_cmake_osx_sysroot}
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
     OUTPUT_QUIET
@@ -113,7 +113,7 @@ function(_setup_obs_studio)
   message(STATUS "Install ${label} (${arch})")
   execute_process(
     COMMAND
-      "${CMAKE_COMMAND}" --install build_${arch} --component Development --config Debug --prefix "${dependencies_dir}"
+    "${CMAKE_COMMAND}" --install build_${arch} --component Development --config Debug --prefix "${dependencies_dir}"
     WORKING_DIRECTORY "${dependencies_dir}/${_obs_destination}"
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
@@ -121,7 +121,7 @@ function(_setup_obs_studio)
   )
   execute_process(
     COMMAND
-      "${CMAKE_COMMAND}" --install build_${arch} --component Development --config Release --prefix "${dependencies_dir}"
+    "${CMAKE_COMMAND}" --install build_${arch} --component Development --config Release --prefix "${dependencies_dir}"
     WORKING_DIRECTORY "${dependencies_dir}/${_obs_destination}"
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
@@ -160,6 +160,7 @@ function(_check_dependencies)
     string(REPLACE "VERSION" "${version}" destination "${destination}")
     string(REPLACE "ARCH" "${arch}" file "${file}")
     string(REPLACE "ARCH" "${arch}" destination "${destination}")
+
     if(revision)
       string(REPLACE "_REVISION" "_v${revision}" file "${file}")
       string(REPLACE "-REVISION" "-v${revision}" file "${file}")
@@ -177,6 +178,7 @@ function(_check_dependencies)
     endif()
 
     set(skip FALSE)
+
     if(dependency STREQUAL prebuilt OR dependency STREQUAL qt6)
       if(OBS_DEPENDENCY_${dependency}_${arch}_HASH STREQUAL ${hash})
         _check_deps_version(${version})
@@ -186,13 +188,17 @@ function(_check_dependencies)
         endif()
       endif()
     elseif(dependency STREQUAL cef)
-      if(OBS_DEPENDENCY_${dependency}_${arch}_HASH STREQUAL ${hash} AND (CEF_ROOT_DIR AND EXISTS "${CEF_ROOT_DIR}"))
+      if(OBS_DEPENDENCY_${dependency}_${arch}_HASH STREQUAL ${hash} AND(CEF_ROOT_DIR AND EXISTS "${CEF_ROOT_DIR}"))
         set(skip TRUE)
       endif()
     endif()
 
     if(skip)
       message(STATUS "Setting up ${label} (${arch}) - skipped")
+
+      # skip but restore original values for next iteration
+      set(arch ${orig_arch})
+      set(platform ${orig_platform})
       continue()
     endif()
 
@@ -208,6 +214,7 @@ function(_check_dependencies)
 
       list(GET download_status 0 error_code)
       list(GET download_status 1 error_message)
+
       if(error_code GREATER 0)
         message(STATUS "Downloading ${url} - Failure")
         message(FATAL_ERROR "Unable to download ${url}, failed with error: ${error_message}")
@@ -223,6 +230,7 @@ function(_check_dependencies)
 
     if(NOT EXISTS "${dependencies_dir}/${destination}")
       file(MAKE_DIRECTORY "${dependencies_dir}/${destination}")
+
       if(dependency STREQUAL obs-studio)
         file(ARCHIVE_EXTRACT INPUT "${dependencies_dir}/${file}" DESTINATION "${dependencies_dir}")
       else()

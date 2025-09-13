@@ -120,6 +120,9 @@ chat_new_gift_2.json
 chat_new_join.json
 chat_ai_cohost.json
 get_room_info_response.json
+chat_poke_all.json
+chat_poke.json
+chat_poke_back.json
 
 # visual studio code
 .vs/

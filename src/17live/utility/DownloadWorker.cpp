@@ -1,31 +1,33 @@
 #include "DownloadWorker.hpp"
 
+#include <obs-module.h>
+
+#include <QDesktopServices>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
-#include <QDir>
-#include <QDesktopServices>
 #include <QUrl>
 
 #include "RemoteTextThread.hpp"
-
-#include <obs-module.h>
+#include "moc_DownloadWorker.cpp"
 #include "plugin-support.h"
 
-#include "moc_DownloadWorker.cpp"
-
-DownloadWorker::DownloadWorker(const QString& url, const QString& filePath) : downloadUrl(url), filePath(filePath), canceled(false) {}
+DownloadWorker::DownloadWorker(const QString& url, const QString& filePath)
+    : downloadUrl(url), filePath(filePath), canceled(false) {}
 
 void DownloadWorker::cancel() {
     QMutexLocker locker(&mutex);
     canceled = true;
 }
+
 void DownloadWorker::process() {
     std::string error;
     long responseCode = 0;
     std::string content;
 
-    bool success = GetRemoteFile(downloadUrl.toStdString().c_str(), content, error, &responseCode, nullptr, "GET", nullptr, {}, nullptr, 0, true);
+    bool success = GetRemoteFile(downloadUrl.toStdString().c_str(), content, error, &responseCode,
+                                 nullptr, "GET", nullptr, {}, nullptr, 0, true);
 
     {
         QMutexLocker locker(&mutex);

@@ -47,6 +47,15 @@ const string ONESEVENLIVE_GET_CONFIG_URL = string(ONESEVENLIVE_API_URL) + "/api/
 const string ONESEVENLIVE_GET_USERINFO_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/users/%1/info?onLive=1";
 
+const string ONESEVENLIVE_CREATE_CUSTOMEVENT_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent";
+
+const string ONESEVENLIVE_GET_CUSTOMEVENT_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEventV2";
+
+const string ONESEVENLIVE_CHANGE_CUSTOMEVENT_STATUS_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/event/customEvent/%1";
+
 const string ONESEVENLIVE_GET_ABLY_TOKEN_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/messenger/token?type=3&roomID=%1";
 
@@ -54,6 +63,19 @@ const string ONESEVENLIVE_GET_GIFTTABS_URL =
     string(ONESEVENLIVE_API_URL) + "/api/v1/lives/%1/giftTabs?filter=0";
 
 const string ONESEVENLIVE_GET_GIFTS_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/gifts";
+
+const string ONESEVENLIVE_GET_ROCKVIEWERS_URL =
+    string(ONESEVENLIVE_API_URL) +
+    "/api/v1/lives/%1/streamer/rockviewers?type=0&count=50&filterEmpty=true";
+
+const string ONESEVENLIVE_GET_ARMYNAME_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/army/custom/%1/name";
+
+const string ONESEVENLIVE_POKE_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/pokes";
+
+const string ONESEVENLIVE_POKE_ALL_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/pokes/pokeAll";
+
+const string ONESEVENLIVE_CHANGE_EVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/liveStreams/event";
 
 OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
     currentOS = GetCurrentOS();
@@ -256,6 +278,49 @@ bool OneSevenLiveApiWrappers::OneSevenLiveApiWrappers::GetSelfInfo(
     loginData.userInfo.displayName = QString::fromStdString(json_out["displayName"].string_value());
     loginData.userInfo.roomID = json_out["roomID"].int_value();
     loginData.userInfo.userID = QString::fromStdString(json_out["userID"].string_value());
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::ChangeEvent(const OneSevenLiveChangeEventRequest &request) {
+    obs_log(LOG_INFO, "ChangeEvent start");
+
+    lastErrorMessage.clear();
+
+    QByteArray url = QByteArray(ONESEVENLIVE_CHANGE_EVENT_URL.c_str());
+    obs_log(LOG_INFO, "ChangeEvent url: %s", ONESEVENLIVE_CHANGE_EVENT_URL.c_str());
+
+    Json requestData;
+    if (!OneSevenLiveChangeEventRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string postData = requestData.dump();
+    obs_log(LOG_INFO, "ChangeEvent requestData: %s", postData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
+        obs_log(LOG_ERROR, "ChangeEvent error: %s", json_out.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "ChangeEvent success");
+    obs_log(LOG_INFO, "change event response: %s", json_out.dump().c_str());
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "ChangeEvent error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
     return true;
 }
 
@@ -469,6 +534,95 @@ bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID,
     return true;
 }
 
+bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEvent &request,
+                                                OneSevenLiveCustomEvent &response) {
+    obs_log(LOG_INFO, "CreateCustomEvent start");
+
+    lastErrorMessage.clear();
+
+    const QByteArray url = ONESEVENLIVE_CREATE_CUSTOMEVENT_URL.c_str();
+
+    Json requestData;
+    if (!OneSevenLiveCustomEventToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string postData = requestData.dump();
+
+    obs_log(LOG_INFO, "CreateCustomEvent requestData: %s", postData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url, "application/json", "", postData.c_str(), json_out)) {
+        return false;
+    }
+
+    obs_log(LOG_INFO, "CreateCustomEvent success");
+    obs_log(LOG_INFO, "custom event info %s", json_out.dump().c_str());
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "CreateCustomEvent error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    if (!JsonToOneSevenLiveCustomEvent(json_out, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        lastErrorMessage = "Failed to convert response to struct";
+        return false;
+    }
+
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::ChangeCustomEventStatus(
+    const std::string &eventID, const OneSevenLiveCustomEventStatusRequest &request) {
+    obs_log(LOG_INFO, "ChangeCustomEventStatus start");
+
+    lastErrorMessage.clear();
+
+    // Replace %1 with eventID in the URL
+    QString urlStr =
+        QString::fromStdString(ONESEVENLIVE_CHANGE_CUSTOMEVENT_STATUS_URL).arg(eventID.c_str());
+    obs_log(LOG_INFO, "ChangeCustomEventStatus url: %s", urlStr.toStdString().c_str());
+    QByteArray url = urlStr.toUtf8();
+
+    Json requestData;
+    if (!OneSevenLiveChangeCustomEventStatusRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string patchData = requestData.dump();
+
+    obs_log(LOG_INFO, "ChangeCustomEventStatus requestData: %s", patchData.c_str());
+
+    Json json_out;
+
+    if (!InsertCommand(url, "application/json", "PATCH", patchData.c_str(), json_out)) {
+        // Check if errorCode field exists
+        if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+            obs_log(LOG_ERROR, "ChangeCustomEventStatus error: %s", json_out.dump().c_str());
+            // lastErrorMessage = errorCode + errorMessage
+            lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                               QString::fromStdString(json_out["errorMessage"].string_value());
+        }
+        return false;
+    }
+
+    obs_log(LOG_INFO, "ChangeCustomEventStatus success");
+
+    // For ChangeCustomEventStatus, we only check if status code is 200, no need to parse response
+    return true;
+}
+
 bool OneSevenLiveApiWrappers::CheckStream(const std::string &liveStreamID) {
     // obs_log(LOG_INFO, "CheckStream start");
     lastErrorMessage.clear();
@@ -653,14 +807,13 @@ bool OneSevenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json
     return true;
 }
 
-bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &liveStreamID,
-                                          const std::string language, Json &json_out_resp) {
+bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &roomID, const std::string language,
+                                          Json &json_out_resp) {
     obs_log(LOG_INFO, "GetGiftTabs");
 
     lastErrorMessage.clear();
 
-    QString urlStr =
-        QString::fromStdString(ONESEVENLIVE_GET_GIFTTABS_URL).arg(liveStreamID.c_str());
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_GIFTTABS_URL).arg(roomID.c_str());
     QByteArray url = urlStr.toUtf8();
 
     std::vector<std::string> extraHeaders = {"Language: " + language};
@@ -694,6 +847,184 @@ bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_ou
     }
 
     obs_log(LOG_INFO, "GetGifts success %d", json_out_resp["gifts"].array_items().size());
+
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &json_out_resp) {
+    // obs_log(LOG_INFO, "GetRockViewers");
+
+    lastErrorMessage.clear();
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ROCKVIEWERS_URL).arg(roomID.c_str());
+    QByteArray url = urlStr.toUtf8();
+
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0,
+                       true)) {
+        obs_log(LOG_ERROR, "GetRockViewers error: %s", json_out_resp.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        return false;
+    }
+
+    // obs_log(LOG_INFO, "GetRockViewers success");
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID,
+                                             OneSevenLiveCustomEvent &response) {
+    obs_log(LOG_INFO, "GetCustomEvent start");
+
+    lastErrorMessage.clear();
+
+    // Build request URL with query parameter
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CUSTOMEVENT_URL) +
+                     "?userID=" + QString::fromStdString(userID);
+    QByteArray url = urlStr.toUtf8();
+
+    Json json_out;
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out, 0, true)) {
+        obs_log(LOG_ERROR, "GetCustomEvent failed %s", json_out.dump().c_str());
+        lastErrorMessage = QString::fromStdString("GetCustomEvent failed %s")
+                               .arg(json_out.dump().c_str())
+                               .toUtf8()
+                               .constData();
+        return false;
+    }
+
+    // Use JsonToOneSevenLiveCustomEvent function to parse data to struct
+    if (!JsonToOneSevenLiveCustomEvent(json_out, response)) {
+        obs_log(LOG_ERROR, "Failed to parse custom event data");
+        lastErrorMessage = "Failed to parse custom event data";
+        return false;
+    }
+
+    obs_log(LOG_INFO, "GetCustomEvent success");
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::GetArmyName(const std::string &userID,
+                                          OneSevenLiveArmyNameResponse &response) {
+    obs_log(LOG_INFO, "GetArmyName start");
+    lastErrorMessage.clear();
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ARMYNAME_URL).arg(userID.c_str());
+    QByteArray url = urlStr.toUtf8();
+
+    std::string error;
+    Json json_out_resp;
+
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp)) {
+        obs_log(LOG_ERROR, "GetArmyName error: %s", json_out_resp.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        return false;
+    }
+
+    if (!JsonToOneSevenLiveArmyNameResponse(json_out_resp, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        lastErrorMessage = "Failed to convert response to struct";
+        return false;
+    }
+
+    obs_log(LOG_INFO, "GetArmyName success");
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request,
+                                      OneSevenLivePokeResponse &response) {
+    obs_log(LOG_INFO, "PokeOne start");
+
+    lastErrorMessage.clear();
+
+    QByteArray url = QByteArray(ONESEVENLIVE_POKE_URL.c_str());
+    obs_log(LOG_INFO, "PokeOne url: %s", ONESEVENLIVE_POKE_URL.c_str());
+
+    Json requestData;
+    if (!OneSevenLivePokeRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string postData = requestData.dump();
+    obs_log(LOG_INFO, "PokeOne requestData: %s", postData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
+        obs_log(LOG_ERROR, "PokeOne error: %s", json_out.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "PokeOne success");
+    obs_log(LOG_INFO, "poke response: %s", json_out.dump().c_str());
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "PokeOne error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    if (!JsonToOneSevenLivePokeResponse(json_out, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        lastErrorMessage = "Failed to convert response to struct";
+        return false;
+    }
+
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request,
+                                      OneSevenLivePokeResponse &response) {
+    obs_log(LOG_INFO, "PokeAll start");
+
+    lastErrorMessage.clear();
+
+    QByteArray url = QByteArray(ONESEVENLIVE_POKE_ALL_URL.c_str());
+    obs_log(LOG_INFO, "PokeAll url: %s", ONESEVENLIVE_POKE_ALL_URL.c_str());
+
+    Json requestData;
+    if (!OneSevenLivePokeAllRequestToJson(request, requestData)) {
+        obs_log(LOG_ERROR, "Failed to convert request to JSON");
+        lastErrorMessage = "Failed to convert request to JSON";
+        return false;
+    }
+
+    std::string postData = requestData.dump();
+    obs_log(LOG_INFO, "PokeAll requestData: %s", postData.c_str());
+
+    std::string error;
+    Json json_out;
+
+    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
+        obs_log(LOG_ERROR, "PokeAll error: %s", json_out.dump().c_str());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "PokeAll success");
+    obs_log(LOG_INFO, "poke all response: %s", json_out.dump().c_str());
+
+    // Check if errorCode field exists
+    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        obs_log(LOG_ERROR, "PokeAll error: %s", json_out.dump().c_str());
+        // lastErrorMessage = errorCode + errorMessage
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].string_value());
+        return false;
+    }
+
+    if (!JsonToOneSevenLivePokeResponse(json_out, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        lastErrorMessage = "Failed to convert response to struct";
+        return false;
+    }
 
     return true;
 }

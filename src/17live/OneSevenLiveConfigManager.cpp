@@ -64,7 +64,7 @@ bool OneSevenLiveConfigManager::getDockVisibility(const std::string &dockName) {
     std::string key = "DockVisibility_" + dockName;
     const char *visibilityChar = config_get_string(config, service, key.c_str());
     if (!visibilityChar) {
-        return false; // Default to false if not found
+        return false;  // Default to false if not found
     }
 
     std::string visibility = visibilityChar;
@@ -82,7 +82,7 @@ bool OneSevenLiveConfigManager::setDockVisibility(const std::string &dockName, b
 
     std::string key = "DockVisibility_" + dockName;
     std::string value = visible ? "true" : "false";
-    
+
     config_set_string(config, service, key.c_str(), value.c_str());
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save dock visibility config");
@@ -219,7 +219,7 @@ bool OneSevenLiveConfigManager::setDockState(const QByteArray &state) {
     }
 
     QString encoded = state.toBase64();
-    
+
     config_set_string(config, service, "DockState", encoded.toStdString().c_str());
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save config");
@@ -313,6 +313,82 @@ void OneSevenLiveConfigManager::clearStreamingPullUrl() {
         return;
     }
     config_set_string(config, service, "StreamPullUrl", "");
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save config");
+    }
+}
+
+bool OneSevenLiveConfigManager::setWhipStreamingInfo(const std::string &liveStreamID,
+                                                     const std::string &whipServer,
+                                                     const std::string &whipToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    if (!config) {
+        return false;
+    }
+
+    config_set_string(config, service, "LiveStreamID", liveStreamID.c_str());
+    config_set_string(config, service, "WhipServer", whipServer.c_str());
+    config_set_string(config, service, "WhipToken", whipToken.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save config");
+        return false;
+    }
+
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getWhipStreamingInfo(std::string &liveStreamID,
+                                                     std::string &whipServer,
+                                                     std::string &whipToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    if (!config) {
+        return false;
+    }
+
+    const char *liveStreamIDChar = config_get_string(config, service, "LiveStreamID");
+    const char *whipServerChar = config_get_string(config, service, "WhipServer");
+    const char *whipTokenChar = config_get_string(config, service, "WhipToken");
+
+    if (!liveStreamIDChar || !whipServerChar || !whipTokenChar) {
+        return false;
+    }
+
+    liveStreamID = liveStreamIDChar;
+    whipServer = whipServerChar;
+    whipToken = whipTokenChar;
+    return true;
+}
+
+bool OneSevenLiveConfigManager::clearWhipStreamingInfo() {
+    return setWhipStreamingInfo("", "", "");
+}
+
+bool OneSevenLiveConfigManager::isWhipMode() {
+    if (!initialized || !config) {
+        return false;
+    }
+
+    const char *whipModeChar = config_get_string(config, service, "WhipMode");
+    if (!whipModeChar) {
+        return false;
+    }
+
+    return std::string(whipModeChar) == "true";
+}
+
+void OneSevenLiveConfigManager::setWhipMode(bool isWhip) {
+    if (!initialized || !config) {
+        return;
+    }
+
+    config_set_string(config, service, "WhipMode", isWhip ? "true" : "false");
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save config");
     }

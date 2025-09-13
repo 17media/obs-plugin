@@ -27,6 +27,8 @@ class OneSevenLiveStreamingDock;
 
 class OneSevenLiveStreamListDock;
 
+class OneSevenLiveRockZoneDock;
+
 class OneSevenLiveHttpServer;
 
 class QCefView;
@@ -152,6 +154,11 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveStreamListDock* liveListDock{nullptr};
     void handleLiveListClicked();
 
+    bool rockZoneDockFirstLoad = true;
+    OneSevenLiveRockZoneDock* rockZoneDock{nullptr};
+    void handleRockZoneClicked();
+    void createRockZoneDock();
+
     void saveDockState();
 
     void load17LiveConfig();
@@ -166,6 +173,8 @@ class OneSevenLiveCoreManager : public QObject {
     // Version update related methods
     void handleCheckUpdateClicked();
     void checkForUpdates();
-    
+
+    void loadGifts();
+
     class OneSevenLiveUpdateManager* updateManager = nullptr;
 };

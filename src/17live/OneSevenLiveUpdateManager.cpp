@@ -1,45 +1,37 @@
 #include "OneSevenLiveUpdateManager.hpp"
+
+#include <obs-module.h>
+
+#include <QDesktopServices>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMessageBox>
-#include <QFile>
-#include <QFileInfo>
-#include <QStandardPaths>
-#include <QDir>
-#include <QDesktopServices>
-#include <QUrl>
-#include <QThread>
 #include <QMutex>
-#include <QProgressDialog>
 #include <QMutexLocker>
+#include <QProgressDialog>
+#include <QStandardPaths>
 #include <QSysInfo>
-#include <obs-module.h>
-#include "plugin-support.h"
-#include "utility/RemoteTextThread.hpp"
-#include "utility/Meta.hpp"
-#include "utility/DownloadWorker.hpp"
+#include <QThread>
+#include <QUrl>
 
 #include "moc_OneSevenLiveUpdateManager.cpp"
+#include "plugin-support.h"
+#include "utility/DownloadWorker.hpp"
+#include "utility/Meta.hpp"
+#include "utility/RemoteTextThread.hpp"
+
 OneSevenLiveUpdateManager::OneSevenLiveUpdateManager(QObject* parent) : QObject(parent) {}
 
 void OneSevenLiveUpdateManager::checkForUpdates() {
     std::string response;
     std::string error;
     long responseCode = 0;
-    bool success = GetRemoteFile(
-        "https://api.github.com/repos/17media/obs-plugin/releases",
-        response,
-        error,
-        &responseCode,
-        nullptr,
-        "GET",
-        nullptr,
-        {"User-Agent: 17Live-OBS-Plugin"},
-        nullptr,
-        10,
-        true,
-        0
-    );
+    bool success = GetRemoteFile("https://api.github.com/repos/17media/obs-plugin/releases",
+                                 response, error, &responseCode, nullptr, "GET", nullptr,
+                                 {"User-Agent: 17Live-OBS-Plugin"}, nullptr, 10, true, 0);
 
     if (!success || responseCode != 200) {
         emit updateCheckFailed(QString::fromStdString(error));
@@ -70,7 +62,8 @@ void OneSevenLiveUpdateManager::checkForUpdates() {
     emit updateAvailable(latestVersion, latestRelease["assets"].toArray());
 }
 
-void OneSevenLiveUpdateManager::downloadUpdate(const QString& downloadUrl, const QString& fileName) {
+void OneSevenLiveUpdateManager::downloadUpdate(const QString& downloadUrl,
+                                               const QString& fileName) {
     QString downloadsPath = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
     QString filePath = QDir(downloadsPath).absoluteFilePath(fileName);
 
@@ -82,8 +75,9 @@ void OneSevenLiveUpdateManager::downloadUpdate(const QString& downloadUrl, const
 
         if (msgBox.exec() == QMessageBox::No) {
             QDesktopServices::openUrl(QUrl::fromLocalFile(downloadsPath));
-            QMessageBox::information(nullptr, obs_module_text("Update.InstallReminder"),
-                                     QString(obs_module_text("Update.InstallReminder.Message")).arg(fileName));
+            QMessageBox::information(
+                nullptr, obs_module_text("Update.InstallReminder"),
+                QString(obs_module_text("Update.InstallReminder.Message")).arg(fileName));
             return;
         }
     }
@@ -93,7 +87,8 @@ void OneSevenLiveUpdateManager::downloadUpdate(const QString& downloadUrl, const
         downloadProgressDialog = nullptr;
     }
 
-    downloadProgressDialog = new QProgressDialog(obs_module_text("Update.Downloading"), obs_module_text("Update.Cancel"), 0, 0);
+    downloadProgressDialog = new QProgressDialog(obs_module_text("Update.Downloading"),
+                                                 obs_module_text("Update.Cancel"), 0, 0);
     downloadProgressDialog->setWindowModality(Qt::WindowModal);
     downloadProgressDialog->setAutoClose(false);
     downloadProgressDialog->setAutoReset(false);
@@ -105,32 +100,32 @@ void OneSevenLiveUpdateManager::downloadUpdate(const QString& downloadUrl, const
     worker->moveToThread(thread);
 
     connect(thread, &QThread::started, worker, &DownloadWorker::process);
-    connect(worker, &DownloadWorker::finished, this, [this, thread, worker](bool success, const QString& error) {
-        if (downloadProgressDialog) {
-            downloadProgressDialog->reset();
-            downloadProgressDialog->deleteLater();
-            downloadProgressDialog = nullptr;
-        }
-        if (!success) {
-            QMessageBox::warning(nullptr, obs_module_text("Update.DownloadFailed"),
-                                 QString(obs_module_text("Update.DownloadFailed.NetworkError")).arg(error));
-        } else {
-            onDownloadFinished();
-        }
-        thread->quit();
-        thread->wait();
-        worker->deleteLater();
-        thread->deleteLater();
-    });
+    connect(worker, &DownloadWorker::finished, this,
+            [this, thread, worker](bool success, const QString& error) {
+                if (downloadProgressDialog) {
+                    downloadProgressDialog->reset();
+                    downloadProgressDialog->deleteLater();
+                    downloadProgressDialog = nullptr;
+                }
+                if (!success) {
+                    QMessageBox::warning(
+                        nullptr, obs_module_text("Update.DownloadFailed"),
+                        QString(obs_module_text("Update.DownloadFailed.NetworkError")).arg(error));
+                } else {
+                    onDownloadFinished();
+                }
+                thread->quit();
+                thread->wait();
+                worker->deleteLater();
+                thread->deleteLater();
+            });
 
-    connect(downloadProgressDialog, &QProgressDialog::canceled, this, [worker]() {
-        worker->cancel();
-    });
+    connect(downloadProgressDialog, &QProgressDialog::canceled, this,
+            [worker]() { worker->cancel(); });
 
     thread->start();
     downloadProgressDialog->show();
 }
-
 
 // void OneSevenLiveUpdateManager::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal) {
 //     if (downloadProgressDialog && bytesTotal > 0) {
@@ -186,15 +181,18 @@ QString OneSevenLiveUpdateManager::getSystemInfo() const {
     return osInfo;
 }
 
-bool OneSevenLiveUpdateManager::compareVersions(const QString& version1, const QString& version2) const {
+bool OneSevenLiveUpdateManager::compareVersions(const QString& version1,
+                                                const QString& version2) const {
     QString v1 = version1.startsWith('v') ? version1.mid(1) : version1;
     QString v2 = version2.startsWith('v') ? version2.mid(1) : version2;
 
     QStringList parts1 = v1.split('.');
     QStringList parts2 = v2.split('.');
 
-    while (parts1.size() < parts2.size()) parts1.append("0");
-    while (parts2.size() < parts1.size()) parts2.append("0");
+    while (parts1.size() < parts2.size())
+        parts1.append("0");
+    while (parts2.size() < parts1.size())
+        parts2.append("0");
 
     for (int i = 0; i < parts1.size(); ++i) {
         int num1 = parts1[i].toInt();

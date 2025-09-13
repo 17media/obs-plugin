@@ -11,5 +11,36 @@
         <file>resources/arrow-down.svg</file>
         <file>resources/arrow-up.svg</file>
         <file>resources/alert.svg</file>
+        <file>resources/exclaimark.svg</file>
+        <file>resources/close.svg</file>
+        <file>resources/circle-check.svg</file>
+        <file>resources/user_images/150a2431-f728-4d8e-8af8-e7c75e3b5c7f.png</file>
+        <file>resources/user_images/37bd32cb-f100-4155-9248-84a24d04ccad.png</file>
+        <file>resources/user_images/3dc9b982-d280-46af-82af-9443e646969f.png</file>
+        <file>resources/user_images/46b95878-34fc-48a5-9c36-d8952b2b2d15.png</file>
+        <file>resources/user_images/4a0dc588-36fb-41bf-ab5e-cd122e114e72.png</file>
+        <file>resources/user_images/7b211dc9-66b1-43a1-b909-f4d5965e4e7e.png</file>
+        <file>resources/user_images/a84f01d8-04bf-4e7d-b469-6036321e72c0.png</file>
+        <file>resources/user_images/acdc5fa1-3be6-4b16-86de-703b6c80dfdc.png</file>
+        <file>resources/user_images/b448cd7f-d366-4b0b-8a98-bba2dd741302.png</file>
+        <file>resources/user_images/bcc48ea8-606b-4e2d-ac46-230f68c23fd9.png</file>
+        <file>resources/user_images/e716f173-010b-4baa-85c0-8aade65fd80b.png</file>
+
+        <file>resources/user_images/ig-bg-checking-black.png</file>
+        <file>resources/user_images/ig-bg-checking-blue.png</file>
+        <file>resources/user_images/ig-bg-checking-golden.png</file>
+        <file>resources/user_images/ig-bg-checking-green.png</file>
+        <file>resources/user_images/ig-bg-checking-orange.png</file>
+        <file>resources/user_images/ig-bg-checking-purple.png</file>
+        <file>resources/user_images/ig-bg-checking-silver.png</file>
+        <file>resources/user_images/ig-captain-badge.png</file>
+        <file>resources/user_images/ig-colonel-badge.png</file>
+        <file>resources/user_images/ig-corporal-badge.png</file>
+        <file>resources/user_images/ig-firstrank-badge.png</file>
+        <file>resources/user_images/ig-general-badge.png</file>
+        <file>resources/user_images/ig-guardian-badge.png</file>
+        <file>resources/user_images/ig-sergeant-badge.png</file>
+        <file>resources/user_images/ig_rock_viewer_badge.svg</file>
+        <file>resources/user_images/user_bg.png</file>
     </qresource>
 </RCC>

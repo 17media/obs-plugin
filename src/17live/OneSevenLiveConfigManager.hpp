@@ -25,6 +25,17 @@ class OneSevenLiveConfigManager {
                           std::string &streamKey);
     bool clearStreamingInfo();
 
+    // WHIP streaming configuration methods
+    bool setWhipStreamingInfo(const std::string &liveStreamID, const std::string &whipServer,
+                              const std::string &whipToken);
+    bool getWhipStreamingInfo(std::string &liveStreamID, std::string &whipServer,
+                              std::string &whipToken);
+    bool clearWhipStreamingInfo();
+
+    // Check if current streaming mode is WHIP
+    bool isWhipMode();
+    void setWhipMode(bool isWhip);
+
     void setStreamingPullUrl(const std::string &streamPullUrl);
     bool getStreamingPullUrl(std::string &streamPullUrl);
     void clearStreamingPullUrl();
@@ -38,7 +49,7 @@ class OneSevenLiveConfigManager {
 
     QByteArray getDockState();
     bool setDockState(const QByteArray &state);
-    
+
     bool getDockVisibility(const std::string &dockName);
     bool setDockVisibility(const std::string &dockName, bool visible);
 
