@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+      - 'v*.*.*-stage'
   workflow_dispatch:
     inputs:
       environment:
@@ -14,25 +15,32 @@ on:
         options:
           - stage
           - production
+      version:
+        description: "Version number (e.g., 1.0.0)"
+        required: false
+        default: "0.0.0"
+        type: string
   
 jobs:
   build-mac-arm64:
     name: Build macOS Apple Silicon
     runs-on: macos-15
-    environment: ${{ inputs.environment }}
+    environment: ${{ contains(github.ref_name, '-stage') && 'stage' || (github.event.inputs.environment || 'production') }}
     env:
       ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
-      VERSION: ${{ github.ref_name || github.event.inputs.version || '0.0.0' }}
-      BUILD_ENV: ${{ github.event.inputs.environment || 'stage' }}
+      VERSION: ${{ github.ref_name || (github.event.inputs.version && format('v{0}', github.event.inputs.version)) || 'v0.0.0' }}
+      BUILD_ENV: ${{ contains(github.ref_name, '-stage') && 'stage' || (github.event.inputs.environment || 'production') }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Debug Environment Variables
         run: |
-          echo "Current environment: ${{ github.event.inputs.environment || 'stage' }}"
+          echo "Current environment: ${{ contains(github.ref_name, '-stage') && 'stage' || (github.event.inputs.environment || 'production') }}"
           echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
           echo "BUILD_ENV: $BUILD_ENV"
           echo "VERSION: $VERSION"
+          echo "Tag name: ${{ github.ref_name }}"
+          echo "Manual version input: ${{ github.event.inputs.version }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
