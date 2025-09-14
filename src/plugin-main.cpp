@@ -1,6 +1,6 @@
 /*
 OBS 17Live Plugin
-Copyright (C) 2023-2024 17Live Inc.
+Copyright (C) 2023-2025 17Live Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
