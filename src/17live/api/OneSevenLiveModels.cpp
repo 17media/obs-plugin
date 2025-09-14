@@ -1011,6 +1011,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         // Archive ID and game marquee settings
         roomInfo.archiveID = QString::fromStdString(json["archiveID"].string_value());
         roomInfo.hideGameMarquee = json["hideGameMarquee"].bool_value();
+        roomInfo.enableOBSGroupCall = json["enableOBSGroupCall"].bool_value();
 
         const auto &subtabsJson = json["subtabs"];
         if (subtabsJson.is_array()) {
@@ -1183,6 +1184,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         // Archive ID and game marquee settings
         jsonObject["archiveID"] = roomInfo.archiveID.toStdString();
         jsonObject["hideGameMarquee"] = roomInfo.hideGameMarquee;
+        jsonObject["enableOBSGroupCall"] = roomInfo.enableOBSGroupCall;
 
         Json::array subtabsArray;
         for (const auto &subtab : roomInfo.subtabs) {
@@ -1278,6 +1280,16 @@ bool JsonToOneSevenLiveRtmpRequest(const Json &json, OneSevenLiveRtmpRequest &re
     if (vliverInfoJson.is_object()) {
         request.vliverInfo.vliverModel = vliverInfoJson["vliverModel"].int_value();
     }
+    // armyOnly
+    const auto &armyOnlyJson = json["armyOnly"];
+    if (armyOnlyJson.is_object()) {
+        request.armyOnly.enable = armyOnlyJson["enable"].bool_value();
+        request.armyOnly.requiredArmyRank = armyOnlyJson["requiredArmyRank"].int_value();
+        request.armyOnly.showOnHotPage = armyOnlyJson["showOnHotPage"].bool_value();
+        request.armyOnly.armyOnlyPN = armyOnlyJson["armyOnlyPN"].bool_value();
+    }
+    // enableOBSGroupCall
+    request.enableOBSGroupCall = json["enableOBSGroupCall"].bool_value();
     return true;
 }
 

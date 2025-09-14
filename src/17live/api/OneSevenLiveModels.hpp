@@ -332,6 +332,7 @@ struct OneSevenLiveRoomInfo {
     OneSevenLiveArchiveConfig archiveConfig;  // Add archive configuration
     QString archiveID;                        // Add archive ID
     bool hideGameMarquee;                     // Add game marquee hide flag
+    bool enableOBSGroupCall;                  // Add OBS group call enable flag
     QStringList subtabs;
     QList<OneSevenLiveHashtag> lastUsedHashtags;
 };

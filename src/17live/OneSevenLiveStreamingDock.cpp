@@ -704,6 +704,8 @@ void OneSevenLiveStreamingDock::updateUIValues() {
             }
         }
         eventCombo->setCurrentIndex(currentEventIndex);
+
+        GroupCallCheck->setChecked(roomInfo.enableOBSGroupCall);
     }
 }
 
