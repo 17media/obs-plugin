@@ -246,7 +246,6 @@ void OneSevenLiveStreamingDock::setupUi() {
     userConditionLayout->addWidget(userConditionLabel);
 
     requiredArmyRankCombo = new QComboBox();
-    // requiredArmyRankCombo->addItem(obs_module_text("Live.Settings.UserCondition.AllLevels"), 1);
     requiredArmyRankCombo->setEditable(false);
     userConditionLayout->addWidget(requiredArmyRankCombo);
 

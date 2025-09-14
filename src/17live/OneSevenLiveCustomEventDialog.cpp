@@ -868,7 +868,7 @@ void OneSevenLiveCustomEventDialog::setupGiftTabsUI() {
         QWidget* placeholderTab = new QWidget();
         QVBoxLayout* placeholderLayout = new QVBoxLayout(placeholderTab);
 
-        QLabel* placeholderLabel = new QLabel("Loading gifts...");
+        QLabel* placeholderLabel = new QLabel(obs_module_text("CustomEvent.LoadingGifts"));
         placeholderLabel->setAlignment(Qt::AlignCenter);
         placeholderLabel->setStyleSheet("color: #ffffff; font-size: 14px;");
         placeholderLayout->addWidget(placeholderLabel);
