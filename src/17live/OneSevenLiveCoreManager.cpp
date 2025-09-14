@@ -899,6 +899,13 @@ void OneSevenLiveCoreManager::loadGifts() {
             if (success) {
                 configManager->saveGifts(apiResult);
                 obs_log(LOG_INFO, "Gifts loaded and saved successfully");
+                
+                // Reload chat room dock to support new gifts
+                if (chatRoomDock && chatRoomDock->isVisible() && cefView) {
+                    obs_log(LOG_INFO, "Reloading chat room to support new gifts");
+                    cefView->reload();
+                    obs_log(LOG_INFO, "Chat room reloaded with new gifts support");
+                }
             } else {
                 obs_log(LOG_WARNING, "Failed to load gifts from API");
             }

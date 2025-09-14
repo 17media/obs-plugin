@@ -98,6 +98,15 @@ QString QCefView::currentUrl() const {
     return m_currentUrl;
 }
 
+void QCefView::reload() {
+    if (m_client && m_client->getBrowser()) {
+        obs_log(LOG_INFO, "QCefView::reload() - Reloading current page");
+        m_client->getBrowser()->Reload();
+    } else {
+        obs_log(LOG_WARNING, "QCefView::reload() - Browser not initialized, cannot reload");
+    }
+}
+
 void QCefView::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
     if (m_client && m_client->getBrowser()) {
