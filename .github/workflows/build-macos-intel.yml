@@ -3,218 +3,92 @@ name: Build OBS 17Live Plugin - macOS Intel
 on:
   push:
     tags:
-      - 'v*.*.*'        # Production builds (e.g., v1.0.0)
-      - 'v*.*.*-stage'   # Stage builds (e.g., v1.0.0-stage)
+      - 'v*.*.*'
+      - 'v*.*.*-stage'
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Build environment"
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - production
       version:
-        description: 'Version number for manual builds (e.g., 1.0.0)'
+        description: "Version number (e.g., 1.0.0)"
         required: false
-        default: '0.0.0'
+        default: "0.0.0"
         type: string
-      create_package:
-        description: 'Create and sign package'
-        required: false
-        default: true
-        type: boolean
-
-env:
-  CMAKE_MINIMUM_VERSION: '3.28'
-  NODE_VERSION: '20'
-
+  
 jobs:
-  build-macos-intel:
-    runs-on: macos-13  # Intel-based runner
-    environment: ${{ contains(github.ref, '-stage') && 'stage' || 'production' }}
-    
+  build-mac-intel:
+    name: Build macOS Intel
+    runs-on: macos-13
+    environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+    env:
+      ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
+      VERSION: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) && github.ref_name || github.event.inputs.version || '0.0.0' }}
+      BUILD_ENV: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v4
+
       - name: Debug Environment Variables
         run: |
-          echo "Current environment: $BUILD_ENV"
+          echo "Current environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}"
           echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
           echo "BUILD_ENV: $BUILD_ENV"
           echo "VERSION: $VERSION"
-        env:
-          ONESEVENLIVE_API_URL: ${{ secrets.ONESEVENLIVE_API_URL }}
-          BUILD_ENV: ${{ vars.BUILD_ENV }}
-          VERSION: ${{ github.event.inputs.version || '0.0.0' }}
-      
+          echo "Tag name: ${{ github.ref_name }}"
+          echo "Manual version input: ${{ github.event.inputs.version }}"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: 'web/ably_chat/package-lock.json'
-      
-      - name: Install Dependencies
+          node-version: '20'
+
+      - name: Install and Build Web
+        working-directory: web/ably_chat
         run: |
-          # Install CMake (version 3.28 or higher)
-          brew install cmake
-          
-          # Verify CMake version
-          cmake_version=$(cmake --version | head -n1 | cut -d' ' -f3)
-          echo "Installed CMake version: $cmake_version"
-          
-          # Check if version is 3.28 or higher
-          if ! printf '%s\n3.28\n' "$cmake_version" | sort -V -C; then
-            echo "Error: CMake version must be 3.28 or higher"
-            exit 1
-          fi
-          
-          # Install Qt6 for macOS
-          brew install qt@6
-      
-      - name: Install and Build Web Components
-        run: |
-          cd web/ably_chat
-          npm ci
+          npm install
           npm run build
-      
-      - name: Set Environment and Version
+
+      - name: Set ENV and Version
         run: |
-          # Extract version from tag or use input/default
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
+          # Remove v prefix from VERSION if present
+          VERSION_NUMBER=${VERSION#v}
+          echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
+          
+          # Set package name suffix
+          if [ "$BUILD_ENV" == "production" ]; then
+            echo "PKG_SUFFIX=" >> $GITHUB_ENV
           else
-            VERSION=${{ github.event.inputs.version || '0.0.0' }}
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Using version: $VERSION"
-      
-      - name: Run macOS Intel Build Script
-        run: |
-          chmod +x scripts/build-macos-intel.sh
-          ./scripts/build-macos-intel.sh
-        env:
-          ONESEVENLIVE_API_URL: ${{ secrets.ONESEVENLIVE_API_URL }}
-          VERSION: ${{ env.VERSION }}
-          CREATE_PACKAGE: ${{ github.event.inputs.create_package }}
-      
-      - name: Import Signing Certificate
-        if: ${{ github.event.inputs.create_package == 'true' }}
-        env:
-          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'temp-keychain-password' }}
-        run: |
-          if [ -z "$MACOS_CERTIFICATE_BASE64" ] || [ -z "$MACOS_CERTIFICATE_PASSWORD" ]; then
-            echo "Certificate secrets not available, skipping signing..."
-            exit 0
-          fi
-          echo "Importing signing certificate..."
-          echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
-          
-          # Create keychain and import certificate
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-          
-          rm certificate.p12
-      
-      - name: Create and Sign Package
-        if: ${{ github.event.inputs.create_package == 'true' }}
-        run: |
-          version="$VERSION"
-          package_name="17liveOBSPlugin-macOS-Intel-v$version.pkg"
-          
-          # Create package structure
-          mkdir -p package_root/Library/Application\ Support/obs-studio/plugins/obs-17live/bin
-          mkdir -p package_root/Library/Application\ Support/obs-studio/plugins/obs-17live/data
-          
-          # Copy built files
-          cp build_x64/rundir/Release/obs-17live.so package_root/Library/Application\ Support/obs-studio/plugins/obs-17live/bin/
-          cp -r build_x64/rundir/Release/obs-17live package_root/Library/Application\ Support/obs-studio/plugins/obs-17live/data/
-          
-          # Create package
-          pkgbuild --root package_root \
-                   --identifier com.17live.obs-plugin \
-                   --version "$version" \
-                   --install-location / \
-                   "$package_name"
-          
-          # Sign package if certificate is available
-          if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
-            echo "Signing package..."
-            productsign --sign "$MACOS_SIGNING_IDENTITY" "$package_name" "signed_$package_name"
-            mv "signed_$package_name" "$package_name"
-            echo "Package signed successfully"
-          else
-            echo "No signing certificate provided, package will be unsigned"
-          fi
-          
-          echo "PACKAGE_NAME=$package_name" >> $GITHUB_ENV
-        env:
-          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY || 'Developer ID Installer' }}
-      
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-intel-build
-          path: |
-            build_x64/rundir/Release/obs-17live.so
-            build_x64/rundir/Release/obs-17live/
-          retention-days: 30
-      
-      - name: Upload Package
-        if: ${{ github.event.inputs.create_package == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-intel-package
-          path: "17liveOBSPlugin-macOS-Intel-v*.pkg"
-          retention-days: 30
-      
-      - name: Build Summary
-        run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Platform**: macOS Intel (x86_64)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build Configuration**: Release" >> $GITHUB_STEP_SUMMARY
-          echo "- **CMake Preset**: macos-ci" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ github.event.inputs.create_package }}" = "true" ]; then
-            echo "- **Package Created**: Yes" >> $GITHUB_STEP_SUMMARY
-            if [ -n "$MACOS_CERTIFICATE_BASE64" ]; then
-              echo "- **Package Signed**: Yes" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "- **Package Signed**: No (no certificate provided)" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "- **Package Created**: No" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Build Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- Plugin binary: \`obs-17live.so\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Plugin data: \`obs-17live/\` directory" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ github.event.inputs.create_package }}" = "true" ]; then
-            echo "- Installer package: \`$PACKAGE_NAME\`" >> $GITHUB_STEP_SUMMARY
+            echo "PKG_SUFFIX=-stage" >> $GITHUB_ENV
           fi
 
-  # Create release if this is a tag build
-  create-release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-macos-intel]
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: CMake Configure
+        run: |
+          cmake --preset macos \
+            -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" \
+            -DCMAKE_PROJECT_VERSION="$VERSION"
+
+      - name: Build
+        run: cmake --build --preset macos --config Release
+
+      - name: Create pkg
+        run: |
+          PKG_NAME="17liveOBSPlugin-macIntel-v${VERSION}${PKG_SUFFIX}.pkg"
+          sudo pkgbuild --root build_macos/Release \
+                        --identifier com.17live.obsplugin \
+                        --version "$VERSION" \
+                        --install-location "/Applications/OBS.app/Contents/PlugIns" \
+                        --scripts package/macOS/misc \
+                        "$PKG_NAME"
+          echo "PKG_NAME=$PKG_NAME" >> $GITHUB_ENV
+
+      - name: Upload pkg
+        uses: actions/upload-artifact@v4
         with:
-          path: artifacts
-      
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            artifacts/macos-intel-package/*.pkg
-          draft: false
-          prerelease: ${{ contains(github.ref, '-stage') }}
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: macOS-Intel-PKG
+          path: ${{ env.PKG_NAME }}
+          
