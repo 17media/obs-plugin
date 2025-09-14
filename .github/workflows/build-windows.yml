@@ -140,7 +140,7 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:VERSION
-          $installerName = "17liveOBSPlugin-Windows-x64-v$version$env:PKG_SUFFIX.exe"
+          $installerName = "17liveOBSPlugin-windows-v$version$env:PKG_SUFFIX.exe"
           
           $nsisScript = @"
           !define PRODUCT_NAME "17Live OBS Plugin"
@@ -285,5 +285,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-x64-installer
-          path: "17liveOBSPlugin-Windows-x64-v*.exe"
+          path: "17liveOBSPlugin-windows-v*.exe"
           retention-days: 30
