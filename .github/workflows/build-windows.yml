@@ -87,7 +87,7 @@ jobs:
         shell: pwsh
         run: |
           cd web/ably_chat
-          npm ci
+          npm install
           npm run build
       
       - name: Set ENV and Version
@@ -287,26 +287,3 @@ jobs:
           name: windows-x64-installer
           path: "17liveOBSPlugin-Windows-x64-v*.exe"
           retention-days: 30
-
-  # Create release if this is a tag build
-  create-release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-windows-x64]
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            artifacts/windows-x64-installer/*.exe
-          draft: false
-          prerelease: ${{ contains(github.ref, '-stage') }}
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
