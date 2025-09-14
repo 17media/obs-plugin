@@ -28,13 +28,17 @@ import {
     MsgType_POKE,
 } from '@/lib/constants';
 
-// import giftdata from './chat_new_gift_2.json';
-// import comment from './chat_message.json';
-// import newjoin from './chat_new_join.json';
-// import aicohost from './chat_ai_cohost.json';
-// import pokeone from './chat_poke.json';
-// import pokeall from './chat_poke_all.json';
-// import pokeback from './chat_poke_back.json';
+// import giftdata from '@/../public/mock/chat_new_gift_2.json';
+// import comment from '@/../public/mock/chat_message.json';
+// import newjoin from '@/../public/mock/chat_new_join.json';
+// import aicohost from '@/../public/mock/chat_ai_cohost.json';
+// import pokeone from '@/../public/mock/chat_poke.json';
+// import pokeall from '@/../public/mock/chat_poke_all.json';
+// import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
+// import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
+// import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
+// import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
+
 export default function AblyComponent() {
 
     const [chatList, setChatList] = useState([]);
@@ -185,9 +189,9 @@ export default function AblyComponent() {
                 id,
                 messageType: message.type,
                 streamerInfo,
-                comment: {
-                    textColor: rgb(51, 206, 176),
-                },
+                // comment: {
+                //     textColor: "#33CEB0",
+                // },
             })
         }
 
@@ -304,7 +308,10 @@ export default function AblyComponent() {
         //         prepareIndexedChat(aicohost),
         //         prepareIndexedChat(pokeone),
         //         prepareIndexedChat(pokeall),
-        //         prepareIndexedChat(pokeback),
+        //         prepareIndexedChat(pokeback0),
+        //         prepareIndexedChat(pokeback1),
+        //         prepareIndexedChat(pokeback2),
+        //         prepareIndexedChat(pokeback3),
         //     ]);
         // }, 1000);
 
