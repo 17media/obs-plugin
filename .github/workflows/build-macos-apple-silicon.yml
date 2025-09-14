@@ -55,11 +55,11 @@ jobs:
 
       - name: Set ENV and Version
         run: |
-          # 从环境变量 VERSION 中去掉 v 前缀
+          # Remove v prefix from VERSION environment variable
           VERSION_NUMBER=${VERSION#v}
           echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
 
-          # 设置包名后缀
+          # Set package name suffix
           if [ "$BUILD_ENV" == "production" ]; then
             echo "PKG_SUFFIX=" >> $GITHUB_ENV
           else
