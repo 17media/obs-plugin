@@ -192,6 +192,8 @@ bool OneSevenLiveHttpServer::start() {
                     configManager->getConfigValue("Region", language);
                     success = apiWrapper->GetGifts(language, apiResult);
                     configManager->saveGifts(apiResult);
+                } else {
+                    success = true;
                 }
             } else if (action == ACTION_GETROOMINFO) {
                 OneSevenLiveLoginData loginData;

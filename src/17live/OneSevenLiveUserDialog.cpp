@@ -4,18 +4,18 @@
 
 #include <QIcon>
 #include <QMessageBox>
+#include <QMetaObject>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
 #include <QPointer>
 #include <QThread>
-#include <QMetaObject>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
-#include "utility/RemoteTextThread.hpp"
 #include "utility/Common.hpp"
+#include "utility/RemoteTextThread.hpp"
 
 OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent,
                                                OneSevenLiveApiWrappers* apiWrapper_,
@@ -87,16 +87,16 @@ void OneSevenLiveUserDialog::setupUi() {
 
     // User stats area
     bodyLayout->addSpacing(15);
-    
+
     QHBoxLayout* statsLayout = new QHBoxLayout();
     statsLayout->setSpacing(20);
     statsLayout->setAlignment(Qt::AlignHCenter);
-    
+
     // Followers
     QVBoxLayout* followersLayout = new QVBoxLayout();
     followersLayout->setSpacing(2);
     followersLayout->setAlignment(Qt::AlignCenter);
-    
+
     followersLabel = new QLabel("--");
     followersLabel->setAlignment(Qt::AlignCenter);
     followersLabel->setStyleSheet(
@@ -105,7 +105,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-weight: bold;"
         "    font-size: 16px;"
         "}");
-    
+
     QLabel* followersText = new QLabel(obs_module_text("RockZone.Followers"));
     followersText->setAlignment(Qt::AlignCenter);
     followersText->setStyleSheet(
@@ -113,15 +113,15 @@ void OneSevenLiveUserDialog::setupUi() {
         "    color: #CCCCCC;"
         "    font-size: 12px;"
         "}");
-    
+
     followersLayout->addWidget(followersLabel);
     followersLayout->addWidget(followersText);
-    
+
     // Following
     QVBoxLayout* followingLayout = new QVBoxLayout();
     followingLayout->setSpacing(2);
     followingLayout->setAlignment(Qt::AlignCenter);
-    
+
     followingLabel = new QLabel("--");
     followingLabel->setAlignment(Qt::AlignCenter);
     followingLabel->setStyleSheet(
@@ -130,7 +130,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-weight: bold;"
         "    font-size: 16px;"
         "}");
-    
+
     QLabel* followingText = new QLabel(obs_module_text("RockZone.Following"));
     followingText->setAlignment(Qt::AlignCenter);
     followingText->setStyleSheet(
@@ -138,15 +138,15 @@ void OneSevenLiveUserDialog::setupUi() {
         "    color: #CCCCCC;"
         "    font-size: 12px;"
         "}");
-    
+
     followingLayout->addWidget(followingLabel);
     followingLayout->addWidget(followingText);
-    
+
     // Likes
     QVBoxLayout* likesLayout = new QVBoxLayout();
     likesLayout->setSpacing(2);
     likesLayout->setAlignment(Qt::AlignCenter);
-    
+
     likesLabel = new QLabel("--");
     likesLabel->setAlignment(Qt::AlignCenter);
     likesLabel->setStyleSheet(
@@ -155,7 +155,7 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-weight: bold;"
         "    font-size: 16px;"
         "}");
-    
+
     QLabel* likesText = new QLabel(obs_module_text("RockZone.Likes"));
     likesText->setAlignment(Qt::AlignCenter);
     likesText->setStyleSheet(
@@ -163,15 +163,15 @@ void OneSevenLiveUserDialog::setupUi() {
         "    color: #CCCCCC;"
         "    font-size: 12px;"
         "}");
-    
+
     likesLayout->addWidget(likesLabel);
     likesLayout->addWidget(likesText);
-    
+
     // Add to stats layout
     statsLayout->addLayout(followersLayout);
     statsLayout->addLayout(followingLayout);
     statsLayout->addLayout(likesLayout);
-    
+
     bodyLayout->addLayout(statsLayout);
     bodyLayout->addSpacing(15);
 
@@ -219,7 +219,7 @@ void OneSevenLiveUserDialog::setUserInfo(const OneSevenLiveRockZoneViewer& user)
     // Update UI
     usernameLabel->setText(viewer.displayUser.displayName);
     updateUserAvatar();
-    
+
     // Fetch detailed user information asynchronously
     fetchUserInfo();
 }
@@ -275,7 +275,8 @@ void OneSevenLiveUserDialog::onPokeUserClicked() {
     bool success = apiWrapper->PokeOne(request, response);
 
     if (!success) {
-        obs_log(LOG_ERROR, "Failed to poke user %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
+        obs_log(LOG_ERROR, "Failed to poke user %s",
+                apiWrapper->getLastErrorMessage().toStdString().c_str());
     }
 }
 
@@ -309,42 +310,45 @@ void OneSevenLiveUserDialog::fetchUserInfo() {
     if (!apiWrapper || viewer.displayUser.userID.isEmpty()) {
         return;
     }
-    
+
     // Create a worker thread to fetch user info
     QThread* workerThread = new QThread();
-    
+
     // Get user ID and region from config
     std::string region;
     std::string language = GetCurrentLanguage();
     configManager->getConfigValue("Region", region);
-    
+
     if (region.empty()) {
         region = "TW";  // Default region
     }
-    
+
     QString userID = viewer.displayUser.userID;
-    
+
     // Use QPointer to safely access this object
     QPointer<OneSevenLiveUserDialog> safeThis = this;
-    
+
     // Connect worker thread to perform API call
     connect(workerThread, &QThread::started, [=]() {
         OneSevenLiveUserInfo userInfo;
         bool success = apiWrapper->GetUserInfo(userID.toStdString(), region, language, userInfo);
 
         // Post result back to main thread
-        QMetaObject::invokeMethod(safeThis, [=]() {
-            if (safeThis && success) {
-                safeThis->updateUserStats(userInfo);
-            }
-        }, Qt::QueuedConnection);
-        
+        QMetaObject::invokeMethod(
+            safeThis,
+            [=]() {
+                if (safeThis && success) {
+                    safeThis->updateUserStats(userInfo);
+                }
+            },
+            Qt::QueuedConnection);
+
         // Clean up thread
         workerThread->quit();
     });
-    
+
     connect(workerThread, &QThread::finished, workerThread, &QObject::deleteLater);
-    
+
     workerThread->start();
 }
 
@@ -359,7 +363,7 @@ void OneSevenLiveUserDialog::updateUserStats(const OneSevenLiveUserInfo& userInf
             return QString::number(number);
         }
     };
-    
+
     // Update UI labels with formatted numbers
     followersLabel->setText(formatNumber(userInfo.followerCount));
     followingLabel->setText(formatNumber(userInfo.followingCount));

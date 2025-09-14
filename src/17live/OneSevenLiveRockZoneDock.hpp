@@ -1,13 +1,13 @@
 #pragma once
 
 #include <QDockWidget>
+#include <QHash>
 #include <QLabel>
 #include <QListWidget>
+#include <QListWidgetItem>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTimer>
-#include <QHash>
-#include <QListWidgetItem>
 
 #include "OneSevenLiveUserDialog.hpp"
 #include "api/OneSevenLiveModels.hpp"
@@ -63,7 +63,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
 
     // Auto refresh timer
     QTimer* refreshTimer = nullptr;
-    
+
     // Cooldown timer for poke all button
     QTimer* cooldownTimer = nullptr;
     int cooldownSeconds = 0;

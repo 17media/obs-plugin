@@ -129,8 +129,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void onArmyOnlyCheckChanged(int state);  // Triggered when armyOnlyCheck state changes
     void onCustomEventToggleClicked();       // Custom event toggle button click event
     void onGroupCallHelpClicked();           // Party live help button click event
-    void onEventChanged(int index);       // Event change event handler
-    void onEventCooldownTimeout();        // Event cooldown timer timeout handler
+    void onEventChanged(int index);          // Event change event handler
+    void onEventCooldownTimeout();           // Event cooldown timer timeout handler
 
    private:
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);
@@ -160,12 +160,12 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QString currentInfoUuid = "";
     bool isLoading = false;  // Indicates whether loading is in progress
     OneSevenLiveStreamingStatus currentLiveStatus = OneSevenLiveStreamingStatus::NotStarted;
-    
+
     // Category change cooldown timer
     QTimer *eventCooldownTimer = nullptr;
-    int eventCooldownRemaining = 0;  // Remaining cooldown time in seconds
-    QString originalCategoryText = "";   // Original category text before cooldown
-    int previousEventIndex = -1;  // Store previous event index for confirmation dialog
+    int eventCooldownRemaining = 0;     // Remaining cooldown time in seconds
+    QString originalCategoryText = "";  // Original category text before cooldown
+    int previousEventIndex = -1;        // Store previous event index for confirmation dialog
 
    protected:
     void resizeEvent(QResizeEvent *event) override;

@@ -15,9 +15,8 @@
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "api/OneSevenLiveUtility.hpp"
-#include "utility/RemoteTextThread.hpp"
-
 #include "moc_OneSevenLiveRockViewerItem.cpp"
+#include "utility/RemoteTextThread.hpp"
 
 OneSevenLiveRockViewerItem::OneSevenLiveRockViewerItem(
     const OneSevenLiveRockZoneViewer &u, OneSevenLiveApiWrappers *apiWrapper_,
@@ -101,7 +100,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
     setLayout(rootLayout);
 }
 
-QLabel* OneSevenLiveRockViewerItem::setupAvatar() {
+QLabel *OneSevenLiveRockViewerItem::setupAvatar() {
     // Left: Avatar with overlay frame
     QLabel *avatarLabel = new QLabel(this);
     avatarLabel->setFixedSize(65, 67);  // avatar area 65x67
@@ -225,7 +224,7 @@ QLabel* OneSevenLiveRockViewerItem::setupAvatar() {
     return avatarLabel;
 }
 
-QHBoxLayout* OneSevenLiveRockViewerItem::setupNameRow() {
+QHBoxLayout *OneSevenLiveRockViewerItem::setupNameRow() {
     // 1) Username  Level badge
     QHBoxLayout *nameRow = new QHBoxLayout();
     nameRow->setContentsMargins(0, 0, 0, 0);
@@ -242,7 +241,7 @@ QHBoxLayout* OneSevenLiveRockViewerItem::setupNameRow() {
     usernameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     usernameLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     usernameLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    
+
     nameRow->addWidget(usernameLabel, 0, Qt::AlignLeft | Qt::AlignVCenter);
 
     // Replace level text badge with checking-level background image (if available)
@@ -261,11 +260,11 @@ QHBoxLayout* OneSevenLiveRockViewerItem::setupNameRow() {
             nameRow->addWidget(checkingLabel, 0, Qt::AlignVCenter);
         }
     }
-    
+
     return nameRow;
 }
 
-QHBoxLayout* OneSevenLiveRockViewerItem::setupBadgeRow() {
+QHBoxLayout *OneSevenLiveRockViewerItem::setupBadgeRow() {
     // 2) Badge list
     // Badge labels based on merged badgeTypes; skip if none or all empty
     QHBoxLayout *badgeRow = nullptr;
@@ -320,7 +319,7 @@ QHBoxLayout* OneSevenLiveRockViewerItem::setupBadgeRow() {
         badgeLayout->addWidget(rightImg);
         badgeRow->addWidget(badge, 0, Qt::AlignLeft);
     }
-    
+
     return badgeRow;
 }
 
@@ -331,15 +330,13 @@ void OneSevenLiveRockViewerItem::mousePressEvent(QMouseEvent *event) {
     QWidget::mousePressEvent(event);
 }
 
-void OneSevenLiveRockViewerItem::updateData(
-    const OneSevenLiveRockZoneViewer& user,
-    const OneSevenLiveArmyNameResponse& armyNameResponse)
-{
+void OneSevenLiveRockViewerItem::updateData(const OneSevenLiveRockZoneViewer &user,
+                                            const OneSevenLiveArmyNameResponse &armyNameResponse) {
     this->user = user;
     this->armyNameResponse = armyNameResponse;
 
     // TODO:
-    
+
     // this->updateGeometry();
     // this->repaint();
 }

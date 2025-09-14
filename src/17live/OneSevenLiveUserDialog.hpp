@@ -1,13 +1,13 @@
 #pragma once
 
 // Qt headers
+#include <QPointer>
+#include <QThread>
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QVBoxLayout>
-#include <QThread>
-#include <QPointer>
 
 #include "api/OneSevenLiveModels.hpp"
 

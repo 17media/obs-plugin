@@ -174,7 +174,8 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
     return true;
 }
 
-bool OneSevenLiveChangeEventRequestToJson(const OneSevenLiveChangeEventRequest &request, Json &json) {
+bool OneSevenLiveChangeEventRequestToJson(const OneSevenLiveChangeEventRequest &request,
+                                          Json &json) {
     json = Json::object{
         {"eventID", static_cast<int>(request.eventID)},
     };
@@ -1011,6 +1012,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         // Archive ID and game marquee settings
         roomInfo.archiveID = QString::fromStdString(json["archiveID"].string_value());
         roomInfo.hideGameMarquee = json["hideGameMarquee"].bool_value();
+        roomInfo.enableOBSGroupCall = json["enableOBSGroupCall"].bool_value();
 
         const auto &subtabsJson = json["subtabs"];
         if (subtabsJson.is_array()) {
@@ -1183,6 +1185,7 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, Json &json
         // Archive ID and game marquee settings
         jsonObject["archiveID"] = roomInfo.archiveID.toStdString();
         jsonObject["hideGameMarquee"] = roomInfo.hideGameMarquee;
+        jsonObject["enableOBSGroupCall"] = roomInfo.enableOBSGroupCall;
 
         Json::array subtabsArray;
         for (const auto &subtab : roomInfo.subtabs) {
@@ -1278,6 +1281,16 @@ bool JsonToOneSevenLiveRtmpRequest(const Json &json, OneSevenLiveRtmpRequest &re
     if (vliverInfoJson.is_object()) {
         request.vliverInfo.vliverModel = vliverInfoJson["vliverModel"].int_value();
     }
+    // armyOnly
+    const auto &armyOnlyJson = json["armyOnly"];
+    if (armyOnlyJson.is_object()) {
+        request.armyOnly.enable = armyOnlyJson["enable"].bool_value();
+        request.armyOnly.requiredArmyRank = armyOnlyJson["requiredArmyRank"].int_value();
+        request.armyOnly.showOnHotPage = armyOnlyJson["showOnHotPage"].bool_value();
+        request.armyOnly.armyOnlyPN = armyOnlyJson["armyOnlyPN"].bool_value();
+    }
+    // enableOBSGroupCall
+    request.enableOBSGroupCall = json["enableOBSGroupCall"].bool_value();
     return true;
 }
 
@@ -1619,7 +1632,7 @@ bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo
         userInfo.bio = QString::fromStdString(json["bio"].string_value());
         userInfo.picture = QString::fromStdString(json["picture"].string_value());
         userInfo.website = QString::fromStdString(json["website"].string_value());
-        
+
         // Numeric fields
         userInfo.followerCount = json["followerCount"].int_value();
         userInfo.followingCount = json["followingCount"].int_value();
@@ -1628,20 +1641,23 @@ bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo
         userInfo.isFollowing = json["isFollowing"].int_value();
         userInfo.isNotif = json["isNotif"].int_value();
         userInfo.isBlocked = json["isBlocked"].int_value();
-        
+
         // Timestamp fields
         userInfo.followTime = static_cast<qint64>(json["followTime"].number_value());
         userInfo.followRequestTime = static_cast<qint64>(json["followRequestTime"].number_value());
         userInfo.roomID = static_cast<qint64>(json["roomID"].number_value());
-        
+
         // Additional string fields
         userInfo.privacyMode = QString::fromStdString(json["privacyMode"].string_value());
-        userInfo.revenueShareIndicator = QString::fromStdString(json["revenueShareIndicator"].string_value());
+        userInfo.revenueShareIndicator =
+            QString::fromStdString(json["revenueShareIndicator"].string_value());
         userInfo.region = QString::fromStdString(json["region"].string_value());
         userInfo.lastLiveRegion = QString::fromStdString(json["lastLiveRegion"].string_value());
-        userInfo.extIDAppleTransfer = QString::fromStdString(json["extIDAppleTransfer"].string_value());
-        userInfo.commentShadowColor = QString::fromStdString(json["commentShadowColor"].string_value());
-        
+        userInfo.extIDAppleTransfer =
+            QString::fromStdString(json["extIDAppleTransfer"].string_value());
+        userInfo.commentShadowColor =
+            QString::fromStdString(json["commentShadowColor"].string_value());
+
         // Additional numeric fields
         userInfo.ballerLevel = json["ballerLevel"].int_value();
         userInfo.postCount = json["postCount"].int_value();
@@ -1655,18 +1671,19 @@ bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo
         userInfo.gloryroadMode = json["gloryroadMode"].int_value();
         userInfo.avatarOnboardingPhase = json["avatarOnboardingPhase"].int_value();
         userInfo.isEmailVerified = json["isEmailVerified"].int_value();
-        
+
         // Additional timestamp fields
         userInfo.lastLiveTimestamp = static_cast<qint64>(json["lastLiveTimestamp"].number_value());
-        userInfo.lastCreateLiveTimestamp = static_cast<qint64>(json["lastCreateLiveTimestamp"].number_value());
-        
+        userInfo.lastCreateLiveTimestamp =
+            static_cast<qint64>(json["lastCreateLiveTimestamp"].number_value());
+
         // Boolean fields
         userInfo.streamerRecapEnable = json["streamerRecapEnable"].bool_value();
         userInfo.newbieDisplayAllGiftTabsToast = json["newbieDisplayAllGiftTabsToast"].bool_value();
         userInfo.isUnderaged = json["isUnderaged"].bool_value();
         userInfo.isFreePrivateMsgEnabled = json["isFreePrivateMsgEnabled"].bool_value();
         userInfo.isVliverOnlyModeEnabled = json["isVliverOnlyModeEnabled"].bool_value();
-        
+
         // Array fields
         if (json["badgeInfo"].is_array()) {
             userInfo.badgeInfo.clear();
@@ -1674,28 +1691,28 @@ bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo
                 userInfo.badgeInfo.append(QString::fromStdString(item.string_value()));
             }
         }
-        
+
         if (json["loyaltyInfo"].is_array()) {
             userInfo.loyaltyInfo.clear();
             for (const auto &item : json["loyaltyInfo"].array_items()) {
                 userInfo.loyaltyInfo.append(QString::fromStdString(item.string_value()));
             }
         }
-        
+
         if (json["lastUsedHashtags"].is_array()) {
             userInfo.lastUsedHashtags.clear();
             for (const auto &item : json["lastUsedHashtags"].array_items()) {
                 userInfo.lastUsedHashtags.append(QString::fromStdString(item.string_value()));
             }
         }
-        
+
         if (json["levelBadges"].is_array()) {
             userInfo.levelBadges.clear();
             for (const auto &item : json["levelBadges"].array_items()) {
                 userInfo.levelBadges.append(QString::fromStdString(item.string_value()));
             }
         }
-        
+
         // QVariantMap field
         if (json["monthlyVIPBadges"].is_object()) {
             userInfo.monthlyVIPBadges.clear();
@@ -1703,7 +1720,8 @@ bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo
                 const std::string &key = item.first;
                 const Json &value = item.second;
                 if (value.is_string()) {
-                    userInfo.monthlyVIPBadges[QString::fromStdString(key)] = QString::fromStdString(value.string_value());
+                    userInfo.monthlyVIPBadges[QString::fromStdString(key)] =
+                        QString::fromStdString(value.string_value());
                 } else if (value.is_number()) {
                     userInfo.monthlyVIPBadges[QString::fromStdString(key)] = value.number_value();
                 } else if (value.is_bool()) {
@@ -1711,14 +1729,14 @@ bool JsonToOneSevenLiveUserInfo(const Json &json, OneSevenLiveUserInfo &userInfo
                 }
             }
         }
-        
+
         // OnliveInfo nested object
         OneSevenLiveOnliveInfo onliveInfo;
         if (json["onliveInfo"].is_object()) {
             onliveInfo.premiumType = json["onliveInfo"]["premiumType"].int_value();
         }
         userInfo.onliveInfo = onliveInfo;
-        
+
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "Error parsing JSON: %s", e.what());
         return false;

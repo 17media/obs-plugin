@@ -21,29 +21,30 @@
 #include <QSizePolicy>
 #include <QSpacerItem>
 #include <QStyle>
+#include <QStyleFactory>
 #include <QTabWidget>
+#include <QTextCharFormat>
 #include <QThread>
 #include <QToolTip>
 #include <QVBoxLayout>
-#include <QTextCharFormat>
-#include <QStyleFactory>
 
 // Project includes
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "utility/RemoteTextThread.hpp"
 
-static QString insertZeroWidthSpaces(const QString &s, int maxChunk = 10) {
+static QString insertZeroWidthSpaces(const QString& s, int maxChunk = 10) {
     QString out;
     int count = 0;
     for (QChar ch : s) {
         out.append(ch);
         ++count;
         if (count >= maxChunk) {
-            out.append(QChar(0x200B)); // zero-width space
+            out.append(QChar(0x200B));  // zero-width space
             count = 0;
         }
-        if (ch.isSpace()) count = 0;
+        if (ch.isSpace())
+            count = 0;
     }
     return out;
 }
@@ -165,7 +166,7 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     dateEdit->setMaximumDate(maxDate);
     dateEdit->setDisplayFormat("yyyy/MM/dd");
     dateEdit->setCalendarPopup(true);
-    
+
     // Get the calendar widget and configure it to disable dates beyond max range
     calendar = dateEdit->calendarWidget();
     if (calendar) {
@@ -216,7 +217,7 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
 
     // Create tab widget for gift categories
     giftTabWidget = new QTabWidget(this);
-    
+
     giftTabWidget->setFixedSize(430, 250);
     giftTabWidget->setStyleSheet(
         "QTabWidget::pane {"
@@ -238,7 +239,7 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
         "QTabBar::tab:hover {"
         "    background-color: #505050;"
         "}");
-    
+
 #ifdef Q_OS_MACOS
     // Enable tab scrolling arrows on macOS
     giftTabWidget->setUsesScrollButtons(true);
@@ -317,7 +318,7 @@ void OneSevenLiveCustomEventDialog::setupEventDescriptionSection() {
 
     descriptionEdit = new QTextEdit(this);
     descriptionEdit->setPlaceholderText(obs_module_text("CustomEvent.Description.Placeholder"));
-    
+
     // Create form layout for description section
     QFormLayout* descriptionFormLayout = new QFormLayout();
     descriptionFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);

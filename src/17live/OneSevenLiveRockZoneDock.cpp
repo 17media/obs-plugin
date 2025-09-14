@@ -30,26 +30,25 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
       configManager(configManager_) {
     setupUi();
     createConnections();
-    
+
     // Initialize auto refresh timer
     refreshTimer = new QTimer(this);
-    refreshTimer->setInterval(5000); // 5 seconds
+    refreshTimer->setInterval(5000);  // 5 seconds
     connect(refreshTimer, &QTimer::timeout, this, &OneSevenLiveRockZoneDock::refreshUserList);
-    
+
     // Initialize cooldown timer
     cooldownTimer = new QTimer(this);
-    cooldownTimer->setInterval(1000); // 1 second
-    connect(cooldownTimer, &QTimer::timeout, this, &OneSevenLiveRockZoneDock::onCooldownTimerTimeout);
-    
+    cooldownTimer->setInterval(1000);  // 1 second
+    connect(cooldownTimer, &QTimer::timeout, this,
+            &OneSevenLiveRockZoneDock::onCooldownTimerTimeout);
+
     refreshUserList();
     refreshTimer->start();
 
     connect(this, &QDockWidget::topLevelChanged, this,
-        &OneSevenLiveRockZoneDock::handleTopLevelChanged);
+            &OneSevenLiveRockZoneDock::handleTopLevelChanged);
 
-    connect(userList, &QObject::destroyed, this, [this]() {
-        userItemMap.clear(); 
-    });
+    connect(userList, &QObject::destroyed, this, [this]() { userItemMap.clear(); });
 }
 
 OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() {
@@ -164,10 +163,8 @@ void OneSevenLiveRockZoneDock::createConnections() {
 }
 
 void OneSevenLiveRockZoneDock::updateUserItem(
-    QListWidgetItem* item,
-    const OneSevenLiveRockZoneViewer& user,
-    const OneSevenLiveArmyNameResponse& armyNameResponse)
-{
+    QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user,
+    const OneSevenLiveArmyNameResponse& armyNameResponse) {
     OneSevenLiveRockViewerItem* w =
         qobject_cast<OneSevenLiveRockViewerItem*>(userList->itemWidget(item));
 
@@ -192,7 +189,8 @@ void OneSevenLiveRockZoneDock::updateUserItem(
 void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
 
-    if (!userList) return;
+    if (!userList)
+        return;
 
     for (int i = 0; i < userList->count(); ++i) {
         QListWidgetItem* item = userList->item(i);
@@ -220,7 +218,6 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         Json response;
         bool success = apiWrapper->GetRockViewers(roomID, response);
 
-        
         OneSevenLiveArmyNameResponse armyNameResponse;
 
         // Only call GetArmyName if not cached
@@ -244,7 +241,9 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     QHash<QString, int> idIndex;  // userID -> index in viewersList
                     viewersList.clear();
                     for (const auto& user : users) {
-                        const QString uid = user.displayUser.userID.isEmpty() ? user.giftRankOne.userID : user.displayUser.userID;
+                        const QString uid = user.displayUser.userID.isEmpty()
+                                                ? user.giftRankOne.userID
+                                                : user.displayUser.userID;
                         if (uid.isEmpty()) {
                             continue;
                         }
@@ -269,7 +268,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                                 base.displayUser.displayName = base.giftRankOne.displayName;
                                 base.displayUser.picture = base.giftRankOne.picture;
                             }
-                            
+
                             base.badgeTypes.clear();
                             base.badgeTypes.append(user.type);
                             viewersList.push_back(base);
@@ -303,10 +302,10 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     auto it = userItemMap.begin();
                     while (it != userItemMap.end()) {
                         if (!newUserIDs.contains(it.key())) {
-                            QListWidgetItem *item = it.value();
+                            QListWidgetItem* item = it.value();
                             int row = userList->row(item);
                             if (row >= 0) {
-                                QListWidgetItem *removed = userList->takeItem(row);
+                                QListWidgetItem* removed = userList->takeItem(row);
                                 delete removed;
                             }
                             it = userItemMap.erase(it);
@@ -316,7 +315,8 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     }
                 } else {
                     // Show error message
-                    obs_log(LOG_ERROR, "Failed to refresh rock viewers list: %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
+                    obs_log(LOG_ERROR, "Failed to refresh rock viewers list: %s",
+                            apiWrapper->getLastErrorMessage().toStdString().c_str());
                 }
             },
             Qt::QueuedConnection);
@@ -339,12 +339,12 @@ void OneSevenLiveRockZoneDock::onPokeAllClicked() {
     if (!apiWrapper) {
         return;
     }
-    
+
     // Check if button is already in cooldown
     if (!pokeAllButton->isEnabled()) {
         return;
     }
-    
+
     std::string roomID;
     configManager->getConfigValue("RoomID", roomID);
 
@@ -364,7 +364,8 @@ void OneSevenLiveRockZoneDock::onPokeAllClicked() {
         pokeAllButton->setText(QString("0:%1").arg(cooldownSeconds, 2, 10, QChar('0')));
         cooldownTimer->start();
     } else {
-        obs_log(LOG_WARNING, "PokeAll failed %s", apiWrapper->getLastErrorMessage().toStdString().c_str());
+        obs_log(LOG_WARNING, "PokeAll failed %s",
+                apiWrapper->getLastErrorMessage().toStdString().c_str());
     }
 }
 
@@ -406,7 +407,7 @@ void OneSevenLiveRockZoneDock::onUserItemClicked(QListWidgetItem* item) {
 
 void OneSevenLiveRockZoneDock::onCooldownTimerTimeout() {
     cooldownSeconds--;
-    
+
     if (cooldownSeconds <= 0) {
         // Cooldown finished
         cooldownTimer->stop();
