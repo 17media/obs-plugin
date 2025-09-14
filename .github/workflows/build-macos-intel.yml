@@ -24,7 +24,7 @@ on:
 jobs:
   build-mac-intel:
     name: Build macOS Intel
-    runs-on: macos-self-hosted
+    runs-on: macintel-self-hosted
     environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
     env:
       ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
