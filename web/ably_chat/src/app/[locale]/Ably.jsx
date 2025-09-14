@@ -327,6 +327,8 @@ export default function AblyComponent() {
             const decodeMessage = getAblyDecodeData(message);
             const streamerInfo = roomInfo.userInfo;
 
+            // console.log('new message:', decodeMessage.type, ' - content: ', decodeMessage);
+
             if (decodeMessage?.type === MsgType_COMMENT
                 || decodeMessage?.type === MsgType_JOIN_ROOM
             ) {
