@@ -7,10 +7,18 @@ on:
       - 'v*.*.*-stage'   # Stage builds (e.g., v1.0.0-stage)
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Build environment"
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - production
       version:
-        description: 'Version number for manual builds (e.g., 1.0.0)'
+        description: "Version number (e.g., 1.0.0)"
         required: false
-        default: '0.0.0'
+        default: "0.0.0"
         type: string
 
 env:
@@ -21,7 +29,11 @@ jobs:
   # Windows x64 build
   build-windows-x64:
     runs-on: windows-latest
-    environment: ${{ contains(github.ref, '-stage') && 'stage' || 'production' }}
+    environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+    env:
+      ONESEVENLIVE_API_URL: ${{ svars.ONESEVENLIVE_API_URL }}
+      VERSION: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) && github.ref_name || github.event.inputs.version || '0.0.0' }}
+      BUILD_ENV: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
     
     steps:
       - name: Checkout
@@ -30,14 +42,12 @@ jobs:
       - name: Debug Environment Variables
         shell: pwsh
         run: |
-          Write-Host "Current environment: $env:BUILD_ENV"
+          Write-Host "Current environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}"
           Write-Host "ONESEVENLIVE_API_URL: $env:ONESEVENLIVE_API_URL"
           Write-Host "BUILD_ENV: $env:BUILD_ENV"
           Write-Host "VERSION: $env:VERSION"
-        env:
-          ONESEVENLIVE_API_URL: ${{ secrets.ONESEVENLIVE_API_URL }}
-          BUILD_ENV: ${{ vars.BUILD_ENV }}
-          VERSION: ${{ github.event.inputs.version || '0.0.0' }}
+          Write-Host "Tag name: ${{ github.ref_name }}"
+          Write-Host "Manual version input: ${{ github.event.inputs.version }}"
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -80,28 +90,26 @@ jobs:
           npm ci
           npm run build
       
-      - name: Set Environment and Version
+      - name: Set ENV and Version
         shell: pwsh
         run: |
-          # Extract version from tag or use input/default
-          if ($env:GITHUB_REF -like "refs/tags/*") {
-            $version = $env:GITHUB_REF -replace '^refs/tags/v', ''
-          } else {
-            $version = if ($env:VERSION) { $env:VERSION } else { '0.0.0' }
-          }
+          # Remove v prefix from VERSION if present
+          $versionNumber = $env:VERSION -replace '^v', ''
+          echo "VERSION=$versionNumber" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           
-          # Set environment variables for subsequent steps
-          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Using version: $version"
-        env:
-          VERSION: ${{ github.event.inputs.version || '0.0.0' }}
+          # Set package name suffix
+          if ($env:BUILD_ENV -eq "production") {
+            echo "PKG_SUFFIX=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          } else {
+            echo "PKG_SUFFIX=-stage" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
       
       - name: CMake Configure
         shell: pwsh
         run: |
           cmake --preset windows-x64 -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
         env:
-          ONESEVENLIVE_API_URL: ${{ secrets.ONESEVENLIVE_API_URL }}
+          ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
       
       - name: Build Project
         shell: pwsh
@@ -132,7 +140,7 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:VERSION
-          $installerName = "17liveOBSPlugin-Windows-x64-v$version.exe"
+          $installerName = "17liveOBSPlugin-Windows-x64-v$version$env:PKG_SUFFIX.exe"
           
           $nsisScript = @"
           !define PRODUCT_NAME "17Live OBS Plugin"

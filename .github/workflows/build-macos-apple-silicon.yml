@@ -1,4 +1,4 @@
-name: Build OBS 17Live Plugin for macOS Apple Silicon
+name: Build OBS 17Live Plugin - macOS Apple Silicon
 
 on:
   push:
