@@ -5,7 +5,7 @@ export async function getGifts() {
     if (process.env.NODE_ENV === 'development') {
         try {
             // In development environment, read gift information from local JSON file
-            const response = await fetch('/get_gifts_response.json');
+            const response = await fetch('/mock/get_gifts_response.json');
             if (!response.ok) {
                 throw new Error(`Failed to fetch gifts: ${response.status}`);
             }
