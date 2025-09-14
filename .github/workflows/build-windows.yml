@@ -95,6 +95,9 @@ jobs:
         run: |
           # Remove v prefix from VERSION if present
           $versionNumber = $env:VERSION -replace '^v', ''
+          
+          # Remove -stage suffix from version number if present
+          $versionNumber = $versionNumber -replace '-stage$', ''
           echo "VERSION=$versionNumber" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           
           # Set package name suffix
