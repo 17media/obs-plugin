@@ -128,3 +128,11 @@ chat_poke_back.json
 .vs/
 bin/
 obj/
+
+temp/
+
+# python 
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
