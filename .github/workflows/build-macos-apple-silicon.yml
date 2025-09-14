@@ -1,4 +1,4 @@
-name: Build OBS 17Live Plugin
+name: Build OBS 17Live Plugin for macOS Apple Silicon
 
 on:
   push:
@@ -55,16 +55,16 @@ jobs:
 
       - name: Set ENV and Version
         run: |
-          VERSION=${GITHUB_REF##*/}      # 从 tag 取版本
-          VERSION=${VERSION#v}           # 去掉 v
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          # 从环境变量 VERSION 中去掉 v 前缀
+          VERSION_NUMBER=${VERSION#v}
+          echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
 
-            # 设置包名后缀
-            if [ "$BUILD_ENV" == "production" ]; then
-              echo "PKG_SUFFIX=" >> $GITHUB_ENV
-            else
-              echo "PKG_SUFFIX=-stage" >> $GITHUB_ENV
-            fi
+          # 设置包名后缀
+          if [ "$BUILD_ENV" == "production" ]; then
+            echo "PKG_SUFFIX=" >> $GITHUB_ENV
+          else
+            echo "PKG_SUFFIX=-stage" >> $GITHUB_ENV
+          fi
 
       - name: CMake Configure
         run: |
