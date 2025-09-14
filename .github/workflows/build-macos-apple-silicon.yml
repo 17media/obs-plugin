@@ -77,7 +77,7 @@ jobs:
 
       - name: Create pkg
         run: |
-          PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}${PKG_SUFFIX}.pkg"
+          PKG_NAME="17liveOBSPlugin-macAppleSilicon-${VERSION}${PKG_SUFFIX}.pkg"
           sudo pkgbuild --root build_macos/Release \
                         --identifier com.17live.obsplugin \
                         --version "$VERSION" \
