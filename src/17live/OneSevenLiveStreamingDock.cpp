@@ -31,9 +31,10 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
     // Initialize category cooldown timer
     eventCooldownTimer = new QTimer(this);
     eventCooldownTimer->setSingleShot(false);
-    eventCooldownTimer->setInterval(1000); // 1 second interval
-    connect(eventCooldownTimer, &QTimer::timeout, this, &OneSevenLiveStreamingDock::onEventCooldownTimeout);
-    
+    eventCooldownTimer->setInterval(1000);  // 1 second interval
+    connect(eventCooldownTimer, &QTimer::timeout, this,
+            &OneSevenLiveStreamingDock::onEventCooldownTimeout);
+
     setupUi();
     createConnections();
 }
@@ -1252,7 +1253,7 @@ void OneSevenLiveStreamingDock::saveWhipStreamingSettings(const std::string &liv
     obs_data_release(settings);
 
     obs_frontend_save_streaming_service();
-    
+
     obs_log(LOG_INFO, "WHIP service configured successfully");
 }
 
@@ -1410,7 +1411,7 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     // Basic info
     setEnabledSafe(titleEdit, enable);
     setEnabledSafe(categoryCombo, enable);
-    
+
     // Special handling for eventCombo during live streaming
     if (isStreaming) {
         // During live streaming, eventCombo should be enabled unless cooldown is active
@@ -1520,12 +1521,12 @@ void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event) {
 
 void OneSevenLiveStreamingDock::onEventChanged(int index) {
     // Only handle event changes during live streaming
-    if (currentLiveStatus != OneSevenLiveStreamingStatus::Live && 
+    if (currentLiveStatus != OneSevenLiveStreamingStatus::Live &&
         currentLiveStatus != OneSevenLiveStreamingStatus::Streaming) {
         previousEventIndex = index;
         return;
     }
-    
+
     // If cooldown is active, ignore the change
     if (eventCooldownTimer && eventCooldownTimer->isActive()) {
         obs_log(LOG_INFO, "Event change ignored due to cooldown");
@@ -1537,23 +1538,23 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
         }
         return;
     }
-    
+
     // Show confirmation dialog
     QString eventName = eventCombo->itemText(index);
     QString title = obs_module_text("Live.EventChange.Confirm.Title");
     QString message = QString(obs_module_text("Live.EventChange.Confirm.Message")).arg(eventName);
     QString cancelText = obs_module_text("Live.EventChange.Confirm.Cancel");
     QString confirmText = obs_module_text("Live.EventChange.Confirm.Confirm");
-    
+
     QMessageBox msgBox(this);
     msgBox.setWindowTitle(title);
     msgBox.setText(message);
     msgBox.addButton(cancelText, QMessageBox::RejectRole);
     QPushButton *confirmButton = msgBox.addButton(confirmText, QMessageBox::AcceptRole);
     msgBox.setDefaultButton(confirmButton);
-    
+
     int result = msgBox.exec();
-    
+
     // If user cancels, restore previous selection
     if (result == QMessageBox::Rejected) {
         if (previousEventIndex >= 0 && previousEventIndex < eventCombo->count()) {
@@ -1563,73 +1564,73 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
         }
         return;
     }
-    
+
     // User confirmed, proceed with event change
     previousEventIndex = index;
-    
+
     // Get current event data
     QVariant eventIDVariant = eventCombo->itemData(index);
     if (!eventIDVariant.isValid()) {
         obs_log(LOG_WARNING, "No event ID found for event index %d", index);
         return;
     }
-    
+
     qint64 eventID = eventIDVariant.toLongLong();
     if (eventID == 0) {
         obs_log(LOG_WARNING, "Invalid event ID for event index %d", index);
         return;
     }
-    
+
     // Call ChangeEvent API
     OneSevenLiveChangeEventRequest request;
     request.eventID = eventID;
-    
+
     bool success = apiWrapper->ChangeEvent(request);
     if (success) {
         obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
-        
+
         // Start cooldown timer (5 minutes = 300 seconds)
         eventCooldownRemaining = 300;
         originalCategoryText = eventCombo->currentText();
         eventCooldownTimer->start();
-        
+
         // Disable event combo during cooldown
         eventCombo->setEnabled(false);
-        
+
         // Update hint label to show cooldown
-        onEventCooldownTimeout(); // Update display immediately
+        onEventCooldownTimeout();  // Update display immediately
     } else {
         obs_log(LOG_ERROR, "Failed to change event to: %lld", eventID);
-        QMessageBox::warning(this, obs_module_text("Live.Common.Notice"), 
-                           obs_module_text("Live.ChangeEvent.Failed"));
+        QMessageBox::warning(this, obs_module_text("Live.Common.Notice"),
+                             obs_module_text("Live.ChangeEvent.Failed"));
     }
 }
 
 void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
     if (eventCooldownRemaining > 0) {
         eventCooldownRemaining--;
-        
+
         // Update hint label to show remaining time
         int minutes = eventCooldownRemaining / 60;
         int seconds = eventCooldownRemaining % 60;
         QString cooldownText = QString(obs_module_text("Live.EventChange.CoolDown"))
-            .arg(minutes, 2, 10, QChar('0'))
-            .arg(seconds, 2, 10, QChar('0'));
-        
+                                   .arg(minutes, 2, 10, QChar('0'))
+                                   .arg(seconds, 2, 10, QChar('0'));
+
         hintLabel->setText(cooldownText);
         hintLabel->setStyleSheet("color: orange; font-size: 12px;");
     } else {
         // Cooldown finished
         eventCooldownTimer->stop();
-        
+
         // Restore original hint text
         hintLabel->setText(obs_module_text("Live.Settings.Event.Tip"));
         hintLabel->setStyleSheet("color: gray; font-size: 12px;");
-        
+
         // Re-enable event combo based on current live status
         // Call updateLiveStatus to ensure consistent state handling across all UI elements
         updateLiveStatus(currentLiveStatus);
-        
+
         obs_log(LOG_INFO, "Event change cooldown finished");
     }
 }

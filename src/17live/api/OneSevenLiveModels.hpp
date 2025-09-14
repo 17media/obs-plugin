@@ -782,4 +782,5 @@ struct OneSevenLiveChangeEventRequest {
 };
 
 // Function declarations for change event JSON conversion
-bool OneSevenLiveChangeEventRequestToJson(const OneSevenLiveChangeEventRequest &request, Json &json);
+bool OneSevenLiveChangeEventRequestToJson(const OneSevenLiveChangeEventRequest &request,
+                                          Json &json);

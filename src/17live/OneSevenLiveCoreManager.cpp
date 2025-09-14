@@ -259,14 +259,13 @@ bool OneSevenLiveCoreManager::initialize() {
 
         // Apply the saved dock layout
         mainWindow->restoreState(dockState);
-        
+
         // Update menu visibility status after restoration
         if (menuManager) {
-            menuManager->updateDockVisibility(
-                chatRoomDock && chatRoomDock->isVisible(),
-                streamingDock && streamingDock->isVisible(),
-                liveListDock && liveListDock->isVisible(),
-                rockZoneDock && rockZoneDock->isVisible());
+            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+                                              streamingDock && streamingDock->isVisible(),
+                                              liveListDock && liveListDock->isVisible(),
+                                              rockZoneDock && rockZoneDock->isVisible());
         }
     }
 
@@ -899,7 +898,7 @@ void OneSevenLiveCoreManager::loadGifts() {
             if (success) {
                 configManager->saveGifts(apiResult);
                 obs_log(LOG_INFO, "Gifts loaded and saved successfully");
-                
+
                 // Reload chat room dock to support new gifts
                 if (chatRoomDock && chatRoomDock->isVisible() && cefView) {
                     obs_log(LOG_INFO, "Reloading chat room to support new gifts");

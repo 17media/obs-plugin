@@ -75,7 +75,8 @@ const string ONESEVENLIVE_POKE_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/pok
 
 const string ONESEVENLIVE_POKE_ALL_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/pokes/pokeAll";
 
-const string ONESEVENLIVE_CHANGE_EVENT_URL = string(ONESEVENLIVE_API_URL) + "/api/v1/liveStreams/event";
+const string ONESEVENLIVE_CHANGE_EVENT_URL =
+    string(ONESEVENLIVE_API_URL) + "/api/v1/liveStreams/event";
 
 OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
     currentOS = GetCurrentOS();
