@@ -57,6 +57,9 @@ jobs:
         run: |
           # Remove v prefix from VERSION if present
           VERSION_NUMBER=${VERSION#v}
+          
+          # Remove -stage suffix from version number if present
+          VERSION_NUMBER=${VERSION_NUMBER%-stage}
           echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
           
           # Set package name suffix
