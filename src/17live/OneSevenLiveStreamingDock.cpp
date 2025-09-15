@@ -1676,7 +1676,7 @@ bool OneSevenLiveStreamingDock::showAutoCloseConfirmation(const QString &message
     
     msgBox.setText(message);
     
-    QPushButton *confirmButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Confirm"), QMessageBox::AcceptRole);
+    msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Confirm"), QMessageBox::AcceptRole);
     QPushButton *cancelButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Cancel"), QMessageBox::RejectRole);
     
     msgBox.setDefaultButton(cancelButton); // Default to cancel to avoid accidental operations
