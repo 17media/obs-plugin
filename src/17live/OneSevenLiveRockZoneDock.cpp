@@ -379,6 +379,11 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
 
                     // --- Incremental Update Section ---
                     QSet<QString> newUserIDs;
+
+                    // Limit to first 50 viewers to improve performance
+                    if (sortedViewersList.size() > 50) {
+                        sortedViewersList = sortedViewersList.mid(0, 50);
+                    }
                     
                     // First pass: update existing items and create new ones
                     for (int i = 0; i < sortedViewersList.size(); ++i) {
