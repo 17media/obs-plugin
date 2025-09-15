@@ -131,6 +131,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void onGroupCallHelpClicked();           // Party live help button click event
     void onEventChanged(int index);          // Event change event handler
     void onEventCooldownTimeout();           // Event cooldown timer timeout handler
+    void startEventCooldown();               // Start event cooldown timer
 
    private:
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);

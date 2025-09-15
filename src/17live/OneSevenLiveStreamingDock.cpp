@@ -1148,6 +1148,11 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID,
     updateLiveStatus(OneSevenLiveStreamingStatus::Streaming);
     emit streamStatusUpdated(OneSevenLiveStreamingStatus::Streaming);
 
+    // Start event cooldown after successful live creation
+    startEventCooldown();
+
+    
+
     // Ask whether to start streaming simultaneously
     QMessageBox msgBox;
     msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
@@ -1623,21 +1628,26 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
     if (success) {
         obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
 
-        // Start cooldown timer (5 minutes = 300 seconds)
-        eventCooldownRemaining = 300;
-        originalCategoryText = eventCombo->currentText();
-        eventCooldownTimer->start();
-
-        // Disable event combo during cooldown
-        eventCombo->setEnabled(false);
-
-        // Update hint label to show cooldown
-        onEventCooldownTimeout();  // Update display immediately
+        // Start event cooldown
+        startEventCooldown();
     } else {
         obs_log(LOG_ERROR, "Failed to change event to: %lld", eventID);
         QMessageBox::warning(this, obs_module_text("Live.Common.Notice"),
                              obs_module_text("Live.ChangeEvent.Failed"));
     }
+}
+
+void OneSevenLiveStreamingDock::startEventCooldown() {
+    // Start cooldown timer (5 minutes = 300 seconds)
+    eventCooldownRemaining = 300;
+    originalCategoryText = eventCombo->currentText();
+    eventCooldownTimer->start();
+
+    // Disable event combo during cooldown
+    eventCombo->setEnabled(false);
+
+    // Update hint label to show cooldown
+    onEventCooldownTimeout();  // Update display immediately
 }
 
 void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
