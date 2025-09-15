@@ -133,12 +133,12 @@ jobs:
       
       # Store artifacts
       - store_artifacts:
-          path: ~/project/17liveOBSPlugin-macAppleSilicon-v*.pkg
+          path: 17liveOBSPlugin-macAppleSilicon-v*.pkg
           destination: packages
       
       # Persist package for potential deployment
       - persist_to_workspace:
-          root: ~/project
+          root: .
           paths:
             - "17liveOBSPlugin-macAppleSilicon-v*.pkg"
 
@@ -214,6 +214,11 @@ jobs:
             
             # Set environment variables for subsequent steps
             echo "VERSION=$version" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            # Also set as machine-level environment variable for PowerShell sessions
+            [Environment]::SetEnvironmentVariable("VERSION", $version, "Machine")
+            # Set for current session
+            $env:VERSION = $version
+            Write-Host "Set VERSION to: $version"
       
       # Configure CMake
       - run:
@@ -250,8 +255,16 @@ jobs:
           name: Create NSIS Installer Script
           shell: powershell
           command: |
+            # Debug: Check if VERSION is available
+            Write-Host "Current VERSION environment variable: $env:VERSION"
             $version = $env:VERSION
+            if (-not $version) {
+              Write-Host "VERSION not found in environment, using default 0.0.0"
+              $version = "0.0.0"
+            }
+            Write-Host "Using version: $version"
             $installerName = "17liveOBSPlugin-Windows-x64-v$version.exe"
+            Write-Host "Installer name will be: $installerName"
             
             $nsisScript = @"
             !define PRODUCT_NAME "17Live OBS Plugin"
@@ -346,6 +359,10 @@ jobs:
             
             $nsisScript | Out-File -FilePath "installer.nsi" -Encoding utf8
             echo "INSTALLER_NAME=$installerName" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            # Also set as environment variable for current and subsequent sessions
+            [Environment]::SetEnvironmentVariable("INSTALLER_NAME", $installerName, "Machine")
+            $env:INSTALLER_NAME = $installerName
+            Write-Host "Set INSTALLER_NAME to: $installerName"
       
       # Build NSIS installer
       - run:
@@ -375,7 +392,17 @@ jobs:
           command: |
             if ($env:WINDOWS_CERTIFICATE_BASE64 -and $env:WINDOWS_CERTIFICATE_PASSWORD) {
               Write-Host "Signing installer..."
+              # Debug: Check installer name
+              Write-Host "INSTALLER_NAME from env: $env:INSTALLER_NAME"
               $installerName = $env:INSTALLER_NAME
+              
+              # Fallback: reconstruct installer name if not available
+              if (-not $installerName) {
+                $version = if ($env:VERSION) { $env:VERSION } else { "0.0.0" }
+                $installerName = "17liveOBSPlugin-Windows-x64-v$version.exe"
+                Write-Host "Reconstructed installer name: $installerName"
+              }
+              Write-Host "Using installer name: $installerName"
               
               # Use signtool to sign the installer
               $timestampUrl = if ($env:WINDOWS_TIMESTAMP_URL) { $env:WINDOWS_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
@@ -438,7 +465,7 @@ workflows:
               ignore: /.*/
           context:
             - macos-signing
-            - build-obsplugin-env-stag
+            - build-obsplugin-env-stage
       - build-windows-x64:
           filters:
             tags:
@@ -447,7 +474,7 @@ workflows:
               ignore: /.*/
           context:
             - windows-signing
-            - build-obsplugin-env-stag
+            - build-obsplugin-env-stage
   
   # Manual build workflow for testing
   manual-build:
@@ -459,10 +486,10 @@ workflows:
             - hold
           context:
             - macos-signing
-            - build-obsplugin-env-stags
+            - build-obsplugin-env-stage
       - build-windows-x64:
           requires:
             - hold
           context:
             - windows-signing
-            - build-obsplugin-env-stag
+            - build-obsplugin-env-stage
