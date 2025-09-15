@@ -50,10 +50,10 @@ void OneSevenLiveRockViewerItem::setupUi() {
     rootLayout->setAlignment(Qt::AlignLeft);
 
     QWidget *card = new QWidget(this);
-    card->setFixedSize(350, 80);
+    card->setFixedSize(300, 80);
     QHBoxLayout *mainLayout = new QHBoxLayout(card);
     mainLayout->setContentsMargins(0, 0, 0, 0);  // item padding ~10
-    mainLayout->setSpacing(10);
+    mainLayout->setSpacing(5);
     mainLayout->setAlignment(Qt::AlignLeft);
 
     // Make the whole item look clickable
@@ -61,13 +61,13 @@ void OneSevenLiveRockViewerItem::setupUi() {
 
     // Setup avatar area
     QLabel *avatarLabel = setupAvatar();
-    mainLayout->addWidget(avatarLabel);
+    mainLayout->addWidget(avatarLabel, 0, Qt::AlignVCenter);
 
     // Right side: 3 vertical sections
     QVBoxLayout *rightLayout = new QVBoxLayout();
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-    rightLayout->setSpacing(4);
-    rightLayout->setAlignment(Qt::AlignLeft);  // center content in right column
+    rightLayout->setContentsMargins(0, 5, 0, 5);
+    rightLayout->setSpacing(4);  // reduce spacing between components
+    rightLayout->setAlignment(Qt::AlignTop);  // align content to top
 
     // Setup name row
     QHBoxLayout *nameRow = setupNameRow();
@@ -78,6 +78,9 @@ void OneSevenLiveRockViewerItem::setupUi() {
     if (badgeRow) {
         rightLayout->addLayout(badgeRow);
     }
+
+    // Add stretch to push all components to the top
+    // rightLayout->addStretch();
 
     // 3) Invested points
     // {
@@ -103,7 +106,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
 QLabel *OneSevenLiveRockViewerItem::setupAvatar() {
     // Left: Avatar with overlay frame
     QLabel *avatarLabel = new QLabel(this);
-    avatarLabel->setFixedSize(65, 67);  // avatar area 65x67
+    avatarLabel->setFixedSize(55, 57);  // avatar area 55x57
     avatarLabel->setStyleSheet("QLabel { background-color: transparent; }");
     // Forward clicks to parent widget so any click inside the item triggers
     avatarLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
