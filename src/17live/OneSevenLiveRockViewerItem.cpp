@@ -323,7 +323,7 @@ void OneSevenLiveRockViewerItem::mousePressEvent(QMouseEvent *event) {
 }
 
 QHBoxLayout *OneSevenLiveRockViewerItem::setupPointsRow() {
-    int points = user.sentPoint; // sent points
+    int points = user.userAttr.sentPoint; // sent points
     
     // Create horizontal layout for icon and points
     QHBoxLayout *pointsLayout = new QHBoxLayout();
