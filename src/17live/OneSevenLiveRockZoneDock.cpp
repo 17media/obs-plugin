@@ -222,7 +222,7 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
 static void mergeMockUsers(Json& originUsers, Json& mockUsers) { 
     // Read mock users from local json file and merge with original users
     do {
-        QFile file("/Users/zhuyu/workspace/mk/17live/dev/17live_dev/mock/test_100_viewers.json");
+        QFile file("/Users/zhuyu/workspace/mk/17live/dev/17live_dev/mock/test_viewers.json");
         if (!file.exists()) {
             mockUsers = originUsers; // no mock data, return original
             break;
