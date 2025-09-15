@@ -76,7 +76,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
     // Create hint bar
     {
         QHBoxLayout* hintLayout = new QHBoxLayout();
-        hintLayout->setContentsMargins(0, 40, 0, 20);
+        hintLayout->setContentsMargins(0, 10, 0, 10);
         hintLayout->setSpacing(8);
         hintLayout->setAlignment(Qt::AlignHCenter);
 
@@ -143,11 +143,18 @@ void OneSevenLiveRockZoneDock::setupUi() {
         "    background-color: #808080;"
         "    color: #C0C0C0;"
         "}");
-    pokeAllButton->setFixedWidth(250);
+    pokeAllButton->setMaximumWidth(250);
+    pokeAllButton->setMinimumWidth(150);
+    pokeAllButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     mainLayout->addWidget(pokeAllButton, 0, Qt::AlignHCenter);
 
     // Save original button text
     originalButtonText = pokeAllButton->text();
+
+    // Set dock size constraints to allow width adjustment with maximum width of 450
+    setMaximumWidth(450);
+    setMinimumWidth(380);
+    container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     setWidget(container);
 }

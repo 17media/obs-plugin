@@ -55,8 +55,9 @@ OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(
     : QDialog(parent), apiWrapper(apiWrapper_), configManager(configManager_) {
     setupUi();
     setWindowTitle(obs_module_text("CustomEvent.Dialog.Title"));
-    setFixedWidth(450);
-    // setFixedSize(450, 700);
+    setMinimumSize(450, 600);
+    setMaximumWidth(600);
+    resize(450, 600);
     // setModal(false);  // Set to non-modal
 
     // Ensure the dialog is properly initialized and visible
@@ -141,7 +142,7 @@ void OneSevenLiveCustomEventDialog::setupEventTitleSection() {
     titleFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
     // Set label left alignment
     titleFormLayout->setLabelAlignment(Qt::AlignLeft);
-    // Set field growth policy
+    // Set field growth policy to allow controls to extend with dialog width
     titleFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 
     titleFormLayout->addRow(titleLabel, eventTitleEdit);
@@ -192,7 +193,7 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     dateFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
     // Set label left alignment
     dateFormLayout->setLabelAlignment(Qt::AlignLeft);
-    // Set field growth policy
+    // Set field growth policy to allow controls to extend with dialog width
     dateFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     dateFormLayout->addRow(dateLabel, dateEdit);
 
@@ -218,7 +219,9 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
     // Create tab widget for gift categories
     giftTabWidget = new QTabWidget(this);
 
-    giftTabWidget->setFixedSize(430, 250);
+    giftTabWidget->setMinimumSize(430, 250);
+    giftTabWidget->setMaximumWidth(580);
+    giftTabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     giftTabWidget->setStyleSheet(
         "QTabWidget::pane {"
         "    border: 1px solid #555555;"
@@ -257,7 +260,7 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
     giftsFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
     // Set label left alignment
     giftsFormLayout->setLabelAlignment(Qt::AlignLeft);
-    // Set field growth policy
+    // Set field growth policy to allow controls to extend with dialog width
     giftsFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 
     giftsFormLayout->addRow(giftsLabel, selectedGiftsEdit);
@@ -282,7 +285,7 @@ void OneSevenLiveCustomEventDialog::setupEventTargetsSection() {
     dailyTargetFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
     // Set label left alignment
     dailyTargetFormLayout->setLabelAlignment(Qt::AlignLeft);
-    // Set field growth policy
+    // Set field growth policy to allow controls to extend with dialog width
     dailyTargetFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     dailyTargetFormLayout->addRow(dailyTargetLabel, dailyTargetEdit);
 
@@ -301,7 +304,7 @@ void OneSevenLiveCustomEventDialog::setupEventTargetsSection() {
     totalTargetFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
     // Set label left alignment
     totalTargetFormLayout->setLabelAlignment(Qt::AlignLeft);
-    // Set field growth policy
+    // Set field growth policy to allow controls to extend with dialog width
     totalTargetFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     totalTargetFormLayout->addRow(totalTargetLabel, totalTargetEdit);
 
@@ -324,7 +327,7 @@ void OneSevenLiveCustomEventDialog::setupEventDescriptionSection() {
     descriptionFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
     // Set label left alignment
     descriptionFormLayout->setLabelAlignment(Qt::AlignLeft);
-    // Set field growth policy
+    // Set field growth policy to allow controls to extend with dialog width
     descriptionFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     descriptionFormLayout->addRow(descriptionLabel, descriptionEdit);
 

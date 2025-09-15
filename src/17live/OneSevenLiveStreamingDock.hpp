@@ -33,7 +33,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void editLiveWithInfo(const OneSevenLiveStreamInfo &info);
     void loadRoomInfo(qint64 roomID);
 
-    void closeLive(const std::string &currUserID, const std::string &currLiveStreamID);
+    void closeLive(const std::string &currUserID, const std::string &currLiveStreamID, bool isAutoClose = false);
 
    private:
     void setupUi();
@@ -131,6 +131,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void onGroupCallHelpClicked();           // Party live help button click event
     void onEventChanged(int index);          // Event change event handler
     void onEventCooldownTimeout();           // Event cooldown timer timeout handler
+    void startEventCooldown();               // Start event cooldown timer
 
    private:
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);
@@ -148,6 +149,9 @@ class OneSevenLiveStreamingDock : public QDockWidget {
                    bool autoRecording, bool skip = false);
 
     void syncWithWeb(OneSevenLiveStreamingStatus status);
+    
+    // Auto close confirmation dialog
+    bool showAutoCloseConfirmation(const QString &reason);
 
     // Tag-related functions
     void addTag(const QString &tag);

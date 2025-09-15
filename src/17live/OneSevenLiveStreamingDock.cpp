@@ -2,6 +2,9 @@
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QDateTime>
 
 #include <QFormLayout>
 #include <QGroupBox>
@@ -1031,7 +1034,7 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
     currentInfoUuid = info.streamUuid;
 }
 
-void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request) {
+void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request_) {
     obs_log(LOG_INFO, "createLive");
 
     // Check feature 207 to control createLiveButton state
@@ -1045,10 +1048,34 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
             return;
         }
     }
+    
+    OneSevenLiveRtmpRequest request = request_;
+
+    if (request.caption.isEmpty()) {
+        // Show dialog to prompt user to enter title
+        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+                             obs_module_text("Live.Settings.Save.Title.Empty"));
+        return;
+    }
+    
+    if (request.subtabID.isEmpty()) {
+        // Show dialog to prompt user to select category
+        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+                             obs_module_text("Live.Settings.Save.Category.Empty"));
+        return;
+    }
+
+    // Add current userID and streamerType to request
+    request.userID = roomInfo.userID;
+    request.streamerType = roomInfo.streamerType;
 
     OneSevenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {
-        obs_log(LOG_ERROR, "Failed to create stream");
+        QString errorMsg = apiWrapper->getLastErrorMessage();
+        obs_log(LOG_ERROR, "Failed to create stream. UserID: %s, Error: %s, Timestamp: %lld", 
+               request.userID.toStdString().c_str(), 
+               errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+               QDateTime::currentMSecsSinceEpoch());
         return;
     }
 
@@ -1105,20 +1132,32 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID,
 
     // Start live stream
     if (!skip && !apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
-        obs_log(LOG_ERROR, "Failed to start stream");
+        QString errorMsg = apiWrapper->getLastErrorMessage();
+        obs_log(LOG_ERROR, "Failed to start stream. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: %lld", 
+               response.liveStreamID.toStdString().c_str(), userID.c_str(),
+               errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+               QDateTime::currentMSecsSinceEpoch());
         return;
     }
 
     // archive
     if (!skip && autoRecording) {
         if (!apiWrapper->EnableStreamArchive(response.liveStreamID.toStdString(), 1)) {
-            obs_log(LOG_ERROR, "Failed to enable archive %s",
-                    apiWrapper->getLastErrorMessage().toStdString().c_str());
+            QString errorMsg = apiWrapper->getLastErrorMessage();
+            obs_log(LOG_ERROR, "Failed to enable archive. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: %lld",
+                   response.liveStreamID.toStdString().c_str(), userID.c_str(),
+                   errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                   QDateTime::currentMSecsSinceEpoch());
         }
     }
 
     updateLiveStatus(OneSevenLiveStreamingStatus::Streaming);
     emit streamStatusUpdated(OneSevenLiveStreamingStatus::Streaming);
+
+    // Start event cooldown after successful live creation
+    startEventCooldown();
+
+    
 
     // Ask whether to start streaming simultaneously
     QMessageBox msgBox;
@@ -1169,9 +1208,24 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
 }
 
 void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
-                                          const std::string &currLiveStreamID) {
+                                          const std::string &currLiveStreamID, bool isAutoClose) {
+    // If auto-close, show confirmation dialog
+    if (isAutoClose) {
+        QString message = QString(obs_module_text("Live.Settings.CloseLive.Auto.Message"))
+                        .arg(3);  // MAX_CONSECUTIVE_FAILURES
+        
+        if (!showAutoCloseConfirmation(message)) {
+            obs_log(LOG_INFO, "User cancelled auto-close live stream");
+            return;  // User cancelled auto-close
+        }
+        
+        obs_log(LOG_INFO, "User confirmed auto-close live stream due to stream check failures");
+    }
+    
     // Handle stop streaming logic
     stopStreaming();
+
+    QString endReason = isAutoClose ? "autoClose" : "normalEnd";
 
     // Send close live stream request
     OneSevenLiveCloseLiveRequest request;
@@ -1179,8 +1233,13 @@ void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
     request.userID = QString::fromStdString(currUserID);
 
     if (!apiWrapper->StopStream(currLiveStreamID, request)) {
-        obs_log(LOG_ERROR, "Failed to stop stream");
+        obs_log(LOG_ERROR, "Failed to stop stream. LiveStreamID: %s, Reason: %s", 
+               currLiveStreamID.c_str(), endReason.toStdString().c_str());
         // return;
+    } else {
+        obs_log(LOG_INFO, "Successfully stopped stream. LiveStreamID: %s, Reason: %s, IsAutoClose: %s", 
+               currLiveStreamID.c_str(), endReason.toStdString().c_str(), 
+               isAutoClose ? "true" : "false");
     }
 
     // Clear streaming configuration based on current mode
@@ -1327,28 +1386,13 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
 
 bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "gatherRtmpRequest");
-    QString caption = titleEdit->text();
-    if (caption.isEmpty()) {
-        // Show dialog to prompt user to enter title
-        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                             obs_module_text("Live.Settings.Save.Title.Empty"));
-        return false;
-    }
-    QString subtabID = categoryCombo->currentData().toString();
-    if (subtabID.isEmpty()) {
-        // Show dialog to prompt user to select category
-        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                             obs_module_text("Live.Settings.Save.Category.Empty"));
-        return false;
-    }
-    request.userID = roomInfo.userID;
+    
     request.caption = titleEdit->text();
     request.device = "OBS";
     int eventID = eventCombo->currentData().toInt();
     request.eventID = eventID;
     request.hashtags = tagsList;
     request.landscape = landscapeStreamRadio->isChecked();
-    request.streamerType = roomInfo.streamerType;
     request.subtabID = categoryCombo->currentData().toString();
 
     // Army-only viewing settings
@@ -1588,21 +1632,26 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
     if (success) {
         obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
 
-        // Start cooldown timer (5 minutes = 300 seconds)
-        eventCooldownRemaining = 300;
-        originalCategoryText = eventCombo->currentText();
-        eventCooldownTimer->start();
-
-        // Disable event combo during cooldown
-        eventCombo->setEnabled(false);
-
-        // Update hint label to show cooldown
-        onEventCooldownTimeout();  // Update display immediately
+        // Start event cooldown
+        startEventCooldown();
     } else {
         obs_log(LOG_ERROR, "Failed to change event to: %lld", eventID);
         QMessageBox::warning(this, obs_module_text("Live.Common.Notice"),
                              obs_module_text("Live.ChangeEvent.Failed"));
     }
+}
+
+void OneSevenLiveStreamingDock::startEventCooldown() {
+    // Start cooldown timer (5 minutes = 300 seconds)
+    eventCooldownRemaining = 300;
+    originalCategoryText = eventCombo->currentText();
+    eventCooldownTimer->start();
+
+    // Disable event combo during cooldown
+    eventCombo->setEnabled(false);
+
+    // Update hint label to show cooldown
+    onEventCooldownTimeout();  // Update display immediately
 }
 
 void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
@@ -1632,4 +1681,53 @@ void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
 
         obs_log(LOG_INFO, "Event change cooldown finished");
     }
+}
+
+// Show auto-close confirmation dialog
+bool OneSevenLiveStreamingDock::showAutoCloseConfirmation(const QString &message) {
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle(obs_module_text("Live.Settings.CloseLive.Auto.Title"));
+    msgBox.setIcon(QMessageBox::Warning);
+    
+    msgBox.setText(message);
+    
+    msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Confirm"), QMessageBox::AcceptRole);
+    QPushButton *cancelButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Cancel"), QMessageBox::RejectRole);
+    
+    msgBox.setDefaultButton(cancelButton); // Default to cancel to avoid accidental operations
+    
+    // Apply modern dark theme styling
+    msgBox.setStyleSheet(
+        "QMessageBox {"
+        "    background-color: #4A5568;"
+        "    border-radius: 10px;"
+        "    color: white;"
+        "    font-size: 14px;"
+        "}"
+        "QMessageBox QLabel {"
+        "    color: white;"
+        "    background-color: transparent;"
+        "    padding: 10px;"
+        "    font-size: 14px;"
+        "    font-weight: normal;"
+        "}"
+        "QMessageBox QPushButton {"
+        "    background-color: #007AFF;"
+        "    color: white;"
+        "    border: none;"
+        "    border-radius: 5px;"
+        "    padding: 8px 16px;"
+        "    font-size: 14px;"
+        "    font-weight: bold;"
+        "    margin: 5px;"
+        "}"
+        "QMessageBox QPushButton:hover {"
+        "    background-color: #0056CC;"
+        "}"
+        "QMessageBox QPushButton:pressed {"
+        "    background-color: #003D99;"
+        "}");
+    
+    int result = msgBox.exec();
+    return (result == QMessageBox::AcceptRole);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -136,39 +137,50 @@ class OneSevenLiveCoreManager : public QObject {
 
     void handleLogoutClicked();
 
+    // New login state management methods
+    void handleLoginStateChanged(bool isLoggedIn, const OneSevenLiveLoginData& loginData = OneSevenLiveLoginData());
+    void performLoginOperations(const OneSevenLiveLoginData& loginData);
+    void performLogoutOperations();
+    void restoreDockStatesOnLogin();
+    void closeAllDocks();
+
     // Function to check if login status is valid
     bool checkLoginStatus();
 
     // Streaming Dock load status
     bool streamingDockFirstLoad = true;
-    OneSevenLiveStreamingDock* streamingDock{nullptr};
+    QPointer<OneSevenLiveStreamingDock> streamingDock;
     void handleStreamingClicked();
     void createStreamingDock();
 
     bool chatRoomDockFirstLoad = true;
-    QDockWidget* chatRoomDock{nullptr};
-    QCefView* cefView{nullptr};
+    QPointer<QDockWidget> chatRoomDock;
+    QPointer<QCefView> cefView;
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;
-    OneSevenLiveStreamListDock* liveListDock{nullptr};
+    QPointer<OneSevenLiveStreamListDock> liveListDock;
     void handleLiveListClicked();
 
     bool rockZoneDockFirstLoad = true;
-    OneSevenLiveRockZoneDock* rockZoneDock{nullptr};
+    QPointer<OneSevenLiveRockZoneDock> rockZoneDock;
     void handleRockZoneClicked();
     void createRockZoneDock();
 
     void saveDockState();
 
-    void load17LiveConfig();
+    void load17LiveConfig(const OneSevenLiveLoginData &loginData);
 
-    void closeLive();
+    void closeLive(bool isAutoClose = false);
 
     OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
 
     // Timer for checking stream status
-    QTimer* streamCheckTimer{nullptr};
+    QPointer<QTimer> streamCheckTimer;
+    
+    // 连续失败检测相关变量
+    int consecutiveFailureCount{0};  // 连续失败计数器
+    static const int MAX_CONSECUTIVE_FAILURES = 3;  // 最大连续失败次数
 
     // Version update related methods
     void handleCheckUpdateClicked();
