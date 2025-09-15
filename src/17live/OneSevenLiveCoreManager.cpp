@@ -256,32 +256,43 @@ void OneSevenLiveCoreManager::shutdown() {
     if (!initialized) {
         return;
     }
-
+            
     // Save dock state before closing any docks
     saveDockState();
 
+    bool streamingVisible = false;
     if (streamingDock) {
+        streamingVisible = streamingDock->isVisible();
         streamingDock->disconnect(this);
         streamingDock->close();
         streamingDock->deleteLater();
         streamingDock = nullptr;
     }
+    configManager->setDockVisibility("streaming", streamingVisible);
 
+    bool liveListVisible = false;
     if (liveListDock) {
+        liveListVisible = liveListDock->isVisible();
         liveListDock->disconnect(this);
         liveListDock->close();
         liveListDock->deleteLater();
         liveListDock = nullptr;
     }
+    configManager->setDockVisibility("liveList", liveListVisible);
 
+    bool rockZoneVisible = false;
     if (rockZoneDock) {
+        rockZoneVisible = rockZoneDock->isVisible();
         rockZoneDock->disconnect(this);
         rockZoneDock->close();
         rockZoneDock->deleteLater();
         rockZoneDock = nullptr;
     }
+    configManager->setDockVisibility("rockZone", rockZoneVisible);
 
+    bool chatRoomVisible = false;
     if (chatRoomDock) {
+        chatRoomVisible = chatRoomDock->isVisible();
         chatRoomDock->disconnect(this);
 
         obs_log(LOG_INFO, "Closing chat room dock");
@@ -295,6 +306,7 @@ void OneSevenLiveCoreManager::shutdown() {
         chatRoomDock->deleteLater();
         chatRoomDock = nullptr;
     }
+    configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
     // Clean up menu manager resources
     if (menuManager) {
@@ -374,9 +386,6 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
 
 void OneSevenLiveCoreManager::performLogoutOperations() {
     obs_log(LOG_INFO, "performLogoutOperations");
-    
-    // Save current dock state before logout
-    saveDockState();
 
     // Close all dock windows
     closeAllDocks();
@@ -641,15 +650,6 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(), visible,
                                               liveListDock && liveListDock->isVisible());
-            configManager->setDockVisibility("streaming", visible);
-        });
-
-        // Connect close signal to main window slot function
-        connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
-            // Add safety check to prevent crash during destruction
-            if (initialized && mainWindow && configManager) {
-                saveDockState();
-            }
         });
 
         streamingDockFirstLoad = false;
@@ -718,15 +718,6 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(),
                                               liveListDock && liveListDock->isVisible(), visible);
-            configManager->setDockVisibility("rockZone", visible);
-        });
-
-        // Connect close signal to main window slot function
-        connect(rockZoneDock, &QDockWidget::destroyed, this, [this]() {
-            // Add safety check to prevent crash during destruction
-            if (initialized && mainWindow && configManager) {
-                saveDockState();
-            }
         });
 
         rockZoneDockFirstLoad = false;
@@ -831,15 +822,6 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
         connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(), visible);
-            configManager->setDockVisibility("liveList", visible);
-        });
-
-        // Connect close signal to main window slot function
-        connect(liveListDock, &QDockWidget::destroyed, this, [this]() {
-            // Add safety check to prevent crash during destruction
-            if (initialized && mainWindow && configManager) {
-                saveDockState();
-            }
         });
     } else {
         liveListDock->setVisible(!liveListDock->isVisible());
@@ -894,15 +876,6 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(),
                                               liveListDock && liveListDock->isVisible());
-            configManager->setDockVisibility("chatRoom", visible);
-        });
-
-        // Connect destroyed signal to save dock state
-        connect(chatRoomDock, &QDockWidget::destroyed, this, [this]() {
-            // Add safety check to prevent crash during destruction
-            if (initialized && mainWindow && configManager) {
-                saveDockState();
-            }
         });
     } else if (chatRoomDock->isVisible()) {
         // cefView will be destroyed when dock is hidden
