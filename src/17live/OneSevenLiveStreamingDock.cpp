@@ -1049,6 +1049,20 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         }
     }
 
+    if (request.caption.isEmpty()) {
+        // Show dialog to prompt user to enter title
+        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+                             obs_module_text("Live.Settings.Save.Title.Empty"));
+        return;
+    }
+    
+    if (request.subtabID.isEmpty()) {
+        // Show dialog to prompt user to select category
+        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+                             obs_module_text("Live.Settings.Save.Category.Empty"));
+        return;
+    }
+
     OneSevenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {
         QString errorMsg = apiWrapper->getLastErrorMessage();
@@ -1361,20 +1375,7 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
 
 bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "gatherRtmpRequest");
-    QString caption = titleEdit->text();
-    if (caption.isEmpty()) {
-        // Show dialog to prompt user to enter title
-        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                             obs_module_text("Live.Settings.Save.Title.Empty"));
-        return false;
-    }
-    QString subtabID = categoryCombo->currentData().toString();
-    if (subtabID.isEmpty()) {
-        // Show dialog to prompt user to select category
-        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                             obs_module_text("Live.Settings.Save.Category.Empty"));
-        return false;
-    }
+    
     request.userID = roomInfo.userID;
     request.caption = titleEdit->text();
     request.device = "OBS";
