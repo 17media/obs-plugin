@@ -51,4 +51,5 @@ class OneSevenLiveRockViewerItem : public QWidget {
     QLabel *setupAvatar();
     QHBoxLayout *setupNameRow();
     QHBoxLayout *setupBadgeRow();
+    QHBoxLayout *setupPointsRow();
 };

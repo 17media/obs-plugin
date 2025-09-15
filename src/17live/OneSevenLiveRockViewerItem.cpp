@@ -7,6 +7,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QLinearGradient>
+#include <QLocale>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -16,6 +17,7 @@
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "api/OneSevenLiveUtility.hpp"
 #include "moc_OneSevenLiveRockViewerItem.cpp"
+#include "utility/Common.hpp"
 #include "utility/RemoteTextThread.hpp"
 
 OneSevenLiveRockViewerItem::OneSevenLiveRockViewerItem(
@@ -79,22 +81,9 @@ void OneSevenLiveRockViewerItem::setupUi() {
         rightLayout->addLayout(badgeRow);
     }
 
-    // Add stretch to push all components to the top
-    // rightLayout->addStretch();
-
-    // 3) Invested points
-    // {
-    //     int points = user.armyInfo.pointContribution; // invest points
-    //     QLabel *pointsLabel = new QLabel(QString::number(points), this);
-    //     pointsLabel->setStyleSheet(
-    //         "QLabel {"
-    //         "    color: #D9D9D9;"
-    //         "    font-size: 12px;"
-    //         "}");
-    //     pointsLabel->setAlignment(Qt::AlignLeft);
-    //     pointsLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    //     rightLayout->addWidget(pointsLabel, 0, Qt::AlignLeft);
-    // }
+    // Setup points row
+    QHBoxLayout *pointsRow = setupPointsRow();
+    rightLayout->addLayout(pointsRow);
 
     mainLayout->addLayout(rightLayout, 1);
 
@@ -331,6 +320,54 @@ void OneSevenLiveRockViewerItem::mousePressEvent(QMouseEvent *event) {
         emit clicked(user);
     }
     QWidget::mousePressEvent(event);
+}
+
+QHBoxLayout *OneSevenLiveRockViewerItem::setupPointsRow() {
+    int points = user.sentPoint; // sent points
+    
+    // Create horizontal layout for icon and points
+    QHBoxLayout *pointsLayout = new QHBoxLayout();
+    pointsLayout->setContentsMargins(0, 0, 0, 0);
+    pointsLayout->setSpacing(4); // Small spacing between icon and text
+    
+    // Add baobaobi icon
+    QLabel *iconLabel = new QLabel(this);
+    iconLabel->setFixedSize(16, 16);
+    iconLabel->setStyleSheet("QLabel { background-color: transparent; }");
+    iconLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    
+    // Load SVG icon
+    QPixmap iconPixmap(":/resources/baobaobi.svg");
+    if (!iconPixmap.isNull()) {
+        iconLabel->setPixmap(iconPixmap.scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+    
+    // Format points with thousand separators based on current language
+    QLocale locale;
+    std::string currentLang = GetCurrentLanguage();
+    if (currentLang == "TW") {
+        locale = QLocale(QLocale::Chinese, QLocale::Taiwan);
+    } else if (currentLang == "JP") {
+        locale = QLocale(QLocale::Japanese, QLocale::Japan);
+    } else { // US
+        locale = QLocale(QLocale::English, QLocale::UnitedStates);
+    }
+    QString formattedPoints = locale.toString(points);
+    
+    QLabel *pointsLabel = new QLabel(formattedPoints, this);
+    pointsLabel->setStyleSheet(
+        "QLabel {"
+        "    color: #D9D9D9;"
+        "    font-size: 12px;"
+        "}");
+    pointsLabel->setAlignment(Qt::AlignLeft);
+    pointsLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    
+    pointsLayout->addWidget(iconLabel);
+    pointsLayout->addWidget(pointsLabel);
+    pointsLayout->addStretch(); // Push content to the left
+    
+    return pointsLayout;
 }
 
 void OneSevenLiveRockViewerItem::updateData(const OneSevenLiveRockZoneViewer &user,
