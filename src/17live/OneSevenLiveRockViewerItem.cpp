@@ -33,9 +33,8 @@ OneSevenLiveRockViewerItem::OneSevenLiveRockViewerItem(
 }
 
 QSize OneSevenLiveRockViewerItem::sizeHint() const {
-    // Return dynamic width with minimum 200px, height remains fixed at 80px
-    int width = qMax(200, parentWidget() ? parentWidget()->width() - 20 : 200);
-    return QSize(width, 80);
+    // Return fixed size 280x80
+    return QSize(280, 80);
 }
 
 QString OneSevenLiveRockViewerItem::buildUrl(const QString &path) {
@@ -49,15 +48,13 @@ QString OneSevenLiveRockViewerItem::buildUrl(const QString &path) {
 void OneSevenLiveRockViewerItem::setupUi() {
     // Root layout allows the card to stretch with the QListWidget viewport
     QHBoxLayout *rootLayout = new QHBoxLayout(this);
-    rootLayout->setContentsMargins(5, 5, 5, 5);  // Add small margins for visual spacing
+    rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->setAlignment(Qt::AlignLeft);
 
     QWidget *card = new QWidget(this);
-    card->setFixedHeight(80);  // Keep fixed height, but allow width to adapt
-    card->setMinimumWidth(200);  // Set minimum width to 200px
-    card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    card->setFixedSize(280, 80);  // Set fixed size to 280x80
     QHBoxLayout *mainLayout = new QHBoxLayout(card);
-    mainLayout->setContentsMargins(5, 0, 5, 0);  // Add horizontal padding
+    mainLayout->setContentsMargins(0, 0, 0, 0);  // Add horizontal padding
     mainLayout->setSpacing(5);
     mainLayout->setAlignment(Qt::AlignLeft);
 
@@ -70,7 +67,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
 
     // Right side: 3 vertical sections
     QVBoxLayout *rightLayout = new QVBoxLayout();
-    rightLayout->setContentsMargins(0, 5, 0, 5);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(4);  // reduce spacing between components
     rightLayout->setAlignment(Qt::AlignTop);  
 
@@ -90,8 +87,8 @@ void OneSevenLiveRockViewerItem::setupUi() {
 
     mainLayout->addLayout(rightLayout, 1);
 
-    // Mount card to root layout with stretch factor to fill available width
-    rootLayout->addWidget(card, 1);  // Use stretch factor 1 to fill width
+    // Mount card to root layout with fixed size
+    rootLayout->addWidget(card, 0, Qt::AlignLeft);
     setLayout(rootLayout);
 }
 

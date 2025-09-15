@@ -153,8 +153,9 @@ void OneSevenLiveRockZoneDock::setupUi() {
     originalButtonText = pokeAllButton->text();
 
     // Set dock size constraints to allow width adjustment with maximum width of 450
+    // Minimum width adjusted to 320px to accommodate 280px RockViewerItem + margins
     setMaximumWidth(450);
-    setMinimumWidth(350);
+    setMinimumWidth(320);
     container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     setWidget(container);
