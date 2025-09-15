@@ -43,7 +43,7 @@ QString OneSevenLiveRockViewerItem::buildUrl(const QString &path) {
 }
 
 void OneSevenLiveRockViewerItem::setupUi() {
-    // Root layout centers a fixed-size inner card to achieve visual width=350 while
+    // Root layout centers a fixed-size inner card to achieve visual width=300 while
     // allowing the outer widget to stretch with the QListWidget viewport
     QHBoxLayout *rootLayout = new QHBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 0, 0);
@@ -67,7 +67,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
     QVBoxLayout *rightLayout = new QVBoxLayout();
     rightLayout->setContentsMargins(0, 5, 0, 5);
     rightLayout->setSpacing(4);  // reduce spacing between components
-    rightLayout->setAlignment(Qt::AlignTop);  // align content to top
+    rightLayout->setAlignment(Qt::AlignTop);  
 
     // Setup name row
     QHBoxLayout *nameRow = setupNameRow();
