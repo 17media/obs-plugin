@@ -200,12 +200,22 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
     if (!userList)
         return;
 
-    for (int i = 0; i < userList->count(); ++i) {
+    // Store count to avoid issues if list is modified during iteration
+    int itemCount = userList->count();
+    
+    for (int i = 0; i < itemCount; ++i) {
+        // Double-check count hasn't changed during iteration
+        if (i >= userList->count())
+            break;
+            
         QListWidgetItem* item = userList->item(i);
+        if (!item) continue; // Skip null items
+        
         QWidget* widget = userList->itemWidget(item);
-        if (widget)
+        if (widget) {
             widget->resize(userList->viewport()->width(), widget->height());
-        item->setSizeHint(widget->sizeHint());
+            item->setSizeHint(widget->sizeHint());
+        }
     }
 }
 
@@ -386,8 +396,11 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             // Move item to correct position if needed
                             int currentRow = userList->row(item);
                             if (currentRow != i && currentRow >= 0) {
-                                userList->takeItem(currentRow);
-                                userList->insertItem(i, item);
+                                // Use a more atomic operation to avoid temporary null items
+                                QListWidgetItem* takenItem = userList->takeItem(currentRow);
+                                if (takenItem == item) {
+                                    userList->insertItem(i, item);
+                                }
                             }
                         } else {
                             // New user
