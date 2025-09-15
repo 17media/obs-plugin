@@ -2174,3 +2174,98 @@ bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request,
 
     return true;
 }
+
+// Sort viewers according to priority rules
+QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(QList<OneSevenLiveRockZoneViewer> &viewers) {
+    std::sort(viewers.begin(), viewers.end(), [](const OneSevenLiveRockZoneViewer &a, const OneSevenLiveRockZoneViewer &b) {
+        // Priority 1: Army viewers (type = 3) - sort by rank (5 to 1)
+        if (a.type == 3 && b.type == 3) {
+            return a.armyInfo.rank > b.armyInfo.rank; // Higher rank first
+        }
+        if (a.type == 3 && b.type != 3) {
+            return true; // Army viewers have highest priority
+        }
+        if (a.type != 3 && b.type == 3) {
+            return false;
+        }
+        
+        // Priority 2: Guardian Knights (type = 2)
+        if (a.type == 2 && b.type == 2) {
+            return false; // Same priority, maintain original order
+        }
+        if (a.type == 2 && b.type != 2) {
+            return true;
+        }
+        if (a.type != 2 && b.type == 2) {
+            return false;
+        }
+        
+        // Priority 3: Top gifters this session (type = 1)
+        if (a.type == 1 && b.type == 1) {
+            return false; // Same priority, maintain original order
+        }
+        if (a.type == 1 && b.type != 1) {
+            return true;
+        }
+        if (a.type != 1 && b.type == 1) {
+            return false;
+        }
+        
+        // Priority 4: VIP members - sort by VIP level (higher level first)
+        bool aIsVIP = a.displayUser.isVIP;
+        bool bIsVIP = b.displayUser.isVIP;
+        if (aIsVIP && bIsVIP) {
+            return a.displayUser.mLevel > b.displayUser.mLevel;
+        }
+        if (aIsVIP && !bIsVIP) {
+            return true;
+        }
+        if (!aIsVIP && bIsVIP) {
+            return false;
+        }
+        
+        // Priority 5: Glory road users - sort by glory level (higher level first)
+        int aGloryLevel = a.userAttr.gloryroadInfo.level;
+        int bGloryLevel = b.userAttr.gloryroadInfo.level;
+        if (aGloryLevel > 0 && bGloryLevel > 0) {
+            return aGloryLevel > bGloryLevel;
+        }
+        if (aGloryLevel > 0 && bGloryLevel <= 0) {
+            return true;
+        }
+        if (aGloryLevel <= 0 && bGloryLevel > 0) {
+            return false;
+        }
+        
+        // Priority 6: Check-in users - sort by check-in level (higher level first)
+        int aCheckinLevel = a.displayUser.checkinLevel;
+        int bCheckinLevel = b.displayUser.checkinLevel;
+        if (aCheckinLevel > 0 && bCheckinLevel > 0) {
+            return aCheckinLevel > bCheckinLevel;
+        }
+        if (aCheckinLevel > 0 && bCheckinLevel <= 0) {
+            return true;
+        }
+        if (aCheckinLevel <= 0 && bCheckinLevel > 0) {
+            return false;
+        }
+        
+        // Priority 7: Other gifters - sort by sent points (higher points first)
+        int aSentPoint = a.userAttr.sentPoint;
+        int bSentPoint = b.userAttr.sentPoint;
+        if (aSentPoint > 0 && bSentPoint > 0) {
+            return aSentPoint > bSentPoint;
+        }
+        if (aSentPoint > 0 && bSentPoint <= 0) {
+            return true;
+        }
+        if (aSentPoint <= 0 && bSentPoint > 0) {
+            return false;
+        }
+        
+        // Priority 8: Other users - sort by user level (higher level first)
+        return a.userAttr.level > b.userAttr.level;
+    });
+    
+    return viewers;
+}

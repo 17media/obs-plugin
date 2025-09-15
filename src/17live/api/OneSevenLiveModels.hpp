@@ -729,6 +729,8 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, 
 
 bool JsonToOneSevenLiveRockViewers(const Json &json, QList<OneSevenLiveRockZoneViewer> &viewers);
 
+QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(QList<OneSevenLiveRockZoneViewer> &viewers);
+
 // Army name struct
 struct OneSevenLiveArmyName {
     QString customName;

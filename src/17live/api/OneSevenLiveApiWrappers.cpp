@@ -3,7 +3,6 @@
 #include <obs-module.h>
 
 #include <QCryptographicHash>
-#include <QFile>
 #include <QMimeDatabase>
 #include <QUrl>
 

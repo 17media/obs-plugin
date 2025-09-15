@@ -14,6 +14,7 @@
 #include <QSharedPointer>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QFile>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveRockViewerItem.hpp"
@@ -208,6 +209,80 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
     }
 }
 
+static void mergeMockUsers(Json& originUsers, Json& mockUsers) { 
+    // Read mock users from local json file and merge with original users
+    do {
+        QFile file("/Users/zhuyu/workspace/mk/17live/dev/17live_dev/mock/test_100_viewers.json");
+        if (!file.exists()) {
+            mockUsers = originUsers; // no mock data, return original
+            break;
+        }
+        if (!file.open(QIODevice::ReadOnly)) {
+            obs_log(LOG_WARNING, "mergeMockUsers: cannot open test viewers file");
+            mockUsers = originUsers; // fallback to original
+            break;
+        }
+        QByteArray content = file.readAll();
+        file.close();
+
+        std::string parse_err;
+        Json test_json = Json::parse(content.constData(), parse_err);
+        if (!parse_err.empty()) {
+            obs_log(LOG_WARNING, "mergeMockUsers: parse test viewers failed: %s", parse_err.c_str());
+            mockUsers = originUsers; // fallback to original
+            break;
+        }
+
+        // Extract mock users array from json
+        Json mock_array_json;
+        if (test_json.is_array()) {
+            mock_array_json = test_json;
+        } else if (test_json.is_object() && test_json["viewers"].is_array()) {
+            mock_array_json = test_json["viewers"];
+        } else {
+            obs_log(LOG_WARNING, "mergeMockUsers: mock json is neither array nor object with 'viewers'");
+            mockUsers = originUsers; // fallback to original
+            break;
+        }
+
+        // Extract original users array
+        std::vector<Json> merged;
+        bool original_is_array = false;
+        if (originUsers.is_array()) {
+            merged = originUsers.array_items();
+            original_is_array = true;
+        } else if (originUsers.is_object() && originUsers["viewers"].is_array()) {
+            merged = originUsers["viewers"].array_items();
+        } else if (originUsers.is_null()) {
+            // no original data, start with empty
+        } else {
+            // unexpected type, try best effort
+            obs_log(LOG_WARNING, "mergeMockUsers: unexpected originUsers format");
+        }
+
+        // Merge mock users into the array
+        for (const auto &item : mock_array_json.array_items()) {
+            merged.push_back(item);
+        }
+
+        // Construct the result based on original format
+        if (original_is_array) {
+            mockUsers = Json(merged);
+        } else if (originUsers.is_object()) {
+            auto obj = originUsers.object_items();
+            obj["viewers"] = Json(merged);
+            mockUsers = Json(obj);
+        } else {
+            mockUsers = Json(merged);
+        }
+
+        obs_log(LOG_INFO, "mergeMockUsers: merged %zu mock viewers with %zu original users", 
+                mock_array_json.array_items().size(), 
+                original_is_array ? originUsers.array_items().size() : 
+                (originUsers.is_object() && originUsers["viewers"].is_array() ? originUsers["viewers"].array_items().size() : 0));
+    } while (false);
+}
+
 void OneSevenLiveRockZoneDock::refreshUserList() {
     std::string roomID;
     configManager->getConfigValue("RoomID", roomID);
@@ -222,8 +297,13 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
 
     connect(thread, &QThread::started, worker, [this, worker, thread, roomID, userID]() {
         // Execute API call in new thread
-        Json response;
-        bool success = apiWrapper->GetRockViewers(roomID, response);
+        Json jsonResponse;
+        bool success = apiWrapper->GetRockViewers(roomID, jsonResponse);
+
+        Json response = jsonResponse;
+        if (success) { 
+            mergeMockUsers(jsonResponse, response);
+        }
 
         OneSevenLiveArmyNameResponse armyNameResponse;
 
@@ -283,24 +363,37 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         }
                     }
 
+                    QList<OneSevenLiveRockZoneViewer> sortedViewersList = SortOneSevenLiveRockZoneViewers(viewersList);
+
                     // Update UI
-                    userList->setVisible(true);
+                    // userList->setVisible(true);
 
                     // --- Incremental Update Section ---
                     QSet<QString> newUserIDs;
-                    for (const auto& user : viewersList) {
+                    
+                    // First pass: update existing items and create new ones
+                    for (int i = 0; i < sortedViewersList.size(); ++i) {
+                        const auto& user = sortedViewersList[i];
                         QString uid = user.displayUser.userID;
                         newUserIDs.insert(uid);
 
+                        QListWidgetItem* item = nullptr;
                         if (userItemMap.contains(uid)) {
                             // Existing user, update item
-                            QListWidgetItem* item = userItemMap.value(uid);
+                            item = userItemMap.value(uid);
                             updateUserItem(item, user, armyNameResponse);
+                            
+                            // Move item to correct position if needed
+                            int currentRow = userList->row(item);
+                            if (currentRow != i && currentRow >= 0) {
+                                userList->takeItem(currentRow);
+                                userList->insertItem(i, item);
+                            }
                         } else {
                             // New user
-                            QListWidgetItem* item = new QListWidgetItem(userList);
+                            item = new QListWidgetItem();
                             updateUserItem(item, user, armyNameResponse);
-                            userList->addItem(item);
+                            userList->insertItem(i, item);
                             userItemMap.insert(uid, item);
                         }
                     }
