@@ -98,15 +98,6 @@ QString OneSevenLiveUtility::checkingLevelBadgeResource(const OneSevenLiveRockZo
     }
 }
 
-static inline bool isZh(const QString &locale) {
-    return locale.startsWith("zh", Qt::CaseInsensitive);
-}
-
-static inline bool isJa(const QString &locale) {
-    return locale.startsWith("ja", Qt::CaseInsensitive) ||
-           locale.startsWith("jp", Qt::CaseInsensitive);
-}
-
 QString OneSevenLiveUtility::badgeLabel(int badgeType, int rank,
                                         const OneSevenLiveArmyNameResponse *armyResp) {
     switch (badgeType) {
