@@ -1063,6 +1063,10 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         return;
     }
 
+    // Add current userID and streamerType to request
+    request.userID = roomInfo.userID;
+    request.streamerType = roomInfo.streamerType;
+
     OneSevenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {
         QString errorMsg = apiWrapper->getLastErrorMessage();
@@ -1381,14 +1385,12 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
 bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "gatherRtmpRequest");
     
-    request.userID = roomInfo.userID;
     request.caption = titleEdit->text();
     request.device = "OBS";
     int eventID = eventCombo->currentData().toInt();
     request.eventID = eventID;
     request.hashtags = tagsList;
     request.landscape = landscapeStreamRadio->isChecked();
-    request.streamerType = roomInfo.streamerType;
     request.subtabID = categoryCombo->currentData().toString();
 
     // Army-only viewing settings
