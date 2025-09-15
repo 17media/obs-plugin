@@ -126,8 +126,6 @@ void OneSevenLiveRockZoneDock::setupUi() {
     userList->setSpacing(1);
     mainLayout->addWidget(userList);
 
-    mainLayout->addSpacing(40);
-
     // Create bottom button
     pokeAllButton = new QPushButton(obs_module_text("RockZone.PokeAll"));
     pokeAllButton->setStyleSheet(
