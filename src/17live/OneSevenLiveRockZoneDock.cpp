@@ -154,7 +154,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
 
     // Set dock size constraints to allow width adjustment with maximum width of 450
     setMaximumWidth(450);
-    setMinimumWidth(380);
+    setMinimumWidth(350);
     container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     setWidget(container);
