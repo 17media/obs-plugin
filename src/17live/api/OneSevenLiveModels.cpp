@@ -2178,9 +2178,17 @@ bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request,
 // Sort viewers according to priority rules
 QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(QList<OneSevenLiveRockZoneViewer> &viewers) {
     std::sort(viewers.begin(), viewers.end(), [](const OneSevenLiveRockZoneViewer &a, const OneSevenLiveRockZoneViewer &b) {
-        // Priority 1: Army viewers (type = 3) - sort by rank (5 to 1)
+        // Priority 1: Army viewers (type = 3) - sort by rank (special rule: rank 5 is lowest, 1-4 from high to low)
         if (a.type == 3 && b.type == 3) {
-            return a.armyInfo.rank > b.armyInfo.rank; // Higher rank first
+            // Special handling: rank 5 is the lowest rank, should be at the end
+            if (a.armyInfo.rank == 5 && b.armyInfo.rank != 5) {
+                return false; // rank 5 goes to the end
+            }
+            if (a.armyInfo.rank != 5 && b.armyInfo.rank == 5) {
+                return true; // rank 5 goes to the end
+            }
+            // For ranks 1-4, higher rank number comes first (4 > 3 > 2 > 1)
+            return a.armyInfo.rank > b.armyInfo.rank;
         }
         if (a.type == 3 && b.type != 3) {
             return true; // Army viewers have highest priority
