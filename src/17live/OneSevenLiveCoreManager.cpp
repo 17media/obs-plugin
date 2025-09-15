@@ -134,17 +134,6 @@ bool OneSevenLiveCoreManager::initialize() {
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this,
                      &OneSevenLiveCoreManager::handleCheckUpdateClicked);
 
-    if (isLogin) {
-        QString openId = loginData.userInfo.openID;
-        QString displayName = loginData.userInfo.displayName;
-
-        QString username = displayName;
-        if (username.isEmpty()) {
-            username = openId;
-        }
-        menuManager->updateLoginStatus(true, username);
-    }
-
     // Initialize update manager
     updateManager = new OneSevenLiveUpdateManager(this);
 
@@ -218,58 +207,22 @@ bool OneSevenLiveCoreManager::initialize() {
         return false;
     }
 
-    load17LiveConfig();
-
-    // Load gifts if user is logged in
-    if (isLogin) {
-        loadGifts();
-    }
-
-    initialized = true;
+    // Load gifts for logged in user
+    loadGifts();
 
     // Check for updates
     std::thread updateThread([this]() { updateManager->checkForUpdates(); });
     updateThread.detach();
 
-    // Restore dock states on startup if they were previously saved
     isStartupRestore = true;
 
-    // Check if there are saved dock states and restore them
-    QByteArray dockState = configManager->getDockState();
-    if (!dockState.isEmpty() && mainWindow && mainWindow->isVisible()) {
-        // Restore streaming dock if it was previously shown
-        if (configManager->getDockVisibility("streaming")) {
-            createStreamingDock();
-        }
-
-        // Restore live list dock if it was previously shown
-        if (configManager->getDockVisibility("liveList")) {
-            handleLiveListClicked();
-        }
-
-        // Restore chat room dock if it was previously shown
-        if (configManager->getDockVisibility("chatRoom")) {
-            handleChatRoomClicked();
-        }
-
-        // Restore rock zone dock if it was previously shown
-        if (configManager->getDockVisibility("rockZone")) {
-            handleRockZoneClicked();
-        }
-
-        // Apply the saved dock layout
-        mainWindow->restoreState(dockState);
-
-        // Update menu visibility status after restoration
-        if (menuManager) {
-            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
-                                              streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible());
-        }
+    // Handle login state during initialization
+    if (isLogin) {
+        // Use the new centralized login state handler for logged in users
+        handleLoginStateChanged(true, loginData);
     }
 
-    isStartupRestore = false;
+    initialized = true;
 
     return true;
 }
@@ -280,35 +233,23 @@ void OneSevenLiveCoreManager::handleCheckUpdateClicked() {
     }
 }
 
-void OneSevenLiveCoreManager::load17LiveConfig() {
-    // In the initialize method, add the following code after initializing configManager
+void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData &loginData) {
+    std::string region = loginData.userInfo.region.toStdString();
+    if (region.empty()) {
+        region = "TW";  // Default region
+    }
 
-    // Asynchronously get configuration
-    std::thread configThread([this]() {
-        // Get current region and language
-        OneSevenLiveLoginData loginData;
-        configManager->getLoginData(loginData);
+    std::string language = GetCurrentLanguage();
 
-        std::string region = loginData.userInfo.region.toStdString();
-        if (region.empty()) {
-            region = "TW";  // Default region
-        }
-
-        std::string language = GetCurrentLanguage();
-
-        // Call API to get configuration
-        json11::Json configJson;
-        if (apiWrapper->GetConfig(region, language, configJson)) {
-            // Save configuration
-            configManager->setConfig(configJson);
-            obs_log(LOG_INFO, "Config loaded successfully");
-        } else {
-            obs_log(LOG_ERROR, "Failed to load config from API");
-        }
-    });
-
-    // Detach thread to let it run in background
-    configThread.detach();
+    // Call API to get configuration
+    json11::Json configJson;
+    if (apiWrapper->GetConfig(region, language, configJson)) {
+        // Save configuration
+        configManager->setConfig(configJson);
+        obs_log(LOG_INFO, "Config loaded successfully");
+    } else {
+        obs_log(LOG_ERROR, "Failed to load config from API");
+    }
 }
 
 void OneSevenLiveCoreManager::shutdown() {
@@ -397,15 +338,134 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
         return;
     }
 
-    // Update menu
+    // Use the new centralized login state handler
+    handleLoginStateChanged(true, loginData);
+}
+
+void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn, const OneSevenLiveLoginData& loginData) {
+    obs_log(LOG_INFO, "handleLoginStateChanged: %s", isLoggedIn ? "logged in" : "logged out");
+    
+    if (isLoggedIn) {
+        performLoginOperations(loginData);
+    } else {
+        performLogoutOperations();
+    }
+}
+
+void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData& loginData) {
+    obs_log(LOG_INFO, "performLoginOperations");
+    
+    // Update menu with user info
     QString username = loginData.userInfo.displayName;
     if (username.isEmpty()) {
         username = loginData.userInfo.openID;
     }
     menuManager->updateLoginStatus(true, username);
 
-    // Load gifts after successful login
-    loadGifts();
+    // Load configuration
+    load17LiveConfig(loginData);
+
+    // Restore dock states if this is during startup and there are saved states
+    if (isStartupRestore) {
+        restoreDockStatesOnLogin();
+        isStartupRestore = false;
+    }
+}
+
+void OneSevenLiveCoreManager::performLogoutOperations() {
+    obs_log(LOG_INFO, "performLogoutOperations");
+    
+    // Save current dock state before logout
+    saveDockState();
+
+    // Close all dock windows
+    closeAllDocks();
+
+    // Reset login status in menu
+    menuManager->updateLoginStatus(false, "");
+
+    // Clear login data
+    configManager->clearLoginData();
+}
+
+void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
+    obs_log(LOG_INFO, "restoreDockStatesOnLogin");
+    
+    // Check if there are saved dock states and restore them
+    QByteArray dockState = configManager->getDockState();
+    if (!dockState.isEmpty() && mainWindow && mainWindow->isVisible()) {
+        // Restore streaming dock if it was previously shown
+        if (configManager->getDockVisibility("streaming")) {
+            createStreamingDock();
+        }
+
+        // Restore live list dock if it was previously shown
+        if (configManager->getDockVisibility("liveList")) {
+            handleLiveListClicked();
+        }
+
+        // Restore chat room dock if it was previously shown
+        if (configManager->getDockVisibility("chatRoom")) {
+            handleChatRoomClicked();
+        }
+
+        // Restore rock zone dock if it was previously shown
+        if (configManager->getDockVisibility("rockZone")) {
+            handleRockZoneClicked();
+        }
+
+        // Apply the saved dock layout
+        mainWindow->restoreState(dockState);
+
+        // Update menu visibility status after restoration
+        if (menuManager) {
+            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+                                              streamingDock && streamingDock->isVisible(),
+                                              liveListDock && liveListDock->isVisible(),
+                                              rockZoneDock && rockZoneDock->isVisible());
+        }
+    }
+}
+
+void OneSevenLiveCoreManager::closeAllDocks() {
+    obs_log(LOG_INFO, "closeAllDocks");
+    
+    // Close streaming dock
+    if (streamingDock) {
+        streamingDock->close();
+        streamingDock->deleteLater();
+        streamingDock = nullptr;
+    }
+
+    // Close live list dock
+    if (liveListDock) {
+        liveListDock->close();
+        liveListDock->deleteLater();
+        liveListDock = nullptr;
+    }
+
+    // Close chat room dock
+    if (chatRoomDock) {
+        if (cefView) {
+            delete cefView;
+            cefView = nullptr;
+        }
+        chatRoomDock->close();
+        chatRoomDock->deleteLater();
+        chatRoomDock = nullptr;
+    }
+
+    // Close rock zone dock
+    if (rockZoneDock) {
+        rockZoneDock->close();
+        rockZoneDock->deleteLater();
+        rockZoneDock = nullptr;
+    }
+
+    // Update menu visibility status after closing all docks
+    if (menuManager) {
+        menuManager->updateDockVisibility(false, false, false, false);
+    }
 }
 
 void OneSevenLiveCoreManager::handleLogoutClicked() {
@@ -433,36 +493,8 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
         closeLive(false);  // Pass false to indicate manual stream closure
     }
 
-    // Save dock state before closing any docks
-    saveDockState();
-
-    // Close all dock windows to avoid incorrect operations after logout
-    if (streamingDock) {
-        streamingDock->close();
-        streamingDock->deleteLater();
-        streamingDock = nullptr;
-    }
-
-    if (liveListDock) {
-        liveListDock->close();
-        liveListDock->deleteLater();
-        liveListDock = nullptr;
-    }
-
-    // Close chat room window (if exists)
-    if (chatRoomDock) {
-        if (cefView) {
-            delete cefView;
-            cefView = nullptr;
-        }
-        chatRoomDock->close();
-        chatRoomDock->deleteLater();
-        chatRoomDock = nullptr;
-    }
-
-    // Reset login status
-    menuManager->updateLoginStatus(false, "");
-    configManager->clearLoginData();
+    // Use the new centralized logout state handler
+    handleLoginStateChanged(false);
 }
 
 void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {

@@ -137,6 +137,13 @@ class OneSevenLiveCoreManager : public QObject {
 
     void handleLogoutClicked();
 
+    // New login state management methods
+    void handleLoginStateChanged(bool isLoggedIn, const OneSevenLiveLoginData& loginData = OneSevenLiveLoginData());
+    void performLoginOperations(const OneSevenLiveLoginData& loginData);
+    void performLogoutOperations();
+    void restoreDockStatesOnLogin();
+    void closeAllDocks();
+
     // Function to check if login status is valid
     bool checkLoginStatus();
 
@@ -162,7 +169,7 @@ class OneSevenLiveCoreManager : public QObject {
 
     void saveDockState();
 
-    void load17LiveConfig();
+    void load17LiveConfig(const OneSevenLiveLoginData &loginData);
 
     void closeLive(bool isAutoClose = false);
 
