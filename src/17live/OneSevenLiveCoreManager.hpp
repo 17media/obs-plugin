@@ -163,12 +163,16 @@ class OneSevenLiveCoreManager : public QObject {
 
     void load17LiveConfig();
 
-    void closeLive();
+    void closeLive(bool isAutoClose = false);
 
     OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
 
     // Timer for checking stream status
     QTimer* streamCheckTimer{nullptr};
+    
+    // 连续失败检测相关变量
+    int consecutiveFailureCount{0};  // 连续失败计数器
+    static const int MAX_CONSECUTIVE_FAILURES = 3;  // 最大连续失败次数
 
     // Version update related methods
     void handleCheckUpdateClicked();

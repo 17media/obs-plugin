@@ -430,7 +430,7 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
         }
 
         // User confirmed, stop streaming using the streaming dock's method
-        closeLive();
+        closeLive(false);  // Pass false to indicate manual stream closure
     }
 
     // Save dock state before closing any docks
@@ -465,14 +465,23 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
     configManager->clearLoginData();
 }
 
-void OneSevenLiveCoreManager::closeLive() {
+void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
     if (streamingDock) {
         std::string currUserID;
         std::string currLiveStreamID;
         configManager->getConfigValue("UserID", currUserID);
         configManager->getConfigValue("LiveStreamID", currLiveStreamID);
 
-        streamingDock->closeLive(currUserID, currLiveStreamID);
+        // Log detailed information about stream closure
+        if (isAutoClose) {
+            obs_log(LOG_INFO, "Auto-closing live stream - UserID: %s, LiveStreamID: %s, Reason: Stream check failures", 
+                   currUserID.c_str(), currLiveStreamID.c_str());
+        } else {
+            obs_log(LOG_INFO, "Manually closing live stream - UserID: %s, LiveStreamID: %s", 
+                   currUserID.c_str(), currLiveStreamID.c_str());
+        }
+
+        streamingDock->closeLive(currUserID, currLiveStreamID, isAutoClose);
     }
 }
 
@@ -557,12 +566,30 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                                 std::string liveStreamID;
                                 if (configManager->getConfigValue("LiveStreamID", liveStreamID)) {
                                     if (!apiWrapper->CheckStream(liveStreamID)) {
-                                        // Stream check failed, close live and stop timer
-                                        closeLive();
-                                        if (streamCheckTimer) {
-                                            streamCheckTimer->stop();
-                                            streamCheckTimer->deleteLater();
-                                            streamCheckTimer = nullptr;
+                                        // Stream check failed, increment consecutive failure count
+                                        consecutiveFailureCount++;
+                                        obs_log(LOG_WARNING, "Stream check failed. Consecutive failures: %d/%d", 
+                                               consecutiveFailureCount, MAX_CONSECUTIVE_FAILURES);
+                                        
+                                        // Only trigger auto-close when consecutive failures reach threshold
+                                        if (consecutiveFailureCount >= MAX_CONSECUTIVE_FAILURES) {
+                                            obs_log(LOG_ERROR, "Stream check failed %d times consecutively. Auto-closing live stream.", 
+                                                   MAX_CONSECUTIVE_FAILURES);
+                                            closeLive(true);  // Pass true to indicate this is auto-close
+                                            if (streamCheckTimer) {
+                                                streamCheckTimer->stop();
+                                                streamCheckTimer->deleteLater();
+                                                streamCheckTimer = nullptr;
+                                            }
+                                            // Reset failure counter
+                                            consecutiveFailureCount = 0;
+                                        }
+                                    } else {
+                                        // Stream check succeeded, reset consecutive failure counter
+                                        if (consecutiveFailureCount > 0) {
+                                            obs_log(LOG_INFO, "Stream check succeeded. Resetting failure count from %d to 0.", 
+                                                   consecutiveFailureCount);
+                                            consecutiveFailureCount = 0;
                                         }
                                     }
                                 }
