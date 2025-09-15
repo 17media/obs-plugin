@@ -1034,7 +1034,7 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
     currentInfoUuid = info.streamUuid;
 }
 
-void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request) {
+void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request_) {
     obs_log(LOG_INFO, "createLive");
 
     // Check feature 207 to control createLiveButton state
@@ -1048,6 +1048,8 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
             return;
         }
     }
+    
+    OneSevenLiveRtmpRequest request = request_;
 
     if (request.caption.isEmpty()) {
         // Show dialog to prompt user to enter title
