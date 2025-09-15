@@ -196,17 +196,9 @@ export default function AblyComponent() {
         }
 
         const { displayUser, barrage, ...restChat } = message?.commentMsg;
-        const { isStreamer } = displayUser;
-        let restChat1 = restChat;
-        if (isStreamer) {
-            restChat1 = {
-                ...restChat,
-                backgroundColor: DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
-            }
-        }
 
         const indexedChat = fromJS({
-            ...restChat1,
+            ...restChat,
             ...displayUser,
             barrage,
             id,
