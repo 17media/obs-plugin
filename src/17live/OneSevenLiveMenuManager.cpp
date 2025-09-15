@@ -29,8 +29,8 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     broadcastAction = dockSubMenu->addAction(obs_module_text("Menu.Broadcast"));
     connect(broadcastAction, &QAction::triggered, this, [this]() { emit streamingClicked(); });
 
-    rockZoneAction = dockSubMenu->addAction(obs_module_text("Menu.RockZone"));
-    connect(rockZoneAction, &QAction::triggered, this, [this]() { emit rockZoneClicked(); });
+    // rockZoneAction = dockSubMenu->addAction(obs_module_text("Menu.RockZone"));
+    // connect(rockZoneAction, &QAction::triggered, this, [this]() { emit rockZoneClicked(); });
 
     liveListAction = dockSubMenu->addAction(obs_module_text("Menu.LiveList"));
     connect(liveListAction, &QAction::triggered, this, [this]() { emit liveListClicked(); });
@@ -63,11 +63,11 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     chatRoomAction->setCheckable(true);
     broadcastAction->setCheckable(true);
     liveListAction->setCheckable(true);
-    rockZoneAction->setCheckable(true);
+    // rockZoneAction->setCheckable(true);
     chatRoomAction->setChecked(false);
     broadcastAction->setChecked(false);
     liveListAction->setChecked(false);
-    rockZoneAction->setChecked(false);
+    // rockZoneAction->setChecked(false);
 }
 
 OneSevenLiveMenuManager::~OneSevenLiveMenuManager() {}
@@ -143,7 +143,7 @@ void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
     chatRoomAction->setEnabled(isLoggedIn);
     broadcastAction->setEnabled(isLoggedIn);
     liveListAction->setEnabled(isLoggedIn);
-    rockZoneAction->setEnabled(isLoggedIn);
+    // rockZoneAction->setEnabled(isLoggedIn);
 }
 
 void OneSevenLiveMenuManager::cleanup() {
