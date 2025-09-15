@@ -613,7 +613,12 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         });
 
         // Connect close signal to main window slot function
-        connect(streamingDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
+        connect(streamingDock, &QDockWidget::destroyed, this, [this]() {
+            // Add safety check to prevent crash during destruction
+            if (initialized && mainWindow && configManager) {
+                saveDockState();
+            }
+        });
 
         streamingDockFirstLoad = false;
     }
@@ -685,7 +690,12 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         });
 
         // Connect close signal to main window slot function
-        connect(rockZoneDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
+        connect(rockZoneDock, &QDockWidget::destroyed, this, [this]() {
+            // Add safety check to prevent crash during destruction
+            if (initialized && mainWindow && configManager) {
+                saveDockState();
+            }
+        });
 
         rockZoneDockFirstLoad = false;
     }
@@ -793,7 +803,12 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
         });
 
         // Connect close signal to main window slot function
-        connect(liveListDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
+        connect(liveListDock, &QDockWidget::destroyed, this, [this]() {
+            // Add safety check to prevent crash during destruction
+            if (initialized && mainWindow && configManager) {
+                saveDockState();
+            }
+        });
     } else {
         liveListDock->setVisible(!liveListDock->isVisible());
     }
@@ -851,7 +866,12 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         });
 
         // Connect destroyed signal to save dock state
-        connect(chatRoomDock, &QDockWidget::destroyed, this, [this]() { saveDockState(); });
+        connect(chatRoomDock, &QDockWidget::destroyed, this, [this]() {
+            // Add safety check to prevent crash during destruction
+            if (initialized && mainWindow && configManager) {
+                saveDockState();
+            }
+        });
     } else if (chatRoomDock->isVisible()) {
         // cefView will be destroyed when dock is hidden
         if (cefView) {
