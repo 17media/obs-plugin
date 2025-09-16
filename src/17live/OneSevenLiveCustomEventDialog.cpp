@@ -856,6 +856,8 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
         // Send event update signal
         customEvent.status = 3;
         emit eventUpdated(customEvent);
+    } else { 
+        return;
     }
 
     // Directly close the dialog
