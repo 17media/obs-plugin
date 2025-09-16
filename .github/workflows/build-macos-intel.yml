@@ -69,15 +69,6 @@ jobs:
             echo "PKG_SUFFIX=-stage" >> $GITHUB_ENV
           fi
 
-      - name: Cache OBS dependencies packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            .deps
-          key: ${{ runner.os }}-intel-deps-${{ hashFiles('**/CMakeLists.txt', '**/buildspec.json') }}
-          restore-keys: |
-            ${{ runner.os }}-intel-deps-
-
       - name: CMake Configure
         run: |
           cmake --preset macos \
