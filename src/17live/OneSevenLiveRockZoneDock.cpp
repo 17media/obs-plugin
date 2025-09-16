@@ -53,9 +53,8 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
 }
 
 OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() {
-    if (userDialog) {
+    if (userDialog && !userDialog.isNull()) {
         userDialog->deleteLater();
-        userDialog = nullptr;
     }
 }
 
@@ -144,6 +143,7 @@ void OneSevenLiveRockZoneDock::setupUi() {
         "}");
     pokeAllButton->setMaximumWidth(250);
     pokeAllButton->setMinimumWidth(150);
+    pokeAllButton->setFixedHeight(40);
     pokeAllButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     mainLayout->addWidget(pokeAllButton, 0, Qt::AlignHCenter);
 
@@ -502,24 +502,15 @@ void OneSevenLiveRockZoneDock::handleTopLevelChanged(bool topLevel) {
     }
 }
 
-void OneSevenLiveRockZoneDock::onUserItemClicked(QListWidgetItem* item) {
-    // Get clicked item index
-    int index = userList->row(item);
-    if (index < 0 || index >= viewersList.size()) {
-        return;
-    }
-
-    // Get user information
-    const OneSevenLiveRockZoneViewer& user = viewersList.at(index);
-
-    // Create user information dialog (if it doesn't exist)
+void OneSevenLiveRockZoneDock::onUserItemClicked(const QString& userId) {
     if (!userDialog) {
         userDialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
     }
 
-    // Set user information and display dialog
-    userDialog->setUserInfo(user);
-    userDialog->exec();
+    userDialog->updateUserInfo(userId);
+    userDialog->show();
+    userDialog->raise();
+    userDialog->activateWindow();
 }
 
 void OneSevenLiveRockZoneDock::onCooldownTimerTimeout() {

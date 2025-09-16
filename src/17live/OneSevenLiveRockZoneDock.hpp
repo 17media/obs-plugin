@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTimer>
@@ -59,7 +60,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     bool armyNameCached = false;
 
     // User information dialog
-    OneSevenLiveUserDialog* userDialog = nullptr;
+    QPointer<OneSevenLiveUserDialog> userDialog;
 
     // Auto refresh timer
     QTimer* refreshTimer = nullptr;
