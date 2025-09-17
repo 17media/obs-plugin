@@ -1,0 +1,98 @@
+name: Build OBS 17Live Plugin - macOS Apple Silicon
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-stage'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Build environment"
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - production
+      version:
+        description: "Version number (e.g., 1.0.0)"
+        required: false
+        default: "0.0.0"
+        type: string
+  
+jobs:
+  build-mac-arm64:
+    name: Build macOS Apple Silicon
+    runs-on: macos-15
+    environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+    env:
+      ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
+      VERSION: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) && github.ref_name || github.event.inputs.version || '0.0.0' }}
+      BUILD_ENV: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Debug Environment Variables
+        run: |
+          echo "Current environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}"
+          echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
+          echo "BUILD_ENV: $BUILD_ENV"
+          echo "VERSION: $VERSION"
+          echo "Tag name: ${{ github.ref_name }}"
+          echo "Manual version input: ${{ github.event.inputs.version }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and Build Web
+        working-directory: web/ably_chat
+        run: |
+          npm install
+          npm run build
+
+      - name: Set ENV and Version
+        run: |
+          # Remove v prefix from VERSION if present
+          VERSION_NUMBER=${VERSION#v}
+          
+          # Remove -stage suffix from version number if present
+          VERSION_NUMBER=${VERSION_NUMBER%-stage}
+          echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
+          
+          # Set package name suffix
+          if [ "$BUILD_ENV" == "production" ]; then
+            echo "PKG_SUFFIX=" >> $GITHUB_ENV
+          else
+            echo "PKG_SUFFIX=-stage" >> $GITHUB_ENV
+          fi
+
+      - name: CMake Configure
+        run: |
+          cmake --preset macos \
+            -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" \
+            -DCMAKE_PROJECT_VERSION="$VERSION"
+
+      - name: Build
+        run: cmake --build --preset macos --config Release
+
+      - name: Create pkg
+        run: |
+          PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}${PKG_SUFFIX}.pkg"
+          sudo pkgbuild --root build_macos/Release \
+                        --identifier com.17live.obsplugin \
+                        --version "$VERSION" \
+                        --install-location "/Applications/OBS.app/Contents/PlugIns" \
+                        --scripts package/macOS/misc \
+                        "$PKG_NAME"
+          echo "PKG_NAME=$PKG_NAME" >> $GITHUB_ENV
+
+      - name: Upload pkg
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-AppleSilicon-PKG
+          path: ${{ env.PKG_NAME }}
+
+  
