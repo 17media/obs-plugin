@@ -179,11 +179,16 @@ struct OneSevenLiveRtmpUrl {
     bool throttle;
 };
 
+bool JsonToOneSevenLiveRtmpUrl(const Json &json, OneSevenLiveRtmpUrl &rtmpUrl);
+
 // Pull stream URL information struct
 struct OneSevenLivePullUrlsInfo {
     QList<OneSevenLiveRtmpUrl> rtmpURLs;
     qint64 seqNo;
 };
+
+bool JsonToOneSevenLiveRtmpUrls(const Json &json, QList<OneSevenLiveRtmpUrl> &rtmpUrls);
+bool JsonToOneSevenLivePullUrlsInfo(const Json &pullUrlsInfoJson, OneSevenLivePullUrlsInfo &pullUrlsInfo);
 
 // Product information struct
 struct OneSevenLiveCommodityInfo {
@@ -266,6 +271,8 @@ struct OneSevenLiveArchiveConfig {
     int clipPermission;
     int clipPermissionDownload;  // New field
 };
+
+bool JsonToOneSevenLiveArchiveConfig(const Json &json, OneSevenLiveArchiveConfig &archiveConfig);
 
 // hashtag struct
 struct OneSevenLiveHashtag {
@@ -572,6 +579,14 @@ struct OneSevenLiveConfig {
 // Function declaration to parse JSON to OneSevenLiveConfig struct
 bool JsonToOneSevenLiveConfig(const Json &json, OneSevenLiveConfig &config);
 bool OneSevenLiveConfigToJson(const OneSevenLiveConfig &config, Json &json);
+
+// Function declarations for event-related JSON parsing (moved here after all struct definitions)
+bool JsonToOneSevenLiveEventList(const Json &eventListJson, QList<OneSevenLiveEventInfo> &eventList);
+bool JsonToOneSevenLiveHashtags(const Json &hashtagsJson, QList<OneSevenLiveHashtag> &hashtags);
+bool JsonToOneSevenLiveEventItems(const Json &eventsJson, QList<OneSevenLiveEventItem> &events);
+bool JsonToOneSevenLiveEventTags(const Json &tagsJson, QList<OneSevenLiveEventTag> &tags);
+bool JsonToOneSevenLiveEventSection(const Json &eventJson, OneSevenLiveEventList &event);
+bool JsonToOneSevenLiveSubtabs(const Json &subtabsJson, QList<OneSevenLiveSubtab> &subtabs);
 
 // Internationalization token parameter struct
 struct OneSevenLiveI18nTokenParam {

@@ -36,6 +36,8 @@
 #include <errno.h>
 #endif
 
+#include "plugin-support.h"
+
 using namespace std;
 
 double NetworkDiagnostics::getCurrentTimeMs() {
@@ -69,58 +71,83 @@ NetworkDiagnosticResult NetworkDiagnostics::testDnsResolution(const string& host
     NetworkDiagnosticResult result;
     double start_time = getCurrentTimeMs();
     
-    obs_log(LOG_INFO, "[Network Diagnostics] Testing DNS resolution for: %s", hostname.c_str());
+    obs_log(LOG_INFO, "[Network Diagnostics] Testing DNS resolution for: %s (timeout: %ds)", 
+            hostname.c_str(), timeout_seconds);
     
-    struct addrinfo hints, *res = nullptr;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC; // Allow IPv4 or IPv6
-    hints.ai_socktype = SOCK_STREAM;
+    struct addrinfo *res = nullptr;
     
-    int status = getaddrinfo(hostname.c_str(), nullptr, &hints, &res);
-    result.dns_resolution_time_ms = getCurrentTimeMs() - start_time;
-    
-    if (status != 0) {
-        result.dns_resolution_success = false;
-        result.error_message = "DNS resolution failed: " + string(gai_strerror(status));
-        obs_log(LOG_ERROR, "[Network Diagnostics] DNS resolution failed for %s: %s (%.2fms)", 
-                hostname.c_str(), gai_strerror(status), result.dns_resolution_time_ms);
-        return result;
-    }
-    
-    result.dns_resolution_success = true;
-    
-    // Collect all resolved IP addresses
-    for (struct addrinfo* p = res; p != nullptr; p = p->ai_next) {
-        char ip_str[INET6_ADDRSTRLEN];
-        void* addr;
+    try {
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC; // Allow IPv4 or IPv6
+        hints.ai_socktype = SOCK_STREAM;
         
-        if (p->ai_family == AF_INET) {
-            struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
-            addr = &(ipv4->sin_addr);
-        } else if (p->ai_family == AF_INET6) {
-            struct sockaddr_in6* ipv6 = (struct sockaddr_in6*)p->ai_addr;
-            addr = &(ipv6->sin6_addr);
-        } else {
-            continue;
+        int status = getaddrinfo(hostname.c_str(), nullptr, &hints, &res);
+        result.dns_resolution_time_ms = getCurrentTimeMs() - start_time;
+        
+        // Check if DNS resolution took longer than expected timeout
+        if (result.dns_resolution_time_ms > timeout_seconds * 1000.0) {
+            obs_log(LOG_WARNING, "[Network Diagnostics] DNS resolution for %s took %.2fms, longer than timeout %ds", 
+                    hostname.c_str(), result.dns_resolution_time_ms, timeout_seconds);
         }
         
-        inet_ntop(p->ai_family, addr, ip_str, INET6_ADDRSTRLEN);
-        result.resolved_ips.push_back(string(ip_str));
+        if (status != 0) {
+            result.dns_resolution_success = false;
+            result.error_message = "DNS resolution failed: " + string(gai_strerror(status));
+            obs_log(LOG_ERROR, "[Network Diagnostics] DNS resolution failed for %s: %s (%.2fms)", 
+                    hostname.c_str(), gai_strerror(status), result.dns_resolution_time_ms);
+            return result;
+        }
+        
+        result.dns_resolution_success = true;
+        
+        // Collect all resolved IP addresses
+        for (struct addrinfo* p = res; p != nullptr; p = p->ai_next) {
+            char ip_str[INET6_ADDRSTRLEN];
+            void* addr;
+            
+            if (p->ai_family == AF_INET) {
+                struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
+                addr = &(ipv4->sin_addr);
+            } else if (p->ai_family == AF_INET6) {
+                struct sockaddr_in6* ipv6 = (struct sockaddr_in6*)p->ai_addr;
+                addr = &(ipv6->sin6_addr);
+            } else {
+                continue;
+            }
+            
+            inet_ntop(p->ai_family, addr, ip_str, INET6_ADDRSTRLEN);
+            result.resolved_ips.push_back(string(ip_str));
+        }
+        
+        stringstream ss;
+        ss << "DNS resolution successful (";
+        for (size_t i = 0; i < result.resolved_ips.size(); ++i) {
+            if (i > 0) ss << ", ";
+            ss << result.resolved_ips[i];
+        }
+        ss << ")";
+        result.detailed_info = ss.str();
+        
+        obs_log(LOG_INFO, "[Network Diagnostics] DNS resolution successful for %s: %s (%.2fms)", 
+                hostname.c_str(), result.detailed_info.c_str(), result.dns_resolution_time_ms);
+    } catch (const std::exception& e) {
+        result.dns_resolution_success = false;
+        result.error_message = "DNS resolution test exception: " + string(e.what());
+        result.dns_resolution_time_ms = getCurrentTimeMs() - start_time;
+        obs_log(LOG_ERROR, "[Network Diagnostics] DNS resolution test exception for %s: %s (%.2fms)", 
+                hostname.c_str(), e.what(), result.dns_resolution_time_ms);
+    } catch (...) {
+        result.dns_resolution_success = false;
+        result.error_message = "DNS resolution test unknown exception";
+        result.dns_resolution_time_ms = getCurrentTimeMs() - start_time;
+        obs_log(LOG_ERROR, "[Network Diagnostics] DNS resolution test unknown exception for %s (%.2fms)", 
+                hostname.c_str(), result.dns_resolution_time_ms);
     }
     
-    freeaddrinfo(res);
-    
-    stringstream ss;
-    ss << "DNS resolution successful (";
-    for (size_t i = 0; i < result.resolved_ips.size(); ++i) {
-        if (i > 0) ss << ", ";
-        ss << result.resolved_ips[i];
+    if (res) {
+        freeaddrinfo(res);
     }
-    ss << ")";
-    result.detailed_info = ss.str();
-    
-    obs_log(LOG_INFO, "[Network Diagnostics] DNS resolution successful for %s: %s (%.2fms)", 
-            hostname.c_str(), result.detailed_info.c_str(), result.dns_resolution_time_ms);
     
     return result;
 }
@@ -131,119 +158,145 @@ NetworkDiagnosticResult NetworkDiagnostics::testTcpConnection(const string& host
     
     obs_log(LOG_INFO, "[Network Diagnostics] Testing TCP connection to: %s:%d", hostname.c_str(), port);
     
-    // First resolve the hostname
-    struct addrinfo hints, *res = nullptr;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
+    struct addrinfo *res = nullptr;
+    int sockfd = -1;
     
-    string port_str = to_string(port);
-    int status = getaddrinfo(hostname.c_str(), port_str.c_str(), &hints, &res);
-    
-    if (status != 0) {
-        result.tcp_connection_success = false;
-        result.error_message = "DNS resolution failed for TCP test: " + string(gai_strerror(status));
-        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-        obs_log(LOG_ERROR, "[Network Diagnostics] TCP test DNS resolution failed for %s:%d: %s (%.2fms)", 
-                hostname.c_str(), port, gai_strerror(status), result.tcp_connection_time_ms);
-        return result;
-    }
-    
-    // Try to connect to the first resolved address
-    int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (sockfd == -1) {
-        result.tcp_connection_success = false;
-        result.error_message = "Failed to create socket";
-        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-        freeaddrinfo(res);
-        obs_log(LOG_ERROR, "[Network Diagnostics] Failed to create socket for %s:%d (%.2fms)", 
-                hostname.c_str(), port, result.tcp_connection_time_ms);
-        return result;
-    }
-    
-    // Set socket to non-blocking mode for timeout control
+    try {
+        // First resolve the hostname
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        
+        string port_str = to_string(port);
+        int status = getaddrinfo(hostname.c_str(), port_str.c_str(), &hints, &res);
+        
+        if (status != 0) {
+            result.tcp_connection_success = false;
+            result.error_message = "DNS resolution failed for TCP test: " + string(gai_strerror(status));
+            result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+            obs_log(LOG_ERROR, "[Network Diagnostics] TCP test DNS resolution failed for %s:%d: %s (%.2fms)", 
+                    hostname.c_str(), port, gai_strerror(status), result.tcp_connection_time_ms);
+            return result;
+        }
+        
+        // Try to connect to the first resolved address
+        sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+        if (sockfd == -1) {
+            result.tcp_connection_success = false;
+            result.error_message = "Failed to create socket";
+            result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+            obs_log(LOG_ERROR, "[Network Diagnostics] Failed to create socket for %s:%d (%.2fms)", 
+                    hostname.c_str(), port, result.tcp_connection_time_ms);
+            freeaddrinfo(res);
+            return result;
+        }
+        
+        // Set socket to non-blocking mode for timeout control
 #ifdef _WIN32
-    u_long mode = 1;
-    ioctlsocket(sockfd, FIONBIO, &mode);
+        u_long mode = 1;
+        ioctlsocket(sockfd, FIONBIO, &mode);
 #else
-    int flags = fcntl(sockfd, F_GETFL, 0);
-    fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+        int flags = fcntl(sockfd, F_GETFL, 0);
+        fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 #endif
-    
-    // Attempt connection
-    int connect_result = connect(sockfd, res->ai_addr, res->ai_addrlen);
-    
-    if (connect_result == 0) {
-        // Connection succeeded immediately
-        result.tcp_connection_success = true;
-        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-        result.detailed_info = "TCP connection successful";
-        obs_log(LOG_INFO, "[Network Diagnostics] TCP connection successful to %s:%d (%.2fms)", 
-                hostname.c_str(), port, result.tcp_connection_time_ms);
-    } else {
-        // Check if connection is in progress
+        
+        // Attempt connection
+        int connect_result = connect(sockfd, res->ai_addr, res->ai_addrlen);
+        
+        if (connect_result == 0) {
+            // Connection succeeded immediately
+            result.tcp_connection_success = true;
+            result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+            result.detailed_info = "TCP connection successful";
+            obs_log(LOG_INFO, "[Network Diagnostics] TCP connection successful to %s:%d (%.2fms)", 
+                    hostname.c_str(), port, result.tcp_connection_time_ms);
+        } else {
+            // Check if connection is in progress
 #ifdef _WIN32
-        if (WSAGetLastError() == WSAEWOULDBLOCK) {
+            if (WSAGetLastError() == WSAEWOULDBLOCK) {
 #else
-        if (errno == EINPROGRESS) {
+            if (errno == EINPROGRESS) {
 #endif
-            // Use select to wait for connection with timeout
-            fd_set write_fds;
-            FD_ZERO(&write_fds);
-            FD_SET(sockfd, &write_fds);
-            
-            struct timeval timeout;
-            timeout.tv_sec = timeout_seconds;
-            timeout.tv_usec = 0;
-            
-            int select_result = select(sockfd + 1, nullptr, &write_fds, nullptr, &timeout);
-            
-            if (select_result > 0 && FD_ISSET(sockfd, &write_fds)) {
-                // Check if connection actually succeeded
-                int error = 0;
-                socklen_t len = sizeof(error);
-                getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&error, &len);
+                // Use select to wait for connection with timeout
+                fd_set write_fds;
+                FD_ZERO(&write_fds);
+                FD_SET(sockfd, &write_fds);
                 
-                if (error == 0) {
-                    result.tcp_connection_success = true;
-                    result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-                    result.detailed_info = "TCP connection successful";
-                    obs_log(LOG_INFO, "[Network Diagnostics] TCP connection successful to %s:%d (%.2fms)", 
-                            hostname.c_str(), port, result.tcp_connection_time_ms);
+                struct timeval timeout;
+                timeout.tv_sec = timeout_seconds;
+                timeout.tv_usec = 0;
+                
+                int select_result = select(sockfd + 1, nullptr, &write_fds, nullptr, &timeout);
+                
+                if (select_result > 0 && FD_ISSET(sockfd, &write_fds)) {
+                    // Check if connection actually succeeded
+                    int error = 0;
+                    socklen_t len = sizeof(error);
+                    getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&error, &len);
+                    
+                    if (error == 0) {
+                        result.tcp_connection_success = true;
+                        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+                        result.detailed_info = "TCP connection successful";
+                        obs_log(LOG_INFO, "[Network Diagnostics] TCP connection successful to %s:%d (%.2fms)", 
+                                hostname.c_str(), port, result.tcp_connection_time_ms);
+                    } else {
+                        result.tcp_connection_success = false;
+                        result.error_message = "TCP connection failed: " + string(strerror(error));
+                        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+                        obs_log(LOG_ERROR, "[Network Diagnostics] TCP connection failed to %s:%d: %s (%.2fms)", 
+                                hostname.c_str(), port, strerror(error), result.tcp_connection_time_ms);
+                    }
                 } else {
                     result.tcp_connection_success = false;
-                    result.error_message = "TCP connection failed: " + string(strerror(error));
+                    result.error_message = "TCP connection timeout";
                     result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-                    obs_log(LOG_ERROR, "[Network Diagnostics] TCP connection failed to %s:%d: %s (%.2fms)", 
-                            hostname.c_str(), port, strerror(error), result.tcp_connection_time_ms);
+                    obs_log(LOG_ERROR, "[Network Diagnostics] TCP connection timeout to %s:%d (%.2fms)", 
+                            hostname.c_str(), port, result.tcp_connection_time_ms);
                 }
             } else {
                 result.tcp_connection_success = false;
-                result.error_message = "TCP connection timeout";
+                result.error_message = "TCP connection failed immediately: " + string(strerror(errno));
                 result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-                obs_log(LOG_ERROR, "[Network Diagnostics] TCP connection timeout to %s:%d (%.2fms)", 
-                        hostname.c_str(), port, result.tcp_connection_time_ms);
+                obs_log(LOG_ERROR, "[Network Diagnostics] TCP connection failed immediately to %s:%d: %s (%.2fms)", 
+                        hostname.c_str(), port, strerror(errno), result.tcp_connection_time_ms);
             }
-        } else {
-            result.tcp_connection_success = false;
-            result.error_message = "TCP connection failed immediately: " + string(strerror(errno));
-            result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-            obs_log(LOG_ERROR, "[Network Diagnostics] TCP connection failed immediately to %s:%d: %s (%.2fms)", 
-                    hostname.c_str(), port, strerror(errno), result.tcp_connection_time_ms);
         }
+    } catch (const std::exception& e) {
+        result.tcp_connection_success = false;
+        result.error_message = "TCP connection test exception: " + string(e.what());
+        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+        obs_log(LOG_ERROR, "[Network Diagnostics] TCP connection test exception for %s:%d: %s (%.2fms)", 
+                hostname.c_str(), port, e.what(), result.tcp_connection_time_ms);
+    } catch (...) {
+        result.tcp_connection_success = false;
+        result.error_message = "TCP connection test unknown exception";
+        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+        obs_log(LOG_ERROR, "[Network Diagnostics] TCP connection test unknown exception for %s:%d (%.2fms)", 
+                hostname.c_str(), port, result.tcp_connection_time_ms);
     }
     
+    // Cleanup
+    if (sockfd != -1) {
 #ifdef _WIN32
-    closesocket(sockfd);
+        closesocket(sockfd);
 #else
-    close(sockfd);
+        close(sockfd);
 #endif
-    freeaddrinfo(res);
+    }
+    if (res) {
+        freeaddrinfo(res);
+    }
     
     return result;
 }
 
-static size_t curl_write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+static size_t network_diagnostics_write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+    // Suppress unused parameter warnings
+    (void)contents;
+    (void)userp;
+    
     // We don't need the response data, just check if we can connect
     return size * nmemb;
 }
@@ -254,54 +307,71 @@ NetworkDiagnosticResult NetworkDiagnostics::testHttpConnectivity(const string& u
     
     obs_log(LOG_INFO, "[Network Diagnostics] Testing HTTP connectivity to: %s", url.c_str());
     
-    CURL* curl = curl_easy_init();
-    if (!curl) {
-        result.error_message = "Failed to initialize libcurl";
-        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-        obs_log(LOG_ERROR, "[Network Diagnostics] Failed to initialize libcurl for %s", url.c_str());
-        return result;
-    }
-    
-    // Configure curl options
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_callback);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_seconds);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, timeout_seconds);
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 3L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "OBS-17Live-Plugin/1.0");
-    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L); // HEAD request only
-    
-    // Perform the request
-    CURLcode res = curl_easy_perform(curl);
-    result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
-    
-    if (res == CURLE_OK) {
-        long response_code;
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-        
-        result.tcp_connection_success = true;
-        result.detailed_info = "HTTP connectivity successful (HTTP " + to_string(response_code) + ")";
-        obs_log(LOG_INFO, "[Network Diagnostics] HTTP connectivity successful to %s: HTTP %ld (%.2fms)", 
-                url.c_str(), response_code, result.tcp_connection_time_ms);
-    } else {
-        result.tcp_connection_success = false;
-        result.error_message = "HTTP connectivity failed: " + string(curl_easy_strerror(res));
-        
-        // Provide more specific error information
-        if (res == CURLE_COULDNT_RESOLVE_HOST) {
-            result.error_message += " (DNS resolution failed)";
-        } else if (res == CURLE_COULDNT_CONNECT) {
-            result.error_message += " (TCP connection failed)";
-        } else if (res == CURLE_OPERATION_TIMEDOUT) {
-            result.error_message += " (Connection timeout)";
+    CURL* curl = nullptr;
+    try {
+        curl = curl_easy_init();
+        if (!curl) {
+            result.error_message = "Failed to initialize libcurl";
+            result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+            obs_log(LOG_ERROR, "[Network Diagnostics] Failed to initialize libcurl for %s", url.c_str());
+            return result;
         }
         
-        obs_log(LOG_ERROR, "[Network Diagnostics] HTTP connectivity failed to %s: %s (%.2fms)", 
-                url.c_str(), curl_easy_strerror(res), result.tcp_connection_time_ms);
+        // Configure curl options
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, network_diagnostics_write_callback);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_seconds);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, timeout_seconds);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 3L);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "OBS-17Live-Plugin/1.0");
+        curl_easy_setopt(curl, CURLOPT_NOBODY, 1L); // HEAD request only
+        
+        // Perform the request
+        CURLcode res = curl_easy_perform(curl);
+        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+        
+        if (res == CURLE_OK) {
+            long response_code;
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+            
+            result.tcp_connection_success = true;
+            result.detailed_info = "HTTP connectivity successful (HTTP " + to_string(response_code) + ")";
+            obs_log(LOG_INFO, "[Network Diagnostics] HTTP connectivity successful to %s: HTTP %ld (%.2fms)", 
+                    url.c_str(), response_code, result.tcp_connection_time_ms);
+        } else {
+            result.tcp_connection_success = false;
+            result.error_message = "HTTP connectivity failed: " + string(curl_easy_strerror(res));
+            
+            // Provide more specific error information
+            if (res == CURLE_COULDNT_RESOLVE_HOST) {
+                result.error_message += " (DNS resolution failed)";
+            } else if (res == CURLE_COULDNT_CONNECT) {
+                result.error_message += " (TCP connection failed)";
+            } else if (res == CURLE_OPERATION_TIMEDOUT) {
+                result.error_message += " (Connection timeout)";
+            }
+            
+            obs_log(LOG_ERROR, "[Network Diagnostics] HTTP connectivity failed to %s: %s (%.2fms)", 
+                    url.c_str(), curl_easy_strerror(res), result.tcp_connection_time_ms);
+        }
+    } catch (const std::exception& e) {
+        result.tcp_connection_success = false;
+        result.error_message = "HTTP connectivity test exception: " + string(e.what());
+        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+        obs_log(LOG_ERROR, "[Network Diagnostics] HTTP connectivity test exception for %s: %s (%.2fms)", 
+                url.c_str(), e.what(), result.tcp_connection_time_ms);
+    } catch (...) {
+        result.tcp_connection_success = false;
+        result.error_message = "HTTP connectivity test unknown exception";
+        result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
+        obs_log(LOG_ERROR, "[Network Diagnostics] HTTP connectivity test unknown exception for %s (%.2fms)", 
+                url.c_str(), result.tcp_connection_time_ms);
     }
     
-    curl_easy_cleanup(curl);
+    if (curl) {
+        curl_easy_cleanup(curl);
+    }
     return result;
 }
 

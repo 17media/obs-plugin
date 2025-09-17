@@ -155,19 +155,36 @@ bool OneSevenLiveHttpServer::start() {
         std::filesystem::path file_path = std::filesystem::path(base_dir_) / path.substr(1);
         std::string file_path_str = file_path.string();
         
-        if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path)) {
-            std::ifstream ifs(file_path_str, std::ios::in | std::ios::binary);
-            if (ifs) {
-                std::string content((std::istreambuf_iterator<char>(ifs)),
-                                    (std::istreambuf_iterator<char>()));
-                res.set_content(content, get_mime_type(file_path_str).c_str());
+        try {
+            if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path)) {
+                std::ifstream ifs(file_path_str, std::ios::in | std::ios::binary);
+                if (ifs.is_open() && ifs.good()) {
+                    std::string content((std::istreambuf_iterator<char>(ifs)),
+                                        (std::istreambuf_iterator<char>()));
+                    if (ifs.bad()) {
+                        blog(LOG_ERROR, "[17Live HTTP Server] Error reading file: %s", file_path_str.c_str());
+                        res.status = 500;
+                        res.set_content("Internal Server Error", "text/plain");
+                    } else {
+                        res.set_content(content, get_mime_type(file_path_str).c_str());
+                    }
+                } else {
+                    blog(LOG_ERROR, "[17Live HTTP Server] Failed to open file: %s", file_path_str.c_str());
+                    res.status = 500;
+                    res.set_content("Internal Server Error", "text/plain");
+                }
             } else {
-                res.status = 500;
-                res.set_content("Internal Server Error", "text/plain");
+                res.status = 404;
+                res.set_content("Not Found", "text/plain");
             }
-        } else {
-            res.status = 404;
-            res.set_content("Not Found", "text/plain");
+        } catch (const std::filesystem::filesystem_error& e) {
+            blog(LOG_ERROR, "[17Live HTTP Server] Filesystem error for %s: %s", file_path_str.c_str(), e.what());
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
+        } catch (const std::exception& e) {
+            blog(LOG_ERROR, "[17Live HTTP Server] Exception serving file %s: %s", file_path_str.c_str(), e.what());
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
         }
     });
 
@@ -206,15 +223,31 @@ bool OneSevenLiveHttpServer::start() {
             path_str = path_obj.string();
         }
 
-        std::ifstream ifs(path_str, std::ios::in | std::ios::binary);
-        if (ifs) {
-            std::string content((std::istreambuf_iterator<char>(ifs)),
-                                (std::istreambuf_iterator<char>()));
-            res.set_content(content, get_mime_type(path_str).c_str());
-        } else {
-            blog(LOG_WARNING, "[17Live HTTP Server] File not found for /: %s", path_str.c_str());
-            res.status = 404;
-            res.set_content("File not found", "text/plain");  // Don't expose internal paths
+        try {
+            std::ifstream ifs(path_str, std::ios::in | std::ios::binary);
+            if (ifs.is_open() && ifs.good()) {
+                std::string content((std::istreambuf_iterator<char>(ifs)),
+                                    (std::istreambuf_iterator<char>()));
+                if (ifs.bad()) {
+                    blog(LOG_ERROR, "[17Live HTTP Server] Error reading index.html: %s", path_str.c_str());
+                    res.status = 500;
+                    res.set_content("Internal Server Error", "text/plain");
+                } else {
+                    res.set_content(content, get_mime_type(path_str).c_str());
+                }
+            } else {
+                blog(LOG_WARNING, "[17Live HTTP Server] File not found for /: %s", path_str.c_str());
+                res.status = 404;
+                res.set_content("File not found", "text/plain");  // Don't expose internal paths
+            }
+        } catch (const std::filesystem::filesystem_error& e) {
+            blog(LOG_ERROR, "[17Live HTTP Server] Filesystem error for index.html %s: %s", path_str.c_str(), e.what());
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
+        } catch (const std::exception& e) {
+            blog(LOG_ERROR, "[17Live HTTP Server] Exception serving index.html %s: %s", path_str.c_str(), e.what());
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
         }
     });
 
@@ -251,20 +284,22 @@ bool OneSevenLiveHttpServer::start() {
         if (!check_rate_limit(client_ip)) {
             res.status = 429;
             res.set_header("Content-Type", "application/json");
-            json11::Json errorResponse = json11::Json::object{
+            const json11::Json errorResponse = json11::Json::object{
                 {"success", false}, 
                 {"error", "Rate limit exceeded"}
             };
-            res.set_content(errorResponse.dump(), "application/json");
+            const std::string responseStr = errorResponse.dump();
+            res.set_content(responseStr, "application/json");
             return;
         }
         
         res.set_header("Content-Type", "application/json");
-        json11::Json response = json11::Json::object{
+        const json11::Json response = json11::Json::object{
             {"success", true}, 
             {"csrf_token", csrf_token_}
         };
-        res.set_content(response.dump(), "application/json");
+        const std::string responseStr = response.dump();
+        res.set_content(responseStr, "application/json");
     });
 
     // Add /lapi route to handle API requests
@@ -282,11 +317,12 @@ bool OneSevenLiveHttpServer::start() {
         if (!check_rate_limit(client_ip)) {
             res.status = 429;
             res.set_header("Content-Type", "application/json");
-            json11::Json errorResponse = json11::Json::object{
+            const json11::Json errorResponse = json11::Json::object{
                 {"success", false}, 
                 {"error", "Rate limit exceeded"}
             };
-            res.set_content(errorResponse.dump(), "application/json");
+            const std::string responseStr = errorResponse.dump();
+            res.set_content(responseStr, "application/json");
             return;
         }
         
@@ -294,11 +330,12 @@ bool OneSevenLiveHttpServer::start() {
         if (!validate_request_size(req)) {
             res.status = 413;  // Payload Too Large
             res.set_header("Content-Type", "application/json");
-            json11::Json errorResponse = json11::Json::object{
+            const json11::Json errorResponse = json11::Json::object{
                 {"success", false}, 
                 {"error", "Request too large"}
             };
-            res.set_content(errorResponse.dump(), "application/json");
+            const std::string responseStr = errorResponse.dump();
+            res.set_content(responseStr, "application/json");
             return;
         }
         
@@ -315,25 +352,28 @@ bool OneSevenLiveHttpServer::start() {
 
         // Parse JSON data from request body
         std::string error;
-        json11::Json requestJson = json11::Json::parse(req.body, error);
+        const json11::Json requestJson = json11::Json::parse(req.body, error);
 
         if (!error.empty()) {
-            // JSON parsing error
-            json11::Json errorResponse =
+            // JSON parsing error - pre-build error message to avoid repeated string operations
+            const std::string errorMsg = "Invalid JSON: " + error;
+            const json11::Json errorResponse =
                 json11::Json::object{{"success", json11::Json(false)},
-                                     {"error", json11::Json("Invalid JSON: " + error)}};
-            res.set_content(errorResponse.dump(), "application/json");
+                                     {"error", json11::Json(errorMsg)}};
+            const std::string responseStr = errorResponse.dump();
+            res.set_content(responseStr, "application/json");
             return;
         }
 
         // Get requested action
-        std::string action = requestJson["action"].string_value();
+        const std::string action = requestJson["action"].string_value();
 
         if (action.empty()) {
             // Missing action parameter
-            json11::Json errorResponse =
+            const json11::Json errorResponse =
                 json11::Json::object{{"success", false}, {"error", "Missing 'action' parameter"}};
-            res.set_content(errorResponse.dump(), "application/json");
+            const std::string responseStr = errorResponse.dump();
+            res.set_content(responseStr, "application/json");
             return;
         }
 
@@ -348,9 +388,10 @@ bool OneSevenLiveHttpServer::start() {
 
             if (!apiWrapper) {
                 // API Wrapper not initialized
-                json11::Json errorResponse =
+                const json11::Json errorResponse =
                     json11::Json::object{{"success", false}, {"error", "API not initialized"}};
-                res.set_content(errorResponse.dump(), "application/json");
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
                 return;
             }
 
@@ -378,59 +419,73 @@ bool OneSevenLiveHttpServer::start() {
                     OneSevenLiveRoomInfoToJson(roomInfo, apiResult);
                 }
             } else {
-                // Unsupported action
-                json11::Json errorResponse = json11::Json::object{
-                    {"success", false}, {"error", "Unsupported action: " + action}};
-                res.set_content(errorResponse.dump(), "application/json");
+                // Unsupported action - pre-build error message
+                const std::string errorMsg = "Unsupported action: " + action;
+                const json11::Json errorResponse = json11::Json::object{
+                    {"success", false}, {"error", errorMsg}};
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
                 return;
             }
 
             if (!success) {
-                // API call failed
-                json11::Json errorResponse = json11::Json::object{
+                // API call failed - pre-convert error message
+                const std::string errorMsg = apiWrapper->getLastErrorMessage().toStdString();
+                const json11::Json errorResponse = json11::Json::object{
                     {"success", json11::Json(false)},
-                    {"error", json11::Json(apiWrapper->getLastErrorMessage().toStdString())}};
-                res.set_content(errorResponse.dump(), "application/json");
+                    {"error", json11::Json(errorMsg)}};
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
                 return;
             }
 
-            // Build response
-            json11::Json response = apiResult;
-
-            res.set_content(response.dump(), "application/json");
+            // Build response - cache dump result
+            const json11::Json response = apiResult;
+            const std::string responseStr = response.dump();
+            res.set_content(responseStr, "application/json");
         } catch (const std::exception &e) {
-            // Handle exceptions
-            json11::Json errorResponse = json11::Json::object{
-                {"success", false}, {"error", std::string("Exception: ") + e.what()}};
-            res.set_content(errorResponse.dump(), "application/json");
+            // Handle exceptions - pre-build error message
+            const std::string errorMsg = std::string("Exception: ") + e.what();
+            const json11::Json errorResponse = json11::Json::object{
+                {"success", false}, {"error", errorMsg}};
+            const std::string responseStr = errorResponse.dump();
+            res.set_content(responseStr, "application/json");
         }
     });
 
     // Start server in new thread to avoid blocking main thread
     server_thread_ = std::make_unique<std::thread>([this]() {
-        if (port_ == 0) {
-            // Bind to any available port if port_ is 0
-            port_ = svr_.bind_to_any_port(host_.c_str());
-            if (port_ < 0) {  // bind_to_any_port returns -1 on failure
-                blog(LOG_ERROR, "[17Live HTTP Server] Failed to bind to any port on %s",
-                     host_.c_str());
-                running_ = false;
-                return;
+        try {
+            if (port_ == 0) {
+                // Bind to any available port if port_ is 0
+                port_ = svr_.bind_to_any_port(host_.c_str());
+                if (port_ < 0) {  // bind_to_any_port returns -1 on failure
+                    blog(LOG_ERROR, "[17Live HTTP Server] Failed to bind to any port on %s: %s",
+                         host_.c_str(), std::strerror(errno));
+                    running_ = false;
+                    return;
+                }
+                blog(LOG_INFO, "[17Live HTTP Server] Bound to %s:%d", host_.c_str(), port_);
+                if (!svr_.listen_after_bind()) {
+                    blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d after bind: %s",
+                         host_.c_str(), port_, std::strerror(errno));
+                    running_ = false;
+                }
+            } else {
+                // Listen on the specified port
+                blog(LOG_INFO, "[17Live HTTP Server] Starting server on %s:%d", host_.c_str(), port_);
+                if (!svr_.listen(host_.c_str(), port_)) {
+                    blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d: %s", 
+                         host_.c_str(), port_, std::strerror(errno));
+                    running_ = false;  // Ensure correct state
+                }
             }
-            blog(LOG_INFO, "[17Live HTTP Server] Bound to %s:%d", host_.c_str(), port_);
-            if (!svr_.listen_after_bind()) {
-                blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d after bind",
-                     host_.c_str(), port_);
-                running_ = false;
-            }
-        } else {
-            // Listen on the specified port
-            blog(LOG_INFO, "[17Live HTTP Server] Starting server on %s:%d", host_.c_str(), port_);
-            if (!svr_.listen(host_.c_str(), port_)) {
-                blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d", host_.c_str(),
-                     port_);
-                running_ = false;  // Ensure correct state
-            }
+        } catch (const std::exception& e) {
+            blog(LOG_ERROR, "[17Live HTTP Server] Exception during server startup: %s", e.what());
+            running_ = false;
+        } catch (...) {
+            blog(LOG_ERROR, "[17Live HTTP Server] Unknown exception during server startup");
+            running_ = false;
         }
     });
 
@@ -523,14 +578,17 @@ bool OneSevenLiveHttpServer::is_safe_path(const std::string& path) const {
 bool OneSevenLiveHttpServer::check_rate_limit(const std::string& client_ip) {
     std::lock_guard<std::mutex> lock(rate_limit_mutex_);
     
-    auto now = std::chrono::steady_clock::now();
+    const auto now = std::chrono::steady_clock::now();
     auto& requests = rate_limit_map_[client_ip];
     
-    // Clean up expired request records
+    // Pre-calculate the cutoff time to avoid repeated calculations in lambda
+    const auto cutoff_time = now - std::chrono::seconds(RATE_LIMIT_WINDOW_SECONDS);
+    
+    // Clean up expired request records - use cached cutoff time
     requests.erase(
         std::remove_if(requests.begin(), requests.end(),
-            [now](const std::chrono::steady_clock::time_point& time) {
-                return std::chrono::duration_cast<std::chrono::seconds>(now - time).count() > RATE_LIMIT_WINDOW_SECONDS;
+            [cutoff_time](const std::chrono::steady_clock::time_point& time) {
+                return time < cutoff_time;
             }),
         requests.end()
     );

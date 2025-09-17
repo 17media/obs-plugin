@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <mutex>
 
 #include "OneSevenLiveModels.hpp"
 #include "json11.hpp"
@@ -104,6 +105,7 @@ class OneSevenLiveApiWrappers : public QObject {
     static int64_t getCurrentTimestampMs();
 
     QString getLastErrorMessage() const {
+        std::lock_guard<std::mutex> lock(stateMutex);
         return lastErrorMessage;
     }
 
@@ -120,4 +122,11 @@ class OneSevenLiveApiWrappers : public QObject {
     std::string currentOS;
     std::string currentOSVersion;
     std::string currentPlatformUUID;
+
+    // Mutex for thread-safe access to shared state
+    mutable std::mutex stateMutex;
+
+    // Thread-safe helper methods for error message management
+    void setLastErrorMessage(const QString& message);
+    void clearLastErrorMessage();
 };

@@ -105,8 +105,8 @@ class OneSevenLiveCoreManager : public QObject {
     // Singleton instance
     static OneSevenLiveCoreManager* instance;
 
-    // Mutex for thread-safe singleton access
-    static std::mutex instanceMutex;
+    // Once flag for thread-safe singleton creation using std::call_once
+    static std::once_flag instanceOnceFlag;
 
     // OBS main window
     QMainWindow* mainWindow;

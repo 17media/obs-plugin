@@ -19,116 +19,154 @@ using namespace std;
 OneSevenLiveMetaData metaData;
 
 bool JsonToOneSevenLiveMetaData(const Json& json, OneSevenLiveMetaData& metaData) {
-    if (!json.is_object()) {
+    try {
+        if (!json.is_object()) {
+            return false;
+        }
+
+        // Reserve space for better performance
+        const auto& jsonObj = json.object_items();
+        
+        // Iterate through all key-value pairs of JSON object
+        for (const auto& pair : jsonObj) {
+            const std::string& key = pair.first;
+            const Json& value = pair.second;
+            
+            // Convert key once and reuse
+            const QString qKey = QString::fromStdString(key);
+
+            if (value.is_array()) {
+                // Handle array type
+                const auto& arrayItems = value.array_items();
+                QVariantList variantList;
+                variantList.reserve(arrayItems.size()); // Reserve space
+                
+                for (const auto& item : arrayItems) {
+                    if (item.is_object()) {
+                        // Handle object array
+                        const auto& objItems = item.object_items();
+                        QVariantMap variantMap;
+                        
+                        for (const auto& objPair : objItems) {
+                            const QString objKey = QString::fromStdString(objPair.first);
+                            const QString objValue = QString::fromStdString(objPair.second.string_value());
+                            variantMap[objKey] = objValue;
+                        }
+                        variantList.append(variantMap);
+                    } else if (item.is_string()) {
+                        // Handle string array
+                        variantList.append(QString::fromStdString(item.string_value()));
+                    } else if (item.is_number()) {
+                        // Handle number array
+                        variantList.append(item.number_value());
+                    } else if (item.is_bool()) {
+                        // Handle boolean array
+                        variantList.append(item.bool_value());
+                    }
+                }
+                metaData.data[qKey] = variantList;
+            } else if (value.is_object()) {
+                // Handle object type
+                const auto& objItems = value.object_items();
+                QVariantMap variantMap;
+                
+                for (const auto& objPair : objItems) {
+                    const QString objKey = QString::fromStdString(objPair.first);
+                    const QString objValue = QString::fromStdString(objPair.second.string_value());
+                    variantMap[objKey] = objValue;
+                }
+                metaData.data[qKey] = variantMap;
+            } else if (value.is_string()) {
+                // Handle string type
+                metaData.data[qKey] = QString::fromStdString(value.string_value());
+            } else if (value.is_number()) {
+                // Handle number type
+                metaData.data[qKey] = value.number_value();
+            } else if (value.is_bool()) {
+                // Handle boolean type
+                metaData.data[qKey] = value.bool_value();
+            }
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        blog(LOG_ERROR, "Exception in JsonToOneSevenLiveMetaData: %s", e.what());
+        return false;
+    } catch (...) {
+        blog(LOG_ERROR, "Unknown exception in JsonToOneSevenLiveMetaData");
         return false;
     }
-
-    // Iterate through all key-value pairs of JSON object
-    for (const auto& pair : json.object_items()) {
-        const std::string& key = pair.first;
-        const Json& value = pair.second;
-
-        if (value.is_array()) {
-            // Handle array type
-            QVariantList variantList;
-            for (const auto& item : value.array_items()) {
-                if (item.is_object()) {
-                    // Handle object array
-                    QVariantMap variantMap;
-                    for (const auto& objPair : item.object_items()) {
-                        variantMap[QString::fromStdString(objPair.first)] =
-                            QString::fromStdString(objPair.second.string_value());
-                    }
-                    variantList.append(variantMap);
-                } else if (item.is_string()) {
-                    // Handle string array
-                    variantList.append(QString::fromStdString(item.string_value()));
-                } else if (item.is_number()) {
-                    // Handle number array
-                    variantList.append(item.number_value());
-                } else if (item.is_bool()) {
-                    // Handle boolean array
-                    variantList.append(item.bool_value());
-                }
-            }
-            metaData.data[QString::fromStdString(key)] = variantList;
-        } else if (value.is_object()) {
-            // Handle object type
-            QVariantMap variantMap;
-            for (const auto& objPair : value.object_items()) {
-                variantMap[QString::fromStdString(objPair.first)] =
-                    QString::fromStdString(objPair.second.string_value());
-            }
-            metaData.data[QString::fromStdString(key)] = variantMap;
-        } else if (value.is_string()) {
-            // Handle string type
-            metaData.data[QString::fromStdString(key)] =
-                QString::fromStdString(value.string_value());
-        } else if (value.is_number()) {
-            // Handle number type
-            metaData.data[QString::fromStdString(key)] = value.number_value();
-        } else if (value.is_bool()) {
-            // Handle boolean type
-            metaData.data[QString::fromStdString(key)] = value.bool_value();
-        }
-    }
-
-    return true;
 }
 
 Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData& metaData) {
-    Json::object json;
+    try {
+        Json::object json;
 
-    for (auto it = metaData.data.constBegin(); it != metaData.data.constEnd(); ++it) {
-        const QString& key = it.key();
-        const QVariant& value = it.value();
-        int typeId = value.metaType().id();
+        for (auto it = metaData.data.constBegin(); it != metaData.data.constEnd(); ++it) {
+            const QString& key = it.key();
+            const QVariant& value = it.value();
+            int typeId = value.metaType().id();
+            
+            // Convert key once and reuse
+            const std::string stdKey = key.toStdString();
 
-        if (typeId == QMetaType::QVariantList) {
-            QVariantList list = value.toList();
-            std::vector<Json> jsonArray;
+            if (typeId == QMetaType::QVariantList) {
+                const QVariantList list = value.toList();
+                std::vector<Json> jsonArray;
+                jsonArray.reserve(list.size()); // Reserve space for better performance
 
-            for (const QVariant& item : list) {
-                int itemTypeId = item.metaType().id();
+                for (const QVariant& item : list) {
+                    int itemTypeId = item.metaType().id();
 
-                if (itemTypeId == QMetaType::QVariantMap) {
-                    QVariantMap map = item.toMap();
-                    Json::object jsonObj;
+                    if (itemTypeId == QMetaType::QVariantMap) {
+                        const QVariantMap map = item.toMap();
+                        Json::object jsonObj;
 
-                    for (auto mapIt = map.constBegin(); mapIt != map.constEnd(); ++mapIt) {
-                        jsonObj[mapIt.key().toStdString()] = mapIt.value().toString().toStdString();
+                        for (auto mapIt = map.constBegin(); mapIt != map.constEnd(); ++mapIt) {
+                            const std::string mapKey = mapIt.key().toStdString();
+                            const std::string mapValue = mapIt.value().toString().toStdString();
+                            jsonObj[mapKey] = mapValue;
+                        }
+
+                        jsonArray.push_back(Json(jsonObj));
+                    } else if (itemTypeId == QMetaType::QString) {
+                        jsonArray.push_back(Json(item.toString().toStdString()));
+                    } else if (item.canConvert<double>()) {
+                        jsonArray.push_back(Json(item.toDouble()));
+                    } else if (itemTypeId == QMetaType::Bool) {
+                        jsonArray.push_back(Json(item.toBool()));
                     }
-
-                    jsonArray.push_back(Json(jsonObj));
-                } else if (itemTypeId == QMetaType::QString) {
-                    jsonArray.push_back(Json(item.toString().toStdString()));
-                } else if (item.canConvert<double>()) {
-                    jsonArray.push_back(Json(item.toDouble()));
-                } else if (itemTypeId == QMetaType::Bool) {
-                    jsonArray.push_back(Json(item.toBool()));
                 }
+
+                json[stdKey] = Json(jsonArray);
+            } else if (typeId == QMetaType::QVariantMap) {
+                const QVariantMap map = value.toMap();
+                Json::object jsonObj;
+
+                for (auto mapIt = map.constBegin(); mapIt != map.constEnd(); ++mapIt) {
+                    const std::string mapKey = mapIt.key().toStdString();
+                    const std::string mapValue = mapIt.value().toString().toStdString();
+                    jsonObj[mapKey] = mapValue;
+                }
+
+                json[stdKey] = jsonObj;
+            } else if (typeId == QMetaType::QString) {
+                json[stdKey] = value.toString().toStdString();
+            } else if (value.canConvert<double>()) {
+                json[stdKey] = value.toDouble();
+            } else if (typeId == QMetaType::Bool) {
+                json[stdKey] = value.toBool();
             }
-
-            json[key.toStdString()] = Json(jsonArray);
-        } else if (typeId == QMetaType::QVariantMap) {
-            QVariantMap map = value.toMap();
-            Json::object jsonObj;
-
-            for (auto mapIt = map.constBegin(); mapIt != map.constEnd(); ++mapIt) {
-                jsonObj[mapIt.key().toStdString()] = Json(mapIt.value().toString().toStdString());
-            }
-
-            json[key.toStdString()] = jsonObj;
-        } else if (typeId == QMetaType::QString) {
-            json[key.toStdString()] = value.toString().toStdString();
-        } else if (value.canConvert<double>()) {
-            json[key.toStdString()] = value.toDouble();
-        } else if (typeId == QMetaType::Bool) {
-            json[key.toStdString()] = value.toBool();
         }
-    }
 
-    return Json(json);
+        return Json(json);
+    } catch (const std::exception& e) {
+        blog(LOG_ERROR, "Exception in OneSevenLiveMetaDataToJson: %s", e.what());
+        return Json();
+    } catch (...) {
+        blog(LOG_ERROR, "Unknown exception in OneSevenLiveMetaDataToJson");
+        return Json();
+    }
 }
 
 bool LoadMetaData() {
