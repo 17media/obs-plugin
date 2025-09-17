@@ -172,6 +172,8 @@ class OneSevenLiveCoreManager : public QObject {
     void load17LiveConfig(const OneSevenLiveLoginData &loginData);
 
     void closeLive(bool isAutoClose = false);
+    
+    bool showAutoCloseConfirmation(const QString& message);
 
     OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
 
@@ -180,7 +182,6 @@ class OneSevenLiveCoreManager : public QObject {
     
     // 连续失败检测相关变量
     int consecutiveFailureCount{0};  // 连续失败计数器
-    static const int MAX_CONSECUTIVE_FAILURES = 3;  // 最大连续失败次数
 
     // Version update related methods
     void handleCheckUpdateClicked();

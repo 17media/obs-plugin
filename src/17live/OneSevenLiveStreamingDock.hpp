@@ -149,9 +149,6 @@ class OneSevenLiveStreamingDock : public QDockWidget {
                    bool autoRecording, bool skip = false);
 
     void syncWithWeb(OneSevenLiveStreamingStatus status);
-    
-    // Auto close confirmation dialog
-    bool showAutoCloseConfirmation(const QString &reason);
 
     // Tag-related functions
     void addTag(const QString &tag);

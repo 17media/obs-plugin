@@ -197,8 +197,8 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     dateFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     dateFormLayout->addRow(dateLabel, dateEdit);
 
+    mainLayout->addSpacing(20);
     mainLayout->addLayout(dateFormLayout);
-    // mainLayout->addWidget(calendarFrame);
 }
 
 void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
@@ -265,6 +265,7 @@ void OneSevenLiveCustomEventDialog::setupEventGiftsSection() {
 
     giftsFormLayout->addRow(giftsLabel, selectedGiftsEdit);
 
+    mainLayout->addSpacing(20);
     mainLayout->addLayout(giftsFormLayout);
     mainLayout->addWidget(giftTabWidget);
 }
@@ -308,7 +309,9 @@ void OneSevenLiveCustomEventDialog::setupEventTargetsSection() {
     totalTargetFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     totalTargetFormLayout->addRow(totalTargetLabel, totalTargetEdit);
 
+    mainLayout->addSpacing(20);
     mainLayout->addLayout(dailyTargetFormLayout);
+    mainLayout->addSpacing(20);
     mainLayout->addLayout(totalTargetFormLayout);
 }
 
@@ -331,6 +334,7 @@ void OneSevenLiveCustomEventDialog::setupEventDescriptionSection() {
     descriptionFormLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     descriptionFormLayout->addRow(descriptionLabel, descriptionEdit);
 
+    mainLayout->addSpacing(20);
     mainLayout->addLayout(descriptionFormLayout);
 }
 
@@ -856,6 +860,8 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
         // Send event update signal
         customEvent.status = 3;
         emit eventUpdated(customEvent);
+    } else { 
+        return;
     }
 
     // Directly close the dialog
