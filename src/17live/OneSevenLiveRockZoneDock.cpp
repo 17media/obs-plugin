@@ -52,11 +52,7 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
     connect(userList, &QObject::destroyed, this, [this]() { userItemMap.clear(); });
 }
 
-OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() {
-    if (userDialog && !userDialog.isNull()) {
-        userDialog->deleteLater();
-    }
-}
+OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() = default;
 
 void OneSevenLiveRockZoneDock::setupUi() {
     QWidget* container = new QWidget(this);
@@ -162,11 +158,6 @@ void OneSevenLiveRockZoneDock::setupUi() {
 void OneSevenLiveRockZoneDock::createConnections() {
     connect(pokeAllButton, &QPushButton::clicked, this,
             &OneSevenLiveRockZoneDock::onPokeAllClicked);
-
-    // Connect user list item click signal
-    // Disabled because OneSevenLiveRockViewerItem handles click and opens the dialog
-    // connect(userList, &QListWidget::itemClicked, this,
-    //         &OneSevenLiveRockZoneDock::onUserItemClicked);
 }
 
 void OneSevenLiveRockZoneDock::updateUserItem(
@@ -502,16 +493,7 @@ void OneSevenLiveRockZoneDock::handleTopLevelChanged(bool topLevel) {
     }
 }
 
-void OneSevenLiveRockZoneDock::onUserItemClicked(const QString& userId) {
-    if (!userDialog) {
-        userDialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
-    }
 
-    userDialog->updateUserInfo(userId);
-    userDialog->show();
-    userDialog->raise();
-    userDialog->activateWindow();
-}
 
 void OneSevenLiveRockZoneDock::onCooldownTimerTimeout() {
     cooldownSeconds--;

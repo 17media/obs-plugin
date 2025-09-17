@@ -10,7 +10,6 @@
 #include <QPushButton>
 #include <QTimer>
 
-#include "OneSevenLiveUserDialog.hpp"
 #include "api/OneSevenLiveModels.hpp"
 
 class OneSevenLiveApiWrappers;
@@ -37,7 +36,6 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
    private slots:
     void onPokeAllClicked();
     void handleTopLevelChanged(bool topLevel);
-    void onUserItemClicked(QListWidgetItem* item);
     void onCooldownTimerTimeout();
 
    private:
@@ -60,7 +58,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     bool armyNameCached = false;
 
     // User information dialog
-    QPointer<OneSevenLiveUserDialog> userDialog;
+
 
     // Auto refresh timer
     QTimer* refreshTimer = nullptr;
