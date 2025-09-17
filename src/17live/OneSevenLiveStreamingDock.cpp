@@ -1212,7 +1212,7 @@ void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
     // If auto-close, show confirmation dialog
     if (isAutoClose) {
         QString message = QString(obs_module_text("Live.Settings.CloseLive.Auto.Message"))
-                        .arg(3);  // MAX_CONSECUTIVE_FAILURES
+                        .arg(MAX_CONSECUTIVE_FAILURES);  // MAX_CONSECUTIVE_FAILURES
         
         if (!showAutoCloseConfirmation(message)) {
             obs_log(LOG_INFO, "User cancelled auto-close live stream");

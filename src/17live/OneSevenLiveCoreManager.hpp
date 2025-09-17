@@ -180,7 +180,6 @@ class OneSevenLiveCoreManager : public QObject {
     
     // 连续失败检测相关变量
     int consecutiveFailureCount{0};  // 连续失败计数器
-    static const int MAX_CONSECUTIVE_FAILURES = 10;  // 最大连续失败次数
 
     // Version update related methods
     void handleCheckUpdateClicked();
