@@ -310,8 +310,8 @@ bool OneSevenLiveApiWrappers::ChangeEvent(const OneSevenLiveChangeEventRequest &
         return false;
     }
 
-    obs_log(LOG_INFO, "ChangeEvent success");
-    obs_log(LOG_INFO, "change event response: %s", json_out.dump().c_str());
+    // obs_log(LOG_INFO, "ChangeEvent success");
+    // obs_log(LOG_INFO, "change event response: %s", json_out.dump().c_str());
 
     // Check if errorCode field exists
     if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
@@ -959,8 +959,8 @@ bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request,
         return false;
     }
 
-    obs_log(LOG_INFO, "PokeOne success");
-    obs_log(LOG_INFO, "poke response: %s", json_out.dump().c_str());
+    // obs_log(LOG_INFO, "PokeOne success");
+    // obs_log(LOG_INFO, "poke response: %s", json_out.dump().c_str());
 
     // Check if errorCode field exists
     if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
@@ -1009,8 +1009,8 @@ bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request,
         return false;
     }
 
-    obs_log(LOG_INFO, "PokeAll success");
-    obs_log(LOG_INFO, "poke all response: %s", json_out.dump().c_str());
+    // obs_log(LOG_INFO, "PokeAll success");
+    // obs_log(LOG_INFO, "poke all response: %s", json_out.dump().c_str());
 
     // Check if errorCode field exists
     if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {

@@ -71,6 +71,10 @@ bool OneSevenLiveCoreManager::initialize() {
         return true;
     }
 
+    // Run network diagnostics to check API connectivity
+    obs_log(LOG_INFO, "[17Live Core] Running startup network diagnostics...");
+    NetworkDiagnostics::runStartupDiagnostics(ONESEVENLIVE_API_URL);
+
     // Initialize and start HTTP server
     // "html" is the path relative to obs_get_module_data_path()
     httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");

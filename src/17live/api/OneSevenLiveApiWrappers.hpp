@@ -21,7 +21,7 @@
 #define ACTION_GETGIFTS "getGifts"
 #define ACTION_GETROOMINFO "getRoomInfo"
 
-#define MAX_CONSECUTIVE_FAILURES 10 // 最大连续失败次数
+#define MAX_CONSECUTIVE_FAILURES 10 // Maximum consecutive failure count
 
 using namespace json11;
 

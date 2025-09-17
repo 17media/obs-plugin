@@ -57,6 +57,9 @@ bool OneSevenLiveConfigManager::getDockVisibility(const std::string &dockName) {
         return false;
     }
 
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return false;
     }
@@ -75,6 +78,9 @@ bool OneSevenLiveConfigManager::setDockVisibility(const std::string &dockName, b
     if (!initialized) {
         return false;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
         return false;
@@ -97,6 +103,9 @@ bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::stri
         return false;
     }
 
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return false;
     }
@@ -113,6 +122,9 @@ bool OneSevenLiveConfigManager::getLoginData(OneSevenLiveLoginData &loginData) {
     if (!initialized) {
         return false;
     }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
         return false;
@@ -144,6 +156,10 @@ bool OneSevenLiveConfigManager::setLoginData(const OneSevenLiveLoginData &loginD
     if (!initialized) {
         return false;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return false;
     }
@@ -176,6 +192,10 @@ void OneSevenLiveConfigManager::clearLoginData() {
     if (!initialized) {
         return;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return;
     }
@@ -195,6 +215,9 @@ QByteArray OneSevenLiveConfigManager::getDockState() {
         return QByteArray();
     }
 
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return QByteArray();
     }
@@ -213,6 +236,9 @@ bool OneSevenLiveConfigManager::setDockState(const QByteArray &state) {
     if (!initialized) {
         return false;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
         return false;
@@ -508,7 +534,8 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(configMutex);
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
 
     std::string configJson = configData.dump();
 
@@ -532,7 +559,8 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(configMutex);
+    // Read operation uses shared lock, allows multiple concurrent read operations
+    std::shared_lock<std::shared_mutex> lock(configMutex);
 
     // Try to read configuration from file
     std::string configJsonPath = configPath + "/config_17live.json";

@@ -5,6 +5,10 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <random>
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
@@ -73,10 +77,24 @@ OneSevenLiveHttpServer::OneSevenLiveHttpServer(const std::string &host, int port
     }
 
     blog(LOG_INFO, "[17Live HTTP Server] Base directory set to: %s", base_dir_.c_str());
+    
+    // Initialize CSRF token
+    csrf_token_ = generate_csrf_token();
 }
 
 OneSevenLiveHttpServer::~OneSevenLiveHttpServer() {
+    blog(LOG_INFO, "[17Live HTTP Server] Starting HTTP server destruction");
+    
+    // Ensure server is completely stopped and thread properly terminated
     stop();
+    
+    // Additional safety check: ensure thread has completely finished
+    if (server_thread_ && server_thread_->joinable()) {
+        blog(LOG_WARNING, "[17Live HTTP Server] Thread still joinable in destructor, forcing thread termination wait");
+        server_thread_->join();
+    }
+    
+    blog(LOG_INFO, "[17Live HTTP Server] HTTP server successfully destroyed");
 }
 
 bool OneSevenLiveHttpServer::start() {
@@ -102,10 +120,84 @@ bool OneSevenLiveHttpServer::start() {
         return false;
     }
     blog(LOG_INFO, "[17Live HTTP Server] Mounting '/' to serve files from '%s'", base_dir_.c_str());
+    
+    // Override the default handler for static files to add security checks
+    svr_.Get("/.*", [this](const httplib::Request& req, httplib::Response& res) {
+        // Security check: get client IP
+        std::string client_ip = req.get_header_value("X-Forwarded-For");
+        if (client_ip.empty()) {
+            client_ip = req.get_header_value("X-Real-IP");
+        }
+        if (client_ip.empty()) {
+            client_ip = "127.0.0.1"; // fallback
+        }
+        
+        // Security check: rate limiting
+        if (!check_rate_limit(client_ip)) {
+            res.status = 429;
+            res.set_content("Too Many Requests", "text/plain");
+            return;
+        }
+        
+        std::string path = req.path;
+        if (path == "/") {
+            path = "/index.html";
+        }
+        
+        // Security check: path validation
+        if (!is_safe_path(path)) {
+            res.status = 403;
+            res.set_content("Forbidden", "text/plain");
+            return;
+        }
+        
+        // Serve the file
+        std::filesystem::path file_path = std::filesystem::path(base_dir_) / path.substr(1);
+        std::string file_path_str = file_path.string();
+        
+        if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path)) {
+            std::ifstream ifs(file_path_str, std::ios::in | std::ios::binary);
+            if (ifs) {
+                std::string content((std::istreambuf_iterator<char>(ifs)),
+                                    (std::istreambuf_iterator<char>()));
+                res.set_content(content, get_mime_type(file_path_str).c_str());
+            } else {
+                res.status = 500;
+                res.set_content("Internal Server Error", "text/plain");
+            }
+        } else {
+            res.status = 404;
+            res.set_content("Not Found", "text/plain");
+        }
+    });
 
     // Provide index.html by default
     svr_.Get("/", [this](const httplib::Request &req, httplib::Response &res) {
-        obs_log(LOG_INFO, "[17Live HTTP Server] Handling request for %s", req.path.c_str());
+        // Security check: rate limiting
+        std::string client_ip = req.get_header_value("X-Forwarded-For");
+        if (client_ip.empty()) {
+            client_ip = req.get_header_value("X-Real-IP");
+        }
+        if (client_ip.empty()) {
+            client_ip = "127.0.0.1";  // local request
+        }
+        
+        if (!check_rate_limit(client_ip)) {
+            res.status = 429;  // Too Many Requests
+            res.set_content("Rate limit exceeded", "text/plain");
+            return;
+        }
+        
+        obs_log(LOG_INFO, "[17Live HTTP Server] Handling request for %s from %s", req.path.c_str(), client_ip.c_str());
+        
+        // Security check: path validation
+        if (!is_safe_path(req.path)) {
+            blog(LOG_WARNING, "[17Live HTTP Server] Unsafe path detected: %s", req.path.c_str());
+            res.status = 403;
+            res.set_content("Forbidden", "text/plain");
+            return;
+        }
+        
         std::filesystem::path path_obj = std::filesystem::path(base_dir_) / "index.html";
         std::string path_str = path_obj.string();
 
@@ -122,20 +214,101 @@ bool OneSevenLiveHttpServer::start() {
         } else {
             blog(LOG_WARNING, "[17Live HTTP Server] File not found for /: %s", path_str.c_str());
             res.status = 404;
-            res.set_content("File not found: " + path_str, "text/plain");
+            res.set_content("File not found", "text/plain");  // Don't expose internal paths
         }
     });
 
-    svr_.Get("/ping", [](const httplib::Request & /*req*/, httplib::Response &res) {
+    svr_.Get("/ping", [this](const httplib::Request &req, httplib::Response &res) {
+        // Security check: rate limiting
+        std::string client_ip = req.get_header_value("X-Forwarded-For");
+        if (client_ip.empty()) {
+            client_ip = req.get_header_value("X-Real-IP");
+        }
+        if (client_ip.empty()) {
+            client_ip = "127.0.0.1";
+        }
+        
+        if (!check_rate_limit(client_ip)) {
+            res.status = 429;
+            res.set_content("Rate limit exceeded", "text/plain");
+            return;
+        }
+        
         res.set_content("PONG", "text/plain");
+    });
+    
+    // Add CSRF token endpoint
+    svr_.Get("/csrf-token", [this](const httplib::Request &req, httplib::Response &res) {
+        // Security check: rate limiting
+        std::string client_ip = req.get_header_value("X-Forwarded-For");
+        if (client_ip.empty()) {
+            client_ip = req.get_header_value("X-Real-IP");
+        }
+        if (client_ip.empty()) {
+            client_ip = "127.0.0.1";
+        }
+        
+        if (!check_rate_limit(client_ip)) {
+            res.status = 429;
+            res.set_header("Content-Type", "application/json");
+            json11::Json errorResponse = json11::Json::object{
+                {"success", false}, 
+                {"error", "Rate limit exceeded"}
+            };
+            res.set_content(errorResponse.dump(), "application/json");
+            return;
+        }
+        
+        res.set_header("Content-Type", "application/json");
+        json11::Json response = json11::Json::object{
+            {"success", true}, 
+            {"csrf_token", csrf_token_}
+        };
+        res.set_content(response.dump(), "application/json");
     });
 
     // Add /lapi route to handle API requests
-    svr_.Post("/lapi", [](const httplib::Request &req, httplib::Response &res) {
-        // obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi");
+    svr_.Post("/lapi", [this](const httplib::Request &req, httplib::Response &res) {
+        // Security check: get client IP
+        std::string client_ip = req.get_header_value("X-Forwarded-For");
+        if (client_ip.empty()) {
+            client_ip = req.get_header_value("X-Real-IP");
+        }
+        if (client_ip.empty()) {
+            client_ip = "127.0.0.1";  // local request
+        }
+        
+        // Security check: rate limiting
+        if (!check_rate_limit(client_ip)) {
+            res.status = 429;
+            res.set_header("Content-Type", "application/json");
+            json11::Json errorResponse = json11::Json::object{
+                {"success", false}, 
+                {"error", "Rate limit exceeded"}
+            };
+            res.set_content(errorResponse.dump(), "application/json");
+            return;
+        }
+        
+        // Security check: request size validation
+        if (!validate_request_size(req)) {
+            res.status = 413;  // Payload Too Large
+            res.set_header("Content-Type", "application/json");
+            json11::Json errorResponse = json11::Json::object{
+                {"success", false}, 
+                {"error", "Request too large"}
+            };
+            res.set_content(errorResponse.dump(), "application/json");
+            return;
+        }
+        
+        // obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi from %s", client_ip.c_str());
 
         // Set response headers
         res.set_header("Content-Type", "application/json");
+        res.set_header("X-Content-Type-Options", "nosniff");
+        res.set_header("X-Frame-Options", "DENY");
+        res.set_header("X-XSS-Protection", "1; mode=block");
 
         // Get OneSevenLiveCoreManager instance
         auto &coreManager = OneSevenLiveCoreManager::getInstance();
@@ -314,4 +487,86 @@ int OneSevenLiveHttpServer::getPort() const {
         return port_;
     }
     return -1;  // Or some other indicator that the server is not running or port is not set
+}
+
+// Security-related method implementations
+bool OneSevenLiveHttpServer::is_safe_path(const std::string& path) const {
+    // Check for empty path
+    if (path.empty()) {
+        return false;
+    }
+    
+    // Check for path traversal attacks
+    if (path.find("..") != std::string::npos) {
+        return false;
+    }
+    
+    // Check for absolute paths
+    if (!path.empty() && path.front() == '/' && path.find(base_dir_) != 0) {
+        return false;
+    }
+    
+    // Check for dangerous characters
+    const std::vector<std::string> dangerous_patterns = {
+        "\\", "<", ">", "|", ":", "*", "?"
+    };
+    
+    for (const auto& pattern : dangerous_patterns) {
+        if (path.find(pattern) != std::string::npos) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+bool OneSevenLiveHttpServer::check_rate_limit(const std::string& client_ip) {
+    std::lock_guard<std::mutex> lock(rate_limit_mutex_);
+    
+    auto now = std::chrono::steady_clock::now();
+    auto& requests = rate_limit_map_[client_ip];
+    
+    // Clean up expired request records
+    requests.erase(
+        std::remove_if(requests.begin(), requests.end(),
+            [now](const std::chrono::steady_clock::time_point& time) {
+                return std::chrono::duration_cast<std::chrono::seconds>(now - time).count() > RATE_LIMIT_WINDOW_SECONDS;
+            }),
+        requests.end()
+    );
+    
+    // Check if rate limit is exceeded
+    if (requests.size() >= RATE_LIMIT_REQUESTS) {
+        blog(LOG_WARNING, "[17Live HTTP Server] Rate limit exceeded for IP: %s", client_ip.c_str());
+        return false;
+    }
+    
+    // Record current request
+    requests.push_back(now);
+    return true;
+}
+
+bool OneSevenLiveHttpServer::validate_request_size(const httplib::Request& req) const {
+    if (req.body.size() > MAX_REQUEST_SIZE) {
+        blog(LOG_WARNING, "[17Live HTTP Server] Request size too large: %zu bytes", req.body.size());
+        return false;
+    }
+    return true;
+}
+
+std::string OneSevenLiveHttpServer::generate_csrf_token() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 15);
+    
+    std::stringstream ss;
+    for (int i = 0; i < 32; ++i) {
+        ss << std::hex << dis(gen);
+    }
+    
+    return ss.str();
+}
+
+bool OneSevenLiveHttpServer::validate_csrf_token(const std::string& token) const {
+    return !csrf_token_.empty() && token == csrf_token_;
 }
