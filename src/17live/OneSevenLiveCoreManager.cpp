@@ -12,6 +12,7 @@
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
@@ -614,15 +615,25 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                                         
                                         // Only trigger auto-close when consecutive failures reach threshold
                                         if (consecutiveFailureCount >= MAX_CONSECUTIVE_FAILURES) {
-                                            obs_log(LOG_ERROR, "Stream check failed %d times consecutively. Auto-closing live stream.", 
+                                            obs_log(LOG_ERROR, "Stream check failed %d times consecutively. Showing auto-close confirmation.", 
                                                    MAX_CONSECUTIVE_FAILURES);
-                                            closeLive(true);  // Pass true to indicate this is auto-close
-                                            if (streamCheckTimer) {
-                                                streamCheckTimer->stop();
-                                                streamCheckTimer->deleteLater();
-                                                streamCheckTimer = nullptr;
+                                            
+                                            // Show confirmation dialog before auto-closing
+                                            QString message = QString(obs_module_text("Live.Settings.CloseLive.Auto.Message"))
+                                                            .arg(MAX_CONSECUTIVE_FAILURES);
+                                            
+                                            if (showAutoCloseConfirmation(message)) {
+                                                obs_log(LOG_INFO, "User confirmed auto-close live stream due to stream check failures");
+                                                closeLive(true);  // Pass true to indicate this is auto-close
+                                                if (streamCheckTimer) {
+                                                    streamCheckTimer->stop();
+                                                    streamCheckTimer->deleteLater();
+                                                    streamCheckTimer = nullptr;
+                                                }
+                                            } else {
+                                                obs_log(LOG_INFO, "User cancelled auto-close live stream");
                                             }
-                                            // Reset failure counter
+                                            // Reset failure counter regardless of user choice
                                             consecutiveFailureCount = 0;
                                         }
                                     } else {
@@ -968,4 +979,44 @@ void OneSevenLiveCoreManager::loadGifts() {
     });
 
     giftLoadThread.detach();
+}
+
+bool OneSevenLiveCoreManager::showAutoCloseConfirmation(const QString& message) {
+    QMessageBox msgBox(mainWindow);
+    msgBox.setWindowTitle(obs_module_text("Live.Settings.CloseLive.Auto.Title"));
+    msgBox.setText(message);
+    msgBox.setIcon(QMessageBox::Warning);
+    
+    // Add custom buttons
+    QPushButton* confirmButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Confirm"), QMessageBox::AcceptRole);
+    QPushButton* cancelButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Cancel"), QMessageBox::RejectRole);
+    
+    // Set default focus to cancel button for safety
+    msgBox.setDefaultButton(cancelButton);
+    
+    // Apply styling
+    msgBox.setStyleSheet(
+        "QMessageBox {"
+        "    background-color: #2b2b2b;"
+        "    color: #ffffff;"
+        "    border: 1px solid #555555;"
+        "}"
+        "QMessageBox QPushButton {"
+        "    background-color: #404040;"
+        "    color: #ffffff;"
+        "    border: 1px solid #666666;"
+        "    padding: 8px 16px;"
+        "    border-radius: 4px;"
+        "    min-width: 80px;"
+        "}"
+        "QMessageBox QPushButton:hover {"
+        "    background-color: #505050;"
+        "}"
+        "QMessageBox QPushButton:pressed {"
+        "    background-color: #353535;"
+        "}"
+    );
+    
+    msgBox.exec();
+    return msgBox.clickedButton() == confirmButton;
 }

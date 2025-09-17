@@ -21,6 +21,8 @@
 #define ACTION_GETGIFTS "getGifts"
 #define ACTION_GETROOMINFO "getRoomInfo"
 
+#define MAX_CONSECUTIVE_FAILURES 10 // 最大连续失败次数
+
 using namespace json11;
 
 class OneSevenLiveApiWrappers : public QObject {
