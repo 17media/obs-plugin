@@ -40,6 +40,31 @@
 
 using namespace std;
 
+// Helper function to convert gai_strerror result to std::string across platforms
+static string getGaiErrorString(int error_code) {
+#ifdef _WIN32
+    // On Windows, gai_strerror returns WCHAR*, need to convert to std::string
+    WCHAR* wide_str = gai_strerror(error_code);
+    if (wide_str == nullptr) {
+        return "Unknown error";
+    }
+    
+    // Convert WCHAR* to std::string
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide_str, -1, nullptr, 0, nullptr, nullptr);
+    if (size_needed <= 0) {
+        return "Error converting error message";
+    }
+    
+    string result(size_needed - 1, '\0'); // -1 to exclude null terminator
+    WideCharToMultiByte(CP_UTF8, 0, wide_str, -1, &result[0], size_needed, nullptr, nullptr);
+    return result;
+#else
+    // On Unix/Linux, gai_strerror returns const char*
+    const char* error_str = gai_strerror(error_code);
+    return error_str ? string(error_str) : "Unknown error";
+#endif
+}
+
 double NetworkDiagnostics::getCurrentTimeMs() {
     auto now = chrono::high_resolution_clock::now();
     auto duration = now.time_since_epoch();
@@ -93,9 +118,9 @@ NetworkDiagnosticResult NetworkDiagnostics::testDnsResolution(const string& host
         
         if (status != 0) {
             result.dns_resolution_success = false;
-            result.error_message = "DNS resolution failed: " + string(gai_strerror(status));
+            result.error_message = "DNS resolution failed: " + getGaiErrorString(status);
             obs_log(LOG_ERROR, "[Network Diagnostics] DNS resolution failed for %s: %s (%.2fms)", 
-                    hostname.c_str(), gai_strerror(status), result.dns_resolution_time_ms);
+                    hostname.c_str(), getGaiErrorString(status).c_str(), result.dns_resolution_time_ms);
             return result;
         }
         
@@ -173,10 +198,10 @@ NetworkDiagnosticResult NetworkDiagnostics::testTcpConnection(const string& host
         
         if (status != 0) {
             result.tcp_connection_success = false;
-            result.error_message = "DNS resolution failed for TCP test: " + string(gai_strerror(status));
+            result.error_message = "DNS resolution failed for TCP test: " + getGaiErrorString(status);
             result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
             obs_log(LOG_ERROR, "[Network Diagnostics] TCP test DNS resolution failed for %s:%d: %s (%.2fms)", 
-                    hostname.c_str(), port, gai_strerror(status), result.tcp_connection_time_ms);
+                    hostname.c_str(), port, getGaiErrorString(status).c_str(), result.tcp_connection_time_ms);
             return result;
         }
         
