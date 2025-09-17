@@ -172,6 +172,8 @@ class OneSevenLiveCoreManager : public QObject {
     void load17LiveConfig(const OneSevenLiveLoginData &loginData);
 
     void closeLive(bool isAutoClose = false);
+    
+    bool showAutoCloseConfirmation(const QString& message);
 
     OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
 

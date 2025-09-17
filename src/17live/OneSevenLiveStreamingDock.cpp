@@ -1209,19 +1209,6 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
 
 void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
                                           const std::string &currLiveStreamID, bool isAutoClose) {
-    // If auto-close, show confirmation dialog
-    if (isAutoClose) {
-        QString message = QString(obs_module_text("Live.Settings.CloseLive.Auto.Message"))
-                        .arg(MAX_CONSECUTIVE_FAILURES);  // MAX_CONSECUTIVE_FAILURES
-        
-        if (!showAutoCloseConfirmation(message)) {
-            obs_log(LOG_INFO, "User cancelled auto-close live stream");
-            return;  // User cancelled auto-close
-        }
-        
-        obs_log(LOG_INFO, "User confirmed auto-close live stream due to stream check failures");
-    }
-    
     // Handle stop streaming logic
     stopStreaming();
 
@@ -1681,53 +1668,4 @@ void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
 
         obs_log(LOG_INFO, "Event change cooldown finished");
     }
-}
-
-// Show auto-close confirmation dialog
-bool OneSevenLiveStreamingDock::showAutoCloseConfirmation(const QString &message) {
-    QMessageBox msgBox(this);
-    msgBox.setWindowTitle(obs_module_text("Live.Settings.CloseLive.Auto.Title"));
-    msgBox.setIcon(QMessageBox::Warning);
-    
-    msgBox.setText(message);
-    
-    msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Confirm"), QMessageBox::AcceptRole);
-    QPushButton *cancelButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Cancel"), QMessageBox::RejectRole);
-    
-    msgBox.setDefaultButton(cancelButton); // Default to cancel to avoid accidental operations
-    
-    // Apply modern dark theme styling
-    msgBox.setStyleSheet(
-        "QMessageBox {"
-        "    background-color: #4A5568;"
-        "    border-radius: 10px;"
-        "    color: white;"
-        "    font-size: 14px;"
-        "}"
-        "QMessageBox QLabel {"
-        "    color: white;"
-        "    background-color: transparent;"
-        "    padding: 10px;"
-        "    font-size: 14px;"
-        "    font-weight: normal;"
-        "}"
-        "QMessageBox QPushButton {"
-        "    background-color: #007AFF;"
-        "    color: white;"
-        "    border: none;"
-        "    border-radius: 5px;"
-        "    padding: 8px 16px;"
-        "    font-size: 14px;"
-        "    font-weight: bold;"
-        "    margin: 5px;"
-        "}"
-        "QMessageBox QPushButton:hover {"
-        "    background-color: #0056CC;"
-        "}"
-        "QMessageBox QPushButton:pressed {"
-        "    background-color: #003D99;"
-        "}");
-    
-    int result = msgBox.exec();
-    return (result == QMessageBox::AcceptRole);
 }
