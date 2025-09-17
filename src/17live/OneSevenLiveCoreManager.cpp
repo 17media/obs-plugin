@@ -261,53 +261,7 @@ void OneSevenLiveCoreManager::shutdown() {
     // Save dock state before closing any docks
     saveDockState();
 
-    bool streamingVisible = false;
-    if (streamingDock) {
-        streamingVisible = streamingDock->isVisible();
-        streamingDock->disconnect(this);
-        streamingDock->close();
-        streamingDock->deleteLater();
-        streamingDock = nullptr;
-    }
-    configManager->setDockVisibility("streaming", streamingVisible);
-
-    bool liveListVisible = false;
-    if (liveListDock) {
-        liveListVisible = liveListDock->isVisible();
-        liveListDock->disconnect(this);
-        liveListDock->close();
-        liveListDock->deleteLater();
-        liveListDock = nullptr;
-    }
-    configManager->setDockVisibility("liveList", liveListVisible);
-
-    bool rockZoneVisible = false;
-    if (rockZoneDock) {
-        rockZoneVisible = rockZoneDock->isVisible();
-        rockZoneDock->disconnect(this);
-        rockZoneDock->close();
-        rockZoneDock->deleteLater();
-        rockZoneDock = nullptr;
-    }
-    configManager->setDockVisibility("rockZone", rockZoneVisible);
-
-    bool chatRoomVisible = false;
-    if (chatRoomDock) {
-        chatRoomVisible = chatRoomDock->isVisible();
-        chatRoomDock->disconnect(this);
-
-        obs_log(LOG_INFO, "Closing chat room dock");
-
-        if (cefView) {
-            delete cefView;
-            cefView = nullptr;
-        }
-
-        chatRoomDock->close();
-        chatRoomDock->deleteLater();
-        chatRoomDock = nullptr;
-    }
-    configManager->setDockVisibility("chatRoom", chatRoomVisible);
+    closeAllDocks();
 
     // Clean up menu manager resources
     if (menuManager) {
@@ -440,37 +394,53 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
 void OneSevenLiveCoreManager::closeAllDocks() {
     obs_log(LOG_INFO, "closeAllDocks");
     
-    // Close streaming dock
+    bool streamingVisible = false;
     if (streamingDock) {
+        streamingVisible = streamingDock->isVisible();
+        streamingDock->disconnect(this);
         streamingDock->close();
         streamingDock->deleteLater();
         streamingDock = nullptr;
     }
+    configManager->setDockVisibility("streaming", streamingVisible);
 
-    // Close live list dock
+    bool liveListVisible = false;
     if (liveListDock) {
+        liveListVisible = liveListDock->isVisible();
+        liveListDock->disconnect(this);
         liveListDock->close();
         liveListDock->deleteLater();
         liveListDock = nullptr;
     }
+    configManager->setDockVisibility("liveList", liveListVisible);
 
-    // Close chat room dock
-    if (chatRoomDock) {
-        if (cefView) {
-            delete cefView;
-            cefView = nullptr;
-        }
-        chatRoomDock->close();
-        chatRoomDock->deleteLater();
-        chatRoomDock = nullptr;
-    }
-
-    // Close rock zone dock
+    bool rockZoneVisible = false;
     if (rockZoneDock) {
+        rockZoneVisible = rockZoneDock->isVisible();
+        rockZoneDock->disconnect(this);
         rockZoneDock->close();
         rockZoneDock->deleteLater();
         rockZoneDock = nullptr;
     }
+    configManager->setDockVisibility("rockZone", rockZoneVisible);
+
+    bool chatRoomVisible = false;
+    if (chatRoomDock) {
+        chatRoomVisible = chatRoomDock->isVisible();
+        chatRoomDock->disconnect(this);
+
+        obs_log(LOG_INFO, "Closing chat room dock");
+
+        if (cefView) {
+            delete cefView;
+            cefView = nullptr;
+        }
+
+        chatRoomDock->close();
+        chatRoomDock->deleteLater();
+        chatRoomDock = nullptr;
+    }
+    configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
     // Update menu visibility status after closing all docks
     if (menuManager) {
