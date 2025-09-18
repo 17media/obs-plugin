@@ -184,7 +184,11 @@ NetworkDiagnosticResult NetworkDiagnostics::testTcpConnection(const string& host
     obs_log(LOG_INFO, "[Network Diagnostics] Testing TCP connection to: %s:%d", hostname.c_str(), port);
     
     struct addrinfo *res = nullptr;
+#ifdef _WIN32
+    SOCKET sockfd = INVALID_SOCKET;
+#else
     int sockfd = -1;
+#endif
     
     try {
         // First resolve the hostname
@@ -207,7 +211,11 @@ NetworkDiagnosticResult NetworkDiagnostics::testTcpConnection(const string& host
         
         // Try to connect to the first resolved address
         sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+#ifdef _WIN32
+        if (sockfd == INVALID_SOCKET) {
+#else
         if (sockfd == -1) {
+#endif
             result.tcp_connection_success = false;
             result.error_message = "Failed to create socket";
             result.tcp_connection_time_ms = getCurrentTimeMs() - start_time;
@@ -227,7 +235,7 @@ NetworkDiagnosticResult NetworkDiagnostics::testTcpConnection(const string& host
 #endif
         
         // Attempt connection
-        int connect_result = connect(sockfd, res->ai_addr, res->ai_addrlen);
+        int connect_result = connect(sockfd, res->ai_addr, static_cast<int>(res->ai_addrlen));
         
         if (connect_result == 0) {
             // Connection succeeded immediately
@@ -252,7 +260,11 @@ NetworkDiagnosticResult NetworkDiagnostics::testTcpConnection(const string& host
                 timeout.tv_sec = timeout_seconds;
                 timeout.tv_usec = 0;
                 
+#ifdef _WIN32
+                int select_result = select(0, nullptr, &write_fds, nullptr, &timeout);
+#else
                 int select_result = select(sockfd + 1, nullptr, &write_fds, nullptr, &timeout);
+#endif
                 
                 if (select_result > 0 && FD_ISSET(sockfd, &write_fds)) {
                     // Check if connection actually succeeded
@@ -303,13 +315,15 @@ NetworkDiagnosticResult NetworkDiagnostics::testTcpConnection(const string& host
     }
     
     // Cleanup
-    if (sockfd != -1) {
 #ifdef _WIN32
+    if (sockfd != INVALID_SOCKET) {
         closesocket(sockfd);
-#else
-        close(sockfd);
-#endif
     }
+#else
+    if (sockfd != -1) {
+        close(sockfd);
+    }
+#endif
     if (res) {
         freeaddrinfo(res);
     }
