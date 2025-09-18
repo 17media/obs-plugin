@@ -57,6 +57,9 @@ bool OneSevenLiveConfigManager::getDockVisibility(const std::string &dockName) {
         return false;
     }
 
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return false;
     }
@@ -75,6 +78,9 @@ bool OneSevenLiveConfigManager::setDockVisibility(const std::string &dockName, b
     if (!initialized) {
         return false;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
         return false;
@@ -97,6 +103,9 @@ bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::stri
         return false;
     }
 
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return false;
     }
@@ -113,6 +122,9 @@ bool OneSevenLiveConfigManager::getLoginData(OneSevenLiveLoginData &loginData) {
     if (!initialized) {
         return false;
     }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
         return false;
@@ -144,6 +156,10 @@ bool OneSevenLiveConfigManager::setLoginData(const OneSevenLiveLoginData &loginD
     if (!initialized) {
         return false;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return false;
     }
@@ -176,6 +192,10 @@ void OneSevenLiveConfigManager::clearLoginData() {
     if (!initialized) {
         return;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return;
     }
@@ -195,6 +215,9 @@ QByteArray OneSevenLiveConfigManager::getDockState() {
         return QByteArray();
     }
 
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return QByteArray();
     }
@@ -213,6 +236,9 @@ bool OneSevenLiveConfigManager::setDockState(const QByteArray &state) {
     if (!initialized) {
         return false;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
         return false;
@@ -504,27 +530,50 @@ bool OneSevenLiveConfigManager::removeLiveConfig(const std::string &streamUuid) 
 }
 
 bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
-    if (!initialized) {
+    try {
+        if (!initialized) {
+            return false;
+        }
+
+        // Write operation uses exclusive lock
+        std::unique_lock<std::shared_mutex> lock(configMutex);
+
+        const std::string configJson = configData.dump();
+
+        // Save to configuration file
+        const std::string configJsonPath = configPath + "/config_17live.json";
+        std::ofstream file(configJsonPath);
+        if (!file.is_open()) {
+            obs_log(LOG_ERROR, "Failed to open config file for writing: %s", configJsonPath.c_str());
+            return false;
+        }
+
+        file << configJson;
+        
+        // Check if write operation was successful
+        if (file.fail()) {
+            obs_log(LOG_ERROR, "Failed to write config data to file: %s", configJsonPath.c_str());
+            file.close();
+            return false;
+        }
+        
+        file.close();
+        
+        // Verify file was closed successfully
+        if (file.fail()) {
+            obs_log(LOG_ERROR, "Failed to close config file: %s", configJsonPath.c_str());
+            return false;
+        }
+
+        obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
+        return true;
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[obs-17live]: setConfig exception: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: setConfig unknown exception");
         return false;
     }
-
-    std::lock_guard<std::mutex> lock(configMutex);
-
-    std::string configJson = configData.dump();
-
-    // Save to configuration file
-    std::string configJsonPath = configPath + "/config_17live.json";
-    std::ofstream file(configJsonPath);
-    if (!file.is_open()) {
-        obs_log(LOG_ERROR, "Failed to open config file for writing");
-        return false;
-    }
-
-    file << configJson;
-    file.close();
-
-    obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
-    return true;
 }
 
 bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
@@ -532,11 +581,13 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(configMutex);
+    // Read operation uses shared lock, allows multiple concurrent read operations
+    std::shared_lock<std::shared_mutex> lock(configMutex);
 
     // Try to read configuration from file
-    std::string configJsonPath = configPath + "/config_17live.json";
-    QFile file(QString::fromStdString(configJsonPath));
+    const std::string configJsonPath = configPath + "/config_17live.json";
+    const QString configJsonPathQt = QString::fromStdString(configJsonPath);
+    QFile file(configJsonPathQt);
 
     if (!file.exists()) {
         // If file doesn't exist, return current configuration in memory
@@ -549,7 +600,7 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         return false;
     }
 
-    QByteArray jsonData = file.readAll();
+    const QByteArray jsonData = file.readAll();
     file.close();
 
     if (jsonData.isEmpty()) {
@@ -558,9 +609,10 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         return true;
     }
 
-    // Parse JSON data
+    // Parse JSON data - convert once to std::string
+    const std::string jsonDataStr = jsonData.toStdString();
     std::string err;
-    Json jsonObj = Json::parse(jsonData.toStdString(), err);
+    Json jsonObj = Json::parse(jsonDataStr, err);
 
     if (!err.empty()) {
         obs_log(LOG_ERROR, "Failed to parse config JSON: %s", err.c_str());
@@ -580,44 +632,60 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
 }
 
 bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
-    if (!initialized) {
-        return false;
-    }
+    try {
+        if (!initialized) {
+            return false;
+        }
 
-    QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
-    QFile file(giftsFile);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        obs_log(LOG_ERROR, "Failed to open gifts.json for writing");
+        QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
+        QFile file(giftsFile);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            obs_log(LOG_ERROR, "Failed to open gifts.json for writing");
+            return false;
+        }
+        QTextStream out(&file);
+        out << QString::fromStdString(gifts.dump());
+        file.close();
+        return true;
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveGifts exception: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveGifts unknown exception");
         return false;
     }
-    QTextStream out(&file);
-    out << QString::fromStdString(gifts.dump());
-    file.close();
-    return true;
 }
 
 bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
-    if (!initialized) {
-        return false;
-    }
+    try {
+        if (!initialized) {
+            return false;
+        }
 
-    QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
-    QFile file(giftsFile);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        // File doesn't exist, return empty object
-        gifts = Json::object();
+        QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
+        QFile file(giftsFile);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            // File doesn't exist, return empty object
+            gifts = Json::object();
+            return true;
+        }
+        QTextStream in(&file);
+        QString jsonString = in.readAll();
+        file.close();
+
+        std::string error;
+        gifts = Json::parse(jsonString.toStdString(), error);
+        if (!error.empty()) {
+            obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", error.c_str());
+            return false;
+        }
+
         return true;
-    }
-    QTextStream in(&file);
-    QString jsonString = in.readAll();
-    file.close();
-
-    std::string error;
-    gifts = Json::parse(jsonString.toStdString(), error);
-    if (!error.empty()) {
-        obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", error.c_str());
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadGifts exception: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadGifts unknown exception");
         return false;
     }
-
-    return true;
 }

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "api/OneSevenLiveModels.hpp"
+#include "utility/NetworkDiagnostics.hpp"
 
 // Forward declarations
 class QMainWindow;
@@ -104,8 +105,8 @@ class OneSevenLiveCoreManager : public QObject {
     // Singleton instance
     static OneSevenLiveCoreManager* instance;
 
-    // Mutex for thread-safe singleton access
-    static std::mutex instanceMutex;
+    // Once flag for thread-safe singleton creation using std::call_once
+    static std::once_flag instanceOnceFlag;
 
     // OBS main window
     QMainWindow* mainWindow;
@@ -180,8 +181,8 @@ class OneSevenLiveCoreManager : public QObject {
     // Timer for checking stream status
     QPointer<QTimer> streamCheckTimer;
     
-    // 连续失败检测相关变量
-    int consecutiveFailureCount{0};  // 连续失败计数器
+    // Consecutive failure detection related variables
+    int consecutiveFailureCount{0};  // Consecutive failure counter
 
     // Version update related methods
     void handleCheckUpdateClicked();

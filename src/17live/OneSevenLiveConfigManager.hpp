@@ -4,6 +4,7 @@
 
 #include <QByteArray>
 #include <mutex>
+#include <shared_mutex>
 
 #include "api/OneSevenLiveModels.hpp"
 #include "json11.hpp"
@@ -68,8 +69,8 @@ class OneSevenLiveConfigManager {
 
     std::string configPath;
 
-    // Mutex for saving configuration file
-    std::mutex configMutex;
+    // Read-write lock to protect config file operations, allows multiple concurrent read operations
+    mutable std::shared_mutex configMutex;
     // Current configuration
     OneSevenLiveConfig currentConfig;
 };

@@ -20,158 +20,167 @@ using namespace json11;
 using namespace std;
 
 bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginData) {
-    if (!json.is_object()) {
+    try {
+        if (!json.is_object()) {
+            obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveLoginData - Invalid JSON object");
+            return false;
+        }
+
+        // Handle user information
+        const auto &userInfoJson = json["userInfo"];
+        if (userInfoJson.is_object()) {
+            // Basic user information
+            loginData.userInfo.userID = QString::fromStdString(userInfoJson["userID"].string_value());
+            loginData.userInfo.openID = QString::fromStdString(userInfoJson["openID"].string_value());
+            loginData.userInfo.displayName =
+                QString::fromStdString(userInfoJson["displayName"].string_value());
+            loginData.userInfo.name = QString::fromStdString(userInfoJson["name"].string_value());
+            loginData.userInfo.bio = QString::fromStdString(userInfoJson["bio"].string_value());
+            loginData.userInfo.picture = QString::fromStdString(userInfoJson["picture"].string_value());
+            loginData.userInfo.website = QString::fromStdString(userInfoJson["website"].string_value());
+
+            // Count information
+            loginData.userInfo.followerCount = userInfoJson["followerCount"].int_value();
+            loginData.userInfo.followingCount = userInfoJson["followingCount"].int_value();
+            loginData.userInfo.receivedLikeCount = userInfoJson["receivedLikeCount"].int_value();
+            loginData.userInfo.likeCount = userInfoJson["likeCount"].int_value();
+
+            // Follow status
+            loginData.userInfo.isFollowing = userInfoJson["isFollowing"].int_value();
+            loginData.userInfo.isNotif = userInfoJson["isNotif"].int_value();
+            loginData.userInfo.isBlocked = userInfoJson["isBlocked"].int_value();
+            loginData.userInfo.followTime = userInfoJson["followTime"].int_value();
+            loginData.userInfo.followRequestTime = userInfoJson["followRequestTime"].int_value();
+
+            // Room and privacy settings
+            loginData.userInfo.roomID = userInfoJson["roomID"].int_value();
+            loginData.userInfo.privacyMode =
+                QString::fromStdString(userInfoJson["privacyMode"].string_value());
+            loginData.userInfo.followPrivacyMode = userInfoJson["followPrivacyMode"].int_value();
+
+            // Level and status information
+            loginData.userInfo.ballerLevel = userInfoJson["ballerLevel"].int_value();
+            loginData.userInfo.postCount = userInfoJson["postCount"].int_value();
+            loginData.userInfo.isCelebrity = userInfoJson["isCelebrity"].int_value();
+            loginData.userInfo.baller = userInfoJson["baller"].int_value();
+            loginData.userInfo.level = userInfoJson["level"].int_value();
+
+            // Other attributes
+            loginData.userInfo.revenueShareIndicator =
+                QString::fromStdString(userInfoJson["revenueShareIndicator"].string_value());
+            loginData.userInfo.clanStatus = userInfoJson["clanStatus"].int_value();
+            loginData.userInfo.region = QString::fromStdString(userInfoJson["region"].string_value());
+            loginData.userInfo.hideAllPointToLeaderboard =
+                userInfoJson["hideAllPointToLeaderboard"].int_value();
+            loginData.userInfo.enableShop = userInfoJson["enableShop"].int_value();
+
+            // Timestamp information
+            loginData.userInfo.lastLiveTimestamp = userInfoJson["lastLiveTimestamp"].int_value();
+            loginData.userInfo.lastCreateLiveTimestamp =
+                userInfoJson["lastCreateLiveTimestamp"].int_value();
+            loginData.userInfo.lastLiveRegion =
+                QString::fromStdString(userInfoJson["lastLiveRegion"].string_value());
+
+            // Boolean attributes
+            loginData.userInfo.streamerRecapEnable = userInfoJson["streamerRecapEnable"].bool_value();
+            loginData.userInfo.newbieDisplayAllGiftTabsToast =
+                userInfoJson["newbieDisplayAllGiftTabsToast"].bool_value();
+            loginData.userInfo.isUnderaged = userInfoJson["isUnderaged"].bool_value();
+            loginData.userInfo.isFreePrivateMsgEnabled =
+                userInfoJson["isFreePrivateMsgEnabled"].bool_value();
+            loginData.userInfo.isVliverOnlyModeEnabled =
+                userInfoJson["isVliverOnlyModeEnabled"].bool_value();
+
+            // Integer attributes
+            loginData.userInfo.gloryroadMode = userInfoJson["gloryroadMode"].int_value();
+            loginData.userInfo.avatarOnboardingPhase =
+                userInfoJson["avatarOnboardingPhase"].int_value();
+            loginData.userInfo.isEmailVerified = userInfoJson["isEmailVerified"].int_value();
+
+            // String attributes
+            loginData.userInfo.extIDAppleTransfer =
+                QString::fromStdString(userInfoJson["extIDAppleTransfer"].string_value());
+            loginData.userInfo.commentShadowColor =
+                QString::fromStdString(userInfoJson["commentShadowColor"].string_value());
+
+            // Array attributes
+            if (userInfoJson["badgeInfo"].is_array()) {
+                for (const auto &badge : userInfoJson["badgeInfo"].array_items()) {
+                    loginData.userInfo.badgeInfo.append(QString::fromStdString(badge.string_value()));
+                }
+            }
+
+            if (userInfoJson["loyaltyInfo"].is_array()) {
+                for (const auto &loyalty : userInfoJson["loyaltyInfo"].array_items()) {
+                    loginData.userInfo.loyaltyInfo.append(
+                        QString::fromStdString(loyalty.string_value()));
+                }
+            }
+
+            if (userInfoJson["lastUsedHashtags"].is_array()) {
+                for (const auto &hashtag : userInfoJson["lastUsedHashtags"].array_items()) {
+                    loginData.userInfo.lastUsedHashtags.append(
+                        QString::fromStdString(hashtag.string_value()));
+                }
+            }
+
+            if (userInfoJson["levelBadges"].is_array()) {
+                for (const auto &badge : userInfoJson["levelBadges"].array_items()) {
+                    loginData.userInfo.levelBadges.append(QString::fromStdString(badge.string_value()));
+                }
+            }
+
+            // Object attributes - monthlyVIPBadges
+            // Note: This assumes QVariantMap can be built directly from JSON object, actual
+            // implementation may need adjustment
+            if (userInfoJson["monthlyVIPBadges"].is_object()) {
+                // Need to handle monthlyVIPBadges based on actual situation
+                // Simple example:
+                // const auto& badges = userInfoJson["monthlyVIPBadges"].object_items();
+                // for (const auto& pair : badges) {
+                //     loginData.userInfo.monthlyVIPBadges.insert(QString::fromStdString(pair.first),
+                //     QVariant::fromValue(pair.second));
+                // }
+            }
+        }
+
+        // Handle basic response information
+        loginData.message = QString::fromStdString(json["message"].string_value());
+        loginData.result = QString::fromStdString(json["result"].string_value());
+        loginData.refreshToken = QString::fromStdString(json["refreshToken"].string_value());
+        loginData.jwtAccessToken = QString::fromStdString(json["jwtAccessToken"].string_value());
+        loginData.accessToken = QString::fromStdString(json["accessToken"].string_value());
+        loginData.giftModuleState = json["giftModuleState"].int_value();
+        loginData.word = QString::fromStdString(json["word"].string_value());
+
+        // Handle A/B testing related fields
+        loginData.abtestNewbieFocus = QString::fromStdString(json["abtestNewbieFocus"].string_value());
+        loginData.abtestNewbieGuidance =
+            QString::fromStdString(json["abtestNewbieGuidance"].string_value());
+        loginData.abtestNewbieGuide = QString::fromStdString(json["abtestNewbieGuide"].string_value());
+
+        // Handle recommendation and onboarding related fields
+        loginData.showRecommend = json["showRecommend"].bool_value();
+        loginData.newbieEnhanceGuidanceStyle = json["newbieEnhanceGuidanceStyle"].int_value();
+        loginData.newbieGuidanceFocusMissionEnable =
+            json["newbieGuidanceFocusMissionEnable"].bool_value();
+
+        // Handle auto-enter live streaming related fields
+        const auto &autoEnterJson = json["autoEnterLive"];
+        if (autoEnterJson.is_object()) {
+            // Note: Field name in JSON is "auto", but field name in struct is "autoEnter"
+            loginData.autoEnterLive.autoEnter = autoEnterJson["auto"].bool_value();
+            loginData.autoEnterLive.liveStreamID = autoEnterJson["liveStreamID"].int_value();
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveLoginData exception: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveLoginData unknown exception");
         return false;
     }
-
-    // Handle user information
-    const auto &userInfoJson = json["userInfo"];
-    if (userInfoJson.is_object()) {
-        // Basic user information
-        loginData.userInfo.userID = QString::fromStdString(userInfoJson["userID"].string_value());
-        loginData.userInfo.openID = QString::fromStdString(userInfoJson["openID"].string_value());
-        loginData.userInfo.displayName =
-            QString::fromStdString(userInfoJson["displayName"].string_value());
-        loginData.userInfo.name = QString::fromStdString(userInfoJson["name"].string_value());
-        loginData.userInfo.bio = QString::fromStdString(userInfoJson["bio"].string_value());
-        loginData.userInfo.picture = QString::fromStdString(userInfoJson["picture"].string_value());
-        loginData.userInfo.website = QString::fromStdString(userInfoJson["website"].string_value());
-
-        // Count information
-        loginData.userInfo.followerCount = userInfoJson["followerCount"].int_value();
-        loginData.userInfo.followingCount = userInfoJson["followingCount"].int_value();
-        loginData.userInfo.receivedLikeCount = userInfoJson["receivedLikeCount"].int_value();
-        loginData.userInfo.likeCount = userInfoJson["likeCount"].int_value();
-
-        // Follow status
-        loginData.userInfo.isFollowing = userInfoJson["isFollowing"].int_value();
-        loginData.userInfo.isNotif = userInfoJson["isNotif"].int_value();
-        loginData.userInfo.isBlocked = userInfoJson["isBlocked"].int_value();
-        loginData.userInfo.followTime = userInfoJson["followTime"].int_value();
-        loginData.userInfo.followRequestTime = userInfoJson["followRequestTime"].int_value();
-
-        // Room and privacy settings
-        loginData.userInfo.roomID = userInfoJson["roomID"].int_value();
-        loginData.userInfo.privacyMode =
-            QString::fromStdString(userInfoJson["privacyMode"].string_value());
-        loginData.userInfo.followPrivacyMode = userInfoJson["followPrivacyMode"].int_value();
-
-        // Level and status information
-        loginData.userInfo.ballerLevel = userInfoJson["ballerLevel"].int_value();
-        loginData.userInfo.postCount = userInfoJson["postCount"].int_value();
-        loginData.userInfo.isCelebrity = userInfoJson["isCelebrity"].int_value();
-        loginData.userInfo.baller = userInfoJson["baller"].int_value();
-        loginData.userInfo.level = userInfoJson["level"].int_value();
-
-        // Other attributes
-        loginData.userInfo.revenueShareIndicator =
-            QString::fromStdString(userInfoJson["revenueShareIndicator"].string_value());
-        loginData.userInfo.clanStatus = userInfoJson["clanStatus"].int_value();
-        loginData.userInfo.region = QString::fromStdString(userInfoJson["region"].string_value());
-        loginData.userInfo.hideAllPointToLeaderboard =
-            userInfoJson["hideAllPointToLeaderboard"].int_value();
-        loginData.userInfo.enableShop = userInfoJson["enableShop"].int_value();
-
-        // Timestamp information
-        loginData.userInfo.lastLiveTimestamp = userInfoJson["lastLiveTimestamp"].int_value();
-        loginData.userInfo.lastCreateLiveTimestamp =
-            userInfoJson["lastCreateLiveTimestamp"].int_value();
-        loginData.userInfo.lastLiveRegion =
-            QString::fromStdString(userInfoJson["lastLiveRegion"].string_value());
-
-        // Boolean attributes
-        loginData.userInfo.streamerRecapEnable = userInfoJson["streamerRecapEnable"].bool_value();
-        loginData.userInfo.newbieDisplayAllGiftTabsToast =
-            userInfoJson["newbieDisplayAllGiftTabsToast"].bool_value();
-        loginData.userInfo.isUnderaged = userInfoJson["isUnderaged"].bool_value();
-        loginData.userInfo.isFreePrivateMsgEnabled =
-            userInfoJson["isFreePrivateMsgEnabled"].bool_value();
-        loginData.userInfo.isVliverOnlyModeEnabled =
-            userInfoJson["isVliverOnlyModeEnabled"].bool_value();
-
-        // Integer attributes
-        loginData.userInfo.gloryroadMode = userInfoJson["gloryroadMode"].int_value();
-        loginData.userInfo.avatarOnboardingPhase =
-            userInfoJson["avatarOnboardingPhase"].int_value();
-        loginData.userInfo.isEmailVerified = userInfoJson["isEmailVerified"].int_value();
-
-        // String attributes
-        loginData.userInfo.extIDAppleTransfer =
-            QString::fromStdString(userInfoJson["extIDAppleTransfer"].string_value());
-        loginData.userInfo.commentShadowColor =
-            QString::fromStdString(userInfoJson["commentShadowColor"].string_value());
-
-        // Array attributes
-        if (userInfoJson["badgeInfo"].is_array()) {
-            for (const auto &badge : userInfoJson["badgeInfo"].array_items()) {
-                loginData.userInfo.badgeInfo.append(QString::fromStdString(badge.string_value()));
-            }
-        }
-
-        if (userInfoJson["loyaltyInfo"].is_array()) {
-            for (const auto &loyalty : userInfoJson["loyaltyInfo"].array_items()) {
-                loginData.userInfo.loyaltyInfo.append(
-                    QString::fromStdString(loyalty.string_value()));
-            }
-        }
-
-        if (userInfoJson["lastUsedHashtags"].is_array()) {
-            for (const auto &hashtag : userInfoJson["lastUsedHashtags"].array_items()) {
-                loginData.userInfo.lastUsedHashtags.append(
-                    QString::fromStdString(hashtag.string_value()));
-            }
-        }
-
-        if (userInfoJson["levelBadges"].is_array()) {
-            for (const auto &badge : userInfoJson["levelBadges"].array_items()) {
-                loginData.userInfo.levelBadges.append(QString::fromStdString(badge.string_value()));
-            }
-        }
-
-        // Object attributes - monthlyVIPBadges
-        // Note: This assumes QVariantMap can be built directly from JSON object, actual
-        // implementation may need adjustment
-        if (userInfoJson["monthlyVIPBadges"].is_object()) {
-            // Need to handle monthlyVIPBadges based on actual situation
-            // Simple example:
-            // const auto& badges = userInfoJson["monthlyVIPBadges"].object_items();
-            // for (const auto& pair : badges) {
-            //     loginData.userInfo.monthlyVIPBadges.insert(QString::fromStdString(pair.first),
-            //     QVariant::fromValue(pair.second));
-            // }
-        }
-    }
-
-    // Handle basic response information
-    loginData.message = QString::fromStdString(json["message"].string_value());
-    loginData.result = QString::fromStdString(json["result"].string_value());
-    loginData.refreshToken = QString::fromStdString(json["refreshToken"].string_value());
-    loginData.jwtAccessToken = QString::fromStdString(json["jwtAccessToken"].string_value());
-    loginData.accessToken = QString::fromStdString(json["accessToken"].string_value());
-    loginData.giftModuleState = json["giftModuleState"].int_value();
-    loginData.word = QString::fromStdString(json["word"].string_value());
-
-    // Handle A/B testing related fields
-    loginData.abtestNewbieFocus = QString::fromStdString(json["abtestNewbieFocus"].string_value());
-    loginData.abtestNewbieGuidance =
-        QString::fromStdString(json["abtestNewbieGuidance"].string_value());
-    loginData.abtestNewbieGuide = QString::fromStdString(json["abtestNewbieGuide"].string_value());
-
-    // Handle recommendation and onboarding related fields
-    loginData.showRecommend = json["showRecommend"].bool_value();
-    loginData.newbieEnhanceGuidanceStyle = json["newbieEnhanceGuidanceStyle"].int_value();
-    loginData.newbieGuidanceFocusMissionEnable =
-        json["newbieGuidanceFocusMissionEnable"].bool_value();
-
-    // Handle auto-enter live streaming related fields
-    const auto &autoEnterJson = json["autoEnterLive"];
-    if (autoEnterJson.is_object()) {
-        // Note: Field name in JSON is "auto", but field name in struct is "autoEnter"
-        loginData.autoEnterLive.autoEnter = autoEnterJson["auto"].bool_value();
-        loginData.autoEnterLive.liveStreamID = autoEnterJson["liveStreamID"].int_value();
-    }
-
-    return true;
 }
 
 bool OneSevenLiveChangeEventRequestToJson(const OneSevenLiveChangeEventRequest &request,
@@ -838,6 +847,110 @@ bool JsonToOneSevenLiveRockViewers(const Json &json, QList<OneSevenLiveRockZoneV
     return true;
 }
 
+bool JsonToOneSevenLiveRtmpUrl(const Json &urlJson, OneSevenLiveRtmpUrl &rtmpUrl) {
+    if (!urlJson.is_object()) {
+        return false;
+    }
+    
+    rtmpUrl.provider = urlJson["provider"].int_value();
+    rtmpUrl.streamType = QString::fromStdString(urlJson["streamType"].string_value());
+    rtmpUrl.url = QString::fromStdString(urlJson["url"].string_value());
+    rtmpUrl.urlLowQuality = QString::fromStdString(urlJson["urlLowQuality"].string_value());
+    rtmpUrl.webUrl = QString::fromStdString(urlJson["webUrl"].string_value());
+    rtmpUrl.webUrlLowQuality = QString::fromStdString(urlJson["webUrlLowQuality"].string_value());
+    rtmpUrl.urlHighQuality = QString::fromStdString(urlJson["urlHighQuality"].string_value());
+    rtmpUrl.weight = urlJson["weight"].int_value();
+    rtmpUrl.throttle = urlJson["throttle"].bool_value();
+    return true;
+}
+
+// Helper function to parse RTMP URLs array from JSON
+bool JsonToOneSevenLiveRtmpUrls(const Json &rtmpUrlsJson, QList<OneSevenLiveRtmpUrl> &rtmpUrls) {
+    if (!rtmpUrlsJson.is_array()) {
+        return false;
+    }
+    
+    for (const auto &urlJson : rtmpUrlsJson.array_items()) {
+        OneSevenLiveRtmpUrl rtmpUrl;
+        if (JsonToOneSevenLiveRtmpUrl(urlJson, rtmpUrl)) {
+            rtmpUrls.append(rtmpUrl);
+        }
+    }
+    return true;
+}
+
+// Helper function to parse pull URLs info from JSON
+bool JsonToOneSevenLivePullUrlsInfo(const Json &pullUrlsInfoJson, OneSevenLivePullUrlsInfo &pullUrlsInfo) {
+    if (!pullUrlsInfoJson.is_object()) {
+        return false;
+    }
+    
+    pullUrlsInfo.seqNo = pullUrlsInfoJson["seqNo"].int_value();
+    JsonToOneSevenLiveRtmpUrls(pullUrlsInfoJson["rtmpURLs"], pullUrlsInfo.rtmpURLs);
+    return true;
+}
+
+bool JsonToOneSevenLiveEventList(const Json &eventListJson, QList<OneSevenLiveEventInfo> &eventList) {
+    if (!eventListJson.is_array()) {
+        return false;
+    }
+    
+    for (const auto &eventJson : eventListJson.array_items()) {
+        OneSevenLiveEventInfo eventInfo;
+        eventInfo.ID = eventJson["ID"].int_value();
+        eventInfo.type = eventJson["type"].int_value();
+        eventInfo.icon = QString::fromStdString(eventJson["icon"].string_value());
+        eventInfo.endTime = eventJson["endTime"].int_value();
+        eventInfo.showTimer = eventJson["showTimer"].int_value();
+        eventInfo.name = QString::fromStdString(eventJson["name"].string_value());
+        eventInfo.URL = QString::fromStdString(eventJson["URL"].string_value());
+        eventInfo.pageSize = eventJson["pageSize"].int_value();
+        eventInfo.webViewTitle = QString::fromStdString(eventJson["webViewTitle"].string_value());
+
+        // Parse icon list
+        const auto &iconsJson = eventJson["icons"];
+        if (iconsJson.is_array()) {
+            for (const auto &iconJson : iconsJson.array_items()) {
+                OneSevenLiveEventIcon icon;
+                icon.language = QString::fromStdString(iconJson["language"].string_value());
+                icon.value = QString::fromStdString(iconJson["value"].string_value());
+                eventInfo.icons.append(icon);
+            }
+        }
+
+        eventList.append(eventInfo);
+    }
+    return true;
+}
+
+// Helper function to parse hashtags from JSON
+bool JsonToOneSevenLiveHashtags(const Json &hashtagsJson, QList<OneSevenLiveHashtag> &hashtags) {
+    if (!hashtagsJson.is_array()) {
+        return false;
+    }
+    
+    for (const auto &hashtagJson : hashtagsJson.array_items()) {
+        OneSevenLiveHashtag hashtag;
+        hashtag.text = QString::fromStdString(hashtagJson["text"].string_value());
+        hashtag.isOfficial = hashtagJson["isOfficial"].bool_value();
+        hashtags.append(hashtag);
+    }
+    return true;
+}
+
+bool JsonToOneSevenLiveArchiveConfig(const Json &archiveConfigJson, OneSevenLiveArchiveConfig &archiveConfig) {
+    if (!archiveConfigJson.is_object()) {
+        return false;
+    }
+    
+    archiveConfig.autoRecording = archiveConfigJson["autoRecording"].bool_value();
+    archiveConfig.autoPublish = archiveConfigJson["autoPublish"].bool_value();
+    archiveConfig.clipPermission = archiveConfigJson["clipPermission"].int_value();
+    archiveConfig.clipPermissionDownload = archiveConfigJson["clipPermissionDownload"].int_value();
+    
+    return true;
+}
+
 bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo) {
     if (!json.is_object()) {
         return false;
@@ -852,51 +965,12 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         roomInfo.caption = QString::fromStdString(json["caption"].string_value());
         roomInfo.thumbnail = QString::fromStdString(json["thumbnail"].string_value());
 
-        // RTMP URLs
-        const auto &rtmpUrlsJson = json["rtmpUrls"];
-        if (rtmpUrlsJson.is_array()) {
-            for (const auto &urlJson : rtmpUrlsJson.array_items()) {
-                OneSevenLiveRtmpUrl rtmpUrl;
-                rtmpUrl.provider = urlJson["provider"].int_value();
-                rtmpUrl.streamType = QString::fromStdString(urlJson["streamType"].string_value());
-                rtmpUrl.url = QString::fromStdString(urlJson["url"].string_value());
-                rtmpUrl.urlLowQuality =
-                    QString::fromStdString(urlJson["urlLowQuality"].string_value());
-                rtmpUrl.webUrl = QString::fromStdString(urlJson["webUrl"].string_value());
-                rtmpUrl.webUrlLowQuality =
-                    QString::fromStdString(urlJson["webUrlLowQuality"].string_value());
-                rtmpUrl.urlHighQuality =
-                    QString::fromStdString(urlJson["urlHighQuality"].string_value());
-                rtmpUrl.weight = urlJson["weight"].int_value();
-                rtmpUrl.throttle = urlJson["throttle"].bool_value();
-                roomInfo.rtmpUrls.append(rtmpUrl);
-            }
-        }
+        // Parse RTMP URLs
+        JsonToOneSevenLiveRtmpUrls(json["rtmpUrls"], roomInfo.rtmpUrls);
 
-        // Pull URLs Info
-        const auto &pullUrlsInfoJson = json["pullURLsInfo"];
-        if (pullUrlsInfoJson.is_object()) {
-            roomInfo.pullURLsInfo.seqNo = pullUrlsInfoJson["seqNo"].int_value();
-            const auto &rtmpURLsJson = pullUrlsInfoJson["rtmpURLs"];
-            if (rtmpURLsJson.is_array()) {
-                for (const auto &urlJson : rtmpURLsJson.array_items()) {
-                    OneSevenLiveRtmpUrl rtmpUrl;
-                    rtmpUrl.provider = urlJson["provider"].int_value();
-                    rtmpUrl.streamType =
-                        QString::fromStdString(urlJson["streamType"].string_value());
-                    rtmpUrl.url = QString::fromStdString(urlJson["url"].string_value());
-                    rtmpUrl.urlLowQuality =
-                        QString::fromStdString(urlJson["urlLowQuality"].string_value());
-                    rtmpUrl.webUrl = QString::fromStdString(urlJson["webUrl"].string_value());
-                    rtmpUrl.webUrlLowQuality =
-                        QString::fromStdString(urlJson["webUrlLowQuality"].string_value());
-                    rtmpUrl.urlHighQuality =
-                        QString::fromStdString(urlJson["urlHighQuality"].string_value());
-                    rtmpUrl.weight = urlJson["weight"].int_value();
-                    rtmpUrl.throttle = urlJson["throttle"].bool_value();
-                    roomInfo.pullURLsInfo.rtmpURLs.append(rtmpUrl);
-                }
-            }
+        // Parse Pull URLs Info
+        if (json["pullURLsInfo"].is_object()) {
+            JsonToOneSevenLivePullUrlsInfo(json["pullURLsInfo"], roomInfo.pullURLsInfo);
         }
 
         // Live streaming information
@@ -926,36 +1000,9 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         roomInfo.numberOfChunks = json["numberOfChunks"].int_value();
         roomInfo.canSendGift = json["canSendGift"].int_value();
 
-        // User information
-        const auto &userInfoJson = json["userInfo"];
-        if (userInfoJson.is_object()) {
-            roomInfo.userInfo.userID =
-                QString::fromStdString(userInfoJson["userID"].string_value());
-            roomInfo.userInfo.openID =
-                QString::fromStdString(userInfoJson["openID"].string_value());
-            roomInfo.userInfo.displayName =
-                QString::fromStdString(userInfoJson["displayName"].string_value());
-            roomInfo.userInfo.gender =
-                QString::fromStdString(userInfoJson["gender"].string_value());
-            roomInfo.userInfo.isChoice = userInfoJson["isChoice"].bool_value();
-            roomInfo.userInfo.isInternational = userInfoJson["isInternational"].bool_value();
-            roomInfo.userInfo.adsOn = userInfoJson["adsOn"].int_value();
-            roomInfo.userInfo.experience = userInfoJson["experience"].int_value();
-            roomInfo.userInfo.deviceType =
-                QString::fromStdString(userInfoJson["deviceType"].string_value());
-            roomInfo.userInfo.picture =
-                QString::fromStdString(userInfoJson["picture"].string_value());
-
-            // Glory Road information
-            const auto &gloryroadInfoJson = userInfoJson["gloryroadInfo"];
-            if (gloryroadInfoJson.is_object()) {
-                roomInfo.userInfo.gloryroadInfo.point = gloryroadInfoJson["point"].int_value();
-                roomInfo.userInfo.gloryroadInfo.level = gloryroadInfoJson["level"].int_value();
-                roomInfo.userInfo.gloryroadInfo.iconURL =
-                    QString::fromStdString(gloryroadInfoJson["iconURL"].string_value());
-                roomInfo.userInfo.gloryroadInfo.badgeIconURL =
-                    QString::fromStdString(gloryroadInfoJson["badgeIconURL"].string_value());
-            }
+        // Parse user information
+        if (json["userInfo"].is_object()) {
+            JsonToOneSevenLiveUserInfo(json["userInfo"], roomInfo.userInfo);
         }
 
         // Other settings
@@ -968,45 +1015,12 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         roomInfo.region = QString::fromStdString(json["region"].string_value());
         roomInfo.device = QString::fromStdString(json["device"].string_value());
 
-        // Event list
-        const auto &eventListJson = json["eventList"];
-        if (eventListJson.is_array()) {
-            for (const auto &eventJson : eventListJson.array_items()) {
-                OneSevenLiveEventInfo eventInfo;
-                eventInfo.ID = eventJson["ID"].int_value();
-                eventInfo.type = eventJson["type"].int_value();
-                eventInfo.icon = QString::fromStdString(eventJson["icon"].string_value());
-                eventInfo.endTime = eventJson["endTime"].int_value();
-                eventInfo.showTimer = eventJson["showTimer"].int_value();
-                eventInfo.name = QString::fromStdString(eventJson["name"].string_value());
-                eventInfo.URL = QString::fromStdString(eventJson["URL"].string_value());
-                eventInfo.pageSize = eventJson["pageSize"].int_value();
-                eventInfo.webViewTitle =
-                    QString::fromStdString(eventJson["webViewTitle"].string_value());
+        // Parse event list
+        JsonToOneSevenLiveEventList(json["eventList"], roomInfo.eventList);
 
-                // Icon list
-                const auto &iconsJson = eventJson["icons"];
-                if (iconsJson.is_array()) {
-                    for (const auto &iconJson : iconsJson.array_items()) {
-                        OneSevenLiveEventIcon icon;
-                        icon.language = QString::fromStdString(iconJson["language"].string_value());
-                        icon.value = QString::fromStdString(iconJson["value"].string_value());
-                        eventInfo.icons.append(icon);
-                    }
-                }
-
-                roomInfo.eventList.append(eventInfo);
-            }
-        }
-
-        // Archive configuration
-        const auto &archiveConfigJson = json["archiveConfig"];
-        if (archiveConfigJson.is_object()) {
-            roomInfo.archiveConfig.autoRecording = archiveConfigJson["autoRecording"].bool_value();
-            roomInfo.archiveConfig.autoPublish = archiveConfigJson["autoPublish"].bool_value();
-            roomInfo.archiveConfig.clipPermission = archiveConfigJson["clipPermission"].int_value();
-            roomInfo.archiveConfig.clipPermissionDownload =
-                archiveConfigJson["clipPermissionDownload"].int_value();
+        // Parse archive configuration
+        if (json["archiveConfig"].is_object()) {
+            JsonToOneSevenLiveArchiveConfig(json["archiveConfig"], roomInfo.archiveConfig);
         }
 
         // Archive ID and game marquee settings
@@ -1014,6 +1028,7 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
         roomInfo.hideGameMarquee = json["hideGameMarquee"].bool_value();
         roomInfo.enableOBSGroupCall = json["enableOBSGroupCall"].bool_value();
 
+        // Parse subtabs
         const auto &subtabsJson = json["subtabs"];
         if (subtabsJson.is_array()) {
             for (const auto &subtabJson : subtabsJson.array_items()) {
@@ -1021,15 +1036,9 @@ bool JsonToOneSevenLiveRoomInfo(const Json &json, OneSevenLiveRoomInfo &roomInfo
             }
         }
 
-        const auto &lastUsedHashtagsJson = json["lastUsedHashtags"];
-        if (lastUsedHashtagsJson.is_array()) {
-            for (const auto &hashtagJson : lastUsedHashtagsJson.array_items()) {
-                OneSevenLiveHashtag hashtag;
-                hashtag.text = QString::fromStdString(hashtagJson["text"].string_value());
-                hashtag.isOfficial = hashtagJson["isOfficial"].bool_value();
-                roomInfo.lastUsedHashtags.append(hashtag);
-            }
-        }
+        // Parse last used hashtags
+        JsonToOneSevenLiveHashtags(json["lastUsedHashtags"], roomInfo.lastUsedHashtags);
+
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveRoomInfo error: %s", e.what());
         return false;
@@ -1386,114 +1395,146 @@ bool OneSevenLiveCloseLiveRequestToJson(const OneSevenLiveCloseLiveRequest &requ
     return true;
 }
 
+// Helper function to parse event items from JSON
+bool JsonToOneSevenLiveEventItems(const Json &eventsJson, QList<OneSevenLiveEventItem> &events) {
+    if (!eventsJson.is_array()) {
+        return false;
+    }
+    
+    const auto &eventsArray = eventsJson.array_items();
+    for (const auto &eventItem : eventsArray) {
+        OneSevenLiveEventItem item;
+        item.ID = eventItem["ID"].int_value();
+        item.name = QString::fromStdString(eventItem["name"].string_value());
+        item.bannerURL = QString::fromStdString(eventItem["bannerURL"].string_value());
+        item.descriptionURL = QString::fromStdString(eventItem["descriptionURL"].string_value());
+        item.endTime = eventItem["endTime"].int_value();
+
+        // Parse tagIDs array
+        if (eventItem["tagIDs"].is_array()) {
+            const auto &tagIDsArray = eventItem["tagIDs"].array_items();
+            for (const auto &tagID : tagIDsArray) {
+                item.tagIDs.append(QString::fromStdString(tagID.string_value()));
+            }
+        }
+
+        events.append(item);
+    }
+    return true;
+}
+
+// Helper function to parse event tags from JSON
+bool JsonToOneSevenLiveEventTags(const Json &tagsJson, QList<OneSevenLiveEventTag> &tags) {
+    if (!tagsJson.is_array()) {
+        return false;
+    }
+    
+    const auto &tagsArray = tagsJson.array_items();
+    for (const auto &tagItem : tagsArray) {
+        OneSevenLiveEventTag tag;
+        tag.ID = QString::fromStdString(tagItem["ID"].string_value());
+        tag.name = QString::fromStdString(tagItem["name"].string_value());
+        tags.append(tag);
+    }
+    return true;
+}
+
+// Helper function to parse event section from JSON
+bool JsonToOneSevenLiveEventSection(const Json &eventJson, OneSevenLiveEventList &event) {
+    if (!eventJson.is_object()) {
+        return false;
+    }
+    
+    // Parse events array
+    JsonToOneSevenLiveEventItems(eventJson["events"], event.events);
+    
+    event.notEligibleForAllEvents = eventJson["notEligibleForAllEvents"].bool_value();
+    event.promotionIndex = eventJson["promotionIndex"].int_value();
+    event.instructionURL = QString::fromStdString(eventJson["instructionURL"].string_value());
+    
+    // Parse tags array
+    JsonToOneSevenLiveEventTags(eventJson["tags"], event.tags);
+    
+    return true;
+}
+
+// Helper function to parse subtabs from JSON
+bool JsonToOneSevenLiveSubtabs(const Json &subtabsJson, QList<OneSevenLiveSubtab> &subtabs) {
+    if (!subtabsJson.is_array()) {
+        return false;
+    }
+    
+    const auto &subtabsArray = subtabsJson.array_items();
+    for (const auto &subtabItem : subtabsArray) {
+        OneSevenLiveSubtab subtab;
+        subtab.displayName = QString::fromStdString(subtabItem["displayName"].string_value());
+        subtab.ID = QString::fromStdString(subtabItem["ID"].string_value());
+        subtabs.append(subtab);
+    }
+    return true;
+}
+
 bool JsonToOneSevenLiveConfigStreamer(const Json &json, OneSevenLiveConfigStreamer &response) {
     if (!json.is_object()) {
         return false;
     }
 
-    // Parse event section
-    if (json["event"].is_object()) {
-        const auto &eventJson = json["event"];
+    try {
+        // Parse event section
+        if (json["event"].is_object()) {
+            JsonToOneSevenLiveEventSection(json["event"], response.event);
+        }
 
-        // Parse events array
-        if (eventJson["events"].is_array()) {
-            const auto &eventsArray = eventJson["events"].array_items();
-            for (const auto &eventItem : eventsArray) {
-                OneSevenLiveEventItem item;
-                item.ID = eventItem["ID"].int_value();
-                item.name = QString::fromStdString(eventItem["name"].string_value());
-                item.bannerURL = QString::fromStdString(eventItem["bannerURL"].string_value());
-                item.descriptionURL =
-                    QString::fromStdString(eventItem["descriptionURL"].string_value());
-                item.endTime = eventItem["endTime"].int_value();
+        // Parse customEvent section
+        if (json["customEvent"].is_object()) {
+            const auto &customEventJson = json["customEvent"];
+            response.customEvent.endTime = customEventJson["endTime"].int_value();
+            response.customEvent.status = customEventJson["status"].int_value();
+        }
 
-                // Parse tagIDs array
-                if (eventItem["tagIDs"].is_array()) {
-                    const auto &tagIDsArray = eventItem["tagIDs"].array_items();
-                    for (const auto &tagID : tagIDsArray) {
-                        item.tagIDs.append(QString::fromStdString(tagID.string_value()));
-                    }
-                }
+        // Parse boxGacha section
+        if (json["boxGacha"].is_object()) {
+            const auto &boxGachaJson = json["boxGacha"];
+            response.boxGacha.previousSettingStatus = boxGachaJson["previousSettingStatus"].bool_value();
+            response.boxGacha.availableEventID = QString::fromStdString(boxGachaJson["availableEventID"].string_value());
+        }
 
-                response.event.events.append(item);
+        // Parse subtabs array
+        if (json["subtabs"].is_array()) {
+            JsonToOneSevenLiveSubtabs(json["subtabs"], response.subtabs);
+        }
+
+        // Parse lastStreamState
+        if (json["lastStreamState"].is_object()) {
+            const auto &lastStreamStateJson = json["lastStreamState"];
+            OneSevenLiveStreamState lastStreamState;
+            if (lastStreamStateJson["vliverInfo"].is_object()) {
+                OneSevenLiveVliverInfo vliverInfo;
+                vliverInfo.vliverModel = lastStreamStateJson["vliverInfo"]["vliverModel"].int_value();
+                lastStreamState.vliverInfo = vliverInfo;
             }
+            response.lastStreamState = lastStreamState;
         }
 
-        response.event.notEligibleForAllEvents = eventJson["notEligibleForAllEvents"].bool_value();
-        response.event.promotionIndex = eventJson["promotionIndex"].int_value();
-        response.event.instructionURL =
-            QString::fromStdString(eventJson["instructionURL"].string_value());
+        response.hashtagSelectLimit = json["hashtagSelectLimit"].int_value();
+        response.armyOnly = json["armyOnly"].int_value();
 
-        // Parse tags array
-        if (eventJson["tags"].is_array()) {
-            const auto &tagsArray = eventJson["tags"].array_items();
-            for (const auto &tagItem : tagsArray) {
-                OneSevenLiveEventTag tag;
-                tag.ID = QString::fromStdString(tagItem["ID"].string_value());
-                tag.name = QString::fromStdString(tagItem["name"].string_value());
-                response.event.tags.append(tag);
-            }
+        // Parse archive configuration
+        if (json["archiveConfig"].is_object()) {
+            JsonToOneSevenLiveArchiveConfig(json["archiveConfig"], response.archiveConfig);
         }
-    }
-
-    // Parse customEvent section
-    if (json["customEvent"].is_object()) {
-        const auto &customEventJson = json["customEvent"];
-        response.customEvent.endTime = customEventJson["endTime"].int_value();
-        response.customEvent.status = customEventJson["status"].int_value();
-    }
-
-    // Parse boxGacha section
-    if (json["boxGacha"].is_object()) {
-        const auto &boxGachaJson = json["boxGacha"];
-        response.boxGacha.previousSettingStatus =
-            boxGachaJson["previousSettingStatus"].bool_value();
-        response.boxGacha.availableEventID =
-            QString::fromStdString(boxGachaJson["availableEventID"].string_value());
-    }
-
-    // Parse subtabs array
-    if (json["subtabs"].is_array()) {
-        const auto &subtabsArray = json["subtabs"].array_items();
-        for (const auto &subtabItem : subtabsArray) {
-            OneSevenLiveSubtab subtab;
-            subtab.displayName = QString::fromStdString(subtabItem["displayName"].string_value());
-            subtab.ID = QString::fromStdString(subtabItem["ID"].string_value());
-            response.subtabs.append(subtab);
-        }
-    }
-
-    if (json["lastStreamState"].is_object()) {
-        const auto &lastStreamStateJson = json["lastStreamState"];
-        OneSevenLiveStreamState lastStreamState;
-        if (json["lastStreamState"]["vliverInfo"].is_object()) {
-            OneSevenLiveVliverInfo vliverInfo;
-            vliverInfo.vliverModel = lastStreamStateJson["vliverInfo"]["vliverModel"].int_value();
-            lastStreamState.vliverInfo = vliverInfo;
-        }
-        response.lastStreamState = lastStreamState;
-    }
-
-    response.hashtagSelectLimit = json["hashtagSelectLimit"].int_value();
-    response.armyOnly = json["armyOnly"].int_value();
-
-    // Archive configuration
-    const auto &archiveConfigJson = json["archiveConfig"];
-    if (archiveConfigJson.is_object()) {
-        response.archiveConfig.autoRecording = archiveConfigJson["autoRecording"].bool_value();
-        response.archiveConfig.autoPublish = archiveConfigJson["autoPublish"].bool_value();
-        response.archiveConfig.clipPermission = archiveConfigJson["clipPermission"].int_value();
-        response.archiveConfig.clipPermissionDownload =
-            archiveConfigJson["clipPermissionDownload"].int_value();
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveConfigStreamer error: %s", e.what());
+        return false;
     }
 
     return true;
 }
 
-bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response, Json &json) {
-    // Create event section
+// Helper function to create events array JSON
+static std::vector<Json> createEventsArrayJson(const QList<OneSevenLiveEventItem> &events) {
     std::vector<Json> eventsArray;
-    for (const auto &event : response.event.events) {
+    for (const auto &event : events) {
         // Create tagIDs array
         std::vector<Json> tagIDsArray;
         for (const QString &tagID : event.tagIDs) {
@@ -1509,59 +1550,94 @@ bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response
                                       {"endTime", static_cast<int>(event.endTime)}};
         eventsArray.push_back(eventJson);
     }
+    return eventsArray;
+}
 
-    // Create tags array
+// Helper function to create tags array JSON
+static std::vector<Json> createTagsArrayJson(const QList<OneSevenLiveEventTag> &tags) {
     std::vector<Json> tagsArray;
-    for (const auto &tag : response.event.tags) {
+    for (const auto &tag : tags) {
         Json tagJson = Json::object{{"ID", tag.ID.toStdString()}, {"name", tag.name.toStdString()}};
         tagsArray.push_back(tagJson);
     }
+    return tagsArray;
+}
 
-    // Create event object
-    Json eventJson =
-        Json::object{{"events", eventsArray},
-                     {"notEligibleForAllEvents", response.event.notEligibleForAllEvents},
-                     {"promotionIndex", response.event.promotionIndex},
-                     {"tags", tagsArray},
-                     {"instructionURL", response.event.instructionURL.toStdString()}};
+// Helper function to create event section JSON
+static Json createEventSectionJson(const OneSevenLiveEventList &event) {
+    std::vector<Json> eventsArray = createEventsArrayJson(event.events);
+    std::vector<Json> tagsArray = createTagsArrayJson(event.tags);
+    
+    return Json::object{{"events", eventsArray},
+                       {"notEligibleForAllEvents", event.notEligibleForAllEvents},
+                       {"promotionIndex", event.promotionIndex},
+                       {"tags", tagsArray},
+                       {"instructionURL", event.instructionURL.toStdString()}};
+}
 
-    // Create customEvent object
-    Json customEventJson = Json::object{{"endTime", static_cast<int>(response.customEvent.endTime)},
-                                        {"status", response.customEvent.status}};
-
-    // Create boxGacha object
-    Json boxGachaJson =
-        Json::object{{"previousSettingStatus", response.boxGacha.previousSettingStatus},
-                     {"availableEventID", response.boxGacha.availableEventID.toStdString()}};
-
-    // Create subtabs array
+// Helper function to create subtabs array JSON
+static std::vector<Json> createSubtabsArrayJson(const QList<OneSevenLiveSubtab> &subtabs) {
     std::vector<Json> subtabsArray;
-    for (const auto &subtab : response.subtabs) {
+    for (const auto &subtab : subtabs) {
         Json subtabJson = Json::object{{"displayName", subtab.displayName.toStdString()},
                                        {"ID", subtab.ID.toStdString()}};
         subtabsArray.push_back(subtabJson);
     }
+    return subtabsArray;
+}
 
-    Json lastStreamStateJson = Json::object{
-        {"vliverInfo",
-         Json::object{{"vliverModel", response.lastStreamState.vliverInfo.vliverModel}}}};
-
-    // Archive configuration
+// Helper function to create archive config JSON
+static Json createArchiveConfigJson(const OneSevenLiveArchiveConfig &archiveConfig) {
     Json::object archiveConfigObject;
-    archiveConfigObject["autoRecording"] = response.archiveConfig.autoRecording;
-    archiveConfigObject["autoPublish"] = response.archiveConfig.autoPublish;
-    archiveConfigObject["clipPermission"] = response.archiveConfig.clipPermission;
-    archiveConfigObject["clipPermissionDownload"] = response.archiveConfig.clipPermissionDownload;
+    archiveConfigObject["autoRecording"] = archiveConfig.autoRecording;
+    archiveConfigObject["autoPublish"] = archiveConfig.autoPublish;
+    archiveConfigObject["clipPermission"] = archiveConfig.clipPermission;
+    archiveConfigObject["clipPermissionDownload"] = archiveConfig.clipPermissionDownload;
+    return Json(archiveConfigObject);
+}
 
-    // Create main JSON object
-    json = Json::object{{"event", eventJson},
-                        {"customEvent", customEventJson},
-                        {"boxGacha", boxGachaJson},
-                        {"subtabs", subtabsArray},
-                        {"lastStreamState", lastStreamStateJson},
-                        {"hashtagSelectLimit", response.hashtagSelectLimit},
-                        {"armyOnly", response.armyOnly},
-                        {"archiveConfig", archiveConfigObject}};
+bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response, Json &json) {
+    try {
+        // Create event section
+        Json eventJson = createEventSectionJson(response.event);
+
+        // Create customEvent object
+        Json customEventJson = Json::object{{"endTime", static_cast<int>(response.customEvent.endTime)},
+                                            {"status", response.customEvent.status}};
+
+        // Create boxGacha object
+        Json boxGachaJson =
+            Json::object{{"previousSettingStatus", response.boxGacha.previousSettingStatus},
+                         {"availableEventID", response.boxGacha.availableEventID.toStdString()}};
+
+        // Create subtabs array
+        std::vector<Json> subtabsArray = createSubtabsArrayJson(response.subtabs);
+
+        // Create lastStreamState object
+        Json lastStreamStateJson = Json::object{
+            {"vliverInfo",
+             Json::object{{"vliverModel", response.lastStreamState.vliverInfo.vliverModel}}}};
+
+        // Create archive configuration
+        Json archiveConfigJson = createArchiveConfigJson(response.archiveConfig);
+
+        // Create main JSON object
+        json = Json::object{{"event", eventJson},
+                            {"customEvent", customEventJson},
+                            {"boxGacha", boxGachaJson},
+                            {"subtabs", subtabsArray},
+                            {"lastStreamState", lastStreamStateJson},
+                            {"hashtagSelectLimit", response.hashtagSelectLimit},
+                            {"armyOnly", response.armyOnly},
+                            {"archiveConfig", archiveConfigJson}};
+
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveConfigStreamerToJson error: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveConfigStreamerToJson unknown error");
+        return false;
+    }
 
     return true;
 }

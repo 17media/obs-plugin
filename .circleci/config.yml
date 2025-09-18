@@ -25,13 +25,45 @@ jobs:
     steps:
       - checkout
       
+      # Set environment based on tag
+      - run:
+          name: Set Environment Variables
+          command: |
+            # Determine environment based on tag or default to stage
+            if [ -n "$CIRCLE_TAG" ]; then
+              if [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                # Production tag (e.g., v1.0.0)
+                export BUILD_ENV="prod"
+                export ONESEVENLIVE_API_URL="$PROD_ONESEVENLIVE_API_URL"
+              elif [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-stage$ ]]; then
+                # Stage tag (e.g., v1.0.0-stage)
+                export BUILD_ENV="stage"
+                export ONESEVENLIVE_API_URL="$STAGE_ONESEVENLIVE_API_URL"
+              else
+                # Default to stage for other tags
+                export BUILD_ENV="stage"
+                export ONESEVENLIVE_API_URL="$STAGE_ONESEVENLIVE_API_URL"
+              fi
+            else
+              # Manual build - default to stage
+              export BUILD_ENV="stage"
+              export ONESEVENLIVE_API_URL="$STAGE_ONESEVENLIVE_API_URL"
+            fi
+            
+            # Save environment variables for subsequent steps
+            echo "export BUILD_ENV=$BUILD_ENV" >> $BASH_ENV
+            echo "export ONESEVENLIVE_API_URL=$ONESEVENLIVE_API_URL" >> $BASH_ENV
+            
+            echo "Environment set to: $BUILD_ENV"
+            echo "API URL set to: $ONESEVENLIVE_API_URL"
+      
       # Debug environment variables
       - run:
           name: Debug Environment Variables
           command: |
-            echo "Current environment: ${BUILD_ENV:-stage}"
+            source $BASH_ENV
+            echo "Current environment: $BUILD_ENV"
             echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
-            echo "BUILD_ENV: ${BUILD_ENV:-stage}"
             echo "VERSION: ${VERSION:-0.0.0}"
       
       # Install dependencies
@@ -109,7 +141,12 @@ jobs:
           name: Create Package
           command: |
             source $BASH_ENV
-            PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}.pkg"
+            # Add -stage suffix for stage environment
+            if [ "$BUILD_ENV" = "stage" ]; then
+              PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}-stage.pkg"
+            else
+              PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}.pkg"
+            fi
             
             # Create unsigned package first
             sudo pkgbuild --root build_macos/Release \
@@ -147,8 +184,46 @@ jobs:
     executor:
       name: win/default
       size: large
+    environment:
+      VERSION: << pipeline.parameters.version >>
     steps:
       - checkout
+      
+      # Set environment based on tag
+      - run:
+          name: Set Environment Variables
+          command: |
+            # Determine environment based on tag or default to stage
+            if ($env:CIRCLE_TAG) {
+              if ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+$') {
+                # Production tag (e.g., v1.0.0)
+                $env:BUILD_ENV = "prod"
+                $env:ONESEVENLIVE_API_URL = $env:PROD_ONESEVENLIVE_API_URL
+              } elseif ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+-stage$') {
+                # Stage tag (e.g., v1.0.0-stage)
+                $env:BUILD_ENV = "stage"
+                $env:ONESEVENLIVE_API_URL = $env:STAGE_ONESEVENLIVE_API_URL
+              } else {
+                # Default to stage for other tags
+                $env:BUILD_ENV = "stage"
+                $env:ONESEVENLIVE_API_URL = $env:STAGE_ONESEVENLIVE_API_URL
+              }
+            } else {
+              # Manual build - default to stage
+              $env:BUILD_ENV = "stage"
+              $env:ONESEVENLIVE_API_URL = $env:STAGE_ONESEVENLIVE_API_URL
+            }
+            
+            # Save environment variables for subsequent steps
+            echo "BUILD_ENV=$env:BUILD_ENV" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            echo "ONESEVENLIVE_API_URL=$env:ONESEVENLIVE_API_URL" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            
+            # Also set as machine-level environment variables for PowerShell sessions
+            [Environment]::SetEnvironmentVariable("BUILD_ENV", $env:BUILD_ENV, "Machine")
+            [Environment]::SetEnvironmentVariable("ONESEVENLIVE_API_URL", $env:ONESEVENLIVE_API_URL, "Machine")
+            
+            Write-Host "Environment set to: $env:BUILD_ENV"
+            Write-Host "API URL set to: $env:ONESEVENLIVE_API_URL"
       
       # Debug environment variables
       - run:
@@ -156,7 +231,6 @@ jobs:
           command: |
             Write-Host "Current environment: $env:BUILD_ENV"
             Write-Host "ONESEVENLIVE_API_URL: $env:ONESEVENLIVE_API_URL"
-            Write-Host "BUILD_ENV: $env:BUILD_ENV"
             Write-Host "VERSION: $env:VERSION"
       
       # Install dependencies
@@ -263,7 +337,12 @@ jobs:
               $version = "0.0.0"
             }
             Write-Host "Using version: $version"
-            $installerName = "17liveOBSPlugin-Windows-x64-v$version.exe"
+            # Add -stage suffix for stage environment
+            if ($env:BUILD_ENV -eq "stage") {
+              $installerName = "17liveOBSPlugin-windows-v$version-stage.exe"
+            } else {
+              $installerName = "17liveOBSPlugin-windows-v$version.exe"
+            }
             Write-Host "Installer name will be: $installerName"
             
             $nsisScript = @"
@@ -399,7 +478,12 @@ jobs:
               # Fallback: reconstruct installer name if not available
               if (-not $installerName) {
                 $version = if ($env:VERSION) { $env:VERSION } else { "0.0.0" }
-                $installerName = "17liveOBSPlugin-Windows-x64-v$version.exe"
+                # Add -stage suffix for stage environment
+                if ($env:BUILD_ENV -eq "stage") {
+                  $installerName = "17liveOBSPlugin-windows-v$version-stage.exe"
+                } else {
+                  $installerName = "17liveOBSPlugin-windows-v$version.exe"
+                }
                 Write-Host "Reconstructed installer name: $installerName"
               }
               Write-Host "Using installer name: $installerName"
@@ -420,63 +504,39 @@ jobs:
       
       # Store artifacts
       - store_artifacts:
-          path: 17liveOBSPlugin-Windows-x64-v*.exe
+          path: 17liveOBSPlugin-windows-v*.exe
           destination: packages
       
       # Persist installer for potential deployment
       - persist_to_workspace:
           root: .
           paths:
-            - "17liveOBSPlugin-Windows-x64-v*.exe"
+            - "17liveOBSPlugin-windows-v*.exe"
 
 workflows:
   version: 2
   
-  # Production build workflow - triggered by tags like v1.0.0
-  build-production:
+  # Tag-based build workflow - supports both production and stage builds
+  tag-build:
     jobs:
       - build-macos-apple-silicon:
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+$/
+              only: /^v\d+\.\d+\.\d+(-stage)?$/
             branches:
               ignore: /.*/
           context:
             - macos-signing
-            - build-obsplugin-env-prod
       - build-windows-x64:
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+$/
+              only: /^v\d+\.\d+\.\d+(-stage)?$/
             branches:
               ignore: /.*/
           context:
             - windows-signing
-            - build-obsplugin-env-prod
   
-  # Stage build workflow - triggered by tags like v1.0.0-stage
-  build-stage:
-    jobs:
-      - build-macos-apple-silicon:
-          filters:
-            tags:
-              only: /^v\d+\.\d+\.\d+-stage$/
-            branches:
-              ignore: /.*/
-          context:
-            - macos-signing
-            - build-obsplugin-env-stage
-      - build-windows-x64:
-          filters:
-            tags:
-              only: /^v\d+\.\d+\.\d+-stage$/
-            branches:
-              ignore: /.*/
-          context:
-            - windows-signing
-            - build-obsplugin-env-stage
-  
-  # Manual build workflow for testing
+  # Manual build workflow for testing (defaults to stage environment)
   manual-build:
     jobs:
       - hold:
@@ -486,10 +546,8 @@ workflows:
             - hold
           context:
             - macos-signing
-            - build-obsplugin-env-stage
       - build-windows-x64:
           requires:
             - hold
           context:
             - windows-signing
-            - build-obsplugin-env-stage

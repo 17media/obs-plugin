@@ -38,20 +38,17 @@ using namespace std;
 
 // Initialize static member variables
 OneSevenLiveCoreManager* OneSevenLiveCoreManager::instance = nullptr;
-std::mutex OneSevenLiveCoreManager::instanceMutex;
+std::once_flag OneSevenLiveCoreManager::instanceOnceFlag;
 
 OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainWindow) {
-    // Use double-checked locking pattern to ensure thread safety
-    if (instance == nullptr) {
-        std::lock_guard<std::mutex> lock(instanceMutex);
-        if (instance == nullptr) {
-            if (mainWindow == nullptr) {
-                throw std::runtime_error(
-                    "mainWindow parameter must be provided on first call to getInstance");
-            }
-            instance = new OneSevenLiveCoreManager(mainWindow);
+    // Use std::call_once for thread-safe singleton creation
+    std::call_once(instanceOnceFlag, [mainWindow]() {
+        if (mainWindow == nullptr) {
+            throw std::runtime_error(
+                "mainWindow parameter must be provided on first call to getInstance");
         }
-    }
+        instance = new OneSevenLiveCoreManager(mainWindow);
+    });
     return *instance;
 }
 
@@ -71,22 +68,48 @@ bool OneSevenLiveCoreManager::initialize() {
         return true;
     }
 
-    // Initialize and start HTTP server
-    // "html" is the path relative to obs_get_module_data_path()
-    httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");
-    if (!httpServer_->start()) {
-        blog(LOG_ERROR, "[17Live Core] Failed to start HTTP server.");
-        // Decide whether to interrupt the entire initialization due to HTTP server startup failure
-        // based on requirements return false;
-    } else {
-        blog(LOG_INFO, "[17Live Core] HTTP server started successfully.");
-    }
+    obs_log(LOG_INFO, "[17Live Core] Initializing OneSevenLiveCoreManager...");
 
-    // Initialize configuration manager
-    configManager = std::make_unique<OneSevenLiveConfigManager>();
+    try {
+        // Run network diagnostics to check API connectivity
+        obs_log(LOG_INFO, "[17Live Core] Running startup network diagnostics...");
+        NetworkDiagnostics::runStartupDiagnostics(ONESEVENLIVE_API_URL);
 
-    if (!configManager->initialize()) {
-        obs_log(LOG_ERROR, "Failed to initialize config manager");
+        // Initialize and start HTTP server
+        // "html" is the path relative to obs_get_module_data_path()
+        httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");
+        if (!httpServer_) {
+            obs_log(LOG_ERROR, "[17Live Core] Failed to create HTTP server instance");
+            return false;
+        }
+        
+        if (!httpServer_->start()) {
+            obs_log(LOG_ERROR, "[17Live Core] Failed to start HTTP server");
+            // Decide whether to interrupt the entire initialization due to HTTP server startup failure
+            // based on requirements return false;
+        } else {
+            obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
+        }
+
+        // Initialize configuration manager
+        configManager = std::make_unique<OneSevenLiveConfigManager>();
+        if (!configManager) {
+            obs_log(LOG_ERROR, "[17Live Core] Failed to create config manager instance");
+            return false;
+        }
+
+        if (!configManager->initialize()) {
+            obs_log(LOG_ERROR, "[17Live Core] Failed to initialize config manager");
+            return false;
+        }
+    } catch (const std::bad_alloc& e) {
+        obs_log(LOG_ERROR, "[17Live Core] Memory allocation failed during initialization: %s", e.what());
+        return false;
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[17Live Core] Exception during initialization: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[17Live Core] Unknown exception during initialization");
         return false;
     }
 
@@ -261,53 +284,7 @@ void OneSevenLiveCoreManager::shutdown() {
     // Save dock state before closing any docks
     saveDockState();
 
-    bool streamingVisible = false;
-    if (streamingDock) {
-        streamingVisible = streamingDock->isVisible();
-        streamingDock->disconnect(this);
-        streamingDock->close();
-        streamingDock->deleteLater();
-        streamingDock = nullptr;
-    }
-    configManager->setDockVisibility("streaming", streamingVisible);
-
-    bool liveListVisible = false;
-    if (liveListDock) {
-        liveListVisible = liveListDock->isVisible();
-        liveListDock->disconnect(this);
-        liveListDock->close();
-        liveListDock->deleteLater();
-        liveListDock = nullptr;
-    }
-    configManager->setDockVisibility("liveList", liveListVisible);
-
-    bool rockZoneVisible = false;
-    if (rockZoneDock) {
-        rockZoneVisible = rockZoneDock->isVisible();
-        rockZoneDock->disconnect(this);
-        rockZoneDock->close();
-        rockZoneDock->deleteLater();
-        rockZoneDock = nullptr;
-    }
-    configManager->setDockVisibility("rockZone", rockZoneVisible);
-
-    bool chatRoomVisible = false;
-    if (chatRoomDock) {
-        chatRoomVisible = chatRoomDock->isVisible();
-        chatRoomDock->disconnect(this);
-
-        obs_log(LOG_INFO, "Closing chat room dock");
-
-        if (cefView) {
-            delete cefView;
-            cefView = nullptr;
-        }
-
-        chatRoomDock->close();
-        chatRoomDock->deleteLater();
-        chatRoomDock = nullptr;
-    }
-    configManager->setDockVisibility("chatRoom", chatRoomVisible);
+    closeAllDocks();
 
     // Clean up menu manager resources
     if (menuManager) {
@@ -440,37 +417,53 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
 void OneSevenLiveCoreManager::closeAllDocks() {
     obs_log(LOG_INFO, "closeAllDocks");
     
-    // Close streaming dock
+    bool streamingVisible = false;
     if (streamingDock) {
+        streamingVisible = streamingDock->isVisible();
+        streamingDock->disconnect(this);
         streamingDock->close();
         streamingDock->deleteLater();
         streamingDock = nullptr;
     }
+    configManager->setDockVisibility("streaming", streamingVisible);
 
-    // Close live list dock
+    bool liveListVisible = false;
     if (liveListDock) {
+        liveListVisible = liveListDock->isVisible();
+        liveListDock->disconnect(this);
         liveListDock->close();
         liveListDock->deleteLater();
         liveListDock = nullptr;
     }
+    configManager->setDockVisibility("liveList", liveListVisible);
 
-    // Close chat room dock
-    if (chatRoomDock) {
-        if (cefView) {
-            delete cefView;
-            cefView = nullptr;
-        }
-        chatRoomDock->close();
-        chatRoomDock->deleteLater();
-        chatRoomDock = nullptr;
-    }
-
-    // Close rock zone dock
+    bool rockZoneVisible = false;
     if (rockZoneDock) {
+        rockZoneVisible = rockZoneDock->isVisible();
+        rockZoneDock->disconnect(this);
         rockZoneDock->close();
         rockZoneDock->deleteLater();
         rockZoneDock = nullptr;
     }
+    configManager->setDockVisibility("rockZone", rockZoneVisible);
+
+    bool chatRoomVisible = false;
+    if (chatRoomDock) {
+        chatRoomVisible = chatRoomDock->isVisible();
+        chatRoomDock->disconnect(this);
+
+        obs_log(LOG_INFO, "Closing chat room dock");
+
+        if (cefView) {
+            delete cefView;
+            cefView = nullptr;
+        }
+
+        chatRoomDock->close();
+        chatRoomDock->deleteLater();
+        chatRoomDock = nullptr;
+    }
+    configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
     // Update menu visibility status after closing all docks
     if (menuManager) {
