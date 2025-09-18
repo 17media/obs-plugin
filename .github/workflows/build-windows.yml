@@ -28,7 +28,7 @@ env:
 jobs:
   # Windows x64 build
   build-windows-x64:
-    runs-on: windows-latest
+    runs-on: windows-2022
     environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
     env:
       ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
@@ -56,32 +56,32 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'web/ably_chat/package-lock.json'
       
-      - name: Install Dependencies
-        shell: pwsh
-        run: |
-          # Install CMake (version 3.28 or higher)
-          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+      # - name: Install Dependencies
+      #   shell: pwsh
+      #   run: |
+      #     # Install CMake (version 3.28 or higher)
+      #     choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
           
-          # Install NSIS for creating Windows installer
-          choco install nsis -y
+      #     # Install NSIS for creating Windows installer
+      #     choco install nsis -y
           
-          # Verify CMake version
-          refreshenv
-          $cmakeVersion = (cmake --version | Select-String -Pattern "cmake version" | ForEach-Object { $_.ToString().Split(' ')[2] })
-          Write-Host "Installed CMake version: $cmakeVersion"
-          $versionParts = $cmakeVersion.Split('.')
-          $major = [int]$versionParts[0]
-          $minor = [int]$versionParts[1]
-          if ($major -lt 3 -or ($major -eq 3 -and $minor -lt 28)) {
-            Write-Error "Error: CMake version must be 3.28 or higher"
-            exit 1
-          }
+      #     # Verify CMake version
+      #     refreshenv
+      #     $cmakeVersion = (cmake --version | Select-String -Pattern "cmake version" | ForEach-Object { $_.ToString().Split(' ')[2] })
+      #     Write-Host "Installed CMake version: $cmakeVersion"
+      #     $versionParts = $cmakeVersion.Split('.')
+      #     $major = [int]$versionParts[0]
+      #     $minor = [int]$versionParts[1]
+      #     if ($major -lt 3 -or ($major -eq 3 -and $minor -lt 28)) {
+      #       Write-Error "Error: CMake version must be 3.28 or higher"
+      #       exit 1
+      #     }
           
-          # Install Visual Studio Build Tools 2022
-          choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
+      #     # Install Visual Studio Build Tools 2022
+      #     choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
           
-          # Refresh environment
-          refreshenv
+      #     # Refresh environment
+      #     refreshenv
       
       - name: Install and Build Web Components
         shell: pwsh
