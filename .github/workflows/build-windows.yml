@@ -28,7 +28,7 @@ env:
 jobs:
   # Windows x64 build
   build-windows-x64:
-    runs-on: windows-latest
+    runs-on: windows-2022
     environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
     env:
       ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
