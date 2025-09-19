@@ -79,7 +79,11 @@ OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
     currentPlatformUUID = GetCurrentPlatformUUID();
 }
 
-OneSevenLiveApiWrappers::OneSevenLiveApiWrappers(std::string token_) : token(token_) {}
+OneSevenLiveApiWrappers::OneSevenLiveApiWrappers(std::string token_) : token(token_) {
+    currentOS = GetCurrentOS();
+    currentOSVersion = GetCurrentOSVersion();
+    currentPlatformUUID = GetCurrentPlatformUUID();
+}
 
 void OneSevenLiveApiWrappers::setLastErrorMessage(const QString& message) {
     std::lock_guard<std::mutex> lock(stateMutex);
