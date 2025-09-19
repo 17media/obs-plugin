@@ -32,6 +32,7 @@
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "utility/RemoteTextThread.hpp"
+#include "utility/Common.hpp"
 
 static QString insertZeroWidthSpaces(const QString& s, int maxChunk = 10) {
     QString out;
@@ -432,8 +433,10 @@ void OneSevenLiveCustomEventDialog::loadGiftTabsAsync() {
             return;
         }
 
+        std::string language = GetCurrentLanguage();
+
         Json giftTabsJson;
-        if (!apiWrapper->GetGiftTabs(roomID, region, giftTabsJson)) {
+        if (!apiWrapper->GetGiftTabs(roomID, language, giftTabsJson)) {
             QMetaObject::invokeMethod(
                 this,
                 [this, thread]() {

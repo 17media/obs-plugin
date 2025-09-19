@@ -945,8 +945,7 @@ void OneSevenLiveCoreManager::loadGifts() {
     // Run gift loading in a separate thread to avoid blocking main thread
     std::thread giftLoadThread([this]() {
         try {
-            std::string language;
-            configManager->getConfigValue("Region", language);
+            std::string language = GetCurrentLanguage();
 
             Json apiResult;
             bool success = apiWrapper->GetGifts(language, apiResult);
