@@ -1,4 +1,4 @@
-name: Build OBS 17Live Plugin - macOS Intel
+name: Build OBS 17Live Plugin - macOS Apple Silicon
 
 on:
   # push:
@@ -22,9 +22,9 @@ on:
         type: string
   
 jobs:
-  build-mac-intel:
-    name: Build macOS Intel
-    runs-on: self-hosted
+  build-mac-arm64:
+    name: Build macOS Apple Silicon
+    runs-on: macos-15
     environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
     env:
       ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
@@ -80,8 +80,8 @@ jobs:
 
       - name: Create pkg
         run: |
-          PKG_NAME="17liveOBSPlugin-macIntel-v${VERSION}${PKG_SUFFIX}.pkg"
-          pkgbuild --root build_macos/Release \
+          PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}${PKG_SUFFIX}.pkg"
+          sudo pkgbuild --root build_macos/Release \
                         --identifier com.17live.obsplugin \
                         --version "$VERSION" \
                         --install-location "/Applications/OBS.app/Contents/PlugIns" \
@@ -92,6 +92,7 @@ jobs:
       - name: Upload pkg
         uses: actions/upload-artifact@v4
         with:
-          name: macOS-Intel-PKG
+          name: macOS-AppleSilicon-PKG
           path: ${{ env.PKG_NAME }}
-          
+
+  

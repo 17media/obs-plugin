@@ -78,7 +78,11 @@ OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
     currentPlatformUUID = GetCurrentPlatformUUID();
 }
 
-OneSevenLiveApiWrappers::OneSevenLiveApiWrappers(std::string token_) : token(token_) {}
+OneSevenLiveApiWrappers::OneSevenLiveApiWrappers(std::string token_) : token(token_) {
+    currentOS = GetCurrentOS();
+    currentOSVersion = GetCurrentOSVersion();
+    currentPlatformUUID = GetCurrentPlatformUUID();
+}
 
 void OneSevenLiveApiWrappers::setLastErrorMessage(const QString& message) {
     std::lock_guard<std::mutex> lock(stateMutex);
@@ -327,11 +331,13 @@ bool OneSevenLiveApiWrappers::OneSevenLiveApiWrappers::GetSelfInfo(
     const std::string openIDStr = json_out["openID"].string_value();
     const std::string displayNameStr = json_out["displayName"].string_value();
     const std::string userIDStr = json_out["userID"].string_value();
+    const std::string regionStr = json_out["region"].string_value();
 
     loginData.userInfo.openID = QString::fromStdString(openIDStr);
     loginData.userInfo.displayName = QString::fromStdString(displayNameStr);
     loginData.userInfo.roomID = json_out["roomID"].int_value();
-    loginData.userInfo.userID = QString::fromStdString(userIDStr);
+    loginData.userInfo.region = QString::fromStdString(regionStr);
+    
     return true;
 }
 

@@ -1,0 +1,292 @@
+name: Build OBS 17Live Plugin - Windows
+
+on:
+  # push:
+  #   tags:
+  #     - 'v*.*.*'        # Production builds (e.g., v1.0.0)
+  #     - 'v*.*.*-stage'   # Stage builds (e.g., v1.0.0-stage)
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Build environment"
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - production
+      version:
+        description: "Version number (e.g., 1.0.0)"
+        required: false
+        default: "0.0.0"
+        type: string
+
+env:
+  CMAKE_MINIMUM_VERSION: '3.28'
+  NODE_VERSION: '20'
+
+jobs:
+  # Windows x64 build
+  build-windows-x64:
+    runs-on: windows-2022
+    environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+    env:
+      ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
+      VERSION: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) && github.ref_name || github.event.inputs.version || '0.0.0' }}
+      BUILD_ENV: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Debug Environment Variables
+        shell: pwsh
+        run: |
+          Write-Host "Current environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}"
+          Write-Host "ONESEVENLIVE_API_URL: $env:ONESEVENLIVE_API_URL"
+          Write-Host "BUILD_ENV: $env:BUILD_ENV"
+          Write-Host "VERSION: $env:VERSION"
+          Write-Host "Tag name: ${{ github.ref_name }}"
+          Write-Host "Manual version input: ${{ github.event.inputs.version }}"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'web/ably_chat/package-lock.json'
+      
+      # - name: Install Dependencies
+      #   shell: pwsh
+      #   run: |
+      #     # Install CMake (version 3.28 or higher)
+      #     choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          
+      #     # Install NSIS for creating Windows installer
+      #     choco install nsis -y
+          
+      #     # Verify CMake version
+      #     refreshenv
+      #     $cmakeVersion = (cmake --version | Select-String -Pattern "cmake version" | ForEach-Object { $_.ToString().Split(' ')[2] })
+      #     Write-Host "Installed CMake version: $cmakeVersion"
+      #     $versionParts = $cmakeVersion.Split('.')
+      #     $major = [int]$versionParts[0]
+      #     $minor = [int]$versionParts[1]
+      #     if ($major -lt 3 -or ($major -eq 3 -and $minor -lt 28)) {
+      #       Write-Error "Error: CMake version must be 3.28 or higher"
+      #       exit 1
+      #     }
+          
+      #     # Install Visual Studio Build Tools 2022
+      #     choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
+          
+      #     # Refresh environment
+      #     refreshenv
+      
+      - name: Install and Build Web Components
+        shell: pwsh
+        run: |
+          cd web/ably_chat
+          npm install
+          npm run build
+      
+      - name: Set ENV and Version
+        shell: pwsh
+        run: |
+          # Remove v prefix from VERSION if present
+          $versionNumber = $env:VERSION -replace '^v', ''
+          
+          # Remove -stage suffix from version number if present
+          $versionNumber = $versionNumber -replace '-stage$', ''
+          echo "VERSION=$versionNumber" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          
+          # Set package name suffix
+          if ($env:BUILD_ENV -eq "production") {
+            echo "PKG_SUFFIX=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          } else {
+            echo "PKG_SUFFIX=-stage" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+      
+      - name: CMake Configure
+        shell: pwsh
+        run: |
+          cmake --preset windows-x64 -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
+        env:
+          ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
+      
+      - name: Build Project
+        shell: pwsh
+        run: |
+          cmake --build --preset windows-x64 --config Release
+      
+      - name: Import Signing Certificate
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            Write-Host "Certificate secrets not available, skipping signing..."
+            return
+          }
+          Write-Host "Importing signing certificate..."
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          [System.IO.File]::WriteAllBytes("certificate.pfx", $certBytes)
+          
+          # Import certificate to store
+          $cert = Import-PfxCertificate -FilePath "certificate.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force)
+          Write-Host "Certificate imported: $($cert.Thumbprint)"
+          
+          Remove-Item "certificate.pfx"
+      
+      - name: Create NSIS Installer Script
+        shell: pwsh
+        run: |
+          $version = $env:VERSION
+          $installerName = "17liveOBSPlugin-windows-v$version$env:PKG_SUFFIX.exe"
+          
+          $nsisScript = @"
+          !define PRODUCT_NAME "17Live OBS Plugin"
+          !define PRODUCT_VERSION "$version"
+          !define PRODUCT_PUBLISHER "17Live Limited"
+          !define PRODUCT_WEB_SITE "https://17.live"
+          !define PACKAGE_ID "OneSevenLive.ObsPlugin"
+          !define PACKAGE_NAME "OneSevenLiveOBSPlugin"
+          !define UPGRADE_CODE "b81d9705-e5b2-475f-8de8-4d02d297c073"
+          !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\obs-17live-plugin"
+          !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\17LiveOBSPlugin"
+          !define PRODUCT_UNINST_ROOT_KEY "HKLM"
+          
+          SetCompressor lzma
+          
+          Name "17Live OBS Plugin"
+          OutFile "$installerName"
+          InstallDir "C:\Program Files\obs-studio"
+          InstallDirRegKey HKLM "Software\OBS Studio" "InstallPath"
+          ShowInstDetails show
+          ShowUnInstDetails show
+          RequestExecutionLevel admin
+          
+          Page directory
+          Page instfiles
+          
+          UninstPage uninstConfirm
+          UninstPage instfiles
+          
+          Section "MainSection" SEC01
+            # Install DLL and PDB files to obs-plugins\64bit
+            SetOutPath "`$INSTDIR\obs-plugins\64bit"
+            SetOverwrite ifnewer
+            File "build_x64\rundir\Release\obs-17live.dll"
+            File "build_x64\rundir\Release\obs-17live.pdb"
+            
+            # Install data directory to data\obs-plugins
+            SetOutPath "`$INSTDIR\data\obs-plugins"
+            File /r "build_x64\rundir\Release\obs-17live"
+            
+            # Create start menu shortcuts
+            CreateDirectory "`$SMPROGRAMS\17Live OBS Plugin"
+            
+            # Write registry entries
+            WriteRegStr HKLM "Software\17Live\OBSPlugin" "InstallPath" "`$INSTDIR"
+            WriteRegStr HKLM "Software\17Live\OBSPlugin" "Version" "$version"
+            WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageId" "`${PACKAGE_ID}"
+            WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageName" "`${PACKAGE_NAME}"
+            WriteRegStr HKLM "Software\17Live\OBSPlugin" "Manufacturer" "`${PRODUCT_PUBLISHER}"
+            WriteRegStr HKLM "Software\17Live\OBSPlugin" "UpgradeCode" "`${UPGRADE_CODE}"
+          SectionEnd
+          
+          Section -AdditionalIcons
+            WriteIniStr "`$INSTDIR\17live.url" "InternetShortcut" "URL" "`${PRODUCT_WEB_SITE}"
+            CreateShortCut "`$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "`$INSTDIR\17live.url"
+            CreateShortCut "`$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk" "`$INSTDIR\uninst.exe"
+          SectionEnd
+          
+          Section -Post
+            WriteUninstaller "`$INSTDIR\uninst.exe"
+            WriteRegStr HKLM "`${PRODUCT_DIR_REGKEY}" "" "`$INSTDIR\obs-17live-plugin.exe"
+            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "DisplayName" "`${PRODUCT_NAME}"
+            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "UninstallString" "`$INSTDIR\uninst.exe"
+            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "DisplayVersion" "`${PRODUCT_VERSION}"
+            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "URLInfoAbout" "`${PRODUCT_WEB_SITE}"
+            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "Publisher" "`${PRODUCT_PUBLISHER}"
+            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "PackageId" "`${PACKAGE_ID}"
+            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "PackageName" "`${PACKAGE_NAME}"
+            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "UpgradeCode" "`${UPGRADE_CODE}"
+          SectionEnd
+          
+          Section Uninstall
+            # Remove plugin files
+            Delete "`$INSTDIR\obs-plugins\64bit\obs-17live.dll"
+            Delete "`$INSTDIR\obs-plugins\64bit\obs-17live.pdb"
+            RMDir /r "`$INSTDIR\data\obs-plugins\obs-17live"
+            
+            # Remove shortcuts and registry entries
+            Delete "`$INSTDIR\17live.url"
+            Delete "`$INSTDIR\uninst.exe"
+            Delete "`$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk"
+            Delete "`$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
+            RMDir "`$SMPROGRAMS\17Live OBS Plugin"
+            
+            DeleteRegKey `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}"
+            DeleteRegKey HKLM "`${PRODUCT_DIR_REGKEY}"
+            DeleteRegKey HKLM "Software\17Live\OBSPlugin"
+            
+            SetAutoClose true
+          SectionEnd
+          "@
+          
+          $nsisScript | Out-File -FilePath "installer.nsi" -Encoding utf8
+          echo "INSTALLER_NAME=$installerName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      
+      - name: Build NSIS Installer
+        shell: pwsh
+        run: |
+          # Refresh environment to pick up NSIS installation
+          refreshenv
+          
+          # Use full path to makensis or ensure it's in PATH
+          if (Get-Command makensis -ErrorAction SilentlyContinue) {
+            makensis installer.nsi
+          } else {
+            # Try common NSIS installation paths
+            $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
+            if (Test-Path $nsisPath) {
+              & $nsisPath installer.nsi
+            } else {
+              Write-Error "NSIS makensis not found. Please ensure NSIS is properly installed."
+              exit 1
+            }
+          }
+      
+      - name: Sign Installer
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            Write-Host "Certificate secrets not available, skipping signing..."
+            return
+          }
+          Write-Host "Signing installer..."
+          $installerName = $env:INSTALLER_NAME
+          
+          # Use signtool to sign the installer
+          $timestampUrl = if ($env:WINDOWS_TIMESTAMP_URL) { $env:WINDOWS_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
+          
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /tr $timestampUrl /td SHA256 /a $installerName
+          
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Installer signed successfully"
+          } else {
+            Write-Host "Failed to sign installer, but continuing..."
+          }
+      
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-installer
+          path: "17liveOBSPlugin-windows-v*.exe"
+          retention-days: 30

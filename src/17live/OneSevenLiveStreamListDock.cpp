@@ -87,6 +87,10 @@ void OneSevenLiveStreamListDock::setupUi() {
         "   font-weight: 600;"
         "   font-size: 16px;"
         "   line-height: 24px;"
+        "}"
+        "QPushButton:disabled {"
+        "    background-color: #808080;"
+        "    color: #C0C0C0;"
         "}");
     startLiveButton->setFixedWidth(250);
     mainLayout->addWidget(startLiveButton, 0, Qt::AlignHCenter);
