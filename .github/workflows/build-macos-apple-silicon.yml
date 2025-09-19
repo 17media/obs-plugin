@@ -1,10 +1,10 @@
 name: Build OBS 17Live Plugin - macOS Apple Silicon
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
-      - 'v*.*.*-stage'
+  # push:
+  #   tags:
+  #     - 'v*.*.*'
+  #     - 'v*.*.*-stage'
   workflow_dispatch:
     inputs:
       environment:
