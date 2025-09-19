@@ -14,6 +14,7 @@
 
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
+class OneSevenLiveUserDialog;
 
 class OneSevenLiveRockZoneDock : public QDockWidget {
     Q_OBJECT
@@ -58,6 +59,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     bool armyNameCached = false;
 
     // User information dialog
+    OneSevenLiveUserDialog* userDialog;
 
 
     // Auto refresh timer

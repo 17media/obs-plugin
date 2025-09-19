@@ -52,7 +52,12 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
     connect(userList, &QObject::destroyed, this, [this]() { userItemMap.clear(); });
 }
 
-OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() = default;
+OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() {
+    if (userDialog) {
+        userDialog->deleteLater();
+        userDialog = nullptr;
+    }
+}
 
 void OneSevenLiveRockZoneDock::setupUi() {
     QWidget* container = new QWidget(this);
@@ -173,11 +178,15 @@ void OneSevenLiveRockZoneDock::updateUserItem(
 
         connect(w, &OneSevenLiveRockViewerItem::clicked, this,
                 [this](const OneSevenLiveRockZoneViewer& viewer) {
-                    OneSevenLiveUserDialog* dialog =
-                        new OneSevenLiveUserDialog(this, apiWrapper, configManager);
-                    dialog->setAttribute(Qt::WA_DeleteOnClose);
-                    dialog->setUserInfo(viewer);
-                    dialog->show();
+                    obs_log(LOG_INFO, "OneSevenLiveRockZoneDock::userClicked %s", viewer.displayUser.displayName.toStdString().c_str());
+                    if (!userDialog) {
+                        obs_log(LOG_INFO, "Creating user dialog");
+                        userDialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
+                    }
+                    
+                    userDialog->setAttribute(Qt::WA_DeleteOnClose);
+                    userDialog->setUserInfo(viewer);
+                    userDialog->show();
                 });
     } else {
         w->updateData(user, armyNameResponse);
