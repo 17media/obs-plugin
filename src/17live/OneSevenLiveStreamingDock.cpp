@@ -1539,13 +1539,16 @@ void OneSevenLiveStreamingDock::onGroupCallHelpClicked() {
     // helpDialog.setWindowTitle(obs_module_text("Live.Settings.GroupCall.Help.Title"));
     helpDialog.setIcon(QMessageBox::NoIcon);
 
+    // Enable rich text format for HTML content
+    helpDialog.setTextFormat(Qt::RichText);
     helpDialog.setText(obs_module_text("Live.Settings.GroupCall.Help.Content"));
 
     helpDialog.addButton(obs_module_text("Live.Settings.GroupCall.Help.Button"),
                          QMessageBox::AcceptRole);
 
-    // Set dialog size
-    helpDialog.setMinimumWidth(400);
+    // Set dialog size to accommodate the content
+    helpDialog.setMinimumWidth(500);
+    helpDialog.setMinimumHeight(400);
 
     // Apply modern dark theme styling
     helpDialog.setStyleSheet(
@@ -1558,24 +1561,31 @@ void OneSevenLiveStreamingDock::onGroupCallHelpClicked() {
         "QMessageBox QLabel {"
         "    color: white;"
         "    background-color: transparent;"
-        "    padding: 10px;"
+        "    padding: 15px;"
         "    font-size: 14px;"
         "    font-weight: normal;"
+        "    line-height: 1.4;"
+        "    word-wrap: break-word;"
+        "    max-width: 450px;"
         "}"
         "QMessageBox QDialogButtonBox {"
         "    text-align: center;"
         "    qproperty-centerButtons: true;"
+        "    padding-top: 10px;"
         "}"
         "QMessageBox QPushButton {"
         "    background-color: #007AFF;"
         "    color: white;"
         "    border: none;"
-        "    border-radius: 2px;"
+        "    border-radius: 6px;"
         "    width: 120px;"
-        "    height: 30px;"
+        "    height: 35px;"
         "    font-size: 14px;"
         "    font-weight: bold;"
-        "    margin: 0 auto;"
+        "    margin: 5px;"
+        "}"
+        "QMessageBox QPushButton:hover {"
+        "    background-color: #0056CC;"
         "}");
 
     helpDialog.exec();
