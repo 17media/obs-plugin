@@ -1,10 +1,10 @@
 name: Build OBS 17Live Plugin - Windows
 
 on:
-  # push:
-  #   tags:
-  #     - 'v*.*.*'        # Production builds (e.g., v1.0.0)
-  #     - 'v*.*.*-stage'   # Stage builds (e.g., v1.0.0-stage)
+  push:
+    tags:
+      - 'v*.*.*'        # Production builds (e.g., v1.0.0)
+      - 'v*.*.*-stage'   # Stage builds (e.g., v1.0.0-stage)
   workflow_dispatch:
     inputs:
       environment:
