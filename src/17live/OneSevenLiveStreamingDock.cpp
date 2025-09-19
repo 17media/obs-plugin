@@ -1079,6 +1079,8 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         return;
     }
 
+    emit streamStatusUpdated(OneSevenLiveStreamingStatus::Live);
+
     startLive(request.userID.toStdString(), response, request.archiveConfig.autoRecording);
 }
 
