@@ -35,6 +35,9 @@ if(ENABLE_FRONTEND_API)
 endif()
 
 if(ENABLE_QT)
+  # Add our custom cmake modules to the front of the module path
+  # This ensures our custom FindWrapOpenGL.cmake is used instead of Qt6's version
+  list(PREPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
   find_package(Qt6 COMPONENTS Widgets Core)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
   target_compile_options(
