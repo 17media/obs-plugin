@@ -46,8 +46,9 @@ RequestExecutionLevel admin
 !insertmacro MUI_PAGE_INSTFILES
 
 ; Finish page
-!define MUI_FINISHPAGE_RUN_TEXT "Launch OBS Studio"
-!define MUI_FINISHPAGE_RUN "$INSTDIR\bin\64bit\obs64.exe"
+; Removed automatic OBS launch to avoid issues with incorrect OBS paths
+; !define MUI_FINISHPAGE_RUN_TEXT "Launch OBS Studio"
+; !define MUI_FINISHPAGE_RUN "$INSTDIR\bin\64bit\obs64.exe"
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "View Release Notes"
 !define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\data\obs-plugins\obs-17live\README.txt"
 !insertmacro MUI_PAGE_FINISH
