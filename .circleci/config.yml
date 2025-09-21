@@ -349,7 +349,7 @@ jobs:
             cd package/windows
             
             # Run the PowerShell build script directly with version
-            powershell -ExecutionPolicy Bypass -File "build-installer.ps1" -Version $versionWithSuffix
+            pwsh -ExecutionPolicy Bypass -File "build-installer.ps1" -Version $versionWithSuffix
             
             # Find the generated installer in output directory and move it to root directory
             $installerPattern = "17liveOBSPlugin-windows-v*.exe"
