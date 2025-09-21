@@ -66,12 +66,25 @@ if (!(Test-Path $OutputDir)) {
 
 # Create temporary NSI file with version substitution
 $NSITemplate = Get-Content "installer.nsi" -Raw
-$NSIContent = $NSITemplate -replace '!define PRODUCT_VERSION "1\.0\.0"', "!define PRODUCT_VERSION `"$Version`""
+
+# Extract numeric version for NSIS (remove any suffix like -stage, -beta, etc.)
+$NumericVersion = $Version -replace '-.*$', ''
+# Ensure we have at least 3 parts for the version (X.X.X format)
+$VersionParts = $NumericVersion.Split('.')
+while ($VersionParts.Length -lt 3) {
+    $VersionParts += "0"
+}
+$CleanVersion = $VersionParts[0..2] -join '.'
+
+# Replace PRODUCT_VERSION for NSIS version info (must be X.X.X format)
+$NSIContent = $NSITemplate -replace '!define PRODUCT_VERSION "1\.0\.0"', "!define PRODUCT_VERSION `"$CleanVersion`""
+# Replace the OutFile to use the full version (including suffix) for the installer filename
+$NSIContent = $NSIContent -replace 'OutFile "17liveOBSPlugin-windows-v\$\{PRODUCT_VERSION\}\.exe"', "OutFile `"17liveOBSPlugin-windows-v$Version.exe`""
 
 $TempNSI = "installer_temp.nsi"
 $NSIContent | Out-File -FilePath $TempNSI -Encoding UTF8
 
-Write-Host "✓ Created temporary NSI file with version $Version" -ForegroundColor Green
+Write-Host "✓ Created temporary NSI file with NSIS version $CleanVersion (from $Version)" -ForegroundColor Green
 
 # Build the installer
 Write-Host "Building NSIS installer..." -ForegroundColor Yellow
