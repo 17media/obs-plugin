@@ -23,7 +23,7 @@ SetCompressor lzma
 Name "${PRODUCT_NAME}"
 OutFile "17liveOBSPlugin-windows-v${PRODUCT_VERSION}.exe"
 InstallDir "C:\Program Files\obs-studio"
-InstallDirRegKey HKLM "Software\OBS Studio" "InstallPath"
+InstallDirRegKey HKLM "Software\OBS Studio" ""
 ShowInstDetails show
 ShowUnInstDetails show
 RequestExecutionLevel admin
@@ -76,16 +76,34 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductVersion" "${PRODUCT_VERSION}"
 
 ; Installer Sections
 Section "MainSection" SEC01
-  ; Check if OBS Studio is installed
-  ReadRegStr $0 HKLM "Software\OBS Studio" "InstallPath"
-  StrCmp $0 "" obs_not_found obs_found
+  ; Check if OBS Studio exists in the selected installation directory
+  ; This supports both installed and portable versions of OBS Studio
   
-  obs_not_found:
-    MessageBox MB_YESNO|MB_ICONQUESTION "OBS Studio installation not found. Do you want to continue with manual installation path?" IDYES continue_install
-    Abort
+  ; Check for OBS Studio executable in the selected directory
+  IfFileExists "$INSTDIR\bin\64bit\obs64.exe" obs_found_in_instdir check_registry
   
-  continue_install:
-  obs_found:
+  check_registry:
+    ; If not found in selected directory, try to find from registry (for auto-detection)
+    ReadRegStr $0 HKLM "Software\OBS Studio" ""
+    StrCmp $0 "" try_wow6432 registry_found
+    
+    try_wow6432:
+      ; Try to read from WOW6432Node (32-bit apps on 64-bit system)
+      ReadRegStr $0 HKLM "Software\WOW6432Node\OBS Studio" ""
+      StrCmp $0 "" obs_not_found registry_found
+    
+    registry_found:
+      ; Update INSTDIR to the path found in registry
+      StrCpy $INSTDIR $0
+      IfFileExists "$INSTDIR\bin\64bit\obs64.exe" obs_found_in_registry obs_not_found
+    
+    obs_not_found:
+      MessageBox MB_YESNO|MB_ICONQUESTION "OBS Studio not found in the selected directory ($INSTDIR).$\n$\nThis plugin requires OBS Studio to be installed.$\nDo you want to continue anyway?" IDYES continue_install
+      Abort
+    
+    continue_install:
+    obs_found_in_instdir:
+    obs_found_in_registry:
   
   SetOutPath "$INSTDIR"
   SetOverwrite ifnewer
