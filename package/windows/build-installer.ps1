@@ -77,7 +77,6 @@ Write-Host "✓ Created temporary NSI file with version $Version" -ForegroundCol
 Write-Host "Building NSIS installer..." -ForegroundColor Yellow
 
 $NSISArgs = @(
-    "/DPRODUCT_VERSION=$Version"
     $TempNSI
 )
 
