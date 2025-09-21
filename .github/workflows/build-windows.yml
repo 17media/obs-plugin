@@ -139,124 +139,28 @@ jobs:
           
           Remove-Item "certificate.pfx"
       
-      - name: Create NSIS Installer Script
+      - name: Build Windows Installer
         shell: pwsh
         run: |
-          $version = $env:VERSION
-          $installerName = "17liveOBSPlugin-windows-v$version$env:PKG_SUFFIX.exe"
+          # Set version with suffix for installer name
+          $version = "$env:VERSION$env:PKG_SUFFIX"
           
-          $nsisScript = @"
-          !define PRODUCT_NAME "17Live OBS Plugin"
-          !define PRODUCT_VERSION "$version"
-          !define PRODUCT_PUBLISHER "17Live Limited"
-          !define PRODUCT_WEB_SITE "https://17.live"
-          !define PACKAGE_ID "OneSevenLive.ObsPlugin"
-          !define PACKAGE_NAME "OneSevenLiveOBSPlugin"
-          !define UPGRADE_CODE "b81d9705-e5b2-475f-8de8-4d02d297c073"
-          !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\obs-17live-plugin"
-          !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\17LiveOBSPlugin"
-          !define PRODUCT_UNINST_ROOT_KEY "HKLM"
+          # Use the existing build script from package/windows
+          cd package/windows
           
-          SetCompressor lzma
+          # Run the PowerShell build script directly with version
+          powershell -ExecutionPolicy Bypass -File "build-installer.ps1" -Version $version
           
-          Name "17Live OBS Plugin"
-          OutFile "$installerName"
-          InstallDir "C:\Program Files\obs-studio"
-          InstallDirRegKey HKLM "Software\OBS Studio" "InstallPath"
-          ShowInstDetails show
-          ShowUnInstDetails show
-          RequestExecutionLevel admin
-          
-          Page directory
-          Page instfiles
-          
-          UninstPage uninstConfirm
-          UninstPage instfiles
-          
-          Section "MainSection" SEC01
-            # Install DLL and PDB files to obs-plugins\64bit
-            SetOutPath "`$INSTDIR\obs-plugins\64bit"
-            SetOverwrite ifnewer
-            File "build_x64\rundir\Release\obs-17live.dll"
-            File "build_x64\rundir\Release\obs-17live.pdb"
-            
-            # Install data directory to data\obs-plugins
-            SetOutPath "`$INSTDIR\data\obs-plugins"
-            File /r "build_x64\rundir\Release\obs-17live"
-            
-            # Create start menu shortcuts
-            CreateDirectory "`$SMPROGRAMS\17Live OBS Plugin"
-            
-            # Write registry entries
-            WriteRegStr HKLM "Software\17Live\OBSPlugin" "InstallPath" "`$INSTDIR"
-            WriteRegStr HKLM "Software\17Live\OBSPlugin" "Version" "$version"
-            WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageId" "`${PACKAGE_ID}"
-            WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageName" "`${PACKAGE_NAME}"
-            WriteRegStr HKLM "Software\17Live\OBSPlugin" "Manufacturer" "`${PRODUCT_PUBLISHER}"
-            WriteRegStr HKLM "Software\17Live\OBSPlugin" "UpgradeCode" "`${UPGRADE_CODE}"
-          SectionEnd
-          
-          Section -AdditionalIcons
-            WriteIniStr "`$INSTDIR\17live.url" "InternetShortcut" "URL" "`${PRODUCT_WEB_SITE}"
-            CreateShortCut "`$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "`$INSTDIR\17live.url"
-            CreateShortCut "`$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk" "`$INSTDIR\uninst.exe"
-          SectionEnd
-          
-          Section -Post
-            WriteUninstaller "`$INSTDIR\uninst.exe"
-            WriteRegStr HKLM "`${PRODUCT_DIR_REGKEY}" "" "`$INSTDIR\obs-17live-plugin.exe"
-            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "DisplayName" "`${PRODUCT_NAME}"
-            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "UninstallString" "`$INSTDIR\uninst.exe"
-            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "DisplayVersion" "`${PRODUCT_VERSION}"
-            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "URLInfoAbout" "`${PRODUCT_WEB_SITE}"
-            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "Publisher" "`${PRODUCT_PUBLISHER}"
-            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "PackageId" "`${PACKAGE_ID}"
-            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "PackageName" "`${PACKAGE_NAME}"
-            WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "UpgradeCode" "`${UPGRADE_CODE}"
-          SectionEnd
-          
-          Section Uninstall
-            # Remove plugin files
-            Delete "`$INSTDIR\obs-plugins\64bit\obs-17live.dll"
-            Delete "`$INSTDIR\obs-plugins\64bit\obs-17live.pdb"
-            RMDir /r "`$INSTDIR\data\obs-plugins\obs-17live"
-            
-            # Remove shortcuts and registry entries
-            Delete "`$INSTDIR\17live.url"
-            Delete "`$INSTDIR\uninst.exe"
-            Delete "`$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk"
-            Delete "`$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
-            RMDir "`$SMPROGRAMS\17Live OBS Plugin"
-            
-            DeleteRegKey `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}"
-            DeleteRegKey HKLM "`${PRODUCT_DIR_REGKEY}"
-            DeleteRegKey HKLM "Software\17Live\OBSPlugin"
-            
-            SetAutoClose true
-          SectionEnd
-          "@
-          
-          $nsisScript | Out-File -FilePath "installer.nsi" -Encoding utf8
-          echo "INSTALLER_NAME=$installerName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-      
-      - name: Build NSIS Installer
-        shell: pwsh
-        run: |
-          # Refresh environment to pick up NSIS installation
-          refreshenv
-          
-          # Use full path to makensis or ensure it's in PATH
-          if (Get-Command makensis -ErrorAction SilentlyContinue) {
-            makensis installer.nsi
+          # Move the generated installer from output directory to root directory for artifact upload
+          $installerPattern = "17liveOBSPlugin-windows-v*.exe"
+          $installerFile = Get-ChildItem -Path "output" -Name $installerPattern | Select-Object -First 1
+          if ($installerFile) {
+            Move-Item "output/$installerFile" "../../$installerFile"
+            echo "INSTALLER_NAME=$installerFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Write-Host "Installer built successfully: $installerFile"
           } else {
-            # Try common NSIS installation paths
-            $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
-            if (Test-Path $nsisPath) {
-              & $nsisPath installer.nsi
-            } else {
-              Write-Error "NSIS makensis not found. Please ensure NSIS is properly installed."
-              exit 1
-            }
+            Write-Error "Installer file not found in output directory after build"
+            exit 1
           }
       
       - name: Sign Installer
@@ -272,6 +176,11 @@ jobs:
           }
           Write-Host "Signing installer..."
           $installerName = $env:INSTALLER_NAME
+          
+          if (-not $installerName -or -not (Test-Path $installerName)) {
+            Write-Host "Installer file not found: $installerName, skipping signing..."
+            return
+          }
           
           # Use signtool to sign the installer
           $timestampUrl = if ($env:WINDOWS_TIMESTAMP_URL) { $env:WINDOWS_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
