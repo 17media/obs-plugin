@@ -58,7 +58,8 @@ function(_setup_obs_studio)
     set(_cmake_extra "-DCMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION} -DCMAKE_ENABLE_SCRIPTING=OFF")
   elseif(OS_MACOS)
     set(_cmake_generator "Xcode")
-    set(_cmake_arch "-DCMAKE_OSX_ARCHITECTURES:STRING='arm64;x86_64'")
+
+    set(_cmake_arch "-DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}")
     set(_cmake_extra "-DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 
     # check if CMAKE_OSX_SYSROOT is set (maybe lost in macOS intel chip)
@@ -132,6 +133,12 @@ endfunction()
 
 # _check_dependencies: Fetch and extract pre-built OBS build dependencies
 function(_check_dependencies)
+  # set(_cmake_arch "-DCMAKE_OSX_ARCHITECTURES:STRING='arm64;x86_64'")
+  # if CMAKE_OSX_ARCHITECTURES is not set then set it to CMAKE_HOST_SYSTEM_PROCESSOR
+  if(NOT CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES ${CMAKE_HOST_SYSTEM_PROCESSOR})
+  endif()
+
   file(READ "${CMAKE_CURRENT_SOURCE_DIR}/buildspec.json" buildspec)
 
   string(JSON dependency_data GET ${buildspec} dependencies)
@@ -141,7 +148,8 @@ function(_check_dependencies)
     set(orig_platform ${platform})
 
     if(dependency STREQUAL cef AND OS_MACOS)
-      set(arch ${CMAKE_HOST_SYSTEM_PROCESSOR})
+      set(arch ${CMAKE_OSX_ARCHITECTURES})
+
       set(platform macos-${arch})
     endif()
 
