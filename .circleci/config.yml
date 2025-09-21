@@ -21,19 +21,18 @@ jobs:
     resource_class: m4pro.medium
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
-      VERSION: << pipeline.parameters.version >>
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
     steps:
       - checkout
       
-      # Set environment based on tag
+      # Set environment based on tag or manual build
       - run:
-          name: Set Environment Variables
+          name: Set Environment and API URL
           command: |
-            # Determine environment based on tag or default to stage
             if [ -n "$CIRCLE_TAG" ]; then
               if [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 # Production tag (e.g., v1.0.0)
-                export BUILD_ENV="prod"
+                export BUILD_ENV="production"
                 export ONESEVENLIVE_API_URL="$PROD_ONESEVENLIVE_API_URL"
               elif [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-stage$ ]]; then
                 # Stage tag (e.g., v1.0.0-stage)
@@ -51,8 +50,8 @@ jobs:
             fi
             
             # Save environment variables for subsequent steps
-            echo "export BUILD_ENV=$BUILD_ENV" >> $BASH_ENV
-            echo "export ONESEVENLIVE_API_URL=$ONESEVENLIVE_API_URL" >> $BASH_ENV
+            echo "export BUILD_ENV=\"$BUILD_ENV\"" >> $BASH_ENV
+            echo "export ONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\"" >> $BASH_ENV
             
             echo "Environment set to: $BUILD_ENV"
             echo "API URL set to: $ONESEVENLIVE_API_URL"
@@ -61,25 +60,27 @@ jobs:
       - run:
           name: Debug Environment Variables
           command: |
-            source $BASH_ENV
             echo "Current environment: $BUILD_ENV"
             echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
-            echo "VERSION: ${VERSION:-0.0.0}"
+            echo "VERSION: $VERSION"
       
       # Install dependencies
       - run:
           name: Install Dependencies
           command: |
-            # Install Node.js
+            # Install Node.js 20
             brew install node@20
-            echo 'export PATH="/opt/homebrew/opt/node@20/bin:$PATH"' >> ~/.bash_profile
-            source ~/.bash_profile
+            brew link --force node@20
             
             # Install CMake (version 3.28 or higher)
             brew install cmake
+            
+            # Verify CMake version
             cmake_version=$(cmake --version | head -n1 | cut -d' ' -f3)
             echo "Installed CMake version: $cmake_version"
-            if ! cmake --version | head -n1 | awk '{print $3}' | awk -F. '{if($1>3 || ($1==3 && $2>=28)) exit 0; else exit 1}'; then
+            
+            # Check if version is 3.28 or higher
+            if ! printf '%s\n3.28\n' "$cmake_version" | sort -V -C; then
               echo "Error: CMake version must be 3.28 or higher"
               exit 1
             fi
@@ -98,20 +99,33 @@ jobs:
           command: |
             # Extract version from tag or use default
             if [ -n "$CIRCLE_TAG" ]; then
-              VERSION=${CIRCLE_TAG#v}
+              version=$(echo "$CIRCLE_TAG" | sed 's/^v//')
             else
-              VERSION=${VERSION:-0.0.0}
+              version=${VERSION:-0.0.0}
             fi
-            echo "export VERSION=$VERSION" >> $BASH_ENV
+            
+            # Remove -stage suffix from version number if present
+            version_number=$(echo "$version" | sed 's/-stage$//')
+            
+            # Set package name suffix
+            if [ "$BUILD_ENV" == "production" ]; then
+              pkg_suffix=""
+            else
+              pkg_suffix="-stage"
+            fi
+            
+            # Save environment variables for subsequent steps
+            echo "export VERSION=\"$version_number\"" >> $BASH_ENV
+            echo "export PKG_SUFFIX=\"$pkg_suffix\"" >> $BASH_ENV
+            
+            echo "Set VERSION to: $version_number"
+            echo "Set PKG_SUFFIX to: $pkg_suffix"
       
       # Configure CMake
       - run:
           name: CMake Configure
           command: |
-            source $BASH_ENV
-            cmake --preset macos \
-              -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" \
-              -DCMAKE_PROJECT_VERSION="$VERSION"
+            cmake --preset macos -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$VERSION"
       
       # Build the project
       - run:
@@ -125,48 +139,44 @@ jobs:
           command: |
             if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
               echo "Importing signing certificate..."
-              echo $MACOS_CERTIFICATE_BASE64 | base64 --decode > certificate.p12
-              security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-              security default-keychain -s build.keychain
-              security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-              security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-              security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+              echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+              
+              # Create keychain and import certificate
+              security create-keychain -p temp_password temp_keychain
+              security default-keychain -s temp_keychain
+              security unlock-keychain -p temp_password temp_keychain
+              security import certificate.p12 -k temp_keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+              security set-key-partition-list -S apple-tool:,apple: -s -k temp_password temp_keychain
+              
               rm certificate.p12
             else
               echo "No signing certificate provided, skipping code signing"
             fi
       
-      # Create and sign package
+      # Create and sign pkg
       - run:
-          name: Create Package
+          name: Create and Sign PKG
           command: |
-            source $BASH_ENV
-            # Add -stage suffix for stage environment
-            if [ "$BUILD_ENV" = "stage" ]; then
-              PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}-stage.pkg"
-            else
-              PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}.pkg"
-            fi
+            PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}${PKG_SUFFIX}.pkg"
             
-            # Create unsigned package first
-            sudo pkgbuild --root build_macos/Release \
-                          --identifier com.17live.obsplugin \
-                          --version "$VERSION" \
-                          --install-location "/Applications/OBS.app/Contents/PlugIns" \
-                          --scripts package/macOS/misc \
-                          "$PKG_NAME"
+            pkgbuild --root build_macos/Release \
+                     --identifier com.17live.obsplugin \
+                     --version "$VERSION" \
+                     --install-location "/Applications/OBS.app/Contents/PlugIns" \
+                     --scripts package/macOS/misc \
+                     "$PKG_NAME"
             
-            # Sign package if certificate is available
-            if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$DEVELOPER_ID_INSTALLER" ]; then
+            # Sign the package if certificate is available
+            if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
               echo "Signing package..."
-              SIGNED_PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}-signed.pkg"
-              productsign --sign "$DEVELOPER_ID_INSTALLER" "$PKG_NAME" "$SIGNED_PKG_NAME"
-              mv "$SIGNED_PKG_NAME" "$PKG_NAME"
+              productsign --sign "Developer ID Installer" "$PKG_NAME" "${PKG_NAME}.signed"
+              mv "${PKG_NAME}.signed" "$PKG_NAME"
+              echo "Package signed successfully"
             else
               echo "No signing certificate provided, package will be unsigned"
             fi
             
-            echo "export PKG_NAME=$PKG_NAME" >> $BASH_ENV
+            echo "PKG_NAME=$PKG_NAME" >> $BASH_ENV
       
       # Store artifacts
       - store_artifacts:
@@ -178,6 +188,184 @@ jobs:
           root: .
           paths:
             - "17liveOBSPlugin-macAppleSilicon-v*.pkg"
+
+  # macOS Intel build job
+  build-macos-intel:
+    macos:
+      xcode: 15.4.0
+    resource_class: macos.m1.medium.gen1
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+    steps:
+      - checkout
+      
+      # Set environment based on tag or manual build
+      - run:
+          name: Set Environment and API URL
+          command: |
+            if [ -n "$CIRCLE_TAG" ]; then
+              if [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                # Production tag (e.g., v1.0.0)
+                export BUILD_ENV="production"
+                export ONESEVENLIVE_API_URL="$PROD_ONESEVENLIVE_API_URL"
+              elif [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-stage$ ]]; then
+                # Stage tag (e.g., v1.0.0-stage)
+                export BUILD_ENV="stage"
+                export ONESEVENLIVE_API_URL="$STAGE_ONESEVENLIVE_API_URL"
+              else
+                # Default to stage for other tags
+                export BUILD_ENV="stage"
+                export ONESEVENLIVE_API_URL="$STAGE_ONESEVENLIVE_API_URL"
+              fi
+            else
+              # Manual build - default to stage
+              export BUILD_ENV="stage"
+              export ONESEVENLIVE_API_URL="$STAGE_ONESEVENLIVE_API_URL"
+            fi
+            
+            # Save environment variables for subsequent steps
+            echo "export BUILD_ENV=\"$BUILD_ENV\"" >> $BASH_ENV
+            echo "export ONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\"" >> $BASH_ENV
+            
+            echo "Environment set to: $BUILD_ENV"
+            echo "API URL set to: $ONESEVENLIVE_API_URL"
+      
+      # Debug environment variables
+      - run:
+          name: Debug Environment Variables
+          command: |
+            echo "Current environment: $BUILD_ENV"
+            echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
+            echo "VERSION: $VERSION"
+      
+      # Install dependencies
+      - run:
+          name: Install Dependencies
+          command: |
+            # Install Node.js 20
+            brew install node@20
+            brew link --force node@20
+            
+            # Install CMake (version 3.28 or higher)
+            brew install cmake
+            
+            # Verify CMake version
+            cmake_version=$(cmake --version | head -n1 | cut -d' ' -f3)
+            echo "Installed CMake version: $cmake_version"
+            
+            # Check if version is 3.28 or higher
+            if ! printf '%s\n3.28\n' "$cmake_version" | sort -V -C; then
+              echo "Error: CMake version must be 3.28 or higher"
+              exit 1
+            fi
+      
+      # Setup Node.js and build web components
+      - run:
+          name: Install and Build Web Components
+          command: |
+            cd web/ably_chat
+            npm install
+            npm run build
+      
+      # Set environment variables and version
+      - run:
+          name: Set Environment and Version
+          command: |
+            # Extract version from tag or use default
+            if [ -n "$CIRCLE_TAG" ]; then
+              version=$(echo "$CIRCLE_TAG" | sed 's/^v//')
+            else
+              version=${VERSION:-0.0.0}
+            fi
+            
+            # Remove -stage suffix from version number if present
+            version_number=$(echo "$version" | sed 's/-stage$//')
+            
+            # Set package name suffix
+            if [ "$BUILD_ENV" == "production" ]; then
+              pkg_suffix=""
+            else
+              pkg_suffix="-stage"
+            fi
+            
+            # Save environment variables for subsequent steps
+            echo "export VERSION=\"$version_number\"" >> $BASH_ENV
+            echo "export PKG_SUFFIX=\"$pkg_suffix\"" >> $BASH_ENV
+            
+            echo "Set VERSION to: $version_number"
+            echo "Set PKG_SUFFIX to: $pkg_suffix"
+      
+      # Configure CMake for Intel architecture
+      - run:
+          name: CMake Configure
+          command: |
+            cmake --preset macos \
+              -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" \
+              -DCMAKE_PROJECT_VERSION="$VERSION" \
+              -DCMAKE_OSX_ARCHITECTURES="x86_64"
+      
+      # Build the project
+      - run:
+          name: Build Project
+          command: |
+            cmake --build --preset macos --config Release
+      
+      # Import signing certificate if available
+      - run:
+          name: Import Signing Certificate
+          command: |
+            if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
+              echo "Importing signing certificate..."
+              echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+              
+              # Create keychain and import certificate
+              security create-keychain -p temp_password temp_keychain
+              security default-keychain -s temp_keychain
+              security unlock-keychain -p temp_password temp_keychain
+              security import certificate.p12 -k temp_keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+              security set-key-partition-list -S apple-tool:,apple: -s -k temp_password temp_keychain
+              
+              rm certificate.p12
+            else
+              echo "No signing certificate provided, skipping code signing"
+            fi
+      
+      # Create and sign pkg
+      - run:
+          name: Create and Sign PKG
+          command: |
+            PKG_NAME="17liveOBSPlugin-macIntel-v${VERSION}${PKG_SUFFIX}.pkg"
+            
+            pkgbuild --root build_macos/Release \
+                     --identifier com.17live.obsplugin \
+                     --version "$VERSION" \
+                     --install-location "/Applications/OBS.app/Contents/PlugIns" \
+                     --scripts package/macOS/misc \
+                     "$PKG_NAME"
+            
+            # Sign the package if certificate is available
+            if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
+              echo "Signing package..."
+              productsign --sign "Developer ID Installer" "$PKG_NAME" "${PKG_NAME}.signed"
+              mv "${PKG_NAME}.signed" "$PKG_NAME"
+              echo "Package signed successfully"
+            else
+              echo "No signing certificate provided, package will be unsigned"
+            fi
+            
+            echo "PKG_NAME=$PKG_NAME" >> $BASH_ENV
+      
+      # Store artifacts
+      - store_artifacts:
+          path: 17liveOBSPlugin-macIntel-v*.pkg
+          destination: packages
+      
+      # Persist package for potential deployment
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "17liveOBSPlugin-macIntel-v*.pkg"
 
   # Windows x64 build job
   build-windows-x64:
@@ -286,13 +474,27 @@ jobs:
               $version = if ($env:VERSION) { $env:VERSION } else { '0.0.0' }
             }
             
+            # Remove -stage suffix from version number if present
+            $versionNumber = $version -replace '-stage$', ''
+            
+            # Set package name suffix
+            if ($env:BUILD_ENV -eq "production") {
+              $pkgSuffix = ""
+            } else {
+              $pkgSuffix = "-stage"
+            }
+            
             # Set environment variables for subsequent steps
-            echo "VERSION=$version" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            echo "VERSION=$versionNumber" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            echo "PKG_SUFFIX=$pkgSuffix" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
             # Also set as machine-level environment variable for PowerShell sessions
-            [Environment]::SetEnvironmentVariable("VERSION", $version, "Machine")
+            [Environment]::SetEnvironmentVariable("VERSION", $versionNumber, "Machine")
+            [Environment]::SetEnvironmentVariable("PKG_SUFFIX", $pkgSuffix, "Machine")
             # Set for current session
-            $env:VERSION = $version
-            Write-Host "Set VERSION to: $version"
+            $env:VERSION = $versionNumber
+            $env:PKG_SUFFIX = $pkgSuffix
+            Write-Host "Set VERSION to: $versionNumber"
+            Write-Host "Set PKG_SUFFIX to: $pkgSuffix"
       
       # Configure CMake
       - run:
@@ -329,29 +531,17 @@ jobs:
           name: Build Windows Installer
           shell: powershell
           command: |
-            # Debug: Check if VERSION is available
-            Write-Host "Current VERSION environment variable: $env:VERSION"
-            $version = $env:VERSION
-            if (-not $version) {
-              Write-Host "VERSION not found in environment, using default 0.0.0"
-              $version = "0.0.0"
-            }
-            
-            # Add -stage suffix for stage environment
-            if ($env:BUILD_ENV -eq "stage") {
-              $versionWithSuffix = "$version-stage"
-            } else {
-              $versionWithSuffix = $version
-            }
-            Write-Host "Using version with suffix: $versionWithSuffix"
+            # Set version with suffix for installer name
+            $version = "$env:VERSION$env:PKG_SUFFIX"
+            Write-Host "Using version with suffix: $version"
             
             # Use the existing build script from package/windows
             cd package/windows
             
             # Run the PowerShell build script directly with version
-            pwsh -ExecutionPolicy Bypass -File "build-installer.ps1" -Version $versionWithSuffix
+            pwsh -ExecutionPolicy Bypass -File "build-installer.ps1" -Version $version
             
-            # Find the generated installer in output directory and move it to root directory
+            # Move the generated installer from output directory to root directory for artifact upload
             $installerPattern = "17liveOBSPlugin-windows-v*.exe"
             if (Test-Path "output") {
               $installerFile = Get-ChildItem -Path "output" -Name $installerPattern | Select-Object -First 1
@@ -378,25 +568,9 @@ jobs:
           command: |
             if ($env:WINDOWS_CERTIFICATE_BASE64 -and $env:WINDOWS_CERTIFICATE_PASSWORD) {
               Write-Host "Signing installer..."
-              # Debug: Check installer name
-              Write-Host "INSTALLER_NAME from env: $env:INSTALLER_NAME"
               $installerName = $env:INSTALLER_NAME
               
-              # Fallback: reconstruct installer name if not available
-              if (-not $installerName) {
-                $version = if ($env:VERSION) { $env:VERSION } else { "0.0.0" }
-                # Add -stage suffix for stage environment
-                if ($env:BUILD_ENV -eq "stage") {
-                  $installerName = "17liveOBSPlugin-windows-v$version-stage.exe"
-                } else {
-                  $installerName = "17liveOBSPlugin-windows-v$version.exe"
-                }
-                Write-Host "Reconstructed installer name: $installerName"
-              }
-              Write-Host "Using installer name: $installerName"
-              
-              # Check if installer file exists
-              if (-not (Test-Path $installerName)) {
+              if (-not $installerName -or -not (Test-Path $installerName)) {
                 Write-Host "Installer file not found: $installerName, skipping signing..."
                 return
               }
@@ -440,6 +614,14 @@ workflows:
               ignore: /.*/
           context:
             - macos-signing
+      - build-macos-intel:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+(-stage)?$/
+            branches:
+              ignore: /.*/
+          context:
+            - macos-signing
       - build-windows-x64:
           filters:
             tags:
@@ -455,6 +637,11 @@ workflows:
       - hold:
           type: approval
       - build-macos-apple-silicon:
+          requires:
+            - hold
+          context:
+            - macos-signing
+      - build-macos-intel:
           requires:
             - hold
           context:
