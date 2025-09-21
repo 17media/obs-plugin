@@ -77,23 +77,18 @@ else()
   message(FATAL_ERROR "nlohmann json not found in obs-deps")
 endif()
 
-# Add the wrappers dependency
-add_subdirectory(deps/wrappers)
-
 # Set header file include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
   ${CMAKE_CURRENT_SOURCE_DIR}/deps
-  ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
   ${NLOHMANN_JSON_INCLUDE_DIR}
   ${CEF_ROOT_DIR} # This might need adjustment based on actual CEF include path
   ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
-# Link wrappers libraries (nlohmann json is header-only)
+# Link CEF libraries (nlohmann json is header-only)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
-  wrappers
   CEF::Library
   CEF::Wrapper
   Threads::Threads # For cpp-httplib
