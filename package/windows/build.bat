@@ -12,7 +12,6 @@ powershell -Command "Get-Host" >nul 2>&1
 if errorlevel 1 (
     echo Error: PowerShell is required but not found.
     echo Please install PowerShell or run the build-installer.ps1 script directly.
-    pause
     exit /b 1
 )
 
@@ -29,10 +28,8 @@ powershell -ExecutionPolicy Bypass -File "build-installer.ps1" -Version "%VERSIO
 if errorlevel 1 (
     echo.
     echo Build failed!
-    pause
     exit /b 1
 )
 
 echo.
 echo Build completed successfully!
-pause
