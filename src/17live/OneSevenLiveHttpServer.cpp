@@ -13,7 +13,7 @@
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include "json11.hpp"
+#include <nlohmann/json.hpp>
 #include "plugin-support.h"
 
 // Helper function to get module data path
@@ -284,7 +284,7 @@ bool OneSevenLiveHttpServer::start() {
         if (!check_rate_limit(client_ip)) {
             res.status = 429;
             res.set_header("Content-Type", "application/json");
-            const json11::Json errorResponse = json11::Json::object{
+            const nlohmann::json errorResponse = {
                 {"success", false}, 
                 {"error", "Rate limit exceeded"}
             };
@@ -294,7 +294,7 @@ bool OneSevenLiveHttpServer::start() {
         }
         
         res.set_header("Content-Type", "application/json");
-        const json11::Json response = json11::Json::object{
+        const nlohmann::json response = {
             {"success", true}, 
             {"csrf_token", csrf_token_}
         };
@@ -317,7 +317,7 @@ bool OneSevenLiveHttpServer::start() {
         if (!check_rate_limit(client_ip)) {
             res.status = 429;
             res.set_header("Content-Type", "application/json");
-            const json11::Json errorResponse = json11::Json::object{
+            const nlohmann::json errorResponse = {
                 {"success", false}, 
                 {"error", "Rate limit exceeded"}
             };
@@ -330,7 +330,7 @@ bool OneSevenLiveHttpServer::start() {
         if (!validate_request_size(req)) {
             res.status = 413;  // Payload Too Large
             res.set_header("Content-Type", "application/json");
-            const json11::Json errorResponse = json11::Json::object{
+            const nlohmann::json errorResponse = {
                 {"success", false}, 
                 {"error", "Request too large"}
             };
@@ -351,34 +351,36 @@ bool OneSevenLiveHttpServer::start() {
         auto &coreManager = OneSevenLiveCoreManager::getInstance();
 
         // Parse JSON data from request body
-        std::string error;
-        const json11::Json requestJson = json11::Json::parse(req.body, error);
-
-        if (!error.empty()) {
+        nlohmann::json requestJson;
+        try {
+            requestJson = nlohmann::json::parse(req.body);
+        } catch (const nlohmann::json::parse_error& e) {
             // JSON parsing error - pre-build error message to avoid repeated string operations
-            const std::string errorMsg = "Invalid JSON: " + error;
-            const json11::Json errorResponse =
-                json11::Json::object{{"success", json11::Json(false)},
-                                     {"error", json11::Json(errorMsg)}};
+            const std::string errorMsg = "Invalid JSON: " + std::string(e.what());
+            const nlohmann::json errorResponse = {
+                {"success", false},
+                {"error", errorMsg}
+            };
             const std::string responseStr = errorResponse.dump();
             res.set_content(responseStr, "application/json");
             return;
         }
 
         // Get requested action
-        const std::string action = requestJson["action"].string_value();
-
-        if (action.empty()) {
+        if (!requestJson.contains("action") || !requestJson["action"].is_string()) {
             // Missing action parameter
-            const json11::Json errorResponse =
-                json11::Json::object{{"success", false}, {"error", "Missing 'action' parameter"}};
+            const nlohmann::json errorResponse = {
+                {"success", false}, {"error", "Missing 'action' parameter"}
+            };
             const std::string responseStr = errorResponse.dump();
             res.set_content(responseStr, "application/json");
             return;
         }
+        
+        const std::string action = requestJson["action"].get<std::string>();
 
         // Call API and return result
-        json11::Json apiResult;
+        nlohmann::json apiResult;
         bool success = false;
 
         try {
@@ -388,8 +390,9 @@ bool OneSevenLiveHttpServer::start() {
 
             if (!apiWrapper) {
                 // API Wrapper not initialized
-                const json11::Json errorResponse =
-                    json11::Json::object{{"success", false}, {"error", "API not initialized"}};
+                const nlohmann::json errorResponse = {
+                    {"success", false}, {"error", "API not initialized"}
+                };
                 const std::string responseStr = errorResponse.dump();
                 res.set_content(responseStr, "application/json");
                 return;
@@ -421,8 +424,9 @@ bool OneSevenLiveHttpServer::start() {
             } else {
                 // Unsupported action - pre-build error message
                 const std::string errorMsg = "Unsupported action: " + action;
-                const json11::Json errorResponse = json11::Json::object{
-                    {"success", false}, {"error", errorMsg}};
+                const nlohmann::json errorResponse = {
+                    {"success", false}, {"error", errorMsg}
+                };
                 const std::string responseStr = errorResponse.dump();
                 res.set_content(responseStr, "application/json");
                 return;
@@ -431,23 +435,25 @@ bool OneSevenLiveHttpServer::start() {
             if (!success) {
                 // API call failed - pre-convert error message
                 const std::string errorMsg = apiWrapper->getLastErrorMessage().toStdString();
-                const json11::Json errorResponse = json11::Json::object{
-                    {"success", json11::Json(false)},
-                    {"error", json11::Json(errorMsg)}};
+                const nlohmann::json errorResponse = {
+                    {"success", false},
+                    {"error", errorMsg}
+                };
                 const std::string responseStr = errorResponse.dump();
                 res.set_content(responseStr, "application/json");
                 return;
             }
 
             // Build response - cache dump result
-            const json11::Json response = apiResult;
+            const nlohmann::json response = apiResult;
             const std::string responseStr = response.dump();
             res.set_content(responseStr, "application/json");
         } catch (const std::exception &e) {
             // Handle exceptions - pre-build error message
             const std::string errorMsg = std::string("Exception: ") + e.what();
-            const json11::Json errorResponse = json11::Json::object{
-                {"success", false}, {"error", errorMsg}};
+            const nlohmann::json errorResponse = {
+                {"success", false}, {"error", errorMsg}
+            };
             const std::string responseStr = errorResponse.dump();
             res.set_content(responseStr, "application/json");
         }

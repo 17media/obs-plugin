@@ -37,7 +37,7 @@ endif()
 if(ENABLE_QT)
   # Add our custom cmake modules to the front of the module path
   # This ensures our custom FindWrapOpenGL.cmake is used instead of Qt6's version
-  list(PREPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+  # list(PREPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
   find_package(Qt6 COMPONENTS Widgets Core)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
   target_compile_options(
@@ -63,8 +63,19 @@ endif()
 
 find_package(CEF REQUIRED)
 
-# Add the json11 dependency
-add_subdirectory(deps/json11)
+# Add nlohmann json include path from obs-deps
+find_path(NLOHMANN_JSON_INCLUDE_DIR
+  NAMES nlohmann/json.hpp
+  PATHS ${CMAKE_PREFIX_PATH}
+  PATH_SUFFIXES include
+  NO_DEFAULT_PATH
+)
+
+if(NLOHMANN_JSON_INCLUDE_DIR)
+  message(STATUS "Found nlohmann json: ${NLOHMANN_JSON_INCLUDE_DIR}")
+else()
+  message(FATAL_ERROR "nlohmann json not found in obs-deps")
+endif()
 
 # Add the wrappers dependency
 add_subdirectory(deps/wrappers)
@@ -74,15 +85,14 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
   ${CMAKE_CURRENT_SOURCE_DIR}/deps
-  ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
   ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
+  ${NLOHMANN_JSON_INCLUDE_DIR}
   ${CEF_ROOT_DIR} # This might need adjustment based on actual CEF include path
   ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
-# Link json11, wrappers libraries
+# Link wrappers libraries (nlohmann json is header-only)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
-  json11
   wrappers
   CEF::Library
   CEF::Wrapper

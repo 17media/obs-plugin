@@ -28,12 +28,12 @@
 #include "OneSevenLiveUpdateManager.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include "json11.hpp"
+#include <nlohmann/json.hpp>
 #include "plugin-support.h"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
 
-using namespace json11;
+using Json = nlohmann::json;
 using namespace std;
 
 // Initialize static member variables
@@ -266,7 +266,7 @@ void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData &logi
     std::string language = GetCurrentLanguage();
 
     // Call API to get configuration
-    json11::Json configJson;
+    Json configJson;
     if (apiWrapper->GetConfig(region, language, configJson)) {
         // Save configuration
         configManager->setConfig(configJson);

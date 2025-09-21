@@ -11,7 +11,6 @@
 #include "../utility/RemoteTextThread.hpp"
 #include "plugin-support.h"
 
-using namespace json11;
 using namespace std;
 
 extern const char *service;
@@ -163,11 +162,13 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
         return false;
     }
 
-    json_out = Json::parse(output, error);
+    try {
+        json_out = Json::parse(output);
 #ifdef _DEBUG
-    obs_log(LOG_DEBUG, "17Live API command answer: %s", json_out.dump().c_str());
+        obs_log(LOG_DEBUG, "17Live API command answer: %s", json_out.dump().c_str());
 #endif
-    if (!error.empty()) {
+    } catch (const Json::parse_error& e) {
+        obs_log(LOG_ERROR, "Failed to parse JSON response: %s", e.what());
         return false;
     }
     return httpStatusCode < 400;
@@ -197,28 +198,26 @@ bool OneSevenLiveApiWrappers::InsertCommand(const char *url, const char *content
     }
 
     try {
-        const auto& json_items = json_out.object_items();
-        
-        if (json_items.find("error") != json_items.end()) {
+        if (json_out.contains("error")) {
             obs_log(LOG_ERROR, "17Live API error:\n\tHTTP status: %ld\n\tURL: %s\n\tJSON: %s",
                     error_code, url, json_out.dump().c_str());
 
-            const Json json_out_data = Json::parse(json_out["data"].string_value(), error);
-            if (!error.empty()) {
-                obs_log(LOG_ERROR, "Failed to parse error data JSON: %s", error.c_str());
+            try {
+                const Json json_out_data = Json::parse(json_out["data"].get<std::string>());
+                setLastErrorMessage(QString::fromStdString(json_out_data["message"].get<std::string>()));
+            } catch (const Json::parse_error& e) {
+                obs_log(LOG_ERROR, "Failed to parse error data JSON: %s", e.what());
                 setLastErrorMessage(QString("API error with invalid error data"));
-            } else {
-                setLastErrorMessage(QString::fromStdString(json_out_data["message"].string_value()));
             }
 
             // The existence of an error implies non-success even if the HTTP status code disagrees.
             success = false;
-        } else if (json_items.find("errorCode") != json_items.end()) {
+        } else if (json_out.contains("errorCode")) {
             obs_log(LOG_ERROR, "17Live API error:\n\tHTTP status: %ld\n\tURL: %s\n\tJSON: %s",
                     error_code, url, json_out.dump().c_str());
 
-            const std::string errorCode = json_out["errorCode"].string_value();
-            const std::string errorMessage = json_out["errorMessage"].string_value();
+            const std::string errorCode = json_out["errorCode"].get<std::string>();
+            const std::string errorMessage = json_out["errorMessage"].get<std::string>();
             setLastErrorMessage(QString::fromStdString(errorCode + " " + errorMessage));
             // The existence of an error implies non-success even if the HTTP status code disagrees.
             success = false;
@@ -244,7 +243,7 @@ bool OneSevenLiveApiWrappers::Login(const QString &username, const QString &pass
     
     // TODO: language
     // const char *obs_get_locale(void)
-    const Json data = Json::object{
+    const Json data = Json{
         {"language", GetCurrentLanguage()},
         {"openID", usernameStd},
         {"password", passwordMd5Std},
@@ -262,20 +261,13 @@ bool OneSevenLiveApiWrappers::Login(const QString &username, const QString &pass
 
     try {
         // transform string json_out["data"] to Json
-        const std::string dataStr = json_out["data"].string_value();
-        Json json_out_data = Json::parse(dataStr, error);
-        if (!error.empty()) {
-            obs_log(LOG_ERROR, "Failed to parse login response data: %s", error.c_str());
-            setLastErrorMessage("Failed to parse login response data");
-            return false;
-        }
-
+        const std::string dataStr = json_out["data"].get<std::string>();
+        Json json_out_data = Json::parse(dataStr);
+        
         // check if json_out_data contains "result" key
-        const auto& items = json_out_data.object_items();
-        auto resultIt = items.find("result");
-        if (resultIt != items.end()) {
-            if (resultIt->second.string_value() == "fail") {
-                const std::string messageStr = json_out_data["message"].string_value();
+        if (json_out_data.contains("result")) {
+            if (json_out_data["result"].get<std::string>() == "fail") {
+                const std::string messageStr = json_out_data["message"].get<std::string>();
                 setLastErrorMessage(QString::fromStdString(messageStr));
                 return false;
             }
@@ -287,14 +279,21 @@ bool OneSevenLiveApiWrappers::Login(const QString &username, const QString &pass
         }
 
         // Check for required fields
-        const std::string jwtTokenStr = json_out_data["jwtAccessToken"].string_value();
-        if (!json_out_data["jwtAccessToken"].is_string() || jwtTokenStr.empty()) {
+        if (!json_out_data.contains("jwtAccessToken") || !json_out_data["jwtAccessToken"].is_string() || json_out_data["jwtAccessToken"].get<std::string>().empty()) {
             obs_log(LOG_ERROR, "Login response missing jwtAccessToken");
             setLastErrorMessage("Login response missing jwtAccessToken");
             return false;
         }
 
-        JsonToOneSevenLiveLoginData(json_out_data, loginData);
+        if (!JsonToOneSevenLiveLoginData(json_out_data, loginData)) {
+            obs_log(LOG_ERROR, "Failed to convert response to struct");
+            setLastErrorMessage("Failed to convert response to struct");
+            return false;
+        }
+    } catch (const Json::parse_error& e) {
+        obs_log(LOG_ERROR, "Failed to parse login response data: %s", e.what());
+        setLastErrorMessage("Failed to parse login response data");
+        return false;
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Exception during login data processing: %s", e.what());
         setLastErrorMessage("Internal error during login processing");
@@ -319,9 +318,7 @@ bool OneSevenLiveApiWrappers::OneSevenLiveApiWrappers::GetSelfInfo(
         return false;
 
     // check if json_out_data contains "openID"
-    const auto& items = json_out.object_items();
-    auto openIDIt = items.find("openID");
-    if (openIDIt == items.end()) {
+    if (!json_out.contains("openID")) {
         obs_log(LOG_ERROR, "GetSelfInfo response missing openID field: %s",
                 json_out.dump().c_str());
         lastErrorMessage = "GetSelfInfo response missing openID field";
@@ -329,14 +326,14 @@ bool OneSevenLiveApiWrappers::OneSevenLiveApiWrappers::GetSelfInfo(
     }
 
     // Pre-convert strings to avoid repeated conversions
-    const std::string openIDStr = json_out["openID"].string_value();
-    const std::string displayNameStr = json_out["displayName"].string_value();
-    const std::string userIDStr = json_out["userID"].string_value();
-    const std::string regionStr = json_out["region"].string_value();
+    const std::string openIDStr = json_out["openID"].get<std::string>();
+    const std::string displayNameStr = json_out["displayName"].get<std::string>();
+    const std::string userIDStr = json_out["userID"].get<std::string>();
+    const std::string regionStr = json_out["region"].get<std::string>();
 
     loginData.userInfo.openID = QString::fromStdString(openIDStr);
     loginData.userInfo.displayName = QString::fromStdString(displayNameStr);
-    loginData.userInfo.roomID = json_out["roomID"].int_value();
+    loginData.userInfo.roomID = json_out["roomID"].get<int>();
     loginData.userInfo.region = QString::fromStdString(regionStr);
     
     return true;
@@ -366,8 +363,8 @@ bool OneSevenLiveApiWrappers::ChangeEvent(const OneSevenLiveChangeEventRequest &
     if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
         obs_log(LOG_ERROR, "ChangeEvent error: %s", json_out.dump().c_str());
         // Pre-convert error strings to avoid repeated conversions
-        const std::string errorCodeStr = json_out["errorCode"].string_value();
-        const std::string errorMessageStr = json_out["errorMessage"].string_value();
+        const std::string errorCodeStr = json_out["errorCode"].get<std::string>();
+        const std::string errorMessageStr = json_out["errorMessage"].get<std::string>();
         lastErrorMessage = QString::fromStdString(errorCodeStr) + " " +
                            QString::fromStdString(errorMessageStr);
         return false;
@@ -377,11 +374,11 @@ bool OneSevenLiveApiWrappers::ChangeEvent(const OneSevenLiveChangeEventRequest &
     // obs_log(LOG_INFO, "change event response: %s", json_out.dump().c_str());
 
     // Check if errorCode field exists
-    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+    if (json_out.contains("errorCode")) {
         obs_log(LOG_ERROR, "ChangeEvent error: %s", json_out.dump().c_str());
         // lastErrorMessage = errorCode + errorMessage
-        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -393,7 +390,7 @@ bool OneSevenLiveApiWrappers::CommonRequest(const std::string action, Json &json
 
     const QByteArray url = ONESEVENLIVE_APIGATEWAY_URL.c_str();
 
-    const Json data = Json::object{
+    const Json data = Json{
         {"nonce", "nonce-17live-" + std::to_string(getCurrentTimestampMs())},
         {"action", action},
     };
@@ -415,18 +412,19 @@ bool OneSevenLiveApiWrappers::CommonRequest(const std::string action, Json &json
     obs_log(LOG_INFO, "apiGateWay success");
 
     // Check if exist errorCode field
-    if (json_out_resp.object_items().find("errorCode") != json_out_resp.object_items().end()) {
+    if (json_out_resp.contains("errorCode")) {
         obs_log(LOG_ERROR, "apiGateWay error: %s", json_out_resp.dump().c_str());
         // lastErrorMessage = errorCode + errorMessage
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
     // transform string json_out["data"] to Json
-    json_out = Json::parse(json_out_resp["data"].string_value(), error);
-    if (!error.empty()) {
-        obs_log(LOG_ERROR, "Failed to parse apiGateWay response data: %s", error.c_str());
+    try {
+        json_out = Json::parse(json_out_resp["data"].get<std::string>());
+    } catch (const Json::parse_error& e) {
+        obs_log(LOG_ERROR, "Failed to parse apiGateWay response data: %s", e.what());
         return false;
     }
 
@@ -503,11 +501,11 @@ bool OneSevenLiveApiWrappers::CreateRtmp(const OneSevenLiveRtmpRequest &request,
     obs_log(LOG_INFO, "rtmp info %s", json_out.dump().c_str());
 
     // Check if exist errorCode field
-    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+    if (json_out.contains("errorCode")) {
         obs_log(LOG_ERROR, "CreateRtmp error: %s", json_out.dump().c_str());
         // lastErrorMessage = errorCode + errorMessage
-        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -527,7 +525,7 @@ bool OneSevenLiveApiWrappers::StartStream(const std::string &liveStreamID,
     QString urlStr = QString::fromStdString(ONESEVENLIVE_STREAM_URL).arg(liveStreamID.c_str());
     QByteArray url = urlStr.toUtf8();
 
-    Json requestData = Json::object{
+    Json requestData = Json{
         {"userID", userID},
     };
     std::string postData = requestData.dump();
@@ -538,8 +536,8 @@ bool OneSevenLiveApiWrappers::StartStream(const std::string &liveStreamID,
     if (!InsertCommand(url.constData(), "application/json", "PATCH", postData.c_str(),
                        json_out_resp)) {
         obs_log(LOG_ERROR, "StartStream error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -560,8 +558,8 @@ bool OneSevenLiveApiWrappers::EnableStreamArchive(const std::string &liveStreamI
     // null post data, explicitly set request type as POST
     if (!InsertCommand(url.constData(), "application/json", "POST", nullptr, json_out_resp)) {
         obs_log(LOG_ERROR, "EnableStreamArchive error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
     obs_log(LOG_INFO, "EnableStreamArchive success");
@@ -588,8 +586,8 @@ bool OneSevenLiveApiWrappers::StopStream(const std::string &liveStreamID,
     if (!InsertCommand(url.constData(), "application/json", "DELETE", postData.c_str(),
                        json_out_resp)) {
         obs_log(LOG_ERROR, "StopStream error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -628,13 +626,11 @@ bool OneSevenLiveApiWrappers::CreateCustomEvent(const OneSevenLiveCustomEvent &r
         obs_log(LOG_INFO, "custom event info %s", json_out.dump().c_str());
 
         // Check if errorCode field exists
-        const auto& items = json_out.object_items();
-        auto errorCodeIt = items.find("errorCode");
-        if (errorCodeIt != items.end()) {
+        if (json_out.contains("errorCode")) {
             obs_log(LOG_ERROR, "CreateCustomEvent error: %s", json_out.dump().c_str());
             // Pre-convert error strings to avoid repeated conversions
-            const std::string errorCodeStr = json_out["errorCode"].string_value();
-            const std::string errorMessageStr = json_out["errorMessage"].string_value();
+            const std::string errorCodeStr = json_out["errorCode"].get<std::string>();
+            const std::string errorMessageStr = json_out["errorMessage"].get<std::string>();
             setLastErrorMessage(QString::fromStdString(errorCodeStr) + " " +
                                QString::fromStdString(errorMessageStr));
             return false;
@@ -685,11 +681,11 @@ bool OneSevenLiveApiWrappers::ChangeCustomEventStatus(
 
     if (!InsertCommand(url, "application/json", "PATCH", patchData.c_str(), json_out)) {
         // Check if errorCode field exists
-        if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+        if (json_out.contains("errorCode")) {
             obs_log(LOG_ERROR, "ChangeCustomEventStatus error: %s", json_out.dump().c_str());
             // lastErrorMessage = errorCode + errorMessage
-            setLastErrorMessage(QString::fromStdString(json_out["errorCode"].string_value()) + " " +
-                               QString::fromStdString(json_out["errorMessage"].string_value()));
+            setLastErrorMessage(QString::fromStdString(json_out["errorCode"].get<std::string>()) + " " +
+                               QString::fromStdString(json_out["errorMessage"].get<std::string>()));
         }
         return false;
     }
@@ -710,8 +706,8 @@ bool OneSevenLiveApiWrappers::CheckStream(const std::string &liveStreamID) {
     Json json_out_resp;
     if (!InsertCommand(url.constData(), "application/json", "POST", nullptr, json_out_resp)) {
         obs_log(LOG_ERROR, "CheckStream error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -736,8 +732,8 @@ bool OneSevenLiveApiWrappers::GetConfigStreamer(const std::string region,
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
                        extraHeaders)) {
         obs_log(LOG_ERROR, "GetConfigStreamer error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -763,8 +759,8 @@ bool OneSevenLiveApiWrappers::GetRtmpByProvider(const std::string provider,
     Json json_out_resp;
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp)) {
         obs_log(LOG_ERROR, "GetRtmpByProvider error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -794,8 +790,8 @@ bool OneSevenLiveApiWrappers::GetArmySubscriptionLevels(
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
                        extraHeaders)) {
         obs_log(LOG_ERROR, "GetArmySubscriptionLevels error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -825,8 +821,8 @@ bool OneSevenLiveApiWrappers::GetConfig(const std::string region, const std::str
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
                        extraHeaders)) {
         obs_log(LOG_ERROR, "GetConfig error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -850,8 +846,8 @@ bool OneSevenLiveApiWrappers::GetUserInfo(const std::string userID, const std::s
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
                        extraHeaders)) {
         obs_log(LOG_ERROR, "GetUserInfo error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -874,8 +870,8 @@ bool OneSevenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json
 
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out, 0, true)) {
         obs_log(LOG_ERROR, "GetAblyToken error: %s", json_out.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -898,8 +894,8 @@ bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &roomID, const std::
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
                        extraHeaders)) {
         obs_log(LOG_ERROR, "GetConfigStreamer error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -918,12 +914,12 @@ bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_ou
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
                        extraHeaders)) {
         obs_log(LOG_ERROR, "GetConfigStreamer error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
-    obs_log(LOG_INFO, "GetGifts success %d", json_out_resp["gifts"].array_items().size());
+    obs_log(LOG_INFO, "GetGifts success %d", json_out_resp["gifts"].size());
 
     return true;
 }
@@ -938,8 +934,8 @@ bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &js
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0,
                        true)) {
         obs_log(LOG_ERROR, "GetRockViewers error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -991,8 +987,8 @@ bool OneSevenLiveApiWrappers::GetArmyName(const std::string &userID,
 
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp)) {
         obs_log(LOG_ERROR, "GetArmyName error: %s", json_out_resp.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out_resp["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -1030,8 +1026,8 @@ bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request,
 
     if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
         obs_log(LOG_ERROR, "PokeOne error: %s", json_out.dump().c_str());
-        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -1039,11 +1035,11 @@ bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request,
     // obs_log(LOG_INFO, "poke response: %s", json_out.dump().c_str());
 
     // Check if errorCode field exists
-    if (json_out.object_items().find("errorCode") != json_out.object_items().end()) {
+    if (json_out.contains("errorCode")) {
         obs_log(LOG_ERROR, "PokeOne error: %s", json_out.dump().c_str());
         // lastErrorMessage = errorCode + errorMessage
-        lastErrorMessage = QString::fromStdString(json_out["errorCode"].string_value()) + " " +
-                           QString::fromStdString(json_out["errorMessage"].string_value());
+        lastErrorMessage = QString::fromStdString(json_out["errorCode"].get<std::string>()) + " " +
+                           QString::fromStdString(json_out["errorMessage"].get<std::string>());
         return false;
     }
 
@@ -1081,8 +1077,8 @@ bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request,
     if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out)) {
         obs_log(LOG_ERROR, "PokeAll error: %s", json_out.dump().c_str());
         // Pre-convert error strings to avoid repeated conversions
-        const std::string errorCodeStr = json_out["errorCode"].string_value();
-        const std::string errorMessageStr = json_out["errorMessage"].string_value();
+        const std::string errorCodeStr = json_out["errorCode"].get<std::string>();
+        const std::string errorMessageStr = json_out["errorMessage"].get<std::string>();
         lastErrorMessage = QString::fromStdString(errorCodeStr) + " " +
                            QString::fromStdString(errorMessageStr);
         return false;
@@ -1091,14 +1087,12 @@ bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request,
     // obs_log(LOG_INFO, "PokeAll success");
     // obs_log(LOG_INFO, "poke all response: %s", json_out.dump().c_str());
 
-    // Check if errorCode field exists - cache object_items() call
-    const auto& items = json_out.object_items();
-    auto errorCodeIt = items.find("errorCode");
-    if (errorCodeIt != items.end()) {
+    // Check if errorCode field exists
+    if (json_out.contains("errorCode")) {
         obs_log(LOG_ERROR, "PokeAll error: %s", json_out.dump().c_str());
         // Pre-convert error strings to avoid repeated conversions
-        const std::string errorCodeStr = errorCodeIt->second.string_value();
-        const std::string errorMessageStr = json_out["errorMessage"].string_value();
+        const std::string errorCodeStr = json_out["errorCode"].get<std::string>();
+        const std::string errorMessageStr = json_out["errorMessage"].get<std::string>();
         lastErrorMessage = QString::fromStdString(errorCodeStr) + " " +
                            QString::fromStdString(errorMessageStr);
         return false;

@@ -1059,7 +1059,7 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         std::string language = GetCurrentLanguage();
 
         // Call API to get configuration
-        json11::Json configJson;
+        nlohmann::json configJson;
         if (apiWrapper->GetConfig(currentRegion, language, configJson)) {
             // Save configuration
             configManager->setConfig(configJson);

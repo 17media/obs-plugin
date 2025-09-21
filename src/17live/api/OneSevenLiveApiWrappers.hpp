@@ -5,7 +5,7 @@
 #include <mutex>
 
 #include "OneSevenLiveModels.hpp"
-#include "json11.hpp"
+#include <nlohmann/json.hpp>
 
 // for local http server proxy request
 /*
@@ -24,18 +24,18 @@
 
 #define MAX_CONSECUTIVE_FAILURES 10 // Maximum consecutive failure count
 
-using namespace json11;
+using Json = nlohmann::json;
 
 class OneSevenLiveApiWrappers : public QObject {
     Q_OBJECT
 
     bool TryInsertCommand(const char *url, const char *content_type, std::string request_type,
-                          const char *data, json11::Json &ret, long *error_code = nullptr,
+                          const char *data, Json &ret, long *error_code = nullptr,
                           int data_size = 0, bool token_required = true,
                           const std::vector<std::string> extraHeaders = {});
     bool UpdateAccessToken();
     bool InsertCommand(const char *url, const char *content_type, std::string request_type,
-                       const char *data, json11::Json &ret, int data_size = 0,
+                       const char *data, Json &ret, int data_size = 0,
                        bool token_required = true,
                        const std::vector<std::string> extraHeaders = {});
 

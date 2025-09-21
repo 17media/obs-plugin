@@ -5,9 +5,9 @@
 #include <QStringList>
 #include <QVariantMap>
 
-#include "json11.hpp"
+#include <nlohmann/json.hpp>
 
-using namespace json11;
+using Json = nlohmann::json;
 
 // Clip permission item structure
 struct OneSevenLiveMetaValueLabel {
