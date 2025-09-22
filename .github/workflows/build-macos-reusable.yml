@@ -55,11 +55,38 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'web/ably_chat/package-lock.json'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            web/ably_chat/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Check npm cache status
+        run: |
+          echo "Cache hit: ${{ steps.npm-cache.outputs.cache-hit }}"
+          if [ "${{ steps.npm-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "✅ npm dependencies restored from cache"
+          else
+            echo "❌ npm cache miss, will install dependencies"
+          fi
 
       - name: Install and Build Web
         working-directory: web/ably_chat
         run: |
-          npm install
+          if [ "${{ steps.npm-cache.outputs.cache-hit }}" != "true" ]; then
+            echo "Installing npm dependencies..."
+            npm install
+          else
+            echo "Skipping npm install (dependencies restored from cache)"
+          fi
           npm run build
 
       - name: Set ENV and Version
