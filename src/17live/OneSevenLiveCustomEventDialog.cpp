@@ -41,14 +41,14 @@
 #include "utility/Common.hpp"
 #include "utility/RemoteTextThread.hpp"
 
-// 静态辅助函数：为中文等无空格文本插入零宽空格，便于 WrapAnywhere 的断行
+// Static helper: insert zero-width spaces into CJK or other no-space text to enable line breaks with WrapAnywhere
 static QString insertZeroWidthSpaces(const QString& s) {
     QString out;
     out.reserve(s.size() * 2);
     for (int i = 0; i < s.size(); ++i) {
         const QChar ch = s.at(i);
         out.append(ch);
-        // 避免在空白字符后插入零宽空格，且不在最后一个字符后插入
+        // Avoid inserting zero-width spaces after whitespace, and do not insert after the last character
         if (i < s.size() - 1 && !ch.isSpace()) {
             out.append(QChar(0x200B)); // ZERO WIDTH SPACE
         }
@@ -56,7 +56,7 @@ static QString insertZeroWidthSpaces(const QString& s) {
     return out;
 }
 
-// 静态辅助函数：将文本限制为最多两行（换行一次），超出部分在第二行右侧以省略号显示
+// Static helper: limit text to at most two lines (single wrap); overflow is elided at the end of the second line
 static QString elideTextToTwoLines(const QString& text, const QFont& font, int widthPx) {
     if (text.isEmpty() || widthPx <= 0)
         return text;
@@ -68,8 +68,8 @@ static QString elideTextToTwoLines(const QString& text, const QFont& font, int w
     layout.setTextOption(opt);
 
     layout.beginLayout();
-    int firstEnd = 0;      // 第一行结束的字符下标（开头到结束的长度）
-    int secondStart = 0;   // 第二行的开始下标
+    int firstEnd = 0;      // End index of the first line (length from start to end)
+    int secondStart = 0;   // Start index of the second line
     int processedChars = 0;
     int linesCount = 0;
     qreal y = 0.0;
@@ -94,18 +94,18 @@ static QString elideTextToTwoLines(const QString& text, const QFont& font, int w
 
         processedChars = start + len;
         if (linesCount >= 3) {
-            // 已经产生第三行，说明需要在第二行做省略
+            // A third line has been produced; we need to elide within the second line
             break;
         }
     }
     layout.endLayout();
 
-    // 文本整体不超过两行，直接返回原文本
+    // If the text overall does not exceed two lines, return the original text
     if (linesCount <= 2 && processedChars >= text.size()) {
         return text;
     }
 
-    // 组装：第一行原样，第二行做右侧省略
+    // Assemble: keep the first line as-is, elide the second line on the right
     QFontMetrics fm(font);
     const QString firstLine = text.left(firstEnd);
     const QString secondContent = text.mid(secondStart);
@@ -245,7 +245,7 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
         QTextCharFormat disabledFormat;
         disabledFormat.setForeground(Qt::gray);
         for (QDate date = minDate; date < today; date = date.addDays(1)) {
-            calendar->setDateTextFormat(date, disabledFormat);
+                    calendar->setDateTextFormat(date, disabledFormat);
         }
         for (QDate date = lastDate; date > maxDate; date = date.addDays(-1)) {
             calendar->setDateTextFormat(date, disabledFormat);
