@@ -95,8 +95,8 @@ jobs:
               local version2=$2
               
               # Split versions into arrays
-              IFS='.' read -ra V1 <<< "$version1"
-              IFS='.' read -ra V2 <<< "$version2"
+              IFS='.' read -ra V1 \<<< "$version1"
+              IFS='.' read -ra V2 \<<< "$version2"
               
               # Compare major, minor, patch
               for i in 0 1 2; do
