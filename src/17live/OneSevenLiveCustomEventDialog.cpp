@@ -34,12 +34,14 @@
 #include <QTextEdit>
 #include <QAbstractTextDocumentLayout>
 #include <QTextFrame>
+#include <QCalendarWidget>
 
 // Project includes
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "utility/Common.hpp"
 #include "utility/RemoteTextThread.hpp"
+#include "utility/CustomCalendarWidget.hpp"
 
 // Static helper: insert zero-width spaces into CJK or other no-space text to enable line breaks with WrapAnywhere
 static QString insertZeroWidthSpaces(const QString& s) {
@@ -232,14 +234,21 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     dateEdit->setDisplayFormat("yyyy/MM/dd");
     dateEdit->setCalendarPopup(true);
 
-    // Get the calendar widget and configure it to disable dates beyond max range
-    calendar = dateEdit->calendarWidget();
-    if (calendar) {
-        calendar->setMinimumDate(today);
-        calendar->setMaximumDate(maxDate);
-        calendar->setSelectedDate(today);
-        calendar->setGridVisible(true);
+    CustomCalendarWidget* calendar = new CustomCalendarWidget(today, maxDate, dateEdit);
+    dateEdit->setCalendarWidget(calendar);
+    obs_log(LOG_INFO, "Custom calendar set: %s", calendar->metaObject()->className());
+    QCalendarWidget* actualCalendar = dateEdit->calendarWidget();
+    obs_log(LOG_INFO, "DateEdit now uses calendar: %s", actualCalendar->metaObject()->className());
 
+    // Get the calendar widget and configure it to disable dates beyond max range
+    // calendar = dateEdit->calendarWidget();
+    // if (calendar) {
+    //     calendar->setMinimumDate(today);
+    //     calendar->setMaximumDate(maxDate);
+    //     calendar->setSelectedDate(today);
+        // calendar->setGridVisible(true);
+
+        /*
         QDate minDate = today.addMonths(-1);
         QDate lastDate = maxDate.addMonths(1);
         QTextCharFormat disabledFormat;
@@ -250,7 +259,8 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
         for (QDate date = lastDate; date > maxDate; date = date.addDays(-1)) {
             calendar->setDateTextFormat(date, disabledFormat);
         }
-    }
+        */
+    // }
 
     // Create form layout for date section
     QFormLayout* dateFormLayout = new QFormLayout();

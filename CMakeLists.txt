@@ -112,6 +112,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
   src/17live/utility/Meta.cpp
   src/17live/utility/DownloadWorker.cpp
   src/17live/utility/NetworkDiagnostics.cpp
+  src/17live/utility/CustomCalendarWidget.cpp
   src/17live/api/OneSevenLiveApiWrappers.cpp
   src/17live/CefDummy.cpp
   src/17live/QCefView.cpp
