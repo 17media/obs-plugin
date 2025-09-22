@@ -56,38 +56,37 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'web/ably_chat/package-lock.json'
       
-      # - name: Install Dependencies
-      #   shell: pwsh
-      #   run: |
-      #     # Install CMake (version 3.28 or higher)
-      #     choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-          
-      #     # Install NSIS for creating Windows installer
-      #     choco install nsis -y
-          
-      #     # Verify CMake version
-      #     refreshenv
-      #     $cmakeVersion = (cmake --version | Select-String -Pattern "cmake version" | ForEach-Object { $_.ToString().Split(' ')[2] })
-      #     Write-Host "Installed CMake version: $cmakeVersion"
-      #     $versionParts = $cmakeVersion.Split('.')
-      #     $major = [int]$versionParts[0]
-      #     $minor = [int]$versionParts[1]
-      #     if ($major -lt 3 -or ($major -eq 3 -and $minor -lt 28)) {
-      #       Write-Error "Error: CMake version must be 3.28 or higher"
-      #       exit 1
-      #     }
-          
-      #     # Install Visual Studio Build Tools 2022
-      #     choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
-          
-      #     # Refresh environment
-      #     refreshenv
-      
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            web/ably_chat/node_modules
+            ~\AppData\Roaming\npm-cache
+          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Check npm cache status
+        shell: pwsh
+        run: |
+          Write-Host "Cache hit: ${{ steps.npm-cache.outputs.cache-hit }}"
+          if ("${{ steps.npm-cache.outputs.cache-hit }}" -eq "true") {
+            Write-Host "✅ npm dependencies restored from cache"
+          } else {
+            Write-Host "❌ npm cache miss, will install dependencies"
+          }
+
       - name: Install and Build Web Components
         shell: pwsh
         run: |
           cd web/ably_chat
-          npm install
+          if ("${{ steps.npm-cache.outputs.cache-hit }}" -ne "true") {
+            Write-Host "Installing npm dependencies..."
+            npm install
+          } else {
+            Write-Host "Skipping npm install (dependencies restored from cache)"
+          }
           npm run build
       
       - name: Set ENV and Version
@@ -105,6 +104,36 @@ jobs:
             echo "PKG_SUFFIX=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           } else {
             echo "PKG_SUFFIX=-stage" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: .deps
+          key: windows-deps-${{ hashFiles('buildspec.json') }}-x64
+          restore-keys: |
+            windows-deps-${{ hashFiles('buildspec.json') }}-
+            windows-deps-
+
+      - name: Check Cache Status
+        shell: pwsh
+        run: |
+          echo "Cache hit: ${{ steps.cache-deps.outputs.cache-hit }}"
+          echo "Cache key: windows-deps-${{ hashFiles('buildspec.json') }}-x64"
+          if (Test-Path ".deps") {
+            echo "Dependencies directory exists"
+            $size = (Get-ChildItem -Path ".deps" -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+            if ($size) {
+              $sizeInMB = [math]::Round($size / 1MB, 2)
+              echo "Dependencies directory size: $sizeInMB MB"
+            } else {
+              echo "Dependencies directory size: Unable to calculate"
+            }
+            echo "Dependencies contents:"
+            Get-ChildItem -Path ".deps" -ErrorAction SilentlyContinue | Format-Table -AutoSize
+          } else {
+            echo "Dependencies directory does not exist"
           }
       
       - name: CMake Configure
