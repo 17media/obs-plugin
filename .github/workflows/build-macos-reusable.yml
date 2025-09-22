@@ -78,6 +78,29 @@ jobs:
             echo "PKG_SUFFIX=-stage" >> $GITHUB_ENV
           fi
 
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: .deps
+          key: macos-deps-${{ hashFiles('buildspec.json') }}-${{ inputs.cmake_arch }}
+          restore-keys: |
+            macos-deps-${{ hashFiles('buildspec.json') }}-
+            macos-deps-
+
+      - name: Check Cache Status
+        run: |
+          echo "Cache hit: ${{ steps.cache-deps.outputs.cache-hit }}"
+          echo "Cache key: macos-deps-${{ hashFiles('buildspec.json') }}-${{ inputs.cmake_arch }}"
+          if [ -d ".deps" ]; then
+            echo "Dependencies directory exists"
+            echo "Dependencies directory size: $(du -sh .deps 2>/dev/null || echo 'Unable to calculate')"
+            echo "Dependencies contents:"
+            ls -la .deps/ 2>/dev/null || echo "No contents or unable to list"
+          else
+            echo "Dependencies directory does not exist"
+          fi
+
       - name: CMake Configure
         run: |
           CMAKE_ARGS="-DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
