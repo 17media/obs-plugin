@@ -61,18 +61,7 @@ jobs:
             # Save environment variables for subsequent steps
             echo "export BUILD_ENV=\"$BUILD_ENV\"" >> $BASH_ENV
             echo "export ONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\"" >> $BASH_ENV
-            
-            echo "Environment set to: $BUILD_ENV"
-            echo "API URL set to: $ONESEVENLIVE_API_URL"
-      
-      # Debug environment variables
-      - run:
-          name: Debug Environment Variables
-          command: |
-            echo "Current environment: $BUILD_ENV"
-            echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
-            echo "VERSION: $VERSION"
-            echo "Architecture: << parameters.arch_name >>"
+
       
       # Install dependencies
       - run:
@@ -150,43 +139,27 @@ jobs:
       - run:
           name: Set Environment and Version
           command: |
-            # Debug initial state
-            echo "DEBUG: Initial CIRCLE_TAG=$CIRCLE_TAG"
-            echo "DEBUG: Initial VERSION=$VERSION"
-            echo "DEBUG: Initial BUILD_ENV=$BUILD_ENV"
-            
             # Extract version from tag or use default
             if [ -n "$CIRCLE_TAG" ]; then
               version=$(echo "$CIRCLE_TAG" | sed 's/^v//')
-              echo "DEBUG: Using version from tag: $version"
             else
               version=${VERSION:-0.0.0}
-              echo "DEBUG: Using default/pipeline version: $version"
             fi
             
             # Remove -stage suffix from version number if present
             version_number=$(echo "$version" | sed 's/-stage$//')
-            echo "DEBUG: Version number after removing -stage: $version_number"
             
             # Set package name suffix
             if [ "$BUILD_ENV" = "production" ]; then
               pkg_suffix=""
-              echo "DEBUG: Production environment, pkg_suffix is empty"
             else
               pkg_suffix="-stage"
-              echo "DEBUG: Non-production environment, pkg_suffix=-stage"
             fi
             
             # Save environment variables for subsequent steps
             echo "export VERSION=\"$version_number\"" >> $BASH_ENV
             echo "export PKG_SUFFIX=\"$pkg_suffix\"" >> $BASH_ENV
             
-            echo "Set VERSION to: $version_number"
-            echo "Set PKG_SUFFIX to: $pkg_suffix"
-            
-            # Verify the variables are set
-            echo "DEBUG: Verifying BASH_ENV contents:"
-            cat $BASH_ENV
       
       # Configure CMake
       - run:
@@ -199,7 +172,6 @@ jobs:
               CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=\"<< parameters.cmake_arch >>\""
             fi
             
-            echo "Running: cmake --preset macos $CMAKE_ARGS"
             eval "cmake --preset macos $CMAKE_ARGS"
       
       # Build the project
@@ -232,11 +204,6 @@ jobs:
       - run:
           name: Create and Sign PKG
           command: |
-            # Debug environment variables
-            echo "DEBUG: VERSION=$VERSION"
-            echo "DEBUG: PKG_SUFFIX=$PKG_SUFFIX"
-            echo "DEBUG: BUILD_ENV=$BUILD_ENV"
-            
             # Ensure PKG_SUFFIX is set correctly
             if [ -z "$PKG_SUFFIX" ]; then
               if [ "$BUILD_ENV" = "production" ]; then
@@ -244,11 +211,9 @@ jobs:
               else
                 PKG_SUFFIX="-stage"
               fi
-              echo "PKG_SUFFIX was empty, set to: '$PKG_SUFFIX'"
             fi
             
             PKG_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
-            echo "Generated PKG_NAME: $PKG_NAME"
             
             pkgbuild --root build_macos/Release \
                      --identifier com.17live.obsplugin \
@@ -259,12 +224,8 @@ jobs:
             
             # Sign the package if certificate is available
             if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
-              echo "Signing package..."
               productsign --sign "Developer ID Installer" "$PKG_NAME" "${PKG_NAME}.signed"
               mv "${PKG_NAME}.signed" "$PKG_NAME"
-              echo "Package signed successfully"
-            else
-              echo "No signing certificate provided, package will be unsigned"
             fi
             
             echo "PKG_NAME=$PKG_NAME" >> $BASH_ENV
@@ -273,15 +234,10 @@ jobs:
       - run:
           name: Prepare Package for Artifact Storage
           command: |
-            echo "Generated package: $PKG_NAME"
-            ls -la "$PKG_NAME"
             ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
             mkdir -p artifacts
             TARGET_PATH="artifacts/$ARTIFACT_NAME"
             cp "$PKG_NAME" "$TARGET_PATH"
-            echo "Copied $PKG_NAME to $TARGET_PATH"
-            echo "Contents of artifacts directory:"
-            ls -la artifacts
       - store_artifacts:
           path: artifacts
           destination: packages
@@ -338,13 +294,6 @@ jobs:
             Write-Host "Environment set to: $env:BUILD_ENV"
             Write-Host "API URL set to: $env:ONESEVENLIVE_API_URL"
       
-      # Debug environment variables
-      - run:
-          name: Debug Environment Variables
-          command: |
-            Write-Host "Current environment: $env:BUILD_ENV"
-            Write-Host "ONESEVENLIVE_API_URL: $env:ONESEVENLIVE_API_URL"
-            Write-Host "VERSION: $env:VERSION"
       
       # Install dependencies
       - run:
@@ -392,7 +341,6 @@ jobs:
             
             # Get CMake version with improved parsing
             $cmakeOutput = cmake --version | Select-Object -First 1
-            Write-Host "CMake version output: $cmakeOutput"
             
             # Extract version number using regex (more robust than string splitting)
             if ($cmakeOutput -match 'cmake version (\d+\.\d+\.\d+)') {
@@ -402,15 +350,9 @@ jobs:
                 exit 1
             }
             
-            Write-Host "Parsed CMake version: $cmakeVersion"
-            
             # Check if version is 3.28.0 or higher
             $compareResult = Compare-Version -Version1 $cmakeVersion -Version2 "3.28.0"
             if ($compareResult -lt 0) {
-                Write-Host "Current CMake version $cmakeVersion is less than 3.28.0"
-                Write-Host "Attempting to install a newer version..."
-                
-                # Try to install a specific version or upgrade
                 try {
                     choco upgrade cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
                     refreshenv
@@ -419,7 +361,6 @@ jobs:
                     $cmakeOutput = cmake --version | Select-Object -First 1
                     if ($cmakeOutput -match 'cmake version (\d+\.\d+\.\d+)') {
                         $cmakeVersion = $matches[1]
-                        Write-Host "Updated CMake version: $cmakeVersion"
                         
                         $compareResult = Compare-Version -Version1 $cmakeVersion -Version2 "3.28.0"
                         if ($compareResult -lt 0) {
@@ -550,44 +491,21 @@ jobs:
           name: Sign Installer
           command: |
             if ($env:WINDOWS_CERTIFICATE_BASE64 -and $env:WINDOWS_CERTIFICATE_PASSWORD) {
-              Write-Host "Signing installer..."
               $installerName = $env:INSTALLER_NAME
-              
-              if (-not $installerName -or -not (Test-Path $installerName)) {
-                Write-Host "Installer file not found: $installerName, skipping signing..."
-                return
-              }
-              
-              # Use signtool to sign the installer
+              if (-not $installerName -or -not (Test-Path $installerName)) { return }
               $timestampUrl = if ($env:WINDOWS_TIMESTAMP_URL) { $env:WINDOWS_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
-              
               & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /tr $timestampUrl /td SHA256 /a $installerName
-              
-              if ($LASTEXITCODE -eq 0) {
-                Write-Host "Installer signed successfully"
-              } else {
-                Write-Host "Failed to sign installer, but continuing..."
-              }
-            } else {
-              Write-Host "No signing certificate provided, installer will be unsigned"
             }
       
       # Store artifacts
       - run:
           name: Prepare Installer for Artifact Storage
           command: |
-            Write-Host "Generated installer: $env:INSTALLER_NAME"
             if ($env:INSTALLER_NAME -and (Test-Path $env:INSTALLER_NAME)) {
-              Get-ChildItem $env:INSTALLER_NAME
               $expectedName = "17liveOBSPlugin-windows-v$env:VERSION$env:PKG_SUFFIX.exe"
               New-Item -ItemType Directory -Path artifacts -Force | Out-Null
               $artifactPath = Join-Path "artifacts" $expectedName
               Copy-Item $env:INSTALLER_NAME $artifactPath -Force
-              Write-Host "Copied $env:INSTALLER_NAME to $artifactPath"
-              Write-Host "Artifacts directory contents:"
-              Get-ChildItem artifacts
-            } else {
-              Write-Host "No installer found to store as artifact"
             }
       - store_artifacts:
           path: artifacts
