@@ -160,7 +160,7 @@ jobs:
             version_number=$(echo "$version" | sed 's/-stage$//')
             
             # Set package name suffix
-            if [ "$BUILD_ENV" == "production" ]; then
+            if [ "$BUILD_ENV" = "production" ]; then
               pkg_suffix=""
             else
               pkg_suffix="-stage"
@@ -239,6 +239,18 @@ jobs:
             echo "PKG_NAME=$PKG_NAME" >> $BASH_ENV
       
       # Store artifacts
+      - run:
+          name: Prepare Package for Artifact Storage
+          command: |
+            echo "Generated package: $PKG_NAME"
+            ls -la "$PKG_NAME"
+            # Copy to a name that matches the wildcard pattern for artifact storage
+            ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
+            if [ "$PKG_NAME" != "$ARTIFACT_NAME" ]; then
+              cp "$PKG_NAME" "$ARTIFACT_NAME"
+              echo "Copied $PKG_NAME to $ARTIFACT_NAME"
+            fi
+            ls -la 17liveOBSPlugin-<< parameters.arch_name >>-v*.pkg
       - store_artifacts:
           path: 17liveOBSPlugin-<< parameters.arch_name >>-v*.pkg
           destination: packages
@@ -267,7 +279,7 @@ jobs:
             if ($env:CIRCLE_TAG) {
               if ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+$') {
                 # Production tag (e.g., v1.0.0)
-                $env:BUILD_ENV = "prod"
+                $env:BUILD_ENV = "production"
                 $env:ONESEVENLIVE_API_URL = $env:PROD_ONESEVENLIVE_API_URL
               } elseif ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+-stage$') {
                 # Stage tag (e.g., v1.0.0-stage)
@@ -530,6 +542,22 @@ jobs:
             }
       
       # Store artifacts
+      - run:
+          name: Prepare Installer for Artifact Storage
+          command: |
+            Write-Host "Generated installer: $env:INSTALLER_NAME"
+            if ($env:INSTALLER_NAME -and (Test-Path $env:INSTALLER_NAME)) {
+              Get-ChildItem $env:INSTALLER_NAME
+              # Ensure the file matches the expected pattern
+              $expectedName = "17liveOBSPlugin-windows-v$env:VERSION$env:PKG_SUFFIX.exe"
+              if ($env:INSTALLER_NAME -ne $expectedName) {
+                Copy-Item $env:INSTALLER_NAME $expectedName
+                Write-Host "Copied $env:INSTALLER_NAME to $expectedName"
+              }
+              Get-ChildItem "17liveOBSPlugin-windows-v*.exe"
+            } else {
+              Write-Host "No installer found to store as artifact"
+            }
       - store_artifacts:
           path: 17liveOBSPlugin-windows-v*.exe
           destination: packages
