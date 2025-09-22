@@ -235,33 +235,12 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     dateEdit->setCalendarPopup(true);
 
     CustomCalendarWidget* calendar = new CustomCalendarWidget(today, maxDate, dateEdit);
+    calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+    calendar->setSelectionMode(QCalendarWidget::SingleSelection);
+    calendar->setGridVisible(true);
+    calendar->setSelectedDate(today);
     dateEdit->setCalendarWidget(calendar);
-    obs_log(LOG_INFO, "Custom calendar set: %s", calendar->metaObject()->className());
-    QCalendarWidget* actualCalendar = dateEdit->calendarWidget();
-    obs_log(LOG_INFO, "DateEdit now uses calendar: %s", actualCalendar->metaObject()->className());
-
-    // Get the calendar widget and configure it to disable dates beyond max range
-    // calendar = dateEdit->calendarWidget();
-    // if (calendar) {
-    //     calendar->setMinimumDate(today);
-    //     calendar->setMaximumDate(maxDate);
-    //     calendar->setSelectedDate(today);
-        // calendar->setGridVisible(true);
-
-        /*
-        QDate minDate = today.addMonths(-1);
-        QDate lastDate = maxDate.addMonths(1);
-        QTextCharFormat disabledFormat;
-        disabledFormat.setForeground(Qt::gray);
-        for (QDate date = minDate; date < today; date = date.addDays(1)) {
-                    calendar->setDateTextFormat(date, disabledFormat);
-        }
-        for (QDate date = lastDate; date > maxDate; date = date.addDays(-1)) {
-            calendar->setDateTextFormat(date, disabledFormat);
-        }
-        */
-    // }
-
+    
     // Create form layout for date section
     QFormLayout* dateFormLayout = new QFormLayout();
     dateFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
