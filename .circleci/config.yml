@@ -579,25 +579,25 @@ jobs:
             Write-Host "Generated installer: $env:INSTALLER_NAME"
             if ($env:INSTALLER_NAME -and (Test-Path $env:INSTALLER_NAME)) {
               Get-ChildItem $env:INSTALLER_NAME
-              # Ensure the file matches the expected pattern
               $expectedName = "17liveOBSPlugin-windows-v$env:VERSION$env:PKG_SUFFIX.exe"
-              if ($env:INSTALLER_NAME -ne $expectedName) {
-                Copy-Item $env:INSTALLER_NAME $expectedName
-                Write-Host "Copied $env:INSTALLER_NAME to $expectedName"
-              }
-              Get-ChildItem "17liveOBSPlugin-windows-v*.exe"
+              New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+              $artifactPath = Join-Path "artifacts" $expectedName
+              Copy-Item $env:INSTALLER_NAME $artifactPath -Force
+              Write-Host "Copied $env:INSTALLER_NAME to $artifactPath"
+              Write-Host "Artifacts directory contents:"
+              Get-ChildItem artifacts
             } else {
               Write-Host "No installer found to store as artifact"
             }
       - store_artifacts:
-          path: 17liveOBSPlugin-windows-v*.exe
+          path: artifacts
           destination: packages
       
       # Persist installer for potential deployment
       - persist_to_workspace:
           root: .
           paths:
-            - "17liveOBSPlugin-windows-v*.exe"
+            - "artifacts"
 
 workflows:
   version: 2
