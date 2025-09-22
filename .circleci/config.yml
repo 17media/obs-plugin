@@ -275,22 +275,22 @@ jobs:
           command: |
             echo "Generated package: $PKG_NAME"
             ls -la "$PKG_NAME"
-            # Copy to a name that matches the wildcard pattern for artifact storage
             ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
-            if [ "$PKG_NAME" != "$ARTIFACT_NAME" ]; then
-              cp "$PKG_NAME" "$ARTIFACT_NAME"
-              echo "Copied $PKG_NAME to $ARTIFACT_NAME"
-            fi
-            ls -la 17liveOBSPlugin-<< parameters.arch_name >>-v*.pkg
+            mkdir -p artifacts
+            TARGET_PATH="artifacts/$ARTIFACT_NAME"
+            cp "$PKG_NAME" "$TARGET_PATH"
+            echo "Copied $PKG_NAME to $TARGET_PATH"
+            echo "Contents of artifacts directory:"
+            ls -la artifacts
       - store_artifacts:
-          path: 17liveOBSPlugin-<< parameters.arch_name >>-v*.pkg
+          path: artifacts
           destination: packages
       
       # Persist package for potential deployment
       - persist_to_workspace:
           root: .
           paths:
-            - "17liveOBSPlugin-<< parameters.arch_name >>-v*.pkg"
+            - "artifacts"
 
   # Windows x64 build job
   build-windows-x64:
