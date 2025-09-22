@@ -1101,12 +1101,12 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         return;
     }
 
-    if (request.subtabID.isEmpty()) {
-        // Show dialog to prompt user to select category
-        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                             obs_module_text("Live.Settings.Save.Category.Empty"));
-        return;
-    }
+    // if (request.subtabID.isEmpty()) {
+    //     // Show dialog to prompt user to select category
+    //     QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+    //                          obs_module_text("Live.Settings.Save.Category.Empty"));
+    //     return;
+    // }
 
     // Add current userID and streamerType to request
     request.userID = roomInfo.userID;
