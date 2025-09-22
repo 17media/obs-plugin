@@ -27,6 +27,13 @@
 #include <QThread>
 #include <QToolTip>
 #include <QVBoxLayout>
+#include <QFontMetrics>
+#include <QTextLayout>
+#include <QTextOption>
+#include <QVector>
+#include <QTextEdit>
+#include <QAbstractTextDocumentLayout>
+#include <QTextFrame>
 
 // Project includes
 #include "OneSevenLiveConfigManager.hpp"
@@ -34,20 +41,76 @@
 #include "utility/Common.hpp"
 #include "utility/RemoteTextThread.hpp"
 
-static QString insertZeroWidthSpaces(const QString& s, int maxChunk = 10) {
+// 静态辅助函数：为中文等无空格文本插入零宽空格，便于 WrapAnywhere 的断行
+static QString insertZeroWidthSpaces(const QString& s) {
     QString out;
-    int count = 0;
-    for (QChar ch : s) {
+    out.reserve(s.size() * 2);
+    for (int i = 0; i < s.size(); ++i) {
+        const QChar ch = s.at(i);
         out.append(ch);
-        ++count;
-        if (count >= maxChunk) {
-            out.append(QChar(0x200B));  // zero-width space
-            count = 0;
+        // 避免在空白字符后插入零宽空格，且不在最后一个字符后插入
+        if (i < s.size() - 1 && !ch.isSpace()) {
+            out.append(QChar(0x200B)); // ZERO WIDTH SPACE
         }
-        if (ch.isSpace())
-            count = 0;
     }
     return out;
+}
+
+// 静态辅助函数：将文本限制为最多两行（换行一次），超出部分在第二行右侧以省略号显示
+static QString elideTextToTwoLines(const QString& text, const QFont& font, int widthPx) {
+    if (text.isEmpty() || widthPx <= 0)
+        return text;
+
+    QTextOption opt;
+    opt.setWrapMode(QTextOption::WrapAnywhere);
+
+    QTextLayout layout(text, font);
+    layout.setTextOption(opt);
+
+    layout.beginLayout();
+    int firstEnd = 0;      // 第一行结束的字符下标（开头到结束的长度）
+    int secondStart = 0;   // 第二行的开始下标
+    int processedChars = 0;
+    int linesCount = 0;
+    qreal y = 0.0;
+
+    while (true) {
+        QTextLine line = layout.createLine();
+        if (!line.isValid())
+            break;
+        line.setLineWidth(widthPx);
+        line.setPosition(QPointF(0, y));
+        y += line.height();
+
+        ++linesCount;
+        const int start = line.textStart();
+        const int len = line.textLength();
+
+        if (linesCount == 1) {
+            firstEnd = start + len;
+        } else if (linesCount == 2) {
+            secondStart = start;
+        }
+
+        processedChars = start + len;
+        if (linesCount >= 3) {
+            // 已经产生第三行，说明需要在第二行做省略
+            break;
+        }
+    }
+    layout.endLayout();
+
+    // 文本整体不超过两行，直接返回原文本
+    if (linesCount <= 2 && processedChars >= text.size()) {
+        return text;
+    }
+
+    // 组装：第一行原样，第二行做右侧省略
+    QFontMetrics fm(font);
+    const QString firstLine = text.left(firstEnd);
+    const QString secondContent = text.mid(secondStart);
+    const QString secondElided = fm.elidedText(secondContent, Qt::ElideRight, widthPx);
+    return firstLine + QStringLiteral("\n") + secondElided;
 }
 
 OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(
@@ -967,7 +1030,7 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         // Create vertical layout
         QVBoxLayout* layout = new QVBoxLayout(giftWidget);
         layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(1);
+        layout->setSpacing(2);
 
         // Create image label
         QLabel* imageLabel = new QLabel();
@@ -1013,25 +1076,52 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             thread->start();
         }
 
-        // Create name label
-        QLabel* nameLabel = new QLabel(insertZeroWidthSpaces(gift.name));
-        nameLabel->setAlignment(Qt::AlignCenter);
-        nameLabel->setStyleSheet("color: white; font-size: 13px;");
-        nameLabel->setMaximumWidth(80);
-        nameLabel->setWordWrap(true);
+        // Create name edit
+        QTextEdit* nameEdit = new QTextEdit(giftWidget);
+        nameEdit->setReadOnly(true);
+        nameEdit->setFrameStyle(QFrame::NoFrame);
+        nameEdit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        nameEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        nameEdit->setStyleSheet("color: white; font-size: 12px; background: transparent; padding: 2px 0 0 0; margin: 0; border: none;");
+        nameEdit->setContentsMargins(0, 0, 0, 0);
+        nameEdit->setFixedWidth(80);
+        // Height will be set dynamically below based on document height
+        {
+            QTextOption opt;
+            opt.setWrapMode(QTextOption::WrapAnywhere);
+            opt.setAlignment(Qt::AlignCenter);
+            nameEdit->document()->setDefaultTextOption(opt);
+            nameEdit->document()->setDocumentMargin(0);
+            nameEdit->setWordWrapMode(QTextOption::WrapAnywhere);
+            nameEdit->setAcceptRichText(false);
+            const QString processedName = insertZeroWidthSpaces(gift.name);
+            const QString clamped = elideTextToTwoLines(processedName, nameEdit->font(), 80);
+            nameEdit->setText(clamped);
+            // Constrain document width to widget width and compute doc height
+            nameEdit->document()->setTextWidth(80);
+            // Compute dynamic height from document layout (max two lines from elide), then add 5px
+            qreal docHeight = nameEdit->document()->documentLayout()->documentSize().height();
+            int lineH = QFontMetrics(nameEdit->font()).lineSpacing();
+            int minH = lineH;            // at least 1 line
+            int maxH = lineH * 2;        // at most 2 lines
+            int h = qRound(docHeight);
+            if (h < minH) h = minH;
+            if (h > maxH) h = maxH;
+            nameEdit->setFixedHeight(h + 5);
+         }
 
         // Create price label
         QLabel* pointLabel = new QLabel(QString::number(gift.point));
         pointLabel->setAlignment(Qt::AlignCenter);
-        pointLabel->setStyleSheet("color: white; font-size: 13px;");
+        pointLabel->setStyleSheet("color: white; font-size: 12px;");
         pointLabel->setMaximumWidth(80);
         pointLabel->setWordWrap(true);
+        pointLabel->setFixedHeight(20);
 
         // Add to layout
         layout->addWidget(imageLabel);
-        layout->addWidget(nameLabel);
+        layout->addWidget(nameEdit);
         layout->addWidget(pointLabel);
-        layout->addStretch();
 
         // Create a transparent button covering the entire widget to handle click events
         QPushButton* giftButton = new QPushButton(giftWidget);
