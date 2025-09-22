@@ -26,7 +26,7 @@ jobs:
     uses: ./.github/workflows/build-macos-reusable.yml
     with:
       arch_name: "macIntel"
-      cmake_arch: "-DCMAKE_OSX_ARCHITECTURES=\"x86_64\""
+      cmake_arch: "x86_64"
       artifact_name: "macOS-Intel-PKG"
       use_sudo: false
       environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
