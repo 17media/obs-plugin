@@ -30,6 +30,7 @@ jobs:
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
+      VERSION: << pipeline.parameters.version >>
     steps:
       - checkout
       
@@ -149,21 +150,31 @@ jobs:
       - run:
           name: Set Environment and Version
           command: |
+            # Debug initial state
+            echo "DEBUG: Initial CIRCLE_TAG=$CIRCLE_TAG"
+            echo "DEBUG: Initial VERSION=$VERSION"
+            echo "DEBUG: Initial BUILD_ENV=$BUILD_ENV"
+            
             # Extract version from tag or use default
             if [ -n "$CIRCLE_TAG" ]; then
               version=$(echo "$CIRCLE_TAG" | sed 's/^v//')
+              echo "DEBUG: Using version from tag: $version"
             else
               version=${VERSION:-0.0.0}
+              echo "DEBUG: Using default/pipeline version: $version"
             fi
             
             # Remove -stage suffix from version number if present
             version_number=$(echo "$version" | sed 's/-stage$//')
+            echo "DEBUG: Version number after removing -stage: $version_number"
             
             # Set package name suffix
             if [ "$BUILD_ENV" = "production" ]; then
               pkg_suffix=""
+              echo "DEBUG: Production environment, pkg_suffix is empty"
             else
               pkg_suffix="-stage"
+              echo "DEBUG: Non-production environment, pkg_suffix=-stage"
             fi
             
             # Save environment variables for subsequent steps
@@ -172,6 +183,10 @@ jobs:
             
             echo "Set VERSION to: $version_number"
             echo "Set PKG_SUFFIX to: $pkg_suffix"
+            
+            # Verify the variables are set
+            echo "DEBUG: Verifying BASH_ENV contents:"
+            cat $BASH_ENV
       
       # Configure CMake
       - run:
@@ -217,7 +232,23 @@ jobs:
       - run:
           name: Create and Sign PKG
           command: |
+            # Debug environment variables
+            echo "DEBUG: VERSION=$VERSION"
+            echo "DEBUG: PKG_SUFFIX=$PKG_SUFFIX"
+            echo "DEBUG: BUILD_ENV=$BUILD_ENV"
+            
+            # Ensure PKG_SUFFIX is set correctly
+            if [ -z "$PKG_SUFFIX" ]; then
+              if [ "$BUILD_ENV" = "production" ]; then
+                PKG_SUFFIX=""
+              else
+                PKG_SUFFIX="-stage"
+              fi
+              echo "PKG_SUFFIX was empty, set to: '$PKG_SUFFIX'"
+            fi
+            
             PKG_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
+            echo "Generated PKG_NAME: $PKG_NAME"
             
             pkgbuild --root build_macos/Release \
                      --identifier com.17live.obsplugin \
