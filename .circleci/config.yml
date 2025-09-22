@@ -209,8 +209,8 @@ jobs:
   # Windows x64 build job
   build-windows-x64:
     executor:
-      name: win/default
-      size: large
+      name: win/server-2022
+      size: medium
     environment:
       VERSION: << pipeline.parameters.version >>
     steps:
@@ -265,13 +265,16 @@ jobs:
           name: Install Dependencies
           command: |
             # Install Node.js
-            choco install nodejs --version=20.11.0 -y
+            # choco install nodejs --version=20.11.0 -y
             
             # Install CMake (version 3.28 or higher)
-            choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+            # choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
             
             # Install NSIS for creating Windows installer
             choco install nsis -y
+
+            # Install Visual Studio Build Tools 2022
+            # choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
             
             # Verify CMake version
             refreshenv
@@ -285,15 +288,6 @@ jobs:
               exit 1
             }
             
-            # Install NSIS
-            choco install nsis -y
-            
-            # Install Visual Studio Build Tools 2022
-            choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
-            
-            # Refresh environment
-            refreshenv
-      
       # Setup Node.js and build web components
       - run:
           name: Install and Build Web Components
