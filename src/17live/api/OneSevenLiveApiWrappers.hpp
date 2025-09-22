@@ -3,9 +3,9 @@
 #include <QObject>
 #include <QString>
 #include <mutex>
+#include <nlohmann/json.hpp>
 
 #include "OneSevenLiveModels.hpp"
-#include <nlohmann/json.hpp>
 
 // for local http server proxy request
 /*
@@ -22,7 +22,7 @@
 #define ACTION_GETGIFTS "getGifts"
 #define ACTION_GETROOMINFO "getRoomInfo"
 
-#define MAX_CONSECUTIVE_FAILURES 10 // Maximum consecutive failure count
+#define MAX_CONSECUTIVE_FAILURES 10  // Maximum consecutive failure count
 
 using Json = nlohmann::json;
 
@@ -35,8 +35,7 @@ class OneSevenLiveApiWrappers : public QObject {
                           const std::vector<std::string> extraHeaders = {});
     bool UpdateAccessToken();
     bool InsertCommand(const char *url, const char *content_type, std::string request_type,
-                       const char *data, Json &ret, int data_size = 0,
-                       bool token_required = true,
+                       const char *data, Json &ret, int data_size = 0, bool token_required = true,
                        const std::vector<std::string> extraHeaders = {});
 
    public:
@@ -127,6 +126,6 @@ class OneSevenLiveApiWrappers : public QObject {
     mutable std::mutex stateMutex;
 
     // Thread-safe helper methods for error message management
-    void setLastErrorMessage(const QString& message);
+    void setLastErrorMessage(const QString &message);
     void clearLastErrorMessage();
 };

@@ -188,7 +188,8 @@ struct OneSevenLivePullUrlsInfo {
 };
 
 bool JsonToOneSevenLiveRtmpUrls(const nlohmann::json &json, QList<OneSevenLiveRtmpUrl> &rtmpUrls);
-bool JsonToOneSevenLivePullUrlsInfo(const nlohmann::json &pullUrlsInfoJson, OneSevenLivePullUrlsInfo &pullUrlsInfo);
+bool JsonToOneSevenLivePullUrlsInfo(const nlohmann::json &pullUrlsInfoJson,
+                                    OneSevenLivePullUrlsInfo &pullUrlsInfo);
 
 // Product information struct
 struct OneSevenLiveCommodityInfo {
@@ -229,7 +230,7 @@ struct OneSevenLiveGloryroadInfo {
 };
 
 bool JsonToOneSevenLiveGloryroadInfo(const nlohmann::json &jsonData,
-                                      OneSevenLiveGloryroadInfo &gloryroadInfo);
+                                     OneSevenLiveGloryroadInfo &gloryroadInfo);
 bool OneSevenLiveGloryroadInfoToJson(const OneSevenLiveGloryroadInfo &gloryroadInfo,
                                      nlohmann::json &jsonData);
 
@@ -272,7 +273,8 @@ struct OneSevenLiveArchiveConfig {
     int clipPermissionDownload;  // New field
 };
 
-bool JsonToOneSevenLiveArchiveConfig(const nlohmann::json &json, OneSevenLiveArchiveConfig &archiveConfig);
+bool JsonToOneSevenLiveArchiveConfig(const nlohmann::json &json,
+                                     OneSevenLiveArchiveConfig &archiveConfig);
 
 // hashtag struct
 struct OneSevenLiveHashtag {
@@ -424,7 +426,8 @@ struct OneSevenLiveCloseLiveRequest {
     QString reason;
 };
 
-bool OneSevenLiveCloseLiveRequestToJson(const OneSevenLiveCloseLiveRequest &request, nlohmann::json &json);
+bool OneSevenLiveCloseLiveRequestToJson(const OneSevenLiveCloseLiveRequest &request,
+                                        nlohmann::json &json);
 
 // Event tag struct
 struct OneSevenLiveEventTag {
@@ -439,8 +442,10 @@ struct OneSevenLiveAblyTokenResponse {
     QStringList channels;
 };
 
-bool JsonToOneSevenLiveAblyTokenResponse(const nlohmann::json &json, OneSevenLiveAblyTokenResponse &response);
-bool OneSevenLiveAblyTokenResponseToJson(const OneSevenLiveAblyTokenResponse &response, nlohmann::json &json);
+bool JsonToOneSevenLiveAblyTokenResponse(const nlohmann::json &json,
+                                         OneSevenLiveAblyTokenResponse &response);
+bool OneSevenLiveAblyTokenResponseToJson(const OneSevenLiveAblyTokenResponse &response,
+                                         nlohmann::json &json);
 
 // Event item struct
 struct OneSevenLiveEventItem {
@@ -534,8 +539,10 @@ struct OneSevenLiveGiftTabsResponse {
 };
 
 // Function declarations for gift tab JSON conversion
-bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json, OneSevenLiveGiftTabsResponse &response);
-bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &response, nlohmann::json &json);
+bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json,
+                                        OneSevenLiveGiftTabsResponse &response);
+bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &response,
+                                        nlohmann::json &json);
 
 struct OneSevenLiveStreamState {
     OneSevenLiveVliverInfo vliverInfo;
@@ -554,8 +561,10 @@ struct OneSevenLiveConfigStreamer {
 };
 
 // Function declaration to parse JSON to OneSevenLiveConfigStreamerResponse struct
-bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json, OneSevenLiveConfigStreamer &response);
-bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response, nlohmann::json &json);
+bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json,
+                                      OneSevenLiveConfigStreamer &response);
+bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response,
+                                      nlohmann::json &json);
 
 // Add-ons struct
 struct OneSevenLiveAddOns {
@@ -580,12 +589,16 @@ bool JsonToOneSevenLiveConfig(const nlohmann::json &json, OneSevenLiveConfig &co
 bool OneSevenLiveConfigToJson(const OneSevenLiveConfig &config, nlohmann::json &json);
 
 // Function declarations for event-related JSON parsing (moved here after all struct definitions)
-bool JsonToOneSevenLiveEventList(const nlohmann::json &eventListJson, QList<OneSevenLiveEventInfo> &eventList);
-bool JsonToOneSevenLiveHashtags(const nlohmann::json &hashtagsJson, QList<OneSevenLiveHashtag> &hashtags);
-bool JsonToOneSevenLiveEventItems(const nlohmann::json &eventsJson, QList<OneSevenLiveEventItem> &events);
+bool JsonToOneSevenLiveEventList(const nlohmann::json &eventListJson,
+                                 QList<OneSevenLiveEventInfo> &eventList);
+bool JsonToOneSevenLiveHashtags(const nlohmann::json &hashtagsJson,
+                                QList<OneSevenLiveHashtag> &hashtags);
+bool JsonToOneSevenLiveEventItems(const nlohmann::json &eventsJson,
+                                  QList<OneSevenLiveEventItem> &events);
 bool JsonToOneSevenLiveEventTags(const nlohmann::json &tagsJson, QList<OneSevenLiveEventTag> &tags);
 bool JsonToOneSevenLiveEventSection(const nlohmann::json &eventJson, OneSevenLiveEventList &event);
-bool JsonToOneSevenLiveSubtabs(const nlohmann::json &subtabsJson, QList<OneSevenLiveSubtab> &subtabs);
+bool JsonToOneSevenLiveSubtabs(const nlohmann::json &subtabsJson,
+                               QList<OneSevenLiveSubtab> &subtabs);
 
 // Internationalization token parameter struct
 struct OneSevenLiveI18nTokenParam {
@@ -623,8 +636,10 @@ struct OneSevenLiveGiftsResponse {
 };
 
 // Function declarations for gifts JSON conversion
-bool JsonToOneSevenLiveGiftsResponse(const nlohmann::json &json, OneSevenLiveGiftsResponse &response);
-bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, nlohmann::json &json);
+bool JsonToOneSevenLiveGiftsResponse(const nlohmann::json &json,
+                                     OneSevenLiveGiftsResponse &response);
+bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response,
+                                     nlohmann::json &json);
 
 // Rock Zone Viewer information structs
 
@@ -730,18 +745,25 @@ struct OneSevenLiveRockZoneViewer {
 };
 
 // Function declarations for gift rank one JSON conversion
-bool JsonToOneSevenLiveGiftRankOne(const nlohmann::json &json, OneSevenLiveGiftRankOne &giftRankOne);
-bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne, nlohmann::json &json);
+bool JsonToOneSevenLiveGiftRankOne(const nlohmann::json &json,
+                                   OneSevenLiveGiftRankOne &giftRankOne);
+bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne,
+                                   nlohmann::json &json);
 
 // Function declarations for display user JSON conversion
-bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json, OneSevenLiveDisplayUser &displayUser);
-bool OneSevenLiveDisplayUserToJson(const OneSevenLiveDisplayUser &displayUser, nlohmann::json &json);
+bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json,
+                                   OneSevenLiveDisplayUser &displayUser);
+bool OneSevenLiveDisplayUserToJson(const OneSevenLiveDisplayUser &displayUser,
+                                   nlohmann::json &json);
 
 // Function declarations for rock zone viewers JSON conversion
-bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json, OneSevenLiveRockZoneViewer &viewer);
-bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, nlohmann::json &json);
+bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json,
+                                      OneSevenLiveRockZoneViewer &viewer);
+bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer,
+                                      nlohmann::json &json);
 
-bool JsonToOneSevenLiveRockViewers(const nlohmann::json &json, QList<OneSevenLiveRockZoneViewer> &viewers);
+bool JsonToOneSevenLiveRockViewers(const nlohmann::json &json,
+                                   QList<OneSevenLiveRockZoneViewer> &viewers);
 
 // Army name struct
 struct OneSevenLiveArmyName {
@@ -764,8 +786,10 @@ struct OneSevenLiveArmyNameResponse {
 };
 
 // Function declarations for army name JSON conversion
-bool JsonToOneSevenLiveArmyNameResponse(const nlohmann::json &json, OneSevenLiveArmyNameResponse &response);
-bool OneSevenLiveArmyNameResponseToJson(const OneSevenLiveArmyNameResponse &response, nlohmann::json &json);
+bool JsonToOneSevenLiveArmyNameResponse(const nlohmann::json &json,
+                                        OneSevenLiveArmyNameResponse &response);
+bool OneSevenLiveArmyNameResponseToJson(const OneSevenLiveArmyNameResponse &response,
+                                        nlohmann::json &json);
 
 // Poke request struct
 struct OneSevenLivePokeRequest {
@@ -788,7 +812,8 @@ struct OneSevenLivePokeResponse {
 // Function declarations for poke JSON conversion
 bool JsonToOneSevenLivePokeResponse(const nlohmann::json &json, OneSevenLivePokeResponse &response);
 bool OneSevenLivePokeRequestToJson(const OneSevenLivePokeRequest &request, nlohmann::json &json);
-bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request, nlohmann::json &json);
+bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request,
+                                      nlohmann::json &json);
 
 // Change event request struct
 struct OneSevenLiveChangeEventRequest {

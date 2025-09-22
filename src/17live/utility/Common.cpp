@@ -96,10 +96,14 @@ std::string ExecuteCommandAndGetOutput(const char* cmd) {
         }
 
         return result;
-    } catch (const std::exception& e) {
+    }
+
+    catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[obs-17live]: ExecuteCommandAndGetOutput exception: %s", e.what());
         return "Error: Exception occurred during command execution";
-    } catch (...) {
+    }
+
+    catch (...) {
         obs_log(LOG_ERROR, "[obs-17live]: ExecuteCommandAndGetOutput unknown exception");
         return "Error: Unknown exception occurred during command execution";
     }

@@ -139,7 +139,8 @@ class OneSevenLiveCoreManager : public QObject {
     void handleLogoutClicked();
 
     // New login state management methods
-    void handleLoginStateChanged(bool isLoggedIn, const OneSevenLiveLoginData& loginData = OneSevenLiveLoginData());
+    void handleLoginStateChanged(bool isLoggedIn,
+                                 const OneSevenLiveLoginData& loginData = OneSevenLiveLoginData());
     void performLoginOperations(const OneSevenLiveLoginData& loginData);
     void performLogoutOperations();
     void restoreDockStatesOnLogin();
@@ -170,17 +171,17 @@ class OneSevenLiveCoreManager : public QObject {
 
     void saveDockState();
 
-    void load17LiveConfig(const OneSevenLiveLoginData &loginData);
+    void load17LiveConfig(const OneSevenLiveLoginData& loginData);
 
     void closeLive(bool isAutoClose = false);
-    
+
     bool showAutoCloseConfirmation(const QString& message);
 
     OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
 
     // Timer for checking stream status
     QPointer<QTimer> streamCheckTimer;
-    
+
     // Consecutive failure detection related variables
     int consecutiveFailureCount{0};  // Consecutive failure counter
 

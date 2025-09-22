@@ -468,7 +468,7 @@ bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStream
     file.close();
     try {
         json jsonData = json::parse(jsonString.toStdString());
-        
+
         if (!jsonData.is_array()) {
             obs_log(LOG_ERROR, "live_list.json is not an array");
             return false;
@@ -481,12 +481,10 @@ bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStream
         }
 
         return true;
-    } catch (const json::parse_error& e) {
+    } catch (const json::parse_error &e) {
         obs_log(LOG_ERROR, "Failed to parse live_list.json: %s", e.what());
         return false;
     }
-
-
 }
 
 bool OneSevenLiveConfigManager::saveAllLiveConfig(
@@ -546,21 +544,22 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
         const std::string configJsonPath = configPath + "/config_17live.json";
         std::ofstream file(configJsonPath);
         if (!file.is_open()) {
-            obs_log(LOG_ERROR, "Failed to open config file for writing: %s", configJsonPath.c_str());
+            obs_log(LOG_ERROR, "Failed to open config file for writing: %s",
+                    configJsonPath.c_str());
             return false;
         }
 
         file << configJson;
-        
+
         // Check if write operation was successful
         if (file.fail()) {
             obs_log(LOG_ERROR, "Failed to write config data to file: %s", configJsonPath.c_str());
             file.close();
             return false;
         }
-        
+
         file.close();
-        
+
         // Verify file was closed successfully
         if (file.fail()) {
             obs_log(LOG_ERROR, "Failed to close config file: %s", configJsonPath.c_str());
@@ -569,7 +568,7 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
 
         obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: setConfig exception: %s", e.what());
         return false;
     } catch (...) {
@@ -613,10 +612,10 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
 
     // Parse JSON data - convert once to std::string
     const std::string jsonDataStr = jsonData.toStdString();
-    
+
     try {
         json jsonObj = json::parse(jsonDataStr);
-        
+
         // Convert JSON to OneSevenLiveConfig structure
         if (!JsonToOneSevenLiveConfig(jsonObj, config)) {
             obs_log(LOG_ERROR, "Failed to convert JSON to config");
@@ -627,12 +626,10 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         currentConfig = config;
 
         return true;
-    } catch (const json::parse_error& e) {
+    } catch (const json::parse_error &e) {
         obs_log(LOG_ERROR, "Failed to parse config JSON: %s", e.what());
         return false;
     }
-
-
 }
 
 bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
@@ -651,7 +648,7 @@ bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
         out << QString::fromStdString(gifts.dump());
         file.close();
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: saveGifts exception: %s", e.what());
         return false;
     } catch (...) {
@@ -679,13 +676,13 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
 
         try {
             gifts = json::parse(jsonString.toStdString());
-        } catch (const json::parse_error& e) {
+        } catch (const json::parse_error &e) {
             obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", e.what());
             return false;
         }
 
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: loadGifts exception: %s", e.what());
         return false;
     } catch (...) {

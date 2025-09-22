@@ -5,15 +5,14 @@
 #include <util/platform.h>  // For os_event_t, etc.
 #include <util/threading.h>
 
-#include <chrono>
-#include <thread>
-
 #include <QDebug>
 #include <QResizeEvent>
 #include <QScreen>
 #include <QTimer>
 #include <QWindow>
+#include <chrono>
 #include <obs.hpp>
+#include <thread>
 #include <util/dstr.hpp>  // For DStr
 
 #ifdef Q_OS_WIN
@@ -46,27 +45,27 @@ QCefView::~QCefView() {
         obs_log(LOG_INFO, "Starting QCefView destruction, closing CEF browser");
         auto browser = m_client->getBrowser();
         auto host = browser->GetHost();
-        
+
         // Request browser closure
         host->CloseBrowser(true);
-        
+
         // Wait for browser to completely close to avoid resource leaks
         // Use timeout mechanism to prevent infinite waiting
-        int timeout_ms = 5000; // 5 second timeout
+        int timeout_ms = 5000;  // 5 second timeout
         int wait_interval_ms = 10;
         int elapsed_ms = 0;
-        
+
         while (elapsed_ms < timeout_ms) {
             if (!browser->GetHost()->TryCloseBrowser()) {
                 // Browser has closed
                 break;
             }
-            
+
             // Brief wait before retry
             std::this_thread::sleep_for(std::chrono::milliseconds(wait_interval_ms));
             elapsed_ms += wait_interval_ms;
         }
-        
+
         if (elapsed_ms >= timeout_ms) {
             obs_log(LOG_WARNING, "CEF browser close timeout, potential resource leak risk");
         } else {

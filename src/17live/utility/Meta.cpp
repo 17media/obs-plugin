@@ -6,9 +6,9 @@
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
+#include <nlohmann/json.hpp>
 
 #include "Common.hpp"
-#include <nlohmann/json.hpp>
 #include "obs-module.h"
 
 using Json = nlohmann::json;
@@ -26,12 +26,12 @@ bool JsonToOneSevenLiveMetaData(const Json& json, OneSevenLiveMetaData& metaData
 
         // Reserve space for better performance
         const auto& jsonObj = json.items();
-        
+
         // Iterate through all key-value pairs of JSON object
         for (const auto& pair : jsonObj) {
             const std::string& key = pair.key();
             const Json& value = pair.value();
-            
+
             // Convert key once and reuse
             const QString qKey = QString::fromStdString(key);
 
@@ -39,17 +39,18 @@ bool JsonToOneSevenLiveMetaData(const Json& json, OneSevenLiveMetaData& metaData
                 // Handle array type
                 const auto& arrayItems = value;
                 QVariantList variantList;
-                variantList.reserve(arrayItems.size()); // Reserve space
-                
+                variantList.reserve(arrayItems.size());  // Reserve space
+
                 for (const auto& item : arrayItems) {
                     if (item.is_object()) {
                         // Handle object array
                         const auto& objItems = item.items();
                         QVariantMap variantMap;
-                        
+
                         for (const auto& objPair : objItems) {
                             const QString objKey = QString::fromStdString(objPair.key());
-                            const QString objValue = QString::fromStdString(objPair.value().get<std::string>());
+                            const QString objValue =
+                                QString::fromStdString(objPair.value().get<std::string>());
                             variantMap[objKey] = objValue;
                         }
                         variantList.append(variantMap);
@@ -69,10 +70,11 @@ bool JsonToOneSevenLiveMetaData(const Json& json, OneSevenLiveMetaData& metaData
                 // Handle object type
                 const auto& objItems = value.items();
                 QVariantMap variantMap;
-                
+
                 for (const auto& objPair : objItems) {
                     const QString objKey = QString::fromStdString(objPair.key());
-                    const QString objValue = QString::fromStdString(objPair.value().get<std::string>());
+                    const QString objValue =
+                        QString::fromStdString(objPair.value().get<std::string>());
                     variantMap[objKey] = objValue;
                 }
                 metaData.data[qKey] = variantMap;
@@ -106,14 +108,14 @@ Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData& metaData) {
             const QString& key = it.key();
             const QVariant& value = it.value();
             int typeId = value.metaType().id();
-            
+
             // Convert key once and reuse
             const std::string stdKey = key.toStdString();
 
             if (typeId == QMetaType::QVariantList) {
                 const QVariantList list = value.toList();
                 std::vector<Json> jsonArray;
-                jsonArray.reserve(list.size()); // Reserve space for better performance
+                jsonArray.reserve(list.size());  // Reserve space for better performance
 
                 for (const QVariant& item : list) {
                     int itemTypeId = item.metaType().id();
@@ -191,7 +193,6 @@ bool LoadMetaData() {
         blog(LOG_ERROR, "JSON parse error in LoadMetaData: %s", e.what());
         return false;
     }
-
 }
 
 bool SaveMetaData() {

@@ -16,6 +16,7 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
+#include <nlohmann/json.hpp>
 #include <thread>
 
 #include "OneSevenLiveConfigManager.hpp"
@@ -28,7 +29,6 @@
 #include "OneSevenLiveUpdateManager.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include <nlohmann/json.hpp>
 #include "plugin-support.h"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
@@ -82,11 +82,11 @@ bool OneSevenLiveCoreManager::initialize() {
             obs_log(LOG_ERROR, "[17Live Core] Failed to create HTTP server instance");
             return false;
         }
-        
+
         if (!httpServer_->start()) {
             obs_log(LOG_ERROR, "[17Live Core] Failed to start HTTP server");
-            // Decide whether to interrupt the entire initialization due to HTTP server startup failure
-            // based on requirements return false;
+            // Decide whether to interrupt the entire initialization due to HTTP server startup
+            // failure based on requirements return false;
         } else {
             obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
         }
@@ -103,7 +103,8 @@ bool OneSevenLiveCoreManager::initialize() {
             return false;
         }
     } catch (const std::bad_alloc& e) {
-        obs_log(LOG_ERROR, "[17Live Core] Memory allocation failed during initialization: %s", e.what());
+        obs_log(LOG_ERROR, "[17Live Core] Memory allocation failed during initialization: %s",
+                e.what());
         return false;
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[17Live Core] Exception during initialization: %s", e.what());
@@ -257,7 +258,7 @@ void OneSevenLiveCoreManager::handleCheckUpdateClicked() {
     }
 }
 
-void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData &loginData) {
+void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& loginData) {
     std::string region = loginData.userInfo.region.toStdString();
     if (region.empty()) {
         region = "TW";  // Default region
@@ -280,7 +281,7 @@ void OneSevenLiveCoreManager::shutdown() {
     if (!initialized) {
         return;
     }
-            
+
     // Save dock state before closing any docks
     saveDockState();
 
@@ -332,9 +333,10 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
     handleLoginStateChanged(true, loginData);
 }
 
-void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn, const OneSevenLiveLoginData& loginData) {
+void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn,
+                                                      const OneSevenLiveLoginData& loginData) {
     obs_log(LOG_INFO, "handleLoginStateChanged: %s", isLoggedIn ? "logged in" : "logged out");
-    
+
     if (isLoggedIn) {
         performLoginOperations(loginData);
     } else {
@@ -344,7 +346,7 @@ void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn, const One
 
 void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData& loginData) {
     obs_log(LOG_INFO, "performLoginOperations");
-    
+
     // Update menu with user info
     QString username = loginData.userInfo.displayName;
     if (username.isEmpty()) {
@@ -377,7 +379,7 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
 
 void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
     obs_log(LOG_INFO, "restoreDockStatesOnLogin");
-    
+
     // Check if there are saved dock states and restore them
     QByteArray dockState = configManager->getDockState();
     if (!dockState.isEmpty() && mainWindow && mainWindow->isVisible()) {
@@ -416,7 +418,7 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
 
 void OneSevenLiveCoreManager::closeAllDocks() {
     obs_log(LOG_INFO, "closeAllDocks");
-    
+
     bool streamingVisible = false;
     if (streamingDock) {
         streamingVisible = streamingDock->isVisible();
@@ -509,11 +511,13 @@ void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
 
         // Log detailed information about stream closure
         if (isAutoClose) {
-            obs_log(LOG_INFO, "Auto-closing live stream - UserID: %s, LiveStreamID: %s, Reason: Stream check failures", 
-                   currUserID.c_str(), currLiveStreamID.c_str());
+            obs_log(LOG_INFO,
+                    "Auto-closing live stream - UserID: %s, LiveStreamID: %s, Reason: Stream check "
+                    "failures",
+                    currUserID.c_str(), currLiveStreamID.c_str());
         } else {
-            obs_log(LOG_INFO, "Manually closing live stream - UserID: %s, LiveStreamID: %s", 
-                   currUserID.c_str(), currLiveStreamID.c_str());
+            obs_log(LOG_INFO, "Manually closing live stream - UserID: %s, LiveStreamID: %s",
+                    currUserID.c_str(), currLiveStreamID.c_str());
         }
 
         streamingDock->closeLive(currUserID, currLiveStreamID, isAutoClose);
@@ -585,71 +589,84 @@ void OneSevenLiveCoreManager::createStreamingDock() {
             }
         });
 
-        connect(streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this,
-                [this](OneSevenLiveStreamingStatus status_) {
-                    status = status_;
-                    if (liveListDock) {
-                        liveListDock->setStatus(status_);
-                    }
+        connect(
+            streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this,
+            [this](OneSevenLiveStreamingStatus status_) {
+                status = status_;
+                if (liveListDock) {
+                    liveListDock->setStatus(status_);
+                }
 
-                    // Handle stream status change
-                    if (status_ == OneSevenLiveStreamingStatus::Streaming) {
-                        // Start timer to check stream status every 30 seconds
-                        if (!streamCheckTimer) {
-                            streamCheckTimer = new QTimer(this);
-                            connect(streamCheckTimer, &QTimer::timeout, this, [this]() {
-                                std::string liveStreamID;
-                                if (configManager->getConfigValue("LiveStreamID", liveStreamID)) {
-                                    if (!apiWrapper->CheckStream(liveStreamID)) {
-                                        // Stream check failed, increment consecutive failure count
-                                        consecutiveFailureCount++;
-                                        obs_log(LOG_WARNING, "Stream check failed. Consecutive failures: %d/%d", 
-                                               consecutiveFailureCount, MAX_CONSECUTIVE_FAILURES);
-                                        
-                                        // Only trigger auto-close when consecutive failures reach threshold
-                                        if (consecutiveFailureCount >= MAX_CONSECUTIVE_FAILURES) {
-                                            obs_log(LOG_ERROR, "Stream check failed %d times consecutively. Showing auto-close confirmation.", 
-                                                   MAX_CONSECUTIVE_FAILURES);
-                                            
-                                            // Show confirmation dialog before auto-closing
-                                            QString message = QString(obs_module_text("Live.Settings.CloseLive.Auto.Message"))
-                                                            .arg(MAX_CONSECUTIVE_FAILURES);
-                                            
-                                            if (showAutoCloseConfirmation(message)) {
-                                                obs_log(LOG_INFO, "User confirmed auto-close live stream due to stream check failures");
-                                                closeLive(true);  // Pass true to indicate this is auto-close
-                                                if (streamCheckTimer) {
-                                                    streamCheckTimer->stop();
-                                                    streamCheckTimer->deleteLater();
-                                                    streamCheckTimer = nullptr;
-                                                }
-                                            } else {
-                                                obs_log(LOG_INFO, "User cancelled auto-close live stream");
+                // Handle stream status change
+                if (status_ == OneSevenLiveStreamingStatus::Streaming) {
+                    // Start timer to check stream status every 30 seconds
+                    if (!streamCheckTimer) {
+                        streamCheckTimer = new QTimer(this);
+                        connect(streamCheckTimer, &QTimer::timeout, this, [this]() {
+                            std::string liveStreamID;
+                            if (configManager->getConfigValue("LiveStreamID", liveStreamID)) {
+                                if (!apiWrapper->CheckStream(liveStreamID)) {
+                                    // Stream check failed, increment consecutive failure count
+                                    consecutiveFailureCount++;
+                                    obs_log(LOG_WARNING,
+                                            "Stream check failed. Consecutive failures: %d/%d",
+                                            consecutiveFailureCount, MAX_CONSECUTIVE_FAILURES);
+
+                                    // Only trigger auto-close when consecutive failures reach
+                                    // threshold
+                                    if (consecutiveFailureCount >= MAX_CONSECUTIVE_FAILURES) {
+                                        obs_log(LOG_ERROR,
+                                                "Stream check failed %d times consecutively. "
+                                                "Showing auto-close confirmation.",
+                                                MAX_CONSECUTIVE_FAILURES);
+
+                                        // Show confirmation dialog before auto-closing
+                                        QString message =
+                                            QString(obs_module_text(
+                                                        "Live.Settings.CloseLive.Auto.Message"))
+                                                .arg(MAX_CONSECUTIVE_FAILURES);
+
+                                        if (showAutoCloseConfirmation(message)) {
+                                            obs_log(LOG_INFO,
+                                                    "User confirmed auto-close live stream due to "
+                                                    "stream check failures");
+                                            closeLive(
+                                                true);  // Pass true to indicate this is auto-close
+                                            if (streamCheckTimer) {
+                                                streamCheckTimer->stop();
+                                                streamCheckTimer->deleteLater();
+                                                streamCheckTimer = nullptr;
                                             }
-                                            // Reset failure counter regardless of user choice
-                                            consecutiveFailureCount = 0;
+                                        } else {
+                                            obs_log(LOG_INFO,
+                                                    "User cancelled auto-close live stream");
                                         }
-                                    } else {
-                                        // Stream check succeeded, reset consecutive failure counter
-                                        if (consecutiveFailureCount > 0) {
-                                            obs_log(LOG_INFO, "Stream check succeeded. Resetting failure count from %d to 0.", 
-                                                   consecutiveFailureCount);
-                                            consecutiveFailureCount = 0;
-                                        }
+                                        // Reset failure counter regardless of user choice
+                                        consecutiveFailureCount = 0;
+                                    }
+                                } else {
+                                    // Stream check succeeded, reset consecutive failure counter
+                                    if (consecutiveFailureCount > 0) {
+                                        obs_log(LOG_INFO,
+                                                "Stream check succeeded. Resetting failure count "
+                                                "from %d to 0.",
+                                                consecutiveFailureCount);
+                                        consecutiveFailureCount = 0;
                                     }
                                 }
-                            });
-                        }
-                        streamCheckTimer->start(30000);  // 30 seconds
-                    } else {
-                        // Stop timer when not streaming
-                        if (streamCheckTimer) {
-                            streamCheckTimer->stop();
-                            streamCheckTimer->deleteLater();
-                            streamCheckTimer = nullptr;
-                        }
+                            }
+                        });
                     }
-                });
+                    streamCheckTimer->start(30000);  // 30 seconds
+                } else {
+                    // Stop timer when not streaming
+                    if (streamCheckTimer) {
+                        streamCheckTimer->stop();
+                        streamCheckTimer->deleteLater();
+                        streamCheckTimer = nullptr;
+                    }
+                }
+            });
 
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(), visible,
@@ -978,14 +995,16 @@ bool OneSevenLiveCoreManager::showAutoCloseConfirmation(const QString& message) 
     msgBox.setWindowTitle(obs_module_text("Live.Settings.CloseLive.Auto.Title"));
     msgBox.setText(message);
     msgBox.setIcon(QMessageBox::Warning);
-    
+
     // Add custom buttons
-    QPushButton* confirmButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Confirm"), QMessageBox::AcceptRole);
-    QPushButton* cancelButton = msgBox.addButton(obs_module_text("Live.Settings.CloseLive.Auto.Cancel"), QMessageBox::RejectRole);
-    
+    QPushButton* confirmButton = msgBox.addButton(
+        obs_module_text("Live.Settings.CloseLive.Auto.Confirm"), QMessageBox::AcceptRole);
+    QPushButton* cancelButton = msgBox.addButton(
+        obs_module_text("Live.Settings.CloseLive.Auto.Cancel"), QMessageBox::RejectRole);
+
     // Set default focus to cancel button for safety
     msgBox.setDefaultButton(cancelButton);
-    
+
     // Apply styling
     msgBox.setStyleSheet(
         "QMessageBox {"
@@ -1006,9 +1025,8 @@ bool OneSevenLiveCoreManager::showAutoCloseConfirmation(const QString& message) 
         "}"
         "QMessageBox QPushButton:pressed {"
         "    background-color: #353535;"
-        "}"
-    );
-    
+        "}");
+
     msgBox.exec();
     return msgBox.clickedButton() == confirmButton;
 }

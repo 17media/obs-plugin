@@ -4,7 +4,6 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
-
 #include <nlohmann/json.hpp>
 
 using Json = nlohmann::json;

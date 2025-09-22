@@ -27,19 +27,21 @@ struct NetworkDiagnosticResult {
     bool success;
     std::string error_message;
     std::string detailed_info;
-    
+
     // DNS resolution details
     bool dns_resolution_success;
     std::vector<std::string> resolved_ips;
     double dns_resolution_time_ms;
-    
+
     // TCP connection details
     bool tcp_connection_success;
     double tcp_connection_time_ms;
-    
-    NetworkDiagnosticResult() 
-        : success(false), dns_resolution_success(false), 
-          dns_resolution_time_ms(0.0), tcp_connection_success(false), 
+
+    NetworkDiagnosticResult()
+        : success(false),
+          dns_resolution_success(false),
+          dns_resolution_time_ms(0.0),
+          tcp_connection_success(false),
           tcp_connection_time_ms(0.0) {}
 };
 
@@ -47,7 +49,7 @@ struct NetworkDiagnosticResult {
  * Network diagnostics class for testing DNS resolution and TCP connectivity
  */
 class NetworkDiagnostics {
-public:
+   public:
     /**
      * Perform comprehensive network diagnostics for a given URL
      * @param url The URL to test (e.g., "https://sta-wap-api.17app.co")
@@ -55,15 +57,16 @@ public:
      * @return NetworkDiagnosticResult containing detailed test results
      */
     static NetworkDiagnosticResult diagnoseUrl(const std::string& url, int timeout_seconds = 10);
-    
+
     /**
      * Test DNS resolution for a hostname
      * @param hostname The hostname to resolve
      * @param timeout_seconds Timeout in seconds
      * @return NetworkDiagnosticResult with DNS-specific results
      */
-    static NetworkDiagnosticResult testDnsResolution(const std::string& hostname, int timeout_seconds = 10);
-    
+    static NetworkDiagnosticResult testDnsResolution(const std::string& hostname,
+                                                     int timeout_seconds = 10);
+
     /**
      * Test TCP connection to a host and port
      * @param hostname The hostname to connect to
@@ -71,23 +74,25 @@ public:
      * @param timeout_seconds Timeout in seconds
      * @return NetworkDiagnosticResult with TCP-specific results
      */
-    static NetworkDiagnosticResult testTcpConnection(const std::string& hostname, int port, int timeout_seconds = 10);
-    
+    static NetworkDiagnosticResult testTcpConnection(const std::string& hostname, int port,
+                                                     int timeout_seconds = 10);
+
     /**
      * Perform a quick HTTP connectivity test using libcurl
      * @param url The URL to test
      * @param timeout_seconds Timeout in seconds
      * @return NetworkDiagnosticResult with HTTP-specific results
      */
-    static NetworkDiagnosticResult testHttpConnectivity(const std::string& url, int timeout_seconds = 10);
-    
+    static NetworkDiagnosticResult testHttpConnectivity(const std::string& url,
+                                                        int timeout_seconds = 10);
+
     /**
      * Run all network diagnostics and log results
      * @param api_url The API URL to test (from ONESEVENLIVE_API_URL)
      */
     static void runStartupDiagnostics(const std::string& api_url);
 
-private:
+   private:
     /**
      * Parse URL to extract hostname and port
      * @param url The URL to parse
@@ -96,7 +101,7 @@ private:
      * @return true if parsing successful
      */
     static bool parseUrl(const std::string& url, std::string& hostname, int& port);
-    
+
     /**
      * Get current timestamp in milliseconds
      */

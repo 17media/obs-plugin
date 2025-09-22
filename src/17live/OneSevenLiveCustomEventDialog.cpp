@@ -31,8 +31,8 @@
 // Project includes
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include "utility/RemoteTextThread.hpp"
 #include "utility/Common.hpp"
+#include "utility/RemoteTextThread.hpp"
 
 static QString insertZeroWidthSpaces(const QString& s, int maxChunk = 10) {
     QString out;
@@ -863,7 +863,7 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
         // Send event update signal
         customEvent.status = 3;
         emit eventUpdated(customEvent);
-    } else { 
+    } else {
         return;
     }
 

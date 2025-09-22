@@ -4,10 +4,10 @@
 
 #include <QByteArray>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include <shared_mutex>
 
 #include "api/OneSevenLiveModels.hpp"
-#include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 

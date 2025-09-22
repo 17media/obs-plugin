@@ -33,7 +33,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void editLiveWithInfo(const OneSevenLiveStreamInfo &info);
     void loadRoomInfo(qint64 roomID);
 
-    void closeLive(const std::string &currUserID, const std::string &currLiveStreamID, bool isAutoClose = false);
+    void closeLive(const std::string &currUserID, const std::string &currLiveStreamID,
+                   bool isAutoClose = false);
 
    private:
     void setupUi();

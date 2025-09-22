@@ -67,7 +67,7 @@ void OneSevenLiveRockViewerItem::setupUi() {
     QVBoxLayout *rightLayout = new QVBoxLayout();
     rightLayout->setContentsMargins(0, 5, 0, 5);
     rightLayout->setSpacing(4);  // reduce spacing between components
-    rightLayout->setAlignment(Qt::AlignTop);  
+    rightLayout->setAlignment(Qt::AlignTop);
 
     // Setup name row
     QHBoxLayout *nameRow = setupNameRow();

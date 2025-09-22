@@ -82,7 +82,8 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
                 QString::fromStdString(userInfoJson.value("lastLiveRegion", ""));
 
             // Boolean attributes
-            loginData.userInfo.streamerRecapEnable = userInfoJson.value("streamerRecapEnable", false);
+            loginData.userInfo.streamerRecapEnable =
+                userInfoJson.value("streamerRecapEnable", false);
             loginData.userInfo.newbieDisplayAllGiftTabsToast =
                 userInfoJson.value("newbieDisplayAllGiftTabsToast", false);
             loginData.userInfo.isUnderaged = userInfoJson.value("isUnderaged", false);
@@ -106,7 +107,8 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
             // Array attributes
             if (userInfoJson.contains("badgeInfo") && userInfoJson["badgeInfo"].is_array()) {
                 for (const auto &badge : userInfoJson["badgeInfo"]) {
-                    loginData.userInfo.badgeInfo.append(QString::fromStdString(badge.get<std::string>()));
+                    loginData.userInfo.badgeInfo.append(
+                        QString::fromStdString(badge.get<std::string>()));
                 }
             }
 
@@ -117,7 +119,8 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
                 }
             }
 
-            if (userInfoJson.contains("lastUsedHashtags") && userInfoJson["lastUsedHashtags"].is_array()) {
+            if (userInfoJson.contains("lastUsedHashtags") &&
+                userInfoJson["lastUsedHashtags"].is_array()) {
                 for (const auto &hashtag : userInfoJson["lastUsedHashtags"]) {
                     loginData.userInfo.lastUsedHashtags.append(
                         QString::fromStdString(hashtag.get<std::string>()));
@@ -126,7 +129,8 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
 
             if (userInfoJson.contains("levelBadges") && userInfoJson["levelBadges"].is_array()) {
                 for (const auto &badge : userInfoJson["levelBadges"]) {
-                    loginData.userInfo.levelBadges.append(QString::fromStdString(badge.get<std::string>()));
+                    loginData.userInfo.levelBadges.append(
+                        QString::fromStdString(badge.get<std::string>()));
                 }
             }
 
@@ -174,7 +178,7 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
         }
 
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: JsonToOneSevenLiveLoginData exception: %s", e.what());
         return false;
     } catch (...) {
@@ -212,7 +216,8 @@ bool OneSevenLiveArmyNameToJson(const OneSevenLiveArmyName &armyName, nlohmann::
     return true;
 }
 
-bool JsonToOneSevenLiveArmyRankName(const nlohmann::json &json, OneSevenLiveArmyRankName &rankName) {
+bool JsonToOneSevenLiveArmyRankName(const nlohmann::json &json,
+                                    OneSevenLiveArmyRankName &rankName) {
     if (!json.is_object()) {
         return false;
     }
@@ -225,7 +230,8 @@ bool JsonToOneSevenLiveArmyRankName(const nlohmann::json &json, OneSevenLiveArmy
     return true;
 }
 
-bool OneSevenLiveArmyRankNameToJson(const OneSevenLiveArmyRankName &rankName, nlohmann::json &json) {
+bool OneSevenLiveArmyRankNameToJson(const OneSevenLiveArmyRankName &rankName,
+                                    nlohmann::json &json) {
     json = nlohmann::json{
         {"rank", rankName.rank},
         {"rankTier", rankName.rankTier},
@@ -236,7 +242,8 @@ bool OneSevenLiveArmyRankNameToJson(const OneSevenLiveArmyRankName &rankName, nl
     return true;
 }
 
-bool JsonToOneSevenLiveArmyNameResponse(const nlohmann::json &json, OneSevenLiveArmyNameResponse &response) {
+bool JsonToOneSevenLiveArmyNameResponse(const nlohmann::json &json,
+                                        OneSevenLiveArmyNameResponse &response) {
     if (!json.is_object()) {
         return false;
     }
@@ -263,7 +270,8 @@ bool JsonToOneSevenLiveArmyNameResponse(const nlohmann::json &json, OneSevenLive
     return true;
 }
 
-bool OneSevenLiveArmyNameResponseToJson(const OneSevenLiveArmyNameResponse &response, nlohmann::json &json) {
+bool OneSevenLiveArmyNameResponseToJson(const OneSevenLiveArmyNameResponse &response,
+                                        nlohmann::json &json) {
     // Convert armyName object
     nlohmann::json armyNameJson;
     OneSevenLiveArmyNameToJson(response.armyName, armyNameJson);
@@ -544,7 +552,8 @@ bool OneSevenLiveUserAttrToJson(const OneSevenLiveUserAttr &userAttr, nlohmann::
 }
 
 // Convert JSON to OneSevenLiveAnonymousInfo
-bool JsonToOneSevenLiveAnonymousInfo(const nlohmann::json &json, OneSevenLiveAnonymousInfo &anonymousInfo) {
+bool JsonToOneSevenLiveAnonymousInfo(const nlohmann::json &json,
+                                     OneSevenLiveAnonymousInfo &anonymousInfo) {
     if (!json.is_object()) {
         return false;
     }
@@ -561,7 +570,8 @@ bool JsonToOneSevenLiveAnonymousInfo(const nlohmann::json &json, OneSevenLiveAno
 }
 
 // Convert OneSevenLiveAnonymousInfo to JSON
-bool OneSevenLiveAnonymousInfoToJson(const OneSevenLiveAnonymousInfo &anonymousInfo, nlohmann::json &json) {
+bool OneSevenLiveAnonymousInfoToJson(const OneSevenLiveAnonymousInfo &anonymousInfo,
+                                     nlohmann::json &json) {
     json = nlohmann::json{
         {"isInvisible", anonymousInfo.isInvisible},
         {"pureText", anonymousInfo.pureText.toStdString()},
@@ -571,7 +581,8 @@ bool OneSevenLiveAnonymousInfoToJson(const OneSevenLiveAnonymousInfo &anonymousI
 }
 
 // Convert JSON to OneSevenLiveDisplayUser
-bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json, OneSevenLiveDisplayUser &displayUser) {
+bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json,
+                                   OneSevenLiveDisplayUser &displayUser) {
     if (!json.is_object()) {
         return false;
     }
@@ -589,7 +600,8 @@ bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json, OneSevenLiveDispl
     }
 
     if (json.contains("checkinBdgURL") && json["checkinBdgURL"].is_string()) {
-        displayUser.checkinBdgURL = QString::fromStdString(json["checkinBdgURL"].get<std::string>());
+        displayUser.checkinBdgURL =
+            QString::fromStdString(json["checkinBdgURL"].get<std::string>());
     }
 
     if (json.contains("checkinLevel") && json["checkinLevel"].is_number()) {
@@ -597,7 +609,8 @@ bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json, OneSevenLiveDispl
     }
 
     if (json.contains("circleBadgeURL") && json["circleBadgeURL"].is_string()) {
-        displayUser.circleBadgeURL = QString::fromStdString(json["circleBadgeURL"].get<std::string>());
+        displayUser.circleBadgeURL =
+            QString::fromStdString(json["circleBadgeURL"].get<std::string>());
     }
 
     if (json.contains("displayName") && json["displayName"].is_string()) {
@@ -685,7 +698,8 @@ bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json, OneSevenLiveDispl
 }
 
 // Convert OneSevenLiveDisplayUser to JSON
-bool OneSevenLiveDisplayUserToJson(const OneSevenLiveDisplayUser &displayUser, nlohmann::json &json) {
+bool OneSevenLiveDisplayUserToJson(const OneSevenLiveDisplayUser &displayUser,
+                                   nlohmann::json &json) {
     nlohmann::json gloryroadInfoJson;
     OneSevenLiveGloryroadInfoToJson(displayUser.gloryroadInfo, gloryroadInfoJson);
 
@@ -722,7 +736,8 @@ bool OneSevenLiveDisplayUserToJson(const OneSevenLiveDisplayUser &displayUser, n
 }
 
 // Convert JSON to OneSevenLiveGiftRankOne
-bool JsonToOneSevenLiveGiftRankOne(const nlohmann::json &json, OneSevenLiveGiftRankOne &giftRankOne) {
+bool JsonToOneSevenLiveGiftRankOne(const nlohmann::json &json,
+                                   OneSevenLiveGiftRankOne &giftRankOne) {
     if (!json.is_object()) {
         return false;
     }
@@ -747,7 +762,8 @@ bool JsonToOneSevenLiveGiftRankOne(const nlohmann::json &json, OneSevenLiveGiftR
 }
 
 // Convert OneSevenLiveGiftRankOne to JSON
-bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne, nlohmann::json &json) {
+bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne,
+                                   nlohmann::json &json) {
     json = nlohmann::json{
         {"displayName", giftRankOne.displayName.toStdString()},
         {"picture", giftRankOne.picture.toStdString()},
@@ -759,7 +775,8 @@ bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne, n
 }
 
 // Convert JSON to OneSevenLiveRockZoneViewer
-bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json, OneSevenLiveRockZoneViewer &viewer) {
+bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json,
+                                      OneSevenLiveRockZoneViewer &viewer) {
     if (!json.is_object()) {
         return false;
     }
@@ -800,7 +817,8 @@ bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json, OneSevenLiveRo
 }
 
 // Convert OneSevenLiveRockZoneViewer to JSON
-bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, nlohmann::json &json) {
+bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer,
+                                      nlohmann::json &json) {
     nlohmann::json armyInfoJson;
     OneSevenLiveArmyInfoToJson(viewer.armyInfo, armyInfoJson);
 
@@ -833,7 +851,8 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer, 
     return true;
 }
 
-bool JsonToOneSevenLiveRockViewers(const nlohmann::json &json, QList<OneSevenLiveRockZoneViewer> &viewers) {
+bool JsonToOneSevenLiveRockViewers(const nlohmann::json &json,
+                                   QList<OneSevenLiveRockZoneViewer> &viewers) {
     if (!json.is_array()) {
         return false;
     }
@@ -851,7 +870,7 @@ bool JsonToOneSevenLiveRtmpUrl(const nlohmann::json &urlJson, OneSevenLiveRtmpUr
     if (!urlJson.is_object()) {
         return false;
     }
-    
+
     if (urlJson.contains("provider") && urlJson["provider"].is_number()) {
         rtmpUrl.provider = urlJson["provider"].get<int>();
     }
@@ -868,10 +887,12 @@ bool JsonToOneSevenLiveRtmpUrl(const nlohmann::json &urlJson, OneSevenLiveRtmpUr
         rtmpUrl.webUrl = QString::fromStdString(urlJson["webUrl"].get<std::string>());
     }
     if (urlJson.contains("webUrlLowQuality") && urlJson["webUrlLowQuality"].is_string()) {
-        rtmpUrl.webUrlLowQuality = QString::fromStdString(urlJson["webUrlLowQuality"].get<std::string>());
+        rtmpUrl.webUrlLowQuality =
+            QString::fromStdString(urlJson["webUrlLowQuality"].get<std::string>());
     }
     if (urlJson.contains("urlHighQuality") && urlJson["urlHighQuality"].is_string()) {
-        rtmpUrl.urlHighQuality = QString::fromStdString(urlJson["urlHighQuality"].get<std::string>());
+        rtmpUrl.urlHighQuality =
+            QString::fromStdString(urlJson["urlHighQuality"].get<std::string>());
     }
     if (urlJson.contains("weight") && urlJson["weight"].is_number()) {
         rtmpUrl.weight = urlJson["weight"].get<int>();
@@ -883,11 +904,12 @@ bool JsonToOneSevenLiveRtmpUrl(const nlohmann::json &urlJson, OneSevenLiveRtmpUr
 }
 
 // Helper function to parse RTMP URLs array from JSON
-bool JsonToOneSevenLiveRtmpUrls(const nlohmann::json &rtmpUrlsJson, QList<OneSevenLiveRtmpUrl> &rtmpUrls) {
+bool JsonToOneSevenLiveRtmpUrls(const nlohmann::json &rtmpUrlsJson,
+                                QList<OneSevenLiveRtmpUrl> &rtmpUrls) {
     if (!rtmpUrlsJson.is_array()) {
         return false;
     }
-    
+
     for (const auto &urlJson : rtmpUrlsJson) {
         OneSevenLiveRtmpUrl rtmpUrl;
         if (JsonToOneSevenLiveRtmpUrl(urlJson, rtmpUrl)) {
@@ -898,11 +920,12 @@ bool JsonToOneSevenLiveRtmpUrls(const nlohmann::json &rtmpUrlsJson, QList<OneSev
 }
 
 // Helper function to parse pull URLs info from JSON
-bool JsonToOneSevenLivePullUrlsInfo(const nlohmann::json &pullUrlsInfoJson, OneSevenLivePullUrlsInfo &pullUrlsInfo) {
+bool JsonToOneSevenLivePullUrlsInfo(const nlohmann::json &pullUrlsInfoJson,
+                                    OneSevenLivePullUrlsInfo &pullUrlsInfo) {
     if (!pullUrlsInfoJson.is_object()) {
         return false;
     }
-    
+
     if (pullUrlsInfoJson.contains("seqNo") && pullUrlsInfoJson["seqNo"].is_number()) {
         pullUrlsInfo.seqNo = pullUrlsInfoJson["seqNo"].get<int>();
     }
@@ -912,11 +935,12 @@ bool JsonToOneSevenLivePullUrlsInfo(const nlohmann::json &pullUrlsInfoJson, OneS
     return true;
 }
 
-bool JsonToOneSevenLiveEventList(const nlohmann::json &eventListJson, QList<OneSevenLiveEventInfo> &eventList) {
+bool JsonToOneSevenLiveEventList(const nlohmann::json &eventListJson,
+                                 QList<OneSevenLiveEventInfo> &eventList) {
     if (!eventListJson.is_array()) {
         return false;
     }
-    
+
     for (const auto &eventJson : eventListJson) {
         OneSevenLiveEventInfo eventInfo;
         if (eventJson.contains("ID") && eventJson["ID"].is_number()) {
@@ -944,7 +968,8 @@ bool JsonToOneSevenLiveEventList(const nlohmann::json &eventListJson, QList<OneS
             eventInfo.pageSize = eventJson["pageSize"].get<int>();
         }
         if (eventJson.contains("webViewTitle") && eventJson["webViewTitle"].is_string()) {
-            eventInfo.webViewTitle = QString::fromStdString(eventJson["webViewTitle"].get<std::string>());
+            eventInfo.webViewTitle =
+                QString::fromStdString(eventJson["webViewTitle"].get<std::string>());
         }
 
         // Parse icon list
@@ -968,11 +993,12 @@ bool JsonToOneSevenLiveEventList(const nlohmann::json &eventListJson, QList<OneS
 }
 
 // Helper function to parse hashtags from JSON
-bool JsonToOneSevenLiveHashtags(const nlohmann::json &hashtagsJson, QList<OneSevenLiveHashtag> &hashtags) {
+bool JsonToOneSevenLiveHashtags(const nlohmann::json &hashtagsJson,
+                                QList<OneSevenLiveHashtag> &hashtags) {
     if (!hashtagsJson.is_array()) {
         return false;
     }
-    
+
     for (const auto &hashtagJson : hashtagsJson) {
         OneSevenLiveHashtag hashtag;
         if (hashtagJson.contains("text") && hashtagJson["text"].is_string()) {
@@ -986,24 +1012,30 @@ bool JsonToOneSevenLiveHashtags(const nlohmann::json &hashtagsJson, QList<OneSev
     return true;
 }
 
-bool JsonToOneSevenLiveArchiveConfig(const nlohmann::json &archiveConfigJson, OneSevenLiveArchiveConfig &archiveConfig) {
+bool JsonToOneSevenLiveArchiveConfig(const nlohmann::json &archiveConfigJson,
+                                     OneSevenLiveArchiveConfig &archiveConfig) {
     if (!archiveConfigJson.is_object()) {
         return false;
     }
-    
-    if (archiveConfigJson.contains("autoRecording") && archiveConfigJson["autoRecording"].is_boolean()) {
+
+    if (archiveConfigJson.contains("autoRecording") &&
+        archiveConfigJson["autoRecording"].is_boolean()) {
         archiveConfig.autoRecording = archiveConfigJson["autoRecording"].get<bool>();
     }
-    if (archiveConfigJson.contains("autoPublish") && archiveConfigJson["autoPublish"].is_boolean()) {
+    if (archiveConfigJson.contains("autoPublish") &&
+        archiveConfigJson["autoPublish"].is_boolean()) {
         archiveConfig.autoPublish = archiveConfigJson["autoPublish"].get<bool>();
     }
-    if (archiveConfigJson.contains("clipPermission") && archiveConfigJson["clipPermission"].is_number()) {
+    if (archiveConfigJson.contains("clipPermission") &&
+        archiveConfigJson["clipPermission"].is_number()) {
         archiveConfig.clipPermission = archiveConfigJson["clipPermission"].get<int>();
     }
-    if (archiveConfigJson.contains("clipPermissionDownload") && archiveConfigJson["clipPermissionDownload"].is_number()) {
-        archiveConfig.clipPermissionDownload = archiveConfigJson["clipPermissionDownload"].get<int>();
+    if (archiveConfigJson.contains("clipPermissionDownload") &&
+        archiveConfigJson["clipPermissionDownload"].is_number()) {
+        archiveConfig.clipPermissionDownload =
+            archiveConfigJson["clipPermissionDownload"].get<int>();
     }
-    
+
     return true;
 }
 
@@ -1048,7 +1080,8 @@ bool JsonToOneSevenLiveRoomInfo(const nlohmann::json &json, OneSevenLiveRoomInfo
             roomInfo.allowCallin = json["allowCallin"].get<int>();
         }
         if (json.contains("restreamerOpenID") && json["restreamerOpenID"].is_string()) {
-            roomInfo.restreamerOpenID = QString::fromStdString(json["restreamerOpenID"].get<std::string>());
+            roomInfo.restreamerOpenID =
+                QString::fromStdString(json["restreamerOpenID"].get<std::string>());
         }
         if (json.contains("streamID") && json["streamID"].is_string()) {
             roomInfo.streamID = QString::fromStdString(json["streamID"].get<std::string>());
@@ -1137,7 +1170,8 @@ bool JsonToOneSevenLiveRoomInfo(const nlohmann::json &json, OneSevenLiveRoomInfo
         if (json.contains("achievementValue") && json["achievementValue"].is_number_integer()) {
             roomInfo.achievementValue = json["achievementValue"].get<int>();
         }
-        if (json.contains("mediaMessageReadState") && json["mediaMessageReadState"].is_number_integer()) {
+        if (json.contains("mediaMessageReadState") &&
+            json["mediaMessageReadState"].is_number_integer()) {
             roomInfo.mediaMessageReadState = json["mediaMessageReadState"].get<int>();
         }
         if (json.contains("region") && json["region"].is_string()) {
@@ -1367,13 +1401,13 @@ bool OneSevenLiveRoomInfoToJson(const OneSevenLiveRoomInfo &roomInfo, nlohmann::
 bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, nlohmann::json &json) {
     // Create archive configuration JSON object
     nlohmann::json archiveConfig = {{"autoRecording", request.archiveConfig.autoRecording},
-                                      {"autoPublish", request.archiveConfig.autoPublish},
-                                      {"clipPermission", request.archiveConfig.clipPermission}};
+                                    {"autoPublish", request.archiveConfig.autoPublish},
+                                    {"clipPermission", request.archiveConfig.clipPermission}};
 
     nlohmann::json armyOnly = {{"enable", request.armyOnly.enable},
-                                 {"requiredArmyRank", request.armyOnly.requiredArmyRank},
-                                 {"showOnHotPage", request.armyOnly.showOnHotPage},
-                                 {"armyOnlyPN", request.armyOnly.armyOnlyPN}};
+                               {"requiredArmyRank", request.armyOnly.requiredArmyRank},
+                               {"showOnHotPage", request.armyOnly.showOnHotPage},
+                               {"armyOnlyPN", request.armyOnly.armyOnlyPN}};
 
     // Create virtual streamer information JSON object
     nlohmann::json vliverInfo = {{"vliverModel", request.vliverInfo.vliverModel}};
@@ -1386,17 +1420,17 @@ bool OneSevenLiveRtmpRequestToJson(const OneSevenLiveRtmpRequest &request, nlohm
 
     // Create main JSON object
     json = {{"userID", request.userID.toStdString()},
-                        {"caption", request.caption.toStdString()},
-                        {"device", request.device.toStdString()},
-                        {"eventID", static_cast<int>(request.eventID)},
-                        {"hashtags", hashtagsArray},
-                        {"landscape", request.landscape},
-                        {"streamerType", request.streamerType},
-                        {"subtabID", request.subtabID.toStdString()},
-                        {"archiveConfig", archiveConfig},
-                        {"vliverInfo", vliverInfo},
-                        {"armyOnly", armyOnly},
-                        {"enableOBSGroupCall", request.enableOBSGroupCall}};
+            {"caption", request.caption.toStdString()},
+            {"device", request.device.toStdString()},
+            {"eventID", static_cast<int>(request.eventID)},
+            {"hashtags", hashtagsArray},
+            {"landscape", request.landscape},
+            {"streamerType", request.streamerType},
+            {"subtabID", request.subtabID.toStdString()},
+            {"archiveConfig", archiveConfig},
+            {"vliverInfo", vliverInfo},
+            {"armyOnly", armyOnly},
+            {"enableOBSGroupCall", request.enableOBSGroupCall}};
 
     return true;
 }
@@ -1438,20 +1472,24 @@ bool JsonToOneSevenLiveRtmpRequest(const nlohmann::json &json, OneSevenLiveRtmpR
     // archiveConfig
     if (json.contains("archiveConfig") && json["archiveConfig"].is_object()) {
         const auto &archiveConfigJson = json["archiveConfig"];
-        if (archiveConfigJson.contains("autoRecording") && archiveConfigJson["autoRecording"].is_boolean()) {
+        if (archiveConfigJson.contains("autoRecording") &&
+            archiveConfigJson["autoRecording"].is_boolean()) {
             request.archiveConfig.autoRecording = archiveConfigJson["autoRecording"].get<bool>();
         }
-        if (archiveConfigJson.contains("autoPublish") && archiveConfigJson["autoPublish"].is_boolean()) {
+        if (archiveConfigJson.contains("autoPublish") &&
+            archiveConfigJson["autoPublish"].is_boolean()) {
             request.archiveConfig.autoPublish = archiveConfigJson["autoPublish"].get<bool>();
         }
-        if (archiveConfigJson.contains("clipPermission") && archiveConfigJson["clipPermission"].is_number_integer()) {
+        if (archiveConfigJson.contains("clipPermission") &&
+            archiveConfigJson["clipPermission"].is_number_integer()) {
             request.archiveConfig.clipPermission = archiveConfigJson["clipPermission"].get<int>();
         }
     }
     // vliverInfo
     if (json.contains("vliverInfo") && json["vliverInfo"].is_object()) {
         const auto &vliverInfoJson = json["vliverInfo"];
-        if (vliverInfoJson.contains("vliverModel") && vliverInfoJson["vliverModel"].is_number_integer()) {
+        if (vliverInfoJson.contains("vliverModel") &&
+            vliverInfoJson["vliverModel"].is_number_integer()) {
             request.vliverInfo.vliverModel = vliverInfoJson["vliverModel"].get<int>();
         }
     }
@@ -1461,7 +1499,8 @@ bool JsonToOneSevenLiveRtmpRequest(const nlohmann::json &json, OneSevenLiveRtmpR
         if (armyOnlyJson.contains("enable") && armyOnlyJson["enable"].is_boolean()) {
             request.armyOnly.enable = armyOnlyJson["enable"].get<bool>();
         }
-        if (armyOnlyJson.contains("requiredArmyRank") && armyOnlyJson["requiredArmyRank"].is_number_integer()) {
+        if (armyOnlyJson.contains("requiredArmyRank") &&
+            armyOnlyJson["requiredArmyRank"].is_number_integer()) {
             request.armyOnly.requiredArmyRank = armyOnlyJson["requiredArmyRank"].get<int>();
         }
         if (armyOnlyJson.contains("showOnHotPage") && armyOnlyJson["showOnHotPage"].is_boolean()) {
@@ -1484,9 +1523,9 @@ bool OneSevenLiveStreamInfoToJson(const OneSevenLiveStreamInfo &streamInfo, nloh
         return false;
     }
     json = {{"request", jsonRequest},
-                        {"categoryName", streamInfo.categoryName.toStdString()},
-                        {"createdAt", streamInfo.createdAt.toString(Qt::ISODate).toStdString()},
-                        {"streamUuid", streamInfo.streamUuid.toStdString()}};
+            {"categoryName", streamInfo.categoryName.toStdString()},
+            {"createdAt", streamInfo.createdAt.toString(Qt::ISODate).toStdString()},
+            {"streamUuid", streamInfo.streamUuid.toStdString()}};
     return true;
 }
 
@@ -1514,7 +1553,8 @@ bool JsonToOneSevenLiveStreamInfo(const nlohmann::json &json, OneSevenLiveStream
     return true;
 }
 
-bool JsonToOneSevenLiveRtmpResponse(const nlohmann::json &json, OneSevenLiveRtmpResponse &response) {
+bool JsonToOneSevenLiveRtmpResponse(const nlohmann::json &json,
+                                    OneSevenLiveRtmpResponse &response) {
     if (!json.is_object()) {
         return false;
     }
@@ -1550,22 +1590,27 @@ bool JsonToOneSevenLiveRtmpResponse(const nlohmann::json &json, OneSevenLiveRtmp
                     rtmpUrl.provider = urlJson["provider"].get<int>();
                 }
                 if (urlJson.contains("streamType") && urlJson["streamType"].is_string()) {
-                    rtmpUrl.streamType = QString::fromStdString(urlJson["streamType"].get<std::string>());
+                    rtmpUrl.streamType =
+                        QString::fromStdString(urlJson["streamType"].get<std::string>());
                 }
                 if (urlJson.contains("url") && urlJson["url"].is_string()) {
                     rtmpUrl.url = QString::fromStdString(urlJson["url"].get<std::string>());
                 }
                 if (urlJson.contains("urlLowQuality") && urlJson["urlLowQuality"].is_string()) {
-                    rtmpUrl.urlLowQuality = QString::fromStdString(urlJson["urlLowQuality"].get<std::string>());
+                    rtmpUrl.urlLowQuality =
+                        QString::fromStdString(urlJson["urlLowQuality"].get<std::string>());
                 }
                 if (urlJson.contains("webUrl") && urlJson["webUrl"].is_string()) {
                     rtmpUrl.webUrl = QString::fromStdString(urlJson["webUrl"].get<std::string>());
                 }
-                if (urlJson.contains("webUrlLowQuality") && urlJson["webUrlLowQuality"].is_string()) {
-                    rtmpUrl.webUrlLowQuality = QString::fromStdString(urlJson["webUrlLowQuality"].get<std::string>());
+                if (urlJson.contains("webUrlLowQuality") &&
+                    urlJson["webUrlLowQuality"].is_string()) {
+                    rtmpUrl.webUrlLowQuality =
+                        QString::fromStdString(urlJson["webUrlLowQuality"].get<std::string>());
                 }
                 if (urlJson.contains("urlHighQuality") && urlJson["urlHighQuality"].is_string()) {
-                    rtmpUrl.urlHighQuality = QString::fromStdString(urlJson["urlHighQuality"].get<std::string>());
+                    rtmpUrl.urlHighQuality =
+                        QString::fromStdString(urlJson["urlHighQuality"].get<std::string>());
                 }
                 if (urlJson.contains("weight") && urlJson["weight"].is_number_integer()) {
                     rtmpUrl.weight = urlJson["weight"].get<int>();
@@ -1581,11 +1626,15 @@ bool JsonToOneSevenLiveRtmpResponse(const nlohmann::json &json, OneSevenLiveRtmp
     // Handle achievement value status
     if (json.contains("achievementValueState") && json["achievementValueState"].is_object()) {
         const auto &achievementValueStateJson = json["achievementValueState"];
-        if (achievementValueStateJson.contains("isValueCarryOver") && achievementValueStateJson["isValueCarryOver"].is_boolean()) {
-            response.achievementValueState.isValueCarryOver = achievementValueStateJson["isValueCarryOver"].get<bool>();
+        if (achievementValueStateJson.contains("isValueCarryOver") &&
+            achievementValueStateJson["isValueCarryOver"].is_boolean()) {
+            response.achievementValueState.isValueCarryOver =
+                achievementValueStateJson["isValueCarryOver"].get<bool>();
         }
-        if (achievementValueStateJson.contains("initSeconds") && achievementValueStateJson["initSeconds"].is_number_integer()) {
-            response.achievementValueState.initSeconds = achievementValueStateJson["initSeconds"].get<int>();
+        if (achievementValueStateJson.contains("initSeconds") &&
+            achievementValueStateJson["initSeconds"].is_number_integer()) {
+            response.achievementValueState.initSeconds =
+                achievementValueStateJson["initSeconds"].get<int>();
         }
     }
 
@@ -1598,7 +1647,8 @@ bool JsonToOneSevenLiveRtmpResponse(const nlohmann::json &json, OneSevenLiveRtmp
     if (json.contains("WHIP") && json["WHIP"].is_object()) {
         const auto &whipJson = json["WHIP"];
         if (whipJson.contains("server") && whipJson["server"].is_string()) {
-            response.whipInfo.server = QString::fromStdString(whipJson["server"].get<std::string>());
+            response.whipInfo.server =
+                QString::fromStdString(whipJson["server"].get<std::string>());
         }
         if (whipJson.contains("token") && whipJson["token"].is_string()) {
             response.whipInfo.token = QString::fromStdString(whipJson["token"].get<std::string>());
@@ -1608,19 +1658,20 @@ bool JsonToOneSevenLiveRtmpResponse(const nlohmann::json &json, OneSevenLiveRtmp
     return true;
 }
 
-bool OneSevenLiveCloseLiveRequestToJson(const OneSevenLiveCloseLiveRequest &request, nlohmann::json &json) {
-    json = {{"reason", request.reason.toStdString()},
-                        {"userID", request.userID.toStdString()}};
+bool OneSevenLiveCloseLiveRequestToJson(const OneSevenLiveCloseLiveRequest &request,
+                                        nlohmann::json &json) {
+    json = {{"reason", request.reason.toStdString()}, {"userID", request.userID.toStdString()}};
 
     return true;
 }
 
 // Helper function to parse event items from JSON
-bool JsonToOneSevenLiveEventItems(const nlohmann::json &eventsJson, QList<OneSevenLiveEventItem> &events) {
+bool JsonToOneSevenLiveEventItems(const nlohmann::json &eventsJson,
+                                  QList<OneSevenLiveEventItem> &events) {
     if (!eventsJson.is_array()) {
         return false;
     }
-    
+
     for (const auto &eventItem : eventsJson) {
         if (eventItem.is_object()) {
             OneSevenLiveEventItem item;
@@ -1634,7 +1685,8 @@ bool JsonToOneSevenLiveEventItems(const nlohmann::json &eventsJson, QList<OneSev
                 item.bannerURL = QString::fromStdString(eventItem["bannerURL"].get<std::string>());
             }
             if (eventItem.contains("descriptionURL") && eventItem["descriptionURL"].is_string()) {
-                item.descriptionURL = QString::fromStdString(eventItem["descriptionURL"].get<std::string>());
+                item.descriptionURL =
+                    QString::fromStdString(eventItem["descriptionURL"].get<std::string>());
             }
             if (eventItem.contains("endTime") && eventItem["endTime"].is_number_integer()) {
                 item.endTime = eventItem["endTime"].get<int>();
@@ -1656,11 +1708,12 @@ bool JsonToOneSevenLiveEventItems(const nlohmann::json &eventsJson, QList<OneSev
 }
 
 // Helper function to parse event tags from JSON
-bool JsonToOneSevenLiveEventTags(const nlohmann::json &tagsJson, QList<OneSevenLiveEventTag> &tags) {
+bool JsonToOneSevenLiveEventTags(const nlohmann::json &tagsJson,
+                                 QList<OneSevenLiveEventTag> &tags) {
     if (!tagsJson.is_array()) {
         return false;
     }
-    
+
     for (const auto &tagItem : tagsJson) {
         if (tagItem.is_object()) {
             OneSevenLiveEventTag tag;
@@ -1681,41 +1734,45 @@ bool JsonToOneSevenLiveEventSection(const nlohmann::json &eventJson, OneSevenLiv
     if (!eventJson.is_object()) {
         return false;
     }
-    
+
     // Parse events array
     if (eventJson.contains("events") && eventJson["events"].is_array()) {
         JsonToOneSevenLiveEventItems(eventJson["events"], event.events);
     }
-    
-    if (eventJson.contains("notEligibleForAllEvents") && eventJson["notEligibleForAllEvents"].is_boolean()) {
+
+    if (eventJson.contains("notEligibleForAllEvents") &&
+        eventJson["notEligibleForAllEvents"].is_boolean()) {
         event.notEligibleForAllEvents = eventJson["notEligibleForAllEvents"].get<bool>();
     }
     if (eventJson.contains("promotionIndex") && eventJson["promotionIndex"].is_number_integer()) {
         event.promotionIndex = eventJson["promotionIndex"].get<int>();
     }
     if (eventJson.contains("instructionURL") && eventJson["instructionURL"].is_string()) {
-        event.instructionURL = QString::fromStdString(eventJson["instructionURL"].get<std::string>());
+        event.instructionURL =
+            QString::fromStdString(eventJson["instructionURL"].get<std::string>());
     }
-    
+
     // Parse tags array
     if (eventJson.contains("tags") && eventJson["tags"].is_array()) {
         JsonToOneSevenLiveEventTags(eventJson["tags"], event.tags);
     }
-    
+
     return true;
 }
 
 // Helper function to parse subtabs from JSON
-bool JsonToOneSevenLiveSubtabs(const nlohmann::json &subtabsJson, QList<OneSevenLiveSubtab> &subtabs) {
+bool JsonToOneSevenLiveSubtabs(const nlohmann::json &subtabsJson,
+                               QList<OneSevenLiveSubtab> &subtabs) {
     if (!subtabsJson.is_array()) {
         return false;
     }
-    
+
     for (const auto &subtabItem : subtabsJson) {
         if (subtabItem.is_object()) {
             OneSevenLiveSubtab subtab;
             if (subtabItem.contains("displayName") && subtabItem["displayName"].is_string()) {
-                subtab.displayName = QString::fromStdString(subtabItem["displayName"].get<std::string>());
+                subtab.displayName =
+                    QString::fromStdString(subtabItem["displayName"].get<std::string>());
             }
             if (subtabItem.contains("ID") && subtabItem["ID"].is_string()) {
                 subtab.ID = QString::fromStdString(subtabItem["ID"].get<std::string>());
@@ -1726,7 +1783,8 @@ bool JsonToOneSevenLiveSubtabs(const nlohmann::json &subtabsJson, QList<OneSeven
     return true;
 }
 
-bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json, OneSevenLiveConfigStreamer &response) {
+bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json,
+                                      OneSevenLiveConfigStreamer &response) {
     if (!json.is_object()) {
         return false;
     }
@@ -1740,10 +1798,12 @@ bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json, OneSevenLiveCo
         // Parse customEvent section
         if (json.contains("customEvent") && json["customEvent"].is_object()) {
             const auto &customEventJson = json["customEvent"];
-            if (customEventJson.contains("endTime") && customEventJson["endTime"].is_number_integer()) {
+            if (customEventJson.contains("endTime") &&
+                customEventJson["endTime"].is_number_integer()) {
                 response.customEvent.endTime = customEventJson["endTime"].get<int>();
             }
-            if (customEventJson.contains("status") && customEventJson["status"].is_number_integer()) {
+            if (customEventJson.contains("status") &&
+                customEventJson["status"].is_number_integer()) {
                 response.customEvent.status = customEventJson["status"].get<int>();
             }
         }
@@ -1751,11 +1811,15 @@ bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json, OneSevenLiveCo
         // Parse boxGacha section
         if (json.contains("boxGacha") && json["boxGacha"].is_object()) {
             const auto &boxGachaJson = json["boxGacha"];
-            if (boxGachaJson.contains("previousSettingStatus") && boxGachaJson["previousSettingStatus"].is_boolean()) {
-                response.boxGacha.previousSettingStatus = boxGachaJson["previousSettingStatus"].get<bool>();
+            if (boxGachaJson.contains("previousSettingStatus") &&
+                boxGachaJson["previousSettingStatus"].is_boolean()) {
+                response.boxGacha.previousSettingStatus =
+                    boxGachaJson["previousSettingStatus"].get<bool>();
             }
-            if (boxGachaJson.contains("availableEventID") && boxGachaJson["availableEventID"].is_string()) {
-                response.boxGacha.availableEventID = QString::fromStdString(boxGachaJson["availableEventID"].get<std::string>());
+            if (boxGachaJson.contains("availableEventID") &&
+                boxGachaJson["availableEventID"].is_string()) {
+                response.boxGacha.availableEventID =
+                    QString::fromStdString(boxGachaJson["availableEventID"].get<std::string>());
             }
         }
 
@@ -1768,10 +1832,13 @@ bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json, OneSevenLiveCo
         if (json.contains("lastStreamState") && json["lastStreamState"].is_object()) {
             const auto &lastStreamStateJson = json["lastStreamState"];
             OneSevenLiveStreamState lastStreamState;
-            if (lastStreamStateJson.contains("vliverInfo") && lastStreamStateJson["vliverInfo"].is_object()) {
+            if (lastStreamStateJson.contains("vliverInfo") &&
+                lastStreamStateJson["vliverInfo"].is_object()) {
                 OneSevenLiveVliverInfo vliverInfo;
-                if (lastStreamStateJson["vliverInfo"].contains("vliverModel") && lastStreamStateJson["vliverInfo"]["vliverModel"].is_number_integer()) {
-                    vliverInfo.vliverModel = lastStreamStateJson["vliverInfo"]["vliverModel"].get<int>();
+                if (lastStreamStateJson["vliverInfo"].contains("vliverModel") &&
+                    lastStreamStateJson["vliverInfo"]["vliverModel"].is_number_integer()) {
+                    vliverInfo.vliverModel =
+                        lastStreamStateJson["vliverInfo"]["vliverModel"].get<int>();
                 }
                 lastStreamState.vliverInfo = vliverInfo;
             }
@@ -1809,11 +1876,11 @@ static nlohmann::json::array_t createEventsArrayJson(const QList<OneSevenLiveEve
 
         // Create single event object
         nlohmann::json eventJson = {{"ID", static_cast<int>(event.ID)},
-                                      {"name", event.name.toStdString()},
-                                      {"bannerURL", event.bannerURL.toStdString()},
-                                      {"descriptionURL", event.descriptionURL.toStdString()},
-                                      {"tagIDs", tagIDsArray},
-                                      {"endTime", static_cast<int>(event.endTime)}};
+                                    {"name", event.name.toStdString()},
+                                    {"bannerURL", event.bannerURL.toStdString()},
+                                    {"descriptionURL", event.descriptionURL.toStdString()},
+                                    {"tagIDs", tagIDsArray},
+                                    {"endTime", static_cast<int>(event.endTime)}};
         eventsArray.push_back(eventJson);
     }
     return eventsArray;
@@ -1833,12 +1900,12 @@ static nlohmann::json::array_t createTagsArrayJson(const QList<OneSevenLiveEvent
 static nlohmann::json createEventSectionJson(const OneSevenLiveEventList &event) {
     nlohmann::json::array_t eventsArray = createEventsArrayJson(event.events);
     nlohmann::json::array_t tagsArray = createTagsArrayJson(event.tags);
-    
+
     return {{"events", eventsArray},
-                       {"notEligibleForAllEvents", event.notEligibleForAllEvents},
-                       {"promotionIndex", event.promotionIndex},
-                       {"tags", tagsArray},
-                       {"instructionURL", event.instructionURL.toStdString()}};
+            {"notEligibleForAllEvents", event.notEligibleForAllEvents},
+            {"promotionIndex", event.promotionIndex},
+            {"tags", tagsArray},
+            {"instructionURL", event.instructionURL.toStdString()}};
 }
 
 // Helper function to create subtabs array JSON
@@ -1846,7 +1913,7 @@ static nlohmann::json::array_t createSubtabsArrayJson(const QList<OneSevenLiveSu
     nlohmann::json::array_t subtabsArray;
     for (const auto &subtab : subtabs) {
         nlohmann::json subtabJson = {{"displayName", subtab.displayName.toStdString()},
-                                       {"ID", subtab.ID.toStdString()}};
+                                     {"ID", subtab.ID.toStdString()}};
         subtabsArray.push_back(subtabJson);
     }
     return subtabsArray;
@@ -1862,40 +1929,41 @@ static nlohmann::json createArchiveConfigJson(const OneSevenLiveArchiveConfig &a
     return archiveConfigObject;
 }
 
-bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response, nlohmann::json &json) {
+bool OneSevenLiveConfigStreamerToJson(const OneSevenLiveConfigStreamer &response,
+                                      nlohmann::json &json) {
     try {
         // Create event section
         nlohmann::json eventJson = createEventSectionJson(response.event);
 
         // Create customEvent object
-        nlohmann::json customEventJson = {{"endTime", static_cast<int>(response.customEvent.endTime)},
-                                            {"status", response.customEvent.status}};
+        nlohmann::json customEventJson = {
+            {"endTime", static_cast<int>(response.customEvent.endTime)},
+            {"status", response.customEvent.status}};
 
         // Create boxGacha object
-        nlohmann::json boxGachaJson =
-            {{"previousSettingStatus", response.boxGacha.previousSettingStatus},
-                         {"availableEventID", response.boxGacha.availableEventID.toStdString()}};
+        nlohmann::json boxGachaJson = {
+            {"previousSettingStatus", response.boxGacha.previousSettingStatus},
+            {"availableEventID", response.boxGacha.availableEventID.toStdString()}};
 
         // Create subtabs array
         nlohmann::json::array_t subtabsArray = createSubtabsArrayJson(response.subtabs);
 
         // Create lastStreamState object
         nlohmann::json lastStreamStateJson = {
-            {"vliverInfo",
-             {{"vliverModel", response.lastStreamState.vliverInfo.vliverModel}}}};
+            {"vliverInfo", {{"vliverModel", response.lastStreamState.vliverInfo.vliverModel}}}};
 
         // Create archive configuration
         nlohmann::json archiveConfigJson = createArchiveConfigJson(response.archiveConfig);
 
         // Create main JSON object
         json = {{"event", eventJson},
-                            {"customEvent", customEventJson},
-                            {"boxGacha", boxGachaJson},
-                            {"subtabs", subtabsArray},
-                            {"lastStreamState", lastStreamStateJson},
-                            {"hashtagSelectLimit", response.hashtagSelectLimit},
-                            {"armyOnly", response.armyOnly},
-                            {"archiveConfig", archiveConfigJson}};
+                {"customEvent", customEventJson},
+                {"boxGacha", boxGachaJson},
+                {"subtabs", subtabsArray},
+                {"lastStreamState", lastStreamStateJson},
+                {"hashtagSelectLimit", response.hashtagSelectLimit},
+                {"armyOnly", response.armyOnly},
+                {"archiveConfig", archiveConfigJson}};
 
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: OneSevenLiveConfigStreamerToJson error: %s", e.what());
@@ -1953,8 +2021,8 @@ bool OneSevenLiveAblyTokenResponseToJson(const OneSevenLiveAblyTokenResponse &re
 
     // Create main JSON object
     json = {{"provider", response.provider},
-                        {"token", response.token.toStdString()},
-                        {"channels", channelsArray}};
+            {"token", response.token.toStdString()},
+            {"channels", channelsArray}};
 
     return true;
 }
@@ -2016,7 +2084,8 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
             userInfo.followTime = static_cast<qint64>(json["followTime"].get<double>());
         }
         if (json.contains("followRequestTime") && json["followRequestTime"].is_number()) {
-            userInfo.followRequestTime = static_cast<qint64>(json["followRequestTime"].get<double>());
+            userInfo.followRequestTime =
+                static_cast<qint64>(json["followRequestTime"].get<double>());
         }
         if (json.contains("roomID") && json["roomID"].is_number()) {
             userInfo.roomID = static_cast<qint64>(json["roomID"].get<double>());
@@ -2027,19 +2096,23 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
             userInfo.privacyMode = QString::fromStdString(json["privacyMode"].get<std::string>());
         }
         if (json.contains("revenueShareIndicator") && json["revenueShareIndicator"].is_string()) {
-            userInfo.revenueShareIndicator = QString::fromStdString(json["revenueShareIndicator"].get<std::string>());
+            userInfo.revenueShareIndicator =
+                QString::fromStdString(json["revenueShareIndicator"].get<std::string>());
         }
         if (json.contains("region") && json["region"].is_string()) {
             userInfo.region = QString::fromStdString(json["region"].get<std::string>());
         }
         if (json.contains("lastLiveRegion") && json["lastLiveRegion"].is_string()) {
-            userInfo.lastLiveRegion = QString::fromStdString(json["lastLiveRegion"].get<std::string>());
+            userInfo.lastLiveRegion =
+                QString::fromStdString(json["lastLiveRegion"].get<std::string>());
         }
         if (json.contains("extIDAppleTransfer") && json["extIDAppleTransfer"].is_string()) {
-            userInfo.extIDAppleTransfer = QString::fromStdString(json["extIDAppleTransfer"].get<std::string>());
+            userInfo.extIDAppleTransfer =
+                QString::fromStdString(json["extIDAppleTransfer"].get<std::string>());
         }
         if (json.contains("commentShadowColor") && json["commentShadowColor"].is_string()) {
-            userInfo.commentShadowColor = QString::fromStdString(json["commentShadowColor"].get<std::string>());
+            userInfo.commentShadowColor =
+                QString::fromStdString(json["commentShadowColor"].get<std::string>());
         }
 
         // Additional numeric fields
@@ -2064,7 +2137,8 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
         if (json.contains("clanStatus") && json["clanStatus"].is_number_integer()) {
             userInfo.clanStatus = json["clanStatus"].get<int>();
         }
-        if (json.contains("hideAllPointToLeaderboard") && json["hideAllPointToLeaderboard"].is_number_integer()) {
+        if (json.contains("hideAllPointToLeaderboard") &&
+            json["hideAllPointToLeaderboard"].is_number_integer()) {
             userInfo.hideAllPointToLeaderboard = json["hideAllPointToLeaderboard"].get<int>();
         }
         if (json.contains("enableShop") && json["enableShop"].is_number_integer()) {
@@ -2073,7 +2147,8 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
         if (json.contains("gloryroadMode") && json["gloryroadMode"].is_number_integer()) {
             userInfo.gloryroadMode = json["gloryroadMode"].get<int>();
         }
-        if (json.contains("avatarOnboardingPhase") && json["avatarOnboardingPhase"].is_number_integer()) {
+        if (json.contains("avatarOnboardingPhase") &&
+            json["avatarOnboardingPhase"].is_number_integer()) {
             userInfo.avatarOnboardingPhase = json["avatarOnboardingPhase"].get<int>();
         }
         if (json.contains("isEmailVerified") && json["isEmailVerified"].is_number_integer()) {
@@ -2082,26 +2157,33 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
 
         // Additional timestamp fields
         if (json.contains("lastLiveTimestamp") && json["lastLiveTimestamp"].is_number()) {
-            userInfo.lastLiveTimestamp = static_cast<qint64>(json["lastLiveTimestamp"].get<double>());
+            userInfo.lastLiveTimestamp =
+                static_cast<qint64>(json["lastLiveTimestamp"].get<double>());
         }
-        if (json.contains("lastCreateLiveTimestamp") && json["lastCreateLiveTimestamp"].is_number()) {
-            userInfo.lastCreateLiveTimestamp = static_cast<qint64>(json["lastCreateLiveTimestamp"].get<double>());
+        if (json.contains("lastCreateLiveTimestamp") &&
+            json["lastCreateLiveTimestamp"].is_number()) {
+            userInfo.lastCreateLiveTimestamp =
+                static_cast<qint64>(json["lastCreateLiveTimestamp"].get<double>());
         }
 
         // Boolean fields
         if (json.contains("streamerRecapEnable") && json["streamerRecapEnable"].is_boolean()) {
             userInfo.streamerRecapEnable = json["streamerRecapEnable"].get<bool>();
         }
-        if (json.contains("newbieDisplayAllGiftTabsToast") && json["newbieDisplayAllGiftTabsToast"].is_boolean()) {
-            userInfo.newbieDisplayAllGiftTabsToast = json["newbieDisplayAllGiftTabsToast"].get<bool>();
+        if (json.contains("newbieDisplayAllGiftTabsToast") &&
+            json["newbieDisplayAllGiftTabsToast"].is_boolean()) {
+            userInfo.newbieDisplayAllGiftTabsToast =
+                json["newbieDisplayAllGiftTabsToast"].get<bool>();
         }
         if (json.contains("isUnderaged") && json["isUnderaged"].is_boolean()) {
             userInfo.isUnderaged = json["isUnderaged"].get<bool>();
         }
-        if (json.contains("isFreePrivateMsgEnabled") && json["isFreePrivateMsgEnabled"].is_boolean()) {
+        if (json.contains("isFreePrivateMsgEnabled") &&
+            json["isFreePrivateMsgEnabled"].is_boolean()) {
             userInfo.isFreePrivateMsgEnabled = json["isFreePrivateMsgEnabled"].get<bool>();
         }
-        if (json.contains("isVliverOnlyModeEnabled") && json["isVliverOnlyModeEnabled"].is_boolean()) {
+        if (json.contains("isVliverOnlyModeEnabled") &&
+            json["isVliverOnlyModeEnabled"].is_boolean()) {
             userInfo.isVliverOnlyModeEnabled = json["isVliverOnlyModeEnabled"].get<bool>();
         }
 
@@ -2128,7 +2210,8 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
             userInfo.lastUsedHashtags.clear();
             for (const auto &item : json["lastUsedHashtags"]) {
                 if (item.is_string()) {
-                    userInfo.lastUsedHashtags.append(QString::fromStdString(item.get<std::string>()));
+                    userInfo.lastUsedHashtags.append(
+                        QString::fromStdString(item.get<std::string>()));
                 }
             }
         }
@@ -2163,7 +2246,8 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
         OneSevenLiveOnliveInfo onliveInfo;
         if (json.contains("onliveInfo") && json["onliveInfo"].is_object()) {
             const auto &onliveInfoJson = json["onliveInfo"];
-            if (onliveInfoJson.contains("premiumType") && onliveInfoJson["premiumType"].is_number_integer()) {
+            if (onliveInfoJson.contains("premiumType") &&
+                onliveInfoJson["premiumType"].is_number_integer()) {
                 onliveInfo.premiumType = onliveInfoJson["premiumType"].get<int>();
             }
         }
@@ -2246,15 +2330,17 @@ bool JsonToOneSevenLiveArmySubscriptionLevels(const nlohmann::json &json,
             levels.subscriptionLevels.clear();
 
             for (const auto &levelJson : subscriptionLevelsJson) {
-                if (!levelJson.is_object()) continue;
-                
+                if (!levelJson.is_object())
+                    continue;
+
                 OneSevenLiveArmySubscriptionLevel level;
 
                 // Parse basic fields
                 if (levelJson.contains("rank") && levelJson["rank"].is_number_integer()) {
                     level.rank = levelJson["rank"].get<int>();
                 }
-                if (levelJson.contains("subscribersAmount") && levelJson["subscribersAmount"].is_number_integer()) {
+                if (levelJson.contains("subscribersAmount") &&
+                    levelJson["subscribersAmount"].is_number_integer()) {
                     level.subscribersAmount = levelJson["subscribersAmount"].get<int>();
                 }
 
@@ -2270,9 +2356,11 @@ bool JsonToOneSevenLiveArmySubscriptionLevels(const nlohmann::json &json,
                     if (i18nTokenJson.contains("params") && i18nTokenJson["params"].is_array()) {
                         const auto &paramsJson = i18nTokenJson["params"];
                         for (const auto &paramJson : paramsJson) {
-                            if (paramJson.is_object() && paramJson.contains("value") && paramJson["value"].is_string()) {
+                            if (paramJson.is_object() && paramJson.contains("value") &&
+                                paramJson["value"].is_string()) {
                                 OneSevenLiveI18nTokenParam param;
-                                param.value = QString::fromStdString(paramJson["value"].get<std::string>());
+                                param.value =
+                                    QString::fromStdString(paramJson["value"].get<std::string>());
                                 level.i18nToken.params.append(param);
                             }
                         }
@@ -2312,13 +2400,13 @@ bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscription
                 i18nTokenJson = {{"key", level.i18nToken.key.toStdString()}};
             } else {
                 i18nTokenJson = {{"key", level.i18nToken.key.toStdString()},
-                                             {"params", paramsArray}};
+                                 {"params", paramsArray}};
             }
 
             // Create level object
             nlohmann::json levelJson = {{"rank", level.rank},
-                                          {"subscribersAmount", level.subscribersAmount},
-                                          {"i18nToken", i18nTokenJson}};
+                                        {"subscribersAmount", level.subscribersAmount},
+                                        {"i18nToken", i18nTokenJson}};
 
             subscriptionLevelsArray.push_back(levelJson);
         }
@@ -2335,7 +2423,8 @@ bool OneSevenLiveArmySubscriptionLevelsToJson(const OneSevenLiveArmySubscription
     }
 }
 
-bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json, OneSevenLiveGiftTabsResponse &response) {
+bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json,
+                                        OneSevenLiveGiftTabsResponse &response) {
     try {
         // Parse giftLastUpdate
         if (json.contains("giftLastUpdate") && json["giftLastUpdate"].is_number_integer()) {
@@ -2346,8 +2435,9 @@ bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json, OneSevenLive
         if (json.contains("tabs") && json["tabs"].is_array()) {
             const auto &tabsArray = json["tabs"];
             for (const auto &tabItem : tabsArray) {
-                if (!tabItem.is_object()) continue;
-                
+                if (!tabItem.is_object())
+                    continue;
+
                 OneSevenLiveGiftTab tab;
                 if (tabItem.contains("id") && tabItem["id"].is_string()) {
                     tab.id = QString::fromStdString(tabItem["id"].get<std::string>());
@@ -2363,16 +2453,20 @@ bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json, OneSevenLive
                 if (tabItem.contains("gifts") && tabItem["gifts"].is_array()) {
                     const auto &giftsArray = tabItem["gifts"];
                     for (const auto &giftItem : giftsArray) {
-                        if (!giftItem.is_object()) continue;
-                        
+                        if (!giftItem.is_object())
+                            continue;
+
                         OneSevenLiveGift gift;
                         if (giftItem.contains("giftID") && giftItem["giftID"].is_string()) {
-                            gift.giftID = QString::fromStdString(giftItem["giftID"].get<std::string>());
+                            gift.giftID =
+                                QString::fromStdString(giftItem["giftID"].get<std::string>());
                         }
-                        if (giftItem.contains("isHidden") && giftItem["isHidden"].is_number_integer()) {
+                        if (giftItem.contains("isHidden") &&
+                            giftItem["isHidden"].is_number_integer()) {
                             gift.isHidden = giftItem["isHidden"].get<int>();
                         }
-                        if (giftItem.contains("regionMode") && giftItem["regionMode"].is_number_integer()) {
+                        if (giftItem.contains("regionMode") &&
+                            giftItem["regionMode"].is_number_integer()) {
                             gift.regionMode = giftItem["regionMode"].get<int>();
                         }
                         if (giftItem.contains("name") && giftItem["name"].is_string()) {
@@ -2381,18 +2475,22 @@ bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json, OneSevenLive
                         if (giftItem.contains("point") && giftItem["point"].is_number_integer()) {
                             gift.point = giftItem["point"].get<int>();
                         }
-                        if (giftItem.contains("leaderboardIcon") && giftItem["leaderboardIcon"].is_string()) {
-                            gift.leaderboardIcon =
-                                QString::fromStdString(giftItem["leaderboardIcon"].get<std::string>());
+                        if (giftItem.contains("leaderboardIcon") &&
+                            giftItem["leaderboardIcon"].is_string()) {
+                            gift.leaderboardIcon = QString::fromStdString(
+                                giftItem["leaderboardIcon"].get<std::string>());
                         }
                         if (giftItem.contains("vffURL") && giftItem["vffURL"].is_string()) {
-                            gift.vffURL = QString::fromStdString(giftItem["vffURL"].get<std::string>());
+                            gift.vffURL =
+                                QString::fromStdString(giftItem["vffURL"].get<std::string>());
                         }
                         if (giftItem.contains("vffMD5") && giftItem["vffMD5"].is_string()) {
-                            gift.vffMD5 = QString::fromStdString(giftItem["vffMD5"].get<std::string>());
+                            gift.vffMD5 =
+                                QString::fromStdString(giftItem["vffMD5"].get<std::string>());
                         }
                         if (giftItem.contains("vffJson") && giftItem["vffJson"].is_string()) {
-                            gift.vffJson = QString::fromStdString(giftItem["vffJson"].get<std::string>());
+                            gift.vffJson =
+                                QString::fromStdString(giftItem["vffJson"].get<std::string>());
                         }
 
                         // Parse regions array
@@ -2400,7 +2498,8 @@ bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json, OneSevenLive
                             const auto &regionsArray = giftItem["regions"];
                             for (const auto &region : regionsArray) {
                                 if (region.is_string()) {
-                                    gift.regions.append(QString::fromStdString(region.get<std::string>()));
+                                    gift.regions.append(
+                                        QString::fromStdString(region.get<std::string>()));
                                 }
                             }
                         }
@@ -2420,7 +2519,8 @@ bool JsonToOneSevenLiveGiftTabsResponse(const nlohmann::json &json, OneSevenLive
     }
 }
 
-bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &response, nlohmann::json &json) {
+bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &response,
+                                        nlohmann::json &json) {
     try {
         // Create tabs array
         nlohmann::json::array_t tabsArray;
@@ -2434,35 +2534,28 @@ bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &resp
                     regionsArray.push_back(region.toStdString());
                 }
 
-                nlohmann::json giftJson = {
-                    {"giftID", gift.giftID.toStdString()},
-                    {"isHidden", gift.isHidden},
-                    {"regionMode", gift.regionMode},
-                    {"name", gift.name.toStdString()},
-                    {"point", gift.point},
-                    {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
-                    {"vffURL", gift.vffURL.toStdString()},
-                    {"vffMD5", gift.vffMD5.toStdString()},
-                    {"vffJson", gift.vffJson.toStdString()},
-                    {"regions", regionsArray}
-                };
+                nlohmann::json giftJson = {{"giftID", gift.giftID.toStdString()},
+                                           {"isHidden", gift.isHidden},
+                                           {"regionMode", gift.regionMode},
+                                           {"name", gift.name.toStdString()},
+                                           {"point", gift.point},
+                                           {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
+                                           {"vffURL", gift.vffURL.toStdString()},
+                                           {"vffMD5", gift.vffMD5.toStdString()},
+                                           {"vffJson", gift.vffJson.toStdString()},
+                                           {"regions", regionsArray}};
                 giftsArray.push_back(giftJson);
             }
 
-            nlohmann::json tabJson = {
-                {"id", tab.id.toStdString()},
-                {"type", tab.type},
-                {"name", tab.name.toStdString()},
-                {"gifts", giftsArray}
-            };
+            nlohmann::json tabJson = {{"id", tab.id.toStdString()},
+                                      {"type", tab.type},
+                                      {"name", tab.name.toStdString()},
+                                      {"gifts", giftsArray}};
             tabsArray.push_back(tabJson);
         }
 
         // Create main JSON object
-        json = {
-            {"giftLastUpdate", static_cast<int>(response.giftLastUpdate)},
-            {"tabs", tabsArray}
-        };
+        json = {{"giftLastUpdate", static_cast<int>(response.giftLastUpdate)}, {"tabs", tabsArray}};
 
         return true;
     } catch (const std::exception &e) {
@@ -2471,7 +2564,8 @@ bool OneSevenLiveGiftTabsResponseToJson(const OneSevenLiveGiftTabsResponse &resp
     }
 }
 
-bool JsonToOneSevenLiveGiftsResponse(const nlohmann::json &json, OneSevenLiveGiftsResponse &response) {
+bool JsonToOneSevenLiveGiftsResponse(const nlohmann::json &json,
+                                     OneSevenLiveGiftsResponse &response) {
     try {
         // Parse lastUpdate
         if (json.contains("lastUpdate") && json["lastUpdate"].is_number_integer()) {
@@ -2482,8 +2576,9 @@ bool JsonToOneSevenLiveGiftsResponse(const nlohmann::json &json, OneSevenLiveGif
         if (json.contains("gifts") && json["gifts"].is_array()) {
             const auto &giftsArray = json["gifts"];
             for (const auto &giftItem : giftsArray) {
-                if (!giftItem.is_object()) continue;
-                
+                if (!giftItem.is_object())
+                    continue;
+
                 OneSevenLiveGift gift;
                 if (giftItem.contains("giftID") && giftItem["giftID"].is_string()) {
                     gift.giftID = QString::fromStdString(giftItem["giftID"].get<std::string>());
@@ -2500,7 +2595,8 @@ bool JsonToOneSevenLiveGiftsResponse(const nlohmann::json &json, OneSevenLiveGif
                 if (giftItem.contains("point") && giftItem["point"].is_number_integer()) {
                     gift.point = giftItem["point"].get<int>();
                 }
-                if (giftItem.contains("leaderboardIcon") && giftItem["leaderboardIcon"].is_string()) {
+                if (giftItem.contains("leaderboardIcon") &&
+                    giftItem["leaderboardIcon"].is_string()) {
                     gift.leaderboardIcon =
                         QString::fromStdString(giftItem["leaderboardIcon"].get<std::string>());
                 }
@@ -2535,7 +2631,8 @@ bool JsonToOneSevenLiveGiftsResponse(const nlohmann::json &json, OneSevenLiveGif
     }
 }
 
-bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, nlohmann::json &json) {
+bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response,
+                                     nlohmann::json &json) {
     try {
         // Create gifts array
         nlohmann::json::array_t giftsArray;
@@ -2546,26 +2643,21 @@ bool OneSevenLiveGiftsResponseToJson(const OneSevenLiveGiftsResponse &response, 
                 regionsArray.push_back(region.toStdString());
             }
 
-            nlohmann::json giftJson = {
-                {"giftID", gift.giftID.toStdString()},
-                {"isHidden", gift.isHidden},
-                {"regionMode", gift.regionMode},
-                {"name", gift.name.toStdString()},
-                {"point", gift.point},
-                {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
-                {"vffURL", gift.vffURL.toStdString()},
-                {"vffMD5", gift.vffMD5.toStdString()},
-                {"vffJson", gift.vffJson.toStdString()},
-                {"regions", regionsArray}
-            };
+            nlohmann::json giftJson = {{"giftID", gift.giftID.toStdString()},
+                                       {"isHidden", gift.isHidden},
+                                       {"regionMode", gift.regionMode},
+                                       {"name", gift.name.toStdString()},
+                                       {"point", gift.point},
+                                       {"leaderboardIcon", gift.leaderboardIcon.toStdString()},
+                                       {"vffURL", gift.vffURL.toStdString()},
+                                       {"vffMD5", gift.vffMD5.toStdString()},
+                                       {"vffJson", gift.vffJson.toStdString()},
+                                       {"regions", regionsArray}};
             giftsArray.push_back(giftJson);
         }
 
         // Create main JSON object
-        json = {
-            {"lastUpdate", static_cast<int>(response.lastUpdate)},
-            {"gifts", giftsArray}
-        };
+        json = {{"lastUpdate", static_cast<int>(response.lastUpdate)}, {"gifts", giftsArray}};
 
         return true;
     } catch (const std::exception &e) {
@@ -2644,7 +2736,8 @@ bool JsonToOneSevenLiveCustomEvent(const nlohmann::json &json, OneSevenLiveCusto
     if (json.contains("currentGoalPoints") && json["currentGoalPoints"].is_number_integer()) {
         response.currentGoalPoints = json["currentGoalPoints"].get<int>();
     }
-    if (json.contains("currentDailyGoalPoints") && json["currentDailyGoalPoints"].is_number_integer()) {
+    if (json.contains("currentDailyGoalPoints") &&
+        json["currentDailyGoalPoints"].is_number_integer()) {
         response.currentDailyGoalPoints = json["currentDailyGoalPoints"].get<int>();
     }
 
@@ -2662,8 +2755,9 @@ bool JsonToOneSevenLiveCustomEvent(const nlohmann::json &json, OneSevenLiveCusto
     if (json.contains("gifts") && json["gifts"].is_array()) {
         const auto &giftsJson = json["gifts"];
         for (const auto &giftJson : giftsJson) {
-            if (!giftJson.is_object()) continue;
-            
+            if (!giftJson.is_object())
+                continue;
+
             OneSevenLiveGift gift;
             if (giftJson.contains("giftID") && giftJson["giftID"].is_string()) {
                 gift.giftID = QString::fromStdString(giftJson["giftID"].get<std::string>());
@@ -2681,7 +2775,8 @@ bool JsonToOneSevenLiveCustomEvent(const nlohmann::json &json, OneSevenLiveCusto
                 gift.regionMode = giftJson["regionMode"].get<int>();
             }
             if (giftJson.contains("leaderboardIcon") && giftJson["leaderboardIcon"].is_string()) {
-                gift.leaderboardIcon = QString::fromStdString(giftJson["leaderboardIcon"].get<std::string>());
+                gift.leaderboardIcon =
+                    QString::fromStdString(giftJson["leaderboardIcon"].get<std::string>());
             }
             if (giftJson.contains("vffURL") && giftJson["vffURL"].is_string()) {
                 gift.vffURL = QString::fromStdString(giftJson["vffURL"].get<std::string>());
@@ -2728,14 +2823,17 @@ bool OneSevenLivePokeRequestToJson(const OneSevenLivePokeRequest &request, nlohm
     return true;
 }
 
-bool JsonToOneSevenLivePokeResponse(const nlohmann::json &json, OneSevenLivePokeResponse &response) {
+bool JsonToOneSevenLivePokeResponse(const nlohmann::json &json,
+                                    OneSevenLivePokeResponse &response) {
     if (json.contains("pokeAnimationID") && json["pokeAnimationID"].is_string()) {
-        response.pokeAnimationID = QString::fromStdString(json["pokeAnimationID"].get<std::string>());
+        response.pokeAnimationID =
+            QString::fromStdString(json["pokeAnimationID"].get<std::string>());
     }
     return true;
 }
 
-bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request, nlohmann::json &json) {
+bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request,
+                                      nlohmann::json &json) {
     json = {
         {"liveStreamID", request.liveStreamID.toStdString()},
         {"receiverGroup", request.receiverGroup},

@@ -19,10 +19,11 @@
 
 #include <obs.h>
 
+#include <QByteArray>
+#include <QString>
+
 #include "curl-helper.h"
 #include "moc_RemoteTextThread.cpp"
-#include <QString>
-#include <QByteArray>
 
 using namespace std;
 
