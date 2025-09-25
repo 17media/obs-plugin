@@ -108,6 +108,24 @@ class OneSevenLiveApiWrappers : public QObject {
         return lastErrorMessage;
     }
 
+    /**
+     * @brief Set authentication token
+     * @param token_ The authentication token to set
+     */
+    void setToken(const std::string &token_) {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        token = token_;
+    }
+
+    /**
+     * @brief Get current authentication token
+     * @return Returns the current authentication token
+     */
+    std::string getToken() const {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        return token;
+    }
+
    protected:
     std::string refresh_token;
     std::string token;

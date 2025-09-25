@@ -923,7 +923,7 @@ bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &roomID, const std::
 }
 
 bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_out_resp) {
-    obs_log(LOG_INFO, "GetGifts");
+    obs_log(LOG_INFO, "GetGifts: %s", language.c_str());
 
     lastErrorMessage.clear();
 
@@ -933,7 +933,7 @@ bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_ou
 
     if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
                        extraHeaders)) {
-        obs_log(LOG_ERROR, "GetConfigStreamer error: %s", json_out_resp.dump().c_str());
+        obs_log(LOG_ERROR, "GetGifts error: %s", json_out_resp.dump().c_str());
         lastErrorMessage = QString::fromStdString(json_out_resp["errorCode"].get<std::string>()) +
                            " " +
                            QString::fromStdString(json_out_resp["errorMessage"].get<std::string>());
