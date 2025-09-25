@@ -232,9 +232,6 @@ bool OneSevenLiveCoreManager::initialize() {
         return false;
     }
 
-    // Load gifts for logged in user
-    loadGifts();
-
     // Check for updates
     std::thread updateThread([this]() { updateManager->checkForUpdates(); });
     updateThread.detach();
@@ -243,6 +240,8 @@ bool OneSevenLiveCoreManager::initialize() {
 
     // Handle login state during initialization
     if (isLogin) {
+        configManager->getLoginData(loginData);
+
         // Use the new centralized login state handler for logged in users
         handleLoginStateChanged(true, loginData);
     }
@@ -346,6 +345,14 @@ void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn,
 
 void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData& loginData) {
     obs_log(LOG_INFO, "performLoginOperations");
+
+    // if apiWrappers token is empty or not equal to loginData.accessToken.toStdString(), update it
+    if (apiWrapper->getToken().empty() ||
+        apiWrapper->getToken() != loginData.jwtAccessToken.toStdString()) {
+        apiWrapper->setToken(loginData.jwtAccessToken.toStdString());
+    }
+
+    loadGifts();
 
     // Update menu with user info
     QString username = loginData.userInfo.displayName;

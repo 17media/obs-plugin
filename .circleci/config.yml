@@ -215,7 +215,7 @@ jobs:
             
             PKG_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
             
-            pkgbuild --root build_macos/Release \
+            sudo pkgbuild --root build_macos/Release \
                      --identifier com.17live.obsplugin \
                      --version "$VERSION" \
                      --install-location "/Applications/OBS.app/Contents/PlugIns" \
