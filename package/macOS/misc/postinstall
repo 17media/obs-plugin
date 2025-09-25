@@ -1,8 +1,22 @@
 #!/bin/bash
-# postinstall script
 
-# Set permissions (ensure plugin files are accessible)
-chmod -R 755 /Applications/OBS.app/Contents/PlugIns
+PLUGINS_DIR="/Applications/OBS.app/Contents/PlugIns"
+PLUGIN_NAME="obs-17live.plugin"
 
-# If you need to do other operations, you can continue to add them here
+# Set plugin directory permissions
+chmod 755 "$PLUGINS_DIR"
+echo "Set permissions for plugin directory: $PLUGINS_DIR"
+
+# Set plugin file permissions
+if [ -d "$PLUGINS_DIR/$PLUGIN_NAME" ]; then
+    chmod -R 755 "$PLUGINS_DIR/$PLUGIN_NAME"
+    echo "Set permissions for plugin: $PLUGIN_NAME"
+fi
+
+# Set dSYM file permissions (if exists)
+if [ -d "$PLUGINS_DIR/$PLUGIN_NAME.dSYM" ]; then
+    chmod -R 755 "$PLUGINS_DIR/$PLUGIN_NAME.dSYM"
+    echo "Set permissions for plugin dSYM: $PLUGIN_NAME.dSYM"
+fi
+
 exit 0
