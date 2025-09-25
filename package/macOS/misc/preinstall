@@ -1,0 +1,4 @@
+#!/bin/bash
+rm -rf "/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin"
+[ -e "/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin.dSYM" ] && rm -rf "/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin.dSYM"
+exit 0
