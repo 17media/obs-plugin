@@ -240,6 +240,8 @@ bool OneSevenLiveCoreManager::initialize() {
 
     // Handle login state during initialization
     if (isLogin) {
+        configManager->getLoginData(loginData);
+
         // Use the new centralized login state handler for logged in users
         handleLoginStateChanged(true, loginData);
     }
@@ -346,8 +348,8 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
 
     // if apiWrappers token is empty or not equal to loginData.accessToken.toStdString(), update it
     if (apiWrapper->getToken().empty() ||
-        apiWrapper->getToken() != loginData.accessToken.toStdString()) {
-        apiWrapper->setToken(loginData.accessToken.toStdString());
+        apiWrapper->getToken() != loginData.jwtAccessToken.toStdString()) {
+        apiWrapper->setToken(loginData.jwtAccessToken.toStdString());
     }
 
     loadGifts();
