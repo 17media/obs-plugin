@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/remove-mock.js",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
-    "ably": "^2.8.0",
+    "ably": "^2.12.0",
     "immutable": "^3.8.2",
     "immutable-v4": "npm:immutable@4.0.0-rc.12",
     "lodash": "^4.17.21",

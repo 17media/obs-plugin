@@ -4,11 +4,12 @@
 
 #include <QByteArray>
 #include <mutex>
+#include <nlohmann/json.hpp>
+#include <shared_mutex>
 
 #include "api/OneSevenLiveModels.hpp"
-#include "json11.hpp"
 
-using namespace json11;
+using json = nlohmann::json;
 
 class OneSevenLiveConfigManager {
    public:
@@ -25,6 +26,17 @@ class OneSevenLiveConfigManager {
                           std::string &streamKey);
     bool clearStreamingInfo();
 
+    // WHIP streaming configuration methods
+    bool setWhipStreamingInfo(const std::string &liveStreamID, const std::string &whipServer,
+                              const std::string &whipToken);
+    bool getWhipStreamingInfo(std::string &liveStreamID, std::string &whipServer,
+                              std::string &whipToken);
+    bool clearWhipStreamingInfo();
+
+    // Check if current streaming mode is WHIP
+    bool isWhipMode();
+    void setWhipMode(bool isWhip);
+
     void setStreamingPullUrl(const std::string &streamPullUrl);
     bool getStreamingPullUrl(std::string &streamPullUrl);
     void clearStreamingPullUrl();
@@ -39,13 +51,16 @@ class OneSevenLiveConfigManager {
     QByteArray getDockState();
     bool setDockState(const QByteArray &state);
 
+    bool getDockVisibility(const std::string &dockName);
+    bool setDockVisibility(const std::string &dockName, bool visible);
+
     // Set configuration data
-    bool setConfig(const Json &configData);
+    bool setConfig(const json &configData);
     // Get configuration data
     bool getConfig(OneSevenLiveConfig &config);
 
-    bool saveGifts(const Json &gifts);
-    bool loadGifts(Json &gifts);
+    bool saveGifts(const json &gifts);
+    bool loadGifts(json &gifts);
 
    private:
     bool initialized = false;
@@ -54,8 +69,8 @@ class OneSevenLiveConfigManager {
 
     std::string configPath;
 
-    // Mutex for saving configuration file
-    std::mutex configMutex;
+    // Read-write lock to protect config file operations, allows multiple concurrent read operations
+    mutable std::shared_mutex configMutex;
     // Current configuration
     OneSevenLiveConfig currentConfig;
 };

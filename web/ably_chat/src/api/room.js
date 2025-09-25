@@ -2,7 +2,7 @@ export async function getRoomInfo() {
     if (process.env.NODE_ENV === 'development') {
         try {
             // In development environment, read room information from local JSON file
-            const response = await fetch('/get_room_info_response.json');
+            const response = await fetch('/mock/get_room_info_2.json');
             if (!response.ok) {
                 throw new Error(`Failed to fetch room info: ${response.status}`);
             }

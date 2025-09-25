@@ -2,6 +2,10 @@
   "ChatPage": {
     "AI_COHOST": "AI 助理",
     "GIVE_GIFT": "送給主播",
-    "GIVE_LUCKYBAG_GIFT": "打開了 {luckyBagName}，送出 {giftName} ({point})"
+    "GIVE_LUCKYBAG_GIFT": "打開了 {luckyBagName}，送出 {giftName} ({point})",
+    "EMPTY_CHAT_MESSAGE": "觀眾留言會出現在這裡，和大家互動吧！",
+    "POKE_ONE": "主播戳了 {receiverName}",
+    "POKE_BACK": "回戳了主播",
+    "POKE_ALL": "主播戳了 所有觀眾"
   }
 }

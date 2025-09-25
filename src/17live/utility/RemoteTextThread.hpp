@@ -18,6 +18,9 @@
 #pragma once
 
 #include <QThread>
+#include <chrono>
+#include <string>
+#include <vector>
 
 class RemoteTextThread : public QThread {
     Q_OBJECT
@@ -29,25 +32,34 @@ class RemoteTextThread : public QThread {
     std::vector<std::string> extraHeaders;
 
     int timeoutSec = 0;
+    bool isImageRequest = false;
 
     void run() override;
 
    signals:
     void Result(const QString &text, const QString &error);
+    void ImageResult(const QByteArray &imageData, const QString &error);
 
    public:
     inline RemoteTextThread(std::string url_, std::string contentType_ = std::string(),
-                            std::string postData_ = std::string(), int timeoutSec_ = 0)
-        : url(url_), contentType(contentType_), postData(postData_), timeoutSec(timeoutSec_) {}
+                            std::string postData_ = std::string(), int timeoutSec_ = 0,
+                            bool isImageRequest_ = false)
+        : url(url_),
+          contentType(contentType_),
+          postData(postData_),
+          timeoutSec(timeoutSec_),
+          isImageRequest(isImageRequest_) {}
 
     inline RemoteTextThread(std::string url_, std::vector<std::string> &&extraHeaders_,
                             std::string contentType_ = std::string(),
-                            std::string postData_ = std::string(), int timeoutSec_ = 0)
+                            std::string postData_ = std::string(), int timeoutSec_ = 0,
+                            bool isImageRequest_ = false)
         : url(url_),
           contentType(contentType_),
           postData(postData_),
           extraHeaders(std::move(extraHeaders_)),
-          timeoutSec(timeoutSec_) {}
+          timeoutSec(timeoutSec_),
+          isImageRequest(isImageRequest_) {}
 };
 
 bool GetRemoteFile(const char *url, std::string &str, std::string &error,

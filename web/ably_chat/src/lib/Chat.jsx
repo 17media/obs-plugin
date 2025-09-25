@@ -14,6 +14,7 @@ import InnerWrapper from './InnerWrapper';
 import useComment from './hooks';
 import Box from './Box';
 import GiftItem from './GiftItem';
+import PokeItem from './PokeItem';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
@@ -30,6 +31,7 @@ import {
     MsgType_NEW_LUCKYBAG,
     MsgType_JOIN_ROOM,
     MsgType_AI_COHOST_MESSAGE,
+    MsgType_POKE,
 } from './constants';
 import {
     getUserType,
@@ -41,10 +43,10 @@ import CheckingLevel from './CheckingLevel';
 
 const MultilineDesktop = styled(Multiline)`
     margin-left: 4px;
-    color: ${({color}) => color};
+    color: ${({ color }) => color};
 `;
 
-const renderMessageContent = (messageType, content, gift = null, luckyBag = null) => {
+const renderMessageContent = (messageType, content, gift = null, luckyBag = null, pokeInfo = null, streamerInfo = null) => {
     switch (messageType) {
         case MsgType_COMMENT:
         case MsgType_JOIN_ROOM:
@@ -53,6 +55,8 @@ const renderMessageContent = (messageType, content, gift = null, luckyBag = null
         case MsgType_NEW_GIFT:
         case MsgType_NEW_LUCKYBAG:
             return <GiftItem messageType={messageType} giftInfo={gift} luckyBagInfo={luckyBag} />;
+        case MsgType_POKE:
+            return <PokeItem pokeInfo={pokeInfo} streamerInfo={streamerInfo} />;
         default:
             return null;
     }
@@ -60,35 +64,36 @@ const renderMessageContent = (messageType, content, gift = null, luckyBag = null
 
 // Note: image/svg should assigned with a fixed width for comment frame calculation
 const Chat = ({
-                  id,
-                  messageType,
-                  openID,
-                  displayName,
-                  userID,
-                  content,
-                  level,
-                  levelBadges: originalLevelBadges,
-                  isGuardian,
-                  isVIP,
-                  isConcert,
-                  isStreamer,
-                  streamerInfo,
-                  type,
-                  checkingLevel,
-                  roomID,
-                  isInvisible,
-                  border,
-                  nameColor,
-                  textColor = BD_WHITE,
-                  commentShadowColor,
-                  backgroundColor = '',
-                  prefixBadges,
-                  middleBadge,
-                  topRightBadge,
-                  asideLiveWidth,
-                  gift,
-                  luckyBag,
-              }) => {
+    id,
+    messageType,
+    openID,
+    displayName,
+    userID,
+    content,
+    level,
+    levelBadges: originalLevelBadges,
+    isGuardian,
+    isVIP,
+    isConcert,
+    isStreamer,
+    streamerInfo,
+    type,
+    checkingLevel,
+    roomID,
+    isInvisible,
+    border,
+    nameColor,
+    textColor = BD_WHITE,
+    commentShadowColor,
+    backgroundColor = '',
+    prefixBadges,
+    middleBadge,
+    topRightBadge,
+    asideLiveWidth,
+    gift,
+    luckyBag,
+    pokeInfo,
+}) => {
     const {
         commentRef,
         size,
@@ -182,8 +187,8 @@ const Chat = ({
                     {/* AI Cohost avatar */}
                     {
                         isAiCohost && (
-                            <SVG 
-                                src={`${basePath}/images/ig_AIBaby_background.svg`} 
+                            <SVG
+                                src={`${basePath}/images/ig_AIBaby_background.svg`}
                                 width={16}
                                 height={16}
                                 style={{
@@ -208,14 +213,14 @@ const Chat = ({
                     />
 
                     {/* Suffix badges */}
-                    {middleBadge && <BadgeImage src={middleBadge}/>}
+                    {middleBadge && <BadgeImage src={middleBadge} />}
 
                     {SVGSrc && (
                         <Box
                             display="inline-block"
                             width={userType === USER_GUARDIAN ? 24 : 21}
                         >
-                            <SVG src={SVGSrc}/>
+                            <SVG src={SVGSrc} />
                         </Box>
                     )}
 
@@ -229,13 +234,13 @@ const Chat = ({
                     <MultilineDesktop
                         color={hasUserDecoration ? textColor : userTypeColor}
                     >
-                        {renderMessageContent(messageType, content, gift, luckyBag)}
+                        {renderMessageContent(messageType, content, gift, luckyBag, pokeInfo, streamerInfo)}
                     </MultilineDesktop>
 
                     {/* Top right badge */}
                     {hasTopRightBadge && (
                         <Box position="absolute" top="5px" right="6px">
-                            <BadgeImage src={topRightBadge}/>
+                            <BadgeImage src={topRightBadge} />
                         </Box>
                     )}
                 </InnerWrapper>

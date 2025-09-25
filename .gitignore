@@ -114,14 +114,18 @@ next-env.d.ts
 
 web/**/.idea
 web/**/.vscode
-get_gifts_response.json
-chat_message.json
-chat_new_gift_2.json
-chat_new_join.json
-chat_ai_cohost.json
-get_room_info_response.json
+mock/
 
 # visual studio code
 .vs/
 bin/
 obj/
+
+temp/
+
+# python 
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.trae/

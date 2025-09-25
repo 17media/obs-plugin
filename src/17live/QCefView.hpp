@@ -32,6 +32,8 @@ class QCefView : public QWidget {
     void loadUrl(const QString &url);
     // Get current URL
     QString currentUrl() const;
+    // Reload current page
+    void reload();
 
    protected:
     virtual void resizeEvent(QResizeEvent *event) override;

@@ -5,7 +5,11 @@ declare const messages: {
   "ChatPage": {
     "AI_COHOST": "AI Assistant",
     "GIVE_GIFT": "Sent a gift to the streamer",
-    "GIVE_LUCKYBAG_GIFT": "Opened {luckyBagName} and sent {giftName} ({point})"
+    "GIVE_LUCKYBAG_GIFT": "Opened {luckyBagName} and sent {giftName} ({point})",
+    "EMPTY_CHAT_MESSAGE": "Pay attention to the chat to stay updated on the audience's trends",
+    "POKE_ONE": "Streamer pokes {receiverName}",
+    "POKE_BACK": "pokes back",
+    "POKE_ALL": "Streamer pokes All"
   }
 };
 export default messages;

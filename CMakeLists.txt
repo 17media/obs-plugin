@@ -35,6 +35,9 @@ if(ENABLE_FRONTEND_API)
 endif()
 
 if(ENABLE_QT)
+  # Add our custom cmake modules to the front of the module path
+  # This ensures our custom FindWrapOpenGL.cmake is used instead of Qt6's version
+  list(PREPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
   find_package(Qt6 COMPONENTS Widgets Core)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
   target_compile_options(
@@ -60,27 +63,32 @@ endif()
 
 find_package(CEF REQUIRED)
 
-# Add the json11 dependency
-add_subdirectory(deps/json11)
+# Add nlohmann json include path from obs-deps
+find_path(NLOHMANN_JSON_INCLUDE_DIR
+  NAMES nlohmann/json.hpp
+  PATHS ${CMAKE_PREFIX_PATH}
+  PATH_SUFFIXES include
+  NO_DEFAULT_PATH
+)
 
-# Add the wrappers dependency
-add_subdirectory(deps/wrappers)
+if(NLOHMANN_JSON_INCLUDE_DIR)
+  message(STATUS "Found nlohmann json: ${NLOHMANN_JSON_INCLUDE_DIR}")
+else()
+  message(FATAL_ERROR "nlohmann json not found in obs-deps")
+endif()
 
 # Set header file include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
   ${CMAKE_CURRENT_SOURCE_DIR}/deps
-  ${CMAKE_CURRENT_SOURCE_DIR}/deps/json11
-  ${CMAKE_CURRENT_SOURCE_DIR}/deps/wrappers
+  ${NLOHMANN_JSON_INCLUDE_DIR}
   ${CEF_ROOT_DIR} # This might need adjustment based on actual CEF include path
   ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
-# Link json11, wrappers libraries
+# Link CEF libraries (nlohmann json is header-only)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
-  json11
-  wrappers
   CEF::Library
   CEF::Wrapper
   Threads::Threads # For cpp-httplib
@@ -102,16 +110,25 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
   src/17live/utility/RemoteTextThread.cpp
   src/17live/utility/Common.cpp
   src/17live/utility/Meta.cpp
+  src/17live/utility/DownloadWorker.cpp
+  src/17live/utility/NetworkDiagnostics.cpp
+  src/17live/utility/CustomCalendarWidget.cpp
   src/17live/api/OneSevenLiveApiWrappers.cpp
   src/17live/CefDummy.cpp
   src/17live/QCefView.cpp
   src/17live/SimpleCefClient.cpp
   src/17live/OneSevenLiveMenuManager.cpp
   src/17live/OneSevenLiveLoginDialog.cpp
+  src/17live/OneSevenLiveCustomEventDialog.cpp
   src/17live/OneSevenLiveStreamingDock.cpp
   src/17live/OneSevenLiveStreamListItem.cpp
   src/17live/OneSevenLiveStreamListDock.cpp
+  src/17live/OneSevenLiveRockZoneDock.cpp
+  src/17live/OneSevenLiveUserDialog.cpp
+  src/17live/OneSevenLiveRockViewerItem.cpp
+  src/17live/api/OneSevenLiveUtility.cpp
   src/17live/OneSevenLiveHttpServer.cpp
+  src/17live/OneSevenLiveUpdateManager.cpp
   resources.qrc)
 
 if(MSVC)
