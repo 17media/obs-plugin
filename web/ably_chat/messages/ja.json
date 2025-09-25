@@ -2,6 +2,10 @@
   "ChatPage": {
     "AI_COHOST": "AIアシスタント",
     "GIVE_GIFT": "配信者にギフトを贈りました",
-    "GIVE_LUCKYBAG_GIFT": "{luckyBagName} を開けて、{giftName}（{point}）を贈りました"
+    "GIVE_LUCKYBAG_GIFT": "{luckyBagName} を開けて、{giftName}（{point}）を贈りました",
+    "EMPTY_CHAT_MESSAGE": "リスナーのコメントはここに表示されます。",
+    "POKE_ONE": "ライバーが {receiverName} にPokeしました",
+    "POKE_BACK": "がPokeを返しました",
+    "POKE_ALL": "ライバーが 全て にPokeしました"
   }
 }

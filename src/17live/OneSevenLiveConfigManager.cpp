@@ -52,10 +52,59 @@ bool OneSevenLiveConfigManager::initialize() {
     return true;
 }
 
+bool OneSevenLiveConfigManager::getDockVisibility(const std::string &dockName) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string key = "DockVisibility_" + dockName;
+    const char *visibilityChar = config_get_string(config, service, key.c_str());
+    if (!visibilityChar) {
+        return false;  // Default to false if not found
+    }
+
+    std::string visibility = visibilityChar;
+    return visibility == "true";
+}
+
+bool OneSevenLiveConfigManager::setDockVisibility(const std::string &dockName, bool visible) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string key = "DockVisibility_" + dockName;
+    std::string value = visible ? "true" : "false";
+
+    config_set_string(config, service, key.c_str(), value.c_str());
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save dock visibility config");
+        return false;
+    }
+
+    return true;
+}
+
 bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::string &value) {
     if (!initialized) {
         return false;
     }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
         return false;
@@ -73,6 +122,9 @@ bool OneSevenLiveConfigManager::getLoginData(OneSevenLiveLoginData &loginData) {
     if (!initialized) {
         return false;
     }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
         return false;
@@ -104,6 +156,10 @@ bool OneSevenLiveConfigManager::setLoginData(const OneSevenLiveLoginData &loginD
     if (!initialized) {
         return false;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return false;
     }
@@ -136,6 +192,10 @@ void OneSevenLiveConfigManager::clearLoginData() {
     if (!initialized) {
         return;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return;
     }
@@ -155,6 +215,9 @@ QByteArray OneSevenLiveConfigManager::getDockState() {
         return QByteArray();
     }
 
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return QByteArray();
     }
@@ -164,18 +227,26 @@ QByteArray OneSevenLiveConfigManager::getDockState() {
         return QByteArray();
     }
 
-    return QByteArray(dockStateChar);
+    std::string dockStateStr = dockStateChar;
+
+    return QByteArray::fromBase64(QString::fromStdString(dockStateStr).toUtf8());
 }
 
 bool OneSevenLiveConfigManager::setDockState(const QByteArray &state) {
     if (!initialized) {
         return false;
     }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
     if (!config) {
         return false;
     }
 
-    config_set_string(config, service, "DockState", state.toStdString().c_str());
+    QString encoded = state.toBase64();
+
+    config_set_string(config, service, "DockState", encoded.toStdString().c_str());
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save config");
         return false;
@@ -273,6 +344,82 @@ void OneSevenLiveConfigManager::clearStreamingPullUrl() {
     }
 }
 
+bool OneSevenLiveConfigManager::setWhipStreamingInfo(const std::string &liveStreamID,
+                                                     const std::string &whipServer,
+                                                     const std::string &whipToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    if (!config) {
+        return false;
+    }
+
+    config_set_string(config, service, "LiveStreamID", liveStreamID.c_str());
+    config_set_string(config, service, "WhipServer", whipServer.c_str());
+    config_set_string(config, service, "WhipToken", whipToken.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save config");
+        return false;
+    }
+
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getWhipStreamingInfo(std::string &liveStreamID,
+                                                     std::string &whipServer,
+                                                     std::string &whipToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    if (!config) {
+        return false;
+    }
+
+    const char *liveStreamIDChar = config_get_string(config, service, "LiveStreamID");
+    const char *whipServerChar = config_get_string(config, service, "WhipServer");
+    const char *whipTokenChar = config_get_string(config, service, "WhipToken");
+
+    if (!liveStreamIDChar || !whipServerChar || !whipTokenChar) {
+        return false;
+    }
+
+    liveStreamID = liveStreamIDChar;
+    whipServer = whipServerChar;
+    whipToken = whipTokenChar;
+    return true;
+}
+
+bool OneSevenLiveConfigManager::clearWhipStreamingInfo() {
+    return setWhipStreamingInfo("", "", "");
+}
+
+bool OneSevenLiveConfigManager::isWhipMode() {
+    if (!initialized || !config) {
+        return false;
+    }
+
+    const char *whipModeChar = config_get_string(config, service, "WhipMode");
+    if (!whipModeChar) {
+        return false;
+    }
+
+    return std::string(whipModeChar) == "true";
+}
+
+void OneSevenLiveConfigManager::setWhipMode(bool isWhip) {
+    if (!initialized || !config) {
+        return;
+    }
+
+    config_set_string(config, service, "WhipMode", isWhip ? "true" : "false");
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save config");
+    }
+}
+
 bool OneSevenLiveConfigManager::saveLiveConfig(const OneSevenLiveStreamInfo &streamInfo) {
     obs_log(LOG_INFO, "Saving live config to live_info.json");
 
@@ -319,25 +466,25 @@ bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStream
     QTextStream in(&file);
     QString jsonString = in.readAll();
     file.close();
-    std::string error;
-    Json json = Json::parse(jsonString.toStdString(), error);
-    if (!error.empty()) {
-        obs_log(LOG_ERROR, "Failed to parse live_list.json: %s", error.c_str());
+    try {
+        json jsonData = json::parse(jsonString.toStdString());
+
+        if (!jsonData.is_array()) {
+            obs_log(LOG_ERROR, "live_list.json is not an array");
+            return false;
+        }
+
+        for (const auto &item : jsonData) {
+            OneSevenLiveStreamInfo info;
+            JsonToOneSevenLiveStreamInfo(item, info);
+            streamInfo.push_back(info);
+        }
+
+        return true;
+    } catch (const json::parse_error &e) {
+        obs_log(LOG_ERROR, "Failed to parse live_list.json: %s", e.what());
         return false;
     }
-
-    if (!json.is_array()) {
-        obs_log(LOG_ERROR, "live_list.json is not an array");
-        return false;
-    }
-
-    for (const auto &item : json.array_items()) {
-        OneSevenLiveStreamInfo info;
-        JsonToOneSevenLiveStreamInfo(item, info);
-        streamInfo.push_back(info);
-    }
-
-    return true;
 }
 
 bool OneSevenLiveConfigManager::saveAllLiveConfig(
@@ -346,13 +493,13 @@ bool OneSevenLiveConfigManager::saveAllLiveConfig(
         return false;
     }
 
-    std::vector<Json> json_array = Json::array();
+    json json_array = json::array();
     for (const auto &item : streamInfoList) {
-        Json json_item;
+        json json_item;
         OneSevenLiveStreamInfoToJson(item, json_item);
         json_array.push_back(json_item);
     }
-    Json json_data = Json(json_array);
+    json json_data = json_array;
     QString liveListFile = QString::fromStdString(configPath) + "/" + "live_list.json";
     QFile file(liveListFile);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -383,27 +530,51 @@ bool OneSevenLiveConfigManager::removeLiveConfig(const std::string &streamUuid) 
 }
 
 bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
-    if (!initialized) {
+    try {
+        if (!initialized) {
+            return false;
+        }
+
+        // Write operation uses exclusive lock
+        std::unique_lock<std::shared_mutex> lock(configMutex);
+
+        const std::string configJson = configData.dump();
+
+        // Save to configuration file
+        const std::string configJsonPath = configPath + "/config_17live.json";
+        std::ofstream file(configJsonPath);
+        if (!file.is_open()) {
+            obs_log(LOG_ERROR, "Failed to open config file for writing: %s",
+                    configJsonPath.c_str());
+            return false;
+        }
+
+        file << configJson;
+
+        // Check if write operation was successful
+        if (file.fail()) {
+            obs_log(LOG_ERROR, "Failed to write config data to file: %s", configJsonPath.c_str());
+            file.close();
+            return false;
+        }
+
+        file.close();
+
+        // Verify file was closed successfully
+        if (file.fail()) {
+            obs_log(LOG_ERROR, "Failed to close config file: %s", configJsonPath.c_str());
+            return false;
+        }
+
+        obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: setConfig exception: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: setConfig unknown exception");
         return false;
     }
-
-    std::lock_guard<std::mutex> lock(configMutex);
-
-    std::string configJson = configData.dump();
-
-    // Save to configuration file
-    std::string configJsonPath = configPath + "/config_17live.json";
-    std::ofstream file(configJsonPath);
-    if (!file.is_open()) {
-        obs_log(LOG_ERROR, "Failed to open config file for writing");
-        return false;
-    }
-
-    file << configJson;
-    file.close();
-
-    obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
-    return true;
 }
 
 bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
@@ -411,11 +582,13 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(configMutex);
+    // Read operation uses shared lock, allows multiple concurrent read operations
+    std::shared_lock<std::shared_mutex> lock(configMutex);
 
     // Try to read configuration from file
-    std::string configJsonPath = configPath + "/config_17live.json";
-    QFile file(QString::fromStdString(configJsonPath));
+    const std::string configJsonPath = configPath + "/config_17live.json";
+    const QString configJsonPathQt = QString::fromStdString(configJsonPath);
+    QFile file(configJsonPathQt);
 
     if (!file.exists()) {
         // If file doesn't exist, return current configuration in memory
@@ -428,7 +601,7 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         return false;
     }
 
-    QByteArray jsonData = file.readAll();
+    const QByteArray jsonData = file.readAll();
     file.close();
 
     if (jsonData.isEmpty()) {
@@ -437,66 +610,83 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         return true;
     }
 
-    // Parse JSON data
-    std::string err;
-    Json jsonObj = Json::parse(jsonData.toStdString(), err);
+    // Parse JSON data - convert once to std::string
+    const std::string jsonDataStr = jsonData.toStdString();
 
-    if (!err.empty()) {
-        obs_log(LOG_ERROR, "Failed to parse config JSON: %s", err.c_str());
+    try {
+        json jsonObj = json::parse(jsonDataStr);
+
+        // Convert JSON to OneSevenLiveConfig structure
+        if (!JsonToOneSevenLiveConfig(jsonObj, config)) {
+            obs_log(LOG_ERROR, "Failed to convert JSON to config");
+            return false;
+        }
+
+        // Update current configuration
+        currentConfig = config;
+
+        return true;
+    } catch (const json::parse_error &e) {
+        obs_log(LOG_ERROR, "Failed to parse config JSON: %s", e.what());
         return false;
     }
-
-    // Convert JSON to OneSevenLiveConfig structure
-    if (!JsonToOneSevenLiveConfig(jsonObj, config)) {
-        obs_log(LOG_ERROR, "Failed to convert JSON to config");
-        return false;
-    }
-
-    // Update current configuration
-    currentConfig = config;
-
-    return true;
 }
 
 bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
-    if (!initialized) {
-        return false;
-    }
+    try {
+        if (!initialized) {
+            return false;
+        }
 
-    QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
-    QFile file(giftsFile);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        obs_log(LOG_ERROR, "Failed to open gifts.json for writing");
+        QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
+        QFile file(giftsFile);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            obs_log(LOG_ERROR, "Failed to open gifts.json for writing");
+            return false;
+        }
+        QTextStream out(&file);
+        out << QString::fromStdString(gifts.dump());
+        file.close();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveGifts exception: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveGifts unknown exception");
         return false;
     }
-    QTextStream out(&file);
-    out << QString::fromStdString(gifts.dump());
-    file.close();
-    return true;
 }
 
 bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
-    if (!initialized) {
-        return false;
-    }
+    try {
+        if (!initialized) {
+            return false;
+        }
 
-    QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
-    QFile file(giftsFile);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        // File doesn't exist, return empty object
-        gifts = Json::object();
+        QString giftsFile = QString::fromStdString(configPath) + "/" + "gifts.json";
+        QFile file(giftsFile);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            // File doesn't exist, return empty object
+            gifts = json::object();
+            return true;
+        }
+        QTextStream in(&file);
+        QString jsonString = in.readAll();
+        file.close();
+
+        try {
+            gifts = json::parse(jsonString.toStdString());
+        } catch (const json::parse_error &e) {
+            obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", e.what());
+            return false;
+        }
+
         return true;
-    }
-    QTextStream in(&file);
-    QString jsonString = in.readAll();
-    file.close();
-
-    std::string error;
-    gifts = Json::parse(jsonString.toStdString(), error);
-    if (!error.empty()) {
-        obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", error.c_str());
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadGifts exception: %s", e.what());
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadGifts unknown exception");
         return false;
     }
-
-    return true;
 }

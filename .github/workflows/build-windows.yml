@@ -1,0 +1,232 @@
+name: Build OBS 17Live Plugin - Windows
+
+on:
+  # push:
+  #   tags:
+  #     - 'v*.*.*'        # Production builds (e.g., v1.0.0)
+  #     - 'v*.*.*-stage'   # Stage builds (e.g., v1.0.0-stage)
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Build environment"
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - production
+      version:
+        description: "Version number (e.g., 1.0.0)"
+        required: false
+        default: "0.0.0"
+        type: string
+
+env:
+  CMAKE_MINIMUM_VERSION: '3.28'
+  NODE_VERSION: '20'
+
+jobs:
+  # Windows x64 build
+  build-windows-x64:
+    runs-on: windows-2022
+    environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+    env:
+      ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
+      VERSION: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) && github.ref_name || github.event.inputs.version || '0.0.0' }}
+      BUILD_ENV: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Debug Environment Variables
+        shell: pwsh
+        run: |
+          Write-Host "Current environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}"
+          Write-Host "ONESEVENLIVE_API_URL: $env:ONESEVENLIVE_API_URL"
+          Write-Host "BUILD_ENV: $env:BUILD_ENV"
+          Write-Host "VERSION: $env:VERSION"
+          Write-Host "Tag name: ${{ github.ref_name }}"
+          Write-Host "Manual version input: ${{ github.event.inputs.version }}"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            web/ably_chat/node_modules
+            ~\AppData\Roaming\npm-cache
+          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Check npm cache status
+        shell: pwsh
+        run: |
+          Write-Host "Cache hit: ${{ steps.npm-cache.outputs.cache-hit }}"
+          if ("${{ steps.npm-cache.outputs.cache-hit }}" -eq "true") {
+            Write-Host "✅ npm dependencies restored from cache"
+          } else {
+            Write-Host "❌ npm cache miss, will install dependencies"
+          }
+
+      - name: Install and Build Web Components
+        shell: pwsh
+        run: |
+          cd web/ably_chat
+          if ("${{ steps.npm-cache.outputs.cache-hit }}" -ne "true") {
+            Write-Host "Installing npm dependencies..."
+            npm install
+          } else {
+            Write-Host "Skipping npm install (dependencies restored from cache)"
+          }
+          npm run build
+      
+      - name: Set ENV and Version
+        shell: pwsh
+        run: |
+          # Remove v prefix from VERSION if present
+          $versionNumber = $env:VERSION -replace '^v', ''
+          
+          # Remove -stage suffix from version number if present
+          $versionNumber = $versionNumber -replace '-stage$', ''
+          echo "VERSION=$versionNumber" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          
+          # Set package name suffix
+          if ($env:BUILD_ENV -eq "production") {
+            echo "PKG_SUFFIX=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          } else {
+            echo "PKG_SUFFIX=-stage" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: .deps
+          key: windows-deps-${{ hashFiles('buildspec.json') }}-x64
+          restore-keys: |
+            windows-deps-${{ hashFiles('buildspec.json') }}-
+            windows-deps-
+
+      - name: Check Cache Status
+        shell: pwsh
+        run: |
+          echo "Cache hit: ${{ steps.cache-deps.outputs.cache-hit }}"
+          echo "Cache key: windows-deps-${{ hashFiles('buildspec.json') }}-x64"
+          if (Test-Path ".deps") {
+            echo "Dependencies directory exists"
+            $size = (Get-ChildItem -Path ".deps" -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+            if ($size) {
+              $sizeInMB = [math]::Round($size / 1MB, 2)
+              echo "Dependencies directory size: $sizeInMB MB"
+            } else {
+              echo "Dependencies directory size: Unable to calculate"
+            }
+            echo "Dependencies contents:"
+            Get-ChildItem -Path ".deps" -ErrorAction SilentlyContinue | Format-Table -AutoSize
+          } else {
+            echo "Dependencies directory does not exist"
+          }
+      
+      - name: CMake Configure
+        shell: pwsh
+        run: |
+          cmake --preset windows-x64 -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
+        env:
+          ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
+      
+      - name: Build Project
+        shell: pwsh
+        run: |
+          cmake --build --preset windows-x64 --config Release
+      
+      - name: Import Signing Certificate
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            Write-Host "Certificate secrets not available, skipping signing..."
+            return
+          }
+          Write-Host "Importing signing certificate..."
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          [System.IO.File]::WriteAllBytes("certificate.pfx", $certBytes)
+          
+          # Import certificate to store
+          $cert = Import-PfxCertificate -FilePath "certificate.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force)
+          Write-Host "Certificate imported: $($cert.Thumbprint)"
+          
+          Remove-Item "certificate.pfx"
+      
+      - name: Build Windows Installer
+        shell: pwsh
+        run: |
+          # Set version with suffix for installer name
+          $version = "$env:VERSION$env:PKG_SUFFIX"
+          
+          # Use the existing build script from package/windows
+          cd package/windows
+          
+          # Run the PowerShell build script directly with version
+          pwsh -ExecutionPolicy Bypass -File "build-installer.ps1" -Version $version
+          
+          # Move the generated installer from output directory to root directory for artifact upload
+          $installerPattern = "17liveOBSPlugin-windows-v*.exe"
+          if (Test-Path "output") {
+            $installerFile = Get-ChildItem -Path "output" -Name $installerPattern | Select-Object -First 1
+          } else {
+            $installerFile = $null
+          }
+          if ($installerFile) {
+            Move-Item "output/$installerFile" "../../$installerFile"
+            echo "INSTALLER_NAME=$installerFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Write-Host "Installer built successfully: $installerFile"
+          } else {
+            Write-Error "Installer file not found in output directory after build"
+            exit 1
+          }
+      
+      - name: Sign Installer
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            Write-Host "Certificate secrets not available, skipping signing..."
+            return
+          }
+          Write-Host "Signing installer..."
+          $installerName = $env:INSTALLER_NAME
+          
+          if (-not $installerName -or -not (Test-Path $installerName)) {
+            Write-Host "Installer file not found: $installerName, skipping signing..."
+            return
+          }
+          
+          # Use signtool to sign the installer
+          $timestampUrl = if ($env:WINDOWS_TIMESTAMP_URL) { $env:WINDOWS_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
+          
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /tr $timestampUrl /td SHA256 /a $installerName
+          
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Installer signed successfully"
+          } else {
+            Write-Host "Failed to sign installer, but continuing..."
+          }
+      
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-installer
+          path: "17liveOBSPlugin-windows-v*.exe"
+          retention-days: 30

@@ -1,0 +1,34 @@
+name: Build OBS 17Live Plugin - macOS Intel
+
+on:
+  # push:
+  #   tags:
+  #     - 'v*.*.*'
+  #     - 'v*.*.*-stage'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Build environment"
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - production
+      version:
+        description: "Version number (e.g., 1.0.0)"
+        required: false
+        default: "0.0.0"
+        type: string
+  
+jobs:
+  build-mac-x64:
+    uses: ./.github/workflows/build-macos-reusable.yml
+    with:
+      arch_name: "macIntel"
+      cmake_arch: "x86_64"
+      artifact_name: "macOS-Intel-PKG"
+      use_sudo: false
+      environment: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+      version: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) && github.ref_name || github.event.inputs.version || '0.0.0' }}
+          

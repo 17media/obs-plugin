@@ -25,12 +25,19 @@ import {
     MsgType_JOIN_ROOM,
     MsgType_AI_COHOST_MESSAGE,
     DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
+    MsgType_POKE,
 } from '@/lib/constants';
 
-// import giftdata from './chat_new_gift_2.json';
-// import comment from './chat_message.json';
-// import newjoin from './chat_new_join.json';
-// import aicohost from './chat_ai_cohost.json';
+// import giftdata from '@/../public/mock/chat_new_gift_2.json';
+// import comment from '@/../public/mock/chat_message.json';
+// import newjoin from '@/../public/mock/chat_new_join.json';
+// import aicohost from '@/../public/mock/chat_ai_cohost.json';
+// import pokeone from '@/../public/mock/chat_poke.json';
+// import pokeall from '@/../public/mock/chat_poke_all.json';
+// import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
+// import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
+// import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
+// import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
 
 export default function AblyComponent() {
 
@@ -173,20 +180,25 @@ export default function AblyComponent() {
                 streamerInfo,
             });
             return indexedChat; // Return the AI cohost message
+        } else if (message.type === MsgType_POKE) {
+            const { sender, ...restPoke } = message?.pokeInfo;
+            return fromJS({
+                ...sender,
+                isStreamer: sender.userID === streamerInfo.userID,
+                pokeInfo: message?.pokeInfo,
+                id,
+                messageType: message.type,
+                streamerInfo,
+                // comment: {
+                //     textColor: "#33CEB0",
+                // },
+            })
         }
 
         const { displayUser, barrage, ...restChat } = message?.commentMsg;
-        const { isStreamer } = displayUser;
-        let restChat1 = restChat;
-        if (isStreamer) {
-            restChat1 = {
-                ...restChat,
-                backgroundColor: DEFAULT_STREAMER_COMMENT_BG_COLOR_1,
-            }
-        }
 
         const indexedChat = fromJS({
-            ...restChat1,
+            ...restChat,
             ...displayUser,
             barrage,
             id,
@@ -228,7 +240,6 @@ export default function AblyComponent() {
     useEffect(() => {
         if (roomID) {
             const savedChats = loadChatFromStorage(roomID);
-            console.log('savedChats', savedChats);
             setChatList(savedChats);
         }
     }, [roomID]);
@@ -242,30 +253,30 @@ export default function AblyComponent() {
 
     // 記錄用戶是否在底部的狀態
     const [isUserNearBottom, setIsUserNearBottom] = useState(true);
-    
+
     // 監聽滾動事件，檢測用戶是否在底部附近
     useEffect(() => {
         const chatContainer = document.querySelector('.chat-list-wrapper');
         if (!chatContainer) return;
-        
+
         const handleScroll = () => {
             // 計算用戶是否已經接近底部（距離底部小於100px）
             const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
             setIsUserNearBottom(isNearBottom);
         };
-        
+
         // 初始檢查
         handleScroll();
-        
+
         // 添加滾動事件監聽
         chatContainer.addEventListener('scroll', handleScroll);
-        
+
         // 清理函數
         return () => {
             chatContainer.removeEventListener('scroll', handleScroll);
         };
     }, []);
-    
+
     // 僅當用戶在底部附近且聊天記錄更新時，才自動滾動到底部
     useEffect(() => {
         // 確保只有當聊天列表有內容且用戶在底部附近時才滾動
@@ -281,11 +292,18 @@ export default function AblyComponent() {
         }
 
         // setTimeout(() => {
+        //     console.log('loading mock messages...');
         //     setChatList([
         //         prepareIndexedChat(comment),
         //         prepareIndexedChat(newjoin),
         //         prepareIndexedChat(giftdata),
         //         prepareIndexedChat(aicohost),
+        //         prepareIndexedChat(pokeone),
+        //         prepareIndexedChat(pokeall),
+        //         prepareIndexedChat(pokeback0),
+        //         prepareIndexedChat(pokeback1),
+        //         prepareIndexedChat(pokeback2),
+        //         prepareIndexedChat(pokeback3),
         //     ]);
         // }, 1000);
 
@@ -308,6 +326,8 @@ export default function AblyComponent() {
             const decodeMessage = getAblyDecodeData(message);
             const streamerInfo = roomInfo.userInfo;
 
+            // console.log('new message:', decodeMessage.type, ' - content: ', decodeMessage);
+
             if (decodeMessage?.type === MsgType_COMMENT
                 || decodeMessage?.type === MsgType_JOIN_ROOM
             ) {
@@ -328,6 +348,7 @@ export default function AblyComponent() {
             } else if (decodeMessage?.type === MsgType_NEW_GIFT
                 || decodeMessage?.type === MsgType_NEW_LUCKYBAG
                 || decodeMessage?.type === MsgType_AI_COHOST_MESSAGE
+                || decodeMessage?.type === MsgType_POKE
             ) {
                 const indexedChat = prepareIndexedChat(decodeMessage);
                 setChatList(prevChatList => {
@@ -346,16 +367,38 @@ export default function AblyComponent() {
 
     return (
         <ChatListWrapper className="chat-list-wrapper">
-            {chatList
-                .map(chat => (
+            {chatList.length === 0 ? (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '40px 20px',
+                    color: '#A1A9B6',
+                    fontSize: '14px'
+                }}>
+                    <img
+                        src="/images/exclaimark.svg"
+                        alt=""
+                        style={{
+                            width: '20px',
+                            height: '20px',
+                            marginRight: '8px'
+                        }}
+                    />
+                    <span>{t('EMPTY_CHAT_MESSAGE')}</span>
+                </div>
+            ) : (
+                chatList.map(chat => (
                     <Chat
+                        key={chat.get('id')}
                         asideLiveWidth={getAsideLiveWidth()}
                         {...getChatProps(chat)}
                         roomID={roomID}
                         isConcert={false}
                         isGroupCall={false}
                     />
-                ))}
+                ))
+            )}
             <div ref={chatEndRef} />
         </ChatListWrapper>
     );

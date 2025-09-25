@@ -1,17 +1,20 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 
 #include "api/OneSevenLiveModels.hpp"
+#include "utility/NetworkDiagnostics.hpp"
 
 // Forward declarations
 class QMainWindow;
 class QTimer;
 class QDockWidget;
+class QProgressDialog;
 
 class BrowserApp;
 
@@ -25,6 +28,8 @@ class OneSevenLiveConfigManager;
 class OneSevenLiveStreamingDock;
 
 class OneSevenLiveStreamListDock;
+
+class OneSevenLiveRockZoneDock;
 
 class OneSevenLiveHttpServer;
 
@@ -100,8 +105,8 @@ class OneSevenLiveCoreManager : public QObject {
     // Singleton instance
     static OneSevenLiveCoreManager* instance;
 
-    // Mutex for thread-safe singleton access
-    static std::mutex instanceMutex;
+    // Once flag for thread-safe singleton creation using std::call_once
+    static std::once_flag instanceOnceFlag;
 
     // OBS main window
     QMainWindow* mainWindow;
@@ -111,6 +116,9 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Initialization flag
     bool initialized;
+
+    // Flag to track if we are in startup dock restoration phase
+    bool isStartupRestore = false;
 
     std::unique_ptr<OneSevenLiveConfigManager> configManager;
 
@@ -130,32 +138,58 @@ class OneSevenLiveCoreManager : public QObject {
 
     void handleLogoutClicked();
 
+    // New login state management methods
+    void handleLoginStateChanged(bool isLoggedIn,
+                                 const OneSevenLiveLoginData& loginData = OneSevenLiveLoginData());
+    void performLoginOperations(const OneSevenLiveLoginData& loginData);
+    void performLogoutOperations();
+    void restoreDockStatesOnLogin();
+    void closeAllDocks();
+
     // Function to check if login status is valid
     bool checkLoginStatus();
 
     // Streaming Dock load status
     bool streamingDockFirstLoad = true;
-    OneSevenLiveStreamingDock* streamingDock{nullptr};
+    QPointer<OneSevenLiveStreamingDock> streamingDock;
     void handleStreamingClicked();
     void createStreamingDock();
 
     bool chatRoomDockFirstLoad = true;
-    QDockWidget* chatRoomDock{nullptr};
-    QCefView* cefView{nullptr};
+    QPointer<QDockWidget> chatRoomDock;
+    QPointer<QCefView> cefView;
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;
-    OneSevenLiveStreamListDock* liveListDock{nullptr};
+    QPointer<OneSevenLiveStreamListDock> liveListDock;
     void handleLiveListClicked();
+
+    bool rockZoneDockFirstLoad = true;
+    QPointer<OneSevenLiveRockZoneDock> rockZoneDock;
+    void handleRockZoneClicked();
+    void createRockZoneDock();
 
     void saveDockState();
 
-    void load17LiveConfig();
+    void load17LiveConfig(const OneSevenLiveLoginData& loginData);
 
-    void closeLive();
+    void closeLive(bool isAutoClose = false);
+
+    bool showAutoCloseConfirmation(const QString& message);
 
     OneSevenLiveStreamingStatus status = OneSevenLiveStreamingStatus::NotStarted;
 
     // Timer for checking stream status
-    QTimer* streamCheckTimer{nullptr};
+    QPointer<QTimer> streamCheckTimer;
+
+    // Consecutive failure detection related variables
+    int consecutiveFailureCount{0};  // Consecutive failure counter
+
+    // Version update related methods
+    void handleCheckUpdateClicked();
+    void checkForUpdates();
+
+    void loadGifts();
+
+    class OneSevenLiveUpdateManager* updateManager = nullptr;
 };

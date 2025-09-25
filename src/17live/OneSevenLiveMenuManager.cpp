@@ -13,7 +13,8 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
       isLoggedIn(false),
       isChatRoomVisible(false),
       isBroadcastVisible(false),
-      isLiveListVisible(false) {
+      isLiveListVisible(false),
+      isRockZoneVisible(false) {
     // Create 17Live menu
     menu = mainWindow->menuBar()->addMenu(obs_module_text("17Live"));
 
@@ -27,6 +28,9 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
 
     broadcastAction = dockSubMenu->addAction(obs_module_text("Menu.Broadcast"));
     connect(broadcastAction, &QAction::triggered, this, [this]() { emit streamingClicked(); });
+
+    // rockZoneAction = dockSubMenu->addAction(obs_module_text("Menu.RockZone"));
+    // connect(rockZoneAction, &QAction::triggered, this, [this]() { emit rockZoneClicked(); });
 
     liveListAction = dockSubMenu->addAction(obs_module_text("Menu.LiveList"));
     connect(liveListAction, &QAction::triggered, this, [this]() { emit liveListClicked(); });
@@ -59,9 +63,11 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     chatRoomAction->setCheckable(true);
     broadcastAction->setCheckable(true);
     liveListAction->setCheckable(true);
+    // rockZoneAction->setCheckable(true);
     chatRoomAction->setChecked(false);
     broadcastAction->setChecked(false);
     liveListAction->setChecked(false);
+    // rockZoneAction->setChecked(false);
 }
 
 OneSevenLiveMenuManager::~OneSevenLiveMenuManager() {}
@@ -103,11 +109,12 @@ void OneSevenLiveMenuManager::checkUpdate() {
 }
 
 void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible,
-                                                   bool liveListVisible) {
+                                                   bool liveListVisible, bool rockZoneVisible) {
     // Update visibility status variables
     isChatRoomVisible = chatRoomVisible;
     isBroadcastVisible = broadcastVisible;
     isLiveListVisible = liveListVisible;
+    isRockZoneVisible = rockZoneVisible;
 
     // Update menu item checked status
     if (chatRoomAction) {
@@ -124,6 +131,11 @@ void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool br
         liveListAction->setCheckable(true);
         liveListAction->setChecked(isLiveListVisible);
     }
+
+    if (rockZoneAction) {
+        rockZoneAction->setCheckable(true);
+        rockZoneAction->setChecked(isRockZoneVisible);
+    }
 }
 
 void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
@@ -131,6 +143,7 @@ void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
     chatRoomAction->setEnabled(isLoggedIn);
     broadcastAction->setEnabled(isLoggedIn);
     liveListAction->setEnabled(isLoggedIn);
+    // rockZoneAction->setEnabled(isLoggedIn);
 }
 
 void OneSevenLiveMenuManager::cleanup() {

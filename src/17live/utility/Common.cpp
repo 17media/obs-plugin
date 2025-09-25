@@ -20,6 +20,8 @@
 #include <sstream>  // For std::stringstream (Linux)
 #endif
 
+#include "plugin-support.h"
+
 std::string GetCurrentLanguage() {
     const char* locale = obs_get_locale();
     if (strcmp(locale, "ja-JP") == 0) {
@@ -55,44 +57,56 @@ std::string GetCurrentOS() {
 }
 
 std::string ExecuteCommandAndGetOutput(const char* cmd) {
-    std::array<char, 128> buffer;
-    std::string result;
+    try {
+        std::array<char, 128> buffer;
+        std::string result;
 
 #ifdef _WIN32
-    // Windows platform uses _popen and _pclose
-    FILE* pipe = _popen(cmd, "r");
+        // Windows platform uses _popen and _pclose
+        FILE* pipe = _popen(cmd, "r");
 #else
-    // macOS and Linux platforms use popen and pclose
-    FILE* pipe = popen(cmd, "r");
+        // macOS and Linux platforms use popen and pclose
+        FILE* pipe = popen(cmd, "r");
 #endif
 
-    if (!pipe) {
-        return "Error executing command";
-    }
+        if (!pipe) {
+            return "Error executing command";
+        }
 
 #ifdef _WIN32
-    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
+        while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
 #else
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
 #endif
-        result += buffer.data();
-    }
+            result += buffer.data();
+        }
 
 #ifdef _WIN32
-    _pclose(pipe);
+        _pclose(pipe);
 #else
-    pclose(pipe);
+        pclose(pipe);
 #endif
 
-    // Remove trailing newline characters if any
-    if (!result.empty() && result[result.length() - 1] == '\n') {
-        result.erase(result.length() - 1);
-    }
-    if (!result.empty() && result[result.length() - 1] == '\r') {
-        result.erase(result.length() - 1);
+        // Remove trailing newline characters if any
+        if (!result.empty() && result[result.length() - 1] == '\n') {
+            result.erase(result.length() - 1);
+        }
+        if (!result.empty() && result[result.length() - 1] == '\r') {
+            result.erase(result.length() - 1);
+        }
+
+        return result;
     }
 
-    return result;
+    catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[obs-17live]: ExecuteCommandAndGetOutput exception: %s", e.what());
+        return "Error: Exception occurred during command execution";
+    }
+
+    catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: ExecuteCommandAndGetOutput unknown exception");
+        return "Error: Unknown exception occurred during command execution";
+    }
 }
 
 std::string GetCurrentOSVersion() {

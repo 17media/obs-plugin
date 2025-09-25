@@ -3,9 +3,13 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
+#include <QDateTime>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QIcon>
 #include <QMessageBox>
+#include <QPushButton>
+#include <QRegularExpression>
 #include <QScrollArea>
 #include <QThread>
 #include <QTimer>
@@ -13,6 +17,7 @@
 #include <QVBoxLayout>
 
 #include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveCustomEventDialog.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "moc_OneSevenLiveStreamingDock.cpp"
 #include "plugin-support.h"
@@ -25,6 +30,13 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
     : QDockWidget(obs_module_text("Live.Settings"), parent),
       apiWrapper(apiWrapper_),
       configManager(configManager_) {
+    // Initialize category cooldown timer
+    eventCooldownTimer = new QTimer(this);
+    eventCooldownTimer->setSingleShot(false);
+    eventCooldownTimer->setInterval(1000);  // 1 second interval
+    connect(eventCooldownTimer, &QTimer::timeout, this,
+            &OneSevenLiveStreamingDock::onEventCooldownTimeout);
+
     setupUi();
     createConnections();
 }
@@ -159,18 +171,36 @@ void OneSevenLiveStreamingDock::setupUi() {
     eventContainer->addWidget(eventLabel);
 
     // Dropdown box
-    activityCombo = new QComboBox();
-    eventContainer->addWidget(activityCombo);
+    eventCombo = new QComboBox();
+    eventContainer->addWidget(eventCombo);
 
     // Create hint label and align right
     QHBoxLayout *hintLayout = new QHBoxLayout();
-    QLabel *hintLabel = new QLabel(obs_module_text("Live.Settings.Event.Tip"));
+    hintLabel = new QLabel(obs_module_text("Live.Settings.Event.Tip"));
     hintLabel->setStyleSheet("color: gray; font-size: 12px;");
     hintLayout->addStretch();  // Add flexible space to align hint text to the right
     hintLayout->addWidget(hintLabel);
     eventContainer->addLayout(hintLayout);
 
     mainLayout->addLayout(eventContainer);
+
+    // Custom Event (Optional)
+    customEventHeader = new QWidget();
+    customEventHeaderLayout = new QHBoxLayout(customEventHeader);
+    customEventHeaderLayout->setContentsMargins(0, 10, 0, 10);
+
+    customEventLabel = new QLabel(obs_module_text("CustomEvent.Dialog.Title"));
+    customEventToggleButton = new QPushButton();
+    customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
+    customEventToggleButton->setStyleSheet(
+        "QPushButton { border: none; background-color: transparent; }");
+    customEventToggleButton->setFixedSize(24, 24);
+
+    customEventHeaderLayout->addWidget(customEventLabel);
+    customEventHeaderLayout->addStretch();
+    customEventHeaderLayout->addWidget(customEventToggleButton);
+
+    mainLayout->addWidget(customEventHeader);
 
     // Broadcast mode
     QVBoxLayout *broadcastModeLayout = new QVBoxLayout();
@@ -218,7 +248,6 @@ void OneSevenLiveStreamingDock::setupUi() {
     userConditionLayout->addWidget(userConditionLabel);
 
     requiredArmyRankCombo = new QComboBox();
-    // requiredArmyRankCombo->addItem(obs_module_text("Live.Settings.UserCondition.AllLevels"), 1);
     requiredArmyRankCombo->setEditable(false);
     userConditionLayout->addWidget(requiredArmyRankCombo);
 
@@ -255,6 +284,46 @@ void OneSevenLiveStreamingDock::setupUi() {
     broadcastModeLayout->addWidget(armyOnlyContainer);
 
     mainLayout->addLayout(broadcastModeLayout);
+
+    // Party Live section
+    // Create party live header with label, help button and switch
+    GroupCallContainer = new QWidget();
+    GroupCallContainerLayout = new QHBoxLayout(GroupCallContainer);
+    GroupCallContainerLayout->setContentsMargins(0, 0, 0, 0);
+
+    QHBoxLayout *groupCallLabelLayout = new QHBoxLayout();
+    GroupCallLabel = new QLabel(obs_module_text("Live.Settings.GroupCall"));
+    GroupCallLabel->setStyleSheet("font-weight: bold;");
+
+    // Help button with question icon
+    GroupCallHelpButton = new QPushButton();
+    GroupCallHelpButton->setIcon(QIcon(":/resources/question.svg"));
+    GroupCallHelpButton->setFixedSize(20, 20);
+    GroupCallHelpButton->setStyleSheet("QPushButton { border: none; background: transparent; }");
+    GroupCallHelpButton->setToolTip(obs_module_text("Live.Settings.GroupCall.Help.Tooltip"));
+
+    groupCallLabelLayout->addWidget(GroupCallLabel);
+    groupCallLabelLayout->addWidget(GroupCallHelpButton);
+    groupCallLabelLayout->addStretch();
+
+    QVBoxLayout *groupCallLeftLayout = new QVBoxLayout();
+
+    QLabel *groupCallTip = new QLabel(obs_module_text("Live.Settings.GroupCall.Tip"));
+    groupCallTip->setStyleSheet("color: gray; font-size: 12px;");
+    groupCallTip->setMaximumWidth(580);
+    groupCallTip->setWordWrap(true);
+
+    groupCallLeftLayout->addLayout(groupCallLabelLayout);
+    groupCallLeftLayout->addWidget(groupCallTip);
+    groupCallLeftLayout->setSpacing(2);  // Adjust spacing between title and hint
+
+    GroupCallCheck = new QCheckBox();
+
+    GroupCallContainerLayout->addLayout(groupCallLeftLayout);
+    GroupCallContainerLayout->addStretch();
+    GroupCallContainerLayout->addWidget(GroupCallCheck);
+
+    mainLayout->addWidget(GroupCallContainer);
 
     // Switch options
     QHBoxLayout *archiveLayout = new QHBoxLayout();
@@ -480,7 +549,7 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
         if (eventName.isEmpty()) {
             continue;  // Skip if name is empty or null
         }
-        activityCombo->addItem(eventName, event.ID);
+        eventCombo->addItem(eventName, event.ID);
     }
 
     // Set streaming format
@@ -631,12 +700,14 @@ void OneSevenLiveStreamingDock::updateUIValues() {
             for (int i = 0; i < roomInfo.eventList.size(); i++) {
                 if (roomInfo.eventList[i].type == 2) {
                     qint64 eventID = roomInfo.eventList[i].ID;
-                    currentEventIndex = activityCombo->findData(eventID);
+                    currentEventIndex = eventCombo->findData(eventID);
                     break;
                 }
             }
         }
-        activityCombo->setCurrentIndex(currentEventIndex);
+        eventCombo->setCurrentIndex(currentEventIndex);
+
+        GroupCallCheck->setChecked(roomInfo.enableOBSGroupCall);
     }
 }
 
@@ -658,6 +729,18 @@ void OneSevenLiveStreamingDock::createConnections() {
 
     connect(armyOnlyCheck, &QCheckBox::stateChanged, this,
             &OneSevenLiveStreamingDock::onArmyOnlyCheckChanged);
+
+    // Custom event toggle button
+    connect(customEventToggleButton, &QPushButton::clicked, this,
+            &OneSevenLiveStreamingDock::onCustomEventToggleClicked);
+
+    // Party live help button
+    connect(GroupCallHelpButton, &QPushButton::clicked, this,
+            &OneSevenLiveStreamingDock::onGroupCallHelpClicked);
+
+    // Event change event
+    connect(eventCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &OneSevenLiveStreamingDock::onEventChanged);
 }
 
 void OneSevenLiveStreamingDock::onArmyOnlyToggleClicked() {
@@ -689,6 +772,34 @@ void OneSevenLiveStreamingDock::onArmyOnlyCheckChanged(int state) {
     archiveStreamCheck->setEnabled(state != Qt::Checked);
     autoPreviewCheck->setEnabled(state != Qt::Checked);
     clipIdentityCombo->setEnabled(state != Qt::Checked);
+}
+
+void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
+    if (customEventDialog) {
+        // Hide dialog and update button icon to arrow-down
+        customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
+
+        customEventDialog->close();
+        delete customEventDialog;
+        customEventDialog = nullptr;
+    } else {
+        // Open dialog first; dialog will fetch custom event asynchronously
+        customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
+
+        // Connect dialog close signal to reset button state
+        connect(customEventDialog, &QDialog::finished, this, [this]() {
+            customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
+            customEventDialog = nullptr;
+        });
+
+        // Update button icon to arrow-up when dialog is opened
+        customEventToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
+
+        // Show the dialog
+        customEventDialog->show();
+        customEventDialog->raise();
+        customEventDialog->activateWindow();
+    }
 }
 
 void OneSevenLiveStreamingDock::onAddTagClicked() {
@@ -855,7 +966,8 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
                 obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
 
                 if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::NotStarted)) {
-                    obs_log(LOG_INFO, "Room is starting live stream, don't proceed with live creation");
+                    obs_log(LOG_INFO,
+                            "Room is starting live stream, don't proceed with live creation");
                     return;
                 }
 
@@ -903,7 +1015,8 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
                 obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
 
                 if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::NotStarted)) {
-                    obs_log(LOG_INFO, "Room is starting live stream, don't proceed with live creation");
+                    obs_log(LOG_INFO,
+                            "Room is starting live stream, don't proceed with live creation");
                     return;
                 }
 
@@ -920,14 +1033,96 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
     currentInfoUuid = info.streamUuid;
 }
 
-void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request) {
+void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request_) {
     obs_log(LOG_INFO, "createLive");
+
+    // check current region changed?
+    std::string currentRegion;
+    configManager->getConfigValue("Region", currentRegion);
+
+    // Check feature 207 to control createLiveButton state
+    OneSevenLiveConfig currentConfig;
+    configManager->getConfig(currentConfig);
+    bool currentIsFeature207Enabled = (currentConfig.addOns.features["207"] == 1);
+
+    OneSevenLiveLoginData loginData;
+    if (!apiWrapper->GetSelfInfo(loginData)) {
+        obs_log(LOG_ERROR, "GetSelfInfo failed");
+        QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                             obs_module_text("Live.Create.GetSelfInfoFailed"));
+        return;
+    }
+
+    if (loginData.userInfo.region != QString::fromStdString(currentRegion)) {
+        obs_log(LOG_INFO, "Region changed, reload config");
+        std::string language = GetCurrentLanguage();
+
+        // Call API to get configuration
+        nlohmann::json configJson;
+        if (apiWrapper->GetConfig(currentRegion, language, configJson)) {
+            // Save configuration
+            configManager->setConfig(configJson);
+            obs_log(LOG_INFO, "Config loaded successfully");
+        } else {
+            obs_log(LOG_ERROR, "Failed to load config from API");
+        }
+
+        OneSevenLiveConfig newConfig;
+        JsonToOneSevenLiveConfig(configJson, newConfig);
+
+        bool newIsFeature207Enabled = (newConfig.addOns.features["207"] == 1);
+
+        if (!newIsFeature207Enabled) {
+            QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                                 obs_module_text("Live.Create.Feature207Disabled"));
+            return;
+        } else if (!currentIsFeature207Enabled && request_.subtabID.isEmpty()) {
+            // Feature 207 enabled now, but subtabID is empty, show warning
+            // Show dialog to prompt user to select category
+            loadRoomInfo(loginData.userInfo.roomID);
+
+            QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+                                 obs_module_text("Live.Settings.Save.Category.Empty"));
+
+            return;
+        }
+    } else if (!currentIsFeature207Enabled) {
+        QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                             obs_module_text("Live.Create.Feature207Disabled"));
+        return;
+    }
+
+    OneSevenLiveRtmpRequest request = request_;
+
+    if (request.caption.isEmpty()) {
+        // Show dialog to prompt user to enter title
+        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+                             obs_module_text("Live.Settings.Save.Title.Empty"));
+        return;
+    }
+
+    // if (request.subtabID.isEmpty()) {
+    //     // Show dialog to prompt user to select category
+    //     QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+    //                          obs_module_text("Live.Settings.Save.Category.Empty"));
+    //     return;
+    // }
+
+    // Add current userID and streamerType to request
+    request.userID = roomInfo.userID;
+    request.streamerType = roomInfo.streamerType;
 
     OneSevenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {
-        obs_log(LOG_ERROR, "Failed to create stream");
+        QString errorMsg = apiWrapper->getLastErrorMessage();
+        obs_log(LOG_ERROR, "Failed to create stream. UserID: %s, Error: %s, Timestamp: %lld",
+                request.userID.toStdString().c_str(),
+                errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                QDateTime::currentMSecsSinceEpoch());
         return;
     }
+
+    emit streamStatusUpdated(OneSevenLiveStreamingStatus::Live);
 
     startLive(request.userID.toStdString(), response, request.archiveConfig.autoRecording);
 }
@@ -935,47 +1130,80 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
 void OneSevenLiveStreamingDock::startLive(const std::string userID,
                                           const OneSevenLiveRtmpResponse &response,
                                           bool autoRecording, bool skip) {
-    QString streamUrl;
-    QString streamKey;
+    // Check if WHIP information is available
+    bool hasWhipInfo = !response.whipInfo.server.isEmpty() && !response.whipInfo.token.isEmpty();
 
-    // Regular expression /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ to parse response.rtmpURL
-    // First captured group is streamUrl, second captured group is streamKey
-    // Example: rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
-    QRegularExpression re("(^.+://[^/]+/[^/]+)/(.+)$");
-    QRegularExpressionMatch match = re.match(response.rtmpURL);
-    if (match.hasMatch()) {
-        streamUrl = match.captured(1);
-        streamKey = match.captured(2);
+    if (hasWhipInfo) {
+        // WHIP mode
+        obs_log(LOG_INFO, "Using WHIP streaming mode");
+
+        // Save WHIP streaming settings
+        configManager->setWhipStreamingInfo(response.liveStreamID.toStdString(),
+                                            response.whipInfo.server.toStdString(),
+                                            response.whipInfo.token.toStdString());
+        configManager->setWhipMode(true);
+
+        saveWhipStreamingSettings(response.liveStreamID.toStdString(),
+                                  response.whipInfo.server.toStdString(),
+                                  response.whipInfo.token.toStdString());
     } else {
-        obs_log(LOG_ERROR, "Failed to parse stream url");
-        return;
+        // RTMP mode
+        obs_log(LOG_INFO, "Using RTMP streaming mode");
+
+        QString streamUrl;
+        QString streamKey;
+
+        // Regular expression /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ to parse response.rtmpURL
+        // First captured group is streamUrl, second captured group is streamKey
+        // Example:
+        // rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
+        QRegularExpression re("(^.+://[^/]+/[^/]+)/(.+)$");
+        QRegularExpressionMatch match = re.match(response.rtmpURL);
+        if (match.hasMatch()) {
+            streamUrl = match.captured(1);
+            streamKey = match.captured(2);
+        } else {
+            obs_log(LOG_ERROR, "Failed to parse stream url");
+            return;
+        }
+
+        configManager->setStreamingInfo(response.liveStreamID.toStdString(),
+                                        streamUrl.toStdString(), streamKey.toStdString());
+        configManager->setWhipMode(false);
+
+        saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(),
+                              streamKey.toStdString());
     }
-
-    // obs_log(LOG_INFO, "streamUrl: %s", streamUrl.toStdString().c_str());
-    // obs_log(LOG_INFO, "streamKey: %s", streamKey.toStdString().c_str());
-
-    configManager->setStreamingInfo(response.liveStreamID.toStdString(), streamUrl.toStdString(),
-                                    streamKey.toStdString());
-
-    saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(),
-                          streamKey.toStdString());
 
     // Start live stream
     if (!skip && !apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
-        obs_log(LOG_ERROR, "Failed to start stream");
+        QString errorMsg = apiWrapper->getLastErrorMessage();
+        obs_log(LOG_ERROR,
+                "Failed to start stream. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: %lld",
+                response.liveStreamID.toStdString().c_str(), userID.c_str(),
+                errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                QDateTime::currentMSecsSinceEpoch());
         return;
     }
 
     // archive
     if (!skip && autoRecording) {
         if (!apiWrapper->EnableStreamArchive(response.liveStreamID.toStdString(), 1)) {
-            obs_log(LOG_ERROR, "Failed to enable archive %s",
-                    apiWrapper->getLastErrorMessage().toStdString().c_str());
+            QString errorMsg = apiWrapper->getLastErrorMessage();
+            obs_log(LOG_ERROR,
+                    "Failed to enable archive. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: "
+                    "%lld",
+                    response.liveStreamID.toStdString().c_str(), userID.c_str(),
+                    errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                    QDateTime::currentMSecsSinceEpoch());
         }
     }
 
     updateLiveStatus(OneSevenLiveStreamingStatus::Streaming);
     emit streamStatusUpdated(OneSevenLiveStreamingStatus::Streaming);
+
+    // Start event cooldown after successful live creation
+    startEventCooldown();
 
     // Ask whether to start streaming simultaneously
     QMessageBox msgBox;
@@ -1026,9 +1254,11 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
 }
 
 void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
-                                          const std::string &currLiveStreamID) {
+                                          const std::string &currLiveStreamID, bool isAutoClose) {
     // Handle stop streaming logic
     stopStreaming();
+
+    QString endReason = isAutoClose ? "autoClose" : "normalEnd";
 
     // Send close live stream request
     OneSevenLiveCloseLiveRequest request;
@@ -1036,11 +1266,23 @@ void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
     request.userID = QString::fromStdString(currUserID);
 
     if (!apiWrapper->StopStream(currLiveStreamID, request)) {
-        obs_log(LOG_ERROR, "Failed to stop stream");
+        obs_log(LOG_ERROR, "Failed to stop stream. LiveStreamID: %s, Reason: %s",
+                currLiveStreamID.c_str(), endReason.toStdString().c_str());
         // return;
+    } else {
+        obs_log(LOG_INFO,
+                "Successfully stopped stream. LiveStreamID: %s, Reason: %s, IsAutoClose: %s",
+                currLiveStreamID.c_str(), endReason.toStdString().c_str(),
+                isAutoClose ? "true" : "false");
     }
 
-    configManager->clearStreamingInfo();
+    // Clear streaming configuration based on current mode
+    if (configManager->isWhipMode()) {
+        configManager->clearWhipStreamingInfo();
+    } else {
+        configManager->clearStreamingInfo();
+    }
+    configManager->setWhipMode(false);
 
     updateLiveStatus(OneSevenLiveStreamingStatus::NotStarted);
     emit streamStatusUpdated(OneSevenLiveStreamingStatus::NotStarted);
@@ -1074,6 +1316,39 @@ void OneSevenLiveStreamingDock::saveStreamingSettings(const std::string &liveStr
     obs_service_release(service);
 }
 
+void OneSevenLiveStreamingDock::saveWhipStreamingSettings(const std::string &liveStreamID,
+                                                          const std::string &whipServer,
+                                                          const std::string &whipToken) {
+    // Handle WHIP streaming settings
+    obs_log(LOG_INFO, "saveWhipStreamingSettings %s", liveStreamID.c_str());
+    obs_log(LOG_INFO, "whipServer: %s", whipServer.c_str());
+    obs_log(LOG_INFO, "whipToken: %s", whipToken.c_str());
+
+    // Set WHIP server and token
+    obs_data_t *settings = obs_data_create();
+    obs_data_set_string(settings, "type", "whip_custom");
+    obs_data_set_string(settings, "service", "WHIP");
+    obs_data_set_string(settings, "server", whipServer.c_str());
+    obs_data_set_string(settings, "bearer_token", whipToken.c_str());
+
+    // Get or create WHIP service
+    obs_service_t *service = obs_service_create("whip_custom", "whip_service", settings, NULL);
+    if (!service) {
+        obs_log(LOG_ERROR, "Failed to create WHIP service");
+        return;
+    }
+
+    // Set as current streaming service
+    obs_frontend_set_streaming_service(service);
+
+    obs_service_release(service);
+    obs_data_release(settings);
+
+    obs_frontend_save_streaming_service();
+
+    obs_log(LOG_INFO, "WHIP service configured successfully");
+}
+
 void OneSevenLiveStreamingDock::stopStreaming() {
     // Handle stop streaming logic
     obs_log(LOG_INFO, "stopStreaming");
@@ -1094,10 +1369,11 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
 
     titleEdit->setText(request.caption);
 
-    // If your activityCombo uses setItemData to set eventID, find the corresponding index here
-    int eventIndex = activityCombo->findData(QVariant(request.eventID));
+    // If your eventCombo uses setItemData to set eventID, find the corresponding index here
+    int eventIndex = eventCombo->findData(QVariant(request.eventID));
     if (eventIndex >= 0) {
-        activityCombo->setCurrentIndex(eventIndex);
+        eventCombo->setCurrentIndex(eventIndex);
+        previousEventIndex = eventIndex;  // Initialize previous event index
     }
 
     // Clear and reload tag list
@@ -1129,6 +1405,8 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
     showInHotPageCheck->setChecked(request.armyOnly.showOnHotPage);
     liveNotificationCheck->setChecked(request.armyOnly.armyOnlyPN);
 
+    GroupCallCheck->setChecked(request.enableOBSGroupCall);
+
     archiveStreamCheck->setChecked(request.archiveConfig.autoRecording);
     autoPreviewCheck->setChecked(request.archiveConfig.autoPublish);
 
@@ -1142,28 +1420,13 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
 
 bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "gatherRtmpRequest");
-    QString caption = titleEdit->text();
-    if (caption.isEmpty()) {
-        // Show dialog to prompt user to enter title
-        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                             obs_module_text("Live.Settings.Save.Title.Empty"));
-        return false;
-    }
-    QString subtabID = categoryCombo->currentData().toString();
-    if (subtabID.isEmpty()) {
-        // Show dialog to prompt user to select category
-        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                             obs_module_text("Live.Settings.Save.Category.Empty"));
-        return false;
-    }
-    request.userID = roomInfo.userID;
+
     request.caption = titleEdit->text();
     request.device = "OBS";
-    int eventID = activityCombo->currentData().toInt();
+    int eventID = eventCombo->currentData().toInt();
     request.eventID = eventID;
     request.hashtags = tagsList;
     request.landscape = landscapeStreamRadio->isChecked();
-    request.streamerType = roomInfo.streamerType;
     request.subtabID = categoryCombo->currentData().toString();
 
     // Army-only viewing settings
@@ -1171,6 +1434,8 @@ bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &reque
     request.armyOnly.requiredArmyRank = requiredArmyRankCombo->currentData().toInt();
     request.armyOnly.showOnHotPage = showInHotPageCheck->isChecked();
     request.armyOnly.armyOnlyPN = liveNotificationCheck->isChecked();
+
+    request.enableOBSGroupCall = GroupCallCheck->isChecked();
 
     request.archiveConfig.autoRecording = archiveStreamCheck->isChecked();
     request.archiveConfig.autoPublish = autoPreviewCheck->isChecked();
@@ -1207,6 +1472,123 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     currentLiveStatus = status;
 
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
+
+    // Disable ALL controls above the bottom buttons when streaming is active
+    // Only keep save and create live buttons enabled
+    bool isStreaming = (status == OneSevenLiveStreamingStatus::Live ||
+                        status == OneSevenLiveStreamingStatus::Streaming);
+
+    auto setEnabledSafe = [&](QWidget *w, bool enabled) {
+        if (w)
+            w->setEnabled(enabled);
+    };
+
+    bool enable = !isStreaming;
+
+    // Basic info
+    setEnabledSafe(titleEdit, enable);
+    setEnabledSafe(categoryCombo, enable);
+
+    // Special handling for eventCombo during live streaming
+    if (isStreaming) {
+        // During live streaming, eventCombo should be enabled unless cooldown is active
+        bool eventEnabled = !eventCooldownTimer || !eventCooldownTimer->isActive();
+        setEnabledSafe(eventCombo, eventEnabled);
+    } else {
+        // For other states, use normal enabled logic
+        setEnabledSafe(eventCombo, enable);
+    }
+
+    // Tags
+    setEnabledSafe(tagEdit, enable);
+    setEnabledSafe(addTagButton, enable);
+    setEnabledSafe(tagsContainer, enable);
+
+    // Layout (portrait/landscape)
+    setEnabledSafe(portraitStreamRadio, enable);
+    setEnabledSafe(landscapeStreamRadio, enable);
+
+    // Army-only section
+    setEnabledSafe(armyOnlyHeader, enable);
+    setEnabledSafe(armyOnlyContainer, enable);
+    setEnabledSafe(armyOnlyToggleButton, enable);
+    setEnabledSafe(armyOnlyCheck, enable);
+    setEnabledSafe(requiredArmyRankCombo, enable);
+    setEnabledSafe(showInHotPageCheck, enable);
+    setEnabledSafe(liveNotificationCheck, enable);
+
+    // Party Live (Group Call)
+    setEnabledSafe(GroupCallContainer, enable);
+    setEnabledSafe(GroupCallHelpButton, enable);
+    setEnabledSafe(GroupCallCheck, enable);
+
+    // Archive / Preview / Clip / Virtual Liver
+    setEnabledSafe(archiveStreamCheck, enable);
+    setEnabledSafe(autoPreviewCheck, enable);
+    setEnabledSafe(clipIdentityCombo, enable);
+    setEnabledSafe(virtualStreamerCheck, enable);
+
+    // Keep bottom buttons enabled regardless of streaming status
+    setEnabledSafe(saveConfigButton, true);
+    setEnabledSafe(createLiveButton, true);
+}
+
+void OneSevenLiveStreamingDock::onGroupCallHelpClicked() {
+    QMessageBox helpDialog(this);
+    helpDialog.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
+    // helpDialog.setWindowTitle(obs_module_text("Live.Settings.GroupCall.Help.Title"));
+    helpDialog.setIcon(QMessageBox::NoIcon);
+
+    // Enable rich text format for HTML content
+    helpDialog.setTextFormat(Qt::RichText);
+    helpDialog.setText(obs_module_text("Live.Settings.GroupCall.Help.Content"));
+
+    helpDialog.addButton(obs_module_text("Live.Settings.GroupCall.Help.Button"),
+                         QMessageBox::AcceptRole);
+
+    // Set dialog size to accommodate the content
+    helpDialog.setMinimumWidth(500);
+    helpDialog.setMinimumHeight(400);
+
+    // Apply modern dark theme styling
+    helpDialog.setStyleSheet(
+        "QMessageBox {"
+        "    background-color: #4A5568;"
+        "    border-radius: 10px;"
+        "    color: white;"
+        "    font-size: 14px;"
+        "}"
+        "QMessageBox QLabel {"
+        "    color: white;"
+        "    background-color: transparent;"
+        "    padding: 15px;"
+        "    font-size: 14px;"
+        "    font-weight: normal;"
+        "    line-height: 1.4;"
+        "    word-wrap: break-word;"
+        "    max-width: 450px;"
+        "}"
+        "QMessageBox QDialogButtonBox {"
+        "    text-align: center;"
+        "    qproperty-centerButtons: true;"
+        "    padding-top: 10px;"
+        "}"
+        "QMessageBox QPushButton {"
+        "    background-color: #007AFF;"
+        "    color: white;"
+        "    border: none;"
+        "    border-radius: 6px;"
+        "    width: 120px;"
+        "    height: 35px;"
+        "    font-size: 14px;"
+        "    font-weight: bold;"
+        "    margin: 5px;"
+        "}"
+        "QMessageBox QPushButton:hover {"
+        "    background-color: #0056CC;"
+        "}");
+
+    helpDialog.exec();
 }
 
 void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event) {
@@ -1221,5 +1603,126 @@ void OneSevenLiveStreamingDock::resizeEvent(QResizeEvent *event) {
                 QRect(0, 0, scrollArea->viewport()->width(), scrollArea->viewport()->height()));
             loadingOverlay->raise();  // Ensure overlay is on top
         }
+    }
+}
+
+void OneSevenLiveStreamingDock::onEventChanged(int index) {
+    // Only handle event changes during live streaming
+    if (currentLiveStatus != OneSevenLiveStreamingStatus::Live &&
+        currentLiveStatus != OneSevenLiveStreamingStatus::Streaming) {
+        previousEventIndex = index;
+        return;
+    }
+
+    // If cooldown is active, ignore the change
+    if (eventCooldownTimer && eventCooldownTimer->isActive()) {
+        obs_log(LOG_INFO, "Event change ignored due to cooldown");
+        // Restore previous selection
+        if (previousEventIndex >= 0 && previousEventIndex < eventCombo->count()) {
+            eventCombo->blockSignals(true);
+            eventCombo->setCurrentIndex(previousEventIndex);
+            eventCombo->blockSignals(false);
+        }
+        return;
+    }
+
+    // Show confirmation dialog
+    QString eventName = eventCombo->itemText(index);
+    QString title = obs_module_text("Live.EventChange.Confirm.Title");
+    QString message = QString(obs_module_text("Live.EventChange.Confirm.Message")).arg(eventName);
+    QString cancelText = obs_module_text("Live.EventChange.Confirm.Cancel");
+    QString confirmText = obs_module_text("Live.EventChange.Confirm.Confirm");
+
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle(title);
+    msgBox.setText(message);
+    msgBox.addButton(cancelText, QMessageBox::RejectRole);
+    QPushButton *confirmButton = msgBox.addButton(confirmText, QMessageBox::AcceptRole);
+    msgBox.setDefaultButton(confirmButton);
+
+    int result = msgBox.exec();
+
+    // If user cancels, restore previous selection
+    if (result == QMessageBox::Rejected) {
+        if (previousEventIndex >= 0 && previousEventIndex < eventCombo->count()) {
+            eventCombo->blockSignals(true);
+            eventCombo->setCurrentIndex(previousEventIndex);
+            eventCombo->blockSignals(false);
+        }
+        return;
+    }
+
+    // User confirmed, proceed with event change
+    previousEventIndex = index;
+
+    // Get current event data
+    QVariant eventIDVariant = eventCombo->itemData(index);
+    if (!eventIDVariant.isValid()) {
+        obs_log(LOG_WARNING, "No event ID found for event index %d", index);
+        return;
+    }
+
+    qint64 eventID = eventIDVariant.toLongLong();
+    if (eventID == 0) {
+        obs_log(LOG_WARNING, "Invalid event ID for event index %d", index);
+        return;
+    }
+
+    // Call ChangeEvent API
+    OneSevenLiveChangeEventRequest request;
+    request.eventID = eventID;
+
+    bool success = apiWrapper->ChangeEvent(request);
+    if (success) {
+        obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
+
+        // Start event cooldown
+        startEventCooldown();
+    } else {
+        obs_log(LOG_ERROR, "Failed to change event to: %lld", eventID);
+        QMessageBox::warning(this, obs_module_text("Live.Common.Notice"),
+                             obs_module_text("Live.ChangeEvent.Failed"));
+    }
+}
+
+void OneSevenLiveStreamingDock::startEventCooldown() {
+    // Start cooldown timer (5 minutes = 300 seconds)
+    eventCooldownRemaining = 300;
+    originalCategoryText = eventCombo->currentText();
+    eventCooldownTimer->start();
+
+    // Disable event combo during cooldown
+    eventCombo->setEnabled(false);
+
+    // Update hint label to show cooldown
+    onEventCooldownTimeout();  // Update display immediately
+}
+
+void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
+    if (eventCooldownRemaining > 0) {
+        eventCooldownRemaining--;
+
+        // Update hint label to show remaining time
+        int minutes = eventCooldownRemaining / 60;
+        int seconds = eventCooldownRemaining % 60;
+        QString cooldownText = QString(obs_module_text("Live.EventChange.CoolDown"))
+                                   .arg(minutes, 2, 10, QChar('0'))
+                                   .arg(seconds, 2, 10, QChar('0'));
+
+        hintLabel->setText(cooldownText);
+        hintLabel->setStyleSheet("color: orange; font-size: 12px;");
+    } else {
+        // Cooldown finished
+        eventCooldownTimer->stop();
+
+        // Restore original hint text
+        hintLabel->setText(obs_module_text("Live.Settings.Event.Tip"));
+        hintLabel->setStyleSheet("color: gray; font-size: 12px;");
+
+        // Re-enable event combo based on current live status
+        // Call updateLiveStatus to ensure consistent state handling across all UI elements
+        updateLiveStatus(currentLiveStatus);
+
+        obs_log(LOG_INFO, "Event change cooldown finished");
     }
 }
