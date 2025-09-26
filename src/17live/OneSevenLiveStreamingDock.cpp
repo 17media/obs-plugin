@@ -44,6 +44,21 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
 
 OneSevenLiveStreamingDock::~OneSevenLiveStreamingDock() = default;
 
+// LoadingStateGuard implementation
+OneSevenLiveStreamingDock::LoadingStateGuard::LoadingStateGuard(std::atomic<bool>& flag, QMutex& mutex)
+    : flag_(flag), mutex_(mutex), valid_(false) {
+    QMutexLocker locker(&mutex_);
+    if (!flag_.exchange(true)) {
+        valid_ = true;
+    }
+}
+
+OneSevenLiveStreamingDock::LoadingStateGuard::~LoadingStateGuard() {
+    if (valid_) {
+        flag_.store(false);
+    }
+}
+
 void OneSevenLiveStreamingDock::setupUi() {
     QWidget *container = new QWidget(this);
     container->setStyleSheet(
@@ -447,14 +462,14 @@ void OneSevenLiveStreamingDock::setupUi() {
 
 // Add new method for loading room information
 void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
-    // Prevent multiple concurrent loading operations
-    if (isLoading) {
+    // Use RAII guard to manage loading state thread-safely
+    LoadingStateGuard guard(isLoading, loadingMutex);
+    if (!guard.isValid()) {
         obs_log(LOG_WARNING, "OneSevenLiveStreamingDock: Loading already in progress, ignoring new request");
         return;
     }
 
     // Show loading state
-    isLoading = true;
     loadingOverlay->setVisible(true);
     loadingOverlay->raise();  // Ensure overlay is on top
     loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
@@ -468,17 +483,32 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
     // Create worker thread for background loading
     QThread *workerThread = new QThread(this);
     
+    // Create local copies of data structures for thread-safe access
+    OneSevenLiveRoomInfo localRoomInfo;
+    OneSevenLiveConfigStreamer localConfigStreamer;
+    OneSevenLiveUserInfo localUserInfo;
+    OneSevenLiveArmySubscriptionLevels localLevels;
+    
     // Connect thread lifecycle and start background work
-    connect(workerThread, &QThread::started, this, [this, roomID, workerThread]() {
+    connect(workerThread, &QThread::started, this, [this, roomID, workerThread, 
+                                                   localRoomInfo, localConfigStreamer, 
+                                                   localUserInfo, localLevels]() mutable {
         // Create worker in the thread context
         OneSevenLiveLoadRoomInfoWorker worker(apiWrapper, configManager);
-        worker.setDataStructures(&roomInfo, &configStreamer, &userInfo, &levels);
+        worker.setDataStructures(&localRoomInfo, &localConfigStreamer, &localUserInfo, &localLevels);
         
         // Perform loading operation (convert qint64 to std::int64_t)
         OneSevenLiveLoadRoomInfoWorker::LoadResult result = worker.loadRoomInfo(static_cast<std::int64_t>(roomID));
         
         // Use QMetaObject::invokeMethod to safely call back to main thread
-        QMetaObject::invokeMethod(this, [this, result]() {
+        QMetaObject::invokeMethod(this, [this, result, localRoomInfo, localConfigStreamer, 
+                                        localUserInfo, localLevels]() {
+            // Copy the loaded data back to member variables in main thread
+            roomInfo = localRoomInfo;
+            configStreamer = localConfigStreamer;
+            userInfo = localUserInfo;
+            levels = localLevels;
+            
             handleLoadingCompleted(result);
         }, Qt::QueuedConnection);
         
@@ -571,8 +601,8 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
 
 // Handle loading completion with comprehensive error handling
 void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult& result) {
-    // Hide loading state
-    isLoading = false;
+    // Ensure loading state is properly reset using atomic operation
+    isLoading.store(false);
     loadingOverlay->setVisible(false);
 
     // Enable all controls
@@ -594,26 +624,29 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoo
 
     // Check for critical error message first
     if (!result.errorMessage.empty()) {
-        // Critical failure - show error with retry option
-        QMessageBox msgBox(this);
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setWindowTitle(obs_module_text("Live.Settings.Error"));
-        msgBox.setText(QString::fromStdString(result.errorMessage));
+        // Critical failure - show non-blocking error with retry option
+        QMessageBox *msgBox = new QMessageBox(this);
+        msgBox->setIcon(QMessageBox::Critical);
+        msgBox->setWindowTitle(obs_module_text("Live.Settings.Error"));
+        msgBox->setText(QString::fromStdString(result.errorMessage));
         
-        QPushButton *retryButton = msgBox.addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
-        msgBox.addButton(QMessageBox::Cancel);
-        msgBox.setDefaultButton(retryButton);
+        QPushButton *retryButton = msgBox->addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
+        msgBox->addButton(QMessageBox::Cancel);
+        msgBox->setDefaultButton(retryButton);
+        msgBox->setAttribute(Qt::WA_DeleteOnClose);
         
-        msgBox.exec();
-        
-        if (msgBox.clickedButton() == retryButton) {
-            // Get current room ID and retry loading
-            qint64 currentRoomID = configManager->getRoomID();
-            
-            if (currentRoomID > 0) {
-                loadRoomInfo(currentRoomID);
+        connect(msgBox, &QMessageBox::finished, this, [this, msgBox, retryButton]() {
+            if (msgBox->clickedButton() == retryButton) {
+                // Get current room ID and retry loading
+                qint64 currentRoomID = configManager->getRoomID();
+                
+                if (currentRoomID > 0) {
+                    loadRoomInfo(currentRoomID);
+                }
             }
-        }
+        });
+        
+        msgBox->show();
         return;
     }
 
@@ -651,25 +684,28 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoo
              missingDataDetails.join(", ").toUtf8().constData());
         
         // Show simplified user message consistent with error message box above
-        QMessageBox msgBox(this);
-        msgBox.setIcon(QMessageBox::Warning);
-        msgBox.setWindowTitle(obs_module_text("Live.Settings.Warning"));
-        msgBox.setText(obs_module_text("Live.Settings.RequiredDataMissing"));
+        QMessageBox *msgBox = new QMessageBox(this);
+        msgBox->setIcon(QMessageBox::Warning);
+        msgBox->setWindowTitle(obs_module_text("Live.Settings.Warning"));
+        msgBox->setText(obs_module_text("Live.Settings.RequiredDataMissing"));
         
-        QPushButton *retryButton = msgBox.addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
-        msgBox.addButton(QMessageBox::Cancel);
-        msgBox.setDefaultButton(retryButton);
+        QPushButton *retryButton = msgBox->addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
+        msgBox->addButton(QMessageBox::Cancel);
+        msgBox->setDefaultButton(retryButton);
+        msgBox->setAttribute(Qt::WA_DeleteOnClose);
         
-        msgBox.exec();
-        
-        if (msgBox.clickedButton() == retryButton) {
-            // Get current room ID and retry loading
-            qint64 currentRoomID = configManager->getRoomID();
-            if (currentRoomID > 0) {
-                obs_log(LOG_INFO, "[17Live] User requested retry for room ID: %lld", currentRoomID);
-                loadRoomInfo(currentRoomID);
+        connect(msgBox, &QMessageBox::finished, this, [this, msgBox, retryButton]() {
+            if (msgBox->clickedButton() == retryButton) {
+                // Get current room ID and retry loading
+                qint64 currentRoomID = configManager->getRoomID();
+                if (currentRoomID > 0) {
+                    obs_log(LOG_INFO, "[17Live] User requested retry for room ID: %lld", currentRoomID);
+                    loadRoomInfo(currentRoomID);
+                }
             }
-        }
+        });
+        
+        msgBox->show();
         return;
     }
 
@@ -685,8 +721,8 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoo
 
 // Handle critical errors that prevent loading
 void OneSevenLiveStreamingDock::handleCriticalError(const QString& errorMessage) {
-    // Hide loading state
-    isLoading = false;
+    // Hide loading state using atomic operation
+    isLoading.store(false);
     loadingOverlay->setVisible(false);
 
     // Enable all controls
@@ -1046,7 +1082,7 @@ void OneSevenLiveStreamingDock::onCreateLiveClicked() {
 void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "createLiveWithRequest");
 
-    if (isLoading) {
+    if (isLoading.load()) {
         // loading roomInfo is in progress, waiting for it to finish
         obs_log(LOG_INFO, "Waiting for loading to complete before creating live");
 
@@ -1056,7 +1092,7 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
         waitTimer->setInterval(100);  // Check every 100ms
 
         connect(waitTimer, &QTimer::timeout, this, [this, request, waitTimer]() {
-            if (!isLoading) {
+            if (!isLoading.load()) {
                 // Loading is complete, stop timer and proceed with creation
                 waitTimer->stop();
                 waitTimer->deleteLater();
@@ -1095,7 +1131,7 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
 void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &info) {
     obs_log(LOG_INFO, "editLiveWithInfo");
 
-    if (isLoading) {
+    if (isLoading.load()) {
         // loading roomInfo is in progress, waiting for it to finish
         obs_log(LOG_INFO, "Waiting for loading to complete before editing live info");
 
@@ -1105,7 +1141,7 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
         waitTimer->setInterval(100);  // Check every 100ms
 
         connect(waitTimer, &QTimer::timeout, this, [this, info, waitTimer]() {
-            if (!isLoading) {
+            if (!isLoading.load()) {
                 // Loading is complete, stop timer and proceed with creation
                 waitTimer->stop();
                 waitTimer->deleteLater();

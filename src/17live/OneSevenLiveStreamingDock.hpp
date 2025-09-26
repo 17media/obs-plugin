@@ -12,6 +12,9 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QMutex>
+#include <QMutexLocker>
+#include <atomic>
 
 #include "api/OneSevenLiveModels.hpp"
 #include "OneSevenLiveLoadRoomInfoWorker.hpp"
@@ -138,6 +141,18 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void startEventCooldown();               // Start event cooldown timer
 
    private:
+    // RAII class for managing loading state
+    class LoadingStateGuard {
+    public:
+        LoadingStateGuard(std::atomic<bool>& flag, QMutex& mutex);
+        ~LoadingStateGuard();
+        bool isValid() const { return valid_; }
+    private:
+        std::atomic<bool>& flag_;
+        QMutex& mutex_;
+        bool valid_;
+    };
+
     bool gatherRtmpRequest(OneSevenLiveRtmpRequest &request);
     void populateRtmpRequest(const OneSevenLiveRtmpRequest &request);
     void updateLiveButton(bool isLive);
@@ -163,7 +178,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     OneSevenLiveConfigManager *configManager = nullptr;
 
     QString currentInfoUuid = "";
-    bool isLoading = false;  // Indicates whether loading is in progress
+    std::atomic<bool> isLoading{false};  // Thread-safe loading state indicator
+    mutable QMutex loadingMutex;  // Mutex for protecting loading operations
     OneSevenLiveStreamingStatus currentLiveStatus = OneSevenLiveStreamingStatus::NotStarted;
 
     // Category change cooldown timer
