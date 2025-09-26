@@ -78,15 +78,23 @@ const string ONESEVENLIVE_POKE_ALL_URL = buildApiUrl("/api/v1/pokes/pokeAll");
 const string ONESEVENLIVE_CHANGE_EVENT_URL = buildApiUrl("/api/v1/liveStreams/event");
 
 OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
-    currentOS = GetCurrentOS();
-    currentOSVersion = GetCurrentOSVersion();
-    currentPlatformUUID = GetCurrentPlatformUUID();
+    initializeApiWrapper();
 }
 
 OneSevenLiveApiWrappers::OneSevenLiveApiWrappers(std::string token_) : token(token_) {
+    initializeApiWrapper();
+}
+
+void OneSevenLiveApiWrappers::initializeApiWrapper() {
     currentOS = GetCurrentOS();
     currentOSVersion = GetCurrentOSVersion();
     currentPlatformUUID = GetCurrentPlatformUUID();
+    
+    obs_log(LOG_INFO, "OneSevenLive API initialized - OS: %s, Version: %s, UUID: %s, Token: %s", 
+            currentOS.c_str(), 
+            currentOSVersion.c_str(), 
+            currentPlatformUUID.c_str(),
+            token.empty() ? "Not provided" : "Provided");
 }
 
 void OneSevenLiveApiWrappers::setLastErrorMessage(const QString &message) {
@@ -163,7 +171,7 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
 
     if (!success || output.empty()) {
         if (!error.empty())
-            obs_log(LOG_WARNING, "17Live API request failed: %s", error.c_str());
+            obs_log(LOG_WARNING, "17Live API request failed: %s [url: %s]", error.c_str(), url);
         return false;
     }
 
@@ -175,7 +183,7 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
     } catch (const Json::parse_error &e) {
         // dump error message to stderr
         obs_log(LOG_ERROR, "Failed to parse JSON response: %s", e.what());
-        obs_log(LOG_ERROR, "Response is: %s, status code: %d", output.c_str(), httpStatusCode);
+        obs_log(LOG_ERROR, "Response is: %s, status code: %d [url: %s]", output.c_str(), httpStatusCode, url);
         return false;
     }
     return httpStatusCode < 400;
