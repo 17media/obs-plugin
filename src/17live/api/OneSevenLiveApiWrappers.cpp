@@ -173,7 +173,9 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
         obs_log(LOG_DEBUG, "17Live API command answer: %s", json_out.dump().c_str());
 #endif
     } catch (const Json::parse_error &e) {
+        // dump error message to stderr
         obs_log(LOG_ERROR, "Failed to parse JSON response: %s", e.what());
+        obs_log(LOG_ERROR, "Response is: %s, status code: %d", output.c_str(), httpStatusCode);
         return false;
     }
     return httpStatusCode < 400;
