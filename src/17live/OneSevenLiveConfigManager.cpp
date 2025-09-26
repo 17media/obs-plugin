@@ -118,6 +118,21 @@ bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::stri
     return true;
 }
 
+qint64 OneSevenLiveConfigManager::getRoomID() {
+    if (!initialized) {
+        return 0;
+    }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return 0;
+    }
+
+    return static_cast<qint64>(config_get_uint(config, service, "RoomID"));
+}
+
 bool OneSevenLiveConfigManager::getLoginData(OneSevenLiveLoginData &loginData) {
     if (!initialized) {
         return false;

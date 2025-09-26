@@ -43,6 +43,9 @@ class OneSevenLiveConfigManager {
 
     bool getConfigValue(const std::string &key, std::string &value);
 
+    // Get current room ID
+    qint64 getRoomID();
+
     bool saveLiveConfig(const OneSevenLiveStreamInfo &streamInfo);
     bool loadAllLiveConfig(std::vector<OneSevenLiveStreamInfo> &streamInfo);
     bool saveAllLiveConfig(const std::vector<OneSevenLiveStreamInfo> &streamInfo);

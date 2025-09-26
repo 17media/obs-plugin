@@ -18,6 +18,7 @@
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCustomEventDialog.hpp"
+#include "OneSevenLiveLoadRoomInfoWorker.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "moc_OneSevenLiveStreamingDock.cpp"
 #include "plugin-support.h"
@@ -446,6 +447,12 @@ void OneSevenLiveStreamingDock::setupUi() {
 
 // Add new method for loading room information
 void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
+    // Prevent multiple concurrent loading operations
+    if (isLoading) {
+        obs_log(LOG_WARNING, "OneSevenLiveStreamingDock: Loading already in progress, ignoring new request");
+        return;
+    }
+
     // Show loading state
     isLoading = true;
     loadingOverlay->setVisible(true);
@@ -458,78 +465,31 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
         scrollArea->widget()->setEnabled(false);
     }
 
-    // TODO: The following code needs optimization, establish Worker class, put API calls in Worker
-    // class, send signals in Worker class, receive signals in main thread, update UI Create a new
-    // thread to execute API calls, avoiding UI blocking
-    QThread *thread = new QThread;
-    QObject *worker = new QObject;
-    worker->moveToThread(thread);
-
-    connect(thread, &QThread::started, worker, [this, roomID, worker, thread]() {
-        // Execute API calls in new thread
-        bool roomInfoSuccess = apiWrapper->GetRoomInfo(roomID, roomInfo);
-
-        std::string region;
-        configManager->getConfigValue("Region", region);
-        std::string language = GetCurrentLanguage();
-
-        std::string userID;
-        configManager->getConfigValue("UserID", userID);
-
-        // Get configStreamer information in the same thread
-        bool configStreamerSuccess =
-            apiWrapper->GetConfigStreamer(region, language, configStreamer);
-
-        bool userInfoSuccess = apiWrapper->GetUserInfo(userID, region, language, userInfo);
-
-        bool levelsSuccess = apiWrapper->GetArmySubscriptionLevels(region, language, levels);
-
-        // Use Qt::QueuedConnection to ensure UI updates in main thread
-        QMetaObject::invokeMethod(
-            this,
-            [this, roomInfoSuccess, configStreamerSuccess, userInfoSuccess, levelsSuccess]() {
-                // Hide loading state
-                isLoading = false;
-                loadingOverlay->setVisible(false);
-
-                // Enable all controls
-                QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());
-                if (scrollArea && scrollArea->widget()) {
-                    scrollArea->widget()->setEnabled(true);
-                }
-
-                if (configStreamerSuccess) {
-                    // Update UI
-                    updateUIWithRoomInfo();
-                } else {
-                    // Show error message
-                    QMessageBox::warning(
-                        this, obs_module_text("Live.Settings.Error"),
-                        QString::fromStdString(obs_module_text("Live.Settings.LoadError"))
-                            .arg(apiWrapper->getLastErrorMessage()));
-                }
-
-                if (!roomInfoSuccess) {
-                    obs_log(LOG_WARNING, "Failed to get roomInfo in loadRoomInfo");
-                }
-
-                if (!userInfoSuccess) {
-                    obs_log(LOG_WARNING, "Failed to get user info in loadRoomInfo");
-                }
-
-                if (!levelsSuccess) {
-                    obs_log(LOG_WARNING, "Failed to get army subscription levels in loadRoomInfo");
-                }
-            },
-            Qt::QueuedConnection);
-
-        // Clean up after completion
-        thread->quit();
-        worker->deleteLater();
+    // Create worker thread for background loading
+    QThread *workerThread = new QThread(this);
+    
+    // Connect thread lifecycle and start background work
+    connect(workerThread, &QThread::started, this, [this, roomID, workerThread]() {
+        // Create worker in the thread context
+        OneSevenLiveLoadRoomInfoWorker worker(apiWrapper, configManager);
+        worker.setDataStructures(&roomInfo, &configStreamer, &userInfo, &levels);
+        
+        // Perform loading operation (convert qint64 to std::int64_t)
+        OneSevenLiveLoadRoomInfoWorker::LoadResult result = worker.loadRoomInfo(static_cast<std::int64_t>(roomID));
+        
+        // Use QMetaObject::invokeMethod to safely call back to main thread
+        QMetaObject::invokeMethod(this, [this, result]() {
+            handleLoadingCompleted(result);
+        }, Qt::QueuedConnection);
+        
+        // Signal thread completion
+        workerThread->quit();
     });
 
-    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
-    thread->start();
+    connect(workerThread, &QThread::finished, workerThread, &QObject::deleteLater);
+    
+    // Start the worker thread
+    workerThread->start();
 }
 
 // Add new method to update UI based on roomInfo
@@ -607,6 +567,144 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
     } else if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
         syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
     }
+}
+
+// Handle loading completion with comprehensive error handling
+void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult& result) {
+    // Hide loading state
+    isLoading = false;
+    loadingOverlay->setVisible(false);
+
+    // Enable all controls
+    QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());
+    if (scrollArea && scrollArea->widget()) {
+        scrollArea->widget()->setEnabled(true);
+    }
+
+    // Log any API failures
+    if (!result.roomInfoSuccess) {
+        obs_log(LOG_WARNING, "Failed to get roomInfo in loadRoomInfo");
+    }
+    if (!result.userInfoSuccess) {
+        obs_log(LOG_WARNING, "Failed to get user info in loadRoomInfo");
+    }
+    if (!result.levelsSuccess) {
+        obs_log(LOG_WARNING, "Failed to get army subscription levels in loadRoomInfo");
+    }
+
+    // Check for critical error message first
+    if (!result.errorMessage.empty()) {
+        // Critical failure - show error with retry option
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Critical);
+        msgBox.setWindowTitle(obs_module_text("Live.Settings.Error"));
+        msgBox.setText(QString::fromStdString(result.errorMessage));
+        
+        QPushButton *retryButton = msgBox.addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
+        msgBox.addButton(QMessageBox::Cancel);
+        msgBox.setDefaultButton(retryButton);
+        
+        msgBox.exec();
+        
+        if (msgBox.clickedButton() == retryButton) {
+            // Get current room ID and retry loading
+            qint64 currentRoomID = configManager->getRoomID();
+            
+            if (currentRoomID > 0) {
+                loadRoomInfo(currentRoomID);
+            }
+        }
+        return;
+    }
+
+    // Check if we have all required data for updateUIWithRoomInfo
+    // Required: configStreamer, roomInfo, userInfo
+    // levels is required only when configStreamer.armyOnly == 2 && userInfo.onliveInfo.premiumType != 1
+    bool hasRequiredData = result.configStreamerSuccess && result.roomInfoSuccess && result.userInfoSuccess;
+    
+    // Check if levels is required based on army settings
+    bool levelsRequired = false;
+    if (result.configStreamerSuccess && result.userInfoSuccess) {
+        levelsRequired = (configStreamer.armyOnly == 2 && userInfo.onliveInfo.premiumType != 1);
+        if (levelsRequired) {
+            hasRequiredData = hasRequiredData && result.levelsSuccess;
+        }
+    }
+    
+    if (!hasRequiredData) {
+        // Log detailed information for debugging
+        QStringList missingDataDetails;
+        if (!result.configStreamerSuccess) {
+            missingDataDetails << "ConfigStreamer";
+        }
+        if (!result.roomInfoSuccess) {
+            missingDataDetails << "RoomInfo";
+        }
+        if (!result.userInfoSuccess) {
+            missingDataDetails << "UserInfo";
+        }
+        if (levelsRequired && !result.levelsSuccess) {
+            missingDataDetails << "Levels (required for army settings)";
+        }
+        
+        obs_log(LOG_WARNING, "[17Live] Failed to load required streaming configuration data. Missing: %s", 
+             missingDataDetails.join(", ").toUtf8().constData());
+        
+        // Show simplified user message consistent with error message box above
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setWindowTitle(obs_module_text("Live.Settings.Warning"));
+        msgBox.setText(obs_module_text("Live.Settings.RequiredDataMissing"));
+        
+        QPushButton *retryButton = msgBox.addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
+        msgBox.addButton(QMessageBox::Cancel);
+        msgBox.setDefaultButton(retryButton);
+        
+        msgBox.exec();
+        
+        if (msgBox.clickedButton() == retryButton) {
+            // Get current room ID and retry loading
+            qint64 currentRoomID = configManager->getRoomID();
+            if (currentRoomID > 0) {
+                obs_log(LOG_INFO, "[17Live] User requested retry for room ID: %lld", currentRoomID);
+                loadRoomInfo(currentRoomID);
+            }
+        }
+        return;
+    }
+
+    // Show warnings for non-critical failures (levels is optional when not required for army settings)
+    if (!levelsRequired && !result.levelsSuccess) {
+        obs_log(LOG_INFO, "[17Live] Levels data failed to load but not required for current army settings");
+        // No user notification needed when levels is not required
+    }
+
+    // All required data loaded successfully - update UI
+    updateUIWithRoomInfo();
+}
+
+// Handle critical errors that prevent loading
+void OneSevenLiveStreamingDock::handleCriticalError(const QString& errorMessage) {
+    // Hide loading state
+    isLoading = false;
+    loadingOverlay->setVisible(false);
+
+    // Enable all controls
+    QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());
+    if (scrollArea && scrollArea->widget()) {
+        scrollArea->widget()->setEnabled(true);
+    }
+
+    // Log the error
+    obs_log(LOG_ERROR, "Critical error in loadRoomInfo: %s", errorMessage.toStdString().c_str());
+
+    // Show error message to user
+    QMessageBox::critical(
+        this,
+        obs_module_text("Live.Settings.Error"),
+        QString("%1\n\n%2")
+            .arg(obs_module_text("Live.Settings.CriticalError"))
+            .arg(errorMessage));
 }
 
 void OneSevenLiveStreamingDock::syncWithWeb(OneSevenLiveStreamingStatus status) {

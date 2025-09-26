@@ -14,6 +14,7 @@
 #include <QWidget>
 
 #include "api/OneSevenLiveModels.hpp"
+#include "OneSevenLiveLoadRoomInfoWorker.hpp"
 
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
@@ -42,6 +43,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void updateUIWithRoomInfo();
     void updateRequiredArmyRankSelections();
     void updateUIValues();
+    void handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult& result);
+    void handleCriticalError(const QString& errorMessage);
 
    private:
     // UI elements
