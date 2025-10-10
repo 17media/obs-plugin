@@ -122,6 +122,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
   src/17live/OneSevenLiveCustomEventDialog.cpp
   src/17live/OneSevenLiveStreamingDock.cpp
   src/17live/OneSevenLiveStreamListItem.cpp
+  src/17live/OneSevenLiveLoadRoomInfoWorker.cpp
   src/17live/OneSevenLiveStreamListDock.cpp
   src/17live/OneSevenLiveRockZoneDock.cpp
   src/17live/OneSevenLiveUserDialog.cpp

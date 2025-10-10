@@ -146,4 +146,5 @@ class OneSevenLiveApiWrappers : public QObject {
     // Thread-safe helper methods for error message management
     void setLastErrorMessage(const QString &message);
     void clearLastErrorMessage();
+    void initializeApiWrapper();
 };
