@@ -234,10 +234,11 @@ static void mergeMockUsers(Json& originUsers, Json& mockUsers) {
         QByteArray content = file.readAll();
         file.close();
 
-        std::string parse_err;
-        Json test_json = Json::parse(content.constData(), parse_err);
-        if (!parse_err.empty()) {
-            obs_log(LOG_WARNING, "mergeMockUsers: parse test viewers failed: %s", parse_err.c_str());
+        Json test_json;
+        try {
+            test_json = Json::parse(content.toStdString());
+        } catch (const nlohmann::json::parse_error& e) {
+            obs_log(LOG_WARNING, "mergeMockUsers: parse test viewers failed: %s", e.what());
             mockUsers = originUsers; // fallback to original
             break;
         }
@@ -255,13 +256,18 @@ static void mergeMockUsers(Json& originUsers, Json& mockUsers) {
         }
 
         // Extract original users array
-        std::vector<Json> merged;
+        Json merged = Json::array();
         bool original_is_array = false;
         if (originUsers.is_array()) {
-            merged = originUsers.array_items();
             original_is_array = true;
-        } else if (originUsers.is_object() && originUsers["viewers"].is_array()) {
-            merged = originUsers["viewers"].array_items();
+            for (const auto& item : originUsers) {
+                merged.push_back(item);
+            }
+        } else if (originUsers.is_object() && originUsers.contains("viewers") &&
+                   originUsers["viewers"].is_array()) {
+            for (const auto& item : originUsers["viewers"]) {
+                merged.push_back(item);
+            }
         } else if (originUsers.is_null()) {
             // no original data, start with empty
         } else {
@@ -270,25 +276,33 @@ static void mergeMockUsers(Json& originUsers, Json& mockUsers) {
         }
 
         // Merge mock users into the array
-        for (const auto &item : mock_array_json.array_items()) {
-            merged.push_back(item);
+        if (mock_array_json.is_array()) {
+            for (const auto &item : mock_array_json) {
+                merged.push_back(item);
+            }
         }
 
         // Construct the result based on original format
         if (original_is_array) {
-            mockUsers = Json(merged);
+            mockUsers = merged;
         } else if (originUsers.is_object()) {
-            auto obj = originUsers.object_items();
-            obj["viewers"] = Json(merged);
-            mockUsers = Json(obj);
+            Json obj = originUsers;
+            obj["viewers"] = merged;
+            mockUsers = obj;
         } else {
-            mockUsers = Json(merged);
+            mockUsers = merged;
         }
 
-        obs_log(LOG_INFO, "mergeMockUsers: merged %zu mock viewers with %zu original users", 
-                mock_array_json.array_items().size(), 
-                original_is_array ? originUsers.array_items().size() : 
-                (originUsers.is_object() && originUsers["viewers"].is_array() ? originUsers["viewers"].array_items().size() : 0));
+        size_t mock_count = mock_array_json.is_array() ? mock_array_json.size() : 0;
+        size_t original_count = 0;
+        if (original_is_array) {
+            original_count = originUsers.is_array() ? originUsers.size() : 0;
+        } else if (originUsers.is_object() && originUsers.contains("viewers") &&
+                   originUsers["viewers"].is_array()) {
+            original_count = originUsers["viewers"].size();
+        }
+        obs_log(LOG_INFO, "mergeMockUsers: merged %zu mock viewers with %zu original users",
+                mock_count, original_count);
     } while (false);
 }
 
