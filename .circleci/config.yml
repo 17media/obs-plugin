@@ -14,26 +14,34 @@ orbs:
 
 # Include job definitions from separate files
 jobs:
-  # macOS Apple Silicon build job
-  build-macos-apple-silicon:
+  # Parameterized macOS build job
+  build-macos:
+    parameters:
+      arch_name:
+        type: string
+        description: "Architecture name for package naming (e.g., macAppleSilicon, macIntel)"
+      cmake_arch:
+        type: string
+        default: ""
+        description: "CMake architecture parameter (empty for default/arm64, x86_64 for Intel)"
     macos:
-      xcode: 16.4.0
-    resource_class: m4pro.medium
+      xcode: "16.4.0"
+    resource_class: "m4pro.medium"
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
       VERSION: << pipeline.parameters.version >>
     steps:
       - checkout
       
-      # Set environment based on tag
+      # Set environment based on tag or manual build
       - run:
-          name: Set Environment Variables
+          name: Set Environment and API URL
           command: |
-            # Determine environment based on tag or default to stage
             if [ -n "$CIRCLE_TAG" ]; then
               if [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 # Production tag (e.g., v1.0.0)
-                export BUILD_ENV="prod"
+                export BUILD_ENV="production"
                 export ONESEVENLIVE_API_URL="$PROD_ONESEVENLIVE_API_URL"
               elif [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-stage$ ]]; then
                 # Stage tag (e.g., v1.0.0-stage)
@@ -51,38 +59,73 @@ jobs:
             fi
             
             # Save environment variables for subsequent steps
-            echo "export BUILD_ENV=$BUILD_ENV" >> $BASH_ENV
-            echo "export ONESEVENLIVE_API_URL=$ONESEVENLIVE_API_URL" >> $BASH_ENV
-            
-            echo "Environment set to: $BUILD_ENV"
-            echo "API URL set to: $ONESEVENLIVE_API_URL"
-      
-      # Debug environment variables
-      - run:
-          name: Debug Environment Variables
-          command: |
-            source $BASH_ENV
-            echo "Current environment: $BUILD_ENV"
-            echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
-            echo "VERSION: ${VERSION:-0.0.0}"
+            echo "export BUILD_ENV=\"$BUILD_ENV\"" >> $BASH_ENV
+            echo "export ONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\"" >> $BASH_ENV
+
       
       # Install dependencies
       - run:
           name: Install Dependencies
           command: |
-            # Install Node.js
+            # Install Node.js 20
             brew install node@20
-            echo 'export PATH="/opt/homebrew/opt/node@20/bin:$PATH"' >> ~/.bash_profile
-            source ~/.bash_profile
+            brew link --force node@20
             
-            # Install CMake (version 3.28 or higher)
+            # Install CMake (ensure version 3.28 or higher)
+            # First try to install the latest cmake
             brew install cmake
+            
+            # Verify CMake version and install specific version if needed
             cmake_version=$(cmake --version | head -n1 | cut -d' ' -f3)
             echo "Installed CMake version: $cmake_version"
-            if ! cmake --version | head -n1 | awk '{print $3}' | awk -F. '{if($1>3 || ($1==3 && $2>=28)) exit 0; else exit 1}'; then
-              echo "Error: CMake version must be 3.28 or higher"
-              exit 1
+            
+            # Function to compare versions
+            version_compare() {
+              local version1=$1
+              local version2=$2
+              
+              # Split versions into arrays
+              IFS='.' read -ra V1 \<<< "$version1"
+              IFS='.' read -ra V2 \<<< "$version2"
+              
+              # Compare major, minor, patch
+              for i in 0 1 2; do
+                local v1=${V1[$i]:-0}
+                local v2=${V2[$i]:-0}
+                
+                if [ "$v1" -gt "$v2" ]; then
+                  return 0  # version1 > version2
+                elif [ "$v1" -lt "$v2" ]; then
+                  return 1  # version1 < version2
+                fi
+              done
+              return 0  # versions are equal
+            }
+            
+            # Check if version is 3.28 or higher
+            if ! version_compare "$cmake_version" "3.28"; then
+              echo "Current CMake version $cmake_version is less than 3.28"
+              echo "Installing CMake 3.28 specifically..."
+              
+              # Uninstall current cmake and install specific version
+              brew uninstall cmake
+              
+              # Install cmake 3.28 or higher from formula
+              # Try to install a specific version that meets requirements
+              brew install cmake@3.28 || brew install cmake
+              
+              # Verify again
+              cmake_version=$(cmake --version | head -n1 | cut -d' ' -f3)
+              echo "Updated CMake version: $cmake_version"
+              
+              if ! version_compare "$cmake_version" "3.28"; then
+                echo "Error: Unable to install CMake version 3.28 or higher"
+                echo "Current version: $cmake_version"
+                exit 1
+              fi
             fi
+            
+            echo "CMake version check passed: $cmake_version"
       
       # Setup Node.js and build web components
       - run:
@@ -98,20 +141,38 @@ jobs:
           command: |
             # Extract version from tag or use default
             if [ -n "$CIRCLE_TAG" ]; then
-              VERSION=${CIRCLE_TAG#v}
+              version=$(echo "$CIRCLE_TAG" | sed 's/^v//')
             else
-              VERSION=${VERSION:-0.0.0}
+              version=${VERSION:-0.0.0}
             fi
-            echo "export VERSION=$VERSION" >> $BASH_ENV
+            
+            # Remove -stage suffix from version number if present
+            version_number=$(echo "$version" | sed 's/-stage$//')
+            
+            # Set package name suffix
+            if [ "$BUILD_ENV" = "production" ]; then
+              pkg_suffix=""
+            else
+              pkg_suffix="-stage"
+            fi
+            
+            # Save environment variables for subsequent steps
+            echo "export VERSION=\"$version_number\"" >> $BASH_ENV
+            echo "export PKG_SUFFIX=\"$pkg_suffix\"" >> $BASH_ENV
+            
       
       # Configure CMake
       - run:
           name: CMake Configure
           command: |
-            source $BASH_ENV
-            cmake --preset macos \
-              -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" \
-              -DCMAKE_PROJECT_VERSION="$VERSION"
+            CMAKE_ARGS="-DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
+            
+            # Add architecture parameter if specified
+            if [ -n "<< parameters.cmake_arch >>" ]; then
+              CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=\"<< parameters.cmake_arch >>\""
+            fi
+            
+            eval "cmake --preset macos $CMAKE_ARGS"
       
       # Build the project
       - run:
@@ -125,65 +186,73 @@ jobs:
           command: |
             if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
               echo "Importing signing certificate..."
-              echo $MACOS_CERTIFICATE_BASE64 | base64 --decode > certificate.p12
-              security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-              security default-keychain -s build.keychain
-              security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-              security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-              security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+              echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+              
+              # Create keychain and import certificate
+              security create-keychain -p temp_password temp_keychain
+              security default-keychain -s temp_keychain
+              security unlock-keychain -p temp_password temp_keychain
+              security import certificate.p12 -k temp_keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+              security set-key-partition-list -S apple-tool:,apple: -s -k temp_password temp_keychain
+              
               rm certificate.p12
             else
               echo "No signing certificate provided, skipping code signing"
             fi
       
-      # Create and sign package
+      # Create and sign pkg
       - run:
-          name: Create Package
+          name: Create and Sign PKG
           command: |
-            source $BASH_ENV
-            # Add -stage suffix for stage environment
-            if [ "$BUILD_ENV" = "stage" ]; then
-              PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}-stage.pkg"
-            else
-              PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}.pkg"
+            # Ensure PKG_SUFFIX is set correctly
+            if [ -z "$PKG_SUFFIX" ]; then
+              if [ "$BUILD_ENV" = "production" ]; then
+                PKG_SUFFIX=""
+              else
+                PKG_SUFFIX="-stage"
+              fi
             fi
             
-            # Create unsigned package first
+            PKG_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
+            
             sudo pkgbuild --root build_macos/Release \
-                          --identifier com.17live.obsplugin \
-                          --version "$VERSION" \
-                          --install-location "/Applications/OBS.app/Contents/PlugIns" \
-                          --scripts package/macOS/misc \
-                          "$PKG_NAME"
+                     --identifier com.17live.obsplugin \
+                     --version "$VERSION" \
+                     --install-location "/Applications/OBS.app/Contents/PlugIns" \
+                     --scripts package/macOS/misc \
+                     "$PKG_NAME"
             
-            # Sign package if certificate is available
-            if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$DEVELOPER_ID_INSTALLER" ]; then
-              echo "Signing package..."
-              SIGNED_PKG_NAME="17liveOBSPlugin-macAppleSilicon-v${VERSION}-signed.pkg"
-              productsign --sign "$DEVELOPER_ID_INSTALLER" "$PKG_NAME" "$SIGNED_PKG_NAME"
-              mv "$SIGNED_PKG_NAME" "$PKG_NAME"
-            else
-              echo "No signing certificate provided, package will be unsigned"
+            # Sign the package if certificate is available
+            if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
+              productsign --sign "Developer ID Installer" "$PKG_NAME" "${PKG_NAME}.signed"
+              mv "${PKG_NAME}.signed" "$PKG_NAME"
             fi
             
-            echo "export PKG_NAME=$PKG_NAME" >> $BASH_ENV
+            echo "PKG_NAME=$PKG_NAME" >> $BASH_ENV
       
       # Store artifacts
+      - run:
+          name: Prepare Package for Artifact Storage
+          command: |
+            ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
+            mkdir -p artifacts
+            TARGET_PATH="artifacts/$ARTIFACT_NAME"
+            cp "$PKG_NAME" "$TARGET_PATH"
       - store_artifacts:
-          path: 17liveOBSPlugin-macAppleSilicon-v*.pkg
+          path: artifacts
           destination: packages
       
       # Persist package for potential deployment
       - persist_to_workspace:
           root: .
           paths:
-            - "17liveOBSPlugin-macAppleSilicon-v*.pkg"
+            - "artifacts"
 
   # Windows x64 build job
   build-windows-x64:
     executor:
-      name: win/default
-      size: large
+      name: win/server-2022
+      size: medium
     environment:
       VERSION: << pipeline.parameters.version >>
     steps:
@@ -197,7 +266,7 @@ jobs:
             if ($env:CIRCLE_TAG) {
               if ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+$') {
                 # Production tag (e.g., v1.0.0)
-                $env:BUILD_ENV = "prod"
+                $env:BUILD_ENV = "production"
                 $env:ONESEVENLIVE_API_URL = $env:PROD_ONESEVENLIVE_API_URL
               } elseif ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+-stage$') {
                 # Stage tag (e.g., v1.0.0-stage)
@@ -225,48 +294,91 @@ jobs:
             Write-Host "Environment set to: $env:BUILD_ENV"
             Write-Host "API URL set to: $env:ONESEVENLIVE_API_URL"
       
-      # Debug environment variables
-      - run:
-          name: Debug Environment Variables
-          command: |
-            Write-Host "Current environment: $env:BUILD_ENV"
-            Write-Host "ONESEVENLIVE_API_URL: $env:ONESEVENLIVE_API_URL"
-            Write-Host "VERSION: $env:VERSION"
       
       # Install dependencies
       - run:
           name: Install Dependencies
           command: |
             # Install Node.js
-            choco install nodejs --version=20.11.0 -y
+            # choco install nodejs --version=20.11.0 -y
             
-            # Install CMake (version 3.28 or higher)
+            # Install CMake (ensure version 3.28 or higher)
             choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
             
             # Install NSIS for creating Windows installer
             choco install nsis -y
+
+            # Install Visual Studio Build Tools 2022
+            # choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
             
-            # Verify CMake version
+            # Verify CMake version with improved parsing and comparison
             refreshenv
-            $cmakeVersion = (cmake --version | Select-String -Pattern "cmake version" | ForEach-Object { $_.ToString().Split(' ')[2] })
-            Write-Host "Installed CMake version: $cmakeVersion"
-            $versionParts = $cmakeVersion.Split('.')
-            $major = [int]$versionParts[0]
-            $minor = [int]$versionParts[1]
-            if ($major -lt 3 -or ($major -eq 3 -and $minor -lt 28)) {
-              Write-Error "Error: CMake version must be 3.28 or higher"
-              exit 1
+            
+            # Function to compare versions
+            function Compare-Version {
+                param(
+                    [string]$Version1,
+                    [string]$Version2
+                )
+                
+                $v1Parts = $Version1.Split('.') | ForEach-Object { [int]$_ }
+                $v2Parts = $Version2.Split('.') | ForEach-Object { [int]$_ }
+                
+                # Ensure both arrays have at least 3 elements (major.minor.patch)
+                while ($v1Parts.Count -lt 3) { $v1Parts += 0 }
+                while ($v2Parts.Count -lt 3) { $v2Parts += 0 }
+                
+                for ($i = 0; $i -lt 3; $i++) {
+                    if ($v1Parts[$i] -gt $v2Parts[$i]) {
+                        return 1  # Version1 > Version2
+                    }
+                    elseif ($v1Parts[$i] -lt $v2Parts[$i]) {
+                        return -1  # Version1 < Version2
+                    }
+                }
+                return 0  # Versions are equal
             }
             
-            # Install NSIS
-            choco install nsis -y
+            # Get CMake version with improved parsing
+            $cmakeOutput = cmake --version | Select-Object -First 1
             
-            # Install Visual Studio Build Tools 2022
-            choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive --locale en-US" -y
+            # Extract version number using regex (more robust than string splitting)
+            if ($cmakeOutput -match 'cmake version (\d+\.\d+\.\d+)') {
+                $cmakeVersion = $matches[1]
+            } else {
+                Write-Error "Unable to parse CMake version from output: $cmakeOutput"
+                exit 1
+            }
             
-            # Refresh environment
-            refreshenv
-      
+            # Check if version is 3.28.0 or higher
+            $compareResult = Compare-Version -Version1 $cmakeVersion -Version2 "3.28.0"
+            if ($compareResult -lt 0) {
+                try {
+                    choco upgrade cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+                    refreshenv
+                    
+                    # Re-check version
+                    $cmakeOutput = cmake --version | Select-Object -First 1
+                    if ($cmakeOutput -match 'cmake version (\d+\.\d+\.\d+)') {
+                        $cmakeVersion = $matches[1]
+                        
+                        $compareResult = Compare-Version -Version1 $cmakeVersion -Version2 "3.28.0"
+                        if ($compareResult -lt 0) {
+                            Write-Error "Unable to install CMake version 3.28.0 or higher. Current version: $cmakeVersion"
+                            exit 1
+                        }
+                    } else {
+                        Write-Error "Unable to parse updated CMake version"
+                        exit 1
+                    }
+                } catch {
+                    Write-Error "Failed to upgrade CMake: $_"
+                    exit 1
+                }
+            }
+            
+            Write-Host "CMake version check passed: $cmakeVersion"
+            
       # Setup Node.js and build web components
       - run:
           name: Install and Build Web Components
@@ -286,13 +398,27 @@ jobs:
               $version = if ($env:VERSION) { $env:VERSION } else { '0.0.0' }
             }
             
+            # Remove -stage suffix from version number if present
+            $versionNumber = $version -replace '-stage$', ''
+            
+            # Set package name suffix
+            if ($env:BUILD_ENV -eq "production") {
+              $pkgSuffix = ""
+            } else {
+              $pkgSuffix = "-stage"
+            }
+            
             # Set environment variables for subsequent steps
-            echo "VERSION=$version" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            echo "VERSION=$versionNumber" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            echo "PKG_SUFFIX=$pkgSuffix" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
             # Also set as machine-level environment variable for PowerShell sessions
-            [Environment]::SetEnvironmentVariable("VERSION", $version, "Machine")
+            [Environment]::SetEnvironmentVariable("VERSION", $versionNumber, "Machine")
+            [Environment]::SetEnvironmentVariable("PKG_SUFFIX", $pkgSuffix, "Machine")
             # Set for current session
-            $env:VERSION = $version
-            Write-Host "Set VERSION to: $version"
+            $env:VERSION = $versionNumber
+            $env:PKG_SUFFIX = $pkgSuffix
+            Write-Host "Set VERSION to: $versionNumber"
+            Write-Host "Set PKG_SUFFIX to: $pkgSuffix"
       
       # Configure CMake
       - run:
@@ -324,194 +450,72 @@ jobs:
               Write-Host "No signing certificate provided, skipping code signing"
             }
       
-      # Create NSIS installer script
+      # Build Windows installer using existing script
       - run:
-          name: Create NSIS Installer Script
+          name: Build Windows Installer
           shell: powershell
           command: |
-            # Debug: Check if VERSION is available
-            Write-Host "Current VERSION environment variable: $env:VERSION"
-            $version = $env:VERSION
-            if (-not $version) {
-              Write-Host "VERSION not found in environment, using default 0.0.0"
-              $version = "0.0.0"
-            }
-            Write-Host "Using version: $version"
-            # Add -stage suffix for stage environment
-            if ($env:BUILD_ENV -eq "stage") {
-              $installerName = "17liveOBSPlugin-windows-v$version-stage.exe"
+            # Set version with suffix for installer name
+            $version = "$env:VERSION$env:PKG_SUFFIX"
+            Write-Host "Using version with suffix: $version"
+            
+            # Use the existing build script from package/windows
+            cd package/windows
+            
+            # Run the PowerShell build script directly with version
+            pwsh -ExecutionPolicy Bypass -File "build-installer.ps1" -Version $version
+            
+            # Move the generated installer from output directory to root directory for artifact upload
+            $installerPattern = "17liveOBSPlugin-windows-v*.exe"
+            if (Test-Path "output") {
+              $installerFile = Get-ChildItem -Path "output" -Name $installerPattern | Select-Object -First 1
             } else {
-              $installerName = "17liveOBSPlugin-windows-v$version.exe"
+              $installerFile = $null
             }
-            Write-Host "Installer name will be: $installerName"
-            
-            $nsisScript = @"
-            !define PRODUCT_NAME "17Live OBS Plugin"
-            !define PRODUCT_VERSION "$version"
-            !define PRODUCT_PUBLISHER "17Live Limited"
-            !define PRODUCT_WEB_SITE "https://17.live"
-            !define PACKAGE_ID "OneSevenLive.ObsPlugin"
-            !define PACKAGE_NAME "OneSevenLiveOBSPlugin"
-            !define UPGRADE_CODE "b81d9705-e5b2-475f-8de8-4d02d297c073"
-            !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\obs-17live-plugin"
-            !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\17LiveOBSPlugin"
-            !define PRODUCT_UNINST_ROOT_KEY "HKLM"
-            
-            SetCompressor lzma
-            
-            Name "17Live OBS Plugin"
-            OutFile "$installerName"
-            InstallDir "C:\Program Files\obs-studio"
-            InstallDirRegKey HKLM "Software\OBS Studio" "InstallPath"
-            ShowInstDetails show
-            ShowUnInstDetails show
-            RequestExecutionLevel admin
-            
-            Page directory
-            Page instfiles
-            
-            UninstPage uninstConfirm
-            UninstPage instfiles
-            
-            Section "MainSection" SEC01
-              # Install DLL and PDB files to obs-plugins\64bit
-              SetOutPath "`$INSTDIR\obs-plugins\64bit"
-              SetOverwrite ifnewer
-              File "build_x64\rundir\Release\obs-17live.dll"
-              File "build_x64\rundir\Release\obs-17live.pdb"
-              
-              # Install data directory to data\obs-plugins
-              SetOutPath "`$INSTDIR\data\obs-plugins"
-              File /r "build_x64\rundir\Release\obs-17live"
-              
-              # Create start menu shortcuts
-              CreateDirectory "`$SMPROGRAMS\17Live OBS Plugin"
-              
-              # Write registry entries
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "InstallPath" "`$INSTDIR"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "Version" "$version"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageId" "${PACKAGE_ID}"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "PackageName" "${PACKAGE_NAME}"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "Manufacturer" "${PRODUCT_PUBLISHER}"
-              WriteRegStr HKLM "Software\17Live\OBSPlugin" "UpgradeCode" "${UPGRADE_CODE}"
-            SectionEnd
-            
-            Section -AdditionalIcons
-              WriteIniStr "`$INSTDIR\17live.url" "InternetShortcut" "URL" "`${PRODUCT_WEB_SITE}"
-              CreateShortCut "`$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "`$INSTDIR\17live.url"
-              CreateShortCut "`$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk" "`$INSTDIR\uninst.exe"
-            SectionEnd
-            
-            Section -Post
-              WriteUninstaller "`$INSTDIR\uninst.exe"
-              WriteRegStr HKLM "`${PRODUCT_DIR_REGKEY}" "" "`$INSTDIR\obs-17live-plugin.exe"
-              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "DisplayName" "`${PRODUCT_NAME}"
-              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "UninstallString" "`$INSTDIR\uninst.exe"
-              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "DisplayVersion" "`${PRODUCT_VERSION}"
-              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "URLInfoAbout" "`${PRODUCT_WEB_SITE}"
-              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "Publisher" "`${PRODUCT_PUBLISHER}"
-              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "PackageId" "`${PACKAGE_ID}"
-              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "PackageName" "`${PACKAGE_NAME}"
-              WriteRegStr `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}" "UpgradeCode" "`${UPGRADE_CODE}"
-            SectionEnd
-            
-            Section Uninstall
-              # Remove plugin files
-              Delete "`$INSTDIR\obs-plugins\64bit\obs-17live.dll"
-              Delete "`$INSTDIR\obs-plugins\64bit\obs-17live.pdb"
-              RMDir /r "`$INSTDIR\data\obs-plugins\obs-17live"
-              
-              # Remove shortcuts and registry entries
-              Delete "`$INSTDIR\17live.url"
-              Delete "`$INSTDIR\uninst.exe"
-              Delete "`$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk"
-              Delete "`$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
-              RMDir "`$SMPROGRAMS\17Live OBS Plugin"
-              
-              DeleteRegKey `${PRODUCT_UNINST_ROOT_KEY} "`${PRODUCT_UNINST_KEY}"
-              DeleteRegKey HKLM "`${PRODUCT_DIR_REGKEY}"
-              DeleteRegKey HKLM "Software\17Live\OBSPlugin"
-              
-              SetAutoClose true
-            SectionEnd
-            "@
-            
-            $nsisScript | Out-File -FilePath "installer.nsi" -Encoding utf8
-            echo "INSTALLER_NAME=$installerName" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
-            # Also set as environment variable for current and subsequent sessions
-            [Environment]::SetEnvironmentVariable("INSTALLER_NAME", $installerName, "Machine")
-            $env:INSTALLER_NAME = $installerName
-            Write-Host "Set INSTALLER_NAME to: $installerName"
+            if ($installerFile) {
+              Move-Item "output/$installerFile" "../../$installerFile"
+              echo "INSTALLER_NAME=$installerFile" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+              # Also set as environment variable for current and subsequent sessions
+              [Environment]::SetEnvironmentVariable("INSTALLER_NAME", $installerFile, "Machine")
+              $env:INSTALLER_NAME = $installerFile
+              Write-Host "Installer built successfully: $installerFile"
+            } else {
+              Write-Error "Installer file not found in output directory after build"
+              exit 1
+            }
       
-      # Build NSIS installer
-      - run:
-          name: Build NSIS Installer
-          shell: powershell
-          command: |
-            # Refresh environment to pick up NSIS installation
-            refreshenv
-            
-            # Use full path to makensis or ensure it's in PATH
-            if (Get-Command makensis -ErrorAction SilentlyContinue) {
-              makensis installer.nsi
-            } else {
-              # Try common NSIS installation paths
-              $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
-              if (Test-Path $nsisPath) {
-                & $nsisPath installer.nsi
-              } else {
-                Write-Error "NSIS makensis not found. Please ensure NSIS is properly installed."
-                exit 1
-              }
-            }
+
       
       # Sign installer if certificate is available
       - run:
           name: Sign Installer
           command: |
             if ($env:WINDOWS_CERTIFICATE_BASE64 -and $env:WINDOWS_CERTIFICATE_PASSWORD) {
-              Write-Host "Signing installer..."
-              # Debug: Check installer name
-              Write-Host "INSTALLER_NAME from env: $env:INSTALLER_NAME"
               $installerName = $env:INSTALLER_NAME
-              
-              # Fallback: reconstruct installer name if not available
-              if (-not $installerName) {
-                $version = if ($env:VERSION) { $env:VERSION } else { "0.0.0" }
-                # Add -stage suffix for stage environment
-                if ($env:BUILD_ENV -eq "stage") {
-                  $installerName = "17liveOBSPlugin-windows-v$version-stage.exe"
-                } else {
-                  $installerName = "17liveOBSPlugin-windows-v$version.exe"
-                }
-                Write-Host "Reconstructed installer name: $installerName"
-              }
-              Write-Host "Using installer name: $installerName"
-              
-              # Use signtool to sign the installer
+              if (-not $installerName -or -not (Test-Path $installerName)) { return }
               $timestampUrl = if ($env:WINDOWS_TIMESTAMP_URL) { $env:WINDOWS_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
-              
               & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /tr $timestampUrl /td SHA256 /a $installerName
-              
-              if ($LASTEXITCODE -eq 0) {
-                Write-Host "Installer signed successfully"
-              } else {
-                Write-Host "Failed to sign installer, but continuing..."
-              }
-            } else {
-              Write-Host "No signing certificate provided, installer will be unsigned"
             }
       
       # Store artifacts
+      - run:
+          name: Prepare Installer for Artifact Storage
+          command: |
+            if ($env:INSTALLER_NAME -and (Test-Path $env:INSTALLER_NAME)) {
+              $expectedName = "17liveOBSPlugin-windows-v$env:VERSION$env:PKG_SUFFIX.exe"
+              New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+              $artifactPath = Join-Path "artifacts" $expectedName
+              Copy-Item $env:INSTALLER_NAME $artifactPath -Force
+            }
       - store_artifacts:
-          path: 17liveOBSPlugin-windows-v*.exe
+          path: artifacts
           destination: packages
       
       # Persist installer for potential deployment
       - persist_to_workspace:
           root: .
           paths:
-            - "17liveOBSPlugin-windows-v*.exe"
+            - "artifacts"
 
 workflows:
   version: 2
@@ -519,7 +523,21 @@ workflows:
   # Tag-based build workflow - supports both production and stage builds
   tag-build:
     jobs:
-      - build-macos-apple-silicon:
+      - build-macos:
+          name: build-macos-apple-silicon
+          arch_name: "macAppleSilicon"
+          cmake_arch: ""
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+(-stage)?$/
+            branches:
+              ignore: /.*/
+          context:
+            - macos-signing
+      - build-macos:
+          name: build-macos-intel
+          arch_name: "macIntel"
+          cmake_arch: "x86_64"
           filters:
             tags:
               only: /^v\d+\.\d+\.\d+(-stage)?$/
@@ -541,7 +559,18 @@ workflows:
     jobs:
       - hold:
           type: approval
-      - build-macos-apple-silicon:
+      - build-macos:
+          name: build-macos-apple-silicon
+          arch_name: "macAppleSilicon"
+          cmake_arch: ""
+          requires:
+            - hold
+          context:
+            - macos-signing
+      - build-macos:
+          name: build-macos-intel
+          arch_name: "macIntel"
+          cmake_arch: "x86_64"
           requires:
             - hold
           context:

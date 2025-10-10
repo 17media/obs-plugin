@@ -19,9 +19,11 @@
 
 #include <obs.h>
 
+#include <QByteArray>
+#include <QString>
+
 #include "curl-helper.h"
 #include "moc_RemoteTextThread.cpp"
-#include "qt-wrappers.hpp"
 
 using namespace std;
 
@@ -100,19 +102,19 @@ void RemoteTextThread::run() {
 
         code = curl_easy_perform(curl.get());
         if (code != CURLE_OK) {
-            blog(LOG_WARNING, "RemoteTextThread: HTTP request failed. %s [url: %s]",
-                 strlen(error) ? error : curl_easy_strerror(code), url.c_str());
+            // blog(LOG_WARNING, "RemoteTextThread: HTTP request failed. %s [url: %s]",
+            //      strlen(error) ? error : curl_easy_strerror(code), url.c_str());
             if (isImageRequest) {
-                emit ImageResult(QByteArray(), QT_UTF8(error));
+                emit ImageResult(QByteArray(), QString::fromUtf8(error));
             } else {
-                emit Result(QString(), QT_UTF8(error));
+                emit Result(QString(), QString::fromUtf8(error));
             }
         } else {
             if (isImageRequest) {
                 QByteArray imageData(binary_data.data(), binary_data.size());
                 emit ImageResult(imageData, QString());
             } else {
-                emit Result(QT_UTF8(str.c_str()), QString());
+                emit Result(QString::fromUtf8(str.c_str()), QString());
             }
         }
 

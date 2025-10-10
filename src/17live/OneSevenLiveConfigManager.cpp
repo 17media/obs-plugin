@@ -466,25 +466,25 @@ bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStream
     QTextStream in(&file);
     QString jsonString = in.readAll();
     file.close();
-    std::string error;
-    Json json = Json::parse(jsonString.toStdString(), error);
-    if (!error.empty()) {
-        obs_log(LOG_ERROR, "Failed to parse live_list.json: %s", error.c_str());
+    try {
+        json jsonData = json::parse(jsonString.toStdString());
+
+        if (!jsonData.is_array()) {
+            obs_log(LOG_ERROR, "live_list.json is not an array");
+            return false;
+        }
+
+        for (const auto &item : jsonData) {
+            OneSevenLiveStreamInfo info;
+            JsonToOneSevenLiveStreamInfo(item, info);
+            streamInfo.push_back(info);
+        }
+
+        return true;
+    } catch (const json::parse_error &e) {
+        obs_log(LOG_ERROR, "Failed to parse live_list.json: %s", e.what());
         return false;
     }
-
-    if (!json.is_array()) {
-        obs_log(LOG_ERROR, "live_list.json is not an array");
-        return false;
-    }
-
-    for (const auto &item : json.array_items()) {
-        OneSevenLiveStreamInfo info;
-        JsonToOneSevenLiveStreamInfo(item, info);
-        streamInfo.push_back(info);
-    }
-
-    return true;
 }
 
 bool OneSevenLiveConfigManager::saveAllLiveConfig(
@@ -493,13 +493,13 @@ bool OneSevenLiveConfigManager::saveAllLiveConfig(
         return false;
     }
 
-    std::vector<Json> json_array = Json::array();
+    json json_array = json::array();
     for (const auto &item : streamInfoList) {
-        Json json_item;
+        json json_item;
         OneSevenLiveStreamInfoToJson(item, json_item);
         json_array.push_back(json_item);
     }
-    Json json_data = Json(json_array);
+    json json_data = json_array;
     QString liveListFile = QString::fromStdString(configPath) + "/" + "live_list.json";
     QFile file(liveListFile);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -544,21 +544,22 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
         const std::string configJsonPath = configPath + "/config_17live.json";
         std::ofstream file(configJsonPath);
         if (!file.is_open()) {
-            obs_log(LOG_ERROR, "Failed to open config file for writing: %s", configJsonPath.c_str());
+            obs_log(LOG_ERROR, "Failed to open config file for writing: %s",
+                    configJsonPath.c_str());
             return false;
         }
 
         file << configJson;
-        
+
         // Check if write operation was successful
         if (file.fail()) {
             obs_log(LOG_ERROR, "Failed to write config data to file: %s", configJsonPath.c_str());
             file.close();
             return false;
         }
-        
+
         file.close();
-        
+
         // Verify file was closed successfully
         if (file.fail()) {
             obs_log(LOG_ERROR, "Failed to close config file: %s", configJsonPath.c_str());
@@ -567,7 +568,7 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
 
         obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: setConfig exception: %s", e.what());
         return false;
     } catch (...) {
@@ -611,24 +612,24 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
 
     // Parse JSON data - convert once to std::string
     const std::string jsonDataStr = jsonData.toStdString();
-    std::string err;
-    Json jsonObj = Json::parse(jsonDataStr, err);
 
-    if (!err.empty()) {
-        obs_log(LOG_ERROR, "Failed to parse config JSON: %s", err.c_str());
+    try {
+        json jsonObj = json::parse(jsonDataStr);
+
+        // Convert JSON to OneSevenLiveConfig structure
+        if (!JsonToOneSevenLiveConfig(jsonObj, config)) {
+            obs_log(LOG_ERROR, "Failed to convert JSON to config");
+            return false;
+        }
+
+        // Update current configuration
+        currentConfig = config;
+
+        return true;
+    } catch (const json::parse_error &e) {
+        obs_log(LOG_ERROR, "Failed to parse config JSON: %s", e.what());
         return false;
     }
-
-    // Convert JSON to OneSevenLiveConfig structure
-    if (!JsonToOneSevenLiveConfig(jsonObj, config)) {
-        obs_log(LOG_ERROR, "Failed to convert JSON to config");
-        return false;
-    }
-
-    // Update current configuration
-    currentConfig = config;
-
-    return true;
 }
 
 bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
@@ -647,7 +648,7 @@ bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
         out << QString::fromStdString(gifts.dump());
         file.close();
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: saveGifts exception: %s", e.what());
         return false;
     } catch (...) {
@@ -666,22 +667,22 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
         QFile file(giftsFile);
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             // File doesn't exist, return empty object
-            gifts = Json::object();
+            gifts = json::object();
             return true;
         }
         QTextStream in(&file);
         QString jsonString = in.readAll();
         file.close();
 
-        std::string error;
-        gifts = Json::parse(jsonString.toStdString(), error);
-        if (!error.empty()) {
-            obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", error.c_str());
+        try {
+            gifts = json::parse(jsonString.toStdString());
+        } catch (const json::parse_error &e) {
+            obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", e.what());
             return false;
         }
 
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: loadGifts exception: %s", e.what());
         return false;
     } catch (...) {

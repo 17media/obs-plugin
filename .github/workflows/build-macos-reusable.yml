@@ -1,0 +1,171 @@
+name: Reusable macOS Build Workflow
+
+on:
+  workflow_call:
+    inputs:
+      arch_name:
+        description: "Architecture name for package naming (e.g., macAppleSilicon, macIntel)"
+        required: true
+        type: string
+      cmake_arch:
+        description: "CMake architecture parameter (empty for default/arm64, x86_64 for Intel)"
+        required: false
+        type: string
+        default: ""
+      artifact_name:
+        description: "Artifact name for upload (e.g., macOS-AppleSilicon-PKG, macOS-Intel-PKG)"
+        required: true
+        type: string
+      use_sudo:
+        description: "Whether to use sudo for pkgbuild command"
+        required: false
+        type: boolean
+        default: false
+      environment:
+        description: "Build environment"
+        required: true
+        type: string
+      version:
+        description: "Version number"
+        required: true
+        type: string
+
+jobs:
+  build-macos:
+    name: Build macOS ${{ inputs.arch_name }}
+    runs-on: macos-15
+    environment: ${{ inputs.environment }}
+    env:
+      ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
+      VERSION: ${{ inputs.version }}
+      BUILD_ENV: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Debug Environment Variables
+        run: |
+          echo "Current environment: ${{ inputs.environment }}"
+          echo "ONESEVENLIVE_API_URL: $ONESEVENLIVE_API_URL"
+          echo "BUILD_ENV: $BUILD_ENV"
+          echo "VERSION: $VERSION"
+          echo "Architecture: ${{ inputs.arch_name }}"
+          echo "CMake arch: ${{ inputs.cmake_arch }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            web/ably_chat/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Check npm cache status
+        run: |
+          echo "Cache hit: ${{ steps.npm-cache.outputs.cache-hit }}"
+          if [ "${{ steps.npm-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "✅ npm dependencies restored from cache"
+          else
+            echo "❌ npm cache miss, will install dependencies"
+          fi
+
+      - name: Install and Build Web
+        working-directory: web/ably_chat
+        run: |
+          if [ "${{ steps.npm-cache.outputs.cache-hit }}" != "true" ]; then
+            echo "Installing npm dependencies..."
+            npm install
+          else
+            echo "Skipping npm install (dependencies restored from cache)"
+          fi
+          npm run build
+
+      - name: Set ENV and Version
+        run: |
+          # Remove v prefix from VERSION if present
+          VERSION_NUMBER=${VERSION#v}
+          
+          # Remove -stage suffix from version number if present
+          VERSION_NUMBER=${VERSION_NUMBER%-stage}
+          echo "VERSION=$VERSION_NUMBER" >> $GITHUB_ENV
+          
+          # Set package name suffix
+          if [ "$BUILD_ENV" == "production" ]; then
+            echo "PKG_SUFFIX=" >> $GITHUB_ENV
+          else
+            echo "PKG_SUFFIX=-stage" >> $GITHUB_ENV
+          fi
+
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: .deps
+          key: macos-deps-${{ hashFiles('buildspec.json') }}-${{ inputs.cmake_arch }}
+          restore-keys: |
+            macos-deps-${{ hashFiles('buildspec.json') }}-
+            macos-deps-
+
+      - name: Check Cache Status
+        run: |
+          echo "Cache hit: ${{ steps.cache-deps.outputs.cache-hit }}"
+          echo "Cache key: macos-deps-${{ hashFiles('buildspec.json') }}-${{ inputs.cmake_arch }}"
+          if [ -d ".deps" ]; then
+            echo "Dependencies directory exists"
+            echo "Dependencies directory size: $(du -sh .deps 2>/dev/null || echo 'Unable to calculate')"
+            echo "Dependencies contents:"
+            ls -la .deps/ 2>/dev/null || echo "No contents or unable to list"
+          else
+            echo "Dependencies directory does not exist"
+          fi
+
+      - name: CMake Configure
+        run: |
+          CMAKE_ARGS="-DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
+          
+          # Add architecture parameter if specified
+          if [ -n "${{ inputs.cmake_arch }}" ]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=\"${{ inputs.cmake_arch }}\""
+          fi
+          
+          echo "Running: cmake --preset macos $CMAKE_ARGS"
+          eval "cmake --preset macos $CMAKE_ARGS"
+
+      - name: Build
+        run: cmake --build --preset macos --config Release
+
+      - name: Create pkg
+        run: |
+          PKG_NAME="17liveOBSPlugin-${{ inputs.arch_name }}-v${VERSION}${PKG_SUFFIX}.pkg"
+          
+          # Use sudo if specified
+          if [ "${{ inputs.use_sudo }}" == "true" ]; then
+            sudo pkgbuild --root build_macos/Release \
+                          --identifier com.17live.obsplugin \
+                          --version "$VERSION" \
+                          --install-location "/Applications/OBS.app/Contents/PlugIns" \
+                          --scripts package/macOS/misc \
+                          "$PKG_NAME"
+          else
+            pkgbuild --root build_macos/Release \
+                     --identifier com.17live.obsplugin \
+                     --version "$VERSION" \
+                     --install-location "/Applications/OBS.app/Contents/PlugIns" \
+                     --scripts package/macOS/misc \
+                     "$PKG_NAME"
+          fi
+          
+          echo "PKG_NAME=$PKG_NAME" >> $GITHUB_ENV
+
+      - name: Upload pkg
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ env.PKG_NAME }}

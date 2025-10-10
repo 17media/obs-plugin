@@ -4,12 +4,12 @@
 
 #include <QByteArray>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include <shared_mutex>
 
 #include "api/OneSevenLiveModels.hpp"
-#include "json11.hpp"
 
-using namespace json11;
+using json = nlohmann::json;
 
 class OneSevenLiveConfigManager {
    public:
@@ -55,12 +55,12 @@ class OneSevenLiveConfigManager {
     bool setDockVisibility(const std::string &dockName, bool visible);
 
     // Set configuration data
-    bool setConfig(const Json &configData);
+    bool setConfig(const json &configData);
     // Get configuration data
     bool getConfig(OneSevenLiveConfig &config);
 
-    bool saveGifts(const Json &gifts);
-    bool loadGifts(Json &gifts);
+    bool saveGifts(const json &gifts);
+    bool loadGifts(json &gifts);
 
    private:
     bool initialized = false;

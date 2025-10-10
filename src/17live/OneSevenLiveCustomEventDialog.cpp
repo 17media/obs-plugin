@@ -27,27 +27,92 @@
 #include <QThread>
 #include <QToolTip>
 #include <QVBoxLayout>
+#include <QFontMetrics>
+#include <QTextLayout>
+#include <QTextOption>
+#include <QVector>
+#include <QTextEdit>
+#include <QAbstractTextDocumentLayout>
+#include <QTextFrame>
+#include <QCalendarWidget>
 
 // Project includes
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include "utility/RemoteTextThread.hpp"
 #include "utility/Common.hpp"
+#include "utility/RemoteTextThread.hpp"
+#include "utility/CustomCalendarWidget.hpp"
 
-static QString insertZeroWidthSpaces(const QString& s, int maxChunk = 10) {
+// Static helper: insert zero-width spaces into CJK or other no-space text to enable line breaks with WrapAnywhere
+static QString insertZeroWidthSpaces(const QString& s) {
     QString out;
-    int count = 0;
-    for (QChar ch : s) {
+    out.reserve(s.size() * 2);
+    for (int i = 0; i < s.size(); ++i) {
+        const QChar ch = s.at(i);
         out.append(ch);
-        ++count;
-        if (count >= maxChunk) {
-            out.append(QChar(0x200B));  // zero-width space
-            count = 0;
+        // Avoid inserting zero-width spaces after whitespace, and do not insert after the last character
+        if (i < s.size() - 1 && !ch.isSpace()) {
+            out.append(QChar(0x200B)); // ZERO WIDTH SPACE
         }
-        if (ch.isSpace())
-            count = 0;
     }
     return out;
+}
+
+// Static helper: limit text to at most two lines (single wrap); overflow is elided at the end of the second line
+static QString elideTextToTwoLines(const QString& text, const QFont& font, int widthPx) {
+    if (text.isEmpty() || widthPx <= 0)
+        return text;
+
+    QTextOption opt;
+    opt.setWrapMode(QTextOption::WrapAnywhere);
+
+    QTextLayout layout(text, font);
+    layout.setTextOption(opt);
+
+    layout.beginLayout();
+    int firstEnd = 0;      // End index of the first line (length from start to end)
+    int secondStart = 0;   // Start index of the second line
+    int processedChars = 0;
+    int linesCount = 0;
+    qreal y = 0.0;
+
+    while (true) {
+        QTextLine line = layout.createLine();
+        if (!line.isValid())
+            break;
+        line.setLineWidth(widthPx);
+        line.setPosition(QPointF(0, y));
+        y += line.height();
+
+        ++linesCount;
+        const int start = line.textStart();
+        const int len = line.textLength();
+
+        if (linesCount == 1) {
+            firstEnd = start + len;
+        } else if (linesCount == 2) {
+            secondStart = start;
+        }
+
+        processedChars = start + len;
+        if (linesCount >= 3) {
+            // A third line has been produced; we need to elide within the second line
+            break;
+        }
+    }
+    layout.endLayout();
+
+    // If the text overall does not exceed two lines, return the original text
+    if (linesCount <= 2 && processedChars >= text.size()) {
+        return text;
+    }
+
+    // Assemble: keep the first line as-is, elide the second line on the right
+    QFontMetrics fm(font);
+    const QString firstLine = text.left(firstEnd);
+    const QString secondContent = text.mid(secondStart);
+    const QString secondElided = fm.elidedText(secondContent, Qt::ElideRight, widthPx);
+    return firstLine + QStringLiteral("\n") + secondElided;
 }
 
 OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(
@@ -169,26 +234,13 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     dateEdit->setDisplayFormat("yyyy/MM/dd");
     dateEdit->setCalendarPopup(true);
 
-    // Get the calendar widget and configure it to disable dates beyond max range
-    calendar = dateEdit->calendarWidget();
-    if (calendar) {
-        calendar->setMinimumDate(today);
-        calendar->setMaximumDate(maxDate);
-        calendar->setSelectedDate(today);
-        calendar->setGridVisible(true);
-
-        QDate minDate = today.addMonths(-1);
-        QDate lastDate = maxDate.addMonths(1);
-        QTextCharFormat disabledFormat;
-        disabledFormat.setForeground(Qt::gray);
-        for (QDate date = minDate; date < today; date = date.addDays(1)) {
-            calendar->setDateTextFormat(date, disabledFormat);
-        }
-        for (QDate date = lastDate; date > maxDate; date = date.addDays(-1)) {
-            calendar->setDateTextFormat(date, disabledFormat);
-        }
-    }
-
+    CustomCalendarWidget* calendar = new CustomCalendarWidget(today, maxDate, dateEdit);
+    calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+    calendar->setSelectionMode(QCalendarWidget::SingleSelection);
+    calendar->setGridVisible(true);
+    calendar->setSelectedDate(today);
+    dateEdit->setCalendarWidget(calendar);
+    
     // Create form layout for date section
     QFormLayout* dateFormLayout = new QFormLayout();
     dateFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
@@ -863,7 +915,7 @@ void OneSevenLiveCustomEventDialog::handleCloseEvent() {
         // Send event update signal
         customEvent.status = 3;
         emit eventUpdated(customEvent);
-    } else { 
+    } else {
         return;
     }
 
@@ -967,7 +1019,7 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         // Create vertical layout
         QVBoxLayout* layout = new QVBoxLayout(giftWidget);
         layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(1);
+        layout->setSpacing(2);
 
         // Create image label
         QLabel* imageLabel = new QLabel();
@@ -1013,25 +1065,52 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             thread->start();
         }
 
-        // Create name label
-        QLabel* nameLabel = new QLabel(insertZeroWidthSpaces(gift.name));
-        nameLabel->setAlignment(Qt::AlignCenter);
-        nameLabel->setStyleSheet("color: white; font-size: 13px;");
-        nameLabel->setMaximumWidth(80);
-        nameLabel->setWordWrap(true);
+        // Create name edit
+        QTextEdit* nameEdit = new QTextEdit(giftWidget);
+        nameEdit->setReadOnly(true);
+        nameEdit->setFrameStyle(QFrame::NoFrame);
+        nameEdit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        nameEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        nameEdit->setStyleSheet("color: white; font-size: 12px; background: transparent; padding: 2px 0 0 0; margin: 0; border: none;");
+        nameEdit->setContentsMargins(0, 0, 0, 0);
+        nameEdit->setFixedWidth(80);
+        // Height will be set dynamically below based on document height
+        {
+            QTextOption opt;
+            opt.setWrapMode(QTextOption::WrapAnywhere);
+            opt.setAlignment(Qt::AlignCenter);
+            nameEdit->document()->setDefaultTextOption(opt);
+            nameEdit->document()->setDocumentMargin(0);
+            nameEdit->setWordWrapMode(QTextOption::WrapAnywhere);
+            nameEdit->setAcceptRichText(false);
+            const QString processedName = insertZeroWidthSpaces(gift.name);
+            const QString clamped = elideTextToTwoLines(processedName, nameEdit->font(), 80);
+            nameEdit->setText(clamped);
+            // Constrain document width to widget width and compute doc height
+            nameEdit->document()->setTextWidth(80);
+            // Compute dynamic height from document layout (max two lines from elide), then add 5px
+            qreal docHeight = nameEdit->document()->documentLayout()->documentSize().height();
+            int lineH = QFontMetrics(nameEdit->font()).lineSpacing();
+            int minH = lineH;            // at least 1 line
+            int maxH = lineH * 2;        // at most 2 lines
+            int h = qRound(docHeight);
+            if (h < minH) h = minH;
+            if (h > maxH) h = maxH;
+            nameEdit->setFixedHeight(h + 5);
+         }
 
         // Create price label
         QLabel* pointLabel = new QLabel(QString::number(gift.point));
         pointLabel->setAlignment(Qt::AlignCenter);
-        pointLabel->setStyleSheet("color: white; font-size: 13px;");
+        pointLabel->setStyleSheet("color: white; font-size: 12px;");
         pointLabel->setMaximumWidth(80);
         pointLabel->setWordWrap(true);
+        pointLabel->setFixedHeight(20);
 
         // Add to layout
         layout->addWidget(imageLabel);
-        layout->addWidget(nameLabel);
+        layout->addWidget(nameEdit);
         layout->addWidget(pointLabel);
-        layout->addStretch();
 
         // Create a transparent button covering the entire widget to handle click events
         QPushButton* giftButton = new QPushButton(giftWidget);

@@ -2,14 +2,13 @@
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
-#include <QMessageBox>
-#include <QPushButton>
-#include <QDateTime>
 
+#include <QDateTime>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QIcon>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QThread>
@@ -1050,7 +1049,7 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
     if (!apiWrapper->GetSelfInfo(loginData)) {
         obs_log(LOG_ERROR, "GetSelfInfo failed");
         QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
-                                    obs_module_text("Live.Create.GetSelfInfoFailed"));
+                             obs_module_text("Live.Create.GetSelfInfoFailed"));
         return;
     }
 
@@ -1059,7 +1058,7 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         std::string language = GetCurrentLanguage();
 
         // Call API to get configuration
-        json11::Json configJson;
+        nlohmann::json configJson;
         if (apiWrapper->GetConfig(currentRegion, language, configJson)) {
             // Save configuration
             configManager->setConfig(configJson);
@@ -1083,17 +1082,16 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
             loadRoomInfo(loginData.userInfo.roomID);
 
             QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                                obs_module_text("Live.Settings.Save.Category.Empty"));
+                                 obs_module_text("Live.Settings.Save.Category.Empty"));
 
-            
             return;
         }
     } else if (!currentIsFeature207Enabled) {
         QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
-                            obs_module_text("Live.Create.Feature207Disabled"));
+                             obs_module_text("Live.Create.Feature207Disabled"));
         return;
     }
-    
+
     OneSevenLiveRtmpRequest request = request_;
 
     if (request.caption.isEmpty()) {
@@ -1102,13 +1100,13 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
                              obs_module_text("Live.Settings.Save.Title.Empty"));
         return;
     }
-    
-    if (request.subtabID.isEmpty()) {
-        // Show dialog to prompt user to select category
-        QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                             obs_module_text("Live.Settings.Save.Category.Empty"));
-        return;
-    }
+
+    // if (request.subtabID.isEmpty()) {
+    //     // Show dialog to prompt user to select category
+    //     QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+    //                          obs_module_text("Live.Settings.Save.Category.Empty"));
+    //     return;
+    // }
 
     // Add current userID and streamerType to request
     request.userID = roomInfo.userID;
@@ -1117,10 +1115,10 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
     OneSevenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(request, response)) {
         QString errorMsg = apiWrapper->getLastErrorMessage();
-        obs_log(LOG_ERROR, "Failed to create stream. UserID: %s, Error: %s, Timestamp: %lld", 
-               request.userID.toStdString().c_str(), 
-               errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
-               QDateTime::currentMSecsSinceEpoch());
+        obs_log(LOG_ERROR, "Failed to create stream. UserID: %s, Error: %s, Timestamp: %lld",
+                request.userID.toStdString().c_str(),
+                errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                QDateTime::currentMSecsSinceEpoch());
         return;
     }
 
@@ -1180,10 +1178,11 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID,
     // Start live stream
     if (!skip && !apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
         QString errorMsg = apiWrapper->getLastErrorMessage();
-        obs_log(LOG_ERROR, "Failed to start stream. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: %lld", 
-               response.liveStreamID.toStdString().c_str(), userID.c_str(),
-               errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
-               QDateTime::currentMSecsSinceEpoch());
+        obs_log(LOG_ERROR,
+                "Failed to start stream. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: %lld",
+                response.liveStreamID.toStdString().c_str(), userID.c_str(),
+                errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                QDateTime::currentMSecsSinceEpoch());
         return;
     }
 
@@ -1191,10 +1190,12 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID,
     if (!skip && autoRecording) {
         if (!apiWrapper->EnableStreamArchive(response.liveStreamID.toStdString(), 1)) {
             QString errorMsg = apiWrapper->getLastErrorMessage();
-            obs_log(LOG_ERROR, "Failed to enable archive. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: %lld",
-                   response.liveStreamID.toStdString().c_str(), userID.c_str(),
-                   errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
-                   QDateTime::currentMSecsSinceEpoch());
+            obs_log(LOG_ERROR,
+                    "Failed to enable archive. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: "
+                    "%lld",
+                    response.liveStreamID.toStdString().c_str(), userID.c_str(),
+                    errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                    QDateTime::currentMSecsSinceEpoch());
         }
     }
 
@@ -1203,8 +1204,6 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID,
 
     // Start event cooldown after successful live creation
     startEventCooldown();
-
-    
 
     // Ask whether to start streaming simultaneously
     QMessageBox msgBox;
@@ -1267,13 +1266,14 @@ void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
     request.userID = QString::fromStdString(currUserID);
 
     if (!apiWrapper->StopStream(currLiveStreamID, request)) {
-        obs_log(LOG_ERROR, "Failed to stop stream. LiveStreamID: %s, Reason: %s", 
-               currLiveStreamID.c_str(), endReason.toStdString().c_str());
+        obs_log(LOG_ERROR, "Failed to stop stream. LiveStreamID: %s, Reason: %s",
+                currLiveStreamID.c_str(), endReason.toStdString().c_str());
         // return;
     } else {
-        obs_log(LOG_INFO, "Successfully stopped stream. LiveStreamID: %s, Reason: %s, IsAutoClose: %s", 
-               currLiveStreamID.c_str(), endReason.toStdString().c_str(), 
-               isAutoClose ? "true" : "false");
+        obs_log(LOG_INFO,
+                "Successfully stopped stream. LiveStreamID: %s, Reason: %s, IsAutoClose: %s",
+                currLiveStreamID.c_str(), endReason.toStdString().c_str(),
+                isAutoClose ? "true" : "false");
     }
 
     // Clear streaming configuration based on current mode
@@ -1420,7 +1420,7 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
 
 bool OneSevenLiveStreamingDock::gatherRtmpRequest(OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "gatherRtmpRequest");
-    
+
     request.caption = titleEdit->text();
     request.device = "OBS";
     int eventID = eventCombo->currentData().toInt();

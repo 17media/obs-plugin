@@ -3,9 +3,9 @@
 #include <QObject>
 #include <QString>
 #include <mutex>
+#include <nlohmann/json.hpp>
 
 #include "OneSevenLiveModels.hpp"
-#include "json11.hpp"
 
 // for local http server proxy request
 /*
@@ -22,21 +22,20 @@
 #define ACTION_GETGIFTS "getGifts"
 #define ACTION_GETROOMINFO "getRoomInfo"
 
-#define MAX_CONSECUTIVE_FAILURES 10 // Maximum consecutive failure count
+#define MAX_CONSECUTIVE_FAILURES 10  // Maximum consecutive failure count
 
-using namespace json11;
+using Json = nlohmann::json;
 
 class OneSevenLiveApiWrappers : public QObject {
     Q_OBJECT
 
     bool TryInsertCommand(const char *url, const char *content_type, std::string request_type,
-                          const char *data, json11::Json &ret, long *error_code = nullptr,
+                          const char *data, Json &ret, long *error_code = nullptr,
                           int data_size = 0, bool token_required = true,
                           const std::vector<std::string> extraHeaders = {});
     bool UpdateAccessToken();
     bool InsertCommand(const char *url, const char *content_type, std::string request_type,
-                       const char *data, json11::Json &ret, int data_size = 0,
-                       bool token_required = true,
+                       const char *data, Json &ret, int data_size = 0, bool token_required = true,
                        const std::vector<std::string> extraHeaders = {});
 
    public:
@@ -109,6 +108,24 @@ class OneSevenLiveApiWrappers : public QObject {
         return lastErrorMessage;
     }
 
+    /**
+     * @brief Set authentication token
+     * @param token_ The authentication token to set
+     */
+    void setToken(const std::string &token_) {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        token = token_;
+    }
+
+    /**
+     * @brief Get current authentication token
+     * @return Returns the current authentication token
+     */
+    std::string getToken() const {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        return token;
+    }
+
    protected:
     std::string refresh_token;
     std::string token;
@@ -127,6 +144,6 @@ class OneSevenLiveApiWrappers : public QObject {
     mutable std::mutex stateMutex;
 
     // Thread-safe helper methods for error message management
-    void setLastErrorMessage(const QString& message);
+    void setLastErrorMessage(const QString &message);
     void clearLastErrorMessage();
 };
