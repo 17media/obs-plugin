@@ -26,6 +26,7 @@
 #include "OneSevenLiveRockZoneDock.hpp"
 #include "OneSevenLiveStreamListDock.hpp"
 #include "OneSevenLiveStreamingDock.hpp"
+#include "multi-rtmp/ui/OneSevenMultiRtmpDock.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
@@ -53,7 +54,7 @@ OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainW
 }
 
 OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
-    : mainWindow(mainWindow_), initialized(false) {}
+    : mainWindow(mainWindow_), initialized(false), multiRtmpDockFirstLoad(true) {}
 
 OneSevenLiveCoreManager::~OneSevenLiveCoreManager() {
     // Ensure shutdown is called before destruction
@@ -155,6 +156,9 @@ bool OneSevenLiveCoreManager::initialize() {
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::rockZoneClicked, this,
                      &OneSevenLiveCoreManager::handleRockZoneClicked);
+
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::multiRtmpClicked, this,
+                     &OneSevenLiveCoreManager::handleMultiRtmpClicked);
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this,
                      &OneSevenLiveCoreManager::handleCheckUpdateClicked);
@@ -410,6 +414,11 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
             handleRockZoneClicked();
         }
 
+        // Restore multi-RTMP dock if it was previously shown
+        if (configManager->getDockVisibility("multiRtmp")) {
+            handleMultiRtmpClicked();
+        }
+
         // Apply the saved dock layout
         mainWindow->restoreState(dockState);
 
@@ -418,7 +427,8 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
             menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(),
                                               liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible());
+                                              rockZoneDock && rockZoneDock->isVisible(),
+                                              multiRtmpDock && multiRtmpDock->isVisible());
         }
     }
 }
@@ -474,9 +484,19 @@ void OneSevenLiveCoreManager::closeAllDocks() {
     }
     configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
+    bool multiRtmpVisible = false;
+    if (multiRtmpDock) {
+        multiRtmpVisible = multiRtmpDock->isVisible();
+        multiRtmpDock->disconnect(this);
+        multiRtmpDock->close();
+        multiRtmpDock->deleteLater();
+        multiRtmpDock = nullptr;
+    }
+    configManager->setDockVisibility("multiRtmp", multiRtmpVisible);
+
     // Update menu visibility status after closing all docks
     if (menuManager) {
-        menuManager->updateDockVisibility(false, false, false, false);
+        menuManager->updateDockVisibility(false, false, false, false, false);
     }
 }
 
@@ -544,7 +564,8 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
     if (menuManager) {
         menuManager->updateDockVisibility(
             chatRoomDock && chatRoomDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible());
+            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
+            multiRtmpDock && multiRtmpDock->isVisible());
     }
 }
 
@@ -1036,4 +1057,76 @@ bool OneSevenLiveCoreManager::showAutoCloseConfirmation(const QString& message) 
 
     msgBox.exec();
     return msgBox.clickedButton() == confirmButton;
+}
+
+void OneSevenLiveCoreManager::handleMultiRtmpClicked() {
+    obs_log(LOG_INFO, "handleMultiRtmpClicked");
+
+    if (!multiRtmpDock) {
+        createMultiRtmpDock();
+    } else {
+        multiRtmpDock->setVisible(!multiRtmpDock->isVisible());
+    }
+
+    // Update menu item checked status
+    if (menuManager) {
+        menuManager->updateDockVisibility(
+            chatRoomDock && chatRoomDock->isVisible(), streamingDock && streamingDock->isVisible(),
+            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
+            multiRtmpDock && multiRtmpDock->isVisible());
+    }
+}
+
+void OneSevenLiveCoreManager::createMultiRtmpDock() {
+    if (multiRtmpDock) {
+        return;
+    }
+
+    OneSevenLiveLoginData loginData;
+    if (!configManager->getLoginData(loginData)) {
+        obs_log(LOG_ERROR, "Failed to get login data");
+        return;
+    }
+
+    // Create multi-RTMP dock
+    multiRtmpDock = new OneSevenMultiRtmpDock(mainWindow);
+    multiRtmpDock->setObjectName("OneSevenMultiRtmpDock");
+
+    multiRtmpDock->setMaximumWidth(600);
+    multiRtmpDock->resize(450, 600);
+
+    multiRtmpDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    mainWindow->addDockWidget(Qt::RightDockWidgetArea, multiRtmpDock);
+
+    // Only restore state during startup, otherwise set floating and center
+    if (isStartupRestore) {
+        // During startup restoration, the state will be restored by initialize() method
+        multiRtmpDock->setVisible(true);
+    } else {
+        // First time creation or manual creation - set floating and center
+        multiRtmpDock->setFloating(true);
+        multiRtmpDock->setVisible(true);
+
+        // Center the dock on the main window
+        QRect mainWindowGeometry = mainWindow->geometry();
+        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - multiRtmpDock->width()) / 2;
+        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - multiRtmpDock->height()) / 2;
+        multiRtmpDock->move(x, y);
+    }
+
+    if (multiRtmpDockFirstLoad) {
+        // Connect visibility change signal to update menu status
+        connect(multiRtmpDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            if (menuManager) {
+                menuManager->updateDockVisibility(
+                    chatRoomDock && chatRoomDock->isVisible(),
+                    streamingDock && streamingDock->isVisible(),
+                    liveListDock && liveListDock->isVisible(),
+                    rockZoneDock && rockZoneDock->isVisible(),
+                    visible);
+            }
+        });
+
+        multiRtmpDockFirstLoad = false;
+    }
 }

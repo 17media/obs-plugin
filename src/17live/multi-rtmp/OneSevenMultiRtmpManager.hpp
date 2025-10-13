@@ -1,0 +1,136 @@
+#pragma once
+
+#include "OneSevenMultiRtmpModels.hpp"
+#include "OneSevenMultiRtmpConfigManager.hpp"
+#include "OneSevenMultiRtmpStreamController.hpp"
+#include "plugin-support.h"
+#include <obs-module.h>
+#include <memory>
+#include <functional>
+#include <mutex>
+
+/**
+ * Main Manager for Multi-RTMP functionality
+ * Coordinates between configuration management and OBS stream operations
+ * Provides a unified interface for the UI layer
+ */
+class OneSevenMultiRtmpManager {
+public:
+    // Callback types for UI notifications
+    using StreamStatusCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status)>;
+    using StreamStatsCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats)>;
+    using ConfigChangeCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpConfig& config)>;
+    using ConfigDeleteCallback = std::function<void(const std::string& streamId)>;
+
+    OneSevenMultiRtmpManager();
+    ~OneSevenMultiRtmpManager();
+
+    // Singleton access
+    static OneSevenMultiRtmpManager* getInstance();
+    static void destroyInstance();
+
+    // Initialization and cleanup
+    bool initialize();
+    void shutdown();
+
+    // Configuration operations (delegates to ConfigManager)
+    bool addStreamConfig(const OneSevenMultiRtmpConfig& config);
+    bool removeStreamConfig(const std::string& streamId);
+    bool updateStreamConfig(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
+    std::vector<OneSevenMultiRtmpConfig> getAllStreamConfigs() const;
+    OneSevenMultiRtmpConfig getStreamConfig(const std::string& streamId) const;
+    bool hasStreamConfig(const std::string& streamId) const;
+
+    // Runtime operations (delegates to StreamController)
+    bool startStream(const std::string& streamId);
+    bool stopStream(const std::string& streamId);
+    bool startAllStreams();
+    bool stopAllStreams();
+
+    // Status and statistics monitoring
+    OneSevenMultiRtmpStreamStatus getStreamStatus(const std::string& streamId) const;
+    OneSevenMultiRtmpStreamStats getStreamStats(const std::string& streamId) const;
+    std::vector<std::string> getActiveStreamIds() const;
+    std::vector<std::string> getAllStreamIds() const;
+
+    // Utility methods
+    std::string generateStreamId() const;
+    bool validateStreamConfig(const OneSevenMultiRtmpConfig& config) const;
+    std::string getValidationError(const OneSevenMultiRtmpConfig& config) const;
+    size_t getStreamCount() const;
+
+    // Configuration file operations
+    bool saveConfiguration();
+    bool loadConfiguration();
+    bool createConfigBackup();
+    bool restoreFromBackup();
+
+    // Callback registration for UI updates
+    void setStreamStatusCallback(StreamStatusCallback callback);
+    void setStreamStatsCallback(StreamStatsCallback callback);
+    void setConfigChangeCallback(ConfigChangeCallback callback);
+    void setConfigDeleteCallback(ConfigDeleteCallback callback);
+
+    // Stream lifecycle management
+    bool createStreamOutput(const std::string& streamId);
+    bool destroyStreamOutput(const std::string& streamId);
+    void destroyAllStreamOutputs();
+
+    // Bulk operations with synchronization
+    bool startAllStreamsWithSync();
+    bool stopAllStreamsWithSync();
+
+    // Statistics monitoring control
+    void startStatsMonitoring();
+    void stopStatsMonitoring();
+
+    // State management
+    bool isInitialized() const { return m_initialized; }
+    bool isStreamActive(const std::string& streamId) const;
+    bool hasStreamOutput(const std::string& streamId) const;
+
+private:
+    // Internal callback handlers
+    void onConfigChanged(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
+    void onConfigDeleted(const std::string& streamId);
+    void onStreamStatusChanged(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status);
+    void onStreamStatsUpdated(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats);
+
+    // Helper methods
+    void setupCallbacks();
+    void cleanupCallbacks();
+    bool ensureStreamOutput(const std::string& streamId);
+
+    // Member variables
+    std::unique_ptr<OneSevenMultiRtmpConfigManager> m_configManager;
+    std::unique_ptr<OneSevenMultiRtmpStreamController> m_streamController;
+    
+    // UI callbacks
+    StreamStatusCallback m_statusCallback;
+    StreamStatsCallback m_statsCallback;
+    ConfigChangeCallback m_configChangeCallback;
+    ConfigDeleteCallback m_configDeleteCallback;
+    
+    // State
+    bool m_initialized = false;
+    
+    // Singleton instance
+    static OneSevenMultiRtmpManager* s_instance;
+    static std::mutex s_instanceMutex;
+};
+
+// Logging macros for main manager
+#define MULTI_RTMP_MANAGER_LOG(level, format, ...) \
+    obs_log(level, "[MultiRTMP-Manager] " format, ##__VA_ARGS__)
+
+#define MULTI_RTMP_MANAGER_LOG_INFO(format, ...) \
+    MULTI_RTMP_MANAGER_LOG(LOG_INFO, format, ##__VA_ARGS__)
+
+#define MULTI_RTMP_MANAGER_LOG_WARNING(format, ...) \
+    MULTI_RTMP_MANAGER_LOG(LOG_WARNING, format, ##__VA_ARGS__)
+
+#define MULTI_RTMP_MANAGER_LOG_ERROR(format, ...) \
+    MULTI_RTMP_MANAGER_LOG(LOG_ERROR, format, ##__VA_ARGS__)
+
+#define MULTI_RTMP_MANAGER_LOG_DEBUG(format, ...) \
+    MULTI_RTMP_MANAGER_LOG(LOG_DEBUG, format, ##__VA_ARGS__)

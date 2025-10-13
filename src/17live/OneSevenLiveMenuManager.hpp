@@ -28,7 +28,7 @@ class OneSevenLiveMenuManager : public QObject {
 
     // Update dock window visibility status
     void updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible,
-                              bool rockZoneVisible = false);
+                              bool rockZoneVisible = false, bool multiRtmpVisible = false);
 
     // Update menu item enable status
     void updateMenuItemsEnabled();
@@ -39,6 +39,7 @@ class OneSevenLiveMenuManager : public QObject {
     void streamingClicked();
     void liveListClicked();
     void rockZoneClicked();
+    void multiRtmpClicked();
     void helpClicked();
     void loginClicked();
     void logoutClicked();
@@ -53,6 +54,7 @@ class OneSevenLiveMenuManager : public QObject {
     QAction* broadcastAction;
     QAction* liveListAction;
     QAction* rockZoneAction;
+    QAction* multiRtmpAction;
     QAction* helpAction;
     QAction* checkUpdateAction;
     QAction* loginAction;
@@ -63,4 +65,5 @@ class OneSevenLiveMenuManager : public QObject {
     bool isBroadcastVisible;
     bool isLiveListVisible;
     bool isRockZoneVisible;
+    bool isMultiRtmpVisible;
 };

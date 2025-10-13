@@ -31,6 +31,8 @@ class OneSevenLiveStreamListDock;
 
 class OneSevenLiveRockZoneDock;
 
+class OneSevenMultiRtmpDock;
+
 class OneSevenLiveHttpServer;
 
 class QCefView;
@@ -168,6 +170,11 @@ class OneSevenLiveCoreManager : public QObject {
     QPointer<OneSevenLiveRockZoneDock> rockZoneDock;
     void handleRockZoneClicked();
     void createRockZoneDock();
+
+    bool multiRtmpDockFirstLoad = true;
+    QPointer<OneSevenMultiRtmpDock> multiRtmpDock;
+    void handleMultiRtmpClicked();
+    void createMultiRtmpDock();
 
     void saveDockState();
 
