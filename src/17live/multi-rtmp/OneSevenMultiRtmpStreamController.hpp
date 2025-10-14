@@ -72,10 +72,12 @@ private:
         std::chrono::steady_clock::time_point startTime;
     };
 
-    // Internal methods
+    // Internal implementation methods
     bool createService(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
     bool createEncoders(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
     bool setupOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
+    bool startOutputInternal(const std::string& streamId, StreamOutput* streamOutput);
+    bool stopOutputInternal(const std::string& streamId, StreamOutput* streamOutput);
     
     void destroyService(const std::string& streamId);
     void destroyEncoders(const std::string& streamId);

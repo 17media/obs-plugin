@@ -51,6 +51,7 @@ signals:
 private slots:
     void onStartStopClicked();
     void onEditClicked();
+    void onDeleteClicked();
     void onMenuRequested();
     void onDuplicateAction();
     void onDeleteAction();
