@@ -65,6 +65,7 @@ private:
     
     // Internal methods without locking (must be called with lock held)
     bool saveConfigurationInternal();
+    bool saveConfigurationInternalLocked();
     bool loadConfigurationInternal();
 
     // Member variables

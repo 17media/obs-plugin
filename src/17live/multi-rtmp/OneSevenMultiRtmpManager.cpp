@@ -116,17 +116,35 @@ void OneSevenMultiRtmpManager::shutdown()
 // Configuration operations
 bool OneSevenMultiRtmpManager::addStreamConfig(const OneSevenMultiRtmpConfig& config)
 {
-    if (!m_initialized || !m_configManager) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Manager not initialized");
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] addStreamConfig called for stream ID: %s", config.id.c_str());
+    
+    if (!m_initialized) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
-
+    
+    if (!m_configManager) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Config manager is null");
+        return false;
+    }
+    
+    // Validate configuration
     if (!validateStreamConfig(config)) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Invalid stream configuration: %s", getValidationError(config).c_str());
+        std::string error = getValidationError(config);
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Stream config validation failed: %s", error.c_str());
         return false;
     }
-
-    return m_configManager->addStreamConfig(config);
+    
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] Configuration validation passed, delegating to config manager");
+    bool result = m_configManager->addStreamConfig(config);
+    
+    if (result) {
+        obs_log(LOG_INFO, "[MultiRTMP-Manager] Stream config added successfully");
+    } else {
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Config manager failed to add stream config");
+    }
+    
+    return result;
 }
 
 bool OneSevenMultiRtmpManager::removeStreamConfig(const std::string& streamId)
