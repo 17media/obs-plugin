@@ -43,7 +43,6 @@ OneSevenMultiRtmpDock::OneSevenMultiRtmpDock(QWidget* parent)
     // Initialize with current data
     refreshStreamList();
     updateButtonStates();
-    updateStreamCount();
 }
 
 OneSevenMultiRtmpDock::~OneSevenMultiRtmpDock()
@@ -65,80 +64,104 @@ void OneSevenMultiRtmpDock::setupUI()
     
     // Main layout
     m_mainLayout = new QVBoxLayout(m_centralWidget);
-    m_mainLayout->setContentsMargins(8, 8, 8, 8);
-    m_mainLayout->setSpacing(8);
+    m_mainLayout->setContentsMargins(0, 0, 0, 0);
+    m_mainLayout->setSpacing(0);
     
-    // Header section
-    m_headerFrame = new QFrame();
-    m_headerFrame->setFrameStyle(QFrame::StyledPanel);
-    m_headerLayout = new QHBoxLayout(m_headerFrame);
-    m_headerLayout->setContentsMargins(8, 6, 8, 6);
-    
-    m_titleLabel = new QLabel(getMultiRtmpText("MultiRTMP.Title"));
-    m_titleLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
-    
-    m_streamCountLabel = new QLabel("0");
-    m_streamCountLabel->setStyleSheet("color: #666; font-size: 12px;");
-    
-    m_addStreamButton = new QPushButton(getMultiRtmpText("MultiRTMP.AddStream"));
-    m_addStreamButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_FileIcon));
-    m_addStreamButton->setToolTip(getMultiRtmpText("MultiRTMP.AddStream.Tooltip"));
-    
-    m_refreshButton = new QPushButton(getMultiRtmpText("MultiRTMP.Refresh"));
-    m_refreshButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_BrowserReload));
-    m_refreshButton->setToolTip(getMultiRtmpText("MultiRTMP.Refresh.Tooltip"));
-    
-    m_headerLayout->addWidget(m_titleLabel);
-    m_headerLayout->addWidget(m_streamCountLabel);
-    m_headerLayout->addStretch();
-    m_headerLayout->addWidget(m_refreshButton);
-    m_headerLayout->addWidget(m_addStreamButton);
-    
-    // Control section
-    m_controlFrame = new QFrame();
-    m_controlFrame->setFrameStyle(QFrame::StyledPanel);
-    m_controlLayout = new QHBoxLayout(m_controlFrame);
-    m_controlLayout->setContentsMargins(8, 6, 8, 6);
-    
-    m_startAllButton = new QPushButton(getMultiRtmpText("MultiRTMP.StartAll"));
-    m_startAllButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_MediaPlay));
-    m_startAllButton->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
-    
-    m_stopAllButton = new QPushButton(getMultiRtmpText("MultiRTMP.StopAll"));
-    m_stopAllButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_MediaStop));
-    m_stopAllButton->setStyleSheet("QPushButton { background-color: #f44336; color: white; font-weight: bold; }");
-    
-    m_controlLayout->addWidget(m_startAllButton);
-    m_controlLayout->addWidget(m_stopAllButton);
-    m_controlLayout->addStretch();
-    
-    // Stream list section
+    // Stream list section (top part)
     m_scrollArea = new QScrollArea();
     m_scrollArea->setWidgetResizable(true);
-    m_scrollArea->setFrameStyle(QFrame::StyledPanel);
+    m_scrollArea->setFrameStyle(QFrame::NoFrame);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     
     m_streamListWidget = new OneSevenMultiRtmpListWidget();
     m_scrollArea->setWidget(m_streamListWidget);
     
-    // Status section
-    m_statusFrame = new QFrame();
-    m_statusFrame->setFrameStyle(QFrame::StyledPanel);
-    m_statusLayout = new QHBoxLayout(m_statusFrame);
-    m_statusLayout->setContentsMargins(8, 4, 8, 4);
+    // Control section (bottom part)
+    m_controlFrame = new QFrame();
+    m_controlFrame->setFrameStyle(QFrame::NoFrame);
+    m_controlLayout = new QVBoxLayout(m_controlFrame);
+    m_controlLayout->setContentsMargins(8, 8, 8, 8);
+    m_controlLayout->setSpacing(8);
     
-    m_statusLabel = new QLabel(getMultiRtmpText("MultiRTMP.Status.Ready"));
-    m_statusLabel->setStyleSheet("color: #666; font-size: 11px;");
+    // Top row: "新建推流" button
+    m_addStreamButton = new QPushButton("新建推流");
+    m_addStreamButton->setMinimumHeight(40);
+    m_addStreamButton->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #FF0001;"
+        "    color: white;"
+        "    font-weight: bold;"
+        "    border: none;"
+        "    border-radius: 4px;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #E60001;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #CC0001;"
+        "}"
+        "QPushButton:disabled {"
+        "    background-color: #999999;"
+        "}"
+    );
     
-    m_statusLayout->addWidget(m_statusLabel);
-    m_statusLayout->addStretch();
+    // Bottom row: "全部开始" and "全部停止" buttons
+    QHBoxLayout* bottomButtonLayout = new QHBoxLayout();
+    bottomButtonLayout->setSpacing(8);
     
-    // Add all sections to main layout
-    m_mainLayout->addWidget(m_headerFrame);
-    m_mainLayout->addWidget(m_controlFrame);
+    m_startAllButton = new QPushButton("全部开始");
+    m_startAllButton->setMinimumHeight(40);
+    m_startAllButton->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #FF0001;"
+        "    color: white;"
+        "    font-weight: bold;"
+        "    border: none;"
+        "    border-radius: 4px;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #E60001;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #CC0001;"
+        "}"
+        "QPushButton:disabled {"
+        "    background-color: #999999;"
+        "}"
+    );
+    
+    m_stopAllButton = new QPushButton("全部停止");
+    m_stopAllButton->setMinimumHeight(40);
+    m_stopAllButton->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #007AFF;"
+        "    color: white;"
+        "    font-weight: bold;"
+        "    border: none;"
+        "    border-radius: 4px;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #0056CC;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #004499;"
+        "}"
+        "QPushButton:disabled {"
+        "    background-color: #999999;"
+        "}"
+    );
+    
+    bottomButtonLayout->addWidget(m_startAllButton);
+    bottomButtonLayout->addWidget(m_stopAllButton);
+    
+    // Add buttons to control layout
+    m_controlLayout->addWidget(m_addStreamButton);
+    m_controlLayout->addLayout(bottomButtonLayout);
+    
+    // Add sections to main layout
     m_mainLayout->addWidget(m_scrollArea, 1); // Give scroll area most space
-    m_mainLayout->addWidget(m_statusFrame);
+    m_mainLayout->addWidget(m_controlFrame);
     
     // Setup stats update timer
     m_statsUpdateTimer = new QTimer(this);
@@ -149,11 +172,8 @@ void OneSevenMultiRtmpDock::setupUI()
 
 void OneSevenMultiRtmpDock::setupConnections()
 {
-    // Header buttons
-    connect(m_addStreamButton, &QPushButton::clicked, this, &OneSevenMultiRtmpDock::onAddStreamClicked);
-    connect(m_refreshButton, &QPushButton::clicked, this, &OneSevenMultiRtmpDock::onRefreshClicked);
-    
     // Control buttons
+    connect(m_addStreamButton, &QPushButton::clicked, this, &OneSevenMultiRtmpDock::onAddStreamClicked);
     connect(m_startAllButton, &QPushButton::clicked, this, &OneSevenMultiRtmpDock::onStartAllClicked);
     connect(m_stopAllButton, &QPushButton::clicked, this, &OneSevenMultiRtmpDock::onStopAllClicked);
     
@@ -264,7 +284,6 @@ void OneSevenMultiRtmpDock::refreshStreamList()
         m_streamListWidget->updateStreamStats(config.id, stats);
     }
     
-    updateStreamCount();
     updateButtonStates();
     
     m_isUpdatingUI = false;
@@ -294,13 +313,8 @@ void OneSevenMultiRtmpDock::onStartAllClicked()
 {
     if (m_manager) {
         m_startAllButton->setEnabled(false);
-        m_statusLabel->setText(getMultiRtmpText("MultiRTMP.Status.StartingAll"));
         
-        bool success = m_manager->startAllStreams();
-        
-        m_statusLabel->setText(success ? 
-            getMultiRtmpText("MultiRTMP.Status.AllStarted") :
-            getMultiRtmpText("MultiRTMP.Status.StartFailed"));
+        m_manager->startAllStreams();
         
         updateButtonStates();
     }
@@ -310,13 +324,8 @@ void OneSevenMultiRtmpDock::onStopAllClicked()
 {
     if (m_manager) {
         m_stopAllButton->setEnabled(false);
-        m_statusLabel->setText(getMultiRtmpText("MultiRTMP.Status.StoppingAll"));
         
-        bool success = m_manager->stopAllStreams();
-        
-        m_statusLabel->setText(success ? 
-            getMultiRtmpText("MultiRTMP.Status.AllStopped") :
-            getMultiRtmpText("MultiRTMP.Status.StopFailed"));
+        m_manager->stopAllStreams();
         
         updateButtonStates();
     }
@@ -324,9 +333,7 @@ void OneSevenMultiRtmpDock::onStopAllClicked()
 
 void OneSevenMultiRtmpDock::onRefreshClicked()
 {
-    m_statusLabel->setText(getMultiRtmpText("MultiRTMP.Status.Refreshing"));
     refreshStreamList();
-    m_statusLabel->setText(getMultiRtmpText("MultiRTMP.Status.Ready"));
 }
 
 void OneSevenMultiRtmpDock::onStreamConfigChanged(const std::string& streamId)
@@ -334,7 +341,6 @@ void OneSevenMultiRtmpDock::onStreamConfigChanged(const std::string& streamId)
     if (m_manager && m_streamListWidget) {
         auto config = m_manager->getStreamConfig(streamId);
         m_streamListWidget->updateStream(config);
-        updateStreamCount();
     }
 }
 
@@ -342,7 +348,6 @@ void OneSevenMultiRtmpDock::onStreamDeleted(const std::string& streamId)
 {
     if (m_streamListWidget) {
         m_streamListWidget->removeStream(streamId);
-        updateStreamCount();
         updateButtonStates();
     }
 }
@@ -377,30 +382,14 @@ void OneSevenMultiRtmpDock::updateButtonStates()
     
     // Update button text with counts
     if (streamCount > 0) {
-        m_startAllButton->setText(QString("%1 (%2)")
-            .arg(getMultiRtmpText("MultiRTMP.StartAll"))
+        m_startAllButton->setText(QString("全部开始 (%1)")
             .arg(streamCount - activeCount));
-        m_stopAllButton->setText(QString("%1 (%2)")
-            .arg(getMultiRtmpText("MultiRTMP.StopAll"))
+        m_stopAllButton->setText(QString("全部停止 (%1)")
             .arg(activeCount));
     } else {
-        m_startAllButton->setText(getMultiRtmpText("MultiRTMP.StartAll"));
-        m_stopAllButton->setText(getMultiRtmpText("MultiRTMP.StopAll"));
+        m_startAllButton->setText("全部开始");
+        m_stopAllButton->setText("全部停止");
     }
-}
-
-void OneSevenMultiRtmpDock::updateStreamCount()
-{
-    if (!m_manager) {
-        return;
-    }
-    
-    size_t count = m_manager->getStreamCount();
-    m_streamCountLabel->setText(QString("(%1 %2)")
-        .arg(count)
-        .arg(count == 1 ? 
-            getMultiRtmpText("MultiRTMP.Stream.Singular") :
-            getMultiRtmpText("MultiRTMP.Stream.Plural")));
 }
 
 void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& config)
@@ -442,10 +431,6 @@ void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& conf
                 } else {
                     refreshStreamList();
                 }
-                
-                m_statusLabel->setText(isEdit ? 
-                    getMultiRtmpText("MultiRTMP.Status.StreamUpdated") :
-                    getMultiRtmpText("MultiRTMP.Status.StreamAdded"));
             } else {
                 QMessageBox::warning(this,
                     getMultiRtmpText("MultiRTMP.Error.Title"),

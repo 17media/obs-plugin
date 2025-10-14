@@ -65,7 +65,7 @@ private:
     
     // Control section
     QFrame* m_controlFrame;
-    QHBoxLayout* m_controlLayout;
+    QVBoxLayout* m_controlLayout;
     QPushButton* m_startAllButton;
     QPushButton* m_stopAllButton;
     
