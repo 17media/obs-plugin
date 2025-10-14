@@ -403,9 +403,30 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
     // Video encoder
     if (config.video.useSharedEncoder) {
         streamOutput->videoEncoder = getSharedVideoEncoder();
+        
+        // Fallback to creating independent encoder if shared encoder is not available
+        if (!streamOutput->videoEncoder) {
+            MULTI_RTMP_STREAM_LOG_WARNING("Shared video encoder not available, creating independent encoder for stream: %s", streamId.c_str());
+            
+            obs_data_t* videoSettings = createVideoEncoderSettings(config);
+            if (!videoSettings) {
+                MULTI_RTMP_STREAM_LOG_ERROR("Failed to create video encoder settings for stream: %s", streamId.c_str());
+                return false;
+            }
+            
+            streamOutput->videoEncoder = obs_video_encoder_create(VIDEO_ENCODER_ID, 
+                getVideoEncoderName(streamId).c_str(), videoSettings, nullptr);
+            obs_data_release(videoSettings);
+            
+            if (!streamOutput->videoEncoder) {
+                MULTI_RTMP_STREAM_LOG_ERROR("Failed to create fallback video encoder for stream: %s", streamId.c_str());
+                return false;
+            }
+        }
     } else {
         obs_data_t* videoSettings = createVideoEncoderSettings(config);
         if (!videoSettings) {
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create video encoder settings for stream: %s", streamId.c_str());
             return false;
         }
         
@@ -422,9 +443,30 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
     // Audio encoder
     if (config.audio.useSharedEncoder) {
         streamOutput->audioEncoder = getSharedAudioEncoder(config.audio.mixerId);
+        
+        // Fallback to creating independent encoder if shared encoder is not available
+        if (!streamOutput->audioEncoder) {
+            MULTI_RTMP_STREAM_LOG_WARNING("Shared audio encoder not available, creating independent encoder for stream: %s", streamId.c_str());
+            
+            obs_data_t* audioSettings = createAudioEncoderSettings(config);
+            if (!audioSettings) {
+                MULTI_RTMP_STREAM_LOG_ERROR("Failed to create audio encoder settings for stream: %s", streamId.c_str());
+                return false;
+            }
+            
+            streamOutput->audioEncoder = obs_audio_encoder_create(AUDIO_ENCODER_ID, 
+                getAudioEncoderName(streamId).c_str(), audioSettings, 0, nullptr);
+            obs_data_release(audioSettings);
+            
+            if (!streamOutput->audioEncoder) {
+                MULTI_RTMP_STREAM_LOG_ERROR("Failed to create fallback audio encoder for stream: %s", streamId.c_str());
+                return false;
+            }
+        }
     } else {
         obs_data_t* audioSettings = createAudioEncoderSettings(config);
         if (!audioSettings) {
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create audio encoder settings for stream: %s", streamId.c_str());
             return false;
         }
         
@@ -438,6 +480,18 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
         }
     }
     
+    // Final validation to ensure both encoders are available
+    if (!streamOutput->videoEncoder) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Video encoder is null after creation for stream: %s", streamId.c_str());
+        return false;
+    }
+    
+    if (!streamOutput->audioEncoder) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Audio encoder is null after creation for stream: %s", streamId.c_str());
+        return false;
+    }
+    
+    MULTI_RTMP_STREAM_LOG_INFO("Encoders created successfully for stream: %s", streamId.c_str());
     return true;
 }
 
@@ -447,8 +501,25 @@ bool OneSevenMultiRtmpStreamController::setupOutput(const std::string& streamId,
         return false;
     }
     
+    // Validate that all required components are available
+    if (!streamOutput->service) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Service is null for stream: %s", streamId.c_str());
+        return false;
+    }
+    
+    if (!streamOutput->videoEncoder) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Video encoder is null for stream: %s", streamId.c_str());
+        return false;
+    }
+    
+    if (!streamOutput->audioEncoder) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Audio encoder is null for stream: %s", streamId.c_str());
+        return false;
+    }
+    
     obs_data_t* outputSettings = createOutputSettings(config);
     if (!outputSettings) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Failed to create output settings for stream: %s", streamId.c_str());
         return false;
     }
     
@@ -472,6 +543,7 @@ bool OneSevenMultiRtmpStreamController::setupOutput(const std::string& streamId,
     signal_handler_connect(handler, "reconnect", outputReconnectCallback, this);
     signal_handler_connect(handler, "reconnect_success", outputReconnectSuccessCallback, this);
     
+    MULTI_RTMP_STREAM_LOG_INFO("Output setup completed successfully for stream: %s", streamId.c_str());
     return true;
 }
 
