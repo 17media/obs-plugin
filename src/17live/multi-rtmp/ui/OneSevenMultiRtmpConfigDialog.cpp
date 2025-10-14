@@ -582,8 +582,11 @@ void OneSevenMultiRtmpConfigDialog::populateVideoResolutions()
 void OneSevenMultiRtmpConfigDialog::populateAudioFormats()
 {
     m_audioFormatCombo->addItems(AUDIO_FORMATS);
-    m_syncModeCombo->addItems(SYNC_MODES);
-    m_logLevelCombo->addItems(LOG_LEVELS);
+    // Note: m_syncModeCombo and m_logLevelCombo are declared but not initialized
+    // Commenting out to prevent null pointer access crash
+    // TODO: Initialize these ComboBoxes if they are needed in the UI
+    // m_syncModeCombo->addItems(SYNC_MODES);
+    // m_logLevelCombo->addItems(LOG_LEVELS);
 }
 
 void OneSevenMultiRtmpConfigDialog::setConfig(const OneSevenMultiRtmpConfig& config)
