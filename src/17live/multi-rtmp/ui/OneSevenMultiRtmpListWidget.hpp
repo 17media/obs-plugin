@@ -68,9 +68,7 @@ private:
     // Empty state
     QFrame* m_emptyFrame;
     QVBoxLayout* m_emptyLayout;
-    QLabel* m_emptyIconLabel;
     QLabel* m_emptyTextLabel;
-    QLabel* m_emptyHintLabel;
     
     // Stream items
     std::vector<OneSevenMultiRtmpStreamItem*> m_streamItems;

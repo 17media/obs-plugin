@@ -1,7 +1,5 @@
 #include "OneSevenMultiRtmpListWidget.hpp"
 #include "OneSevenMultiRtmpStreamItem.hpp"
-#include <QApplication>
-#include <QStyle>
 #include <algorithm>
 
 OneSevenMultiRtmpListWidget::OneSevenMultiRtmpListWidget(QWidget* parent)
@@ -11,9 +9,7 @@ OneSevenMultiRtmpListWidget::OneSevenMultiRtmpListWidget(QWidget* parent)
     , m_streamContainer(nullptr)
     , m_emptyFrame(nullptr)
     , m_emptyLayout(nullptr)
-    , m_emptyIconLabel(nullptr)
     , m_emptyTextLabel(nullptr)
-    , m_emptyHintLabel(nullptr)
     , m_showEmptyState(true)
 {
     setupUI();
@@ -51,49 +47,28 @@ void OneSevenMultiRtmpListWidget::setupUI()
 void OneSevenMultiRtmpListWidget::setupEmptyState()
 {
     m_emptyFrame = new QFrame();
-    m_emptyFrame->setFrameStyle(QFrame::StyledPanel);
     m_emptyFrame->setStyleSheet(
         "QFrame { "
-        "  background-color: #f5f5f5; "
-        "  border: 2px dashed #ccc; "
-        "  border-radius: 8px; "
+        "  background-color: transparent; "
+        "  border: none; "
         "}"
     );
     
     m_emptyLayout = new QVBoxLayout(m_emptyFrame);
     m_emptyLayout->setContentsMargins(20, 40, 20, 40);
-    m_emptyLayout->setSpacing(12);
+    m_emptyLayout->setSpacing(0);
     
-    // Icon
-    m_emptyIconLabel = new QLabel();
-    m_emptyIconLabel->setPixmap(QApplication::style()->standardIcon(QStyle::SP_FileIcon)
-                               .pixmap(64, 64));
-    m_emptyIconLabel->setAlignment(Qt::AlignCenter);
-    m_emptyIconLabel->setStyleSheet("color: #999;");
-    
-    // Main text
-    m_emptyTextLabel = new QLabel(obs_module_text("MultiRTMP.Empty.Title"));
+    // Simple text message
+    m_emptyTextLabel = new QLabel("请新建推流");
     m_emptyTextLabel->setAlignment(Qt::AlignCenter);
     m_emptyTextLabel->setStyleSheet(
         "font-size: 16px; "
-        "font-weight: bold; "
-        "color: #666; "
-        "margin: 8px 0;"
-    );
-    
-    // Hint text
-    m_emptyHintLabel = new QLabel(obs_module_text("MultiRTMP.Empty.Hint"));
-    m_emptyHintLabel->setAlignment(Qt::AlignCenter);
-    m_emptyHintLabel->setWordWrap(true);
-    m_emptyHintLabel->setStyleSheet(
-        "font-size: 12px; "
         "color: #999; "
-        "line-height: 1.4;"
+        "font-weight: normal;"
     );
     
-    m_emptyLayout->addWidget(m_emptyIconLabel);
+    m_emptyLayout->addStretch();
     m_emptyLayout->addWidget(m_emptyTextLabel);
-    m_emptyLayout->addWidget(m_emptyHintLabel);
     m_emptyLayout->addStretch();
 }
 
