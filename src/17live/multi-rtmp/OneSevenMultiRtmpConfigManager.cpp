@@ -37,21 +37,7 @@ OneSevenMultiRtmpConfigManager::~OneSevenMultiRtmpConfigManager() {
 
 bool OneSevenMultiRtmpConfigManager::loadConfiguration() {
     std::lock_guard<std::mutex> lock(m_configMutex);
-    
-    if (!std::filesystem::exists(m_configFilePath)) {
-        MULTI_RTMP_CONFIG_LOG_INFO("Configuration file does not exist, creating new one");
-        m_globalConfig = OneSevenMultiRtmpGlobalConfig();
-        m_globalConfig.updateLastModified();
-        return saveConfiguration();
-    }
-
-    if (!readConfigFromFile(m_globalConfig)) {
-        MULTI_RTMP_CONFIG_LOG_ERROR("Failed to read configuration from file: %s", m_configFilePath.c_str());
-        return false;
-    }
-
-    MULTI_RTMP_CONFIG_LOG_INFO("Configuration loaded successfully, %zu streams found", m_globalConfig.streams.size());
-    return true;
+    return loadConfigurationInternal();
 }
 
 bool OneSevenMultiRtmpConfigManager::saveConfiguration() {
@@ -96,6 +82,12 @@ bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConf
     MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration added: %s (%s)", 
                                newConfig.streamName.c_str(), newConfig.id.c_str());
     
+    // Save configuration to file
+    if (!saveConfigurationInternal()) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Failed to save configuration after adding stream");
+        return false;
+    }
+    
     // Notify callback
     notifyConfigChange(newConfig.id, newConfig);
     
@@ -111,6 +103,12 @@ bool OneSevenMultiRtmpConfigManager::removeStreamConfig(const std::string& strea
     }
 
     MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration removed: %s", streamId.c_str());
+    
+    // Save configuration to file
+    if (!saveConfigurationInternal()) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Failed to save configuration after removing stream");
+        return false;
+    }
     
     // Notify callback
     notifyConfigDelete(streamId);
@@ -142,6 +140,12 @@ bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& strea
     
     MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration updated: %s (%s)", 
                                updatedConfig.streamName.c_str(), streamId.c_str());
+    
+    // Save configuration to file
+    if (!saveConfigurationInternal()) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Failed to save configuration after updating stream");
+        return false;
+    }
     
     // Notify callback
     notifyConfigChange(streamId, updatedConfig);
@@ -374,4 +378,35 @@ void OneSevenMultiRtmpConfigManager::notifyConfigDelete(const std::string& strea
     if (m_configDeleteCallback) {
         m_configDeleteCallback(streamId);
     }
+}
+
+bool OneSevenMultiRtmpConfigManager::saveConfigurationInternal() {
+    // This method assumes the mutex is already locked by the caller
+    m_globalConfig.updateLastModified();
+    
+    if (!writeConfigToFile(m_globalConfig)) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Failed to save configuration to file: %s", m_configFilePath.c_str());
+        return false;
+    }
+
+    MULTI_RTMP_CONFIG_LOG_INFO("Configuration saved successfully");
+    return true;
+}
+
+bool OneSevenMultiRtmpConfigManager::loadConfigurationInternal() {
+    // This method assumes the mutex is already locked by the caller
+    if (!std::filesystem::exists(m_configFilePath)) {
+        MULTI_RTMP_CONFIG_LOG_INFO("Configuration file does not exist, creating new one");
+        m_globalConfig = OneSevenMultiRtmpGlobalConfig();
+        m_globalConfig.updateLastModified();
+        return saveConfigurationInternal(); // Use internal method to avoid deadlock
+    }
+
+    if (!readConfigFromFile(m_globalConfig)) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Failed to read configuration from file: %s", m_configFilePath.c_str());
+        return false;
+    }
+
+    MULTI_RTMP_CONFIG_LOG_INFO("Configuration loaded successfully, %zu streams found", m_globalConfig.streams.size());
+    return true;
 }

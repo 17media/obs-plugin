@@ -55,13 +55,17 @@ public:
     std::vector<std::string> getAvailableBackups() const;
 
 private:
-    // Internal helper methods
+    // Helper methods
     bool ensureConfigDirectoryExists() const;
     bool writeConfigToFile(const OneSevenMultiRtmpGlobalConfig& config) const;
     bool readConfigFromFile(OneSevenMultiRtmpGlobalConfig& config) const;
     std::string getBackupFilePath(const std::string& timestamp) const;
     void notifyConfigChange(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
     void notifyConfigDelete(const std::string& streamId);
+    
+    // Internal methods without locking (must be called with lock held)
+    bool saveConfigurationInternal();
+    bool loadConfigurationInternal();
 
     // Member variables
     std::string m_configFilePath;
