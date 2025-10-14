@@ -336,7 +336,13 @@ void OneSevenMultiRtmpDock::onStartAllClicked()
         
         m_manager->startAllStreams();
         
-        updateButtonStates();
+        // Button states will be updated automatically through status callbacks
+        // Add a timer to re-enable the button in case callbacks don't come through
+        QTimer::singleShot(2000, this, [this]() {
+            if (m_startAllButton && !m_startAllButton->isEnabled()) {
+                updateButtonStates();
+            }
+        });
     }
 }
 
@@ -347,7 +353,13 @@ void OneSevenMultiRtmpDock::onStopAllClicked()
         
         m_manager->stopAllStreams();
         
-        updateButtonStates();
+        // Button states will be updated automatically through status callbacks
+        // Add a timer to re-enable the button in case callbacks don't come through
+        QTimer::singleShot(2000, this, [this]() {
+            if (m_stopAllButton && !m_stopAllButton->isEnabled()) {
+                updateButtonStates();
+            }
+        });
     }
 }
 
