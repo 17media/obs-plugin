@@ -3,6 +3,7 @@
 #include <QStyle>
 #include <QMessageBox>
 #include <QDateTime>
+#include <QUuid>
 
 
 // Static constants for UI options
@@ -65,7 +66,60 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent)
 {
     setWindowTitle(obs_module_text("MultiRTMP.Config.Title"));
     setModal(true);
-    resize(600, 500);
+    setMinimumWidth(350);
+    resize(400, 500);
+    
+    // Apply dark theme styling
+    setStyleSheet(
+        "QDialog { "
+        "  background-color: #1e1e1e; "
+        "  color: white; "
+        "} "
+        "QLabel { "
+        "  color: white; "
+        "  font-weight: bold; "
+        "} "
+        "QLineEdit { "
+        "  background-color: #3c3c3c; "
+        "  color: white; "
+        "  border: 1px solid #555; "
+        "  border-radius: 4px; "
+        "  padding: 8px; "
+        "  min-width: 200px; "
+        "} "
+        "QLineEdit:focus { "
+        "  border-color: #007AFF; "
+        "} "
+        "QComboBox { "
+        "  background-color: #3c3c3c; "
+        "  color: white; "
+        "  border: 1px solid #555; "
+        "  border-radius: 4px; "
+        "  padding: 8px; "
+        "} "
+        "QComboBox:focus { "
+        "  border-color: #007AFF; "
+        "} "
+        "QComboBox::drop-down { "
+        "  border: none; "
+        "} "
+        "QComboBox::down-arrow { "
+        "  image: none; "
+        "  border-left: 5px solid transparent; "
+        "  border-right: 5px solid transparent; "
+        "  border-top: 5px solid white; "
+        "} "
+        "QCheckBox { "
+        "  color: white; "
+        "} "
+        "QCheckBox::indicator { "
+        "  background-color: #3c3c3c; "
+        "  border: 1px solid #555; "
+        "} "
+        "QCheckBox::indicator:checked { "
+        "  background-color: #007AFF; "
+        "} "
+    );
     
     setupUI();
     setupConnections();
@@ -98,14 +152,14 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
     m_tabWidget = new QTabWidget();
     m_tabWidget->setStyleSheet(
         "QTabWidget::pane { "
-        "  border: 1px solid #e0e0e0; "
-        "  background-color: white; "
+        "  border: 1px solid #555; "
+        "  background-color: #1e1e1e; "
         "  border-radius: 6px; "
         "  margin: 12px; "
         "} "
         "QTabBar::tab { "
-        "  background-color: #f5f5f5; "
-        "  color: #666; "
+        "  background-color: #2d2d2d; "
+        "  color: #ccc; "
         "  padding: 10px 20px; "
         "  margin-right: 2px; "
         "  border-top-left-radius: 6px; "
@@ -113,12 +167,12 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
         "  font-weight: bold; "
         "} "
         "QTabBar::tab:selected { "
-        "  background-color: white; "
-        "  color: #333; "
-        "  border-bottom: 2px solid #007AFF; "
+        "  background-color: #1e1e1e; "
+        "  color: white; "
+        "  border-bottom: 2px solid #FF0001; "
         "} "
         "QTabBar::tab:hover { "
-        "  background-color: #e8e8e8; "
+        "  background-color: #3c3c3c; "
         "}"
     );
     
@@ -150,30 +204,29 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
     m_basicInfoLayout->setSpacing(12);
     m_basicInfoLayout->setContentsMargins(16, 16, 16, 16);
     
-    // System-generated ID (read-only)
-    QLineEdit* streamIdEdit = new QLineEdit();
-    streamIdEdit->setReadOnly(true);
-    streamIdEdit->setText(QString("STREAM_%1").arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss")));
-    streamIdEdit->setStyleSheet("QLineEdit { background-color: #f5f5f5; color: #666; }");
-    m_basicInfoLayout->addRow("Stream ID:", streamIdEdit);
-    
-    // Stream name input (only required field)
+    // Stream name input (required field)
     m_streamNameEdit = new QLineEdit();
-    m_streamNameEdit->setPlaceholderText("Enter stream name...");
-    m_streamNameEdit->setStyleSheet("QLineEdit { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QLineEdit:focus { border-color: #007AFF; }");
-    m_basicInfoLayout->addRow("Stream Name:", m_streamNameEdit);
+    m_streamNameEdit->setPlaceholderText("新建串流");
+    m_streamNameEdit->setText("新建串流");
+    m_streamNameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_basicInfoLayout->addRow("名称", m_streamNameEdit);
     
-    // Add visual separation with improved styling
+    // Protocol dropdown
+    m_protocolCombo = new QComboBox();
+    m_protocolCombo->addItem("RTMP");
+    m_protocolCombo->setCurrentText("RTMP");
+    m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_basicInfoLayout->addRow("协议", m_protocolCombo);
+    
+    // Apply dark theme styling to basic info section
     m_basicInfoWidget->setStyleSheet(
         "QWidget { "
-        "  background-color: #fafafa; "
-        "  border: 1px solid #e0e0e0; "
-        "  border-radius: 6px; "
-        "  margin-bottom: 12px; "
+        "  background-color: #1e1e1e; "
+        "  border: none; "
         "} "
         "QLabel { "
         "  font-weight: bold; "
-        "  color: #333; "
+        "  color: white; "
         "}"
     );
 }
@@ -185,69 +238,49 @@ void OneSevenMultiRtmpConfigDialog::setupServiceTab()
     m_serviceLayout->setSpacing(12);
     m_serviceLayout->setContentsMargins(20, 20, 20, 20);
     
-    // Service type
-    m_serviceTypeCombo = new QComboBox();
-    m_serviceTypeCombo->setStyleSheet("QComboBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QComboBox:focus { border-color: #007AFF; }");
-    m_serviceLayout->addRow("Service Type:", m_serviceTypeCombo);
-    
-    // Custom service checkbox
-    m_customServiceCheck = new QCheckBox("Use Custom Service");
-    m_customServiceCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
-    m_serviceLayout->addRow("", m_customServiceCheck);
-    
     // Server URL
     m_serverEdit = new QLineEdit();
-    m_serverEdit->setPlaceholderText("rtmp://server.example.com/live");
-    m_serverEdit->setStyleSheet("QLineEdit { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QLineEdit:focus { border-color: #007AFF; }");
-    m_serviceLayout->addRow("Server URL:", m_serverEdit);
+    m_serverEdit->setPlaceholderText("");
+    m_serverEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_serviceLayout->addRow("* URL", m_serverEdit);
     
-    // Stream key
+    // Stream key with show/hide checkbox
+    QHBoxLayout* keyLayout = new QHBoxLayout();
     m_keyEdit = new QLineEdit();
     m_keyEdit->setEchoMode(QLineEdit::Password);
-    m_keyEdit->setPlaceholderText("Enter your stream key...");
-    m_keyEdit->setStyleSheet("QLineEdit { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QLineEdit:focus { border-color: #007AFF; }");
-    m_serviceLayout->addRow("Stream Key:", m_keyEdit);
+    m_keyEdit->setPlaceholderText("");
+    m_keyEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     
-    // Description
-    m_descriptionEdit = new QTextEdit();
-    m_descriptionEdit->setMaximumHeight(80);
-    m_descriptionEdit->setPlaceholderText("Optional description for this stream...");
-    m_descriptionEdit->setStyleSheet("QTextEdit { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QTextEdit:focus { border-color: #007AFF; }");
-    m_serviceLayout->addRow("Description:", m_descriptionEdit);
+    QCheckBox* showKeyCheck = new QCheckBox("显示");
+    showKeyCheck->setStyleSheet("QCheckBox { color: white; }");
+    connect(showKeyCheck, &QCheckBox::toggled, [this](bool checked) {
+        m_keyEdit->setEchoMode(checked ? QLineEdit::Normal : QLineEdit::Password);
+    });
     
-    // Test connection
-    QHBoxLayout* testLayout = new QHBoxLayout();
-    m_testConnectionButton = new QPushButton("Test Connection");
-    m_testConnectionButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
-    m_testConnectionButton->setStyleSheet(
-        "QPushButton { "
-        "  background-color: #28a745; "
+    keyLayout->addWidget(m_keyEdit);
+    keyLayout->addWidget(showKeyCheck);
+    
+    m_serviceLayout->addRow("* 推流码", keyLayout);
+    
+    // User authentication checkbox
+    QCheckBox* authCheck = new QCheckBox("用户身份认证");
+    authCheck->setChecked(true);
+    authCheck->setStyleSheet("QCheckBox { color: white; }");
+    m_serviceLayout->addRow("", authCheck);
+    
+    // Apply dark theme to service tab
+    m_serviceTab->setStyleSheet(
+        "QWidget { "
+        "  background-color: #1e1e1e; "
         "  color: white; "
-        "  border: none; "
-        "  padding: 8px 16px; "
-        "  border-radius: 4px; "
-        "  font-weight: bold; "
         "} "
-        "QPushButton:hover { "
-        "  background-color: #218838; "
+        "QLabel { "
+        "  color: white; "
+        "  font-weight: bold; "
         "}"
     );
     
-    m_connectionProgress = new QProgressBar();
-    m_connectionProgress->setVisible(false);
-    m_connectionProgress->setMaximumHeight(20);
-    
-    m_connectionStatusLabel = new QLabel();
-    m_connectionStatusLabel->setStyleSheet("font-size: 11px; color: #666;");
-    
-    testLayout->addWidget(m_testConnectionButton);
-    testLayout->addWidget(m_connectionProgress);
-    testLayout->addStretch();
-    
-    m_serviceLayout->addRow("", testLayout);
-    m_serviceLayout->addRow("", m_connectionStatusLabel);
-    
-    m_tabWidget->addTab(m_serviceTab, "Service");
+    m_tabWidget->addTab(m_serviceTab, "服务");
 }
 
 void OneSevenMultiRtmpConfigDialog::setupOutputTab()
@@ -308,7 +341,19 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     m_retryDelaySpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
     m_outputLayout->addRow("Retry Delay:", m_retryDelaySpin);
     
-    m_tabWidget->addTab(m_outputTab, "Output");
+    // Apply dark theme to output tab
+    m_outputTab->setStyleSheet(
+        "QWidget { "
+        "  background-color: #1e1e1e; "
+        "  color: white; "
+        "} "
+        "QLabel { "
+        "  color: white; "
+        "  font-weight: bold; "
+        "}"
+    );
+    
+    m_tabWidget->addTab(m_outputTab, "输出");
 }
 
 void OneSevenMultiRtmpConfigDialog::setupVideoTab()
@@ -391,7 +436,19 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     
     m_videoLayout->addRow("Quality:", qualityLayout);
     
-    m_tabWidget->addTab(m_videoTab, "Video");
+    // Apply dark theme to video tab
+    m_videoTab->setStyleSheet(
+        "QWidget { "
+        "  background-color: #1e1e1e; "
+        "  color: white; "
+        "} "
+        "QLabel { "
+        "  color: white; "
+        "  font-weight: bold; "
+        "}"
+    );
+    
+    m_tabWidget->addTab(m_videoTab, "视频");
 }
 
 void OneSevenMultiRtmpConfigDialog::setupAudioTab()
@@ -455,7 +512,19 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     
     m_audioLayout->addRow("Audio Volume:", volumeLayout);
     
-    m_tabWidget->addTab(m_audioTab, "Audio");
+    // Apply dark theme to audio tab
+    m_audioTab->setStyleSheet(
+        "QWidget { "
+        "  background-color: #1e1e1e; "
+        "  color: white; "
+        "} "
+        "QLabel { "
+        "  color: white; "
+        "  font-weight: bold; "
+        "}"
+    );
+    
+    m_tabWidget->addTab(m_audioTab, "音频");
 }
 
 
@@ -556,11 +625,19 @@ void OneSevenMultiRtmpConfigDialog::setupValidation()
     m_validationTimer->setInterval(500); // 500ms delay
     connect(m_validationTimer, &QTimer::timeout, this, &OneSevenMultiRtmpConfigDialog::onValidationTimer);
     
-    // Connect validation triggers to service input fields
+    // Connect validation triggers to input fields
+    connect(m_streamNameEdit, &QLineEdit::textChanged,
+            this, [this]() { m_validationTimer->start(); });
     connect(m_serverEdit, &QLineEdit::textChanged,
             this, [this]() { m_validationTimer->start(); });
     connect(m_keyEdit, &QLineEdit::textChanged,
             this, [this]() { m_validationTimer->start(); });
+    
+    // Initially hide validation label and enable OK button for new streams
+    if (!m_isEditMode) {
+        m_validationLabel->setVisible(false);
+        m_okButton->setEnabled(true);
+    }
 }
 
 void OneSevenMultiRtmpConfigDialog::populateServiceTypes()
@@ -713,19 +790,19 @@ void OneSevenMultiRtmpConfigDialog::updateAudioFields()
 
 bool OneSevenMultiRtmpConfigDialog::validateConfiguration()
 {
-    auto config = buildConfigFromUI();
-    bool isValid = config.isValid();
+    // Custom validation logic - only check stream name for now
+    QString streamName = m_streamNameEdit->text().trimmed();
     
-    if (!isValid) {
-        m_validationLabel->setText(QString::fromStdString(config.getValidationError()));
+    if (streamName.isEmpty()) {
+        m_validationLabel->setText("Stream name is required");
         m_validationLabel->setVisible(true);
         m_okButton->setEnabled(false);
+        return false;
     } else {
         m_validationLabel->setVisible(false);
         m_okButton->setEnabled(true);
+        return true;
     }
-    
-    return isValid;
 }
 
 void OneSevenMultiRtmpConfigDialog::showValidationErrors()
@@ -792,9 +869,12 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::buildConfigFromUI() const
 {
     OneSevenMultiRtmpConfig config;
     
-    // Keep original ID if editing
+    // Auto-generate UUID for new streams, keep original ID if editing
     if (m_isEditMode) {
         config.id = m_originalConfig.id;
+    } else {
+        // Auto-generate UUID for new streams
+        config.id = QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
     }
     
     // Service configuration

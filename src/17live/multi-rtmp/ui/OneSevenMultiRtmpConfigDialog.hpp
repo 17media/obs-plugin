@@ -91,6 +91,7 @@ private:
     QWidget* m_basicInfoWidget;
     QFormLayout* m_basicInfoLayout;
     QLineEdit* m_streamNameEdit;
+    QComboBox* m_protocolCombo;
     
     // Service tab
     QWidget* m_serviceTab;
