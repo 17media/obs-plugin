@@ -41,20 +41,20 @@ bool OneSevenMultiRtmpStreamController::createOutput(const std::string& streamId
     streamOutput->status.state = OneSevenMultiRtmpStreamStatus::STOPPED;
     
     // Create service
-    if (!createService(streamId, config)) {
+    if (!createService(streamId, config, streamOutput.get())) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service for stream: %s", streamId.c_str());
         return false;
     }
     
     // Create encoders
-    if (!createEncoders(streamId, config)) {
+    if (!createEncoders(streamId, config, streamOutput.get())) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create encoders for stream: %s", streamId.c_str());
         destroyService(streamId);
         return false;
     }
     
     // Setup output
-    if (!setupOutput(streamId, config)) {
+    if (!setupOutput(streamId, config, streamOutput.get())) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to setup output for stream: %s", streamId.c_str());
         destroyEncoders(streamId);
         destroyService(streamId);
@@ -370,11 +370,15 @@ void OneSevenMultiRtmpStreamController::stopStatsMonitoring() {
     MULTI_RTMP_STREAM_LOG_INFO("Statistics monitoring stopped");
 }
 
-bool OneSevenMultiRtmpStreamController::createService(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
-    auto& streamOutput = m_streamOutputs[streamId];
+bool OneSevenMultiRtmpStreamController::createService(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput) {
+    if (!streamOutput) {
+        MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput is null for stream: %s", streamId.c_str());
+        return false;
+    }
     
     obs_data_t* serviceSettings = createServiceSettings(config);
     if (!serviceSettings) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service settings for stream: %s", streamId.c_str());
         return false;
     }
     
@@ -386,11 +390,15 @@ bool OneSevenMultiRtmpStreamController::createService(const std::string& streamI
         return false;
     }
     
+    MULTI_RTMP_STREAM_LOG_INFO("Service created successfully for stream: %s", streamId.c_str());
     return true;
 }
 
-bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
-    auto& streamOutput = m_streamOutputs[streamId];
+bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput) {
+    if (!streamOutput) {
+        MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput is null for stream: %s", streamId.c_str());
+        return false;
+    }
     
     // Video encoder
     if (config.video.useSharedEncoder) {
@@ -433,8 +441,11 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
     return true;
 }
 
-bool OneSevenMultiRtmpStreamController::setupOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
-    auto& streamOutput = m_streamOutputs[streamId];
+bool OneSevenMultiRtmpStreamController::setupOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput) {
+    if (!streamOutput) {
+        MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput is null for stream: %s", streamId.c_str());
+        return false;
+    }
     
     obs_data_t* outputSettings = createOutputSettings(config);
     if (!outputSettings) {

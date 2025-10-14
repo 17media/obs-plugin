@@ -72,10 +72,10 @@ private:
         std::chrono::steady_clock::time_point startTime;
     };
 
-    // Internal helper methods
-    bool createService(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
-    bool createEncoders(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
-    bool setupOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
+    // Internal methods
+    bool createService(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
+    bool createEncoders(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
+    bool setupOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
     
     void destroyService(const std::string& streamId);
     void destroyEncoders(const std::string& streamId);
