@@ -103,6 +103,11 @@ private:
     obs_data_t* createOutputSettings(const OneSevenMultiRtmpConfig& config) const;
     obs_data_t* createVideoEncoderSettings(const OneSevenMultiRtmpConfig& config) const;
     obs_data_t* createAudioEncoderSettings(const OneSevenMultiRtmpConfig& config) const;
+    
+    // Helper methods for getting OBS default encoder settings
+    obs_data_t* getObsDefaultVideoEncoderSettings() const;
+    obs_data_t* getObsDefaultAudioEncoderSettings() const;
+    const char* getObsDefaultVideoEncoderId() const;
 
     // Member variables
     std::map<std::string, std::unique_ptr<StreamOutput>> m_streamOutputs;

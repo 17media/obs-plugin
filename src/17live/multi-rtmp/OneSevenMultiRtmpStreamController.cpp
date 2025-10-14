@@ -414,7 +414,11 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
                 return false;
             }
             
-            streamOutput->videoEncoder = obs_video_encoder_create(VIDEO_ENCODER_ID, 
+            // Determine the video encoder ID to use
+            const char* videoEncoderId = config.video.encoderId.empty() ? 
+                getObsDefaultVideoEncoderId() : config.video.encoderId.c_str();
+            
+            streamOutput->videoEncoder = obs_video_encoder_create(videoEncoderId, 
                 getVideoEncoderName(streamId).c_str(), videoSettings, nullptr);
             obs_data_release(videoSettings);
             
@@ -430,7 +434,11 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
             return false;
         }
         
-        streamOutput->videoEncoder = obs_video_encoder_create(VIDEO_ENCODER_ID, 
+        // Determine the video encoder ID to use
+        const char* videoEncoderId = config.video.encoderId.empty() ? 
+            getObsDefaultVideoEncoderId() : config.video.encoderId.c_str();
+        
+        streamOutput->videoEncoder = obs_video_encoder_create(videoEncoderId, 
             getVideoEncoderName(streamId).c_str(), videoSettings, nullptr);
         obs_data_release(videoSettings);
         
@@ -454,7 +462,11 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
                 return false;
             }
             
-            streamOutput->audioEncoder = obs_audio_encoder_create(AUDIO_ENCODER_ID, 
+            // Determine the audio encoder ID to use
+            const char* audioEncoderId = config.audio.encoderId.empty() ? 
+                AUDIO_ENCODER_ID : config.audio.encoderId.c_str();
+            
+            streamOutput->audioEncoder = obs_audio_encoder_create(audioEncoderId, 
                 getAudioEncoderName(streamId).c_str(), audioSettings, 0, nullptr);
             obs_data_release(audioSettings);
             
@@ -470,7 +482,11 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
             return false;
         }
         
-        streamOutput->audioEncoder = obs_audio_encoder_create(AUDIO_ENCODER_ID, 
+        // Determine the audio encoder ID to use
+        const char* audioEncoderId = config.audio.encoderId.empty() ? 
+            AUDIO_ENCODER_ID : config.audio.encoderId.c_str();
+        
+        streamOutput->audioEncoder = obs_audio_encoder_create(audioEncoderId, 
             getAudioEncoderName(streamId).c_str(), audioSettings, 0, nullptr);
         obs_data_release(audioSettings);
         
@@ -708,6 +724,18 @@ obs_data_t* OneSevenMultiRtmpStreamController::createOutputSettings(const OneSev
 }
 
 obs_data_t* OneSevenMultiRtmpStreamController::createVideoEncoderSettings(const OneSevenMultiRtmpConfig& config) const {
+    // Check if user has set custom video encoder settings
+    // If bitrate is default (6000) and rate control is default ("ABR"), use OBS defaults
+    bool useObsDefaults = (config.video.bitrate == 6000 && 
+                          config.video.rateControl == "ABR" && 
+                          config.video.encoderId.empty());
+    
+    if (useObsDefaults) {
+        MULTI_RTMP_STREAM_LOG_DEBUG("Using OBS default video encoder settings for stream");
+        return getObsDefaultVideoEncoderSettings();
+    }
+    
+    // Use user-specified settings
     obs_data_t* settings = obs_data_create();
     obs_data_set_int(settings, "bitrate", config.video.bitrate);
     obs_data_set_int(settings, "keyint_sec", config.video.keyframeInterval);
@@ -715,16 +743,35 @@ obs_data_t* OneSevenMultiRtmpStreamController::createVideoEncoderSettings(const 
     obs_data_set_string(settings, "profile", config.video.profile.c_str());
     obs_data_set_bool(settings, "use_bufsize", config.video.rateLimiting);
     obs_data_set_bool(settings, "bframes", config.video.useBFrames);
+    
+    MULTI_RTMP_STREAM_LOG_DEBUG("Using custom video encoder settings for stream - bitrate: %d, rate_control: %s", 
+                               config.video.bitrate, config.video.rateControl.c_str());
     return settings;
 }
 
 obs_data_t* OneSevenMultiRtmpStreamController::createAudioEncoderSettings(const OneSevenMultiRtmpConfig& config) const {
+    // Check if user has set custom audio encoder settings
+    // If bitrate is default (128) and sample rate is default (48000), use OBS defaults
+    bool useObsDefaults = (config.audio.bitrate == 128 && 
+                          config.audio.sampleRate == 48000 && 
+                          config.audio.encoderId.empty() &&
+                          !config.audio.useHEAAC);
+    
+    if (useObsDefaults) {
+        MULTI_RTMP_STREAM_LOG_DEBUG("Using OBS default audio encoder settings for stream");
+        return getObsDefaultAudioEncoderSettings();
+    }
+    
+    // Use user-specified settings
     obs_data_t* settings = obs_data_create();
     obs_data_set_int(settings, "bitrate", config.audio.bitrate);
     obs_data_set_int(settings, "rate", config.audio.sampleRate);
     if (config.audio.useHEAAC) {
         obs_data_set_string(settings, "codec", "HE-AAC");
     }
+    
+    MULTI_RTMP_STREAM_LOG_DEBUG("Using custom audio encoder settings for stream - bitrate: %d, sample_rate: %d", 
+                               config.audio.bitrate, config.audio.sampleRate);
     return settings;
 }
 
@@ -761,4 +808,83 @@ void OneSevenMultiRtmpStreamController::updateStreamStats(const std::string& str
             m_statsCallback(streamId, it->second->stats);
         }
     }
+}
+
+const char* OneSevenMultiRtmpStreamController::getObsDefaultVideoEncoderId() const {
+    // Try to get the encoder ID from the main streaming output
+    obs_output_t* streamingOutput = obs_frontend_get_streaming_output();
+    if (streamingOutput) {
+        obs_encoder_t* videoEncoder = obs_output_get_video_encoder(streamingOutput);
+        if (videoEncoder) {
+            const char* encoderId = obs_encoder_get_id(videoEncoder);
+            obs_output_release(streamingOutput);
+            return encoderId;
+        }
+        obs_output_release(streamingOutput);
+    }
+    
+    // Fallback to default x264 encoder
+    return VIDEO_ENCODER_ID;
+}
+
+obs_data_t* OneSevenMultiRtmpStreamController::getObsDefaultVideoEncoderSettings() const {
+    obs_data_t* settings = obs_data_create();
+    
+    // Try to get settings from the main streaming output
+    obs_output_t* streamingOutput = obs_frontend_get_streaming_output();
+    if (streamingOutput) {
+        obs_encoder_t* videoEncoder = obs_output_get_video_encoder(streamingOutput);
+        if (videoEncoder) {
+            obs_data_t* encoderSettings = obs_encoder_get_settings(videoEncoder);
+            if (encoderSettings) {
+                // Copy the settings
+                obs_data_apply(settings, encoderSettings);
+                obs_data_release(encoderSettings);
+                obs_output_release(streamingOutput);
+                MULTI_RTMP_STREAM_LOG_DEBUG("Using OBS default video encoder settings");
+                return settings;
+            }
+        }
+        obs_output_release(streamingOutput);
+    }
+    
+    // Fallback to reasonable defaults if OBS settings are not available
+    obs_data_set_int(settings, "bitrate", 2500);
+    obs_data_set_int(settings, "keyint_sec", 2);
+    obs_data_set_string(settings, "rate_control", "CBR");
+    obs_data_set_string(settings, "profile", "main");
+    obs_data_set_bool(settings, "use_bufsize", true);
+    obs_data_set_bool(settings, "bframes", false);
+    
+    MULTI_RTMP_STREAM_LOG_DEBUG("Using fallback video encoder settings");
+    return settings;
+}
+
+obs_data_t* OneSevenMultiRtmpStreamController::getObsDefaultAudioEncoderSettings() const {
+    obs_data_t* settings = obs_data_create();
+    
+    // Try to get settings from the main streaming output
+    obs_output_t* streamingOutput = obs_frontend_get_streaming_output();
+    if (streamingOutput) {
+        obs_encoder_t* audioEncoder = obs_output_get_audio_encoder(streamingOutput, 0);
+        if (audioEncoder) {
+            obs_data_t* encoderSettings = obs_encoder_get_settings(audioEncoder);
+            if (encoderSettings) {
+                // Copy the settings
+                obs_data_apply(settings, encoderSettings);
+                obs_data_release(encoderSettings);
+                obs_output_release(streamingOutput);
+                MULTI_RTMP_STREAM_LOG_DEBUG("Using OBS default audio encoder settings");
+                return settings;
+            }
+        }
+        obs_output_release(streamingOutput);
+    }
+    
+    // Fallback to reasonable defaults if OBS settings are not available
+    obs_data_set_int(settings, "bitrate", 128);
+    obs_data_set_int(settings, "rate", 44100);
+    
+    MULTI_RTMP_STREAM_LOG_DEBUG("Using fallback audio encoder settings");
+    return settings;
 }
