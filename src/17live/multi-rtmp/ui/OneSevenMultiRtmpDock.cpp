@@ -33,8 +33,13 @@ OneSevenMultiRtmpDock::OneSevenMultiRtmpDock(QWidget* parent)
     setWindowTitle(getMultiRtmpText("MultiRTMP.Dock.Title"));
     setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
     
-    // Get manager instance
+    // Get manager instance and initialize it
     m_manager = OneSevenMultiRtmpManager::getInstance();
+    if (m_manager && !m_manager->isInitialized()) {
+        if (!m_manager->initialize()) {
+            obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to initialize MultiRTMP manager");
+        }
+    }
     
     setupUI();
     setupConnections();
