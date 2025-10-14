@@ -49,20 +49,18 @@ public slots:
 private slots:
     void onServiceTypeChanged();
     void onCustomServiceToggled(bool enabled);
+    void onTestConnectionClicked();
     void onEncoderSharingChanged();
     void onVideoResolutionChanged();
-    void onTestConnectionClicked();
-    void onResetToDefaultsClicked();
     void onValidationTimer();
 
 private:
     void setupUI();
+    void setupBasicInfoSection();
     void setupServiceTab();
     void setupOutputTab();
     void setupVideoTab();
     void setupAudioTab();
-    void setupSyncTab();
-    void setupAdvancedTab();
     void setupButtonBox();
     
     void setupConnections();
@@ -77,7 +75,6 @@ private:
     void updateEncoderFields();
     void updateVideoFields();
     void updateAudioFields();
-    void updateSyncFields();
     
     bool validateConfiguration();
     void showValidationErrors();
@@ -90,12 +87,16 @@ private:
     QVBoxLayout* m_mainLayout;
     QTabWidget* m_tabWidget;
     
+    // Basic info section
+    QWidget* m_basicInfoWidget;
+    QFormLayout* m_basicInfoLayout;
+    QLineEdit* m_streamNameEdit;
+    
     // Service tab
     QWidget* m_serviceTab;
     QFormLayout* m_serviceLayout;
     QComboBox* m_serviceTypeCombo;
     QCheckBox* m_customServiceCheck;
-    QLineEdit* m_serviceNameEdit;
     QLineEdit* m_serverEdit;
     QLineEdit* m_keyEdit;
     QTextEdit* m_descriptionEdit;
@@ -137,32 +138,14 @@ private:
     QSlider* m_audioVolumeSlider;
     QLabel* m_audioVolumeLabel;
     
-    // Sync tab
-    QWidget* m_syncTab;
-    QFormLayout* m_syncLayout;
-    QCheckBox* m_syncWithMainCheck;
-    QSpinBox* m_startDelaySpin;
-    QSpinBox* m_stopDelaySpin;
-    QCheckBox* m_autoStartCheck;
-    QCheckBox* m_autoStopCheck;
+    // Additional controls
     QComboBox* m_syncModeCombo;
-    
-    // Advanced tab
-    QWidget* m_advancedTab;
-    QFormLayout* m_advancedLayout;
-    QLineEdit* m_customSettingsEdit;
-    QCheckBox* m_enableLoggingCheck;
     QComboBox* m_logLevelCombo;
-    QSpinBox* m_bufferSizeSpin;
-    QCheckBox* m_enableStatsCheck;
-    QSpinBox* m_statsIntervalSpin;
     
     // Button box
     QHBoxLayout* m_buttonLayout;
     QPushButton* m_okButton;
     QPushButton* m_cancelButton;
-    QPushButton* m_resetButton;
-    QPushButton* m_testButton;
     
     // Validation
     QTimer* m_validationTimer;
