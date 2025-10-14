@@ -238,6 +238,36 @@ void OneSevenMultiRtmpConfigDialog::setupServiceTab()
     m_serviceLayout->setSpacing(12);
     m_serviceLayout->setContentsMargins(20, 20, 20, 20);
     
+    // Service type combo box (required for populateServiceTypes)
+    m_serviceTypeCombo = new QComboBox();
+    m_serviceTypeCombo->setStyleSheet(
+        "QComboBox { "
+        "  background-color: #3c3c3c; "
+        "  color: white; "
+        "  border: 1px solid #555; "
+        "  border-radius: 4px; "
+        "  padding: 8px; "
+        "} "
+        "QComboBox:focus { "
+        "  border-color: #007AFF; "
+        "} "
+        "QComboBox::drop-down { "
+        "  border: none; "
+        "} "
+        "QComboBox::down-arrow { "
+        "  image: none; "
+        "  border-left: 5px solid transparent; "
+        "  border-right: 5px solid transparent; "
+        "  border-top: 5px solid white; "
+        "}"
+    );
+    m_serviceLayout->addRow("Service Type:", m_serviceTypeCombo);
+    
+    // Custom service checkbox
+    m_customServiceCheck = new QCheckBox("Custom Service");
+    m_customServiceCheck->setStyleSheet("QCheckBox { color: white; }");
+    m_serviceLayout->addRow("", m_customServiceCheck);
+    
     // Server URL
     m_serverEdit = new QLineEdit();
     m_serverEdit->setPlaceholderText("");
@@ -261,6 +291,64 @@ void OneSevenMultiRtmpConfigDialog::setupServiceTab()
     keyLayout->addWidget(showKeyCheck);
     
     m_serviceLayout->addRow("* 推流码", keyLayout);
+    
+    // Description text edit
+    m_descriptionEdit = new QTextEdit();
+    m_descriptionEdit->setMaximumHeight(80);
+    m_descriptionEdit->setStyleSheet(
+        "QTextEdit { "
+        "  background-color: #3c3c3c; "
+        "  color: white; "
+        "  border: 1px solid #555; "
+        "  border-radius: 4px; "
+        "  padding: 8px; "
+        "}"
+    );
+    m_serviceLayout->addRow("Description:", m_descriptionEdit);
+    
+    // Test connection button
+    m_testConnectionButton = new QPushButton("Test Connection");
+    m_testConnectionButton->setStyleSheet(
+        "QPushButton { "
+        "  background-color: #007AFF; "
+        "  color: white; "
+        "  border: none; "
+        "  border-radius: 4px; "
+        "  padding: 8px 16px; "
+        "} "
+        "QPushButton:hover { "
+        "  background-color: #0056CC; "
+        "}"
+    );
+    
+    // Connection progress bar
+    m_connectionProgress = new QProgressBar();
+    m_connectionProgress->setVisible(false);
+    m_connectionProgress->setStyleSheet(
+        "QProgressBar { "
+        "  background-color: #3c3c3c; "
+        "  border: 1px solid #555; "
+        "  border-radius: 4px; "
+        "  text-align: center; "
+        "  color: white; "
+        "} "
+        "QProgressBar::chunk { "
+        "  background-color: #007AFF; "
+        "  border-radius: 3px; "
+        "}"
+    );
+    
+    // Connection status label
+    m_connectionStatusLabel = new QLabel();
+    m_connectionStatusLabel->setStyleSheet("QLabel { color: white; }");
+    
+    QHBoxLayout* connectionLayout = new QHBoxLayout();
+    connectionLayout->addWidget(m_testConnectionButton);
+    connectionLayout->addWidget(m_connectionProgress);
+    connectionLayout->addStretch();
+    
+    m_serviceLayout->addRow("", connectionLayout);
+    m_serviceLayout->addRow("", m_connectionStatusLabel);
     
     // User authentication checkbox
     QCheckBox* authCheck = new QCheckBox("用户身份认证");
