@@ -33,13 +33,9 @@ OneSevenMultiRtmpDock::OneSevenMultiRtmpDock(QWidget* parent)
     setWindowTitle(getMultiRtmpText("MultiRTMP.Dock.Title"));
     setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
     
-    // Get manager instance and initialize it
+    // Get manager instance but defer initialization to avoid blocking OBS startup
     m_manager = OneSevenMultiRtmpManager::getInstance();
-    if (m_manager && !m_manager->isInitialized()) {
-        if (!m_manager->initialize()) {
-            obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to initialize MultiRTMP manager");
-        }
-    }
+    obs_log(LOG_INFO, "[MultiRTMP-Dock] Manager instance obtained, initialization will be done on first use");
     
     setupUI();
     setupConnections();
@@ -232,9 +228,28 @@ void OneSevenMultiRtmpDock::setupConnections()
     }
 }
 
-void OneSevenMultiRtmpDock::setupManagerCallbacks()
+bool OneSevenMultiRtmpDock::ensureManagerInitialized()
 {
     if (!m_manager) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Dock] Manager instance is null");
+        return false;
+    }
+    
+    if (!m_manager->isInitialized()) {
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Initializing MultiRTMP manager on first use");
+        if (!m_manager->initialize()) {
+            obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to initialize MultiRTMP manager");
+            return false;
+        }
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] MultiRTMP manager initialized successfully");
+    }
+    
+    return true;
+}
+
+void OneSevenMultiRtmpDock::setupManagerCallbacks()
+{
+    if (!ensureManagerInitialized()) {
         return;
     }
     
@@ -267,7 +282,7 @@ void OneSevenMultiRtmpDock::setupManagerCallbacks()
 
 void OneSevenMultiRtmpDock::refreshStreamList()
 {
-    if (!m_manager || !m_streamListWidget || m_isUpdatingUI) {
+    if (!ensureManagerInitialized() || !m_streamListWidget || m_isUpdatingUI) {
         return;
     }
     
@@ -316,7 +331,7 @@ void OneSevenMultiRtmpDock::onAddStreamClicked()
 
 void OneSevenMultiRtmpDock::onStartAllClicked()
 {
-    if (m_manager) {
+    if (ensureManagerInitialized()) {
         m_startAllButton->setEnabled(false);
         
         m_manager->startAllStreams();
@@ -327,7 +342,7 @@ void OneSevenMultiRtmpDock::onStartAllClicked()
 
 void OneSevenMultiRtmpDock::onStopAllClicked()
 {
-    if (m_manager) {
+    if (ensureManagerInitialized()) {
         m_stopAllButton->setEnabled(false);
         
         m_manager->stopAllStreams();
@@ -359,7 +374,7 @@ void OneSevenMultiRtmpDock::onStreamDeleted(const std::string& streamId)
 
 void OneSevenMultiRtmpDock::onStatsUpdateTimer()
 {
-    if (!m_manager || !m_streamListWidget || m_isUpdatingUI) {
+    if (!ensureManagerInitialized() || !m_streamListWidget || m_isUpdatingUI) {
         return;
     }
     
@@ -373,7 +388,7 @@ void OneSevenMultiRtmpDock::onStatsUpdateTimer()
 
 void OneSevenMultiRtmpDock::updateButtonStates()
 {
-    if (!m_manager) {
+    if (!ensureManagerInitialized()) {
         return;
     }
     
@@ -419,7 +434,7 @@ void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& conf
     if (m_configDialog->exec() == QDialog::Accepted) {
         auto newConfig = m_configDialog->getConfig();
         
-        if (m_manager) {
+        if (ensureManagerInitialized()) {
             bool success = false;
             
             if (isEdit) {

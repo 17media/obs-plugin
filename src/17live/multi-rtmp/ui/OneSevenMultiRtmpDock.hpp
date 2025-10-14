@@ -50,6 +50,7 @@ private:
     void updateButtonStates();
     void updateStreamCount();
     void showConfigDialog(const OneSevenMultiRtmpConfig& config = {});
+    bool ensureManagerInitialized();
 
     // UI components
     QWidget* m_centralWidget;
