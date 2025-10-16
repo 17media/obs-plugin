@@ -332,8 +332,23 @@ void OneSevenLiveLoginDialog::handleLogin() {
     // Create API wrapper instance
     OneSevenLiveLoginData loginData;
 
+    obs_log(LOG_INFO, "Login username: [%s]", usernameEdit->text().toStdString().c_str());
+    
+    // output username's unicode values for emoji tracking
+    QString username = usernameEdit->text();
+    QString unicodeStr = "Username unicode values: ";
+    for (int i = 0; i < username.length(); ++i) {
+        QChar ch = username.at(i);
+        unicodeStr += QString("U+%1 ").arg(ch.unicode(), 4, 16, QChar('0')).toUpper();
+    }
+    obs_log(LOG_INFO, "%s", unicodeStr.toStdString().c_str());
+
+    // trip whitespace
+    QString trimmedUsername = usernameEdit->text().trimmed();
+
+
     // Call login interface
-    if (!apiWrapper->Login(usernameEdit->text(), passwordEdit->text(), loginData)) {
+    if (!apiWrapper->Login(trimmedUsername, passwordEdit->text(), loginData)) {
         // QString errorMessageTemplate = obs_module_text("Auth.Error02");
         // QString errorMessage = errorMessageTemplate.arg(apiWrapper.getLastErrorMessage());
         // errorLabel->setText(errorMessage);
