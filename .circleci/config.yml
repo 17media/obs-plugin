@@ -39,11 +39,11 @@ jobs:
           name: Set Environment and API URL
           command: |
             if [ -n "$CIRCLE_TAG" ]; then
-              if [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              if [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
                 # Production tag (e.g., v1.0.0)
                 export BUILD_ENV="production"
                 export ONESEVENLIVE_API_URL="$PROD_ONESEVENLIVE_API_URL"
-              elif [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-stage$ ]]; then
+              elif [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?-stage$ ]]; then
                 # Stage tag (e.g., v1.0.0-stage)
                 export BUILD_ENV="stage"
                 export ONESEVENLIVE_API_URL="$STAGE_ONESEVENLIVE_API_URL"
@@ -264,11 +264,11 @@ jobs:
           command: |
             # Determine environment based on tag or default to stage
             if ($env:CIRCLE_TAG) {
-              if ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+$') {
+              if ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+(\.\d+)?$') {
                 # Production tag (e.g., v1.0.0)
                 $env:BUILD_ENV = "production"
                 $env:ONESEVENLIVE_API_URL = $env:PROD_ONESEVENLIVE_API_URL
-              } elseif ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+-stage$') {
+              } elseif ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+(\.\d+)?-stage$') {
                 # Stage tag (e.g., v1.0.0-stage)
                 $env:BUILD_ENV = "stage"
                 $env:ONESEVENLIVE_API_URL = $env:STAGE_ONESEVENLIVE_API_URL
@@ -529,7 +529,7 @@ workflows:
           cmake_arch: ""
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+(-stage)?$/
+              only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
             branches:
               ignore: /.*/
           context:
@@ -540,7 +540,7 @@ workflows:
           cmake_arch: "x86_64"
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+(-stage)?$/
+              only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
             branches:
               ignore: /.*/
           context:
@@ -548,7 +548,7 @@ workflows:
       - build-windows-x64:
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+(-stage)?$/
+              only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
             branches:
               ignore: /.*/
           context:
