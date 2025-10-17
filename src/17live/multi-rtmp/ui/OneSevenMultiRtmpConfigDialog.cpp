@@ -257,7 +257,6 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
     m_protocolCombo = new QComboBox();
     m_protocolCombo->addItem("RTMP");
     m_protocolCombo->addItem("SRT/RIST");
-    m_protocolCombo->addItem("WHIP");
     m_protocolCombo->setCurrentText("RTMP");
     m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_basicInfoLayout->addRow(protocolLabel, m_protocolCombo);
@@ -279,29 +278,45 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
         QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
             .arg(obs_module_text("MultiRtmp.Config.StreamKey")));
     
-    QVBoxLayout* keyContainer = new QVBoxLayout();
+    m_showKeyCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.ShowKey"));
+    m_showKeyCheck->setStyleSheet("QCheckBox { color: white; }");
     
-    QHBoxLayout* keyLayout = new QHBoxLayout();
+    // Create horizontal layout for label and checkbox
+    QHBoxLayout* labelCheckLayout = new QHBoxLayout();
+    labelCheckLayout->addWidget(keyLabel);
+    labelCheckLayout->addStretch(); // Push checkbox to the right
+    labelCheckLayout->addWidget(m_showKeyCheck);
+    
+    QWidget* labelCheckWidget = new QWidget();
+    labelCheckWidget->setLayout(labelCheckLayout);
+    
     m_keyEdit = new QLineEdit();
     m_keyEdit->setEchoMode(QLineEdit::Password);
     m_keyEdit->setPlaceholderText(obs_module_text("MultiRtmp.Config.StreamKey.Placeholder"));
     m_keyEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     
-    m_showKeyCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.ShowKey"));
-    m_showKeyCheck->setStyleSheet("QCheckBox { color: white; }");
-    
-    keyLayout->addWidget(m_keyEdit);
-    keyLayout->addWidget(m_showKeyCheck);
-    keyContainer->addLayout(keyLayout);
-    
-    m_basicInfoLayout->addRow(keyLabel, keyContainer);
+    // Add label+checkbox row and input field row separately
+    m_basicInfoLayout->addRow(labelCheckWidget);
+    m_basicInfoLayout->addRow(m_keyEdit);
     
     // User authentication checkbox
-    QLabel *authLabel = new QLabel(); // Empty label for alignment
-    m_authCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.UserAuth"));
+    QLabel *authLabel = new QLabel(obs_module_text("MultiRtmp.Config.UserAuth"));
+    authLabel->setStyleSheet("QLabel { color: white; }");
+    
+    m_authCheck = new QCheckBox();
     m_authCheck->setChecked(true);
     m_authCheck->setStyleSheet("QCheckBox { color: white; }");
-    m_basicInfoLayout->addRow(authLabel, m_authCheck);
+    
+    // Create horizontal layout for label and checkbox
+    QHBoxLayout* authLayout = new QHBoxLayout();
+    authLayout->addWidget(authLabel);
+    authLayout->addStretch(); // Push checkbox to the right
+    authLayout->addWidget(m_authCheck);
+    
+    QWidget* authWidget = new QWidget();
+    authWidget->setLayout(authLayout);
+    
+    m_basicInfoLayout->addRow(authWidget);
     
     // Apply dark theme styling to basic info section
     m_basicInfoWidget->setStyleSheet(
@@ -353,21 +368,22 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsButton()
     m_advancedButton->setStyleSheet(
         "QPushButton { "
         "  background-color: transparent; "
+        "  border: none;"
         "  color: white; "
-        "  border: none; "
-        "  padding: 12px 16px; "
-        "  text-align: left; "
         "  font-weight: bold; "
         "} "
         "QPushButton:hover { "
-        "  background-color: #3c3c3c; "
+        "  border: none;"
+        "  background-color: transparent; "
         "}"
     );
     
     // Set arrow icon for collapsed state
     QIcon downIcon(":/resources/arrow-down.svg");
     m_advancedButton->setIcon(downIcon);
-    m_advancedButton->setLayoutDirection(Qt::RightToLeft); // Icon on the right
+    m_advancedButton->setIconSize(QSize(12, 12));
+
+    m_advancedButton->setLayoutDirection(Qt::RightToLeft); // Icon on the right, centered layout
 }
 
 void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget()
