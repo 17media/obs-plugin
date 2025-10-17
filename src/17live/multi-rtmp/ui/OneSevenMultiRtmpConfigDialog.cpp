@@ -4,6 +4,7 @@
 #include <QMessageBox>
 #include <QDateTime>
 #include <QUuid>
+#include <QScrollArea>
 #include "moc_OneSevenMultiRtmpConfigDialog.cpp"
 
 
