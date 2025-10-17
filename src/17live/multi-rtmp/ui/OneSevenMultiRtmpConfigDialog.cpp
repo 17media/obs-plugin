@@ -63,6 +63,7 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent)
     , m_validationTimer(nullptr)
     , m_validationLabel(nullptr)
     , m_isEditMode(false)
+    , m_advancedExpanded(false)
 {
     setWindowTitle(obs_module_text("MultiRTMP.Config.Title"));
     setModal(true);
@@ -136,7 +137,6 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent)
     setupValidation();
     
     // Populate combo boxes
-    populateServiceTypes();
     populateEncoderOptions();
     populateVideoResolutions();
     populateAudioFormats();
@@ -155,10 +155,128 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
     m_mainLayout->setContentsMargins(0, 0, 0, 0);
     m_mainLayout->setSpacing(0);
     
-    // Top section: Basic information
+    // Top section: Basic information (name, protocol, URL, stream key)
     setupBasicInfoSection();
     
-    // Middle section: Tab widget with detailed settings
+    // Advanced settings button
+    setupAdvancedSettingsButton();
+    
+    // Advanced settings widget (collapsible)
+    setupAdvancedSettingsWidget();
+    
+    // Bottom section: Button box
+    setupButtonBox();
+    
+    // Validation label
+    m_validationLabel = new QLabel();
+    m_validationLabel->setStyleSheet("color: #f44336; font-size: 11px; margin: 0 16px;");
+    m_validationLabel->setWordWrap(true);
+    m_validationLabel->setVisible(false);
+    
+    // Add sections to main layout
+    m_mainLayout->addWidget(m_basicInfoWidget);
+    m_mainLayout->addWidget(m_advancedButton);
+    m_mainLayout->addWidget(m_advancedWidget);
+    m_mainLayout->addWidget(m_validationLabel);
+    m_mainLayout->addLayout(m_buttonLayout);
+}
+
+void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
+{
+    m_basicInfoWidget = new QWidget();
+    m_basicInfoLayout = new QFormLayout(m_basicInfoWidget);
+    m_basicInfoLayout->setSpacing(12);
+    m_basicInfoLayout->setContentsMargins(16, 16, 16, 16);
+    
+    // Stream name input (required field)
+    m_streamNameEdit = new QLineEdit();
+    m_streamNameEdit->setPlaceholderText("新建串流");
+    m_streamNameEdit->setText("新建串流");
+    m_streamNameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_basicInfoLayout->addRow("名称", m_streamNameEdit);
+    
+    // Protocol dropdown - only RTMP, SRT/RIST, WHIP
+    m_protocolCombo = new QComboBox();
+    m_protocolCombo->addItem("RTMP");
+    m_protocolCombo->addItem("SRT/RIST");
+    m_protocolCombo->addItem("WHIP");
+    m_protocolCombo->setCurrentText("RTMP");
+    m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_basicInfoLayout->addRow("协议", m_protocolCombo);
+    
+    // Server URL (required field)
+    m_serverEdit = new QLineEdit();
+    m_serverEdit->setPlaceholderText("");
+    m_serverEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_basicInfoLayout->addRow("* URL", m_serverEdit);
+    
+    // Stream key with show/hide checkbox
+    QHBoxLayout* keyLayout = new QHBoxLayout();
+    m_keyEdit = new QLineEdit();
+    m_keyEdit->setEchoMode(QLineEdit::Password);
+    m_keyEdit->setPlaceholderText("");
+    m_keyEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    
+    m_showKeyCheck = new QCheckBox("显示");
+    m_showKeyCheck->setStyleSheet("QCheckBox { color: white; }");
+    
+    keyLayout->addWidget(m_keyEdit);
+    keyLayout->addWidget(m_showKeyCheck);
+    
+    m_basicInfoLayout->addRow("* 推流码", keyLayout);
+    
+    // User authentication checkbox
+    m_authCheck = new QCheckBox("用户身份认证");
+    m_authCheck->setChecked(true);
+    m_authCheck->setStyleSheet("QCheckBox { color: white; }");
+    m_basicInfoLayout->addRow("", m_authCheck);
+    
+    // Apply dark theme styling to basic info section
+    m_basicInfoWidget->setStyleSheet(
+        "QWidget { "
+        "  background-color: #1e1e1e; "
+        "  border: none; "
+        "} "
+        "QLabel { "
+        "  font-weight: bold; "
+        "  color: white; "
+        "}"
+    );
+}
+
+void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsButton()
+{
+    m_advancedButton = new QPushButton("更多高级设置");
+    m_advancedButton->setStyleSheet(
+        "QPushButton { "
+        "  background-color: transparent; "
+        "  color: white; "
+        "  border: none; "
+        "  padding: 12px 16px; "
+        "  text-align: left; "
+        "  font-weight: bold; "
+        "} "
+        "QPushButton:hover { "
+        "  background-color: #3c3c3c; "
+        "}"
+    );
+    
+    // Set arrow icon for collapsed state
+    QIcon downIcon(":/resources/arrow-down.svg");
+    m_advancedButton->setIcon(downIcon);
+    m_advancedButton->setLayoutDirection(Qt::RightToLeft); // Icon on the right
+}
+
+void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget()
+{
+    m_advancedWidget = new QWidget();
+    m_advancedWidget->setVisible(false); // Initially collapsed
+    
+    QVBoxLayout* advancedLayout = new QVBoxLayout(m_advancedWidget);
+    advancedLayout->setContentsMargins(0, 0, 0, 0);
+    advancedLayout->setSpacing(0);
+    
+    // Create tab widget for advanced settings
     m_tabWidget = new QTabWidget();
     m_tabWidget->setStyleSheet(
         "QTabWidget::pane { "
@@ -186,210 +304,14 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
         "}"
     );
     
-    setupServiceTab();
     setupOutputTab();
     setupVideoTab();
     setupAudioTab();
     
-    // Bottom section: Button box
-    setupButtonBox();
-    
-    // Validation label
-    m_validationLabel = new QLabel();
-    m_validationLabel->setStyleSheet("color: #f44336; font-size: 11px; margin: 0 16px;");
-    m_validationLabel->setWordWrap(true);
-    m_validationLabel->setVisible(false);
-    
-    // Add sections to main layout
-    m_mainLayout->addWidget(m_basicInfoWidget);
-    m_mainLayout->addWidget(m_tabWidget, 1); // Give tabs more space
-    m_mainLayout->addWidget(m_validationLabel);
-    m_mainLayout->addLayout(m_buttonLayout);
+    advancedLayout->addWidget(m_tabWidget);
 }
 
-void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
-{
-    m_basicInfoWidget = new QWidget();
-    m_basicInfoLayout = new QFormLayout(m_basicInfoWidget);
-    m_basicInfoLayout->setSpacing(12);
-    m_basicInfoLayout->setContentsMargins(16, 16, 16, 16);
-    
-    // Stream name input (required field)
-    m_streamNameEdit = new QLineEdit();
-    m_streamNameEdit->setPlaceholderText("新建串流");
-    m_streamNameEdit->setText("新建串流");
-    m_streamNameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_basicInfoLayout->addRow("名称", m_streamNameEdit);
-    
-    // Protocol dropdown
-    m_protocolCombo = new QComboBox();
-    m_protocolCombo->addItem("RTMP");
-    m_protocolCombo->setCurrentText("RTMP");
-    m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_basicInfoLayout->addRow("协议", m_protocolCombo);
-    
-    // Apply dark theme styling to basic info section
-    m_basicInfoWidget->setStyleSheet(
-        "QWidget { "
-        "  background-color: #1e1e1e; "
-        "  border: none; "
-        "} "
-        "QLabel { "
-        "  font-weight: bold; "
-        "  color: white; "
-        "}"
-    );
-}
-
-void OneSevenMultiRtmpConfigDialog::setupServiceTab()
-{
-    m_serviceTab = new QWidget();
-    m_serviceLayout = new QFormLayout(m_serviceTab);
-    m_serviceLayout->setSpacing(12);
-    m_serviceLayout->setContentsMargins(20, 20, 20, 20);
-    
-    // Service type combo box (required for populateServiceTypes)
-    m_serviceTypeCombo = new QComboBox();
-    m_serviceTypeCombo->setStyleSheet(
-        "QComboBox { "
-        "  background-color: #3c3c3c; "
-        "  color: white; "
-        "  border: 1px solid #555; "
-        "  border-radius: 4px; "
-        "  padding: 8px; "
-        "  min-height: 20px; "
-        "  min-width: 200px; "
-        "} "
-        "QComboBox:focus { "
-        "  border-color: #007AFF; "
-        "} "
-        "QComboBox::drop-down { "
-        "  border: none; "
-        "  width: 20px; "
-        "} "
-        "QComboBox::down-arrow { "
-        "  image: none; "
-        "  border-left: 5px solid transparent; "
-        "  border-right: 5px solid transparent; "
-        "  border-top: 5px solid white; "
-        "  margin-right: 5px; "
-        "} "
-        "QComboBox QAbstractItemView { "
-        "  background-color: #3c3c3c; "
-        "  color: white; "
-        "  border: 1px solid #555; "
-        "  selection-background-color: #007AFF; "
-        "}"
-    );
-    m_serviceLayout->addRow("Service Type:", m_serviceTypeCombo);
-    
-    // Custom service checkbox
-    m_customServiceCheck = new QCheckBox("Custom Service");
-    m_customServiceCheck->setStyleSheet("QCheckBox { color: white; }");
-    m_serviceLayout->addRow("", m_customServiceCheck);
-    
-    // Server URL
-    m_serverEdit = new QLineEdit();
-    m_serverEdit->setPlaceholderText("");
-    m_serverEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_serviceLayout->addRow("* URL", m_serverEdit);
-    
-    // Stream key with show/hide checkbox
-    QHBoxLayout* keyLayout = new QHBoxLayout();
-    m_keyEdit = new QLineEdit();
-    m_keyEdit->setEchoMode(QLineEdit::Password);
-    m_keyEdit->setPlaceholderText("");
-    m_keyEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    
-    QCheckBox* showKeyCheck = new QCheckBox("显示");
-    showKeyCheck->setStyleSheet("QCheckBox { color: white; }");
-    connect(showKeyCheck, &QCheckBox::toggled, [this](bool checked) {
-        m_keyEdit->setEchoMode(checked ? QLineEdit::Normal : QLineEdit::Password);
-    });
-    
-    keyLayout->addWidget(m_keyEdit);
-    keyLayout->addWidget(showKeyCheck);
-    
-    m_serviceLayout->addRow("* 推流码", keyLayout);
-    
-    // Description text edit
-    m_descriptionEdit = new QTextEdit();
-    m_descriptionEdit->setMaximumHeight(80);
-    m_descriptionEdit->setStyleSheet(
-        "QTextEdit { "
-        "  background-color: #3c3c3c; "
-        "  color: white; "
-        "  border: 1px solid #555; "
-        "  border-radius: 4px; "
-        "  padding: 8px; "
-        "}"
-    );
-    m_serviceLayout->addRow("Description:", m_descriptionEdit);
-    
-    // Test connection button
-    m_testConnectionButton = new QPushButton("Test Connection");
-    m_testConnectionButton->setStyleSheet(
-        "QPushButton { "
-        "  background-color: #007AFF; "
-        "  color: white; "
-        "  border: none; "
-        "  border-radius: 4px; "
-        "  padding: 8px 16px; "
-        "} "
-        "QPushButton:hover { "
-        "  background-color: #0056CC; "
-        "}"
-    );
-    
-    // Connection progress bar
-    m_connectionProgress = new QProgressBar();
-    m_connectionProgress->setVisible(false);
-    m_connectionProgress->setStyleSheet(
-        "QProgressBar { "
-        "  background-color: #3c3c3c; "
-        "  border: 1px solid #555; "
-        "  border-radius: 4px; "
-        "  text-align: center; "
-        "  color: white; "
-        "} "
-        "QProgressBar::chunk { "
-        "  background-color: #007AFF; "
-        "  border-radius: 3px; "
-        "}"
-    );
-    
-    // Connection status label
-    m_connectionStatusLabel = new QLabel();
-    m_connectionStatusLabel->setStyleSheet("QLabel { color: white; }");
-    
-    QHBoxLayout* connectionLayout = new QHBoxLayout();
-    connectionLayout->addWidget(m_testConnectionButton);
-    connectionLayout->addWidget(m_connectionProgress);
-    connectionLayout->addStretch();
-    
-    m_serviceLayout->addRow("", connectionLayout);
-    m_serviceLayout->addRow("", m_connectionStatusLabel);
-    
-    // User authentication checkbox
-    QCheckBox* authCheck = new QCheckBox("用户身份认证");
-    authCheck->setChecked(true);
-    authCheck->setStyleSheet("QCheckBox { color: white; }");
-    m_serviceLayout->addRow("", authCheck);
-    
-    // Apply dark theme to service tab
-    m_serviceTab->setStyleSheet(
-        "QWidget { "
-        "  background-color: #1e1e1e; "
-        "  color: white; "
-        "} "
-        "QLabel { "
-        "  color: white; "
-        "  font-weight: bold; "
-        "}"
-    );
-    
-    m_tabWidget->addTab(m_serviceTab, "服务");
-}
+// Service tab removed - integrated into basic info section
 
 void OneSevenMultiRtmpConfigDialog::setupOutputTab()
 {
@@ -875,13 +797,23 @@ void OneSevenMultiRtmpConfigDialog::setupButtonBox()
 
 void OneSevenMultiRtmpConfigDialog::setupConnections()
 {
-    // Service tab connections
-    connect(m_serviceTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &OneSevenMultiRtmpConfigDialog::onServiceTypeChanged);
-    connect(m_customServiceCheck, &QCheckBox::toggled,
-            this, &OneSevenMultiRtmpConfigDialog::onCustomServiceToggled);
-    connect(m_testConnectionButton, &QPushButton::clicked,
-            this, &OneSevenMultiRtmpConfigDialog::onTestConnectionClicked);
+    // Basic info connections
+    connect(m_streamNameEdit, &QLineEdit::textChanged, 
+            this, [this]() { m_validationTimer->start(); });
+    connect(m_serverEdit, &QLineEdit::textChanged,
+            this, [this]() { m_validationTimer->start(); });
+    connect(m_keyEdit, &QLineEdit::textChanged,
+            this, [this]() { m_validationTimer->start(); });
+    
+    // Stream key visibility toggle
+    connect(m_showKeyCheck, &QCheckBox::toggled,
+            this, [this](bool checked) {
+                m_keyEdit->setEchoMode(checked ? QLineEdit::Normal : QLineEdit::Password);
+            });
+    
+    // Advanced settings toggle
+    connect(m_advancedButton, &QPushButton::clicked,
+            this, &OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled);
     
     // Output tab connections
     connect(m_shareEncoderCheck, &QCheckBox::toggled,
@@ -900,10 +832,6 @@ void OneSevenMultiRtmpConfigDialog::setupConnections()
     // Button connections
     connect(m_okButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::accept);
     connect(m_cancelButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::reject);
-    
-    // Basic info connections
-    connect(m_streamNameEdit, &QLineEdit::textChanged, 
-            this, [this]() { m_validationTimer->start(); });
 }
 
 void OneSevenMultiRtmpConfigDialog::setupValidation()
@@ -928,10 +856,7 @@ void OneSevenMultiRtmpConfigDialog::setupValidation()
     }
 }
 
-void OneSevenMultiRtmpConfigDialog::populateServiceTypes()
-{
-    m_serviceTypeCombo->addItems(SERVICE_TYPES);
-}
+// Service types population removed - service tab functionality integrated into basic info
 
 void OneSevenMultiRtmpConfigDialog::populateEncoderOptions()
 {
@@ -990,21 +915,7 @@ void OneSevenMultiRtmpConfigDialog::reject()
     QDialog::reject();
 }
 
-void OneSevenMultiRtmpConfigDialog::onServiceTypeChanged()
-{
-    updateServiceFields();
-}
-
-void OneSevenMultiRtmpConfigDialog::onCustomServiceToggled(bool enabled)
-{
-    Q_UNUSED(enabled); // Parameter not used in current implementation
-    updateServiceFields();
-}
-
-void OneSevenMultiRtmpConfigDialog::onTestConnectionClicked()
-{
-    updateConnectionTest();
-}
+// Service-related slot functions removed - functionality integrated into basic info section
 
 void OneSevenMultiRtmpConfigDialog::onEncoderSharingChanged()
 {
@@ -1016,32 +927,30 @@ void OneSevenMultiRtmpConfigDialog::onVideoResolutionChanged()
     updateVideoFields();
 }
 
-
+void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled()
+{
+    m_advancedExpanded = !m_advancedExpanded;
+    m_advancedWidget->setVisible(m_advancedExpanded);
+    
+    // Update button icon based on expanded state
+    if (m_advancedExpanded) {
+        QIcon upIcon(":/resources/arrow-up.svg");
+        m_advancedButton->setIcon(upIcon);
+    } else {
+        QIcon downIcon(":/resources/arrow-down.svg");
+        m_advancedButton->setIcon(downIcon);
+    }
+    
+    // Adjust dialog size to fit content
+    adjustSize();
+}
 
 void OneSevenMultiRtmpConfigDialog::onValidationTimer()
 {
     validateConfiguration();
 }
 
-void OneSevenMultiRtmpConfigDialog::updateServiceFields()
-{
-    bool isCustom = m_customServiceCheck->isChecked();
-    
-    if (!isCustom) {
-        QString serviceType = m_serviceTypeCombo->currentText();
-        
-        // Set default server URLs for known services
-        if (serviceType == "YouTube") {
-            m_serverEdit->setText("rtmp://a.rtmp.youtube.com/live2");
-        } else if (serviceType == "Twitch") {
-            m_serverEdit->setText("rtmp://live.twitch.tv/live");
-        } else if (serviceType == "Facebook") {
-            m_serverEdit->setText("rtmps://live-api-s.facebook.com:443/rtmp");
-        } else if (serviceType == "17Live") {
-            m_serverEdit->setText("rtmp://publish.17app.co/live");
-        }
-    }
-}
+// Service fields update removed - service selection integrated into basic info section
 
 void OneSevenMultiRtmpConfigDialog::updateEncoderFields()
 {
@@ -1118,31 +1027,14 @@ void OneSevenMultiRtmpConfigDialog::showValidationErrors()
         error);
 }
 
-void OneSevenMultiRtmpConfigDialog::updateConnectionTest()
-{
-    m_testConnectionButton->setEnabled(false);
-    m_connectionProgress->setVisible(true);
-    m_connectionProgress->setRange(0, 0); // Indeterminate
-    m_connectionStatusLabel->setText(obs_module_text("MultiRTMP.Config.Testing"));
-    
-    // Simulate connection test (in real implementation, this would test the RTMP connection)
-    QTimer::singleShot(2000, this, [this]() {
-        m_connectionProgress->setVisible(false);
-        m_testConnectionButton->setEnabled(true);
-        m_connectionStatusLabel->setText(obs_module_text("MultiRTMP.Config.TestSuccess"));
-        m_connectionStatusLabel->setStyleSheet("color: #4CAF50;");
-    });
-}
+// Connection test functionality removed - service tab functionality integrated into basic info section
 
 void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig& config)
 {
     // Basic info section
     m_streamNameEdit->setText(QString::fromStdString(config.streamName));
-    
-    // Service tab
     m_serverEdit->setText(QString::fromStdString(config.service.serverUrl));
     m_keyEdit->setText(QString::fromStdString(config.service.streamKey));
-    m_descriptionEdit->setPlainText(""); // Default empty since field doesn't exist
     
     // Output tab
     m_shareEncoderCheck->setChecked(config.video.useSharedEncoder);
@@ -1163,7 +1055,6 @@ void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig
     m_sampleRateSpin->setValue(config.audio.sampleRate);
     
     // Update dependent fields
-    updateServiceFields();
     updateEncoderFields();
     updateVideoFields();
 }

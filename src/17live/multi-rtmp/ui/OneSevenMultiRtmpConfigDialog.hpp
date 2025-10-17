@@ -21,6 +21,8 @@
 #include <QSlider>
 #include <QProgressBar>
 #include <QTimer>
+#include <QWidget>
+#include <QIcon>
 
 /**
  * Configuration dialog for Multi-RTMP stream settings
@@ -47,16 +49,16 @@ public slots:
     void reject() override;
 
 private slots:
-    void onServiceTypeChanged();
-    void onCustomServiceToggled(bool enabled);
-    void onTestConnectionClicked();
     void onEncoderSharingChanged();
     void onVideoResolutionChanged();
     void onValidationTimer();
+    void onAdvancedSettingsToggled();
 
 private:
     void setupUI();
     void setupBasicInfoSection();
+    void setupAdvancedSettingsButton();
+    void setupAdvancedSettingsWidget();
     void setupServiceTab();
     void setupOutputTab();
     void setupVideoTab();
@@ -66,19 +68,16 @@ private:
     void setupConnections();
     void setupValidation();
     
-    void populateServiceTypes();
     void populateEncoderOptions();
     void populateVideoResolutions();
     void populateAudioFormats();
     
-    void updateServiceFields();
     void updateEncoderFields();
     void updateVideoFields();
     void updateAudioFields();
     
     bool validateConfiguration();
     void showValidationErrors();
-    void updateConnectionTest();
     
     void loadConfigToUI(const OneSevenMultiRtmpConfig& config);
     OneSevenMultiRtmpConfig buildConfigFromUI() const;
@@ -92,18 +91,17 @@ private:
     QFormLayout* m_basicInfoLayout;
     QLineEdit* m_streamNameEdit;
     QComboBox* m_protocolCombo;
-    
-    // Service tab
-    QWidget* m_serviceTab;
-    QFormLayout* m_serviceLayout;
-    QComboBox* m_serviceTypeCombo;
-    QCheckBox* m_customServiceCheck;
     QLineEdit* m_serverEdit;
     QLineEdit* m_keyEdit;
-    QTextEdit* m_descriptionEdit;
-    QPushButton* m_testConnectionButton;
-    QProgressBar* m_connectionProgress;
-    QLabel* m_connectionStatusLabel;
+    QCheckBox* m_showKeyCheck;
+    QCheckBox* m_authCheck;
+    
+    // Advanced settings section
+    QPushButton* m_advancedButton;
+    QWidget* m_advancedWidget;
+    bool m_advancedExpanded;
+    
+    // Service tab components removed - functionality integrated into basic info section
     
     // Output tab
     QWidget* m_outputTab;
