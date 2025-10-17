@@ -73,7 +73,7 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent)
     // Set dialog size constraints to match reference style
     setMinimumSize(300, 400);
     setMaximumSize(600, 800);
-    resize(500, 600);
+    resize(350, 500);
     
     // Apply dark theme styling
     setStyleSheet(
@@ -91,7 +91,7 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent)
         "  border: 1px solid #555; "
         "  border-radius: 4px; "
         "  padding: 8px; "
-        "  min-width: 200px; "
+        "  min-width: 100px; "
         "} "
         "QLineEdit:focus { "
         "  border-color: #007AFF; "
@@ -103,7 +103,7 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent)
         "  border-radius: 4px; "
         "  padding: 8px; "
         "  min-height: 20px; "
-        "  min-width: 200px; "
+        "  min-width: 100px; "
         "} "
         "QComboBox:focus { "
         "  border-color: #007AFF; "
@@ -188,7 +188,7 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
         "}");
     
     QVBoxLayout *containerLayout = new QVBoxLayout(container);
-    containerLayout->setContentsMargins(16, 16, 16, 16);
+    containerLayout->setContentsMargins(12, 16, 12, 16);
     containerLayout->setSpacing(16);
     
     // Top section: Basic information (name, protocol, URL, stream key)
@@ -386,16 +386,18 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget()
         "  border: 1px solid #555; "
         "  background-color: #1e1e1e; "
         "  border-radius: 6px; "
-        "  margin: 12px; "
+        "  margin: 0px; "
+        "  padding: 6px; "
         "} "
         "QTabBar::tab { "
         "  background-color: #2d2d2d; "
         "  color: #ccc; "
-        "  padding: 10px 20px; "
+        "  padding: 6px 8px; "
         "  margin-right: 2px; "
         "  border-top-left-radius: 6px; "
         "  border-top-right-radius: 6px; "
         "  font-weight: bold; "
+        "  min-width: 40px; "
         "} "
         "QTabBar::tab:selected { "
         "  background-color: #1e1e1e; "
@@ -404,6 +406,9 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget()
         "} "
         "QTabBar::tab:hover { "
         "  background-color: #3c3c3c; "
+        "} "
+        "QTabBar { "
+        "  qproperty-expanding: true; "
         "}"
     );
     
@@ -421,7 +426,10 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     m_outputTab = new QWidget();
     m_outputLayout = new QFormLayout(m_outputTab);
     m_outputLayout->setSpacing(12);
-    m_outputLayout->setContentsMargins(20, 20, 20, 20);
+    m_outputLayout->setContentsMargins(8, 12, 8, 12);
+    m_outputLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    m_outputLayout->setLabelAlignment(Qt::AlignLeft);
+    m_outputLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
     // Encoder type
     m_encoderTypeCombo = new QComboBox();
@@ -433,7 +441,7 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
         "  border-radius: 4px; "
         "  padding: 8px; "
         "  min-height: 20px; "
-        "  min-width: 200px; "
+        "  min-width: 100px; "
         "} "
         "QComboBox:focus { "
         "  border-color: #007AFF; "
@@ -491,7 +499,7 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
         "  border-radius: 4px; "
         "  padding: 8px; "
         "  min-height: 20px; "
-        "  min-width: 200px; "
+        "  min-width: 100px; "
         "} "
         "QComboBox:focus { "
         "  border-color: #007AFF; "
@@ -554,7 +562,10 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     m_videoTab = new QWidget();
     m_videoLayout = new QFormLayout(m_videoTab);
     m_videoLayout->setSpacing(12);
-    m_videoLayout->setContentsMargins(20, 20, 20, 20);
+    m_videoLayout->setContentsMargins(8, 12, 8, 12);
+    m_videoLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    m_videoLayout->setLabelAlignment(Qt::AlignLeft);
+    m_videoLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
     // Enable video
     m_enableVideoCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Video.EnableVideo"));
@@ -572,7 +583,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
         "  border-radius: 4px; "
         "  padding: 8px; "
         "  min-height: 20px; "
-        "  min-width: 200px; "
+        "  min-width: 100px; "
         "} "
         "QComboBox:focus { "
         "  border-color: #007AFF; "
@@ -636,7 +647,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
         "  border-radius: 4px; "
         "  padding: 8px; "
         "  min-height: 20px; "
-        "  min-width: 200px; "
+        "  min-width: 100px; "
         "} "
         "QComboBox:focus { "
         "  border-color: #007AFF; "
@@ -709,7 +720,10 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     m_audioTab = new QWidget();
     m_audioLayout = new QFormLayout(m_audioTab);
     m_audioLayout->setSpacing(12);
-    m_audioLayout->setContentsMargins(20, 20, 20, 20);
+    m_audioLayout->setContentsMargins(8, 12, 8, 12);
+    m_audioLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    m_audioLayout->setLabelAlignment(Qt::AlignLeft);
+    m_audioLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
     // Enable audio
     m_enableAudioCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Audio.EnableAudio"));
@@ -727,7 +741,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
         "  border-radius: 4px; "
         "  padding: 8px; "
         "  min-height: 20px; "
-        "  min-width: 200px; "
+        "  min-width: 100px; "
         "} "
         "QComboBox:focus { "
         "  border-color: #007AFF; "
@@ -772,7 +786,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
         "  border-radius: 4px; "
         "  padding: 8px; "
         "  min-height: 20px; "
-        "  min-width: 200px; "
+        "  min-width: 100px; "
         "} "
         "QComboBox:focus { "
         "  border-color: #007AFF; "
@@ -1046,8 +1060,8 @@ void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled()
         m_advancedButton->setIcon(downIcon);
     }
     
-    // Adjust dialog size to fit content
-    adjustSize();
+    // Keep current dialog width unchanged, only adjust height to fit content
+    resize(width(), sizeHint().height());
 }
 
 void OneSevenMultiRtmpConfigDialog::onValidationTimer()
