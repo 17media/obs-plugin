@@ -4,6 +4,7 @@
 #include <QMessageBox>
 #include <QDateTime>
 #include <QUuid>
+#include "moc_OneSevenMultiRtmpConfigDialog.cpp"
 
 
 // Static constants for UI options
@@ -67,8 +68,11 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent)
 {
     setWindowTitle(obs_module_text("MultiRTMP.Config.Title"));
     setModal(true);
-    setMinimumWidth(350);
-    resize(400, 500);
+    
+    // Set dialog size constraints to match reference style
+    setMinimumSize(300, 400);
+    setMaximumSize(600, 800);
+    resize(500, 600);
     
     // Apply dark theme styling
     setStyleSheet(
@@ -151,9 +155,40 @@ OneSevenMultiRtmpConfigDialog::~OneSevenMultiRtmpConfigDialog()
 
 void OneSevenMultiRtmpConfigDialog::setupUI()
 {
+    // Create main layout for the dialog
     m_mainLayout = new QVBoxLayout(this);
     m_mainLayout->setContentsMargins(0, 0, 0, 0);
     m_mainLayout->setSpacing(0);
+    
+    // Create scroll area
+    QScrollArea *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);        // Allow content resizing
+    scrollArea->setFrameShape(QFrame::NoFrame);  // Remove border
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);   // Show vertical scrollbar when needed
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // Disable horizontal scrollbar
+    
+    // Create container widget for scroll area content
+    QWidget *container = new QWidget();
+    container->setStyleSheet(
+        "QWidget {"
+        "    color: white;"
+        "    font-family: 'Inter';"
+        "    font-style: normal;"
+        "}"
+        "QToolTip {"
+        "   background-color: #333333;"
+        "   color: #FFFFFF;"
+        "   font-weight: 400;"
+        "   font-size: 12px;"
+        "   line-height: 16px;"
+        "   padding: 5px;"
+        "   border: none;"
+        "   border-radius: 4px;"
+        "}");
+    
+    QVBoxLayout *containerLayout = new QVBoxLayout(container);
+    containerLayout->setContentsMargins(16, 16, 16, 16);
+    containerLayout->setSpacing(16);
     
     // Top section: Basic information (name, protocol, URL, stream key)
     setupBasicInfoSection();
@@ -164,20 +199,27 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
     // Advanced settings widget (collapsible)
     setupAdvancedSettingsWidget();
     
-    // Bottom section: Button box
-    setupButtonBox();
-    
     // Validation label
     m_validationLabel = new QLabel();
-    m_validationLabel->setStyleSheet("color: #f44336; font-size: 11px; margin: 0 16px;");
+    m_validationLabel->setStyleSheet("color: #f44336; font-size: 11px; margin: 0;");
     m_validationLabel->setWordWrap(true);
     m_validationLabel->setVisible(false);
     
-    // Add sections to main layout
-    m_mainLayout->addWidget(m_basicInfoWidget);
-    m_mainLayout->addWidget(m_advancedButton);
-    m_mainLayout->addWidget(m_advancedWidget);
-    m_mainLayout->addWidget(m_validationLabel);
+    // Add sections to container layout
+    containerLayout->addWidget(m_basicInfoWidget);
+    containerLayout->addWidget(m_advancedButton);
+    containerLayout->addWidget(m_advancedWidget);
+    containerLayout->addWidget(m_validationLabel);
+    containerLayout->addStretch(); // Add stretch to push content to top
+    
+    // Set container as scroll area content
+    scrollArea->setWidget(container);
+    
+    // Bottom section: Button box (outside scroll area)
+    setupButtonBox();
+    
+    // Add scroll area and button layout to main layout
+    m_mainLayout->addWidget(scrollArea);
     m_mainLayout->addLayout(m_buttonLayout);
 }
 
@@ -185,68 +227,128 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
 {
     m_basicInfoWidget = new QWidget();
     m_basicInfoLayout = new QFormLayout(m_basicInfoWidget);
+    
+    // Set form layout properties to match reference style
+    m_basicInfoLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    m_basicInfoLayout->setLabelAlignment(Qt::AlignLeft);
+    m_basicInfoLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     m_basicInfoLayout->setSpacing(12);
-    m_basicInfoLayout->setContentsMargins(16, 16, 16, 16);
+    m_basicInfoLayout->setContentsMargins(0, 0, 0, 0);
     
     // Stream name input (required field)
+    QLabel *streamNameLabel = new QLabel();
+    streamNameLabel->setText(
+        QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
+            .arg(obs_module_text("MultiRtmp.Config.StreamName")));
+    
     m_streamNameEdit = new QLineEdit();
-    m_streamNameEdit->setPlaceholderText("新建串流");
-    m_streamNameEdit->setText("新建串流");
+    m_streamNameEdit->setPlaceholderText(obs_module_text("MultiRtmp.Config.StreamName.Placeholder"));
+    m_streamNameEdit->setText(obs_module_text("MultiRtmp.Config.StreamName.Default"));
     m_streamNameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_basicInfoLayout->addRow("名称", m_streamNameEdit);
+    m_basicInfoLayout->addRow(streamNameLabel, m_streamNameEdit);
     
     // Protocol dropdown - only RTMP, SRT/RIST, WHIP
+    QLabel *protocolLabel = new QLabel();
+    protocolLabel->setText(
+        QString("<span style='color:white;'>%1</span>")
+            .arg(obs_module_text("MultiRtmp.Config.Protocol")));
+    
     m_protocolCombo = new QComboBox();
     m_protocolCombo->addItem("RTMP");
     m_protocolCombo->addItem("SRT/RIST");
     m_protocolCombo->addItem("WHIP");
     m_protocolCombo->setCurrentText("RTMP");
     m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_basicInfoLayout->addRow("协议", m_protocolCombo);
+    m_basicInfoLayout->addRow(protocolLabel, m_protocolCombo);
     
     // Server URL (required field)
+    QLabel *serverLabel = new QLabel();
+    serverLabel->setText(
+        QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
+            .arg(obs_module_text("MultiRtmp.Config.ServerURL")));
+    
     m_serverEdit = new QLineEdit();
-    m_serverEdit->setPlaceholderText("");
+    m_serverEdit->setPlaceholderText(obs_module_text("MultiRtmp.Config.ServerURL.Placeholder"));
     m_serverEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_basicInfoLayout->addRow("* URL", m_serverEdit);
+    m_basicInfoLayout->addRow(serverLabel, m_serverEdit);
     
     // Stream key with show/hide checkbox
+    QLabel *keyLabel = new QLabel();
+    keyLabel->setText(
+        QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
+            .arg(obs_module_text("MultiRtmp.Config.StreamKey")));
+    
+    QVBoxLayout* keyContainer = new QVBoxLayout();
+    
     QHBoxLayout* keyLayout = new QHBoxLayout();
     m_keyEdit = new QLineEdit();
     m_keyEdit->setEchoMode(QLineEdit::Password);
-    m_keyEdit->setPlaceholderText("");
+    m_keyEdit->setPlaceholderText(obs_module_text("MultiRtmp.Config.StreamKey.Placeholder"));
     m_keyEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     
-    m_showKeyCheck = new QCheckBox("显示");
+    m_showKeyCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.ShowKey"));
     m_showKeyCheck->setStyleSheet("QCheckBox { color: white; }");
     
     keyLayout->addWidget(m_keyEdit);
     keyLayout->addWidget(m_showKeyCheck);
+    keyContainer->addLayout(keyLayout);
     
-    m_basicInfoLayout->addRow("* 推流码", keyLayout);
+    m_basicInfoLayout->addRow(keyLabel, keyContainer);
     
     // User authentication checkbox
-    m_authCheck = new QCheckBox("用户身份认证");
+    QLabel *authLabel = new QLabel(); // Empty label for alignment
+    m_authCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.UserAuth"));
     m_authCheck->setChecked(true);
     m_authCheck->setStyleSheet("QCheckBox { color: white; }");
-    m_basicInfoLayout->addRow("", m_authCheck);
+    m_basicInfoLayout->addRow(authLabel, m_authCheck);
     
     // Apply dark theme styling to basic info section
     m_basicInfoWidget->setStyleSheet(
         "QWidget { "
-        "  background-color: #1e1e1e; "
+        "  background-color: transparent; "
         "  border: none; "
         "} "
         "QLabel { "
-        "  font-weight: bold; "
         "  color: white; "
+        "  font-size: 14px; "
+        "  margin-bottom: 4px; "
+        "} "
+        "QLineEdit { "
+        "  background-color: #2d2d2d; "
+        "  border: 1px solid #555; "
+        "  border-radius: 4px; "
+        "  padding: 8px; "
+        "  color: white; "
+        "  font-size: 14px; "
+        "} "
+        "QLineEdit:focus { "
+        "  border-color: #007AFF; "
+        "} "
+        "QComboBox { "
+        "  background-color: #2d2d2d; "
+        "  border: 1px solid #555; "
+        "  border-radius: 4px; "
+        "  padding: 8px; "
+        "  color: white; "
+        "  font-size: 14px; "
+        "} "
+        "QComboBox:focus { "
+        "  border-color: #007AFF; "
+        "} "
+        "QComboBox::drop-down { "
+        "  border: none; "
+        "} "
+        "QComboBox::down-arrow { "
+        "  image: url(:/resources/arrow-down.svg); "
+        "  width: 12px; "
+        "  height: 12px; "
         "}"
     );
 }
 
 void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsButton()
 {
-    m_advancedButton = new QPushButton("更多高级设置");
+    m_advancedButton = new QPushButton(obs_module_text("MultiRtmp.Config.AdvancedSettings"));
     m_advancedButton->setStyleSheet(
         "QPushButton { "
         "  background-color: transparent; "
@@ -353,12 +455,12 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
         "  selection-background-color: #007AFF; "
         "}"
     );
-    m_outputLayout->addRow("Encoder Type:", m_encoderTypeCombo);
+    m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.EncoderType"), m_encoderTypeCombo);
     
     // Share encoder
-    m_shareEncoderCheck = new QCheckBox("Share Encoder with Main Stream");
+    m_shareEncoderCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Output.ShareEncoder"));
     m_shareEncoderCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
-    m_shareEncoderCheck->setToolTip("Use the same encoder settings as the main stream");
+    m_shareEncoderCheck->setToolTip(obs_module_text("MultiRtmp.Config.Output.ShareEncoder.Tooltip"));
     m_outputLayout->addRow("", m_shareEncoderCheck);
     
     // Video bitrate
@@ -367,7 +469,7 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     m_videoBitrateSpin->setValue(2500);
     m_videoBitrateSpin->setSuffix(" kbps");
     m_videoBitrateSpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    m_outputLayout->addRow("Video Bitrate:", m_videoBitrateSpin);
+    m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.VideoBitrate"), m_videoBitrateSpin);
     
     // Audio bitrate
     m_audioBitrateSpin = new QSpinBox();
@@ -375,11 +477,11 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     m_audioBitrateSpin->setValue(128);
     m_audioBitrateSpin->setSuffix(" kbps");
     m_audioBitrateSpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    m_outputLayout->addRow("Audio Bitrate:", m_audioBitrateSpin);
+    m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.AudioBitrate"), m_audioBitrateSpin);
     
     // Output mode
     m_outputModeCombo = new QComboBox();
-    m_outputModeCombo->addItems({"Simple", "Advanced"});
+    m_outputModeCombo->addItems({obs_module_text("MultiRtmp.Config.Output.OutputMode.Simple"), obs_module_text("MultiRtmp.Config.Output.OutputMode.Advanced")});
     m_outputModeCombo->setStyleSheet(
         "QComboBox { "
         "  background-color: #3c3c3c; "
@@ -411,10 +513,10 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
         "  selection-background-color: #007AFF; "
         "}"
     );
-    m_outputLayout->addRow("Output Mode:", m_outputModeCombo);
+    m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.OutputMode"), m_outputModeCombo);
     
     // Reconnect settings
-    m_enableReconnectCheck = new QCheckBox("Enable Auto Reconnect");
+    m_enableReconnectCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Output.EnableReconnect"));
     m_enableReconnectCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
     m_outputLayout->addRow("", m_enableReconnectCheck);
     
@@ -422,14 +524,14 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     m_maxRetriesSpin->setRange(0, 100);
     m_maxRetriesSpin->setValue(5);
     m_maxRetriesSpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    m_outputLayout->addRow("Max Retries:", m_maxRetriesSpin);
+    m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.MaxRetries"), m_maxRetriesSpin);
     
     m_retryDelaySpin = new QSpinBox();
     m_retryDelaySpin->setRange(1, 60);
     m_retryDelaySpin->setValue(5);
     m_retryDelaySpin->setSuffix(" sec");
     m_retryDelaySpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    m_outputLayout->addRow("Retry Delay:", m_retryDelaySpin);
+    m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.RetryDelay"), m_retryDelaySpin);
     
     // Apply dark theme to output tab
     m_outputTab->setStyleSheet(
@@ -443,7 +545,7 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
         "}"
     );
     
-    m_tabWidget->addTab(m_outputTab, "输出");
+    m_tabWidget->addTab(m_outputTab, obs_module_text("MultiRtmp.Config.Tab.Output"));
 }
 
 void OneSevenMultiRtmpConfigDialog::setupVideoTab()
@@ -454,7 +556,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     m_videoLayout->setContentsMargins(20, 20, 20, 20);
     
     // Enable video
-    m_enableVideoCheck = new QCheckBox("Enable Video Stream");
+    m_enableVideoCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Video.EnableVideo"));
     m_enableVideoCheck->setChecked(true);
     m_enableVideoCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
     m_videoLayout->addRow("", m_enableVideoCheck);
@@ -492,7 +594,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
         "  selection-background-color: #007AFF; "
         "}"
     );
-    m_videoLayout->addRow("Video Resolution:", m_videoResolutionCombo);
+    m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.Resolution"), m_videoResolutionCombo);
     
     // Custom resolution
     QHBoxLayout* customResLayout = new QHBoxLayout();
@@ -513,7 +615,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     customResLayout->addWidget(m_customHeightEdit);
     customResLayout->addStretch();
     
-    m_videoLayout->addRow("Custom Resolution:", customResLayout);
+    m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.CustomResolution"), customResLayout);
     
     // Frame rate
     m_fpsSpinBox = new QDoubleSpinBox();
@@ -521,7 +623,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     m_fpsSpinBox->setValue(30.0);
     m_fpsSpinBox->setSuffix(" fps");
     m_fpsSpinBox->setStyleSheet("QDoubleSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QDoubleSpinBox:focus { border-color: #007AFF; }");
-    m_videoLayout->addRow("Frame Rate:", m_fpsSpinBox);
+    m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.FrameRate"), m_fpsSpinBox);
     
     // Scale filter
     m_scaleFilterCombo = new QComboBox();
@@ -556,7 +658,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
         "  selection-background-color: #007AFF; "
         "}"
     );
-    m_videoLayout->addRow("Scale Filter:", m_scaleFilterCombo);
+    m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.ScaleFilter"), m_scaleFilterCombo);
     
     // Quality slider
     QHBoxLayout* qualityLayout = new QHBoxLayout();
@@ -584,7 +686,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     qualityLayout->addWidget(m_qualitySlider);
     qualityLayout->addWidget(m_qualityLabel);
     
-    m_videoLayout->addRow("Quality:", qualityLayout);
+    m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.Quality"), qualityLayout);
     
     // Apply dark theme to video tab
     m_videoTab->setStyleSheet(
@@ -598,7 +700,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
         "}"
     );
     
-    m_tabWidget->addTab(m_videoTab, "视频");
+    m_tabWidget->addTab(m_videoTab, obs_module_text("MultiRtmp.Config.Tab.Video"));
 }
 
 void OneSevenMultiRtmpConfigDialog::setupAudioTab()
@@ -609,7 +711,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     m_audioLayout->setContentsMargins(20, 20, 20, 20);
     
     // Enable audio
-    m_enableAudioCheck = new QCheckBox("Enable Audio Stream");
+    m_enableAudioCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Audio.EnableAudio"));
     m_enableAudioCheck->setChecked(true);
     m_enableAudioCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
     m_audioLayout->addRow("", m_enableAudioCheck);
@@ -647,7 +749,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
         "  selection-background-color: #007AFF; "
         "}"
     );
-    m_audioLayout->addRow("Audio Format:", m_audioFormatCombo);
+    m_audioLayout->addRow(obs_module_text("MultiRtmp.Config.Audio.Format"), m_audioFormatCombo);
     
     // Sample rate
     m_sampleRateSpin = new QSpinBox();
@@ -655,7 +757,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     m_sampleRateSpin->setValue(44100);
     m_sampleRateSpin->setSuffix(" Hz");
     m_sampleRateSpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    m_audioLayout->addRow("Sample Rate:", m_sampleRateSpin);
+    m_audioLayout->addRow(obs_module_text("MultiRtmp.Config.Audio.SampleRate"), m_sampleRateSpin);
     
     // Channel layout
     m_channelLayoutCombo = new QComboBox();
@@ -692,7 +794,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
         "  selection-background-color: #007AFF; "
         "}"
     );
-    m_audioLayout->addRow("Channel Layout:", m_channelLayoutCombo);
+    m_audioLayout->addRow(obs_module_text("MultiRtmp.Config.Audio.Channels"), m_channelLayoutCombo);
     
     // Audio volume
     QHBoxLayout* volumeLayout = new QHBoxLayout();
@@ -720,7 +822,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     volumeLayout->addWidget(m_audioVolumeSlider);
     volumeLayout->addWidget(m_audioVolumeLabel);
     
-    m_audioLayout->addRow("Audio Volume:", volumeLayout);
+    m_audioLayout->addRow(obs_module_text("MultiRtmp.Config.Audio.Volume"), volumeLayout);
     
     // Apply dark theme to audio tab
     m_audioTab->setStyleSheet(
@@ -734,7 +836,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
         "}"
     );
     
-    m_tabWidget->addTab(m_audioTab, "音频");
+    m_tabWidget->addTab(m_audioTab, obs_module_text("MultiRtmp.Config.Tab.Audio"));
 }
 
 
@@ -746,7 +848,7 @@ void OneSevenMultiRtmpConfigDialog::setupButtonBox()
     m_buttonLayout->setContentsMargins(16, 16, 16, 16);
     
     // Cancel button with blue background and white text
-    m_cancelButton = new QPushButton("Cancel");
+    m_cancelButton = new QPushButton(obs_module_text("MultiRtmp.Config.Cancel"));
     m_cancelButton->setMinimumHeight(40);
     m_cancelButton->setMinimumWidth(100);
     m_cancelButton->setStyleSheet(
@@ -768,7 +870,7 @@ void OneSevenMultiRtmpConfigDialog::setupButtonBox()
     );
     
     // Confirm button with red background and white text
-    m_okButton = new QPushButton("Confirm");
+    m_okButton = new QPushButton(obs_module_text("MultiRtmp.Config.Confirm"));
     m_okButton->setMinimumHeight(40);
     m_okButton->setMinimumWidth(100);
     m_okButton->setStyleSheet(
@@ -790,9 +892,11 @@ void OneSevenMultiRtmpConfigDialog::setupButtonBox()
     );
     m_okButton->setDefault(true);
     
+    // Center the buttons
     m_buttonLayout->addStretch();
     m_buttonLayout->addWidget(m_cancelButton);
     m_buttonLayout->addWidget(m_okButton);
+    m_buttonLayout->addStretch();
 }
 
 void OneSevenMultiRtmpConfigDialog::setupConnections()
