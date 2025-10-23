@@ -130,10 +130,12 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
   src/17live/api/OneSevenLiveUtility.cpp
   src/17live/OneSevenLiveHttpServer.cpp
   src/17live/OneSevenLiveUpdateManager.cpp
-  src/17live/multi-rtmp/OneSevenMultiRtmpManager.cpp
+  src/17live/ui/OneSevenLivePropertyWidget.cpp
+  src/17live/ui/OneSevenLivePropertiesWidget.cpp
   src/17live/multi-rtmp/OneSevenMultiRtmpConfigManager.cpp
   src/17live/multi-rtmp/OneSevenMultiRtmpStreamController.cpp
   src/17live/multi-rtmp/OneSevenMultiRtmpModels.cpp
+  src/17live/multi-rtmp/OneSevenMultiRtmpManager.cpp
   src/17live/multi-rtmp/ui/OneSevenMultiRtmpDock.cpp
   src/17live/multi-rtmp/ui/OneSevenMultiRtmpConfigDialog.cpp
   src/17live/multi-rtmp/ui/OneSevenMultiRtmpListWidget.cpp
