@@ -226,11 +226,6 @@ void OneSevenMultiRtmpStreamItem::onMenuRequested()
     }
 }
 
-void OneSevenMultiRtmpStreamItem::onDuplicateAction()
-{
-    emit duplicateRequested(m_config.id);
-}
-
 void OneSevenMultiRtmpStreamItem::onDeleteAction()
 {
     emit deleteRequested(m_config.id);

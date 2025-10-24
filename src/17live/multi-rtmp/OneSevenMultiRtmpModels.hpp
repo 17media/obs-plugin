@@ -12,6 +12,14 @@ struct OneSevenMultiRtmpConfig;
 struct OneSevenMultiRtmpStreamStatus;
 struct OneSevenMultiRtmpStreamStats;
 
+
+struct OneSevenLiveProtocol {
+    const char* protocol;
+    const char* label;
+    const char* outputId;
+    const char* serviceId;
+};
+
 /**
  * Video configuration for RTMP stream
  */
@@ -143,3 +151,7 @@ void from_json(const nlohmann::json& j, OneSevenMultiRtmpConfig& config);
 
 void to_json(nlohmann::json& j, const OneSevenMultiRtmpGlobalConfig& config);
 void from_json(const nlohmann::json& j, OneSevenMultiRtmpGlobalConfig& config);
+
+// Protocol helper functions
+const OneSevenLiveProtocol* getProtocolList();
+size_t getProtocolCount();

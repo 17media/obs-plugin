@@ -255,9 +255,20 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
             .arg(obs_module_text("MultiRtmp.Config.Protocol")));
     
     m_protocolCombo = new QComboBox();
-    m_protocolCombo->addItem("RTMP");
-    m_protocolCombo->addItem("SRT/RIST");
-    m_protocolCombo->setCurrentText("RTMP");
+    
+    // Populate protocol combo box from the protocol list
+    const OneSevenLiveProtocol* protocols = getProtocolList();
+    size_t protocolCount = getProtocolCount();
+    
+    for (size_t i = 0; i < protocolCount; ++i) {
+        m_protocolCombo->addItem(protocols[i].label, protocols[i].protocol);
+    }
+    
+    // Set default to first protocol (RTMP)
+    if (protocolCount > 0) {
+        m_protocolCombo->setCurrentIndex(0);
+    }
+    
     m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_basicInfoLayout->addRow(protocolLabel, m_protocolCombo);
     
@@ -1171,6 +1182,15 @@ void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig
     m_serverEdit->setText(QString::fromStdString(config.service.serverUrl));
     m_keyEdit->setText(QString::fromStdString(config.service.streamKey));
     
+    // Set protocol combo box
+    QString protocolValue = QString::fromStdString(config.protocol);
+    for (int i = 0; i < m_protocolCombo->count(); ++i) {
+        if (m_protocolCombo->itemData(i).toString() == protocolValue) {
+            m_protocolCombo->setCurrentIndex(i);
+            break;
+        }
+    }
+    
     // Output tab
     m_shareEncoderCheck->setChecked(config.video.useSharedEncoder);
     m_videoBitrateSpin->setValue(config.video.bitrate);
@@ -1214,6 +1234,7 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::buildConfigFromUI() const
     config.streamName = m_streamNameEdit->text().toStdString(); // Map to streamName
     config.service.serverUrl = m_serverEdit->text().toStdString(); // Map to service.serverUrl
     config.service.streamKey = m_keyEdit->text().toStdString(); // Map to service.streamKey
+    config.protocol = m_protocolCombo->currentData().toString().toStdString(); // Map to protocol
     
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Service config - Name: '%s', URL: '%s', Key length: %zu", 
             config.streamName.c_str(), config.service.serverUrl.c_str(), config.service.streamKey.length());

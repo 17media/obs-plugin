@@ -24,6 +24,8 @@
 #include <QWidget>
 #include <QIcon>
 
+class OneSevenLivePropertiesWidget;
+
 /**
  * Configuration dialog for Multi-RTMP stream settings
  * Provides comprehensive configuration interface with multiple tabs
@@ -85,6 +87,10 @@ private:
     // Main layout
     QVBoxLayout* m_mainLayout;
     QTabWidget* m_tabWidget;
+
+    OneSevenLivePropertiesWidget *m_serviceWidget;
+    OneSevenLivePropertiesWidget *m_videoWidget;
+    OneSevenLivePropertiesWidget *m_audioWidget;
     
     // Basic info section
     QWidget* m_basicInfoWidget;

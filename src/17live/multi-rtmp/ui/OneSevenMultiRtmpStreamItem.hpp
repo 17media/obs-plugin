@@ -46,7 +46,6 @@ signals:
     void stopRequested(const std::string& streamId);
     void editRequested(const std::string& streamId);
     void deleteRequested(const std::string& streamId);
-    void duplicateRequested(const std::string& streamId);
 
 private slots:
     void onStartStopClicked();

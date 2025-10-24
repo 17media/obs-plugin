@@ -1,9 +1,10 @@
 #include "OneSevenMultiRtmpModels.hpp"
-#include <iomanip>
-#include <sstream>
-#include <algorithm>
-#include <ctime>
+#include <string>
 
+static OneSevenLiveProtocol s_protocolList[] = {
+    // protocol, label, output_id, service_id
+    { "rtmp", "RTMP", "rtmp_output", "rtmp_custom" }
+};
 
 // OneSevenMultiRtmpVideoConfig implementation
 void OneSevenMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
@@ -370,4 +371,13 @@ void to_json(nlohmann::json& j, const OneSevenMultiRtmpGlobalConfig& config) {
 
 void from_json(const nlohmann::json& j, OneSevenMultiRtmpGlobalConfig& config) {
     config.from_json(j);
+}
+
+// Protocol helper functions implementation
+const OneSevenLiveProtocol* getProtocolList() {
+    return s_protocolList;
+}
+
+size_t getProtocolCount() {
+    return sizeof(s_protocolList) / sizeof(s_protocolList[0]);
 }

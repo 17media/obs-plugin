@@ -215,16 +215,6 @@ void OneSevenMultiRtmpDock::setupConnections()
                         onStreamDeleted(streamId);
                     }
                 });
-        
-        connect(m_streamListWidget, &OneSevenMultiRtmpListWidget::streamDuplicateRequested,
-                this, [this](const std::string& streamId) {
-                    if (m_manager) {
-                        auto config = m_manager->getStreamConfig(streamId);
-                        config.id = m_manager->generateStreamId();
-                        config.streamName += " (Copy)";
-                        showConfigDialog(config);
-                    }
-                });
     }
 }
 
