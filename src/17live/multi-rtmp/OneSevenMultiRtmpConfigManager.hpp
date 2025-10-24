@@ -4,7 +4,6 @@
 #include "plugin-support.h"
 #include <obs-module.h>
 #include <string>
-#include <mutex>
 #include <memory>
 #include <functional>
 
@@ -63,16 +62,14 @@ private:
     void notifyConfigChange(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
     void notifyConfigDelete(const std::string& streamId);
     
-    // Internal methods without locking (must be called with lock held)
+    // Internal methods
     bool saveConfigurationInternal();
-    bool saveConfigurationInternalLocked();
     bool loadConfigurationInternal();
 
     // Member variables
     std::string m_configFilePath;
     std::string m_configDirectory;
     OneSevenMultiRtmpGlobalConfig m_globalConfig;
-    mutable std::mutex m_configMutex;
     
     // Callbacks
     ConfigChangeCallback m_configChangeCallback;

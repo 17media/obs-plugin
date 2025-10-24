@@ -36,7 +36,7 @@ struct OneSevenMultiRtmpVideoConfig {
 struct AudioTrackConfig {
     int mixer_track;
     int output_track;
-}
+};
 
 struct OneSevenMultiRtmpAudioConfig {
     std::string id;

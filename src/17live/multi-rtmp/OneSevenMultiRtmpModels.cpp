@@ -4,113 +4,76 @@
 #include <algorithm>
 #include <ctime>
 
-// OneSevenMultiRtmpServiceConfig implementation
-void OneSevenMultiRtmpServiceConfig::to_json(nlohmann::json& j) const {
-    j = nlohmann::json{
-        {"serverUrl", serverUrl},
-        {"streamKey", streamKey},
-        {"useAuthentication", useAuthentication},
-        {"authToken", authToken}
-    };
-}
-
-void OneSevenMultiRtmpServiceConfig::from_json(const nlohmann::json& j) {
-    j.at("serverUrl").get_to(serverUrl);
-    j.at("streamKey").get_to(streamKey);
-    j.at("useAuthentication").get_to(useAuthentication);
-    if (j.contains("authToken")) {
-        j.at("authToken").get_to(authToken);
-    }
-}
-
-// OneSevenMultiRtmpOutputConfig implementation
-void OneSevenMultiRtmpOutputConfig::to_json(nlohmann::json& j) const {
-    j = nlohmann::json{
-        {"bufferSize", bufferSize},
-        {"reconnectDelay", reconnectDelay},
-        {"autoReconnect", autoReconnect},
-        {"bindIP", bindIP}
-    };
-}
-
-void OneSevenMultiRtmpOutputConfig::from_json(const nlohmann::json& j) {
-    j.at("bufferSize").get_to(bufferSize);
-    j.at("reconnectDelay").get_to(reconnectDelay);
-    j.at("autoReconnect").get_to(autoReconnect);
-    j.at("bindIP").get_to(bindIP);
-}
 
 // OneSevenMultiRtmpVideoConfig implementation
 void OneSevenMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{
-        {"useSharedEncoder", useSharedEncoder},
+        {"id", id},
         {"encoderId", encoderId},
-        {"sceneId", sceneId},
-        {"outputWidth", outputWidth},
-        {"outputHeight", outputHeight},
         {"fpsDenominator", fpsDenominator},
-        {"rateControl", rateControl},
-        {"bitrate", bitrate},
-        {"rateLimiting", rateLimiting},
-        {"keyframeInterval", keyframeInterval},
-        {"profile", profile},
-        {"useBFrames", useBFrames}
+        {"encoderSettings", encoderSettings},
+        {"outputScene", outputScene},
+        {"resolution", resolution}
     };
 }
 
 void OneSevenMultiRtmpVideoConfig::from_json(const nlohmann::json& j) {
-    j.at("useSharedEncoder").get_to(useSharedEncoder);
+    j.at("id").get_to(id);
     if (j.contains("encoderId")) {
         j.at("encoderId").get_to(encoderId);
     }
-    j.at("sceneId").get_to(sceneId);
-    j.at("outputWidth").get_to(outputWidth);
-    j.at("outputHeight").get_to(outputHeight);
-    j.at("fpsDenominator").get_to(fpsDenominator);
-    j.at("rateControl").get_to(rateControl);
-    j.at("bitrate").get_to(bitrate);
-    j.at("rateLimiting").get_to(rateLimiting);
-    j.at("keyframeInterval").get_to(keyframeInterval);
-    j.at("profile").get_to(profile);
-    j.at("useBFrames").get_to(useBFrames);
+    if (j.contains("fpsDenominator")) {
+        j.at("fpsDenominator").get_to(fpsDenominator);
+    }
+    if (j.contains("encoderSettings")) {
+        j.at("encoderSettings").get_to(encoderSettings);
+    }
+    if (j.contains("outputScene")) {
+        j.at("outputScene").get_to(outputScene);
+    }
+    if (j.contains("resolution")) {
+        j.at("resolution").get_to(resolution);
+    }
+}
+
+// AudioTrackConfig JSON serialization
+void to_json(nlohmann::json& j, const AudioTrackConfig& config) {
+    j = nlohmann::json{
+        {"mixer_track", config.mixer_track},
+        {"output_track", config.output_track}
+    };
+}
+
+void from_json(const nlohmann::json& j, AudioTrackConfig& config) {
+    j.at("mixer_track").get_to(config.mixer_track);
+    j.at("output_track").get_to(config.output_track);
 }
 
 // OneSevenMultiRtmpAudioConfig implementation
 void OneSevenMultiRtmpAudioConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{
-        {"useSharedEncoder", useSharedEncoder},
+        {"id", id},
         {"encoderId", encoderId},
+        {"encoderSettings", encoderSettings},
         {"mixerId", mixerId},
-        {"vodTrack", vodTrack},
-        {"sampleRate", sampleRate},
-        {"bitrate", bitrate},
-        {"useHEAAC", useHEAAC}
+        {"audioTracks", audioTracks}
     };
 }
 
 void OneSevenMultiRtmpAudioConfig::from_json(const nlohmann::json& j) {
-    j.at("useSharedEncoder").get_to(useSharedEncoder);
+    j.at("id").get_to(id);
     if (j.contains("encoderId")) {
         j.at("encoderId").get_to(encoderId);
     }
-    j.at("mixerId").get_to(mixerId);
-    j.at("vodTrack").get_to(vodTrack);
-    j.at("sampleRate").get_to(sampleRate);
-    j.at("bitrate").get_to(bitrate);
-    j.at("useHEAAC").get_to(useHEAAC);
-}
-
-// OneSevenMultiRtmpSyncConfig implementation
-void OneSevenMultiRtmpSyncConfig::to_json(nlohmann::json& j) const {
-    j = nlohmann::json{
-        {"syncStart", syncStart},
-        {"syncStop", syncStop}
-    };
-}
-
-void OneSevenMultiRtmpSyncConfig::from_json(const nlohmann::json& j) {
-    j.at("syncStart").get_to(syncStart);
-    j.at("syncStop").get_to(syncStop);
+    if (j.contains("encoderSettings")) {
+        j.at("encoderSettings").get_to(encoderSettings);
+    }
+    if (j.contains("mixerId")) {
+        j.at("mixerId").get_to(mixerId);
+    }
+    if (j.contains("audioTracks")) {
+        j.at("audioTracks").get_to(audioTracks);
+    }
 }
 
 // OneSevenMultiRtmpConfig implementation
@@ -119,72 +82,162 @@ void OneSevenMultiRtmpConfig::to_json(nlohmann::json& j) const {
         {"id", id},
         {"streamName", streamName},
         {"protocol", protocol},
-        {"service", service},
-        {"output", output},
-        {"video", video},
-        {"audio", audio},
-        {"sync", sync},
-        {"createdAt", createdAt},
-        {"updatedAt", updatedAt}
+        {"syncStart", syncStart},
+        {"syncStop", syncStop},
+        {"serviceSettings", serviceSettings},
+        {"outputSettings", outputSettings},
+        {"videoConfigId", videoConfigId},
+        {"audioConfigId", audioConfigId},
+        {"video", {
+            {"useSharedEncoder", video.useSharedEncoder},
+            {"bitrate", video.bitrate},
+            {"outputWidth", video.outputWidth},
+            {"outputHeight", video.outputHeight},
+            {"encoderId", video.encoderId},
+            {"rateControl", video.rateControl},
+            {"profile", video.profile},
+            {"keyframeInterval", video.keyframeInterval},
+            {"rateLimiting", video.rateLimiting},
+            {"useBFrames", video.useBFrames}
+        }},
+        {"audio", {
+            {"bitrate", audio.bitrate},
+            {"sampleRate", audio.sampleRate},
+            {"mixerId", audio.mixerId},
+            {"encoderId", audio.encoderId},
+            {"useHEAAC", audio.useHEAAC},
+            {"useSharedEncoder", audio.useSharedEncoder}
+        }},
+        {"service", {
+            {"serverUrl", service.serverUrl},
+            {"streamKey", service.streamKey},
+            {"useAuthentication", service.useAuthentication},
+            {"authToken", service.authToken}
+        }},
+        {"output", {
+            {"autoReconnect", output.autoReconnect},
+            {"reconnectDelay", output.reconnectDelay},
+            {"bufferSize", output.bufferSize},
+            {"bindIP", output.bindIP}
+        }}
     };
 }
 
 void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
     j.at("id").get_to(id);
-    j.at("streamName").get_to(streamName);
-    j.at("protocol").get_to(protocol);
-    j.at("service").get_to(service);
-    j.at("output").get_to(output);
-    j.at("video").get_to(video);
-    j.at("audio").get_to(audio);
-    j.at("sync").get_to(sync);
-    if (j.contains("createdAt")) {
-        j.at("createdAt").get_to(createdAt);
+    if (j.contains("streamName")) {
+        j.at("streamName").get_to(streamName);
     }
-    if (j.contains("updatedAt")) {
-        j.at("updatedAt").get_to(updatedAt);
+    if (j.contains("protocol")) {
+        j.at("protocol").get_to(protocol);
     }
-}
-
-bool OneSevenMultiRtmpConfig::isValid() const {
-    if (id.empty() || streamName.empty()) {
-        return false;
+    if (j.contains("syncStart")) {
+        j.at("syncStart").get_to(syncStart);
     }
-    if (service.serverUrl.empty() || service.streamKey.empty()) {
-        return false;
+    if (j.contains("syncStop")) {
+        j.at("syncStop").get_to(syncStop);
     }
-    if (video.outputWidth <= 0 || video.outputHeight <= 0) {
-        return false;
+    if (j.contains("serviceSettings")) {
+        j.at("serviceSettings").get_to(serviceSettings);
     }
-    if (video.bitrate <= 0 || audio.bitrate <= 0) {
-        return false;
+    if (j.contains("outputSettings")) {
+        j.at("outputSettings").get_to(outputSettings);
     }
-    return true;
-}
-
-std::string OneSevenMultiRtmpConfig::getValidationError() const {
-    if (id.empty()) {
-        return "Stream ID is required";
+    if (j.contains("videoConfigId")) {
+        j.at("videoConfigId").get_to(videoConfigId);
     }
-    if (streamName.empty()) {
-        return "Stream name is required";
+    if (j.contains("audioConfigId")) {
+        j.at("audioConfigId").get_to(audioConfigId);
     }
-    if (service.serverUrl.empty()) {
-        return "Server URL is required";
+    
+    // Parse legacy compatibility fields
+    if (j.contains("video")) {
+        const auto& videoJson = j["video"];
+        if (videoJson.contains("useSharedEncoder")) {
+            video.useSharedEncoder = videoJson["useSharedEncoder"];
+        }
+        if (videoJson.contains("bitrate")) {
+            video.bitrate = videoJson["bitrate"];
+        }
+        if (videoJson.contains("outputWidth")) {
+            video.outputWidth = videoJson["outputWidth"];
+        }
+        if (videoJson.contains("outputHeight")) {
+            video.outputHeight = videoJson["outputHeight"];
+        }
+        if (videoJson.contains("encoderId")) {
+            video.encoderId = videoJson["encoderId"];
+        }
+        if (videoJson.contains("rateControl")) {
+            video.rateControl = videoJson["rateControl"];
+        }
+        if (videoJson.contains("profile")) {
+            video.profile = videoJson["profile"];
+        }
+        if (videoJson.contains("keyframeInterval")) {
+            video.keyframeInterval = videoJson["keyframeInterval"];
+        }
+        if (videoJson.contains("rateLimiting")) {
+            video.rateLimiting = videoJson["rateLimiting"];
+        }
+        if (videoJson.contains("useBFrames")) {
+            video.useBFrames = videoJson["useBFrames"];
+        }
     }
-    if (service.streamKey.empty()) {
-        return "Stream key is required";
+    
+    if (j.contains("audio")) {
+        const auto& audioJson = j["audio"];
+        if (audioJson.contains("bitrate")) {
+            audio.bitrate = audioJson["bitrate"];
+        }
+        if (audioJson.contains("sampleRate")) {
+            audio.sampleRate = audioJson["sampleRate"];
+        }
+        if (audioJson.contains("mixerId")) {
+            audio.mixerId = audioJson["mixerId"];
+        }
+        if (audioJson.contains("encoderId")) {
+            audio.encoderId = audioJson["encoderId"];
+        }
+        if (audioJson.contains("useHEAAC")) {
+            audio.useHEAAC = audioJson["useHEAAC"];
+        }
+        if (audioJson.contains("useSharedEncoder")) {
+            audio.useSharedEncoder = audioJson["useSharedEncoder"];
+        }
     }
-    if (video.outputWidth <= 0 || video.outputHeight <= 0) {
-        return "Invalid video resolution";
+    
+    if (j.contains("service")) {
+        const auto& serviceJson = j["service"];
+        if (serviceJson.contains("serverUrl")) {
+            service.serverUrl = serviceJson["serverUrl"];
+        }
+        if (serviceJson.contains("streamKey")) {
+            service.streamKey = serviceJson["streamKey"];
+        }
+        if (serviceJson.contains("useAuthentication")) {
+            service.useAuthentication = serviceJson["useAuthentication"];
+        }
+        if (serviceJson.contains("authToken")) {
+            service.authToken = serviceJson["authToken"];
+        }
     }
-    if (video.bitrate <= 0) {
-        return "Invalid video bitrate";
+    
+    if (j.contains("output")) {
+        const auto& outputJson = j["output"];
+        if (outputJson.contains("autoReconnect")) {
+            output.autoReconnect = outputJson["autoReconnect"];
+        }
+        if (outputJson.contains("reconnectDelay")) {
+            output.reconnectDelay = outputJson["reconnectDelay"];
+        }
+        if (outputJson.contains("bufferSize")) {
+            output.bufferSize = outputJson["bufferSize"];
+        }
+        if (outputJson.contains("bindIP")) {
+            output.bindIP = outputJson["bindIP"];
+        }
     }
-    if (audio.bitrate <= 0) {
-        return "Invalid audio bitrate";
-    }
-    return "";
 }
 
 // OneSevenMultiRtmpStreamStatus implementation
@@ -227,29 +280,25 @@ double OneSevenMultiRtmpStreamStats::getDroppedFramePercentage() const {
 // OneSevenMultiRtmpGlobalConfig implementation
 void OneSevenMultiRtmpGlobalConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{
-        {"version", version},
-        {"lastModified", lastModified},
-        {"streams", streams}
+        {"streams", streams},
+        {"audioConfigs", audioConfigs},
+        {"videoConfigs", videoConfigs}
     };
 }
 
 void OneSevenMultiRtmpGlobalConfig::from_json(const nlohmann::json& j) {
-    j.at("version").get_to(version);
-    if (j.contains("lastModified")) {
-        j.at("lastModified").get_to(lastModified);
-    }
     if (j.contains("streams")) {
         j.at("streams").get_to(streams);
     }
+    if (j.contains("audioConfigs")) {
+        j.at("audioConfigs").get_to(audioConfigs);
+    }
+    if (j.contains("videoConfigs")) {
+        j.at("videoConfigs").get_to(videoConfigs);
+    }
 }
 
-void OneSevenMultiRtmpGlobalConfig::updateLastModified() {
-    auto now = std::chrono::system_clock::now();
-    auto time_t = std::chrono::system_clock::to_time_t(now);
-    std::ostringstream oss;
-    oss << std::put_time(std::gmtime(&time_t), "%Y-%m-%dT%H:%M:%SZ");
-    lastModified = oss.str();
-}
+
 
 OneSevenMultiRtmpConfig* OneSevenMultiRtmpGlobalConfig::findStream(const std::string& streamId) {
     auto it = std::find_if(streams.begin(), streams.end(),
@@ -274,7 +323,6 @@ bool OneSevenMultiRtmpGlobalConfig::removeStream(const std::string& streamId) {
         });
     if (it != streams.end()) {
         streams.erase(it);
-        updateLastModified();
         return true;
     }
     return false;
@@ -282,34 +330,16 @@ bool OneSevenMultiRtmpGlobalConfig::removeStream(const std::string& streamId) {
 
 void OneSevenMultiRtmpGlobalConfig::addStream(const OneSevenMultiRtmpConfig& config) {
     streams.push_back(config);
-    updateLastModified();
 }
 
 void OneSevenMultiRtmpGlobalConfig::updateStream(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
     auto* existingConfig = findStream(streamId);
     if (existingConfig) {
         *existingConfig = config;
-        updateLastModified();
     }
 }
 
 // Global JSON serialization functions
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpServiceConfig& config) {
-    config.to_json(j);
-}
-
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpServiceConfig& config) {
-    config.from_json(j);
-}
-
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpOutputConfig& config) {
-    config.to_json(j);
-}
-
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpOutputConfig& config) {
-    config.from_json(j);
-}
-
 void to_json(nlohmann::json& j, const OneSevenMultiRtmpVideoConfig& config) {
     config.to_json(j);
 }
@@ -323,14 +353,6 @@ void to_json(nlohmann::json& j, const OneSevenMultiRtmpAudioConfig& config) {
 }
 
 void from_json(const nlohmann::json& j, OneSevenMultiRtmpAudioConfig& config) {
-    config.from_json(j);
-}
-
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpSyncConfig& config) {
-    config.to_json(j);
-}
-
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpSyncConfig& config) {
     config.from_json(j);
 }
 

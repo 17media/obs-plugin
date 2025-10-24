@@ -36,13 +36,10 @@ OneSevenMultiRtmpConfigManager::~OneSevenMultiRtmpConfigManager() {
 }
 
 bool OneSevenMultiRtmpConfigManager::loadConfiguration() {
-    std::lock_guard<std::mutex> lock(m_configMutex);
     return loadConfigurationInternal();
 }
 
 bool OneSevenMultiRtmpConfigManager::saveConfiguration() {
-    std::lock_guard<std::mutex> lock(m_configMutex);
-    
     m_globalConfig.updateLastModified();
     
     if (!writeConfigToFile(m_globalConfig)) {
@@ -70,35 +67,28 @@ bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConf
     
     OneSevenMultiRtmpConfig newConfig = config;
     
-    // Critical section - hold lock only for data modification
-    {
-        std::lock_guard<std::mutex> lock(m_configMutex);
-        
-        // Check if stream already exists
-        if (m_globalConfig.findStream(config.id) != nullptr) {
-            MULTI_RTMP_CONFIG_LOG_ERROR("Stream with ID already exists: %s", config.id.c_str());
-            return false;
-        }
-        
-        MULTI_RTMP_CONFIG_LOG_DEBUG("Adding stream to global config");
-        
-        // Add timestamps
-        std::string timestamp = getCurrentTimestamp();
-        newConfig.createdAt = timestamp;
-        newConfig.updatedAt = timestamp;
-        
-        // Add to global config
-        m_globalConfig.streams.push_back(newConfig);
-        
-        MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration added: %s (%s)", 
-                                   newConfig.streamName.c_str(), newConfig.id.c_str());
+    // Check if stream already exists
+    if (m_globalConfig.findStream(config.id) != nullptr) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Stream with ID already exists: %s", config.id.c_str());
+        return false;
     }
-    // Lock released here
     
-    // Save configuration outside of lock
+    MULTI_RTMP_CONFIG_LOG_DEBUG("Adding stream to global config");
+    
+    // Add timestamps
+    std::string timestamp = getCurrentTimestamp();
+    newConfig.createdAt = timestamp;
+    newConfig.updatedAt = timestamp;
+    
+    // Add to global config
+    m_globalConfig.streams.push_back(newConfig);
+    
+    MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration added: %s (%s)", 
+                               newConfig.streamName.c_str(), newConfig.id.c_str());
+    
+    // Save configuration
     if (!saveConfigurationInternal()) {
         // Rollback: remove the added stream
-        std::lock_guard<std::mutex> lock(m_configMutex);
         auto it = std::find_if(m_globalConfig.streams.begin(), m_globalConfig.streams.end(),
                                [&config](const OneSevenMultiRtmpConfig& stream) {
                                    return stream.id == config.id;
@@ -110,7 +100,7 @@ bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConf
         return false;
     }
     
-    // Notify callback outside of lock to prevent deadlock
+    // Notify callback
     notifyConfigChange(newConfig.id, newConfig);
     
     MULTI_RTMP_CONFIG_LOG_DEBUG("Stream configuration added and saved successfully");
@@ -121,47 +111,40 @@ bool OneSevenMultiRtmpConfigManager::removeStreamConfig(const std::string& strea
     OneSevenMultiRtmpConfig removedConfig;
     bool found = false;
     
-    // Critical section - hold lock only for data modification
-    {
-        std::lock_guard<std::mutex> lock(m_configMutex);
-        
-        // Find and store the config before removal for potential rollback
-        auto* configToRemove = m_globalConfig.findStream(streamId);
-        if (!configToRemove) {
-            MULTI_RTMP_CONFIG_LOG_ERROR("Stream with ID %s not found", streamId.c_str());
-            return false;
-        }
-        
-        removedConfig = *configToRemove;
-        found = true;
-        
-        // Remove from global config
-        auto it = std::find_if(m_globalConfig.streams.begin(), m_globalConfig.streams.end(),
-                               [&streamId](const OneSevenMultiRtmpConfig& stream) {
-                                   return stream.id == streamId;
-                               });
-        if (it != m_globalConfig.streams.end()) {
-            m_globalConfig.streams.erase(it);
-        }
-
-        MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration removed: %s", streamId.c_str());
+    // Find and store the config before removal for potential rollback
+    auto* configToRemove = m_globalConfig.findStream(streamId);
+    if (!configToRemove) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Stream with ID %s not found", streamId.c_str());
+        return false;
     }
-    // Lock released here
+    
+    removedConfig = *configToRemove;
+    found = true;
+    
+    // Remove from global config
+    auto it = std::find_if(m_globalConfig.streams.begin(), m_globalConfig.streams.end(),
+                           [&streamId](const OneSevenMultiRtmpConfig& stream) {
+                               return stream.id == streamId;
+                           });
+    if (it != m_globalConfig.streams.end()) {
+        m_globalConfig.streams.erase(it);
+    }
+
+    MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration removed: %s", streamId.c_str());
     
     if (!found) {
         return false;
     }
     
-    // Save configuration outside of lock
+    // Save configuration
     if (!saveConfigurationInternal()) {
         // Rollback: restore the removed stream
-        std::lock_guard<std::mutex> lock(m_configMutex);
         m_globalConfig.streams.push_back(removedConfig);
         MULTI_RTMP_CONFIG_LOG_ERROR("Failed to save configuration, rolled back stream removal");
         return false;
     }
     
-    // Notify callback outside of lock to prevent deadlock
+    // Notify callback
     notifyConfigDelete(streamId);
     
     return true;
@@ -180,40 +163,33 @@ bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& strea
     OneSevenMultiRtmpConfig originalConfig;
     bool found = false;
     
-    // Critical section - hold lock only for data modification
-    {
-        std::lock_guard<std::mutex> lock(m_configMutex);
-        
-        auto* existingConfig = m_globalConfig.findStream(streamId);
-        if (!existingConfig) {
-            MULTI_RTMP_CONFIG_LOG_ERROR("Stream configuration not found for update: %s", streamId.c_str());
-            return false;
-        }
-        
-        // Store original config for potential rollback
-        originalConfig = *existingConfig;
-        found = true;
-        
-        // Update timestamps
-        updatedConfig.createdAt = existingConfig->createdAt; // Keep original creation time
-        updatedConfig.updatedAt = getCurrentTimestamp();
-        
-        // Update the configuration
-        *existingConfig = updatedConfig;
-        
-        MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration updated: %s (%s)", 
-                                   updatedConfig.streamName.c_str(), streamId.c_str());
+    auto* existingConfig = m_globalConfig.findStream(streamId);
+    if (!existingConfig) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Stream configuration not found for update: %s", streamId.c_str());
+        return false;
     }
-    // Lock released here
+    
+    // Store original config for potential rollback
+    originalConfig = *existingConfig;
+    found = true;
+    
+    // Update timestamps
+    updatedConfig.createdAt = existingConfig->createdAt; // Keep original creation time
+    updatedConfig.updatedAt = getCurrentTimestamp();
+    
+    // Update the configuration
+    *existingConfig = updatedConfig;
+    
+    MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration updated: %s (%s)", 
+                               updatedConfig.streamName.c_str(), streamId.c_str());
     
     if (!found) {
         return false;
     }
     
-    // Save configuration outside of lock
+    // Save configuration
     if (!saveConfigurationInternal()) {
         // Rollback: restore original configuration
-        std::lock_guard<std::mutex> lock(m_configMutex);
         auto* configToRestore = m_globalConfig.findStream(streamId);
         if (configToRestore) {
             *configToRestore = originalConfig;
@@ -222,7 +198,7 @@ bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& strea
         return false;
     }
     
-    // Notify callback outside of lock to prevent deadlock
+    // Notify callback
     notifyConfigChange(streamId, updatedConfig);
     
     MULTI_RTMP_CONFIG_LOG_DEBUG("Stream configuration updated and saved successfully");
@@ -230,13 +206,10 @@ bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& strea
 }
 
 std::vector<OneSevenMultiRtmpConfig> OneSevenMultiRtmpConfigManager::getStreamConfigs() const {
-    std::lock_guard<std::mutex> lock(m_configMutex);
     return m_globalConfig.streams;
 }
 
 OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigManager::getStreamConfig(const std::string& streamId) const {
-    std::lock_guard<std::mutex> lock(m_configMutex);
-    
     const auto* config = m_globalConfig.findStream(streamId);
     if (config) {
         return *config;
@@ -247,7 +220,6 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigManager::getStreamConfig(const st
 }
 
 bool OneSevenMultiRtmpConfigManager::hasStreamConfig(const std::string& streamId) const {
-    std::lock_guard<std::mutex> lock(m_configMutex);
     return m_globalConfig.findStream(streamId) != nullptr;
 }
 
@@ -300,13 +272,10 @@ std::string OneSevenMultiRtmpConfigManager::getCurrentTimestamp() const {
 }
 
 size_t OneSevenMultiRtmpConfigManager::getStreamCount() const {
-    std::lock_guard<std::mutex> lock(m_configMutex);
     return m_globalConfig.streams.size();
 }
 
 std::vector<std::string> OneSevenMultiRtmpConfigManager::getStreamIds() const {
-    std::lock_guard<std::mutex> lock(m_configMutex);
-    
     std::vector<std::string> ids;
     ids.reserve(m_globalConfig.streams.size());
     
@@ -326,8 +295,6 @@ void OneSevenMultiRtmpConfigManager::setConfigDeleteCallback(ConfigDeleteCallbac
 }
 
 bool OneSevenMultiRtmpConfigManager::createBackup() const {
-    std::lock_guard<std::mutex> lock(m_configMutex);
-    
     std::string timestamp = getCurrentTimestamp();
     std::replace(timestamp.begin(), timestamp.end(), ':', '-');
     std::string backupPath = getBackupFilePath(timestamp);
@@ -457,16 +424,6 @@ void OneSevenMultiRtmpConfigManager::notifyConfigDelete(const std::string& strea
 }
 
 bool OneSevenMultiRtmpConfigManager::saveConfigurationInternal() {
-    // This method can be called without holding the mutex
-    // It will acquire its own lock for thread safety
-    std::lock_guard<std::mutex> lock(m_configMutex);
-    return saveConfigurationInternalLocked();
-}
-
-bool OneSevenMultiRtmpConfigManager::saveConfigurationInternalLocked() {
-    // This method assumes the mutex is already locked by the caller
-    m_globalConfig.updateLastModified();
-    
     if (!writeConfigToFile(m_globalConfig)) {
         MULTI_RTMP_CONFIG_LOG_ERROR("Failed to save configuration to file: %s", m_configFilePath.c_str());
         return false;
@@ -477,12 +434,10 @@ bool OneSevenMultiRtmpConfigManager::saveConfigurationInternalLocked() {
 }
 
 bool OneSevenMultiRtmpConfigManager::loadConfigurationInternal() {
-    // This method assumes the mutex is already locked by the caller
     if (!std::filesystem::exists(m_configFilePath)) {
         MULTI_RTMP_CONFIG_LOG_INFO("Configuration file does not exist, creating new one");
         m_globalConfig = OneSevenMultiRtmpGlobalConfig();
-        m_globalConfig.updateLastModified();
-        return saveConfigurationInternal(); // Use internal method to avoid deadlock
+        return saveConfigurationInternal();
     }
 
     if (!readConfigFromFile(m_globalConfig)) {
