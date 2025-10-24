@@ -19,7 +19,7 @@ struct OneSevenMultiRtmpVideoConfig {
     std::string id;
     std::string encoderId;
     int fpsDenominator = 1;
-    json encoderSettings;
+    nlohmann::json encoderSettings;
     
     std::string outputScene;
     std::string resolution;
@@ -41,7 +41,7 @@ struct AudioTrackConfig {
 struct OneSevenMultiRtmpAudioConfig {
     std::string id;
     std::string encoderId;
-    json encoderSettings;
+    nlohmann::json encoderSettings;
     int mixerId = 0;
     std::vector<AudioTrackConfig> audioTracks;
 
