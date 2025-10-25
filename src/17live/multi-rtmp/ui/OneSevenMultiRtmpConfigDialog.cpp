@@ -6,6 +6,8 @@
 #include <QUuid>
 #include <QScrollArea>
 
+#include <obs-frontend-api.h>
+
 #include "../../ui/OneSevenLivePropertiesWidget.hpp"
 
 #include "moc_OneSevenMultiRtmpConfigDialog.cpp"
@@ -15,8 +17,6 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
     , m_config(config)
     , m_mainLayout(nullptr)
     , m_tabWidget(nullptr)
-    , m_validationTimer(nullptr)
-    , m_validationLabel(nullptr)
     , m_isEditMode(config != nullptr)
     , m_advancedExpanded(false)
 {
@@ -92,7 +92,6 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
     
     setupUI();
     setupConnections();
-    setupValidation();
     
     // Load configuration if provided
     if (m_config) {
@@ -226,6 +225,11 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
 
     m_serviceWidget = new OneSevenLivePropertiesWidget(this, settings, props);
     obs_service_release(service);
+
+    m_syncStartCheckbox = new QCheckBox();
+    m_syncStartCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStart"));
+    m_syncStopCheckbox = new QCheckBox();
+    m_syncStopCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStop"));
     
     // Apply dark theme styling to basic info section
     m_basicInfoWidget->setStyleSheet(
@@ -356,129 +360,6 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     m_outputLayout->setLabelAlignment(Qt::AlignLeft);
     m_outputLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
-    // Encoder type
-    m_encoderTypeCombo = new QComboBox();
-    m_encoderTypeCombo->setStyleSheet(
-        "QComboBox { "
-        "  background-color: #3c3c3c; "
-        "  color: white; "
-        "  border: 1px solid #555; "
-        "  border-radius: 4px; "
-        "  padding: 8px; "
-        "  min-height: 20px; "
-        "  min-width: 100px; "
-        "} "
-        "QComboBox:focus { "
-        "  border-color: #007AFF; "
-        "} "
-        "QComboBox::drop-down { "
-        "  border: none; "
-        "  width: 20px; "
-        "} "
-        "QComboBox::down-arrow { "
-        "  image: none; "
-        "  border-left: 5px solid transparent; "
-        "  border-right: 5px solid transparent; "
-        "  border-top: 5px solid white; "
-        "  margin-right: 5px; "
-        "} "
-        "QComboBox QAbstractItemView { "
-        "  background-color: #3c3c3c; "
-        "  color: white; "
-        "  border: 1px solid #555; "
-        "  selection-background-color: #007AFF; "
-        "}"
-    );
-    m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.EncoderType"), m_encoderTypeCombo);
-    
-    // // Share encoder
-    // m_shareEncoderCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Output.ShareEncoder"));
-    // m_shareEncoderCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
-    // m_shareEncoderCheck->setToolTip(obs_module_text("MultiRtmp.Config.Output.ShareEncoder.Tooltip"));
-    // m_outputLayout->addRow("", m_shareEncoderCheck);
-    
-    // // Video bitrate
-    // m_videoBitrateSpin = new QSpinBox();
-    // m_videoBitrateSpin->setRange(100, 50000);
-    // m_videoBitrateSpin->setValue(2500);
-    // m_videoBitrateSpin->setSuffix(" kbps");
-    // m_videoBitrateSpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    // m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.VideoBitrate"), m_videoBitrateSpin);
-    
-    // // Audio bitrate
-    // m_audioBitrateSpin = new QSpinBox();
-    // m_audioBitrateSpin->setRange(64, 320);
-    // m_audioBitrateSpin->setValue(128);
-    // m_audioBitrateSpin->setSuffix(" kbps");
-    // m_audioBitrateSpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    // m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.AudioBitrate"), m_audioBitrateSpin);
-    
-    // // Output mode
-    // m_outputModeCombo = new QComboBox();
-    // m_outputModeCombo->addItems({obs_module_text("MultiRtmp.Config.Output.OutputMode.Simple"), obs_module_text("MultiRtmp.Config.Output.OutputMode.Advanced")});
-    // m_outputModeCombo->setStyleSheet(
-    //     "QComboBox { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  border-radius: 4px; "
-    //     "  padding: 8px; "
-    //     "  min-height: 20px; "
-    //     "  min-width: 100px; "
-    //     "} "
-    //     "QComboBox:focus { "
-    //     "  border-color: #007AFF; "
-    //     "} "
-    //     "QComboBox::drop-down { "
-    //     "  border: none; "
-    //     "  width: 20px; "
-    //     "} "
-    //     "QComboBox::down-arrow { "
-    //     "  image: none; "
-    //     "  border-left: 5px solid transparent; "
-    //     "  border-right: 5px solid transparent; "
-    //     "  border-top: 5px solid white; "
-    //     "  margin-right: 5px; "
-    //     "} "
-    //     "QComboBox QAbstractItemView { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  selection-background-color: #007AFF; "
-    //     "}"
-    // );
-    // m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.OutputMode"), m_outputModeCombo);
-    
-    // // Reconnect settings
-    // m_enableReconnectCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Output.EnableReconnect"));
-    // m_enableReconnectCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
-    // m_outputLayout->addRow("", m_enableReconnectCheck);
-    
-    // m_maxRetriesSpin = new QSpinBox();
-    // m_maxRetriesSpin->setRange(0, 100);
-    // m_maxRetriesSpin->setValue(5);
-    // m_maxRetriesSpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    // m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.MaxRetries"), m_maxRetriesSpin);
-    
-    // m_retryDelaySpin = new QSpinBox();
-    // m_retryDelaySpin->setRange(1, 60);
-    // m_retryDelaySpin->setValue(5);
-    // m_retryDelaySpin->setSuffix(" sec");
-    // m_retryDelaySpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    // m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.RetryDelay"), m_retryDelaySpin);
-    
-    // // Apply dark theme to output tab
-    // m_outputTab->setStyleSheet(
-    //     "QWidget { "
-    //     "  background-color: #1e1e1e; "
-    //     "  color: white; "
-    //     "} "
-    //     "QLabel { "
-    //     "  color: white; "
-    //     "  font-weight: bold; "
-    //     "}"
-    // );
-
     auto protocol_info = findProtocol("rtmp");
 
     obs_data_t *output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
@@ -616,10 +497,6 @@ void OneSevenMultiRtmpConfigDialog::setupButtonBox()
 
 void OneSevenMultiRtmpConfigDialog::setupConnections()
 {
-    // Basic info
-    connect(m_streamNameEdit, &QLineEdit::textChanged,
-            this, [this]() { m_validationTimer->start(); });
-
     // Advanced settings toggle
     connect(m_advancedButton, &QPushButton::clicked,
             this, &OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled);
@@ -627,23 +504,6 @@ void OneSevenMultiRtmpConfigDialog::setupConnections()
     // Buttons
     connect(m_okButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::accept);
     connect(m_cancelButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::reject);
-}
-
-void OneSevenMultiRtmpConfigDialog::setupValidation()
-{
-    m_validationTimer = new QTimer(this);
-    m_validationTimer->setSingleShot(true);
-    m_validationTimer->setInterval(500);
-    connect(m_validationTimer, &QTimer::timeout, this, &OneSevenMultiRtmpConfigDialog::onValidationTimer);
-
-    // Validation triggers
-    connect(m_streamNameEdit, &QLineEdit::textChanged,
-            this, [this]() { m_validationTimer->start(); });
-
-    if (!m_isEditMode) {
-        m_validationLabel->setVisible(false);
-        m_okButton->setEnabled(true);
-    }
 }
 
 void OneSevenMultiRtmpConfigDialog::resetToDefaults()
@@ -659,11 +519,8 @@ void OneSevenMultiRtmpConfigDialog::setEditMode(bool isEdit)
 
 void OneSevenMultiRtmpConfigDialog::accept()
 {
-    if (validateConfiguration()) {
-        QDialog::accept();
-    } else {
-        showValidationErrors();
-    }
+    SaveConfig();
+    QDialog::accept();
 }
 
 void OneSevenMultiRtmpConfigDialog::reject()
@@ -693,51 +550,6 @@ void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled()
     resize(width(), sizeHint().height());
 }
 
-void OneSevenMultiRtmpConfigDialog::onValidationTimer()
-{
-    validateConfiguration();
-}
-
-// Service fields update removed - service selection integrated into basic info section
-
-
-
-
-
-
-bool OneSevenMultiRtmpConfigDialog::validateConfiguration()
-{
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] validateConfiguration called");
-    
-    // Build configuration from UI to perform full validation
-    auto config = SaveConfig();
-    
-    // Log configuration details for debugging
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Stream name: '%s'", config.streamName.c_str());
-    
-    // TODO: Perform full validation using the model's validation logic
-    {
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Configuration validation passed");
-        m_validationLabel->setVisible(false);
-        m_okButton->setEnabled(true);
-        return true;
-    }
-    
-    return false;
-}
-
-void OneSevenMultiRtmpConfigDialog::showValidationErrors()
-{
-//    auto config = SaveConfig();
-//    QString error = QString::fromStdString(config.getValidationError());
-//    
-//    QMessageBox::warning(this,
-//        obs_module_text("MultiRTMP.Config.Validation.Title"),
-//        error);
-}
-
-// Connection test functionality removed - service tab functionality integrated into basic info section
-
 void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig& config)
 {
     m_streamNameEdit->setText(QString::fromStdString(config.streamName));
@@ -759,7 +571,7 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
     
     // Auto-generate UUID for new streams, keep original ID if editing
     if (m_isEditMode) {
-        config.id = m_originalConfig.id;
+        config.id = m_originalConfig->id;
         obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Edit mode: using existing ID: %s", config.id.c_str());
     } else {
         // Auto-generate UUID for new streams
@@ -773,30 +585,124 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
     config.syncStart = m_syncStartCheckbox->isChecked();
     config.syncStop = m_syncStopCheckbox->isChecked();
 
-    config.serviceSettings = m_serviceSettingsWidget->SaveData();
+    config.serviceSettings = m_serviceWidget->SaveData();
     
     // Output configuration
-    config.outputSettings = m_outputSettingsWidget->SaveData();
+    config.outputSettings = m_outputWidget->SaveData();
 
     // Video configuration
-    if (!m_useOBSVideoCheck->isChecked()) { 
-        config.encoderId = m_encoderCombo->currentData().toString().toStdString();
-        config.resolution = m_resolutionCombo->currentText().toStdString();
-        config.fpsDenominator = m_fpsDenominatorCombo->currentText().toInt();
-        config.outputScene = m_outputSceneCombo->currentText().toStdString();
-
-        config.encoderSettings = m_videoSettingsWidget->SaveData();
+    if (!m_useOBSVideoCheck->isChecked()) {
+        OneSevenMultiRtmpVideoConfig vcfg;
+        if (m_videoEncoderCombo)
+            vcfg.encoderId = m_videoEncoderCombo->currentData().toString().toStdString();
+        if (m_videoResolutionCombo)
+            vcfg.resolution = m_videoResolutionCombo->currentText().toStdString();
+        if (m_fpsDenominatorCombo)
+            vcfg.fpsDenominator = m_fpsDenominatorCombo->currentText().toInt();
+        if (m_outputSceneCombo) {
+            const QVariant data = m_outputSceneCombo->currentData();
+            vcfg.outputScene = data.isValid() ? data.toString().toStdString()
+                                              : m_outputSceneCombo->currentText().toStdString();
+        }
+        vcfg.encoderSettings = m_videoWidget->SaveData();
+        config.videoConfig = vcfg;
+    } else {
+        config.videoConfig.reset();
     }
     
     // Audio configuration
     if (!m_useOBSAudioCheck->isChecked()) {
-        config.encoderId = m_audioEncoderCombo->currentData().toString().toStdString();
-        config.encoderSettings = m_audioSettingsWidget->SaveData();
-
+        OneSevenMultiRtmpAudioConfig acfg;
+        if (m_audioEncoderCombo)
+            acfg.encoderId = m_audioEncoderCombo->currentData().toString().toStdString();
+        acfg.encoderSettings = m_audioWidget->SaveData();
+        config.audioConfig = acfg;
         // TODO: track audio settings
+    } else {
+        config.audioConfig.reset();
     }
     
     
     return config;
 }
 
+
+void OneSevenMultiRtmpConfigDialog::loadScenes()
+{
+    if (!m_outputSceneCombo)
+        return;
+
+    m_outputSceneCombo->clear();
+    m_outputSceneCombo->addItem(obs_module_text("MultiRtmp.Config.Video.UseOBS"), "");
+
+    using EnumParam = std::vector<std::string>;
+    EnumParam scenes;
+
+    obs_enum_scenes([](void *p, obs_source_t *src) {
+        auto *list = static_cast<EnumParam *>(p);
+        const char *name = obs_source_get_name(src);
+        if (name && *name)
+            list->emplace_back(name);
+        return true;
+    }, &scenes);
+
+    for (const auto &name : scenes) {
+        m_outputSceneCombo->addItem(name.c_str(), name.c_str());
+    }
+}
+
+void OneSevenMultiRtmpConfigDialog::loadEncoders()
+{
+    auto ui_text = [](const std::string &id) {
+        const char *dn = obs_encoder_get_display_name(id.c_str());
+        if (!dn)
+            dn = id.c_str();
+        return std::string(dn) + " [" + id + "]";
+    };
+
+    // Query current OBS outputs to provide "SameAsOBS" placeholders
+    const char *streamingVideoId = nullptr;
+    const char *streamingAudioId = nullptr;
+    
+    if (obs_output_t *streaming = obs_frontend_get_streaming_output()) {
+        if (obs_encoder_t *ve = obs_output_get_video_encoder(streaming))
+            streamingVideoId = obs_encoder_get_id(ve);
+        if (obs_encoder_t *ae = obs_output_get_audio_encoder(streaming, 0))
+            streamingAudioId = obs_encoder_get_id(ae);
+        obs_output_release(streaming);
+    }
+
+    // Video encoders
+    if (m_videoEncoderCombo) {
+        QVariant old = m_videoEncoderCombo->currentData();
+        m_videoEncoderCombo->clear();
+        m_videoEncoderCombo->addItem(obs_module_text("MultiRtmp.Config.Video.UseOBS"),
+                                     streamingVideoId ? streamingVideoId : "");
+        
+        // Minimal known video encoders; extend if needed
+        const std::vector<const char *> videoIds = {""};
+        for (const char *id : videoIds) {
+            m_videoEncoderCombo->addItem(ui_text(id).c_str(), id);
+        }
+        int idx = m_videoEncoderCombo->findData(old);
+        if (idx >= 0)
+            m_videoEncoderCombo->setCurrentIndex(idx);
+    }
+
+    // Audio encoders
+    if (m_audioEncoderCombo) {
+        QVariant old = m_audioEncoderCombo->currentData();
+        m_audioEncoderCombo->clear();
+        m_audioEncoderCombo->addItem(obs_module_text("MultiRtmp.Config.Video.UseOBS"),
+                                     streamingAudioId ? streamingAudioId : "");
+        
+        // Minimal known audio encoders; extend if needed
+        const std::vector<const char *> audioIds = {""};
+        for (const char *id : audioIds) {
+            m_audioEncoderCombo->addItem(ui_text(id).c_str(), id);
+        }
+        int idx = m_audioEncoderCombo->findData(old);
+        if (idx >= 0)
+            m_audioEncoderCombo->setCurrentIndex(idx);
+    }
+}

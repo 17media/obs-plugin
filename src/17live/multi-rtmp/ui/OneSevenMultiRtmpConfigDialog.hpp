@@ -51,7 +51,6 @@ public slots:
     void reject() override;
 
 private slots:
-    void onValidationTimer();
     void onAdvancedSettingsToggled();
 
 private:
@@ -65,14 +64,6 @@ private:
     void setupButtonBox();
     
     void setupConnections();
-    void setupValidation();
-    
-
-    
-
-    
-    bool validateConfiguration();
-    void showValidationErrors();
     
     void loadConfigToUI(const OneSevenMultiRtmpConfig& config);
 
@@ -93,14 +84,17 @@ private:
     QLineEdit* m_streamNameEdit;
     QComboBox* m_protocolCombo;
     OneSevenLivePropertiesWidget *m_serviceWidget;
+    QCheckBox* m_syncStartCheckbox;
+    QCheckBox* m_syncStopCheckbox;
 
-    
     // Advanced settings section
     QPushButton* m_advancedButton;
     QWidget* m_advancedWidget;
     bool m_advancedExpanded;
     
     // Output tab
+    QWidget* m_outputTab;
+    QFormLayout* m_outputLayout;
     OneSevenLivePropertiesWidget *m_outputWidget;
     
     // Video tab
@@ -111,12 +105,14 @@ private:
     QComboBox* m_videoResolutionCombo;
     QComboBox* m_fpsDenominatorCombo;
     QComboBox* m_outputSceneCombo;
+    OneSevenLivePropertiesWidget *m_videoWidget;
     
     // Audio tab
     QWidget* m_audioTab;
     QFormLayout* m_audioLayout;
     QCheckBox* m_useOBSAudioCheck;
     QComboBox* m_audioEncoderCombo;
+    OneSevenLivePropertiesWidget *m_audioWidget;
     
     
     // Button box

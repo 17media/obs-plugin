@@ -435,7 +435,7 @@ void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& conf
     
     // Show dialog and handle result
     if (m_configDialog->exec() == QDialog::Accepted) {
-        auto newConfig = m_configDialog->buildConfigFromUI();
+        auto newConfig = m_configDialog->SaveConfig();
         
         // Add detailed logging for configuration data
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Configuration dialog accepted");

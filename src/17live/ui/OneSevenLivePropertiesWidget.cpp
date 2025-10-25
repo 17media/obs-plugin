@@ -104,10 +104,14 @@ void OneSevenLivePropertiesWidget::loadProperties() {
 }
 
 nlohmann::json OneSevenLivePropertiesWidget::SaveData() {
-    nlohmann::json j;
-    for(auto& x: m_propertyWidgets)
-    {
-        j[x.first] = x.second->SaveData();
+    obs_data_apply(m_origSettings, m_settings);
+
+    auto jsonstr = obs_data_get_json(m_settings);
+    if (!jsonstr)
+        return {};
+    try {
+        return nlohmann::json::parse(jsonstr);
+    } catch (const nlohmann::json::parse_error& e) {
+        return {};
     }
-    return j;
 }
