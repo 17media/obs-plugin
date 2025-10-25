@@ -34,10 +34,6 @@ public:
     OneSevenMultiRtmpConfig getStreamConfig(const std::string& streamId) const;
     bool hasStreamConfig(const std::string& streamId) const;
 
-    // Validation
-    bool validateStreamConfig(const OneSevenMultiRtmpConfig& config) const;
-    std::string getValidationError(const OneSevenMultiRtmpConfig& config) const;
-
     // Utility methods
     std::string generateStreamId() const;
     std::string getCurrentTimestamp() const;

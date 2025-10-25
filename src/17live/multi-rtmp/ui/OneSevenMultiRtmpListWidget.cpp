@@ -92,8 +92,6 @@ void OneSevenMultiRtmpListWidget::addStream(const OneSevenMultiRtmpConfig& confi
             this, &OneSevenMultiRtmpListWidget::onStreamItemEditClicked);
     connect(streamItem, &OneSevenMultiRtmpStreamItem::deleteRequested,
             this, &OneSevenMultiRtmpListWidget::onStreamItemDeleteClicked);
-    connect(streamItem, &OneSevenMultiRtmpStreamItem::duplicateRequested,
-            this, &OneSevenMultiRtmpListWidget::onStreamItemDuplicateClicked);
     
     // Add to layout (before stretch)
     int insertIndex = m_streamLayout->count() - 1; // Before stretch

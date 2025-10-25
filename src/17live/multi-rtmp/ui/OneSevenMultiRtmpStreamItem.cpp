@@ -149,14 +149,6 @@ void OneSevenMultiRtmpStreamItem::setupContextMenu()
 {
     m_contextMenu = new QMenu(this);
     
-    m_duplicateAction = m_contextMenu->addAction(
-        QApplication::style()->standardIcon(QStyle::SP_FileIcon),
-        obs_module_text("MultiRTMP.Duplicate")
-    );
-    connect(m_duplicateAction, &QAction::triggered, this, &OneSevenMultiRtmpStreamItem::onDuplicateAction);
-    
-    m_contextMenu->addSeparator();
-    
     m_deleteAction = m_contextMenu->addAction(
         QApplication::style()->standardIcon(QStyle::SP_TrashIcon),
         obs_module_text("MultiRTMP.Delete")
@@ -249,15 +241,6 @@ void OneSevenMultiRtmpStreamItem::updateUI()
     // Update basic info
     if (m_nameLabel) {
         m_nameLabel->setText(QString::fromStdString(m_config.streamName));
-    }
-    
-    // Only update URL label if it exists (it's currently set to nullptr in setupUI)
-    if (m_urlLabel) {
-        QString url = QString::fromStdString(m_config.service.serverUrl);
-        if (url.length() > 40) {
-            url = url.left(37) + "...";
-        }
-        m_urlLabel->setText(url);
     }
     
     updateStatusDisplay();

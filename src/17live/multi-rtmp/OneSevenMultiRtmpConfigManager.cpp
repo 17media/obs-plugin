@@ -57,12 +57,6 @@ bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConf
 {
     MULTI_RTMP_CONFIG_LOG_DEBUG("addStreamConfig called for stream ID: %s", config.id.c_str());
     
-    if (!validateStreamConfig(config)) {
-        std::string error = getValidationError(config);
-        MULTI_RTMP_CONFIG_LOG_ERROR("Configuration validation failed: %s", error.c_str());
-        return false;
-    }
-    
     OneSevenMultiRtmpConfig newConfig = config;
     
     // Check if stream already exists
@@ -145,12 +139,6 @@ bool OneSevenMultiRtmpConfigManager::removeStreamConfig(const std::string& strea
 
 bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
     MULTI_RTMP_CONFIG_LOG_DEBUG("updateStreamConfig called for stream ID: %s", streamId.c_str());
-    
-    if (!validateStreamConfig(config)) {
-        std::string error = getValidationError(config);
-        MULTI_RTMP_CONFIG_LOG_ERROR("Configuration validation failed: %s", error.c_str());
-        return false;
-    }
     
     OneSevenMultiRtmpConfig updatedConfig = config;
     OneSevenMultiRtmpConfig originalConfig;

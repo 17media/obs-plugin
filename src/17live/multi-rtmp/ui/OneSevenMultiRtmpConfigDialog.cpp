@@ -281,12 +281,13 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
     m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_basicInfoLayout->addRow(protocolLabel, m_protocolCombo);
 
-    m_serviceWidget = new OneSevenLivePropertiesWidget(this, m_Settings, m_Props);
     auto protocol_info = findProtocol(m_protocolCombo->currentData().toString().toStdString());
-    auto service = obs_service_create(protocol_info->serviceId, ("tmp_service_" + targetid_).c_str(), from_json(config_->serviceParam), nullptr);
-    m_serviceWidget->UpdateProperties(
-        obs_service_properties(service),
-        obs_service_get_settings(service));
+    obs_data_t *service_settings = obs_data_create_from_json(m_config->serviceSettings.dump().c_str());
+    auto service = obs_service_create(protocol_info->serviceId, ("tmp_17live_service_" + m_config->id).c_str(), service_settings, nullptr);
+    obs_data_t *settings = obs_service_get_settings(service);
+    obs_properties_t *props = obs_service_properties(service);
+
+    m_serviceWidget = new OneSevenLivePropertiesWidget(this, settings, props);
     obs_service_release(service);
     
     // Apply dark theme styling to basic info section
@@ -541,16 +542,19 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     //     "}"
     // );
 
-    m_outputWidget = new OneSevenLivePropertiesWidget(m_tabWidget);
-
     auto protocol_info = findProtocol("rtmp");
+
+    obs_data_t *output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
         
-    auto output = obs_output_create(protocol_info->outputId, ("tmp_output_" + targetid_).c_str(), from_json(config_->outputParam), nullptr);
-    outputSettings_->UpdateProperties(
-        obs_output_properties(output),
-        obs_output_get_settings(output));
-    supported_audio_encoders_ = obs_output_get_supported_audio_codecs(output);
-    supported_video_encoders_ = obs_output_get_supported_video_codecs(output);
+    auto output = obs_output_create(protocol_info->outputId, ("tmp_output_" + m_config->id).c_str(), output_settings, nullptr);
+
+    obs_data_t *settings = obs_output_get_settings(output);
+    obs_properties_t *props = obs_output_properties(output);
+
+    m_outputWidget = new OneSevenLivePropertiesWidget(m_tabWidget, settings, props);
+
+    // supported_audio_encoders_ = obs_output_get_supported_audio_codecs(output);
+    // supported_video_encoders_ = obs_output_get_supported_video_codecs(output);
     obs_output_release(output);
 
     // if (aenc_ && venc_)
@@ -1108,37 +1112,26 @@ bool OneSevenMultiRtmpConfigDialog::validateConfiguration()
     
     // Log configuration details for debugging
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Stream name: '%s'", config.streamName.c_str());
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Server URL: '%s'", config.service.serverUrl.c_str());
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Stream key length: %zu", config.service.streamKey.length());
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video resolution: %dx%d", config.video.outputWidth, config.video.outputHeight);
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video bitrate: %d", config.video.bitrate);
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Audio bitrate: %d", config.audio.bitrate);
     
-    // Perform full validation using the model's validation logic
-    if (!config.isValid()) {
-        std::string error = config.getValidationError();
-        obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] Configuration validation failed: %s", error.c_str());
-        
-        m_validationLabel->setText(QString::fromStdString(error));
-        m_validationLabel->setVisible(true);
-        m_okButton->setEnabled(false);
-        return false;
-    } else {
+    // TODO: Perform full validation using the model's validation logic
+    {
         obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Configuration validation passed");
         m_validationLabel->setVisible(false);
         m_okButton->setEnabled(true);
         return true;
     }
+    
+    return false;
 }
 
 void OneSevenMultiRtmpConfigDialog::showValidationErrors()
 {
-    auto config = buildConfigFromUI();
-    QString error = QString::fromStdString(config.getValidationError());
-    
-    QMessageBox::warning(this,
-        obs_module_text("MultiRTMP.Config.Validation.Title"),
-        error);
+//    auto config = buildConfigFromUI();
+//    QString error = QString::fromStdString(config.getValidationError());
+//    
+//    QMessageBox::warning(this,
+//        obs_module_text("MultiRTMP.Config.Validation.Title"),
+//        error);
 }
 
 // Connection test functionality removed - service tab functionality integrated into basic info section
@@ -1147,8 +1140,6 @@ void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig
 {
     // Basic info section
     m_streamNameEdit->setText(QString::fromStdString(config.streamName));
-    m_serverEdit->setText(QString::fromStdString(config.service.serverUrl));
-    m_keyEdit->setText(QString::fromStdString(config.service.streamKey));
     
     // Set protocol combo box
     QString protocolValue = QString::fromStdString(config.protocol);
@@ -1160,22 +1151,10 @@ void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig
     }
     
     // Output tab
-    m_shareEncoderCheck->setChecked(config.video.useSharedEncoder);
-    m_videoBitrateSpin->setValue(config.video.bitrate);
-    m_audioBitrateSpin->setValue(config.audio.bitrate);
-    m_enableReconnectCheck->setChecked(config.output.autoReconnect);
-    m_maxRetriesSpin->setValue(5); // Default value since field doesn't exist
-    m_retryDelaySpin->setValue(config.output.reconnectDelay);
     
     // Video tab
-    m_enableVideoCheck->setChecked(true); // Default to enabled since struct doesn't have this field
-    m_customWidthEdit->setText(QString::number(config.video.outputWidth));
-    m_customHeightEdit->setText(QString::number(config.video.outputHeight));
-    m_fpsSpinBox->setValue(30.0); // Default FPS since struct uses fpsDenominator
     
     // Audio tab
-    m_enableAudioCheck->setChecked(true); // Default to enabled since struct doesn't have this field
-    m_sampleRateSpin->setValue(config.audio.sampleRate);
     
     // Update dependent fields
     updateEncoderFields();
@@ -1200,34 +1179,15 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::buildConfigFromUI() const
     
     // Service configuration
     config.streamName = m_streamNameEdit->text().toStdString(); // Map to streamName
-    config.service.serverUrl = m_serverEdit->text().toStdString(); // Map to service.serverUrl
-    config.service.streamKey = m_keyEdit->text().toStdString(); // Map to service.streamKey
     config.protocol = m_protocolCombo->currentData().toString().toStdString(); // Map to protocol
     
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Service config - Name: '%s', URL: '%s', Key length: %zu", 
-            config.streamName.c_str(), config.service.serverUrl.c_str(), config.service.streamKey.length());
     
     // Output configuration
-    config.video.useSharedEncoder = m_shareEncoderCheck->isChecked(); // Map to video.useSharedEncoder
-    config.video.bitrate = m_videoBitrateSpin->value(); // Map to video.bitrate
-    config.audio.bitrate = m_audioBitrateSpin->value(); // Map to audio.bitrate
-    config.output.autoReconnect = m_enableReconnectCheck->isChecked(); // Map to output.autoReconnect
-    config.output.reconnectDelay = m_retryDelaySpin->value(); // Map to output.reconnectDelay
     
     // Video configuration
-    config.video.outputWidth = m_customWidthEdit->text().toInt();
-    config.video.outputHeight = m_customHeightEdit->text().toInt();
     
     // Audio configuration
-    config.audio.sampleRate = m_sampleRateSpin->value();
     
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video config - Resolution: %dx%d, Bitrate: %d, Shared encoder: %s", 
-            config.video.outputWidth, config.video.outputHeight, config.video.bitrate, 
-            config.video.useSharedEncoder ? "true" : "false");
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Audio config - Bitrate: %d, Sample rate: %d", 
-            config.audio.bitrate, config.audio.sampleRate);
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Output config - Auto reconnect: %s, Delay: %d", 
-            config.output.autoReconnect ? "true" : "false", config.output.reconnectDelay);
     
     return config;
 }

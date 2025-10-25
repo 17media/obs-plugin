@@ -55,8 +55,6 @@ public:
 
     // Utility methods
     std::string generateStreamId() const;
-    bool validateStreamConfig(const OneSevenMultiRtmpConfig& config) const;
-    std::string getValidationError(const OneSevenMultiRtmpConfig& config) const;
     size_t getStreamCount() const;
 
     // Configuration file operations

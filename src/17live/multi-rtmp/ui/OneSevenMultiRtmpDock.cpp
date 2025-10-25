@@ -440,11 +440,6 @@ void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& conf
         // Add detailed logging for configuration data
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Configuration dialog accepted");
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Stream name: '%s'", newConfig.streamName.c_str());
-        obs_log(LOG_INFO, "[MultiRTMP-Dock] Server URL: '%s'", newConfig.service.serverUrl.c_str());
-        obs_log(LOG_INFO, "[MultiRTMP-Dock] Stream key length: %zu", newConfig.service.streamKey.length());
-        obs_log(LOG_INFO, "[MultiRTMP-Dock] Video resolution: %dx%d", newConfig.video.outputWidth, newConfig.video.outputHeight);
-        obs_log(LOG_INFO, "[MultiRTMP-Dock] Video bitrate: %d", newConfig.video.bitrate);
-        obs_log(LOG_INFO, "[MultiRTMP-Dock] Audio bitrate: %d", newConfig.audio.bitrate);
         
         if (ensureManagerInitialized()) {
             bool success = false;
@@ -456,17 +451,6 @@ void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& conf
                 // Generate new ID for new stream
                 newConfig.id = m_manager->generateStreamId();
                 obs_log(LOG_INFO, "[MultiRTMP-Dock] Adding new stream config with ID: %s", newConfig.id.c_str());
-                
-                // Validate configuration before adding
-                if (!m_manager->validateStreamConfig(newConfig)) {
-                    std::string validationError = m_manager->getValidationError(newConfig);
-                    obs_log(LOG_ERROR, "[MultiRTMP-Dock] Configuration validation failed: %s", validationError.c_str());
-                    
-                    QMessageBox::warning(this,
-                        getMultiRtmpText("MultiRTMP.Error.Title"),
-                        QString("Configuration validation failed: %1").arg(QString::fromStdString(validationError)));
-                    return;
-                }
                 
                 success = m_manager->addStreamConfig(newConfig);
             }

@@ -52,7 +52,6 @@ private slots:
     void onEditClicked();
     void onDeleteClicked();
     void onMenuRequested();
-    void onDuplicateAction();
     void onDeleteAction();
     void onStatsUpdateTimer();
 
