@@ -1,5 +1,8 @@
 #include "OneSevenMultiRtmpModels.hpp"
 #include <string>
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
 
 static OneSevenLiveProtocol s_protocolList[] = {
     // protocol, label, output_id, service_id
@@ -9,7 +12,6 @@ static OneSevenLiveProtocol s_protocolList[] = {
 // OneSevenMultiRtmpVideoConfig implementation
 void OneSevenMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{
-        {"id", id},
         {"encoderId", encoderId},
         {"fpsDenominator", fpsDenominator},
         {"encoderSettings", encoderSettings},
@@ -19,7 +21,6 @@ void OneSevenMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
 }
 
 void OneSevenMultiRtmpVideoConfig::from_json(const nlohmann::json& j) {
-    j.at("id").get_to(id);
     if (j.contains("encoderId")) {
         j.at("encoderId").get_to(encoderId);
     }
@@ -53,7 +54,6 @@ void from_json(const nlohmann::json& j, AudioTrackConfig& config) {
 // OneSevenMultiRtmpAudioConfig implementation
 void OneSevenMultiRtmpAudioConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{
-        {"id", id},
         {"encoderId", encoderId},
         {"encoderSettings", encoderSettings},
         {"mixerId", mixerId},
@@ -62,7 +62,6 @@ void OneSevenMultiRtmpAudioConfig::to_json(nlohmann::json& j) const {
 }
 
 void OneSevenMultiRtmpAudioConfig::from_json(const nlohmann::json& j) {
-    j.at("id").get_to(id);
     if (j.contains("encoderId")) {
         j.at("encoderId").get_to(encoderId);
     }
@@ -87,50 +86,9 @@ void OneSevenMultiRtmpConfig::to_json(nlohmann::json& j) const {
         {"syncStop", syncStop},
         {"serviceSettings", serviceSettings},
         {"outputSettings", outputSettings},
-        {"video", {
-            {"useSharedEncoder", video.useSharedEncoder},
-            {"bitrate", video.bitrate},
-            {"outputWidth", video.outputWidth},
-            {"outputHeight", video.outputHeight},
-            {"encoderId", video.encoderId},
-            {"rateControl", video.rateControl},
-            {"profile", video.profile},
-            {"keyframeInterval", video.keyframeInterval},
-            {"rateLimiting", video.rateLimiting},
-            {"useBFrames", video.useBFrames}
-        }},
-        {"audio", {
-            {"bitrate", audio.bitrate},
-            {"sampleRate", audio.sampleRate},
-            {"mixerId", audio.mixerId},
-            {"encoderId", audio.encoderId},
-            {"useHEAAC", audio.useHEAAC},
-            {"useSharedEncoder", audio.useSharedEncoder}
-        }},
-        {"service", {
-            {"serverUrl", service.serverUrl},
-            {"streamKey", service.streamKey},
-            {"useAuthentication", service.useAuthentication},
-            {"authToken", service.authToken}
-        }},
-        {"output", {
-            {"autoReconnect", output.autoReconnect},
-            {"reconnectDelay", output.reconnectDelay},
-            {"bufferSize", output.bufferSize},
-            {"bindIP", output.bindIP}
-        }}
+        {"videoConfig", videoConfig.has_value() ? nlohmann::json(videoConfig.value()) : nlohmann::json(nullptr)},
+        {"audioConfig", audioConfig.has_value() ? nlohmann::json(audioConfig.value()) : nlohmann::json(nullptr)}
     };
-    // Optional override configs: null means use OBS defaults
-    if (videoConfig.has_value()) {
-        j["videoConfig"] = videoConfig.value();
-    } else {
-        j["videoConfig"] = nullptr;
-    }
-    if (audioConfig.has_value()) {
-        j["audioConfig"] = audioConfig.value();
-    } else {
-        j["audioConfig"] = nullptr;
-    }
 }
 
 void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
@@ -165,95 +123,6 @@ void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
             audioConfig.reset();
         } else {
             audioConfig = j["audioConfig"].get<OneSevenMultiRtmpAudioConfig>();
-        }
-    }
-    
-    // Parse legacy compatibility fields
-    if (j.contains("video")) {
-        const auto& videoJson = j["video"];
-        if (videoJson.contains("useSharedEncoder")) {
-            video.useSharedEncoder = videoJson["useSharedEncoder"];
-        }
-        if (videoJson.contains("bitrate")) {
-            video.bitrate = videoJson["bitrate"];
-        }
-        if (videoJson.contains("outputWidth")) {
-            video.outputWidth = videoJson["outputWidth"];
-        }
-        if (videoJson.contains("outputHeight")) {
-            video.outputHeight = videoJson["outputHeight"];
-        }
-        if (videoJson.contains("encoderId")) {
-            video.encoderId = videoJson["encoderId"];
-        }
-        if (videoJson.contains("rateControl")) {
-            video.rateControl = videoJson["rateControl"];
-        }
-        if (videoJson.contains("profile")) {
-            video.profile = videoJson["profile"];
-        }
-        if (videoJson.contains("keyframeInterval")) {
-            video.keyframeInterval = videoJson["keyframeInterval"];
-        }
-        if (videoJson.contains("rateLimiting")) {
-            video.rateLimiting = videoJson["rateLimiting"];
-        }
-        if (videoJson.contains("useBFrames")) {
-            video.useBFrames = videoJson["useBFrames"];
-        }
-    }
-    
-    if (j.contains("audio")) {
-        const auto& audioJson = j["audio"];
-        if (audioJson.contains("bitrate")) {
-            audio.bitrate = audioJson["bitrate"];
-        }
-        if (audioJson.contains("sampleRate")) {
-            audio.sampleRate = audioJson["sampleRate"];
-        }
-        if (audioJson.contains("mixerId")) {
-            audio.mixerId = audioJson["mixerId"];
-        }
-        if (audioJson.contains("encoderId")) {
-            audio.encoderId = audioJson["encoderId"];
-        }
-        if (audioJson.contains("useHEAAC")) {
-            audio.useHEAAC = audioJson["useHEAAC"];
-        }
-        if (audioJson.contains("useSharedEncoder")) {
-            audio.useSharedEncoder = audioJson["useSharedEncoder"];
-        }
-    }
-    
-    if (j.contains("service")) {
-        const auto& serviceJson = j["service"];
-        if (serviceJson.contains("serverUrl")) {
-            service.serverUrl = serviceJson["serverUrl"];
-        }
-        if (serviceJson.contains("streamKey")) {
-            service.streamKey = serviceJson["streamKey"];
-        }
-        if (serviceJson.contains("useAuthentication")) {
-            service.useAuthentication = serviceJson["useAuthentication"];
-        }
-        if (serviceJson.contains("authToken")) {
-            service.authToken = serviceJson["authToken"];
-        }
-    }
-    
-    if (j.contains("output")) {
-        const auto& outputJson = j["output"];
-        if (outputJson.contains("autoReconnect")) {
-            output.autoReconnect = outputJson["autoReconnect"];
-        }
-        if (outputJson.contains("reconnectDelay")) {
-            output.reconnectDelay = outputJson["reconnectDelay"];
-        }
-        if (outputJson.contains("bufferSize")) {
-            output.bufferSize = outputJson["bufferSize"];
-        }
-        if (outputJson.contains("bindIP")) {
-            output.bindIP = outputJson["bindIP"];
         }
     }
 }
@@ -298,21 +167,13 @@ double OneSevenMultiRtmpStreamStats::getDroppedFramePercentage() const {
 // OneSevenMultiRtmpGlobalConfig implementation
 void OneSevenMultiRtmpGlobalConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{
-        {"streams", streams},
-        {"audioConfigs", audioConfigs},
-        {"videoConfigs", videoConfigs}
+        {"streams", streams}
     };
 }
 
 void OneSevenMultiRtmpGlobalConfig::from_json(const nlohmann::json& j) {
     if (j.contains("streams")) {
         j.at("streams").get_to(streams);
-    }
-    if (j.contains("audioConfigs")) {
-        j.at("audioConfigs").get_to(audioConfigs);
-    }
-    if (j.contains("videoConfigs")) {
-        j.at("videoConfigs").get_to(videoConfigs);
     }
 }
 
