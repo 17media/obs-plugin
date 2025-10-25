@@ -36,8 +36,6 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
 public:
     explicit OneSevenMultiRtmpConfigDialog(QWidget* parent = nullptr, std::shared_ptr<OneSevenMultiRtmpConfig> config = nullptr);
     ~OneSevenMultiRtmpConfigDialog();
-
-    void resetToDefaults();
     
     // Dialog modes
     void setEditMode(bool isEdit);
@@ -64,11 +62,10 @@ private:
     void setupButtonBox();
     
     void setupConnections();
-    
-    void loadConfigToUI(const OneSevenMultiRtmpConfig& config);
 
     void loadEncoders();
     void loadScenes();
+    void loadConfig();
 
     std::shared_ptr<OneSevenMultiRtmpConfig> m_config;
     std::shared_ptr<OneSevenMultiRtmpConfig> m_originalConfig;

@@ -316,7 +316,11 @@ void OneSevenMultiRtmpDock::updateStreamStats(const std::string& streamId, const
 
 void OneSevenMultiRtmpDock::onAddStreamClicked()
 {
-    showConfigDialog();
+    OneSevenMultiRtmpConfig config;
+    // Ensure default protocol is RTMP and provide a default stream name
+    config.protocol = "rtmp";
+    config.streamName = getMultiRtmpText("MultiRtmp.Config.StreamName.Default").toStdString();
+    showConfigDialog(config);
 }
 
 void OneSevenMultiRtmpDock::onStartAllClicked()
@@ -418,11 +422,7 @@ void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& conf
 {
     // Create dialog with configuration
     bool isEdit = !config.id.empty();
-    std::shared_ptr<OneSevenMultiRtmpConfig> configPtr = nullptr;
-    
-    if (isEdit) {
-        configPtr = std::make_shared<OneSevenMultiRtmpConfig>(config);
-    }
+    std::shared_ptr<OneSevenMultiRtmpConfig> configPtr = std::make_shared<OneSevenMultiRtmpConfig>(config);
     
     m_configDialog = new OneSevenMultiRtmpConfigDialog(this, configPtr);
     m_configDialog->setEditMode(isEdit);

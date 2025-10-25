@@ -23,6 +23,7 @@ public:
   OneSevenLivePropertiesWidget(QWidget *parent = nullptr, obs_data_t *settings = nullptr, obs_properties_t *props = nullptr);
   ~OneSevenLivePropertiesWidget();
 
+  void UpdateProperties(obs_data_t *settings, obs_properties_t *props);
   void RefreshUI() override;
   nlohmann::json SaveData();
 

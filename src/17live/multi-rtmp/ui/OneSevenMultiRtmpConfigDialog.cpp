@@ -95,7 +95,11 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
     
     // Load configuration if provided
     if (m_config) {
-        loadConfigToUI(*m_config);
+        // duplicate config to m_origConfig
+        m_originalConfig = std::make_shared<OneSevenMultiRtmpConfig>(*m_config);
+
+        // Load configuration
+        loadConfig();
     }
 }
 
@@ -217,15 +221,9 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
     m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_basicInfoLayout->addRow(protocolLabel, m_protocolCombo);
 
-    auto protocol_info = findProtocol(m_protocolCombo->currentData().toString().toStdString());
-    obs_data_t *service_settings = obs_data_create_from_json(m_config->serviceSettings.dump().c_str());
-    auto service = obs_service_create(protocol_info->serviceId, ("tmp_17live_service_" + m_config->id).c_str(), service_settings, nullptr);
-    obs_data_t *settings = obs_service_get_settings(service);
-    obs_properties_t *props = obs_service_properties(service);
-
-    m_serviceWidget = new OneSevenLivePropertiesWidget(this, settings, props);
-    obs_service_release(service);
-
+    m_serviceWidget = new OneSevenLivePropertiesWidget(this);
+    m_basicInfoLayout->addRow("", m_serviceWidget);
+    
     m_syncStartCheckbox = new QCheckBox();
     m_syncStartCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStart"));
     m_syncStopCheckbox = new QCheckBox();
@@ -360,25 +358,9 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     m_outputLayout->setLabelAlignment(Qt::AlignLeft);
     m_outputLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
-    auto protocol_info = findProtocol("rtmp");
+    m_outputWidget = new OneSevenLivePropertiesWidget(m_tabWidget);
 
-    obs_data_t *output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
-        
-    auto output = obs_output_create(protocol_info->outputId, ("tmp_output_" + m_config->id).c_str(), output_settings, nullptr);
-
-    obs_data_t *settings = obs_output_get_settings(output);
-    obs_properties_t *props = obs_output_properties(output);
-
-    m_outputWidget = new OneSevenLivePropertiesWidget(m_tabWidget, settings, props);
-
-    // supported_audio_encoders_ = obs_output_get_supported_audio_codecs(output);
-    // supported_video_encoders_ = obs_output_get_supported_video_codecs(output);
-    obs_output_release(output);
-
-    // if (aenc_ && venc_)
-    //     LoadEncoders();
-
-    m_tabWidget->addTab(m_outputWidget, obs_module_text("Basic.Settings.Output"));
+    m_tabWidget->addTab(m_outputWidget, obs_module_text("MultiRTMP.Config.Tab.Output"));
 }
 
 void OneSevenMultiRtmpConfigDialog::setupVideoTab()
@@ -401,7 +383,10 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     m_videoLayout->addRow(obs_module_text("Basic.Scene"), m_outputSceneCombo);
 
     m_videoEncoderCombo = new QComboBox(m_videoTab);
-    m_videoLayout->addRow(obs_module_text("Basic.Settings.Output.Encoder.Video"), m_videoEncoderCombo);
+    m_videoLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Video"), m_videoEncoderCombo);
+
+    m_videoWidget = new OneSevenLivePropertiesWidget(m_videoTab);
+    m_videoLayout->addRow("", m_videoWidget);
     
     // TODO: if suitable for rtmp?
     // m_videoResolutionCombo = new QComboBox(m_videoTab);
@@ -410,7 +395,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     // m_fpsDenominatorCombo = new QComboBox(m_videoTab);
     // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.FPSDenominator"), m_fpsDenominatorCombo);
     
-    m_tabWidget->addTab(m_videoTab, obs_module_text("Basic.Settings.Video"));
+    m_tabWidget->addTab(m_videoTab, obs_module_text("MultiRTMP.Config.Tab.Video"));
 }
 
 void OneSevenMultiRtmpConfigDialog::setupAudioTab()
@@ -430,9 +415,9 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     m_audioLayout->addRow("", m_useOBSAudioCheck);
     
     m_audioEncoderCombo = new QComboBox(m_audioTab);
-    m_audioLayout->addRow(obs_module_text("Basic.Settings.Output.Encoder.Audio"), m_audioEncoderCombo);
+    m_audioLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Audio"), m_audioEncoderCombo);
     
-    m_tabWidget->addTab(m_audioTab, obs_module_text("Basic.Settings.Audio"));
+    m_tabWidget->addTab(m_audioTab, obs_module_text("MultiRTMP.Config.Tab.Audio"));
 }
 
 
@@ -506,12 +491,6 @@ void OneSevenMultiRtmpConfigDialog::setupConnections()
     connect(m_cancelButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::reject);
 }
 
-void OneSevenMultiRtmpConfigDialog::resetToDefaults()
-{
-    OneSevenMultiRtmpConfig defaultConfig;
-    loadConfigToUI(defaultConfig);
-}
-
 void OneSevenMultiRtmpConfigDialog::setEditMode(bool isEdit)
 {
     m_isEditMode = isEdit;
@@ -550,15 +529,82 @@ void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled()
     resize(width(), sizeHint().height());
 }
 
-void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig& config)
+void OneSevenMultiRtmpConfigDialog::loadConfig()
 {
-    m_streamNameEdit->setText(QString::fromStdString(config.streamName));
+    // Load basic info
+    m_streamNameEdit->setText(QString::fromUtf8(m_config->streamName));
 
-    QString protocolValue = QString::fromStdString(config.protocol);
+    QString protocolValue = QString::fromStdString(m_config->protocol);
     for (int i = 0; i < m_protocolCombo->count(); ++i) {
         if (m_protocolCombo->itemData(i).toString() == protocolValue) {
             m_protocolCombo->setCurrentIndex(i);
             break;
+        }
+    }
+
+    auto protocol_info = findProtocol(m_config->protocol);
+    {
+        obs_data_t *service_settings = obs_data_create_from_json(m_config->serviceSettings.dump().c_str());
+        auto service = obs_service_create(protocol_info->serviceId, ("tmp_17live_service_" + m_config->id).c_str(), service_settings, nullptr);
+        obs_data_t *settings = obs_service_get_settings(service);
+        obs_properties_t *props = obs_service_properties(service);
+        m_serviceWidget->UpdateProperties(settings, props);
+        obs_service_release(service);
+    }
+    
+
+    m_syncStartCheckbox->setChecked(m_config->syncStart);
+    m_syncStopCheckbox->setChecked(m_config->syncStop);
+
+    // load output settings
+    {
+        obs_data_t *output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
+        auto output = obs_output_create(protocol_info->outputId, ("tmp_17live_output_" + m_config->id).c_str(), output_settings, nullptr);
+        obs_data_t *settings = obs_output_get_settings(output);
+        obs_properties_t *props = obs_output_properties(output);
+        m_outputWidget->UpdateProperties(settings, props);
+        obs_output_release(output);
+    }
+    
+
+    // load video settings
+    m_useOBSVideoCheck->setChecked(!m_config->videoConfig.has_value());
+    if (m_config->videoConfig.has_value()) {
+        {
+            auto idx = m_outputSceneCombo->findData(QString::fromUtf8(m_config->videoConfig->outputScene));
+            if (idx >= 0)
+                m_outputSceneCombo->setCurrentIndex(idx);
+        }
+        {
+            auto idx = m_videoEncoderCombo->findData(QString::fromStdString(m_config->videoConfig->encoderId));
+            if (idx >= 0)
+                m_videoEncoderCombo->setCurrentIndex(idx);
+        }
+        {
+            obs_data_t *encoder_settings = obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str());
+            auto encoder = obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(), ("tmp_17live_video_encoder_" + m_config->id).c_str(), encoder_settings, nullptr);
+            obs_data_t *settings = obs_encoder_get_settings(encoder);
+            obs_properties_t *props = obs_encoder_properties(encoder);
+            m_videoWidget->UpdateProperties(settings, props);
+            obs_encoder_release(encoder);
+        }
+    }
+
+    // load audio settings
+    m_useOBSAudioCheck->setChecked(!m_config->audioConfig.has_value());
+    if (m_config->audioConfig.has_value()) {
+        {
+            auto idx = m_audioEncoderCombo->findData(QString::fromStdString(m_config->audioConfig->encoderId));
+            if (idx >= 0)
+                m_audioEncoderCombo->setCurrentIndex(idx);
+        }
+        {
+            obs_data_t *encoder_settings = obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str());
+            auto encoder = obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(), ("tmp_17live_audio_encoder_" + m_config->id).c_str(), encoder_settings, m_config->audioConfig->mixerId, nullptr);
+            obs_data_t *settings = obs_encoder_get_settings(encoder);
+            obs_properties_t *props = obs_encoder_properties(encoder);
+            m_audioWidget->UpdateProperties(settings, props);
+            obs_encoder_release(encoder);
         }
     }
 }
@@ -571,24 +617,24 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
     
     // Auto-generate UUID for new streams, keep original ID if editing
     if (m_isEditMode) {
-        config.id = m_originalConfig->id;
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Edit mode: using existing ID: %s", config.id.c_str());
+        m_config->id = m_originalConfig->id;
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Edit mode: using existing ID: %s", m_config->id.c_str());
     } else {
         // Auto-generate UUID for new streams
-        config.id = QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Add mode: generated new ID: %s", config.id.c_str());
+        m_config->id = QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Add mode: generated new ID: %s", m_config->id.c_str());
     }
     
     // Service configuration
-    config.streamName = m_streamNameEdit->text().toStdString(); // Map to streamName
-    config.protocol = m_protocolCombo->currentData().toString().toStdString(); // Map to protocol
-    config.syncStart = m_syncStartCheckbox->isChecked();
-    config.syncStop = m_syncStopCheckbox->isChecked();
+    m_config->streamName = m_streamNameEdit->text().toStdString(); // Map to streamName
+    m_config->protocol = m_protocolCombo->currentData().toString().toStdString(); // Map to protocol
+    m_config->syncStart = m_syncStartCheckbox->isChecked();
+    m_config->syncStop = m_syncStopCheckbox->isChecked();
 
-    config.serviceSettings = m_serviceWidget->SaveData();
+    m_config->serviceSettings = m_serviceWidget->SaveData();
     
     // Output configuration
-    config.outputSettings = m_outputWidget->SaveData();
+    m_config->outputSettings = m_outputWidget->SaveData();
 
     // Video configuration
     if (!m_useOBSVideoCheck->isChecked()) {
@@ -605,9 +651,9 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
                                               : m_outputSceneCombo->currentText().toStdString();
         }
         vcfg.encoderSettings = m_videoWidget->SaveData();
-        config.videoConfig = vcfg;
+        m_config->videoConfig = vcfg;
     } else {
-        config.videoConfig.reset();
+        m_config->videoConfig.reset();
     }
     
     // Audio configuration
@@ -616,10 +662,10 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
         if (m_audioEncoderCombo)
             acfg.encoderId = m_audioEncoderCombo->currentData().toString().toStdString();
         acfg.encoderSettings = m_audioWidget->SaveData();
-        config.audioConfig = acfg;
+        m_config->audioConfig = acfg;
         // TODO: track audio settings
     } else {
-        config.audioConfig.reset();
+        m_config->audioConfig.reset();
     }
     
     
