@@ -13,9 +13,9 @@ class OneSevenLivePropertiesWidget : public QWidget, public OneSevenLiveProperty
   Q_OBJECT
 
 private:
-  obs_data_t *m_OrigSettings;
-  obs_data_t *m_Settings;
-  obs_properties_t *m_Props;
+  obs_data_t *m_origSettings;
+  obs_data_t *m_settings;
+  obs_properties_t *m_props;
 
 public:
   OneSevenLivePropertiesWidget(QWidget *parent = nullptr, obs_data_t *settings = nullptr, obs_properties_t *props = nullptr);
@@ -24,7 +24,7 @@ public:
   void RefreshUI() override;
 
 private:
-  std::unordered_map<std::string, std::shared_ptr<OneSevenLivePropertyWidget>> m_PropertyWidgets;
+  std::unordered_map<std::string, std::shared_ptr<OneSevenLivePropertyWidget>> m_propertyWidgets;
 
   bool isRefreshing = false;
 

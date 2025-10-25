@@ -8,33 +8,33 @@
 #include "OneSevenLivePropertyWidget.hpp"
 
 OneSevenLivePropertiesWidget::OneSevenLivePropertiesWidget(QWidget *parent, obs_data_t *settings, obs_properties_t *props)
-    : QWidget(parent), m_OrigSettings(settings), m_Props(props) {
+    : QWidget(parent), m_origSettings(settings), m_props(props) {
 
-      obs_data_release(m_Settings);
+      obs_data_release(m_settings);
 
-      m_Settings = obs_data_create();
-      obs_data_release(m_Settings);
+      m_settings = obs_data_create();
+      obs_data_release(m_settings);
 
-      auto defaultSettings = obs_data_get_defaults(m_OrigSettings);
-      obs_data_apply(m_Settings, defaultSettings);
+      auto defaultSettings = obs_data_get_defaults(m_origSettings);
+      obs_data_apply(m_settings, defaultSettings);
       obs_data_release(defaultSettings);
 
-      obs_data_apply(m_Settings, m_OrigSettings);
+      obs_data_apply(m_settings, m_origSettings);
 
-      obs_properties_apply_settings(m_Props, m_Settings);
+      obs_properties_apply_settings(m_props, m_settings);
 
       RefreshUI();
 }
 
 OneSevenLivePropertiesWidget::~OneSevenLivePropertiesWidget() {
-  if (m_Props)
-    obs_properties_destroy(m_Props);
+  if (m_props)
+    obs_properties_destroy(m_props);
 
-  if (m_Settings)
-    obs_data_release(m_Settings);
+  if (m_settings)
+    obs_data_release(m_settings);
 
-  if (m_OrigSettings)
-    obs_data_release(m_OrigSettings);
+  if (m_origSettings)
+    obs_data_release(m_origSettings);
 }
 
 void OneSevenLivePropertiesWidget::RefreshUI() {
@@ -42,17 +42,17 @@ void OneSevenLivePropertiesWidget::RefreshUI() {
         return;
     isRefreshing = true;
 
-    for(auto& x: m_PropertyWidgets)
+    for(auto& x: m_propertyWidgets)
     {
-        x.second->SaveData(m_Settings);
+        x.second->SaveData(m_settings);
     }
 
-    obs_properties_apply_settings(m_Props, m_Settings);
+    obs_properties_apply_settings(m_props, m_settings);
     loadProperties();
 
-    for(auto& x: m_PropertyWidgets)
+    for(auto& x: m_propertyWidgets)
     {
-        x.second->LoadData(m_Settings);
+        x.second->LoadData(m_settings);
     }
 
     isRefreshing = false;
@@ -60,7 +60,7 @@ void OneSevenLivePropertiesWidget::RefreshUI() {
 
 void OneSevenLivePropertiesWidget::loadProperties() {
     std::unordered_map<std::string, std::shared_ptr<OneSevenLivePropertyWidget>> origPropWidgets;
-    origPropWidgets.swap(m_PropertyWidgets);
+    origPropWidgets.swap(m_propertyWidgets);
 
     auto oldLayout = layout();
     if (oldLayout) {
@@ -77,7 +77,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
     formLayout->setLabelAlignment(Qt::AlignLeft);
     formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     formLayout->setContentsMargins(0, 0, 0, 0);
-    obs_property_t *prop = obs_properties_first(m_Props);
+    obs_property_t *prop = obs_properties_first(m_props);
     do { 
         if (obs_property_visible(prop) == false)
             continue;
@@ -86,13 +86,13 @@ void OneSevenLivePropertiesWidget::loadProperties() {
         auto it = origPropWidgets.find(name);
         if (it == origPropWidgets.end()) {
             auto newWidget = std::make_shared<OneSevenLivePropertyWidget>(this, this, prop);
-            newWidget->LoadData(m_Settings);
-            m_PropertyWidgets.insert(std::make_pair(newWidget->name, newWidget));
+            newWidget->LoadData(m_settings);
+            m_propertyWidgets.insert(std::make_pair(newWidget->name, newWidget));
             formLayout->addRow(newWidget->label, newWidget->ctrl);
         } else {
             it->second->ReloadProperty(prop);
-            it->second->LoadData(m_Settings);
-            m_PropertyWidgets.insert(std::make_pair(it->first, it->second));
+            it->second->LoadData(m_settings);
+            m_propertyWidgets.insert(std::make_pair(it->first, it->second));
             formLayout->addRow(it->second->label, it->second->ctrl);
         }
         

@@ -28,8 +28,8 @@ public:
   std::string name;
 
 private:
-  OneSevenLivePropertyRefreshHandler *m_RefreshHandler = nullptr;
-  obs_property *m_Property = nullptr;
-  obs_property_type m_PropertyType;
-  obs_combo_format m_ComboFormat;
+  OneSevenLivePropertyRefreshHandler *m_refreshHandler = nullptr;
+  obs_property *m_property = nullptr;
+  obs_property_type m_propertyType;
+  obs_combo_format m_comboFormat;
 };
