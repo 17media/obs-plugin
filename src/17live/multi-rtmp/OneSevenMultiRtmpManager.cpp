@@ -332,16 +332,6 @@ std::string OneSevenMultiRtmpManager::generateStreamId() const
     return m_configManager->generateStreamId();
 }
 
-bool OneSevenMultiRtmpManager::validateStreamConfig(const OneSevenMultiRtmpConfig& config) const
-{
-    return config.isValid();
-}
-
-std::string OneSevenMultiRtmpManager::getValidationError(const OneSevenMultiRtmpConfig& config) const
-{
-    return config.getValidationError();
-}
-
 size_t OneSevenMultiRtmpManager::getStreamCount() const
 {
     if (!m_initialized || !m_configManager) {

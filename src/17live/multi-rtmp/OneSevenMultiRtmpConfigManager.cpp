@@ -40,8 +40,6 @@ bool OneSevenMultiRtmpConfigManager::loadConfiguration() {
 }
 
 bool OneSevenMultiRtmpConfigManager::saveConfiguration() {
-    m_globalConfig.updateLastModified();
-    
     if (!writeConfigToFile(m_globalConfig)) {
         MULTI_RTMP_CONFIG_LOG_ERROR("Failed to save configuration to file: %s", m_configFilePath.c_str());
         return false;
@@ -74,11 +72,6 @@ bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConf
     }
     
     MULTI_RTMP_CONFIG_LOG_DEBUG("Adding stream to global config");
-    
-    // Add timestamps
-    std::string timestamp = getCurrentTimestamp();
-    newConfig.createdAt = timestamp;
-    newConfig.updatedAt = timestamp;
     
     // Add to global config
     m_globalConfig.streams.push_back(newConfig);
@@ -173,10 +166,6 @@ bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& strea
     originalConfig = *existingConfig;
     found = true;
     
-    // Update timestamps
-    updatedConfig.createdAt = existingConfig->createdAt; // Keep original creation time
-    updatedConfig.updatedAt = getCurrentTimestamp();
-    
     // Update the configuration
     *existingConfig = updatedConfig;
     
@@ -221,14 +210,6 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigManager::getStreamConfig(const st
 
 bool OneSevenMultiRtmpConfigManager::hasStreamConfig(const std::string& streamId) const {
     return m_globalConfig.findStream(streamId) != nullptr;
-}
-
-bool OneSevenMultiRtmpConfigManager::validateStreamConfig(const OneSevenMultiRtmpConfig& config) const {
-    return config.isValid();
-}
-
-std::string OneSevenMultiRtmpConfigManager::getValidationError(const OneSevenMultiRtmpConfig& config) const {
-    return config.getValidationError();
 }
 
 std::string OneSevenMultiRtmpConfigManager::generateStreamId() const {
