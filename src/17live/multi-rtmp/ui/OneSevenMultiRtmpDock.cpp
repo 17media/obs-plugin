@@ -416,25 +416,26 @@ void OneSevenMultiRtmpDock::updateButtonStates()
 
 void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& config)
 {
-    if (!m_configDialog) {
-        m_configDialog = new OneSevenMultiRtmpConfigDialog(this);
+    // Create dialog with configuration
+    bool isEdit = !config.id.empty();
+    std::shared_ptr<OneSevenMultiRtmpConfig> configPtr = nullptr;
+    
+    if (isEdit) {
+        configPtr = std::make_shared<OneSevenMultiRtmpConfig>(config);
     }
     
-    // Set configuration and mode
-    bool isEdit = !config.id.empty();
+    m_configDialog = new OneSevenMultiRtmpConfigDialog(this, configPtr);
     m_configDialog->setEditMode(isEdit);
     
     if (isEdit) {
-        m_configDialog->setConfig(config);
         m_configDialog->setWindowTitle(getMultiRtmpText("MultiRTMP.EditStream.Title"));
     } else {
-        m_configDialog->resetToDefaults();
         m_configDialog->setWindowTitle(getMultiRtmpText("MultiRTMP.AddStream.Title"));
     }
     
     // Show dialog and handle result
     if (m_configDialog->exec() == QDialog::Accepted) {
-        auto newConfig = m_configDialog->getConfig();
+        auto newConfig = m_configDialog->buildConfigFromUI();
         
         // Add detailed logging for configuration data
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Configuration dialog accepted");
@@ -491,4 +492,8 @@ void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& conf
     } else {
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Configuration dialog cancelled");
     }
+    
+    // Clean up dialog
+    delete m_configDialog;
+    m_configDialog = nullptr;
 }

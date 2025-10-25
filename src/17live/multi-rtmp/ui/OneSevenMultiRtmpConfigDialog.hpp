@@ -34,17 +34,17 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit OneSevenMultiRtmpConfigDialog(QWidget* parent = nullptr);
+    explicit OneSevenMultiRtmpConfigDialog(QWidget* parent = nullptr, std::shared_ptr<OneSevenMultiRtmpConfig> config = nullptr);
     ~OneSevenMultiRtmpConfigDialog();
 
-    // Configuration management
-    void setConfig(const OneSevenMultiRtmpConfig& config);
-    OneSevenMultiRtmpConfig getConfig() const;
     void resetToDefaults();
     
     // Dialog modes
     void setEditMode(bool isEdit);
     bool isEditMode() const { return m_isEditMode; }
+    
+    // Configuration access
+    OneSevenMultiRtmpConfig buildConfigFromUI() const;
 
 public slots:
     void accept() override;
@@ -82,13 +82,15 @@ private:
     void showValidationErrors();
     
     void loadConfigToUI(const OneSevenMultiRtmpConfig& config);
-    OneSevenMultiRtmpConfig buildConfigFromUI() const;
+
+    std::shared_ptr<OneSevenMultiRtmpConfig> m_config;
 
     // Main layout
     QVBoxLayout* m_mainLayout;
     QTabWidget* m_tabWidget;
 
     OneSevenLivePropertiesWidget *m_serviceWidget;
+    OneSevenLivePropertiesWidget *m_outputWidget;
     OneSevenLivePropertiesWidget *m_videoWidget;
     OneSevenLivePropertiesWidget *m_audioWidget;
     

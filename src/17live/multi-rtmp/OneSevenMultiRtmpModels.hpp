@@ -3,6 +3,7 @@
 #include <string>
 #include <chrono>
 #include <vector>
+#include <optional>
 #include <nlohmann/json.hpp>
 
 // Forward declarations
@@ -24,7 +25,6 @@ struct OneSevenLiveProtocol {
  * Video configuration for RTMP stream
  */
 struct OneSevenMultiRtmpVideoConfig {
-    std::string id;
     std::string encoderId;
     int fpsDenominator = 1;
     nlohmann::json encoderSettings;
@@ -47,7 +47,6 @@ struct AudioTrackConfig {
 };
 
 struct OneSevenMultiRtmpAudioConfig {
-    std::string id;
     std::string encoderId;
     nlohmann::json encoderSettings;
     int mixerId = 0;
@@ -71,8 +70,8 @@ struct OneSevenMultiRtmpConfig {
     nlohmann::json serviceSettings;
     nlohmann::json outputSettings;
     
-    std::string videoConfigId;
-    std::string audioConfigId;
+    std::optional<OneSevenMultiRtmpVideoConfig> videoConfig;
+    std::optional<OneSevenMultiRtmpAudioConfig> audioConfig;
 
     // JSON serialization
     void to_json(nlohmann::json& j) const;
@@ -124,8 +123,6 @@ struct OneSevenMultiRtmpStreamStats {
  */
 struct OneSevenMultiRtmpGlobalConfig {
     std::vector<OneSevenMultiRtmpConfig> streams;
-    std::vector<OneSevenMultiRtmpAudioConfig> audioConfigs;
-    std::vector<OneSevenMultiRtmpVideoConfig> videoConfigs;
 
     // JSON serialization
     void to_json(nlohmann::json& j) const;
@@ -155,3 +152,4 @@ void from_json(const nlohmann::json& j, OneSevenMultiRtmpGlobalConfig& config);
 // Protocol helper functions
 const OneSevenLiveProtocol* getProtocolList();
 size_t getProtocolCount();
+const OneSevenLiveProtocol* findProtocol(const std::string& protocol);

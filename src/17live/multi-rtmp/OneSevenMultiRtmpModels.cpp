@@ -87,8 +87,6 @@ void OneSevenMultiRtmpConfig::to_json(nlohmann::json& j) const {
         {"syncStop", syncStop},
         {"serviceSettings", serviceSettings},
         {"outputSettings", outputSettings},
-        {"videoConfigId", videoConfigId},
-        {"audioConfigId", audioConfigId},
         {"video", {
             {"useSharedEncoder", video.useSharedEncoder},
             {"bitrate", video.bitrate},
@@ -122,6 +120,17 @@ void OneSevenMultiRtmpConfig::to_json(nlohmann::json& j) const {
             {"bindIP", output.bindIP}
         }}
     };
+    // Optional override configs: null means use OBS defaults
+    if (videoConfig.has_value()) {
+        j["videoConfig"] = videoConfig.value();
+    } else {
+        j["videoConfig"] = nullptr;
+    }
+    if (audioConfig.has_value()) {
+        j["audioConfig"] = audioConfig.value();
+    } else {
+        j["audioConfig"] = nullptr;
+    }
 }
 
 void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
@@ -144,11 +153,19 @@ void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
     if (j.contains("outputSettings")) {
         j.at("outputSettings").get_to(outputSettings);
     }
-    if (j.contains("videoConfigId")) {
-        j.at("videoConfigId").get_to(videoConfigId);
+    if (j.contains("videoConfig")) {
+        if (j["videoConfig"].is_null()) {
+            videoConfig.reset();
+        } else {
+            videoConfig = j["videoConfig"].get<OneSevenMultiRtmpVideoConfig>();
+        }
     }
-    if (j.contains("audioConfigId")) {
-        j.at("audioConfigId").get_to(audioConfigId);
+    if (j.contains("audioConfig")) {
+        if (j["audioConfig"].is_null()) {
+            audioConfig.reset();
+        } else {
+            audioConfig = j["audioConfig"].get<OneSevenMultiRtmpAudioConfig>();
+        }
     }
     
     // Parse legacy compatibility fields
@@ -380,4 +397,17 @@ const OneSevenLiveProtocol* getProtocolList() {
 
 size_t getProtocolCount() {
     return sizeof(s_protocolList) / sizeof(s_protocolList[0]);
+}
+
+const OneSevenLiveProtocol* findProtocol(const std::string& protocol) {
+    const OneSevenLiveProtocol* protocols = getProtocolList();
+    size_t count = getProtocolCount();
+    
+    for (size_t i = 0; i < count; ++i) {
+        if (protocols[i].protocol == protocol) {
+            return &protocols[i];
+        }
+    }
+    
+    return nullptr; // Protocol not found
 }
