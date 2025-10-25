@@ -5,6 +5,8 @@
 #include <QWidget>
 #include <QLabel>
 
+#include "nlohmann/json.hpp"
+
 #include "OneSevenLivePropertyRefreshHandler.hpp"
 
 class OneSevenLivePropertyWidget;
@@ -22,6 +24,7 @@ public:
   ~OneSevenLivePropertiesWidget();
 
   void RefreshUI() override;
+  nlohmann::json SaveData();
 
 private:
   std::unordered_map<std::string, std::shared_ptr<OneSevenLivePropertyWidget>> m_propertyWidgets;

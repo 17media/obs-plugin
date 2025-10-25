@@ -44,7 +44,7 @@ public:
     bool isEditMode() const { return m_isEditMode; }
     
     // Configuration access
-    OneSevenMultiRtmpConfig buildConfigFromUI() const;
+    OneSevenMultiRtmpConfig SaveConfig() const;
 
 public slots:
     void accept() override;
@@ -76,20 +76,23 @@ private:
     
     void loadConfigToUI(const OneSevenMultiRtmpConfig& config);
 
+    void loadEncoders();
+    void loadScenes();
+
     std::shared_ptr<OneSevenMultiRtmpConfig> m_config;
+    std::shared_ptr<OneSevenMultiRtmpConfig> m_originalConfig;
 
     // Main layout
     QVBoxLayout* m_mainLayout;
     QTabWidget* m_tabWidget;
-
-    OneSevenLivePropertiesWidget *m_serviceWidget;
-    OneSevenLivePropertiesWidget *m_outputWidget;
+    
     
     // Basic info section
     QWidget* m_basicInfoWidget;
     QFormLayout* m_basicInfoLayout;
     QLineEdit* m_streamNameEdit;
     QComboBox* m_protocolCombo;
+    OneSevenLivePropertiesWidget *m_serviceWidget;
 
     
     // Advanced settings section
@@ -97,32 +100,30 @@ private:
     QWidget* m_advancedWidget;
     bool m_advancedExpanded;
     
-    // Service tab components removed - functionality integrated into basic info section
-    
-    // Output tab (properties widget used instead of individual controls)
+    // Output tab
+    OneSevenLivePropertiesWidget *m_outputWidget;
     
     // Video tab
     QWidget* m_videoTab;
     QFormLayout* m_videoLayout;
+    QCheckBox* m_useOBSVideoCheck;
+    QComboBox* m_videoEncoderCombo;
+    QComboBox* m_videoResolutionCombo;
+    QComboBox* m_fpsDenominatorCombo;
+    QComboBox* m_outputSceneCombo;
     
     // Audio tab
     QWidget* m_audioTab;
     QFormLayout* m_audioLayout;
+    QCheckBox* m_useOBSAudioCheck;
+    QComboBox* m_audioEncoderCombo;
     
-    // Additional controls
     
     // Button box
     QHBoxLayout* m_buttonLayout;
     QPushButton* m_okButton;
     QPushButton* m_cancelButton;
     
-    // Validation
-    QTimer* m_validationTimer;
-    QLabel* m_validationLabel;
-    
     // State
     bool m_isEditMode;
-    OneSevenMultiRtmpConfig m_originalConfig;
-    
-
 };

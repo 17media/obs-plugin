@@ -102,3 +102,12 @@ void OneSevenLivePropertiesWidget::loadProperties() {
         delete oldLayout;
     setLayout(formLayout);
 }
+
+nlohmann::json OneSevenLivePropertiesWidget::SaveData() {
+    nlohmann::json j;
+    for(auto& x: m_propertyWidgets)
+    {
+        j[x.first] = x.second->SaveData();
+    }
+    return j;
+}

@@ -10,22 +10,6 @@
 
 #include "moc_OneSevenMultiRtmpConfigDialog.cpp"
 
-
-// Static constants for UI options
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, std::shared_ptr<OneSevenMultiRtmpConfig> config)
     : QDialog(parent)
     , m_config(config)
@@ -118,9 +102,6 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
 
 OneSevenMultiRtmpConfigDialog::~OneSevenMultiRtmpConfigDialog()
 {
-    if (m_validationTimer) {
-        m_validationTimer->stop();
-    }
 }
 
 void OneSevenMultiRtmpConfigDialog::setupUI()
@@ -169,17 +150,10 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
     // Advanced settings widget (collapsible)
     setupAdvancedSettingsWidget();
     
-    // Validation label
-    m_validationLabel = new QLabel();
-    m_validationLabel->setStyleSheet("color: #f44336; font-size: 11px; margin: 0;");
-    m_validationLabel->setWordWrap(true);
-    m_validationLabel->setVisible(false);
-    
     // Add sections to container layout
     containerLayout->addWidget(m_basicInfoWidget);
     containerLayout->addWidget(m_advancedButton);
     containerLayout->addWidget(m_advancedWidget);
-    containerLayout->addWidget(m_validationLabel);
     containerLayout->addStretch(); // Add stretch to push content to top
     
     // Set container as scroll area content
@@ -191,6 +165,9 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
     // Add scroll area and button layout to main layout
     m_mainLayout->addWidget(scrollArea);
     m_mainLayout->addLayout(m_buttonLayout);
+
+    loadEncoders();
+    loadScenes();
 }
 
 void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
@@ -371,48 +348,48 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget()
 
 void OneSevenMultiRtmpConfigDialog::setupOutputTab()
 {
-    // m_outputTab = new QWidget();
-    // m_outputLayout = new QFormLayout(m_outputTab);
-    // m_outputLayout->setSpacing(12);
-    // m_outputLayout->setContentsMargins(8, 12, 8, 12);
-    // m_outputLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
-    // m_outputLayout->setLabelAlignment(Qt::AlignLeft);
-    // m_outputLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    m_outputTab = new QWidget();
+    m_outputLayout = new QFormLayout(m_outputTab);
+    m_outputLayout->setSpacing(12);
+    m_outputLayout->setContentsMargins(8, 12, 8, 12);
+    m_outputLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    m_outputLayout->setLabelAlignment(Qt::AlignLeft);
+    m_outputLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
-    // // Encoder type
-    // m_encoderTypeCombo = new QComboBox();
-    // m_encoderTypeCombo->setStyleSheet(
-    //     "QComboBox { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  border-radius: 4px; "
-    //     "  padding: 8px; "
-    //     "  min-height: 20px; "
-    //     "  min-width: 100px; "
-    //     "} "
-    //     "QComboBox:focus { "
-    //     "  border-color: #007AFF; "
-    //     "} "
-    //     "QComboBox::drop-down { "
-    //     "  border: none; "
-    //     "  width: 20px; "
-    //     "} "
-    //     "QComboBox::down-arrow { "
-    //     "  image: none; "
-    //     "  border-left: 5px solid transparent; "
-    //     "  border-right: 5px solid transparent; "
-    //     "  border-top: 5px solid white; "
-    //     "  margin-right: 5px; "
-    //     "} "
-    //     "QComboBox QAbstractItemView { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  selection-background-color: #007AFF; "
-    //     "}"
-    // );
-    // m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.EncoderType"), m_encoderTypeCombo);
+    // Encoder type
+    m_encoderTypeCombo = new QComboBox();
+    m_encoderTypeCombo->setStyleSheet(
+        "QComboBox { "
+        "  background-color: #3c3c3c; "
+        "  color: white; "
+        "  border: 1px solid #555; "
+        "  border-radius: 4px; "
+        "  padding: 8px; "
+        "  min-height: 20px; "
+        "  min-width: 100px; "
+        "} "
+        "QComboBox:focus { "
+        "  border-color: #007AFF; "
+        "} "
+        "QComboBox::drop-down { "
+        "  border: none; "
+        "  width: 20px; "
+        "} "
+        "QComboBox::down-arrow { "
+        "  image: none; "
+        "  border-left: 5px solid transparent; "
+        "  border-right: 5px solid transparent; "
+        "  border-top: 5px solid white; "
+        "  margin-right: 5px; "
+        "} "
+        "QComboBox QAbstractItemView { "
+        "  background-color: #3c3c3c; "
+        "  color: white; "
+        "  border: 1px solid #555; "
+        "  selection-background-color: #007AFF; "
+        "}"
+    );
+    m_outputLayout->addRow(obs_module_text("MultiRtmp.Config.Output.EncoderType"), m_encoderTypeCombo);
     
     // // Share encoder
     // m_shareEncoderCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Output.ShareEncoder"));
@@ -520,7 +497,7 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
     // if (aenc_ && venc_)
     //     LoadEncoders();
 
-    m_tabWidget->addTab(m_outputWidget, obs_module_text("MultiRtmp.Config.Tab.Output"));
+    m_tabWidget->addTab(m_outputWidget, obs_module_text("Basic.Settings.Output"));
 }
 
 void OneSevenMultiRtmpConfigDialog::setupVideoTab()
@@ -534,151 +511,25 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     m_videoLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
     // Enable video
-    // m_enableVideoCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Video.EnableVideo"));
-    // m_enableVideoCheck->setChecked(true);
-    // m_enableVideoCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
-    // m_videoLayout->addRow("", m_enableVideoCheck);
+    m_useOBSVideoCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Video.UseOBS"));
+    m_useOBSVideoCheck->setChecked(true);
+    m_useOBSVideoCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
+    m_videoLayout->addRow("", m_useOBSVideoCheck);
+
+    m_outputSceneCombo = new QComboBox(m_videoTab);
+    m_videoLayout->addRow(obs_module_text("Basic.Scene"), m_outputSceneCombo);
+
+    m_videoEncoderCombo = new QComboBox(m_videoTab);
+    m_videoLayout->addRow(obs_module_text("Basic.Settings.Output.Encoder.Video"), m_videoEncoderCombo);
     
-    // // Video resolution
-    // m_videoResolutionCombo = new QComboBox();
-    // m_videoResolutionCombo->setStyleSheet(
-    //     "QComboBox { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  border-radius: 4px; "
-    //     "  padding: 8px; "
-    //     "  min-height: 20px; "
-    //     "  min-width: 100px; "
-    //     "} "
-    //     "QComboBox:focus { "
-    //     "  border-color: #007AFF; "
-    //     "} "
-    //     "QComboBox::drop-down { "
-    //     "  border: none; "
-    //     "  width: 20px; "
-    //     "} "
-    //     "QComboBox::down-arrow { "
-    //     "  image: none; "
-    //     "  border-left: 5px solid transparent; "
-    //     "  border-right: 5px solid transparent; "
-    //     "  border-top: 5px solid white; "
-    //     "  margin-right: 5px; "
-    //     "} "
-    //     "QComboBox QAbstractItemView { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  selection-background-color: #007AFF; "
-    //     "}"
-    // );
+    // TODO: if suitable for rtmp?
+    // m_videoResolutionCombo = new QComboBox(m_videoTab);
     // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.Resolution"), m_videoResolutionCombo);
+
+    // m_fpsDenominatorCombo = new QComboBox(m_videoTab);
+    // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.FPSDenominator"), m_fpsDenominatorCombo);
     
-    // // Custom resolution
-    // QHBoxLayout* customResLayout = new QHBoxLayout();
-    // m_customWidthEdit = new QLineEdit();
-    // m_customWidthEdit->setPlaceholderText("1920");
-    // m_customWidthEdit->setMaximumWidth(80);
-    // m_customWidthEdit->setStyleSheet("QLineEdit { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QLineEdit:focus { border-color: #007AFF; }");
-    // m_customHeightEdit = new QLineEdit();
-    // m_customHeightEdit->setPlaceholderText("1080");
-    // m_customHeightEdit->setMaximumWidth(80);
-    // m_customHeightEdit->setStyleSheet("QLineEdit { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QLineEdit:focus { border-color: #007AFF; }");
-    
-    // QLabel* timesLabel = new QLabel("×");
-    // timesLabel->setStyleSheet("QLabel { font-weight: bold; color: #666; }");
-    
-    // customResLayout->addWidget(m_customWidthEdit);
-    // customResLayout->addWidget(timesLabel);
-    // customResLayout->addWidget(m_customHeightEdit);
-    // customResLayout->addStretch();
-    
-    // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.CustomResolution"), customResLayout);
-    
-    // // Frame rate
-    // m_fpsSpinBox = new QDoubleSpinBox();
-    // m_fpsSpinBox->setRange(1.0, 120.0);
-    // m_fpsSpinBox->setValue(30.0);
-    // m_fpsSpinBox->setSuffix(" fps");
-    // m_fpsSpinBox->setStyleSheet("QDoubleSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QDoubleSpinBox:focus { border-color: #007AFF; }");
-    // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.FrameRate"), m_fpsSpinBox);
-    
-    // // Scale filter
-    // m_scaleFilterCombo = new QComboBox();
-    // m_scaleFilterCombo->setStyleSheet(
-    //     "QComboBox { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  border-radius: 4px; "
-    //     "  padding: 8px; "
-    //     "  min-height: 20px; "
-    //     "  min-width: 100px; "
-    //     "} "
-    //     "QComboBox:focus { "
-    //     "  border-color: #007AFF; "
-    //     "} "
-    //     "QComboBox::drop-down { "
-    //     "  border: none; "
-    //     "  width: 20px; "
-    //     "} "
-    //     "QComboBox::down-arrow { "
-    //     "  image: none; "
-    //     "  border-left: 5px solid transparent; "
-    //     "  border-right: 5px solid transparent; "
-    //     "  border-top: 5px solid white; "
-    //     "  margin-right: 5px; "
-    //     "} "
-    //     "QComboBox QAbstractItemView { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  selection-background-color: #007AFF; "
-    //     "}"
-    // );
-    // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.ScaleFilter"), m_scaleFilterCombo);
-    
-    // // Quality slider
-    // QHBoxLayout* qualityLayout = new QHBoxLayout();
-    // m_qualitySlider = new QSlider(Qt::Horizontal);
-    // m_qualitySlider->setRange(1, 10);
-    // m_qualitySlider->setValue(7);
-    // m_qualitySlider->setStyleSheet(
-    //     "QSlider::groove:horizontal { "
-    //     "  border: 1px solid #ddd; "
-    //     "  height: 8px; "
-    //     "  background: #f0f0f0; "
-    //     "  border-radius: 4px; "
-    //     "} "
-    //     "QSlider::handle:horizontal { "
-    //     "  background: #007AFF; "
-    //     "  border: 1px solid #007AFF; "
-    //     "  width: 18px; "
-    //     "  margin: -5px 0; "
-    //     "  border-radius: 9px; "
-    //     "}"
-    // );
-    // m_qualityLabel = new QLabel("7");
-    // m_qualityLabel->setStyleSheet("QLabel { font-weight: bold; color: #333; min-width: 20px; }");
-    
-    // qualityLayout->addWidget(m_qualitySlider);
-    // qualityLayout->addWidget(m_qualityLabel);
-    
-    // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.Quality"), qualityLayout);
-    
-    // // Apply dark theme to video tab
-    // m_videoTab->setStyleSheet(
-    //     "QWidget { "
-    //     "  background-color: #1e1e1e; "
-    //     "  color: white; "
-    //     "} "
-    //     "QLabel { "
-    //     "  color: white; "
-    //     "  font-weight: bold; "
-    //     "}"
-    // );
-    
-    m_tabWidget->addTab(m_videoTab, obs_module_text("MultiRtmp.Config.Tab.Video"));
+    m_tabWidget->addTab(m_videoTab, obs_module_text("Basic.Settings.Video"));
 }
 
 void OneSevenMultiRtmpConfigDialog::setupAudioTab()
@@ -691,133 +542,16 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     m_audioLayout->setLabelAlignment(Qt::AlignLeft);
     m_audioLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
-    // // Enable audio
-    // m_enableAudioCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Audio.EnableAudio"));
-    // m_enableAudioCheck->setChecked(true);
-    // m_enableAudioCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
-    // m_audioLayout->addRow("", m_enableAudioCheck);
+    // Enable audio
+    m_useOBSAudioCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Audio.UseOBS"));
+    m_useOBSAudioCheck->setChecked(true);
+    m_useOBSAudioCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
+    m_audioLayout->addRow("", m_useOBSAudioCheck);
     
-    // // Audio format
-    // m_audioFormatCombo = new QComboBox();
-    // m_audioFormatCombo->setStyleSheet(
-    //     "QComboBox { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  border-radius: 4px; "
-    //     "  padding: 8px; "
-    //     "  min-height: 20px; "
-    //     "  min-width: 100px; "
-    //     "} "
-    //     "QComboBox:focus { "
-    //     "  border-color: #007AFF; "
-    //     "} "
-    //     "QComboBox::drop-down { "
-    //     "  border: none; "
-    //     "  width: 20px; "
-    //     "} "
-    //     "QComboBox::down-arrow { "
-    //     "  image: none; "
-    //     "  border-left: 5px solid transparent; "
-    //     "  border-right: 5px solid transparent; "
-    //     "  border-top: 5px solid white; "
-    //     "  margin-right: 5px; "
-    //     "} "
-    //     "QComboBox QAbstractItemView { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  selection-background-color: #007AFF; "
-    //     "}"
-    // );
-    // m_audioLayout->addRow(obs_module_text("MultiRtmp.Config.Audio.Format"), m_audioFormatCombo);
+    m_audioEncoderCombo = new QComboBox(m_audioTab);
+    m_audioLayout->addRow(obs_module_text("Basic.Settings.Output.Encoder.Audio"), m_audioEncoderCombo);
     
-    // // Sample rate
-    // m_sampleRateSpin = new QSpinBox();
-    // m_sampleRateSpin->setRange(8000, 48000);
-    // m_sampleRateSpin->setValue(44100);
-    // m_sampleRateSpin->setSuffix(" Hz");
-    // m_sampleRateSpin->setStyleSheet("QSpinBox { padding: 8px; border: 1px solid #ddd; border-radius: 4px; } QSpinBox:focus { border-color: #007AFF; }");
-    // m_audioLayout->addRow(obs_module_text("MultiRtmp.Config.Audio.SampleRate"), m_sampleRateSpin);
-    
-    // // Channel layout
-    // m_channelLayoutCombo = new QComboBox();
-    // m_channelLayoutCombo->addItems({"Mono", "Stereo", "5.1"});
-    // m_channelLayoutCombo->setCurrentText("Stereo");
-    // m_channelLayoutCombo->setStyleSheet(
-    //     "QComboBox { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  border-radius: 4px; "
-    //     "  padding: 8px; "
-    //     "  min-height: 20px; "
-    //     "  min-width: 100px; "
-    //     "} "
-    //     "QComboBox:focus { "
-    //     "  border-color: #007AFF; "
-    //     "} "
-    //     "QComboBox::drop-down { "
-    //     "  border: none; "
-    //     "  width: 20px; "
-    //     "} "
-    //     "QComboBox::down-arrow { "
-    //     "  image: none; "
-    //     "  border-left: 5px solid transparent; "
-    //     "  border-right: 5px solid transparent; "
-    //     "  border-top: 5px solid white; "
-    //     "  margin-right: 5px; "
-    //     "} "
-    //     "QComboBox QAbstractItemView { "
-    //     "  background-color: #3c3c3c; "
-    //     "  color: white; "
-    //     "  border: 1px solid #555; "
-    //     "  selection-background-color: #007AFF; "
-    //     "}"
-    // );
-    // m_audioLayout->addRow(obs_module_text("MultiRtmp.Config.Audio.Channels"), m_channelLayoutCombo);
-    
-    // // Audio volume
-    // QHBoxLayout* volumeLayout = new QHBoxLayout();
-    // m_audioVolumeSlider = new QSlider(Qt::Horizontal);
-    // m_audioVolumeSlider->setRange(0, 100);
-    // m_audioVolumeSlider->setValue(100);
-    // m_audioVolumeSlider->setStyleSheet(
-    //     "QSlider::groove:horizontal { "
-    //     "  border: 1px solid #ddd; "
-    //     "  height: 8px; "
-    //     "  background: #f0f0f0; "
-    //     "  border-radius: 4px; "
-    //     "} "
-    //     "QSlider::handle:horizontal { "
-    //     "  background: #007AFF; "
-    //     "  border: 1px solid #007AFF; "
-    //     "  width: 18px; "
-    //     "  margin: -5px 0; "
-    //     "  border-radius: 9px; "
-    //     "}"
-    // );
-    // m_audioVolumeLabel = new QLabel("100%");
-    // m_audioVolumeLabel->setStyleSheet("QLabel { font-weight: bold; color: #333; min-width: 40px; }");
-    
-    // volumeLayout->addWidget(m_audioVolumeSlider);
-    // volumeLayout->addWidget(m_audioVolumeLabel);
-    
-    // m_audioLayout->addRow(obs_module_text("MultiRtmp.Config.Audio.Volume"), volumeLayout);
-    
-    // // Apply dark theme to audio tab
-    // m_audioTab->setStyleSheet(
-    //     "QWidget { "
-    //     "  background-color: #1e1e1e; "
-    //     "  color: white; "
-    //     "} "
-    //     "QLabel { "
-    //     "  color: white; "
-    //     "  font-weight: bold; "
-    //     "}"
-    // );
-    
-    m_tabWidget->addTab(m_audioTab, obs_module_text("MultiRtmp.Config.Tab.Audio"));
+    m_tabWidget->addTab(m_audioTab, obs_module_text("Basic.Settings.Audio"));
 }
 
 
@@ -912,15 +646,6 @@ void OneSevenMultiRtmpConfigDialog::setupValidation()
     }
 }
 
-// Service types population removed - service tab functionality integrated into basic info
-
-
-
-
-
-
-
-
 void OneSevenMultiRtmpConfigDialog::resetToDefaults()
 {
     OneSevenMultiRtmpConfig defaultConfig;
@@ -985,7 +710,7 @@ bool OneSevenMultiRtmpConfigDialog::validateConfiguration()
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] validateConfiguration called");
     
     // Build configuration from UI to perform full validation
-    auto config = buildConfigFromUI();
+    auto config = SaveConfig();
     
     // Log configuration details for debugging
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Stream name: '%s'", config.streamName.c_str());
@@ -1003,7 +728,7 @@ bool OneSevenMultiRtmpConfigDialog::validateConfiguration()
 
 void OneSevenMultiRtmpConfigDialog::showValidationErrors()
 {
-//    auto config = buildConfigFromUI();
+//    auto config = SaveConfig();
 //    QString error = QString::fromStdString(config.getValidationError());
 //    
 //    QMessageBox::warning(this,
@@ -1026,9 +751,9 @@ void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig
     }
 }
 
-OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::buildConfigFromUI() const
+OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
 {
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] buildConfigFromUI called");
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] SaveConfig called");
     
     OneSevenMultiRtmpConfig config;
     
@@ -1045,13 +770,31 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::buildConfigFromUI() const
     // Service configuration
     config.streamName = m_streamNameEdit->text().toStdString(); // Map to streamName
     config.protocol = m_protocolCombo->currentData().toString().toStdString(); // Map to protocol
-    
+    config.syncStart = m_syncStartCheckbox->isChecked();
+    config.syncStop = m_syncStopCheckbox->isChecked();
+
+    config.serviceSettings = m_serviceSettingsWidget->SaveData();
     
     // Output configuration
-    
+    config.outputSettings = m_outputSettingsWidget->SaveData();
+
     // Video configuration
+    if (!m_useOBSVideoCheck->isChecked()) { 
+        config.encoderId = m_encoderCombo->currentData().toString().toStdString();
+        config.resolution = m_resolutionCombo->currentText().toStdString();
+        config.fpsDenominator = m_fpsDenominatorCombo->currentText().toInt();
+        config.outputScene = m_outputSceneCombo->currentText().toStdString();
+
+        config.encoderSettings = m_videoSettingsWidget->SaveData();
+    }
     
     // Audio configuration
+    if (!m_useOBSAudioCheck->isChecked()) {
+        config.encoderId = m_audioEncoderCombo->currentData().toString().toStdString();
+        config.encoderSettings = m_audioSettingsWidget->SaveData();
+
+        // TODO: track audio settings
+    }
     
     
     return config;
