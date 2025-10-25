@@ -116,19 +116,3 @@ private:
     static OneSevenMultiRtmpManager* s_instance;
     static std::mutex s_instanceMutex;
 };
-
-// Logging macros for main manager
-#define MULTI_RTMP_MANAGER_LOG(level, format, ...) \
-    obs_log(level, "[MultiRTMP-Manager] " format, ##__VA_ARGS__)
-
-#define MULTI_RTMP_MANAGER_LOG_INFO(format, ...) \
-    MULTI_RTMP_MANAGER_LOG(LOG_INFO, format, ##__VA_ARGS__)
-
-#define MULTI_RTMP_MANAGER_LOG_WARNING(format, ...) \
-    MULTI_RTMP_MANAGER_LOG(LOG_WARNING, format, ##__VA_ARGS__)
-
-#define MULTI_RTMP_MANAGER_LOG_ERROR(format, ...) \
-    MULTI_RTMP_MANAGER_LOG(LOG_ERROR, format, ##__VA_ARGS__)
-
-#define MULTI_RTMP_MANAGER_LOG_DEBUG(format, ...) \
-    MULTI_RTMP_MANAGER_LOG(LOG_DEBUG, format, ##__VA_ARGS__)

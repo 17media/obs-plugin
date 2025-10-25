@@ -11,12 +11,12 @@ OneSevenMultiRtmpManager::OneSevenMultiRtmpManager()
     , m_streamController(nullptr)
     , m_initialized(false)
 {
-    MULTI_RTMP_MANAGER_LOG_INFO("Creating MultiRTMP Manager");
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] Creating MultiRTMP Manager");
 }
 
 OneSevenMultiRtmpManager::~OneSevenMultiRtmpManager()
 {
-    MULTI_RTMP_MANAGER_LOG_INFO("Destroying MultiRTMP Manager");
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] Destroying MultiRTMP Manager");
     shutdown();
 }
 
@@ -41,24 +41,24 @@ void OneSevenMultiRtmpManager::destroyInstance()
 bool OneSevenMultiRtmpManager::initialize()
 {
     if (m_initialized) {
-        MULTI_RTMP_MANAGER_LOG_WARNING("Manager already initialized");
+        obs_log(LOG_WARNING, "[MultiRTMP-Manager] Manager already initialized");
         return true;
     }
 
-    MULTI_RTMP_MANAGER_LOG_INFO("Initializing MultiRTMP Manager");
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] Initializing MultiRTMP Manager");
 
     try {
         // Create configuration manager
         m_configManager = std::make_unique<OneSevenMultiRtmpConfigManager>();
         if (!m_configManager) {
-            MULTI_RTMP_MANAGER_LOG_ERROR("Failed to create configuration manager");
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to create configuration manager");
             return false;
         }
 
         // Create stream controller
         m_streamController = std::make_unique<OneSevenMultiRtmpStreamController>();
         if (!m_streamController) {
-            MULTI_RTMP_MANAGER_LOG_ERROR("Failed to create stream controller");
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to create stream controller");
             return false;
         }
 
@@ -67,15 +67,15 @@ bool OneSevenMultiRtmpManager::initialize()
 
         // Load existing configuration
         if (!loadConfiguration()) {
-            MULTI_RTMP_MANAGER_LOG_WARNING("Failed to load configuration, starting with empty config");
+            obs_log(LOG_WARNING, "[MultiRTMP-Manager] Failed to load configuration, starting with empty config");
         }
 
         m_initialized = true;
-        MULTI_RTMP_MANAGER_LOG_INFO("MultiRTMP Manager initialized successfully");
+        obs_log(LOG_INFO, "[MultiRTMP-Manager] MultiRTMP Manager initialized successfully");
         return true;
 
     } catch (const std::exception& e) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Exception during initialization: %s", e.what());
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Exception during initialization: %s", e.what());
         return false;
     }
 }
@@ -86,7 +86,7 @@ void OneSevenMultiRtmpManager::shutdown()
         return;
     }
 
-    MULTI_RTMP_MANAGER_LOG_INFO("Shutting down MultiRTMP Manager");
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] Shutting down MultiRTMP Manager");
 
     try {
         // Stop all streams first
@@ -106,10 +106,10 @@ void OneSevenMultiRtmpManager::shutdown()
         m_configManager.reset();
 
         m_initialized = false;
-        MULTI_RTMP_MANAGER_LOG_INFO("MultiRTMP Manager shutdown complete");
+        obs_log(LOG_INFO, "[MultiRTMP-Manager] MultiRTMP Manager shutdown complete");
 
     } catch (const std::exception& e) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Exception during shutdown: %s", e.what());
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Exception during shutdown: %s", e.what());
     }
 }
 
@@ -143,7 +143,7 @@ bool OneSevenMultiRtmpManager::addStreamConfig(const OneSevenMultiRtmpConfig& co
 bool OneSevenMultiRtmpManager::removeStreamConfig(const std::string& streamId)
 {
     if (!m_initialized || !m_configManager) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Manager not initialized");
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
 
@@ -161,7 +161,7 @@ bool OneSevenMultiRtmpManager::removeStreamConfig(const std::string& streamId)
 bool OneSevenMultiRtmpManager::updateStreamConfig(const std::string& streamId, const OneSevenMultiRtmpConfig& config)
 {
     if (!m_initialized || !m_configManager) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Manager not initialized");
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
 
@@ -211,18 +211,18 @@ bool OneSevenMultiRtmpManager::hasStreamConfig(const std::string& streamId) cons
 bool OneSevenMultiRtmpManager::startStream(const std::string& streamId)
 {
     if (!m_initialized || !m_streamController) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Manager not initialized");
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
 
     if (!hasStreamConfig(streamId)) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Stream configuration not found: %s", streamId.c_str());
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Stream configuration not found: %s", streamId.c_str());
         return false;
     }
 
     // Ensure output exists
     if (!ensureStreamOutput(streamId)) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Failed to create stream output: %s", streamId.c_str());
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to create stream output: %s", streamId.c_str());
         return false;
     }
 
@@ -232,7 +232,7 @@ bool OneSevenMultiRtmpManager::startStream(const std::string& streamId)
 bool OneSevenMultiRtmpManager::stopStream(const std::string& streamId)
 {
     if (!m_initialized || !m_streamController) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Manager not initialized");
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
 
@@ -242,7 +242,7 @@ bool OneSevenMultiRtmpManager::stopStream(const std::string& streamId)
 bool OneSevenMultiRtmpManager::startAllStreams()
 {
     if (!m_initialized || !m_streamController) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Manager not initialized");
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
 
@@ -251,7 +251,7 @@ bool OneSevenMultiRtmpManager::startAllStreams()
 
     for (const auto& config : configs) {
         if (!startStream(config.id)) {
-            MULTI_RTMP_MANAGER_LOG_ERROR("Failed to start stream: %s", config.id.c_str());
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to start stream: %s", config.id.c_str());
             allSuccess = false;
         }
     }
@@ -262,7 +262,7 @@ bool OneSevenMultiRtmpManager::startAllStreams()
 bool OneSevenMultiRtmpManager::stopAllStreams()
 {
     if (!m_initialized || !m_streamController) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Manager not initialized");
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
 
@@ -391,7 +391,7 @@ bool OneSevenMultiRtmpManager::createStreamOutput(const std::string& streamId)
 
     auto config = getStreamConfig(streamId);
     if (config.id.empty()) {
-        MULTI_RTMP_MANAGER_LOG_ERROR("Stream configuration not found: %s", streamId.c_str());
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Stream configuration not found: %s", streamId.c_str());
         return false;
     }
 
@@ -426,7 +426,7 @@ bool OneSevenMultiRtmpManager::startAllStreamsWithSync()
     // Create all outputs first
     for (const auto& config : configs) {
         if (!ensureStreamOutput(config.id)) {
-            MULTI_RTMP_MANAGER_LOG_ERROR("Failed to create output for stream: %s", config.id.c_str());
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to create output for stream: %s", config.id.c_str());
             return false;
         }
     }
@@ -480,7 +480,7 @@ bool OneSevenMultiRtmpManager::hasStreamOutput(const std::string& streamId) cons
 // Private methods
 void OneSevenMultiRtmpManager::onConfigChanged(const std::string& streamId, const OneSevenMultiRtmpConfig& config)
 {
-    MULTI_RTMP_MANAGER_LOG_DEBUG("Configuration changed for stream: %s", streamId.c_str());
+    obs_log(LOG_DEBUG, "[MultiRTMP-Manager] Configuration changed for stream: %s", streamId.c_str());
     if (m_configChangeCallback) {
         m_configChangeCallback(streamId, config);
     }
@@ -488,7 +488,7 @@ void OneSevenMultiRtmpManager::onConfigChanged(const std::string& streamId, cons
 
 void OneSevenMultiRtmpManager::onConfigDeleted(const std::string& streamId)
 {
-    MULTI_RTMP_MANAGER_LOG_DEBUG("Configuration deleted for stream: %s", streamId.c_str());
+    obs_log(LOG_DEBUG, "[MultiRTMP-Manager] Configuration deleted for stream: %s", streamId.c_str());
     if (m_configDeleteCallback) {
         m_configDeleteCallback(streamId);
     }
@@ -496,7 +496,7 @@ void OneSevenMultiRtmpManager::onConfigDeleted(const std::string& streamId)
 
 void OneSevenMultiRtmpManager::onStreamStatusChanged(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status)
 {
-    MULTI_RTMP_MANAGER_LOG_DEBUG("Status changed for stream %s: %s", streamId.c_str(), status.getStateString().c_str());
+    obs_log(LOG_DEBUG, "[MultiRTMP-Manager] Status changed for stream %s: %s", streamId.c_str(), status.getStateString().c_str());
     if (m_statusCallback) {
         m_statusCallback(streamId, status);
     }
