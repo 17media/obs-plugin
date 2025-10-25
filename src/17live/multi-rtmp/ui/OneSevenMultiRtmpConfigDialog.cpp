@@ -12,54 +12,19 @@
 
 
 // Static constants for UI options
-const QStringList OneSevenMultiRtmpConfigDialog::SERVICE_TYPES = {
-    "Custom RTMP",
-    "YouTube",
-    "Twitch",
-    "Facebook",
-    "17Live"
-};
 
-const QStringList OneSevenMultiRtmpConfigDialog::ENCODER_TYPES = {
-    "x264",
-    "NVENC",
-    "AMD",
-    "QuickSync"
-};
 
-const QStringList OneSevenMultiRtmpConfigDialog::VIDEO_RESOLUTIONS = {
-    "1920x1080",
-    "1280x720",
-    "854x480",
-    "640x360",
-    "Custom"
-};
 
-const QStringList OneSevenMultiRtmpConfigDialog::AUDIO_FORMATS = {
-    "AAC",
-    "MP3",
-    "Opus"
-};
 
-const QStringList OneSevenMultiRtmpConfigDialog::SCALE_FILTERS = {
-    "Bilinear",
-    "Bicubic",
-    "Lanczos"
-};
 
-const QStringList OneSevenMultiRtmpConfigDialog::SYNC_MODES = {
-    "None",
-    "Start Only",
-    "Stop Only",
-    "Both"
-};
 
-const QStringList OneSevenMultiRtmpConfigDialog::LOG_LEVELS = {
-    "Error",
-    "Warning",
-    "Info",
-    "Debug"
-};
+
+
+
+
+
+
+
 
 OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, std::shared_ptr<OneSevenMultiRtmpConfig> config)
     : QDialog(parent)
@@ -144,11 +109,6 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
     setupUI();
     setupConnections();
     setupValidation();
-    
-    // Populate combo boxes
-    populateEncoderOptions();
-    populateVideoResolutions();
-    populateAudioFormats();
     
     // Load configuration if provided
     if (m_config) {
@@ -922,39 +882,15 @@ void OneSevenMultiRtmpConfigDialog::setupButtonBox()
 
 void OneSevenMultiRtmpConfigDialog::setupConnections()
 {
-    // Basic info connections
-    connect(m_streamNameEdit, &QLineEdit::textChanged, 
+    // Basic info
+    connect(m_streamNameEdit, &QLineEdit::textChanged,
             this, [this]() { m_validationTimer->start(); });
-    connect(m_serverEdit, &QLineEdit::textChanged,
-            this, [this]() { m_validationTimer->start(); });
-    connect(m_keyEdit, &QLineEdit::textChanged,
-            this, [this]() { m_validationTimer->start(); });
-    
-    // Stream key visibility toggle
-    connect(m_showKeyCheck, &QCheckBox::toggled,
-            this, [this](bool checked) {
-                m_keyEdit->setEchoMode(checked ? QLineEdit::Normal : QLineEdit::Password);
-            });
-    
+
     // Advanced settings toggle
     connect(m_advancedButton, &QPushButton::clicked,
             this, &OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled);
-    
-    // Output tab connections
-    connect(m_shareEncoderCheck, &QCheckBox::toggled,
-            this, &OneSevenMultiRtmpConfigDialog::onEncoderSharingChanged);
-    
-    // Video tab connections
-    connect(m_videoResolutionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &OneSevenMultiRtmpConfigDialog::onVideoResolutionChanged);
-    connect(m_qualitySlider, &QSlider::valueChanged,
-            this, [this](int value) { m_qualityLabel->setText(QString::number(value)); });
-    
-    // Audio tab connections
-    connect(m_audioVolumeSlider, &QSlider::valueChanged,
-            this, [this](int value) { m_audioVolumeLabel->setText(QString("%1%").arg(value)); });
-    
-    // Button connections
+
+    // Buttons
     connect(m_okButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::accept);
     connect(m_cancelButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::reject);
 }
@@ -963,18 +899,13 @@ void OneSevenMultiRtmpConfigDialog::setupValidation()
 {
     m_validationTimer = new QTimer(this);
     m_validationTimer->setSingleShot(true);
-    m_validationTimer->setInterval(500); // 500ms delay
+    m_validationTimer->setInterval(500);
     connect(m_validationTimer, &QTimer::timeout, this, &OneSevenMultiRtmpConfigDialog::onValidationTimer);
-    
-    // Connect validation triggers to input fields
+
+    // Validation triggers
     connect(m_streamNameEdit, &QLineEdit::textChanged,
             this, [this]() { m_validationTimer->start(); });
-    connect(m_serverEdit, &QLineEdit::textChanged,
-            this, [this]() { m_validationTimer->start(); });
-    connect(m_keyEdit, &QLineEdit::textChanged,
-            this, [this]() { m_validationTimer->start(); });
-    
-    // Initially hide validation label and enable OK button for new streams
+
     if (!m_isEditMode) {
         m_validationLabel->setVisible(false);
         m_okButton->setEnabled(true);
@@ -983,26 +914,8 @@ void OneSevenMultiRtmpConfigDialog::setupValidation()
 
 // Service types population removed - service tab functionality integrated into basic info
 
-void OneSevenMultiRtmpConfigDialog::populateEncoderOptions()
-{
-    m_encoderTypeCombo->addItems(ENCODER_TYPES);
-}
 
-void OneSevenMultiRtmpConfigDialog::populateVideoResolutions()
-{
-    m_videoResolutionCombo->addItems(VIDEO_RESOLUTIONS);
-    m_scaleFilterCombo->addItems(SCALE_FILTERS);
-}
 
-void OneSevenMultiRtmpConfigDialog::populateAudioFormats()
-{
-    m_audioFormatCombo->addItems(AUDIO_FORMATS);
-    // Note: m_syncModeCombo and m_logLevelCombo are declared but not initialized
-    // Commenting out to prevent null pointer access crash
-    // TODO: Initialize these ComboBoxes if they are needed in the UI
-    // m_syncModeCombo->addItems(SYNC_MODES);
-    // m_logLevelCombo->addItems(LOG_LEVELS);
-}
 
 
 
@@ -1035,15 +948,7 @@ void OneSevenMultiRtmpConfigDialog::reject()
 
 // Service-related slot functions removed - functionality integrated into basic info section
 
-void OneSevenMultiRtmpConfigDialog::onEncoderSharingChanged()
-{
-    updateEncoderFields();
-}
 
-void OneSevenMultiRtmpConfigDialog::onVideoResolutionChanged()
-{
-    updateVideoFields();
-}
 
 void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled()
 {
@@ -1070,36 +975,8 @@ void OneSevenMultiRtmpConfigDialog::onValidationTimer()
 
 // Service fields update removed - service selection integrated into basic info section
 
-void OneSevenMultiRtmpConfigDialog::updateEncoderFields()
-{
-    bool shareEncoder = m_shareEncoderCheck->isChecked();
-    m_encoderTypeCombo->setEnabled(!shareEncoder);
-    
-    if (shareEncoder) {
-        m_encoderTypeCombo->setCurrentText("x264"); // Default shared encoder
-    }
-}
 
-void OneSevenMultiRtmpConfigDialog::updateVideoFields()
-{
-    bool isCustom = (m_videoResolutionCombo->currentText() == "Custom");
-    m_customWidthEdit->setEnabled(isCustom);
-    m_customHeightEdit->setEnabled(isCustom);
-    
-    if (!isCustom) {
-        QString resolution = m_videoResolutionCombo->currentText();
-        QStringList parts = resolution.split('x');
-        if (parts.size() == 2) {
-            m_customWidthEdit->setText(parts[0]);
-            m_customHeightEdit->setText(parts[1]);
-        }
-    }
-}
 
-void OneSevenMultiRtmpConfigDialog::updateAudioFields()
-{
-    // Update audio-related fields based on current settings
-}
 
 
 
@@ -1138,10 +1015,8 @@ void OneSevenMultiRtmpConfigDialog::showValidationErrors()
 
 void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig& config)
 {
-    // Basic info section
     m_streamNameEdit->setText(QString::fromStdString(config.streamName));
-    
-    // Set protocol combo box
+
     QString protocolValue = QString::fromStdString(config.protocol);
     for (int i = 0; i < m_protocolCombo->count(); ++i) {
         if (m_protocolCombo->itemData(i).toString() == protocolValue) {
@@ -1149,16 +1024,6 @@ void OneSevenMultiRtmpConfigDialog::loadConfigToUI(const OneSevenMultiRtmpConfig
             break;
         }
     }
-    
-    // Output tab
-    
-    // Video tab
-    
-    // Audio tab
-    
-    // Update dependent fields
-    updateEncoderFields();
-    updateVideoFields();
 }
 
 OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::buildConfigFromUI() const
