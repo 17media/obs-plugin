@@ -7,43 +7,15 @@
 
 OneSevenMultiRtmpDock::OneSevenMultiRtmpDock(QWidget* parent)
     : QDockWidget(parent)
-    , m_centralWidget(nullptr)
-    , m_mainLayout(nullptr)
-    , m_headerFrame(nullptr)
-    , m_headerLayout(nullptr)
-    , m_titleLabel(nullptr)
-    , m_streamCountLabel(nullptr)
-    , m_addStreamButton(nullptr)
-    , m_refreshButton(nullptr)
-    , m_controlFrame(nullptr)
-    , m_controlLayout(nullptr)
-    , m_startAllButton(nullptr)
-    , m_stopAllButton(nullptr)
-    , m_scrollArea(nullptr)
+    , m_manager(OneSevenMultiRtmpManager::getInstance())
     , m_streamListWidget(nullptr)
-    , m_statusFrame(nullptr)
-    , m_statusLayout(nullptr)
-    , m_statusLabel(nullptr)
     , m_configDialog(nullptr)
-    , m_statsUpdateTimer(nullptr)
-    , m_manager(nullptr)
-    , m_isUpdatingUI(false)
 {
-    setObjectName("OneSevenMultiRtmpDock");
-    setWindowTitle(getMultiRtmpText("MultiRTMP.Dock.Title"));
-    setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
-    
-    // Get manager instance but defer initialization to avoid blocking OBS startup
-    m_manager = OneSevenMultiRtmpManager::getInstance();
     obs_log(LOG_INFO, "[MultiRTMP-Dock] Manager instance obtained, initialization will be done on first use");
     
     setupUI();
     setupConnections();
     setupManagerCallbacks();
-    
-    // Initialize with current data
-    refreshStreamList();
-    updateButtonStates();
 }
 
 OneSevenMultiRtmpDock::~OneSevenMultiRtmpDock()
@@ -358,10 +330,9 @@ void OneSevenMultiRtmpDock::onRefreshClicked()
     refreshStreamList();
 }
 
-void OneSevenMultiRtmpDock::onStreamConfigChanged(const std::string& streamId)
+void OneSevenMultiRtmpDock::onStreamConfigChanged(const std::string& streamId, const OneSevenMultiRtmpConfig& config)
 {
-    if (m_manager && m_streamListWidget) {
-        auto config = m_manager->getStreamConfig(streamId);
+    if (m_streamListWidget) {
         m_streamListWidget->updateStream(config);
     }
 }

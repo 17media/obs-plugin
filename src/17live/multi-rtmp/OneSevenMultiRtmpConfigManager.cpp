@@ -8,25 +8,21 @@
 #include <algorithm>
 
 OneSevenMultiRtmpConfigManager::OneSevenMultiRtmpConfigManager() {
-    // Get the configuration directory from OBS
-    char* configDir = obs_module_config_path("");
-    if (configDir) {
-        m_configDirectory = std::string(configDir);
-        bfree(configDir);
-    } else {
-        MULTI_RTMP_CONFIG_LOG_ERROR("Failed to get OBS config directory");
-        m_configDirectory = ".";
-    }
-
-    m_configFilePath = m_configDirectory + "/" + CONFIG_FILE_NAME;
+    MULTI_RTMP_CONFIG_LOG_INFO("ConfigManager initialized");
     
-    MULTI_RTMP_CONFIG_LOG_INFO("Configuration manager initialized with path: %s", m_configFilePath.c_str());
+    // Initialize configuration directory path
+    char* configPath = obs_module_config_path("");
+    if (configPath) {
+        m_configDirectory = std::string(configPath) + "/multi-rtmp";
+        bfree(configPath);
+    } else {
+        m_configDirectory = "./config/multi-rtmp";
+    }
+    
+    m_configFilePath = m_configDirectory + "/" + CONFIG_FILE_NAME;
     
     // Ensure config directory exists
     ensureConfigDirectoryExists();
-    
-    // Load existing configuration
-    loadConfiguration();
 }
 
 OneSevenMultiRtmpConfigManager::~OneSevenMultiRtmpConfigManager() {
@@ -55,23 +51,16 @@ std::string OneSevenMultiRtmpConfigManager::getConfigFilePath() const {
 
 bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConfig& config)
 {
-    MULTI_RTMP_CONFIG_LOG_DEBUG("addStreamConfig called for stream ID: %s", config.id.c_str());
+    MULTI_RTMP_CONFIG_LOG_INFO("Adding stream config: %s", config.streamName.c_str());
     
-    OneSevenMultiRtmpConfig newConfig = config;
-    
-    // Check if stream already exists
-    if (m_globalConfig.findStream(config.id) != nullptr) {
-        MULTI_RTMP_CONFIG_LOG_ERROR("Stream with ID already exists: %s", config.id.c_str());
+    // Check if stream with same ID already exists
+    if (m_globalConfig.findStream(config.id)) {
+        MULTI_RTMP_CONFIG_LOG_ERROR("Stream with ID %s already exists", config.id.c_str());
         return false;
     }
     
-    MULTI_RTMP_CONFIG_LOG_DEBUG("Adding stream to global config");
-    
     // Add to global config
-    m_globalConfig.streams.push_back(newConfig);
-    
-    MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration added: %s (%s)", 
-                               newConfig.streamName.c_str(), newConfig.id.c_str());
+    m_globalConfig.streams.push_back(config);
     
     // Save configuration
     if (!saveConfigurationInternal()) {
@@ -88,13 +77,14 @@ bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConf
     }
     
     // Notify callback
-    notifyConfigChange(newConfig.id, newConfig);
+    notifyConfigChange(config.id, config);
     
-    MULTI_RTMP_CONFIG_LOG_DEBUG("Stream configuration added and saved successfully");
     return true;
 }
 
 bool OneSevenMultiRtmpConfigManager::removeStreamConfig(const std::string& streamId) {
+    MULTI_RTMP_CONFIG_LOG_INFO("Removing stream config: %s", streamId.c_str());
+    
     OneSevenMultiRtmpConfig removedConfig;
     bool found = false;
     
@@ -116,8 +106,6 @@ bool OneSevenMultiRtmpConfigManager::removeStreamConfig(const std::string& strea
     if (it != m_globalConfig.streams.end()) {
         m_globalConfig.streams.erase(it);
     }
-
-    MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration removed: %s", streamId.c_str());
     
     if (!found) {
         return false;
@@ -138,7 +126,7 @@ bool OneSevenMultiRtmpConfigManager::removeStreamConfig(const std::string& strea
 }
 
 bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
-    MULTI_RTMP_CONFIG_LOG_DEBUG("updateStreamConfig called for stream ID: %s", streamId.c_str());
+    MULTI_RTMP_CONFIG_LOG_INFO("Updating stream config: %s", streamId.c_str());
     
     OneSevenMultiRtmpConfig updatedConfig = config;
     OneSevenMultiRtmpConfig originalConfig;
@@ -156,9 +144,6 @@ bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& strea
     
     // Update the configuration
     *existingConfig = updatedConfig;
-    
-    MULTI_RTMP_CONFIG_LOG_INFO("Stream configuration updated: %s (%s)", 
-                               updatedConfig.streamName.c_str(), streamId.c_str());
     
     if (!found) {
         return false;
@@ -178,7 +163,6 @@ bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& strea
     // Notify callback
     notifyConfigChange(streamId, updatedConfig);
     
-    MULTI_RTMP_CONFIG_LOG_DEBUG("Stream configuration updated and saved successfully");
     return true;
 }
 
@@ -270,7 +254,6 @@ bool OneSevenMultiRtmpConfigManager::createBackup() const {
     
     try {
         std::filesystem::copy_file(m_configFilePath, backupPath);
-        MULTI_RTMP_CONFIG_LOG_INFO("Configuration backup created: %s", backupPath.c_str());
         return true;
     } catch (const std::exception& e) {
         MULTI_RTMP_CONFIG_LOG_ERROR("Failed to create backup: %s", e.what());
@@ -291,7 +274,6 @@ bool OneSevenMultiRtmpConfigManager::restoreFromBackup() {
     
     try {
         std::filesystem::copy_file(backupPath, m_configFilePath, std::filesystem::copy_options::overwrite_existing);
-        MULTI_RTMP_CONFIG_LOG_INFO("Configuration restored from backup: %s", latestBackup.c_str());
         return loadConfiguration();
     } catch (const std::exception& e) {
         MULTI_RTMP_CONFIG_LOG_ERROR("Failed to restore from backup: %s", e.what());
@@ -327,7 +309,6 @@ bool OneSevenMultiRtmpConfigManager::ensureConfigDirectoryExists() const {
     try {
         if (!std::filesystem::exists(m_configDirectory)) {
             std::filesystem::create_directories(m_configDirectory);
-            MULTI_RTMP_CONFIG_LOG_INFO("Created configuration directory: %s", m_configDirectory.c_str());
         }
         return true;
     } catch (const std::exception& e) {
@@ -398,13 +379,11 @@ bool OneSevenMultiRtmpConfigManager::saveConfigurationInternal() {
         return false;
     }
 
-    MULTI_RTMP_CONFIG_LOG_INFO("Configuration saved successfully");
     return true;
 }
 
 bool OneSevenMultiRtmpConfigManager::loadConfigurationInternal() {
     if (!std::filesystem::exists(m_configFilePath)) {
-        MULTI_RTMP_CONFIG_LOG_INFO("Configuration file does not exist, creating new one");
         m_globalConfig = OneSevenMultiRtmpGlobalConfig();
         return saveConfigurationInternal();
     }

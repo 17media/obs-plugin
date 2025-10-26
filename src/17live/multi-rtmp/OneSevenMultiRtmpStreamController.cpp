@@ -10,11 +10,16 @@
 #include "utility/Common.hpp"
 
 OneSevenMultiRtmpStreamController::OneSevenMultiRtmpStreamController() {
-    MULTI_RTMP_STREAM_LOG_INFO("Stream controller initialized");
+    MULTI_RTMP_STREAM_LOG_INFO("Creating MultiRTMP Stream Controller");
 }
 
 OneSevenMultiRtmpStreamController::~OneSevenMultiRtmpStreamController() {
+    MULTI_RTMP_STREAM_LOG_INFO("Destroying MultiRTMP Stream Controller");
+    
+    // Stop statistics monitoring
     stopStatsMonitoring();
+    
+    // Destroy all outputs
     destroyAllOutputs();
     
     // Release shared encoders
@@ -29,22 +34,25 @@ OneSevenMultiRtmpStreamController::~OneSevenMultiRtmpStreamController() {
         }
     }
     m_sharedAudioEncoders.clear();
-    
-    MULTI_RTMP_STREAM_LOG_INFO("Stream controller destroyed");
 }
 
 bool OneSevenMultiRtmpStreamController::createOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
     std::lock_guard<std::mutex> lock(m_outputsMutex);
     
+    MULTI_RTMP_STREAM_LOG_INFO("Creating output for stream: %s", streamId.c_str());
+    
+    // Check if output already exists
     if (m_streamOutputs.find(streamId) != m_streamOutputs.end()) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Output already exists for stream: %s", streamId.c_str());
-        return false;
+        MULTI_RTMP_STREAM_LOG_WARNING("Output already exists for stream: %s", streamId.c_str());
+        return true;
     }
     
+    // Create stream output structure
     auto streamOutput = std::make_unique<StreamOutput>();
     streamOutput->config = config;
     streamOutput->status.id = streamId;
     streamOutput->status.state = OneSevenMultiRtmpStreamStatus::STOPPED;
+    streamOutput->stats.id = streamId;
     
     // Create service
     if (!createService(streamId, config, streamOutput.get())) {
@@ -55,107 +63,68 @@ bool OneSevenMultiRtmpStreamController::createOutput(const std::string& streamId
     // Create encoders
     if (!createEncoders(streamId, config, streamOutput.get())) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create encoders for stream: %s", streamId.c_str());
-        destroyService(streamId);
         return false;
     }
     
     // Setup output
     if (!setupOutput(streamId, config, streamOutput.get())) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to setup output for stream: %s", streamId.c_str());
-        destroyEncoders(streamId);
-        destroyService(streamId);
         return false;
     }
     
+    // Store the stream output
     m_streamOutputs[streamId] = std::move(streamOutput);
     
-    MULTI_RTMP_STREAM_LOG_INFO("Output created successfully for stream: %s (%s)", 
-                               config.streamName.c_str(), streamId.c_str());
     return true;
 }
 
 bool OneSevenMultiRtmpStreamController::startOutput(const std::string& streamId) {
-    // TEMPORARILY REMOVED LOCK FOR DEBUGGING
-    // std::lock_guard<std::mutex> lock(m_outputsMutex);
-    
-    MULTI_RTMP_STREAM_LOG_INFO("=== STARTING OUTPUT FOR STREAM: %s ===", streamId.c_str());
+    std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it == m_streamOutputs.end()) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Output not found for stream: %s", streamId.c_str());
+        MULTI_RTMP_STREAM_LOG_ERROR("Stream output not found: %s", streamId.c_str());
         return false;
     }
     
-    MULTI_RTMP_STREAM_LOG_INFO("Found stream output, calling startOutputInternal for: %s", streamId.c_str());
     return startOutputInternal(streamId, it->second.get());
 }
 
 bool OneSevenMultiRtmpStreamController::startOutputInternal(const std::string& streamId, StreamOutput* streamOutput) {
-    MULTI_RTMP_STREAM_LOG_INFO("=== startOutputInternal BEGIN for stream: %s ===", streamId.c_str());
-    
     if (!streamOutput || !streamOutput->output) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Output object is null for stream: %s", streamId.c_str());
+        MULTI_RTMP_STREAM_LOG_ERROR("Invalid stream output for: %s", streamId.c_str());
         return false;
     }
-    
-    MULTI_RTMP_STREAM_LOG_INFO("Output object is valid for stream: %s", streamId.c_str());
     
     if (obs_output_active(streamOutput->output)) {
         MULTI_RTMP_STREAM_LOG_WARNING("Output already active for stream: %s", streamId.c_str());
         return true;
     }
     
-    MULTI_RTMP_STREAM_LOG_INFO("Output is not active, proceeding to start for stream: %s", streamId.c_str());
-    
-    // Add delay configuration like in reference implementation
-    MULTI_RTMP_STREAM_LOG_INFO("Setting up delay configuration for stream: %s", streamId.c_str());
-    auto profileConfig = obs_frontend_get_profile_config();
-    if (profileConfig) {
-        bool useDelay = config_get_bool(profileConfig, "Output", "DelayEnable");
-        bool preserveDelay = config_get_bool(profileConfig, "Output", "DelayPreserve");
-        int delaySec = config_get_int(profileConfig, "Output", "DelaySec");
-        
-        MULTI_RTMP_STREAM_LOG_INFO("Delay config - useDelay: %d, preserveDelay: %d, delaySec: %d for stream: %s", 
-                                   useDelay, preserveDelay, delaySec, streamId.c_str());
-        
-        obs_output_set_delay(streamOutput->output,
-            useDelay ? delaySec : 0,
-            preserveDelay ? OBS_OUTPUT_DELAY_PRESERVE : 0
-        );
-        
-        MULTI_RTMP_STREAM_LOG_INFO("Delay configuration applied for stream: %s", streamId.c_str());
-    } else {
-        MULTI_RTMP_STREAM_LOG_WARNING("No profile config found for delay setup for stream: %s", streamId.c_str());
+    // Set delay if configured
+    if (streamOutput->config.delaySeconds > 0) {
+        obs_output_set_delay(streamOutput->output, streamOutput->config.delaySeconds, 
+                           OBS_OUTPUT_DELAY_PRESERVE);
     }
     
-    MULTI_RTMP_STREAM_LOG_INFO("Updating stream status to CONNECTING for stream: %s", streamId.c_str());
-    updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::CONNECTING);
-    
-    MULTI_RTMP_STREAM_LOG_INFO("About to call obs_output_start for stream: %s", streamId.c_str());
-    
+    // Start the output
     if (!obs_output_start(streamOutput->output)) {
-        const char* errorPtr = obs_output_get_last_error(streamOutput->output);
-        std::string error = errorPtr ? errorPtr : "Unknown error";
-        MULTI_RTMP_STREAM_LOG_ERROR("obs_output_start FAILED for stream %s: %s", streamId.c_str(), error.c_str());
-        updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::ERROR, error);
+        MULTI_RTMP_STREAM_LOG_ERROR("Failed to start output for stream: %s", streamId.c_str());
         return false;
     }
     
-    MULTI_RTMP_STREAM_LOG_INFO("obs_output_start SUCCESS for stream: %s", streamId.c_str());
+    // Update status
+    updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::STARTING);
     
-    streamOutput->startTime = std::chrono::steady_clock::now();
-    
-    MULTI_RTMP_STREAM_LOG_INFO("=== startOutputInternal COMPLETED for stream: %s ===", streamId.c_str());
     return true;
 }
 
 bool OneSevenMultiRtmpStreamController::stopOutput(const std::string& streamId) {
-    // TEMPORARILY REMOVED LOCK FOR DEBUGGING
-    // std::lock_guard<std::mutex> lock(m_outputsMutex);
+    std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it == m_streamOutputs.end()) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Output not found for stream: %s", streamId.c_str());
+        MULTI_RTMP_STREAM_LOG_ERROR("Stream output not found: %s", streamId.c_str());
         return false;
     }
     
@@ -163,21 +132,18 @@ bool OneSevenMultiRtmpStreamController::stopOutput(const std::string& streamId) 
 }
 
 bool OneSevenMultiRtmpStreamController::stopOutputInternal(const std::string& streamId, StreamOutput* streamOutput) {
-    if (!streamOutput->output) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Output object is null for stream: %s", streamId.c_str());
+    if (!streamOutput || !streamOutput->output) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Invalid stream output for: %s", streamId.c_str());
         return false;
     }
     
     if (!obs_output_active(streamOutput->output)) {
-        MULTI_RTMP_STREAM_LOG_WARNING("Output already inactive for stream: %s", streamId.c_str());
-        updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::STOPPED);
         return true;
     }
     
-    updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::STOPPED);
     obs_output_stop(streamOutput->output);
+    updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::STOPPING);
     
-    MULTI_RTMP_STREAM_LOG_INFO("Output stopped for stream: %s", streamId.c_str());
     return true;
 }
 
@@ -186,8 +152,7 @@ bool OneSevenMultiRtmpStreamController::destroyOutput(const std::string& streamI
     
     auto it = m_streamOutputs.find(streamId);
     if (it == m_streamOutputs.end()) {
-        MULTI_RTMP_STREAM_LOG_WARNING("Output not found for stream: %s", streamId.c_str());
-        return false;
+        return true;
     }
     
     auto& streamOutput = it->second;
@@ -213,38 +178,26 @@ bool OneSevenMultiRtmpStreamController::destroyOutput(const std::string& streamI
     
     m_streamOutputs.erase(it);
     
-    MULTI_RTMP_STREAM_LOG_INFO("Output destroyed for stream: %s", streamId.c_str());
     return true;
 }
 
 bool OneSevenMultiRtmpStreamController::startAllOutputs() {
-    // TEMPORARILY REMOVED LOCK FOR DEBUGGING
-    // std::lock_guard<std::mutex> lock(m_outputsMutex);
-    
-    MULTI_RTMP_STREAM_LOG_INFO("=== STARTING ALL OUTPUTS ===");
+    MULTI_RTMP_STREAM_LOG_INFO("Starting all outputs");
     
     bool allStarted = true;
     for (const auto& [streamId, streamOutput] : m_streamOutputs) {
-        MULTI_RTMP_STREAM_LOG_INFO("Checking stream: %s", streamId.c_str());
         if (!obs_output_active(streamOutput->output)) {
-            MULTI_RTMP_STREAM_LOG_INFO("Stream %s is not active, starting...", streamId.c_str());
             if (!startOutputInternal(streamId, streamOutput.get())) {
                 allStarted = false;
                 MULTI_RTMP_STREAM_LOG_ERROR("Failed to start output for stream: %s", streamId.c_str());
             }
-        } else {
-            MULTI_RTMP_STREAM_LOG_INFO("Stream %s is already active", streamId.c_str());
         }
     }
     
-    MULTI_RTMP_STREAM_LOG_INFO("Start all outputs completed, success: %s", allStarted ? "true" : "false");
     return allStarted;
 }
 
 bool OneSevenMultiRtmpStreamController::stopAllOutputs() {
-    // TEMPORARILY REMOVED LOCK FOR DEBUGGING
-    // std::lock_guard<std::mutex> lock(m_outputsMutex);
-    
     bool allStopped = true;
     for (const auto& [streamId, streamOutput] : m_streamOutputs) {
         if (obs_output_active(streamOutput->output)) {
@@ -255,7 +208,6 @@ bool OneSevenMultiRtmpStreamController::stopAllOutputs() {
         }
     }
     
-    MULTI_RTMP_STREAM_LOG_INFO("Stop all outputs completed, success: %s", allStopped ? "true" : "false");
     return allStopped;
 }
 
@@ -284,7 +236,6 @@ void OneSevenMultiRtmpStreamController::destroyAllOutputs() {
     }
     
     m_streamOutputs.clear();
-    MULTI_RTMP_STREAM_LOG_INFO("All outputs destroyed");
 }
 
 OneSevenMultiRtmpStreamStatus OneSevenMultiRtmpStreamController::getStreamStatus(const std::string& streamId) const {
@@ -348,7 +299,6 @@ obs_encoder_t* OneSevenMultiRtmpStreamController::getSharedVideoEncoder() {
         
         if (m_sharedVideoEncoder) {
             obs_encoder_get_ref(m_sharedVideoEncoder);
-            MULTI_RTMP_STREAM_LOG_INFO("Using shared video encoder from main stream");
         } else {
             MULTI_RTMP_STREAM_LOG_WARNING("No shared video encoder available");
         }
@@ -370,7 +320,6 @@ obs_encoder_t* OneSevenMultiRtmpStreamController::getSharedAudioEncoder(int mixe
     if (audioEncoder) {
         obs_encoder_get_ref(audioEncoder);
         m_sharedAudioEncoders[mixerId] = audioEncoder;
-        MULTI_RTMP_STREAM_LOG_INFO("Using shared audio encoder for mixer %d", mixerId);
     } else {
         MULTI_RTMP_STREAM_LOG_WARNING("No shared audio encoder available for mixer %d", mixerId);
     }
@@ -448,7 +397,6 @@ bool OneSevenMultiRtmpStreamController::createService(const std::string& streamI
         return false;
     }
     
-    MULTI_RTMP_STREAM_LOG_INFO("Service created successfully for stream: %s", streamId.c_str());
     return true;
 }
 
@@ -567,13 +515,9 @@ bool OneSevenMultiRtmpStreamController::createEncoders(const std::string& stream
     }
     
     // Connect encoders to video and audio sources
-    MULTI_RTMP_STREAM_LOG_INFO("Connecting video encoder to video source for stream: %s", streamId.c_str());
     obs_encoder_set_video(streamOutput->videoEncoder, obs_get_video());
-    
-    MULTI_RTMP_STREAM_LOG_INFO("Connecting audio encoder to audio source for stream: %s", streamId.c_str());
     obs_encoder_set_audio(streamOutput->audioEncoder, obs_get_audio());
     
-    MULTI_RTMP_STREAM_LOG_INFO("Encoders created and connected successfully for stream: %s", streamId.c_str());
     return true;
 }
 
@@ -598,7 +542,7 @@ bool OneSevenMultiRtmpStreamController::setupOutput(const std::string& streamId,
         MULTI_RTMP_STREAM_LOG_ERROR("Audio encoder is null for stream: %s", streamId.c_str());
         return false;
     }
-    
+
     obs_data_t* outputSettings = createOutputSettings(config);
     if (!outputSettings) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create output settings for stream: %s", streamId.c_str());

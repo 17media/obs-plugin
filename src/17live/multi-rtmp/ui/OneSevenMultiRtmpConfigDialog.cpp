@@ -440,42 +440,47 @@ void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled()
 
 void OneSevenMultiRtmpConfigDialog::loadConfig()
 {
-    // Load basic info
-    m_streamNameEdit->setText(QString::fromUtf8(m_config->streamName));
-
-    QString protocolValue = QString::fromStdString(m_config->protocol);
-    for (int i = 0; i < m_protocolCombo->count(); ++i) {
-        if (m_protocolCombo->itemData(i).toString() == protocolValue) {
-            m_protocolCombo->setCurrentIndex(i);
-            break;
-        }
+    if (!m_config) {
+        return;
     }
 
-    auto protocol_info = findProtocol(m_config->protocol);
+    // Load basic information
+    m_streamNameEdit->setText(QString::fromStdString(m_config->streamName));
+    
+    // Load protocol and URL
+    auto protocol_info = getProtocolInfo(m_config->protocol);
     if (!protocol_info) {
         obs_log(LOG_ERROR, "[loadConfig] Failed to find protocol info for: %s", m_config->protocol.c_str());
         return;
     }
     
-    {
-        obs_log(LOG_INFO, "[loadConfig] Loading service settings for protocol: %s", m_config->protocol.c_str());
-        obs_data_t *service_settings = ObsDataFromJson(m_config->serviceSettings);
+    // Set protocol in combo box
+    for (int i = 0; i < m_protocolCombo->count(); ++i) {
+        if (m_protocolCombo->itemData(i).toString().toStdString() == m_config->protocol) {
+            m_protocolCombo->setCurrentIndex(i);
+            break;
+        }
+    }
+    
+    // Load service settings
+    if (!m_config->serviceSettings.empty()) {
+        obs_data_t* service_settings = obs_data_create_from_json(m_config->serviceSettings.c_str());
         if (!service_settings) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create service_settings from JSON");
             return;
         }
         
-        obs_log(LOG_INFO, "[loadConfig] Creating service with ID: %s, name: %s", 
-                protocol_info->serviceId, ("tmp_17live_service_" + m_config->id).c_str());
-        auto service = obs_service_create(protocol_info->serviceId, ("tmp_17live_service_" + m_config->id).c_str(), service_settings, nullptr);
+        obs_service_t* service = obs_service_create(protocol_info->serviceId, 
+                                                   "temp_service", service_settings, nullptr);
         if (!service) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create OBS service with ID: %s", protocol_info->serviceId);
             obs_data_release(service_settings);
             return;
         }
         
-        obs_data_t *settings = obs_service_get_settings(service);
-        obs_properties_t *props = obs_service_properties(service);
+        obs_data_t* settings = obs_service_get_settings(service);
+        obs_properties_t* props = obs_service_properties(service);
+        
         if (!settings || !props) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to get service settings or properties");
             obs_service_release(service);
@@ -483,253 +488,153 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
             return;
         }
         
-        obs_log(LOG_INFO, "[loadConfig] Updating service widget properties");
-        m_serviceWidget->UpdateProperties(settings, props);
+        if (m_serviceWidget) {
+            m_serviceWidget->UpdateProperties(settings, props);
+        }
+        
+        obs_properties_destroy(props);
+        obs_data_release(settings);
         obs_service_release(service);
         obs_data_release(service_settings);
-        obs_log(LOG_INFO, "[loadConfig] Service settings loaded successfully");
     }
     
-
-    m_syncStartCheckbox->setChecked(m_config->syncStart);
-    m_syncStopCheckbox->setChecked(m_config->syncStop);
-
-    // load output settings
-    {
-        obs_log(LOG_INFO, "[loadConfig] Loading output settings for protocol: %s", m_config->protocol.c_str());
-        obs_data_t *output_settings = ObsDataFromJson(m_config->outputSettings);
+    // Load output settings
+    if (!m_config->outputSettings.empty()) {
+        obs_data_t* output_settings = obs_data_create_from_json(m_config->outputSettings.c_str());
         if (!output_settings) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create output_settings from JSON");
             return;
         }
         
-        obs_log(LOG_INFO, "[loadConfig] Creating output with ID: %s, name: %s", 
-                protocol_info->outputId, ("tmp_17live_output_" + m_config->id).c_str());
-        obs_log(LOG_DEBUG, "[loadConfig] Creating temporary output with ID: %s", protocol_info->outputId);
-        obs_log(LOG_DEBUG, "[loadConfig] output_settings pointer: %p", (void*)output_settings);
-        
-        auto output = obs_output_create(protocol_info->outputId, ("tmp_17live_output_" + m_config->id).c_str(), output_settings, nullptr);
-        obs_log(LOG_DEBUG, "[loadConfig] Created output pointer: %p", (void*)output);
-        
+        obs_output_t* output = obs_output_create(protocol_info->outputId, 
+                                               "temp_output", output_settings, nullptr);
         if (!output) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create OBS output with ID: %s", protocol_info->outputId);
-            if (output_settings) {
-                obs_log(LOG_DEBUG, "[loadConfig] Releasing output_settings after failed output creation");
-                obs_data_release(output_settings);
-            }
+            obs_data_release(output_settings);
             return;
         }
         
-        obs_log(LOG_DEBUG, "[loadConfig] Getting output settings and properties");
-        obs_data_t *settings = obs_output_get_settings(output);
-        obs_properties_t *props = obs_output_properties(output);
-        obs_log(LOG_DEBUG, "[loadConfig] Retrieved settings pointer: %p, props pointer: %p", (void*)settings, (void*)props);
+        obs_data_t* settings = obs_output_get_settings(output);
+        obs_properties_t* props = obs_output_properties(output);
         
         if (!settings || !props) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to get output settings or properties (settings: %p, props: %p)", (void*)settings, (void*)props);
-            obs_log(LOG_DEBUG, "[loadConfig] Releasing output after failed settings/props retrieval");
             obs_output_release(output);
-            if (output_settings) {
-                obs_log(LOG_DEBUG, "[loadConfig] Releasing output_settings after failed settings/props retrieval");
-                obs_data_release(output_settings);
-            }
+            obs_data_release(output_settings);
             return;
         }
         
-        // Validate m_outputWidget before calling UpdateProperties
         if (!m_outputWidget) {
             obs_log(LOG_ERROR, "[loadConfig] m_outputWidget is null, cannot update properties");
+            obs_properties_destroy(props);
+            obs_data_release(settings);
             obs_output_release(output);
-            if (output_settings) {
-                obs_data_release(output_settings);
-            }
+            obs_data_release(output_settings);
             return;
         }
-        
-        obs_log(LOG_INFO, "[loadConfig] Updating output widget properties");
-        obs_log(LOG_DEBUG, "[loadConfig] About to call UpdateProperties with settings: %p, props: %p", (void*)settings, (void*)props);
         
         try {
-            // Note: UpdateProperties takes ownership of settings and props, so we should not release them after this call
             m_outputWidget->UpdateProperties(settings, props);
-            obs_log(LOG_DEBUG, "[loadConfig] UpdateProperties completed successfully");
         } catch (const std::exception& e) {
             obs_log(LOG_ERROR, "[loadConfig] Exception in UpdateProperties: %s", e.what());
-            obs_output_release(output);
-            if (output_settings) {
-                obs_data_release(output_settings);
-            }
-            return;
         } catch (...) {
             obs_log(LOG_ERROR, "[loadConfig] Unknown exception in UpdateProperties");
-            obs_output_release(output);
-            if (output_settings) {
-                obs_data_release(output_settings);
-            }
-            return;
         }
-
-        m_supportedAudioEncoders = obs_output_get_supported_audio_codecs(output);
-        m_supportedVideoEncoders = obs_output_get_supported_video_codecs(output);
         
-        obs_log(LOG_DEBUG, "[loadConfig] Releasing output");
+        obs_properties_destroy(props);
+        obs_data_release(settings);
         obs_output_release(output);
-        
-        if (m_audioEncoderCombo && m_videoEncoderCombo) {
-            loadEncoders();
-        }
-        
-        obs_log(LOG_INFO, "[loadConfig] Output settings loaded successfully");
+        obs_data_release(output_settings);
     }
     
-
-    // load video settings
-    m_useOBSVideoCheck->setChecked(!m_config->videoConfig.has_value());
-    if (m_config->videoConfig.has_value()) {
-        {
-            auto idx = m_outputSceneCombo->findData(QString::fromUtf8(m_config->videoConfig->outputScene));
-            if (idx >= 0)
-                m_outputSceneCombo->setCurrentIndex(idx);
+    // Load video encoder settings
+    if (m_config->videoConfig.has_value() && !m_config->videoConfig->encoderSettings.empty()) {
+        obs_data_t* encoder_settings = obs_data_create_from_json(m_config->videoConfig->encoderSettings.c_str());
+        
+        obs_encoder_t* encoder = obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(), 
+                                                        "temp_video_encoder", encoder_settings, nullptr);
+        if (!encoder) {
+            obs_log(LOG_ERROR, "[loadConfig] Failed to create video encoder with ID: %s", m_config->videoConfig->encoderId.c_str());
+            obs_data_release(encoder_settings);
+            return;
         }
-        {
-            auto idx = m_videoEncoderCombo->findData(QString::fromStdString(m_config->videoConfig->encoderId));
-            if (idx >= 0)
-                m_videoEncoderCombo->setCurrentIndex(idx);
-        }
-        {
-            obs_log(LOG_INFO, "[loadConfig] Processing video encoder settings");
-            obs_data_t *encoder_settings = m_config->videoConfig.has_value() ? ObsDataFromJson(m_config->videoConfig->encoderSettings) : nullptr;
-            obs_log(LOG_DEBUG, "[loadConfig] Video encoder_settings pointer: %p", (void*)encoder_settings);
-            
-            auto encoder = obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(), ("tmp_17live_video_encoder_" + m_config->id).c_str(), encoder_settings, nullptr);
-            obs_log(LOG_DEBUG, "[loadConfig] Created video encoder pointer: %p", (void*)encoder);
-            
-            if (!encoder) {
-                obs_log(LOG_ERROR, "[loadConfig] Failed to create video encoder with ID: %s", m_config->videoConfig->encoderId.c_str());
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            }
-            
-            obs_data_t *settings = obs_encoder_get_settings(encoder);
-            obs_properties_t *props = obs_encoder_properties(encoder);
-            obs_log(LOG_DEBUG, "[loadConfig] Video encoder settings: %p, props: %p", (void*)settings, (void*)props);
-            
-            if (!settings || !props) {
-                obs_log(LOG_ERROR, "[loadConfig] Failed to get video encoder settings or properties (settings: %p, props: %p)", (void*)settings, (void*)props);
-                obs_encoder_release(encoder);
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            }
-            
-            if (!m_videoWidget) {
-                obs_log(LOG_ERROR, "[loadConfig] m_videoWidget is null, cannot update video properties");
-                obs_encoder_release(encoder);
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            }
-            
-            try {
-                // Note: UpdateProperties takes ownership of settings and props
-                m_videoWidget->UpdateProperties(settings, props);
-                obs_log(LOG_DEBUG, "[loadConfig] Video UpdateProperties completed successfully");
-            } catch (const std::exception& e) {
-                obs_log(LOG_ERROR, "[loadConfig] Exception in video UpdateProperties: %s", e.what());
-                obs_encoder_release(encoder);
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            } catch (...) {
-                obs_log(LOG_ERROR, "[loadConfig] Unknown exception in video UpdateProperties");
-                obs_encoder_release(encoder);
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            }
-            
-            obs_log(LOG_DEBUG, "[loadConfig] Releasing video encoder");
+        
+        obs_data_t* settings = obs_encoder_get_settings(encoder);
+        obs_properties_t* props = obs_encoder_properties(encoder);
+        
+        if (!settings || !props) {
+            obs_log(LOG_ERROR, "[loadConfig] Failed to get video encoder settings or properties (settings: %p, props: %p)", (void*)settings, (void*)props);
             obs_encoder_release(encoder);
-            // Do NOT release encoder_settings here as UpdateProperties takes ownership
+            obs_data_release(encoder_settings);
+            return;
         }
+        
+        if (!m_videoWidget) {
+            obs_log(LOG_ERROR, "[loadConfig] m_videoWidget is null, cannot update video properties");
+            obs_properties_destroy(props);
+            obs_data_release(settings);
+            obs_encoder_release(encoder);
+            obs_data_release(encoder_settings);
+            return;
+        }
+        
+        try {
+            m_videoWidget->UpdateProperties(settings, props);
+        } catch (const std::exception& e) {
+            obs_log(LOG_ERROR, "[loadConfig] Exception in video UpdateProperties: %s", e.what());
+        } catch (...) {
+            obs_log(LOG_ERROR, "[loadConfig] Unknown exception in video UpdateProperties");
+        }
+        
+        obs_properties_destroy(props);
+        obs_data_release(settings);
+        obs_encoder_release(encoder);
+        obs_data_release(encoder_settings);
     }
-
-    // load audio settings
-    m_useOBSAudioCheck->setChecked(!m_config->audioConfig.has_value());
-    if (m_config->audioConfig.has_value()) {
-        {
-            auto idx = m_audioEncoderCombo->findData(QString::fromStdString(m_config->audioConfig->encoderId));
-            if (idx >= 0)
-                m_audioEncoderCombo->setCurrentIndex(idx);
+    
+    // Load audio encoder settings
+    if (m_config->audioConfig.has_value() && !m_config->audioConfig->encoderSettings.empty()) {
+        obs_data_t* encoder_settings = obs_data_create_from_json(m_config->audioConfig->encoderSettings.c_str());
+        
+        obs_encoder_t* encoder = obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(), 
+                                                        "temp_audio_encoder", encoder_settings, 0, nullptr);
+        if (!encoder) {
+            obs_log(LOG_ERROR, "[loadConfig] Failed to create audio encoder with ID: %s", m_config->audioConfig->encoderId.c_str());
+            obs_data_release(encoder_settings);
+            return;
         }
-        {
-            obs_log(LOG_INFO, "[loadConfig] Processing audio encoder settings");
-            obs_data_t *encoder_settings = m_config->audioConfig.has_value() ? ObsDataFromJson(m_config->audioConfig->encoderSettings) : nullptr;
-            obs_log(LOG_DEBUG, "[loadConfig] Audio encoder_settings pointer: %p", (void*)encoder_settings);
-            
-            auto encoder = obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(), ("tmp_17live_audio_encoder_" + m_config->id).c_str(), encoder_settings, m_config->audioConfig->mixerId, nullptr);
-            obs_log(LOG_DEBUG, "[loadConfig] Created audio encoder pointer: %p", (void*)encoder);
-            
-            if (!encoder) {
-                obs_log(LOG_ERROR, "[loadConfig] Failed to create audio encoder with ID: %s", m_config->audioConfig->encoderId.c_str());
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            }
-            
-            obs_data_t *settings = obs_encoder_get_settings(encoder);
-            obs_properties_t *props = obs_encoder_properties(encoder);
-            obs_log(LOG_DEBUG, "[loadConfig] Audio encoder settings: %p, props: %p", (void*)settings, (void*)props);
-            
-            if (!settings || !props) {
-                obs_log(LOG_ERROR, "[loadConfig] Failed to get audio encoder settings or properties (settings: %p, props: %p)", (void*)settings, (void*)props);
-                obs_encoder_release(encoder);
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            }
-            
-            if (!m_audioWidget) {
-                obs_log(LOG_ERROR, "[loadConfig] m_audioWidget is null, cannot update audio properties");
-                obs_encoder_release(encoder);
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            }
-            
-            try {
-                // Note: UpdateProperties takes ownership of settings and props
-                m_audioWidget->UpdateProperties(settings, props);
-                obs_log(LOG_DEBUG, "[loadConfig] Audio UpdateProperties completed successfully");
-            } catch (const std::exception& e) {
-                obs_log(LOG_ERROR, "[loadConfig] Exception in audio UpdateProperties: %s", e.what());
-                obs_encoder_release(encoder);
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            } catch (...) {
-                obs_log(LOG_ERROR, "[loadConfig] Unknown exception in audio UpdateProperties");
-                obs_encoder_release(encoder);
-                if (encoder_settings) {
-                    obs_data_release(encoder_settings);
-                }
-                return;
-            }
-            
-            obs_log(LOG_DEBUG, "[loadConfig] Releasing audio encoder");
+        
+        obs_data_t* settings = obs_encoder_get_settings(encoder);
+        obs_properties_t* props = obs_encoder_properties(encoder);
+        
+        if (!settings || !props) {
+            obs_log(LOG_ERROR, "[loadConfig] Failed to get audio encoder settings or properties (settings: %p, props: %p)", (void*)settings, (void*)props);
             obs_encoder_release(encoder);
-            // Do NOT release encoder_settings here as UpdateProperties takes ownership
+            obs_data_release(encoder_settings);
+            return;
         }
+        
+        if (!m_audioWidget) {
+            obs_log(LOG_ERROR, "[loadConfig] m_audioWidget is null, cannot update audio properties");
+            obs_properties_destroy(props);
+            obs_data_release(settings);
+            obs_encoder_release(encoder);
+            obs_data_release(encoder_settings);
+            return;
+        }
+        
+        try {
+            m_audioWidget->UpdateProperties(settings, props);
+        } catch (const std::exception& e) {
+            obs_log(LOG_ERROR, "[loadConfig] Exception in audio UpdateProperties: %s", e.what());
+        } catch (...) {
+            obs_log(LOG_ERROR, "[loadConfig] Unknown exception in audio UpdateProperties");
+        }
+        
+        obs_properties_destroy(props);
+        obs_data_release(settings);
+        obs_encoder_release(encoder);
+        obs_data_release(encoder_settings);
     }
 }
 
@@ -737,16 +642,14 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
 {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] SaveConfig called");
     
-    // Auto-generate UUID for new streams, keep original ID if editing
-    if (m_isEditMode) {
-        m_config->id = m_originalConfig->id;
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Edit mode: using existing ID: %s", m_config->id.c_str());
-    } else {
-        // Auto-generate UUID for new streams
-        m_config->id = QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Add mode: generated new ID: %s", m_config->id.c_str());
-    }
+    OneSevenMultiRtmpConfig config;
     
+    if (m_isEditMode && m_config) {
+        config.id = m_config->id;
+    } else {
+        config.id = QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
+    }
+
     // Service configuration
     m_config->streamName = m_streamNameEdit->text().toStdString(); // Map to streamName
     m_config->protocol = m_protocolCombo->currentData().toString().toStdString(); // Map to protocol

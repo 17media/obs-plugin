@@ -116,7 +116,7 @@ void OneSevenMultiRtmpManager::shutdown()
 // Configuration operations
 bool OneSevenMultiRtmpManager::addStreamConfig(const OneSevenMultiRtmpConfig& config)
 {
-    obs_log(LOG_INFO, "[MultiRTMP-Manager] addStreamConfig called for stream ID: %s", config.id.c_str());
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] Adding stream config: %s", config.streamName.c_str());
     
     if (!m_initialized) {
         obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
@@ -128,12 +128,9 @@ bool OneSevenMultiRtmpManager::addStreamConfig(const OneSevenMultiRtmpConfig& co
         return false;
     }
     
-    obs_log(LOG_INFO, "[MultiRTMP-Manager] Configuration validation passed, delegating to config manager");
     bool result = m_configManager->addStreamConfig(config);
     
-    if (result) {
-        obs_log(LOG_INFO, "[MultiRTMP-Manager] Stream config added successfully");
-    } else {
+    if (!result) {
         obs_log(LOG_ERROR, "[MultiRTMP-Manager] Config manager failed to add stream config");
     }
     
@@ -480,7 +477,6 @@ bool OneSevenMultiRtmpManager::hasStreamOutput(const std::string& streamId) cons
 // Private methods
 void OneSevenMultiRtmpManager::onConfigChanged(const std::string& streamId, const OneSevenMultiRtmpConfig& config)
 {
-    obs_log(LOG_DEBUG, "[MultiRTMP-Manager] Configuration changed for stream: %s", streamId.c_str());
     if (m_configChangeCallback) {
         m_configChangeCallback(streamId, config);
     }
@@ -488,7 +484,6 @@ void OneSevenMultiRtmpManager::onConfigChanged(const std::string& streamId, cons
 
 void OneSevenMultiRtmpManager::onConfigDeleted(const std::string& streamId)
 {
-    obs_log(LOG_DEBUG, "[MultiRTMP-Manager] Configuration deleted for stream: %s", streamId.c_str());
     if (m_configDeleteCallback) {
         m_configDeleteCallback(streamId);
     }
@@ -496,7 +491,6 @@ void OneSevenMultiRtmpManager::onConfigDeleted(const std::string& streamId)
 
 void OneSevenMultiRtmpManager::onStreamStatusChanged(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status)
 {
-    obs_log(LOG_DEBUG, "[MultiRTMP-Manager] Status changed for stream %s: %s", streamId.c_str(), status.getStateString().c_str());
     if (m_statusCallback) {
         m_statusCallback(streamId, status);
     }
