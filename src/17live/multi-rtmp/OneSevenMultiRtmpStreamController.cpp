@@ -101,12 +101,6 @@ bool OneSevenMultiRtmpStreamController::startOutputInternal(const std::string& s
         return true;
     }
     
-    // Set delay if configured
-    if (streamOutput->config.delaySeconds > 0) {
-        obs_output_set_delay(streamOutput->output, streamOutput->config.delaySeconds, 
-                           OBS_OUTPUT_DELAY_PRESERVE);
-    }
-    
     // Start the output
     if (!obs_output_start(streamOutput->output)) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to start output for stream: %s", streamId.c_str());
@@ -114,7 +108,7 @@ bool OneSevenMultiRtmpStreamController::startOutputInternal(const std::string& s
     }
     
     // Update status
-    updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::STARTING);
+    updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::CONNECTING);
     
     return true;
 }
@@ -142,7 +136,7 @@ bool OneSevenMultiRtmpStreamController::stopOutputInternal(const std::string& st
     }
     
     obs_output_stop(streamOutput->output);
-    updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::STOPPING);
+    updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::STOPPED);
     
     return true;
 }

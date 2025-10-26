@@ -330,10 +330,14 @@ void OneSevenMultiRtmpDock::onRefreshClicked()
     refreshStreamList();
 }
 
-void OneSevenMultiRtmpDock::onStreamConfigChanged(const std::string& streamId, const OneSevenMultiRtmpConfig& config)
+void OneSevenMultiRtmpDock::onStreamConfigChanged(const std::string& streamId)
 {
     if (m_streamListWidget) {
-        m_streamListWidget->updateStream(config);
+        // Get the updated config from the manager
+        if (ensureManagerInitialized()) {
+            auto config = m_manager->getStreamConfig(streamId);
+            m_streamListWidget->updateStream(config);
+        }
     }
 }
 

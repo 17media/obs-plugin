@@ -448,7 +448,7 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     m_streamNameEdit->setText(QString::fromStdString(m_config->streamName));
     
     // Load protocol and URL
-    auto protocol_info = getProtocolInfo(m_config->protocol);
+    auto protocol_info = findProtocol(m_config->protocol);
     if (!protocol_info) {
         obs_log(LOG_ERROR, "[loadConfig] Failed to find protocol info for: %s", m_config->protocol.c_str());
         return;
@@ -464,7 +464,7 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     
     // Load service settings
     if (!m_config->serviceSettings.empty()) {
-        obs_data_t* service_settings = obs_data_create_from_json(m_config->serviceSettings.c_str());
+        obs_data_t* service_settings = obs_data_create_from_json(m_config->serviceSettings.dump().c_str());
         if (!service_settings) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create service_settings from JSON");
             return;
@@ -500,7 +500,7 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     
     // Load output settings
     if (!m_config->outputSettings.empty()) {
-        obs_data_t* output_settings = obs_data_create_from_json(m_config->outputSettings.c_str());
+        obs_data_t* output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
         if (!output_settings) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create output_settings from JSON");
             return;
@@ -549,7 +549,7 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     
     // Load video encoder settings
     if (m_config->videoConfig.has_value() && !m_config->videoConfig->encoderSettings.empty()) {
-        obs_data_t* encoder_settings = obs_data_create_from_json(m_config->videoConfig->encoderSettings.c_str());
+        obs_data_t* encoder_settings = obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str());
         
         obs_encoder_t* encoder = obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(), 
                                                         "temp_video_encoder", encoder_settings, nullptr);
@@ -594,7 +594,7 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     
     // Load audio encoder settings
     if (m_config->audioConfig.has_value() && !m_config->audioConfig->encoderSettings.empty()) {
-        obs_data_t* encoder_settings = obs_data_create_from_json(m_config->audioConfig->encoderSettings.c_str());
+        obs_data_t* encoder_settings = obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str());
         
         obs_encoder_t* encoder = obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(), 
                                                         "temp_audio_encoder", encoder_settings, 0, nullptr);
