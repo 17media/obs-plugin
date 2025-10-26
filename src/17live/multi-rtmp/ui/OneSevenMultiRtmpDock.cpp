@@ -316,11 +316,7 @@ void OneSevenMultiRtmpDock::updateStreamStats(const std::string& streamId, const
 
 void OneSevenMultiRtmpDock::onAddStreamClicked()
 {
-    OneSevenMultiRtmpConfig config;
-    // Ensure default protocol is RTMP and provide a default stream name
-    config.protocol = "rtmp";
-    config.streamName = getMultiRtmpText("MultiRtmp.Config.StreamName.Default").toStdString();
-    showConfigDialog(config);
+    showConfigDialog();
 }
 
 void OneSevenMultiRtmpDock::onStartAllClicked()
