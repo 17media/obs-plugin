@@ -8,6 +8,7 @@
 #include <QComboBox>
 #include <QIntValidator>
 #include <QDoubleValidator>
+#include <QTimer>
 
 #include "OneSevenLivePropertyRefreshHandler.hpp"
 
@@ -29,9 +30,14 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(QWidget *parent, OneSeven
   switch (m_propertyType) {
     case OBS_PROPERTY_BOOL: {
         auto cb = new QCheckBox(parent);
-        QObject::connect(cb, &QCheckBox::stateChanged, [this]() {
-            if (m_refreshHandler)
-                m_refreshHandler->RefreshUI();
+        // 延迟信号连接，避免在构造过程中触发递归RefreshUI调用
+        QTimer::singleShot(0, [this, cb]() {
+            if (cb && m_refreshHandler) {
+                QObject::connect(cb, &QCheckBox::stateChanged, [this]() {
+                    if (m_refreshHandler)
+                        m_refreshHandler->RefreshUI();
+                });
+            }
         });
         ctrl = cb;
         break;
@@ -57,9 +63,14 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(QWidget *parent, OneSeven
     }
     case OBS_PROPERTY_LIST: {
         auto cb = new QComboBox(parent);
-        QObject::connect(cb, &QComboBox::currentIndexChanged, [this]() {
-            if (m_refreshHandler)
-                m_refreshHandler->RefreshUI();
+        // 延迟信号连接，避免在构造过程中触发递归RefreshUI调用
+        QTimer::singleShot(0, [this, cb]() {
+            if (cb && m_refreshHandler) {
+                QObject::connect(cb, &QComboBox::currentIndexChanged, [this]() {
+                    if (m_refreshHandler)
+                        m_refreshHandler->RefreshUI();
+                });
+            }
         });
         ctrl = cb;
         break;

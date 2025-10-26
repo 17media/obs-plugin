@@ -99,8 +99,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
     // 安全检查：确保m_props不为空
     if (!m_props) {
         obs_log(LOG_WARNING, "[loadProperties] m_props is null, skipping property loading");
-        if (oldLayout)
-            delete oldLayout;
+        // setLayout()会自动删除oldLayout，不需要手动删除
         setLayout(formLayout);
         return;
     }
@@ -108,8 +107,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
     obs_property_t *prop = obs_properties_first(m_props);
     if (!prop) {
         obs_log(LOG_INFO, "[loadProperties] No properties found");
-        if (oldLayout)
-            delete oldLayout;
+        // setLayout()会自动删除oldLayout，不需要手动删除
         setLayout(formLayout);
         return;
     }
@@ -186,8 +184,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
 
     obs_log(LOG_INFO, "[loadProperties] Processed %d properties successfully", propertyCount);
     
-    if (oldLayout)
-        delete oldLayout;
+    // setLayout()会自动删除oldLayout，不需要手动删除
     setLayout(formLayout);
 
     obs_log(LOG_DEBUG, "[loadProperties] Finished property loading");
@@ -229,8 +226,8 @@ void OneSevenLivePropertiesWidget::UpdateProperties(obs_data_t *settings, obs_pr
         }
       }
     }
-    delete oldLayout;
-    obs_log(LOG_DEBUG, "[UpdateProperties] Old layout deleted");
+    // 不要手动删除oldLayout，setLayout()会自动处理
+    obs_log(LOG_DEBUG, "[UpdateProperties] Old layout widgets removed, layout will be auto-deleted by setLayout()");
   }
   m_propertyWidgets.clear();
 
