@@ -26,8 +26,10 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
     setModal(true);
     
     // Set dialog size constraints to match reference style
-    setMinimumSize(300, 400);
-    setMaximumSize(600, 800);
+    setMinimumSize(350, 525);  // Increased minimum width to accommodate content
+    setMaximumSize(600, 900);  // Increased maximum width for better content display
+    resize(400, 450);          // Set initial size to ensure content fits properly
+
     
     setupUI();
     setupConnections();
@@ -67,7 +69,7 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // Disable horizontal scrollbar
     
     // Create container widget for scroll area content
-    QWidget *container = new QWidget();
+    QWidget *container = new QWidget(this);
     container->setStyleSheet(
         "QWidget {"
         "    color: white;"
@@ -86,7 +88,7 @@ void OneSevenMultiRtmpConfigDialog::setupUI()
         "}");
     
     QVBoxLayout *containerLayout = new QVBoxLayout(container);
-    containerLayout->setContentsMargins(12, 16, 12, 16);
+    containerLayout->setContentsMargins(20, 16, 20, 16);  // Increased horizontal margins for better content spacing
     containerLayout->setSpacing(16);
     
     // Top section: Basic information (name, protocol, URL, stream key)
@@ -167,6 +169,7 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
     m_basicInfoLayout->addRow(protocolLabel, m_protocolCombo);
 
     m_serviceWidget = new OneSevenLivePropertiesWidget(m_basicInfoWidget);
+    m_serviceWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);  // Ensure service widget expands properly
     m_basicInfoLayout->addRow("", m_serviceWidget);
     
     m_syncStartCheckbox = new QCheckBox();
@@ -201,7 +204,7 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsButton()
 
 void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget()
 {
-    m_advancedWidget = new QWidget();
+    m_advancedWidget = new QWidget(this);
     m_advancedWidget->setVisible(false); // Initially collapsed
     
     QVBoxLayout* advancedLayout = new QVBoxLayout(m_advancedWidget);
@@ -209,37 +212,8 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget()
     advancedLayout->setSpacing(0);
     
     // Create tab widget for advanced settings
-    m_tabWidget = new QTabWidget();
-    m_tabWidget->setStyleSheet(
-        "QTabWidget::pane { "
-        "  border: 1px solid #555; "
-        "  background-color: #1e1e1e; "
-        "  border-radius: 6px; "
-        "  margin: 0px; "
-        "  padding: 6px; "
-        "} "
-        "QTabBar::tab { "
-        "  background-color: #2d2d2d; "
-        "  color: #ccc; "
-        "  padding: 6px 8px; "
-        "  margin-right: 2px; "
-        "  border-top-left-radius: 6px; "
-        "  border-top-right-radius: 6px; "
-        "  font-weight: bold; "
-        "  min-width: 40px; "
-        "} "
-        "QTabBar::tab:selected { "
-        "  background-color: #1e1e1e; "
-        "  color: white; "
-        "  border-bottom: 2px solid #FF0001; "
-        "} "
-        "QTabBar::tab:hover { "
-        "  background-color: #3c3c3c; "
-        "} "
-        "QTabBar { "
-        "  qproperty-expanding: true; "
-        "}"
-    );
+    m_tabWidget = new QTabWidget(m_advancedWidget);
+    m_tabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);  // Ensure TabWidget expands properly
     
     setupOutputTab();
     setupVideoTab();
@@ -252,7 +226,7 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget()
 
 void OneSevenMultiRtmpConfigDialog::setupOutputTab()
 {
-    m_outputTab = new QWidget();
+    m_outputTab = new QWidget(m_tabWidget);
     m_outputLayout = new QFormLayout(m_outputTab);
     m_outputLayout->setSpacing(12);
     m_outputLayout->setContentsMargins(8, 12, 8, 12);
@@ -267,7 +241,7 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab()
 
 void OneSevenMultiRtmpConfigDialog::setupVideoTab()
 {
-    m_videoTab = new QWidget();
+    m_videoTab = new QWidget(m_tabWidget);
     m_videoLayout = new QFormLayout(m_videoTab);
     m_videoLayout->setSpacing(12);
     m_videoLayout->setContentsMargins(8, 12, 8, 12);
@@ -306,7 +280,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
 
 void OneSevenMultiRtmpConfigDialog::setupAudioTab()
 {
-    m_audioTab = new QWidget();
+    m_audioTab = new QWidget(m_tabWidget);
     m_audioLayout = new QFormLayout(m_audioTab);
     m_audioLayout->setSpacing(12);
     m_audioLayout->setContentsMargins(8, 12, 8, 12);

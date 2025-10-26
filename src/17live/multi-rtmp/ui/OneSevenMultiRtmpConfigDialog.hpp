@@ -94,7 +94,7 @@ private:
     QPushButton* m_advancedButton;
     QWidget* m_advancedWidget;
     bool m_advancedExpanded;
-    int m_baseHeight;  // Height when advanced settings are collapsed
+    int m_baseHeight;
     
     // Output tab
     QWidget* m_outputTab;
