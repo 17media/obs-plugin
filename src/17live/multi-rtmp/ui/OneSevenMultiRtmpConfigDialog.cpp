@@ -277,7 +277,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     useOBSVideoCheckLayout->addWidget(useOBSVideoCheckLabel);
     useOBSVideoCheckLayout->addStretch();
     useOBSVideoCheckLayout->addWidget(m_useOBSVideoCheck);
-    m_videoLayout->addLayout(useOBSVideoCheckLayout);
+    m_videoLayout->addRow(useOBSVideoCheckLayout);
 
     m_outputSceneCombo = new QComboBox(m_videoTab);
     m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.OutputScene"), m_outputSceneCombo);
@@ -316,7 +316,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     useOBSAudioCheckLayout->addWidget(useOBSAudioCheckLabel);
     useOBSAudioCheckLayout->addStretch();
     useOBSAudioCheckLayout->addWidget(m_useOBSAudioCheck);
-    m_audioLayout->addLayout(useOBSAudioCheckLayout);
+    m_audioLayout->addRow(useOBSAudioCheckLayout);
     
     m_audioEncoderCombo = new QComboBox(m_audioTab);
     m_audioLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Audio"), m_audioEncoderCombo);
@@ -566,12 +566,16 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
             }
             return;
         }
+
+        m_supportedAudioEncoders = obs_output_get_supported_audio_codecs(output);
+        m_supportedVideoEncoders = obs_output_get_supported_video_codecs(output);
         
         obs_log(LOG_DEBUG, "[loadConfig] Releasing output");
         obs_output_release(output);
         
-        // Do NOT release output_settings here as UpdateProperties takes ownership
-        // obs_data_release(output_settings); // REMOVED: This was causing double-free
+        if (m_audioEncoderCombo && m_videoEncoderCombo) {
+            loadEncoders();
+        }
         
         obs_log(LOG_INFO, "[loadConfig] Output settings loaded successfully");
     }
@@ -815,6 +819,72 @@ void OneSevenMultiRtmpConfigDialog::loadScenes()
     }
 }
 
+std::vector<std::string> OneSevenMultiRtmpConfigDialog::parseAndLoadEncoders(const std::string& supportedEncoders, bool isVideoEncoder)
+{
+    std::vector<std::string> encoderIds;
+    
+    if (!supportedEncoders.empty()) {
+        // Split the semicolon-separated string
+        std::string encoders = supportedEncoders;
+        size_t pos = 0;
+        std::string token;
+        
+        while ((pos = encoders.find(';')) != std::string::npos) {
+            token = encoders.substr(0, pos);
+            if (!token.empty()) {
+                // Query OBS API for encoders supporting this codec
+                size_t i = 0;
+                for(;;) {
+                    const char* encid;
+                    if (!obs_enum_encoder_types(i++, &encid))
+                        break;
+                    auto caps = obs_get_encoder_caps(encid);
+                    if (caps & OBS_ENCODER_CAP_DEPRECATED)
+                        continue;
+                    
+                    // Check if this is the correct encoder type (video or audio)
+                    auto enc_type = obs_get_encoder_type(encid);
+                    bool isCorrectType = isVideoEncoder ? (enc_type == OBS_ENCODER_VIDEO) : (enc_type == OBS_ENCODER_AUDIO);
+                    if (!isCorrectType)
+                        continue;
+                        
+                    auto enc_codec = obs_get_encoder_codec(encid);
+                    if (strcmp(enc_codec, token.c_str()) == 0) {
+                        encoderIds.emplace_back(encid);
+                    }
+                }
+            }
+            encoders.erase(0, pos + 1);
+        }
+        
+        // Handle the last token (after the last semicolon or if no semicolon exists)
+        if (!encoders.empty()) {
+            size_t i = 0;
+            for(;;) {
+                const char* encid;
+                if (!obs_enum_encoder_types(i++, &encid))
+                    break;
+                auto caps = obs_get_encoder_caps(encid);
+                if (caps & OBS_ENCODER_CAP_DEPRECATED)
+                    continue;
+                
+                // Check if this is the correct encoder type (video or audio)
+                auto enc_type = obs_get_encoder_type(encid);
+                bool isCorrectType = isVideoEncoder ? (enc_type == OBS_ENCODER_VIDEO) : (enc_type == OBS_ENCODER_AUDIO);
+                if (!isCorrectType)
+                    continue;
+                    
+                auto enc_codec = obs_get_encoder_codec(encid);
+                if (strcmp(enc_codec, encoders.c_str()) == 0) {
+                    encoderIds.emplace_back(encid);
+                }
+            }
+        }
+    }
+    
+    return encoderIds;
+}
+
 void OneSevenMultiRtmpConfigDialog::loadEncoders()
 {
     auto ui_text = [](const std::string &id) {
@@ -843,14 +913,17 @@ void OneSevenMultiRtmpConfigDialog::loadEncoders()
         m_videoEncoderCombo->addItem(obs_module_text("MultiRtmp.Config.Video.UseOBS"),
                                      streamingVideoId ? streamingVideoId : "");
         
-        // Minimal known video encoders; extend if needed
-        const std::vector<const char *> videoIds = {""};
-        for (const char *id : videoIds) {
-            m_videoEncoderCombo->addItem(ui_text(id).c_str(), id);
+        // Parse supported video encoders using the generic function
+        std::vector<std::string> videoIds = parseAndLoadEncoders(m_supportedVideoEncoders, true);
+        
+        // Add the found video encoders to the combo box
+        for (const std::string& id : videoIds) {
+            m_videoEncoderCombo->addItem(ui_text(id).c_str(), QString::fromStdString(id));
         }
         int idx = m_videoEncoderCombo->findData(old);
         if (idx >= 0)
             m_videoEncoderCombo->setCurrentIndex(idx);
+
     }
 
     // Audio encoders
@@ -860,10 +933,12 @@ void OneSevenMultiRtmpConfigDialog::loadEncoders()
         m_audioEncoderCombo->addItem(obs_module_text("MultiRtmp.Config.Video.UseOBS"),
                                      streamingAudioId ? streamingAudioId : "");
         
-        // Minimal known audio encoders; extend if needed
-        const std::vector<const char *> audioIds = {""};
-        for (const char *id : audioIds) {
-            m_audioEncoderCombo->addItem(ui_text(id).c_str(), id);
+        // Parse supported audio encoders using the generic function
+        std::vector<std::string> audioIds = parseAndLoadEncoders(m_supportedAudioEncoders, false);
+        
+        // Add the found audio encoders to the combo box
+        for (const std::string& id : audioIds) {
+            m_audioEncoderCombo->addItem(ui_text(id).c_str(), QString::fromStdString(id));
         }
         int idx = m_audioEncoderCombo->findData(old);
         if (idx >= 0)

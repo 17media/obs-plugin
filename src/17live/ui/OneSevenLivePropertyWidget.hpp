@@ -4,6 +4,7 @@
 
 #include <QWidget>
 #include <QString>
+#include <QLayout>
 
 struct OneSevenLivePropertyRefreshHandler;
 
@@ -25,6 +26,7 @@ public:
 
   QLabel *label = nullptr;
   QWidget *ctrl = nullptr;
+  QWidget *container = nullptr;
   std::string name;
 
 private:

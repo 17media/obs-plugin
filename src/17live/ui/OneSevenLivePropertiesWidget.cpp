@@ -81,6 +81,10 @@ void OneSevenLivePropertiesWidget::loadProperties() {
     origPropWidgets.swap(m_propertyWidgets);
 
     for (auto& x : origPropWidgets) {
+        if (x.second->layout) {
+          m_formLayout->removeItem(x.second->layout);
+          x.second->layout->deleteLater();
+        }
         if (x.second->label)
             m_formLayout->removeWidget(x.second->label);
         if (x.second->ctrl)
@@ -131,7 +135,10 @@ void OneSevenLivePropertiesWidget::loadProperties() {
                 }
                 newWidget->LoadData(m_settings);
                 m_propertyWidgets.insert(std::make_pair(newWidget->name, newWidget));
-                m_formLayout->addRow(newWidget->label, newWidget->ctrl);
+                if (newWidget->container)
+                    m_formLayout->addRow(newWidget->container);
+                else
+                    m_formLayout->addRow(newWidget->label, newWidget->ctrl);
                 obs_log(LOG_DEBUG, "[loadProperties] Successfully created widget for property: %s", name.c_str());
             } catch (const std::exception& e) {
                 obs_log(LOG_ERROR, "[loadProperties] Exception creating widget for property %s: %s", name.c_str(), e.what());
@@ -144,7 +151,10 @@ void OneSevenLivePropertiesWidget::loadProperties() {
                 it->second->ReloadProperty(prop);
                 it->second->LoadData(m_settings);
                 m_propertyWidgets.insert(std::make_pair(it->first, it->second));
-                m_formLayout->addRow(it->second->label, it->second->ctrl);
+                if (it->second->container)
+                    m_formLayout->addRow(it->second->container);
+                else
+                    m_formLayout->addRow(it->second->label, it->second->ctrl);
                 obs_log(LOG_DEBUG, "[loadProperties] Successfully reused widget for property: %s", name.c_str());
             } catch (const std::exception& e) {
                 obs_log(LOG_ERROR, "[loadProperties] Exception reusing widget for property %s: %s", name.c_str(), e.what());
@@ -191,6 +201,10 @@ void OneSevenLivePropertiesWidget::UpdateProperties(obs_data_t *settings, obs_pr
   obs_log(LOG_DEBUG, "[UpdateProperties] Cleaning up %zu existing property widgets", m_propertyWidgets.size());
   for (auto &kv : m_propertyWidgets) {
     if (kv.second) {
+      if (kv.second->layout) {
+        m_formLayout->removeItem(kv.second->layout);
+        kv.second->layout->deleteLater();
+      }
       if (kv.second->label) {
         m_formLayout->removeWidget(kv.second->label);
         kv.second->label->deleteLater();

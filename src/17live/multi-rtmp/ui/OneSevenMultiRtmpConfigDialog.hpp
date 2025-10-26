@@ -66,9 +66,15 @@ private:
     void loadEncoders();
     void loadScenes();
     void loadConfig();
+    
+    // Helper function to parse and load encoders for both video and audio
+    std::vector<std::string> parseAndLoadEncoders(const std::string& supportedEncoders, bool isVideoEncoder);
 
     std::shared_ptr<OneSevenMultiRtmpConfig> m_config;
     std::shared_ptr<OneSevenMultiRtmpConfig> m_originalConfig;
+
+    std::string m_supportedVideoEncoders;
+    std::string m_supportedAudioEncoders;
 
     // Main layout
     QVBoxLayout* m_mainLayout;

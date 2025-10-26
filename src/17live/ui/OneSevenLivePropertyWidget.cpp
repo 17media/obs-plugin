@@ -42,6 +42,13 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(QWidget *parent, OneSeven
                 }
             });
             ctrl = cb;
+
+            container = new QWidget(this);
+            QHBoxLayout *hl = new QHBoxLayout(container);
+            hl->addWidget(label);
+            hl->addStretch();
+            hl->addWidget(ctrl);
+            
             break;
         }
         case OBS_PROPERTY_INT: {
