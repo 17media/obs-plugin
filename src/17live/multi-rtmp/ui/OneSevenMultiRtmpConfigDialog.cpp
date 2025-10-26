@@ -271,7 +271,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     
     // Enable video
     QHBoxLayout *useOBSVideoCheckLayout = new QHBoxLayout();
-    QLabel *useOBSVideoCheckLabel = new QLabel(obs_module_text("MultiRtmp.Config.Video.UseOBSVideo"));
+    QLabel *useOBSVideoCheckLabel = new QLabel(obs_module_text("MultiRtmp.Config.Video.UseOBS"));
     m_useOBSVideoCheck = new QCheckBox();
     m_useOBSVideoCheck->setChecked(true);
     useOBSVideoCheckLayout->addWidget(useOBSVideoCheckLabel);
