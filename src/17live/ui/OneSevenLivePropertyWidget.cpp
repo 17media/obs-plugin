@@ -81,10 +81,9 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(QWidget *parent, OneSeven
 
 OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget()
 {
-  if (label)
-    delete label;
-  if (ctrl)
-    delete ctrl;
+  // No need to manually delete label and ctrl, as they have a parent and Qt will manage them automatically.
+  // Manual deletion could lead to double-free crashes.
+  obs_log(LOG_DEBUG, "[~OneSevenLivePropertyWidget] Destructor called for property: %s", name.c_str());
 }
 
 void OneSevenLivePropertyWidget::ReloadProperty(obs_property *property)
@@ -115,7 +114,7 @@ void OneSevenLivePropertyWidget::ReloadProperty(obs_property *property)
               break;
           }
           default:
-              obs_log(LOG_WARNING, "ReloadProperty did not handle property of type %d", (int)m_propertyType);
+            //   obs_log(LOG_WARNING, "ReloadProperty did not handle property of type %d", (int)m_propertyType);
               break;
       }
   }

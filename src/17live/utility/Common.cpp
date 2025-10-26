@@ -228,15 +228,19 @@ std::string GetCurrentPlatformUUID() {
 obs_data_t* ObsDataFromJson(nlohmann::json j) {
     obs_data_t* r = nullptr;
 
-    if (j.type() == nlohmann::json::value_t::null)
+    if (j.type() == nlohmann::json::value_t::null) {
         r = obs_data_create();
-    else {
+        obs_log(LOG_DEBUG, "[ObsDataFromJson] Created empty obs_data_t for null JSON");
+    } else {
         auto jstr = j.dump();
         r = obs_data_create_from_json(jstr.c_str());
-        if (!r)
-            return {};
+        if (!r) {
+            obs_log(LOG_ERROR, "[ObsDataFromJson] Failed to create obs_data_t from JSON: %s", jstr.c_str());
+            return nullptr;
+        }
+        obs_log(LOG_DEBUG, "[ObsDataFromJson] Created obs_data_t from JSON: %s", jstr.c_str());
     }
     
-    obs_data_release(r);
+    // DO NOT release here - caller is responsible for managing the returned pointer
     return r;
 }
