@@ -737,8 +737,6 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
 {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] SaveConfig called");
     
-    OneSevenMultiRtmpConfig config;
-    
     // Auto-generate UUID for new streams, keep original ID if editing
     if (m_isEditMode) {
         m_config->id = m_originalConfig->id;
@@ -793,7 +791,7 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const
     }
     
     
-    return config;
+    return *m_config;
 }
 
 
