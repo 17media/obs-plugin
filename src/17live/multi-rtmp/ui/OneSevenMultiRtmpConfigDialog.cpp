@@ -20,6 +20,7 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
     , m_tabWidget(nullptr)
     , m_isEditMode(config != nullptr)
     , m_advancedExpanded(false)
+    , m_baseHeight(0)
 {
     setWindowTitle(obs_module_text("MultiRTMP.Config.Title"));
     setModal(true);
@@ -40,6 +41,12 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
         // Load configuration
         loadConfig();
     }
+    
+    // Record the base height after UI setup (when advanced settings are collapsed)
+    // Use a small delay to ensure layout is fully calculated
+    QTimer::singleShot(0, [this]() {
+        m_baseHeight = height();
+    });
 }
 
 OneSevenMultiRtmpConfigDialog::~OneSevenMultiRtmpConfigDialog()
@@ -277,7 +284,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     useOBSVideoCheckLayout->addWidget(useOBSVideoCheckLabel);
     useOBSVideoCheckLayout->addStretch();
     useOBSVideoCheckLayout->addWidget(m_useOBSVideoCheck);
-    m_videoLayout->addRow(useOBSVideoCheckLayout);
+    m_videoLayout->addRow("", useOBSVideoCheckLayout);
 
     m_outputSceneCombo = new QComboBox(m_videoTab);
     m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.OutputScene"), m_outputSceneCombo);
@@ -432,8 +439,30 @@ void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled()
         m_advancedButton->setIcon(downIcon);
     }
     
-    // Keep current dialog width unchanged, only adjust height to fit content
-    resize(width(), sizeHint().height());
+    // Adjust dialog size properly
+    if (m_advancedExpanded) {
+        // When expanding, calculate the needed height for advanced settings
+        // Use a small delay to ensure the widget visibility change is processed
+        QTimer::singleShot(0, [this]() {
+            int currentWidth = width();
+            int neededHeight = sizeHint().height();
+            
+            // Ensure we don't shrink below the base height
+            if (neededHeight < m_baseHeight) {
+                neededHeight = m_baseHeight + 200; // Add some space for advanced settings
+            }
+            
+            resize(currentWidth, neededHeight);
+        });
+    } else {
+        // When collapsing, return to base height
+        if (m_baseHeight > 0) {
+            resize(width(), m_baseHeight);
+        } else {
+            // Fallback if base height wasn't recorded properly
+            resize(width(), 400);
+        }
+    }
 }
 
 void OneSevenMultiRtmpConfigDialog::loadConfig()
