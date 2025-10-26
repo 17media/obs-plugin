@@ -293,14 +293,19 @@ void OneSevenLivePropertiesWidget::UpdateProperties(obs_data_t *settings, obs_pr
 }
 
 nlohmann::json OneSevenLivePropertiesWidget::SaveData() {
-    obs_data_apply(m_origSettings, m_settings);
-
-    auto jsonstr = obs_data_get_json(m_settings);
-    if (!jsonstr)
-        return {};
-    try {
-        return nlohmann::json::parse(jsonstr);
-    } catch (const nlohmann::json::parse_error& e) {
-        return {};
+  for (auto &kv : m_propertyWidgets) {
+    if (kv.second) {
+      kv.second->SaveData(m_settings);
     }
+  }
+
+  auto jsonstr = obs_data_get_json(m_settings);
+  obs_log(LOG_DEBUG, "[SaveData] Saving data to JSON: %s", jsonstr);
+  if (!jsonstr)
+    return {};
+  try {
+    return nlohmann::json::parse(jsonstr);
+  } catch (const nlohmann::json::parse_error& e) {
+    return {};
+  }
 }

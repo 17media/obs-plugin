@@ -199,48 +199,51 @@ void OneSevenLivePropertyWidget::LoadData(obs_data_t *settings)
 
 void OneSevenLivePropertyWidget::SaveData(obs_data_t *settings)
 {
-  if (!settings || !ctrl)
-    return;
-  switch (m_propertyType) {
-    case OBS_PROPERTY_BOOL: {
-        auto cb = static_cast<QCheckBox*>(ctrl);
-        obs_data_set_bool(settings, name.c_str(), cb->isChecked());
-        break;
-    }
-    case OBS_PROPERTY_INT: {
-        auto le = static_cast<QLineEdit*>(ctrl);
-        bool ok = false;
-        int v = le->text().toInt(&ok);
-        if (ok) obs_data_set_int(settings, name.c_str(), v);
-        break;
-    }
-    case OBS_PROPERTY_FLOAT: {
-        auto le = static_cast<QLineEdit*>(ctrl);
-        bool ok = false;
-        double v = le->text().toDouble(&ok);
-        if (ok) obs_data_set_double(settings, name.c_str(), v);
-        break;
-    }
-    case OBS_PROPERTY_TEXT: {
-        auto le = static_cast<QLineEdit*>(ctrl);
-        obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
-        break;
-    }
-    case OBS_PROPERTY_LIST: {
-        auto cb = static_cast<QComboBox*>(ctrl);
-        if (!cb) break;
-        QVariant data = cb->currentData();
-        if (m_comboFormat == obs_combo_format::OBS_COMBO_FORMAT_INT) {
-            obs_data_set_int(settings, name.c_str(), data.toInt());
-        } else if (m_comboFormat == obs_combo_format::OBS_COMBO_FORMAT_FLOAT) {
-            obs_data_set_double(settings, name.c_str(), data.toDouble());
-        } else if (m_comboFormat == obs_combo_format::OBS_COMBO_FORMAT_STRING) {
-            QString s = data.toString();
-            obs_data_set_string(settings, name.c_str(), s.toUtf8().constData());
+    obs_log(LOG_DEBUG, "Saving property %s", name.c_str());
+    if (!settings || !ctrl)
+        return;
+    obs_log(LOG_DEBUG, "Saving property %s as %d", name.c_str(), (int)m_propertyType);
+    switch (m_propertyType) {
+        case OBS_PROPERTY_BOOL: {
+            auto cb = static_cast<QCheckBox*>(ctrl);
+            obs_data_set_bool(settings, name.c_str(), cb->isChecked());
+            break;
         }
-        break;
+        case OBS_PROPERTY_INT: {
+            auto le = static_cast<QLineEdit*>(ctrl);
+            bool ok = false;
+            int v = le->text().toInt(&ok);
+            if (ok) obs_data_set_int(settings, name.c_str(), v);
+            break;
+        }
+        case OBS_PROPERTY_FLOAT: {
+            auto le = static_cast<QLineEdit*>(ctrl);
+            bool ok = false;
+            double v = le->text().toDouble(&ok);
+            if (ok) obs_data_set_double(settings, name.c_str(), v);
+            break;
+        }
+        case OBS_PROPERTY_TEXT: {
+            obs_log(LOG_DEBUG, "Saving property %s as string", name.c_str());
+            auto le = static_cast<QLineEdit*>(ctrl);
+            obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
+            break;
+        }
+        case OBS_PROPERTY_LIST: {
+            auto cb = static_cast<QComboBox*>(ctrl);
+            if (!cb) break;
+            QVariant data = cb->currentData();
+            if (m_comboFormat == obs_combo_format::OBS_COMBO_FORMAT_INT) {
+                obs_data_set_int(settings, name.c_str(), data.toInt());
+            } else if (m_comboFormat == obs_combo_format::OBS_COMBO_FORMAT_FLOAT) {
+                obs_data_set_double(settings, name.c_str(), data.toDouble());
+            } else if (m_comboFormat == obs_combo_format::OBS_COMBO_FORMAT_STRING) {
+                QString s = data.toString();
+                obs_data_set_string(settings, name.c_str(), s.toUtf8().constData());
+            }
+            break;
+        }
+        default:
+            break;
     }
-    default:
-        break;
-  }
 }
