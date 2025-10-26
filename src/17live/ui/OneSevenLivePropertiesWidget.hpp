@@ -4,6 +4,7 @@
 
 #include <QWidget>
 #include <QLabel>
+#include <QFormLayout>
 
 #include "nlohmann/json.hpp"
 
@@ -28,6 +29,8 @@ public:
   nlohmann::json SaveData();
 
 private:
+  QFormLayout *m_formLayout;
+
   std::unordered_map<std::string, std::shared_ptr<OneSevenLivePropertyWidget>> m_propertyWidgets;
 
   bool isRefreshing = false;

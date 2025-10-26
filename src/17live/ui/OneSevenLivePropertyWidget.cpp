@@ -17,77 +17,79 @@
 OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(QWidget *parent, OneSevenLivePropertyRefreshHandler *refreshHandler, obs_property *property)
   : QWidget(parent), m_refreshHandler(refreshHandler), m_property(property)
 {
-  name = obs_property_name(m_property);
+    name = obs_property_name(m_property);
 
-  const char *desc = obs_property_description(m_property);
-  if (!desc)
-    desc = obs_property_name(m_property);
+    const char *desc = obs_property_description(m_property);
+    if (!desc)
+        desc = obs_property_name(m_property);
 
-  label = new QLabel(desc);
+    obs_log(LOG_DEBUG, "[OneSevenLivePropertyWidget] Constructor called for property: %s [%s]", name.c_str(), desc);
 
-  m_propertyType = obs_property_get_type(property);
+    label = new QLabel(desc);
 
-  switch (m_propertyType) {
-    case OBS_PROPERTY_BOOL: {
-        auto cb = new QCheckBox(parent);
-        // 延迟信号连接，避免在构造过程中触发递归RefreshUI调用
-        QTimer::singleShot(0, [this, cb]() {
-            if (cb && m_refreshHandler) {
-                QObject::connect(cb, &QCheckBox::stateChanged, [this]() {
-                    if (m_refreshHandler)
-                        m_refreshHandler->RefreshUI();
-                });
-            }
-        });
-        ctrl = cb;
-        break;
+    m_propertyType = obs_property_get_type(property);
+
+    switch (m_propertyType) {
+        case OBS_PROPERTY_BOOL: {
+            auto cb = new QCheckBox(parent);
+            // Defer signal connection to avoid triggering recursive RefreshUI calls during construction
+            QTimer::singleShot(0, [this, cb]() {
+                if (cb && m_refreshHandler) {
+                    QObject::connect(cb, &QCheckBox::stateChanged, [this]() {
+                        if (m_refreshHandler)
+                            m_refreshHandler->RefreshUI();
+                    });
+                }
+            });
+            ctrl = cb;
+            break;
+        }
+        case OBS_PROPERTY_INT: {
+            auto le = new QLineEdit(parent);
+            le->setValidator(new QIntValidator(le));
+            ctrl = le;
+            break;
+        }
+        case OBS_PROPERTY_FLOAT: {
+            auto le = new QLineEdit(parent);
+            le->setValidator(new QDoubleValidator(le));
+            ctrl = le;
+            break;
+        }
+        case OBS_PROPERTY_TEXT: {
+            auto le = new QLineEdit(parent);
+            if (obs_property_text_type(property) == OBS_TEXT_PASSWORD)
+                le->setEchoMode(QLineEdit::Password);
+            ctrl = le;
+            break;
+        }
+        case OBS_PROPERTY_LIST: {
+            auto cb = new QComboBox(parent);
+            // 延迟信号连接，避免在构造过程中触发递归RefreshUI调用
+            QTimer::singleShot(0, [this, cb]() {
+                if (cb && m_refreshHandler) {
+                    QObject::connect(cb, &QComboBox::currentIndexChanged, [this]() {
+                        if (m_refreshHandler)
+                            m_refreshHandler->RefreshUI();
+                    });
+                }
+            });
+            ctrl = cb;
+            break;
+        }
+        default:
+            ctrl = new QLabel("Unsupported", parent);
+            break;
     }
-    case OBS_PROPERTY_INT: {
-        auto le = new QLineEdit(parent);
-        le->setValidator(new QIntValidator(le));
-        ctrl = le;
-        break;
-    }
-    case OBS_PROPERTY_FLOAT: {
-        auto le = new QLineEdit(parent);
-        le->setValidator(new QDoubleValidator(le));
-        ctrl = le;
-        break;
-    }
-    case OBS_PROPERTY_TEXT: {
-        auto le = new QLineEdit(parent);
-        if (obs_property_text_type(property) == OBS_TEXT_PASSWORD)
-            le->setEchoMode(QLineEdit::Password);
-        ctrl = le;
-        break;
-    }
-    case OBS_PROPERTY_LIST: {
-        auto cb = new QComboBox(parent);
-        // 延迟信号连接，避免在构造过程中触发递归RefreshUI调用
-        QTimer::singleShot(0, [this, cb]() {
-            if (cb && m_refreshHandler) {
-                QObject::connect(cb, &QComboBox::currentIndexChanged, [this]() {
-                    if (m_refreshHandler)
-                        m_refreshHandler->RefreshUI();
-                });
-            }
-        });
-        ctrl = cb;
-        break;
-    }
-    default:
-        ctrl = new QLabel("Unsupported", parent);
-        break;
-  }
 
-  QObject::connect(label, &QObject::destroyed, [this]() {
-      label = nullptr;
-  });
-  QObject::connect(ctrl, &QObject::destroyed, [this]() {
-      ctrl = nullptr;
-  });
+    QObject::connect(label, &QObject::destroyed, [this]() {
+        label = nullptr;
+    });
+    QObject::connect(ctrl, &QObject::destroyed, [this]() {
+        ctrl = nullptr;
+    });
 
-  ReloadProperty(property);
+    ReloadProperty(property);
 }
 
 OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget()

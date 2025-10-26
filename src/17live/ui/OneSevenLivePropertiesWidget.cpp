@@ -28,12 +28,12 @@ OneSevenLivePropertiesWidget::OneSevenLivePropertiesWidget(QWidget *parent, obs_
   }
 
   // Minimal UI: start with an empty form layout so the widget renders blank
-  QFormLayout *formLayout = new QFormLayout();
-  formLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
-  formLayout->setLabelAlignment(Qt::AlignLeft);
-  formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-  formLayout->setContentsMargins(0, 0, 0, 0);
-  setLayout(formLayout);
+  m_formLayout = new QFormLayout();
+  m_formLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
+  m_formLayout->setLabelAlignment(Qt::AlignLeft);
+  m_formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+  m_formLayout->setContentsMargins(0, 0, 0, 0);
+  setLayout(m_formLayout);
 
   // If properties are provided, apply and build the property controls now
   if (m_props) {
@@ -80,45 +80,29 @@ void OneSevenLivePropertiesWidget::loadProperties() {
     std::unordered_map<std::string, std::shared_ptr<OneSevenLivePropertyWidget>> origPropWidgets;
     origPropWidgets.swap(m_propertyWidgets);
 
-    auto oldLayout = layout();
-    if (oldLayout) {
-        for (auto& x : origPropWidgets) {
-            if (x.second->label)
-                oldLayout->removeWidget(x.second->label);
-            if (x.second->ctrl)
-                oldLayout->removeWidget(x.second->ctrl);
-        }
+    for (auto& x : origPropWidgets) {
+        if (x.second->label)
+            m_formLayout->removeWidget(x.second->label);
+        if (x.second->ctrl)
+            m_formLayout->removeWidget(x.second->ctrl);
     }
-
-    QFormLayout *formLayout = new QFormLayout();
-    formLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
-    formLayout->setLabelAlignment(Qt::AlignLeft);
-    formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    formLayout->setContentsMargins(0, 0, 0, 0);
     
-    // 安全检查：确保m_props不为空
     if (!m_props) {
         obs_log(LOG_WARNING, "[loadProperties] m_props is null, skipping property loading");
-        // setLayout()会自动删除oldLayout，不需要手动删除
-        setLayout(formLayout);
         return;
     }
     
     obs_property_t *prop = obs_properties_first(m_props);
     if (!prop) {
         obs_log(LOG_INFO, "[loadProperties] No properties found");
-        // setLayout()会自动删除oldLayout，不需要手动删除
-        setLayout(formLayout);
         return;
     }
     
     int propertyCount = 0;
-    // 修复：使用标准的while循环而不是do-while
     while (prop) {
         propertyCount++;
         obs_log(LOG_DEBUG, "[loadProperties] Processing property %d", propertyCount);
         
-        // 安全检查：验证prop指针
         if (!obs_property_visible(prop)) {
             obs_log(LOG_DEBUG, "[loadProperties] Property %d is not visible, skipping", propertyCount);
             if (!obs_property_next(&prop)) break;
@@ -147,7 +131,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
                 }
                 newWidget->LoadData(m_settings);
                 m_propertyWidgets.insert(std::make_pair(newWidget->name, newWidget));
-                formLayout->addRow(newWidget->label, newWidget->ctrl);
+                m_formLayout->addRow(newWidget->label, newWidget->ctrl);
                 obs_log(LOG_DEBUG, "[loadProperties] Successfully created widget for property: %s", name.c_str());
             } catch (const std::exception& e) {
                 obs_log(LOG_ERROR, "[loadProperties] Exception creating widget for property %s: %s", name.c_str(), e.what());
@@ -160,7 +144,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
                 it->second->ReloadProperty(prop);
                 it->second->LoadData(m_settings);
                 m_propertyWidgets.insert(std::make_pair(it->first, it->second));
-                formLayout->addRow(it->second->label, it->second->ctrl);
+                m_formLayout->addRow(it->second->label, it->second->ctrl);
                 obs_log(LOG_DEBUG, "[loadProperties] Successfully reused widget for property: %s", name.c_str());
             } catch (const std::exception& e) {
                 obs_log(LOG_ERROR, "[loadProperties] Exception reusing widget for property %s: %s", name.c_str(), e.what());
@@ -169,25 +153,18 @@ void OneSevenLivePropertiesWidget::loadProperties() {
             }
         }
         
-        // 安全地移动到下一个属性
         if (!obs_property_next(&prop)) {
             obs_log(LOG_DEBUG, "[loadProperties] Reached end of properties");
             break;
         }
-        
-        // 防止无限循环的安全检查
-        if (propertyCount > 1000) {
+
+        if (propertyCount > 100) {
             obs_log(LOG_ERROR, "[loadProperties] Too many properties (%d), breaking to prevent infinite loop", propertyCount);
             break;
         }
     }
 
     obs_log(LOG_INFO, "[loadProperties] Processed %d properties successfully", propertyCount);
-    
-    // setLayout()会自动删除oldLayout，不需要手动删除
-    setLayout(formLayout);
-
-    obs_log(LOG_DEBUG, "[loadProperties] Finished property loading");
 }
 
 void OneSevenLivePropertiesWidget::UpdateProperties(obs_data_t *settings, obs_properties_t *props)
@@ -210,25 +187,21 @@ void OneSevenLivePropertiesWidget::UpdateProperties(obs_data_t *settings, obs_pr
 
   obs_log(LOG_DEBUG, "[UpdateProperties] Removing existing controls and layout");
   
-  // Remove existing controls and layout
-  QLayout *oldLayout = layout();
-  if (oldLayout) {
-    obs_log(LOG_DEBUG, "[UpdateProperties] Cleaning up %zu existing property widgets", m_propertyWidgets.size());
-    for (auto &kv : m_propertyWidgets) {
-      if (kv.second) {
-        if (kv.second->label) {
-          oldLayout->removeWidget(kv.second->label);
-          kv.second->label->deleteLater();
-        }
-        if (kv.second->ctrl) {
-          oldLayout->removeWidget(kv.second->ctrl);
-          kv.second->ctrl->deleteLater();
-        }
+  
+  obs_log(LOG_DEBUG, "[UpdateProperties] Cleaning up %zu existing property widgets", m_propertyWidgets.size());
+  for (auto &kv : m_propertyWidgets) {
+    if (kv.second) {
+      if (kv.second->label) {
+        m_formLayout->removeWidget(kv.second->label);
+        kv.second->label->deleteLater();
+      }
+      if (kv.second->ctrl) {
+        m_formLayout->removeWidget(kv.second->ctrl);
+        kv.second->ctrl->deleteLater();
       }
     }
-    // 不要手动删除oldLayout，setLayout()会自动处理
-    obs_log(LOG_DEBUG, "[UpdateProperties] Old layout widgets removed, layout will be auto-deleted by setLayout()");
   }
+  
   m_propertyWidgets.clear();
 
   obs_log(LOG_DEBUG, "[UpdateProperties] Releasing previous OBS objects");
@@ -276,21 +249,6 @@ void OneSevenLivePropertiesWidget::UpdateProperties(obs_data_t *settings, obs_pr
     obs_data_apply(m_settings, m_origSettings);
     obs_log(LOG_DEBUG, "[UpdateProperties] Applied original settings");
   }
-
-  obs_log(LOG_DEBUG, "[UpdateProperties] Creating fresh form layout");
-  
-  // Create a fresh blank form layout
-  QFormLayout *formLayout = new QFormLayout();
-  if (!formLayout) {
-    obs_log(LOG_ERROR, "[UpdateProperties] Failed to create form layout");
-    return;
-  }
-  
-  formLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
-  formLayout->setLabelAlignment(Qt::AlignLeft);
-  formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-  formLayout->setContentsMargins(0, 0, 0, 0);
-  setLayout(formLayout);
 
   obs_log(LOG_DEBUG, "[UpdateProperties] Building property controls");
   
