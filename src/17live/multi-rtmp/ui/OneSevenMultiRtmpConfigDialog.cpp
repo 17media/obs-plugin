@@ -28,7 +28,6 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(QWidget* parent, st
     // Set dialog size constraints to match reference style
     setMinimumSize(300, 400);
     setMaximumSize(600, 800);
-    resize(400, 750);
     
     setupUI();
     setupConnections();
