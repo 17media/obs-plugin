@@ -229,49 +229,6 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection()
     m_syncStartCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStart"));
     m_syncStopCheckbox = new QCheckBox();
     m_syncStopCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStop"));
-    
-    // Apply dark theme styling to basic info section
-    m_basicInfoWidget->setStyleSheet(
-        "QWidget { "
-        "  background-color: transparent; "
-        "  border: none; "
-        "} "
-        "QLabel { "
-        "  color: white; "
-        "  font-size: 14px; "
-        "  margin-bottom: 4px; "
-        "} "
-        "QLineEdit { "
-        "  background-color: #2d2d2d; "
-        "  border: 1px solid #555; "
-        "  border-radius: 4px; "
-        "  padding: 8px; "
-        "  color: white; "
-        "  font-size: 14px; "
-        "} "
-        "QLineEdit:focus { "
-        "  border-color: #007AFF; "
-        "} "
-        "QComboBox { "
-        "  background-color: #2d2d2d; "
-        "  border: 1px solid #555; "
-        "  border-radius: 4px; "
-        "  padding: 8px; "
-        "  color: white; "
-        "  font-size: 14px; "
-        "} "
-        "QComboBox:focus { "
-        "  border-color: #007AFF; "
-        "} "
-        "QComboBox::drop-down { "
-        "  border: none; "
-        "} "
-        "QComboBox::down-arrow { "
-        "  image: url(:/resources/arrow-down.svg); "
-        "  width: 12px; "
-        "  height: 12px; "
-        "}"
-    );
 }
 
 void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsButton()
@@ -375,13 +332,17 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab()
     m_videoLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
     // Enable video
-    m_useOBSVideoCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Video.UseOBS"));
+    QHBoxLayout *useOBSVideoCheckLayout = new QHBoxLayout();
+    QLabel *useOBSVideoCheckLabel = new QLabel(obs_module_text("MultiRtmp.Config.Video.UseOBSVideo"));
+    m_useOBSVideoCheck = new QCheckBox();
     m_useOBSVideoCheck->setChecked(true);
-    m_useOBSVideoCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
-    m_videoLayout->addRow("", m_useOBSVideoCheck);
+    useOBSVideoCheckLayout->addWidget(useOBSVideoCheckLabel);
+    useOBSVideoCheckLayout->addStretch();
+    useOBSVideoCheckLayout->addWidget(m_useOBSVideoCheck);
+    m_videoLayout->addLayout(useOBSVideoCheckLayout);
 
     m_outputSceneCombo = new QComboBox(m_videoTab);
-    m_videoLayout->addRow(obs_module_text("Basic.Scene"), m_outputSceneCombo);
+    m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.OutputScene"), m_outputSceneCombo);
 
     m_videoEncoderCombo = new QComboBox(m_videoTab);
     m_videoLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Video"), m_videoEncoderCombo);
@@ -410,10 +371,14 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab()
     m_audioLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     
     // Enable audio
-    m_useOBSAudioCheck = new QCheckBox(obs_module_text("MultiRtmp.Config.Audio.UseOBS"));
+    QHBoxLayout *useOBSAudioCheckLayout = new QHBoxLayout();
+    QLabel *useOBSAudioCheckLabel = new QLabel(obs_module_text("MultiRtmp.Config.Audio.UseOBS"));
+    m_useOBSAudioCheck = new QCheckBox();
     m_useOBSAudioCheck->setChecked(true);
-    m_useOBSAudioCheck->setStyleSheet("QCheckBox { font-weight: bold; color: #333; }");
-    m_audioLayout->addRow("", m_useOBSAudioCheck);
+    useOBSAudioCheckLayout->addWidget(useOBSAudioCheckLabel);
+    useOBSAudioCheckLayout->addStretch();
+    useOBSAudioCheckLayout->addWidget(m_useOBSAudioCheck);
+    m_audioLayout->addLayout(useOBSAudioCheckLayout);
     
     m_audioEncoderCombo = new QComboBox(m_audioTab);
     m_audioLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Audio"), m_audioEncoderCombo);
