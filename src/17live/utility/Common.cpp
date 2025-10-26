@@ -22,6 +22,7 @@
 
 #include "plugin-support.h"
 
+
 std::string GetCurrentLanguage() {
     const char* locale = obs_get_locale();
     if (strcmp(locale, "ja-JP") == 0) {
@@ -222,4 +223,20 @@ std::string GetCurrentPlatformUUID() {
 #else
     return "Unsupported OS for UUID";
 #endif
+}
+
+obs_data_t* ObsDataFromJson(nlohmann::json j) {
+    obs_data_t* r = nullptr;
+
+    if (j.type() == nlohmann::json::value_t::null)
+        r = obs_data_create();
+    else {
+        auto jstr = j.dump();
+        r = obs_data_create_from_json(jstr.c_str());
+        if (!r)
+            return {};
+    }
+    
+    obs_data_release(r);
+    return r;
 }

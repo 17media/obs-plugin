@@ -4,6 +4,11 @@
 #include <chrono>
 #include <thread>
 
+#include <obs-module.h>
+#include "plugin-support.h"
+
+#include "utility/Common.hpp"
+
 OneSevenMultiRtmpStreamController::OneSevenMultiRtmpStreamController() {
     MULTI_RTMP_STREAM_LOG_INFO("Stream controller initialized");
 }
@@ -765,7 +770,8 @@ std::string OneSevenMultiRtmpStreamController::getAudioEncoderName(const std::st
 }
 
 obs_data_t* OneSevenMultiRtmpStreamController::createServiceSettings(const OneSevenMultiRtmpConfig& config) const {
-    obs_data_t* settings = obs_data_create_from_json(config.serviceSettings.dump().c_str());
+    obs_log(LOG_INFO, "createServiceSettings");
+    obs_data_t* settings = ObsDataFromJson(config.serviceSettings);
     // TODO: Add any additional service settings here
     // TODO: Maybe get service settings from API
 
@@ -773,17 +779,20 @@ obs_data_t* OneSevenMultiRtmpStreamController::createServiceSettings(const OneSe
 }
 
 obs_data_t* OneSevenMultiRtmpStreamController::createOutputSettings(const OneSevenMultiRtmpConfig& config) const {
-    obs_data_t* settings = obs_data_create_from_json(config.outputSettings.dump().c_str());
+    obs_log(LOG_INFO, "createOutputSettings");
+    obs_data_t* settings = ObsDataFromJson(config.outputSettings);
     // TODO: Add any additional output settings here
     return settings;
 }
 
 obs_data_t* OneSevenMultiRtmpStreamController::createVideoEncoderSettings(const OneSevenMultiRtmpConfig& config) const {
+    obs_log(LOG_INFO, "createVideoEncoderSettings");
+    
     // Use custom settings when videoConfig is provided; otherwise use OBS defaults
     if (config.videoConfig.has_value()) {
         const nlohmann::json& j = config.videoConfig->encoderSettings;
         if (!j.is_null()) {
-            obs_data_t* settings = obs_data_create_from_json(j.dump().c_str());
+            obs_data_t* settings = ObsDataFromJson(j);
             if (settings) {
                 MULTI_RTMP_STREAM_LOG_DEBUG("Using custom video encoder settings from JSON");
                 return settings;
@@ -798,11 +807,12 @@ obs_data_t* OneSevenMultiRtmpStreamController::createVideoEncoderSettings(const 
 }
 
 obs_data_t* OneSevenMultiRtmpStreamController::createAudioEncoderSettings(const OneSevenMultiRtmpConfig& config) const {
+    obs_log(LOG_INFO, "createAudioEncoderSettings");
     // Use custom settings when audioConfig is provided; otherwise use OBS defaults
     if (config.audioConfig.has_value()) {
         const nlohmann::json& j = config.audioConfig->encoderSettings;
         if (!j.is_null()) {
-            obs_data_t* settings = obs_data_create_from_json(j.dump().c_str());
+            obs_data_t* settings = ObsDataFromJson(j);
             if (settings) {
                 MULTI_RTMP_STREAM_LOG_DEBUG("Using custom audio encoder settings from JSON");
                 return settings;

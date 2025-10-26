@@ -9,6 +9,7 @@
 #include <obs-frontend-api.h>
 
 #include "../../ui/OneSevenLivePropertiesWidget.hpp"
+#include "../../utility/Common.hpp"
 
 #include "moc_OneSevenMultiRtmpConfigDialog.cpp"
 
@@ -543,8 +544,10 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     }
 
     auto protocol_info = findProtocol(m_config->protocol);
+    
     {
-        obs_data_t *service_settings = obs_data_create_from_json(m_config->serviceSettings.dump().c_str());
+        obs_log(LOG_INFO, "loadConfig: serviceSettings");
+        obs_data_t *service_settings = ObsDataFromJson(m_config->serviceSettings);
         auto service = obs_service_create(protocol_info->serviceId, ("tmp_17live_service_" + m_config->id).c_str(), service_settings, nullptr);
         obs_data_t *settings = obs_service_get_settings(service);
         obs_properties_t *props = obs_service_properties(service);
@@ -558,7 +561,8 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
 
     // load output settings
     {
-        obs_data_t *output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
+        obs_log(LOG_INFO, "loadConfig: outputSettings");
+        obs_data_t *output_settings = ObsDataFromJson(m_config->outputSettings);
         auto output = obs_output_create(protocol_info->outputId, ("tmp_17live_output_" + m_config->id).c_str(), output_settings, nullptr);
         obs_data_t *settings = obs_output_get_settings(output);
         obs_properties_t *props = obs_output_properties(output);
@@ -581,7 +585,8 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
                 m_videoEncoderCombo->setCurrentIndex(idx);
         }
         {
-            obs_data_t *encoder_settings = obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str());
+            obs_log(LOG_INFO, "loadConfig: videoEncoderSettings");
+            obs_data_t *encoder_settings = m_config->videoConfig.has_value() ? ObsDataFromJson(m_config->videoConfig->encoderSettings) : nullptr;
             auto encoder = obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(), ("tmp_17live_video_encoder_" + m_config->id).c_str(), encoder_settings, nullptr);
             obs_data_t *settings = obs_encoder_get_settings(encoder);
             obs_properties_t *props = obs_encoder_properties(encoder);
@@ -599,7 +604,8 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
                 m_audioEncoderCombo->setCurrentIndex(idx);
         }
         {
-            obs_data_t *encoder_settings = obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str());
+            obs_log(LOG_INFO, "loadConfig: audioEncoderSettings");
+            obs_data_t *encoder_settings = m_config->audioConfig.has_value() ? ObsDataFromJson(m_config->audioConfig->encoderSettings) : nullptr;
             auto encoder = obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(), ("tmp_17live_audio_encoder_" + m_config->id).c_str(), encoder_settings, m_config->audioConfig->mixerId, nullptr);
             obs_data_t *settings = obs_encoder_get_settings(encoder);
             obs_properties_t *props = obs_encoder_properties(encoder);
