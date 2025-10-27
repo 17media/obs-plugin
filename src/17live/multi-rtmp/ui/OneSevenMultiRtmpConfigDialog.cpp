@@ -445,7 +445,10 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     }
 
     // Load basic information
-    m_streamNameEdit->setText(QString::fromStdString(m_config->streamName));
+    // Only set stream name if it's not empty, preserve default value for new configs
+    if (!m_config->streamName.empty()) {
+        m_streamNameEdit->setText(QString::fromStdString(m_config->streamName));
+    }
     
     // Load protocol and URL
     auto protocol_info = findProtocol(m_config->protocol);
@@ -463,11 +466,10 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     }
     
     // Load service settings
-    if (!m_config->serviceSettings.empty()) {
-        obs_data_t* service_settings = obs_data_create_from_json(m_config->serviceSettings.dump().c_str());
-        if (!service_settings) {
-            obs_log(LOG_ERROR, "[loadConfig] Failed to create service_settings from JSON");
-            return;
+    {
+        obs_data_t* service_settings = nullptr;
+        if (!m_config->serviceSettings.empty()) {
+            service_settings = obs_data_create_from_json(m_config->serviceSettings.dump().c_str());
         }
         
         obs_service_t* service = obs_service_create(protocol_info->serviceId, 
@@ -499,11 +501,10 @@ void OneSevenMultiRtmpConfigDialog::loadConfig()
     }
     
     // Load output settings
-    if (!m_config->outputSettings.empty()) {
-        obs_data_t* output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
-        if (!output_settings) {
-            obs_log(LOG_ERROR, "[loadConfig] Failed to create output_settings from JSON");
-            return;
+    {
+        obs_data_t* output_settings = nullptr;
+        if (!m_config->outputSettings.empty()) {
+            output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
         }
         
         obs_output_t* output = obs_output_create(protocol_info->outputId, 
