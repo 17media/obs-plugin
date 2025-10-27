@@ -37,7 +37,8 @@ OneSevenMultiRtmpStreamController::~OneSevenMultiRtmpStreamController() {
 }
 
 bool OneSevenMultiRtmpStreamController::createOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     MULTI_RTMP_STREAM_LOG_INFO("Creating output for stream: %s", streamId.c_str());
     
@@ -79,7 +80,10 @@ bool OneSevenMultiRtmpStreamController::createOutput(const std::string& streamId
 }
 
 bool OneSevenMultiRtmpStreamController::startOutput(const std::string& streamId) {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    MULTI_RTMP_STREAM_LOG_INFO("=== STARTING OUTPUT FOR STREAM: %s ===", streamId.c_str());
+    
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it == m_streamOutputs.end()) {
@@ -91,6 +95,8 @@ bool OneSevenMultiRtmpStreamController::startOutput(const std::string& streamId)
 }
 
 bool OneSevenMultiRtmpStreamController::startOutputInternal(const std::string& streamId, StreamOutput* streamOutput) {
+    MULTI_RTMP_STREAM_LOG_INFO("Starting output internal for stream: %s", streamId.c_str());
+    
     if (!streamOutput || !streamOutput->output) {
         MULTI_RTMP_STREAM_LOG_ERROR("Invalid stream output for: %s", streamId.c_str());
         return false;
@@ -101,20 +107,26 @@ bool OneSevenMultiRtmpStreamController::startOutputInternal(const std::string& s
         return true;
     }
     
+    MULTI_RTMP_STREAM_LOG_INFO("Calling obs_output_start for stream: %s", streamId.c_str());
+    
     // Start the output
     if (!obs_output_start(streamOutput->output)) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to start output for stream: %s", streamId.c_str());
         return false;
     }
     
+    MULTI_RTMP_STREAM_LOG_INFO("obs_output_start succeeded for stream: %s", streamId.c_str());
+    
     // Update status
     updateStreamStatus(streamId, OneSevenMultiRtmpStreamStatus::CONNECTING);
     
+    MULTI_RTMP_STREAM_LOG_INFO("startOutputInternal completed for stream: %s", streamId.c_str());
     return true;
 }
 
 bool OneSevenMultiRtmpStreamController::stopOutput(const std::string& streamId) {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it == m_streamOutputs.end()) {
@@ -142,7 +154,8 @@ bool OneSevenMultiRtmpStreamController::stopOutputInternal(const std::string& st
 }
 
 bool OneSevenMultiRtmpStreamController::destroyOutput(const std::string& streamId) {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it == m_streamOutputs.end()) {
@@ -206,7 +219,8 @@ bool OneSevenMultiRtmpStreamController::stopAllOutputs() {
 }
 
 void OneSevenMultiRtmpStreamController::destroyAllOutputs() {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     for (auto& [streamId, streamOutput] : m_streamOutputs) {
         // Stop output if active
@@ -233,7 +247,8 @@ void OneSevenMultiRtmpStreamController::destroyAllOutputs() {
 }
 
 OneSevenMultiRtmpStreamStatus OneSevenMultiRtmpStreamController::getStreamStatus(const std::string& streamId) const {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it != m_streamOutputs.end()) {
@@ -247,7 +262,8 @@ OneSevenMultiRtmpStreamStatus OneSevenMultiRtmpStreamController::getStreamStatus
 }
 
 OneSevenMultiRtmpStreamStats OneSevenMultiRtmpStreamController::getStreamStats(const std::string& streamId) const {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it != m_streamOutputs.end()) {
@@ -260,7 +276,8 @@ OneSevenMultiRtmpStreamStats OneSevenMultiRtmpStreamController::getStreamStats(c
 }
 
 std::vector<std::string> OneSevenMultiRtmpStreamController::getActiveStreamIds() const {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     std::vector<std::string> activeIds;
     for (const auto& [streamId, streamOutput] : m_streamOutputs) {
@@ -273,7 +290,8 @@ std::vector<std::string> OneSevenMultiRtmpStreamController::getActiveStreamIds()
 }
 
 std::vector<std::string> OneSevenMultiRtmpStreamController::getAllStreamIds() const {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     std::vector<std::string> allIds;
     allIds.reserve(m_streamOutputs.size());
@@ -322,7 +340,8 @@ obs_encoder_t* OneSevenMultiRtmpStreamController::getSharedAudioEncoder(int mixe
 }
 
 bool OneSevenMultiRtmpStreamController::isStreamActive(const std::string& streamId) const {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it != m_streamOutputs.end()) {
@@ -333,7 +352,8 @@ bool OneSevenMultiRtmpStreamController::isStreamActive(const std::string& stream
 }
 
 bool OneSevenMultiRtmpStreamController::hasOutput(const std::string& streamId) const {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
+    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     return m_streamOutputs.find(streamId) != m_streamOutputs.end();
 }
 
@@ -569,6 +589,10 @@ bool OneSevenMultiRtmpStreamController::setupOutput(const std::string& streamId,
 
 void OneSevenMultiRtmpStreamController::updateStreamStatus(const std::string& streamId, 
     OneSevenMultiRtmpStreamStatus::State state, const std::string& error) {
+    
+    // NOTE: NOT ADDING MUTEX LOCK HERE FOR DEBUGGING - POTENTIAL DEADLOCK SOURCE
+    // This method is called from OBS callbacks which may already hold locks
+    // std::lock_guard<std::mutex> lock(m_outputsMutex);
     
     auto it = m_streamOutputs.find(streamId);
     if (it != m_streamOutputs.end()) {
