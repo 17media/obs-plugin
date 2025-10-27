@@ -320,14 +320,14 @@ void OneSevenMultiRtmpStreamItem::updateStatsDisplay()
         QString bitrate = formatBitrate(static_cast<uint64_t>(m_stats.currentBitrate * 1000)); // Convert to bps
         QString fps = formatFrameRate(m_stats.currentFPS);
         
-        if (m_durationLabel) m_durationLabel->setText(QString("连线时长: %1").arg(duration));
-        if (m_bitrateLabel) m_bitrateLabel->setText(QString("上传速率: %1 Kbps").arg(bitrate));
-        if (m_framesLabel) m_framesLabel->setText(QString("帧率: %1 FPS").arg(fps));
+        if (m_durationLabel) m_durationLabel->setText(QString("%1: %2").arg(obs_module_text("MultiRTMP.Stats.Duration")).arg(duration));
+        if (m_bitrateLabel) m_bitrateLabel->setText(QString("%1: %2 Kbps").arg(obs_module_text("MultiRTMP.Stats.UploadRate")).arg(bitrate));
+        if (m_framesLabel) m_framesLabel->setText(QString("%1: %2 FPS").arg(obs_module_text("MultiRTMP.Stats.FrameRate")).arg(fps));
     } else {
         // Show labels with dashes when not connected
-        if (m_durationLabel) m_durationLabel->setText("连线时长: --:--:--");
-        if (m_bitrateLabel) m_bitrateLabel->setText("上传速率: -- Kbps");
-        if (m_framesLabel) m_framesLabel->setText("帧率: -- FPS");
+        if (m_durationLabel) m_durationLabel->setText(QString("%1: --:--:--").arg(obs_module_text("MultiRTMP.Stats.Duration")));
+        if (m_bitrateLabel) m_bitrateLabel->setText(QString("%1: -- Kbps").arg(obs_module_text("MultiRTMP.Stats.UploadRate")));
+        if (m_framesLabel) m_framesLabel->setText(QString("%1: -- FPS").arg(obs_module_text("MultiRTMP.Stats.FrameRate")));
     }
 }
 

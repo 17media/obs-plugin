@@ -11,6 +11,7 @@ OneSevenMultiRtmpDock::OneSevenMultiRtmpDock(QWidget* parent)
     , m_streamListWidget(nullptr)
     , m_configDialog(nullptr)
     , m_isFirstShow(true)
+    , m_isUpdatingUI(false)
 {
     obs_log(LOG_INFO, "[MultiRTMP-Dock] Manager instance obtained, initialization will be done on first use");
     
@@ -158,6 +159,8 @@ void OneSevenMultiRtmpDock::setupConnections()
                 this, [this](const std::string& streamId) {
                     if (m_manager) {
                         m_manager->startStream(streamId);
+                        // Force immediate button state update to ensure UI responsiveness
+                        updateButtonStates();
                     }
                 });
         
@@ -165,6 +168,8 @@ void OneSevenMultiRtmpDock::setupConnections()
                 this, [this](const std::string& streamId) {
                     if (m_manager) {
                         m_manager->stopStream(streamId);
+                        // Update button states immediately since we now use actual stream item states
+                        updateButtonStates();
                     }
                 });
         
@@ -322,10 +327,16 @@ void OneSevenMultiRtmpDock::refreshStreamList()
 
 void OneSevenMultiRtmpDock::updateStreamStatus(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status)
 {
+    // Update stream status in the list widget if not in bulk update mode
     if (m_streamListWidget && !m_isUpdatingUI) {
         m_streamListWidget->updateStreamStatus(streamId, status);
-        updateButtonStates();
+    } else if (m_isUpdatingUI) {
+        obs_log(LOG_DEBUG, "[MultiRTMP-Dock] updateStreamStatus skipped for stream %s due to bulk UI update in progress", streamId.c_str());
     }
+    
+    // Always update button states for individual stream status changes
+    // This ensures "Start All" and "Stop All" buttons reflect current state immediately
+    updateButtonStates();
 }
 
 void OneSevenMultiRtmpDock::updateStreamStats(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats)
@@ -414,27 +425,34 @@ void OneSevenMultiRtmpDock::onStatsUpdateTimer()
 
 void OneSevenMultiRtmpDock::updateButtonStates()
 {
-    if (!ensureManagerInitialized()) {
+    if (!ensureManagerInitialized() || !m_streamListWidget) {
         return;
     }
     
-    size_t streamCount = m_manager->getStreamCount();
-    auto activeIds = m_manager->getActiveStreamIds();
-    size_t activeCount = activeIds.size();
+    // Get actual status statistics directly from stream items
+    auto stats = m_streamListWidget->getStreamStatusStats();
     
-    // Enable/disable buttons based on state
-    m_startAllButton->setEnabled(streamCount > 0 && activeCount < streamCount);
-    m_stopAllButton->setEnabled(activeCount > 0);
+    // Calculate counts for button logic
+    size_t totalCount = stats.totalCount;
+    size_t activeCount = stats.activeCount;
+    size_t inactiveCount = totalCount - activeCount - stats.connectingCount; // Stopped + Error streams can be started
     
-    // Update button text with counts
-    if (streamCount > 0) {
-        m_startAllButton->setText(QString("全部开始 (%1)")
-            .arg(streamCount - activeCount));
-        m_stopAllButton->setText(QString("全部停止 (%1)")
-            .arg(activeCount));
+    obs_log(LOG_INFO, "[MultiRTMP-Dock] updateButtonStates(): totalCount=%zu, activeCount=%zu, connectingCount=%zu, stoppedCount=%zu, errorCount=%zu", 
+            totalCount, activeCount, stats.connectingCount, stats.stoppedCount, stats.errorCount);
+    
+    // Enable/disable buttons based on actual stream item states
+    m_startAllButton->setEnabled(totalCount > 0 && inactiveCount > 0);
+    m_stopAllButton->setEnabled(activeCount > 0 || stats.connectingCount > 0);
+    
+    // Update button text with actual counts
+    if (totalCount > 0) {
+        m_startAllButton->setText(QString(getMultiRtmpText("MultiRTMP.Dock.StartAll.WithCount"))
+            .arg(inactiveCount));
+        m_stopAllButton->setText(QString(getMultiRtmpText("MultiRTMP.Dock.StopAll.WithCount"))
+            .arg(activeCount + stats.connectingCount));
     } else {
-        m_startAllButton->setText("全部开始");
-        m_stopAllButton->setText("全部停止");
+        m_startAllButton->setText(getMultiRtmpText("MultiRTMP.Dock.StartAll"));
+        m_stopAllButton->setText(getMultiRtmpText("MultiRTMP.Dock.StopAll"));
     }
 }
 

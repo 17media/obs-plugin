@@ -40,6 +40,16 @@ public:
     std::vector<std::string> getAllStreamIds() const;
     std::vector<std::string> getActiveStreamIds() const;
     
+    // Stream status statistics
+    struct StreamStatusStats {
+        size_t totalCount = 0;
+        size_t activeCount = 0;
+        size_t connectingCount = 0;
+        size_t stoppedCount = 0;
+        size_t errorCount = 0;
+    };
+    StreamStatusStats getStreamStatusStats() const;
+    
     // Manager access
     void setManager(OneSevenMultiRtmpManager* manager);
 

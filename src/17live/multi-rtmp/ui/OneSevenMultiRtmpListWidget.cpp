@@ -196,6 +196,35 @@ std::vector<std::string> OneSevenMultiRtmpListWidget::getActiveStreamIds() const
     return activeIds;
 }
 
+OneSevenMultiRtmpListWidget::StreamStatusStats OneSevenMultiRtmpListWidget::getStreamStatusStats() const
+{
+    StreamStatusStats stats;
+    stats.totalCount = m_streamItems.size();
+    
+    for (const auto* item : m_streamItems) {
+        if (!item) continue;
+        
+        const auto& status = item->getStatus();
+        switch (status.state) {
+            case OneSevenMultiRtmpStreamStatus::State::STREAMING:
+                stats.activeCount++;
+                break;
+            case OneSevenMultiRtmpStreamStatus::State::CONNECTING:
+            case OneSevenMultiRtmpStreamStatus::State::RECONNECTING:
+                stats.connectingCount++;
+                break;
+            case OneSevenMultiRtmpStreamStatus::State::STOPPED:
+                stats.stoppedCount++;
+                break;
+            case OneSevenMultiRtmpStreamStatus::State::ERROR:
+                stats.errorCount++;
+                break;
+        }
+    }
+    
+    return stats;
+}
+
 void OneSevenMultiRtmpListWidget::setManager(OneSevenMultiRtmpManager* manager)
 {
     m_manager = manager;

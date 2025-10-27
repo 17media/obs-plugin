@@ -92,7 +92,7 @@ private:
     // Manager reference
     OneSevenMultiRtmpManager* m_manager;
     
-    // State tracking
+    // State management
     bool m_isUpdatingUI;
     bool m_isFirstShow;
 };
