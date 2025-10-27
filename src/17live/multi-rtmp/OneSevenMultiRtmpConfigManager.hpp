@@ -24,6 +24,7 @@ public:
     // Configuration file operations
     bool loadConfiguration();
     bool saveConfiguration();
+    bool forceSave(); // Force save configuration immediately (for manual save operations)
     std::string getConfigFilePath() const;
 
     // Stream configuration CRUD operations (JSON only)

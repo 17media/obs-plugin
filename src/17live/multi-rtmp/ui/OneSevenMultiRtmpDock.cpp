@@ -244,29 +244,58 @@ void OneSevenMultiRtmpDock::setupManagerCallbacks()
 
 void OneSevenMultiRtmpDock::refreshStreamList()
 {
-    if (!ensureManagerInitialized() || !m_streamListWidget || m_isUpdatingUI) {
+    obs_log(LOG_INFO, "[MultiRTMP-Dock] refreshStreamList() called");
+    
+    if (!ensureManagerInitialized()) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Dock] refreshStreamList() failed: manager not initialized");
         return;
     }
     
-    m_isUpdatingUI = true;
-    
-    // Clear existing streams
-    m_streamListWidget->clearAllStreams();
-    
-    // Add all configured streams
-    auto configs = m_manager->getAllStreamConfigs();
-    for (const auto& config : configs) {
-        m_streamListWidget->addStream(config);
-        
-        // Update with current status and stats
-        auto status = m_manager->getStreamStatus(config.id);
-        auto stats = m_manager->getStreamStats(config.id);
-        
-        m_streamListWidget->updateStreamStatus(config.id, status);
-        m_streamListWidget->updateStreamStats(config.id, stats);
+    if (!m_streamListWidget) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Dock] refreshStreamList() failed: m_streamListWidget is null");
+        return;
     }
     
-    updateButtonStates();
+    if (m_isUpdatingUI) {
+        obs_log(LOG_WARNING, "[MultiRTMP-Dock] refreshStreamList() skipped: UI update already in progress");
+        return;
+    }
+    
+    try {
+        m_isUpdatingUI = true;
+        
+        // Clear existing streams
+        m_streamListWidget->clearAllStreams();
+        
+        // Add all configured streams
+        auto configs = m_manager->getAllStreamConfigs();
+        for (size_t i = 0; i < configs.size(); ++i) {
+            const auto& config = configs[i];
+            
+            try {
+                m_streamListWidget->addStream(config);
+                
+                // Update with current status and stats
+                auto status = m_manager->getStreamStatus(config.id);
+                auto stats = m_manager->getStreamStats(config.id);
+                m_streamListWidget->updateStreamStatus(config.id, status);
+                
+            } catch (const std::exception& e) {
+                obs_log(LOG_ERROR, "[MultiRTMP-Dock] Exception while processing stream %s: %s", config.id.c_str(), e.what());
+                // Continue with next stream
+            } catch (...) {
+                obs_log(LOG_ERROR, "[MultiRTMP-Dock] Unknown exception while processing stream %s", config.id.c_str());
+                // Continue with next stream
+            }
+        }
+        
+        updateButtonStates();
+        
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Dock] Exception in refreshStreamList(): %s", e.what());
+    } catch (...) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Dock] Unknown exception in refreshStreamList()");
+    }
     
     m_isUpdatingUI = false;
 }
@@ -391,64 +420,118 @@ void OneSevenMultiRtmpDock::updateButtonStates()
 
 void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& config)
 {
-    // Create dialog with configuration
-    bool isEdit = !config.id.empty();
-    std::shared_ptr<OneSevenMultiRtmpConfig> configPtr = std::make_shared<OneSevenMultiRtmpConfig>(config);
+    obs_log(LOG_INFO, "[MultiRTMP-Dock] showConfigDialog() called");
     
-    m_configDialog = new OneSevenMultiRtmpConfigDialog(this, configPtr);
-    m_configDialog->setEditMode(isEdit);
-    
-    if (isEdit) {
-        m_configDialog->setWindowTitle(getMultiRtmpText("MultiRTMP.EditStream.Title"));
-    } else {
-        m_configDialog->setWindowTitle(getMultiRtmpText("MultiRTMP.AddStream.Title"));
-    }
-    
-    // Show dialog and handle result
-    if (m_configDialog->exec() == QDialog::Accepted) {
-        auto newConfig = m_configDialog->SaveConfig();
+    try {
+        // Create dialog with configuration
+        bool isEdit = !config.id.empty();
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Dialog mode: %s", isEdit ? "edit" : "new");
         
-        // Add detailed logging for configuration data
-        obs_log(LOG_INFO, "[MultiRTMP-Dock] Configuration dialog accepted");
-        obs_log(LOG_INFO, "[MultiRTMP-Dock] Stream name: '%s'", newConfig.streamName.c_str());
+        std::shared_ptr<OneSevenMultiRtmpConfig> configPtr = std::make_shared<OneSevenMultiRtmpConfig>(config);
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Created config pointer");
         
-        if (ensureManagerInitialized()) {
-            bool success = false;
+        m_configDialog = new OneSevenMultiRtmpConfigDialog(this, configPtr);
+        if (!m_configDialog) {
+            obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to create config dialog");
+            return;
+        }
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Created config dialog successfully");
+        
+        m_configDialog->setEditMode(isEdit);
+        
+        if (isEdit) {
+            m_configDialog->setWindowTitle(getMultiRtmpText("MultiRTMP.EditStream.Title"));
+        } else {
+            m_configDialog->setWindowTitle(getMultiRtmpText("MultiRTMP.AddStream.Title"));
+        }
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Dialog setup completed");
+        
+        // Show dialog and handle result
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Showing dialog");
+        if (m_configDialog->exec() == QDialog::Accepted) {
+            obs_log(LOG_INFO, "[MultiRTMP-Dock] Dialog accepted, calling SaveConfig()");
             
-            if (isEdit) {
-                obs_log(LOG_INFO, "[MultiRTMP-Dock] Updating existing stream config: %s", config.id.c_str());
-                success = m_manager->updateStreamConfig(config.id, newConfig);
-            } else {
-                // Generate new ID for new stream
-                newConfig.id = m_manager->generateStreamId();
-                obs_log(LOG_INFO, "[MultiRTMP-Dock] Adding new stream config with ID: %s", newConfig.id.c_str());
+            try {
+                auto newConfig = m_configDialog->SaveConfig();
                 
-                success = m_manager->addStreamConfig(newConfig);
-            }
-            
-            if (success) {
-                obs_log(LOG_INFO, "[MultiRTMP-Dock] Stream configuration %s successfully", isEdit ? "updated" : "added");
-                if (isEdit) {
-                    onStreamConfigChanged(config.id);
+                // Add detailed logging for configuration data
+                obs_log(LOG_INFO, "[MultiRTMP-Dock] Configuration dialog accepted");
+                obs_log(LOG_INFO, "[MultiRTMP-Dock] Stream name: '%s'", newConfig.streamName.c_str());
+                obs_log(LOG_INFO, "[MultiRTMP-Dock] Config ID from SaveConfig: '%s'", newConfig.id.c_str());
+                
+                if (ensureManagerInitialized()) {
+                    bool success = false;
+                    
+                    if (isEdit) {
+                        obs_log(LOG_INFO, "[MultiRTMP-Dock] Updating existing stream config: %s", config.id.c_str());
+                        // For edit mode, preserve the original ID
+                        newConfig.id = config.id;
+                        success = m_manager->updateStreamConfig(config.id, newConfig);
+                    } else {
+                        // Generate new ID for new stream only if not already set
+                        if (newConfig.id.empty()) {
+                            newConfig.id = m_manager->generateStreamId();
+                            obs_log(LOG_INFO, "[MultiRTMP-Dock] Generated new ID for stream: %s", newConfig.id.c_str());
+                        }
+                        obs_log(LOG_INFO, "[MultiRTMP-Dock] Adding new stream config with ID: %s", newConfig.id.c_str());
+                        
+                        success = m_manager->addStreamConfig(newConfig);
+                    }
+                    
+                    if (success) {
+                        obs_log(LOG_INFO, "[MultiRTMP-Dock] Stream configuration %s successfully", isEdit ? "updated" : "added");
+                        
+                        try {
+                            if (isEdit) {
+                                obs_log(LOG_INFO, "[MultiRTMP-Dock] Calling onStreamConfigChanged for: %s", config.id.c_str());
+                                onStreamConfigChanged(config.id);
+                            } else {
+                                obs_log(LOG_INFO, "[MultiRTMP-Dock] Calling refreshStreamList for new stream");
+                                refreshStreamList();
+                            }
+                            obs_log(LOG_INFO, "[MultiRTMP-Dock] UI update completed successfully");
+                        } catch (const std::exception& e) {
+                            obs_log(LOG_ERROR, "[MultiRTMP-Dock] Exception during UI update: %s", e.what());
+                        } catch (...) {
+                            obs_log(LOG_ERROR, "[MultiRTMP-Dock] Unknown exception during UI update");
+                        }
+                    } else {
+                        obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to %s stream configuration", isEdit ? "update" : "add");
+                        QMessageBox::warning(this,
+                            getMultiRtmpText("MultiRTMP.Error.Title"),
+                            isEdit ? 
+                                getMultiRtmpText("MultiRTMP.Error.UpdateFailed") :
+                                getMultiRtmpText("MultiRTMP.Error.AddFailed"));
+                    }
                 } else {
-                    refreshStreamList();
+                    obs_log(LOG_ERROR, "[MultiRTMP-Dock] Manager initialization failed");
                 }
-            } else {
-                obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to %s stream configuration", isEdit ? "update" : "add");
-                QMessageBox::warning(this,
-                    getMultiRtmpText("MultiRTMP.Error.Title"),
-                    isEdit ? 
-                        getMultiRtmpText("MultiRTMP.Error.UpdateFailed") :
-                        getMultiRtmpText("MultiRTMP.Error.AddFailed"));
+            } catch (const std::exception& e) {
+                obs_log(LOG_ERROR, "[MultiRTMP-Dock] Exception in SaveConfig(): %s", e.what());
+                QMessageBox::critical(this, "Error", QString("Failed to save configuration: %1").arg(e.what()));
+            } catch (...) {
+                obs_log(LOG_ERROR, "[MultiRTMP-Dock] Unknown exception in SaveConfig()");
+                QMessageBox::critical(this, "Error", "Failed to save configuration: Unknown error");
             }
         } else {
-            obs_log(LOG_ERROR, "[MultiRTMP-Dock] Manager initialization failed");
+            obs_log(LOG_INFO, "[MultiRTMP-Dock] Configuration dialog cancelled");
         }
-    } else {
-        obs_log(LOG_INFO, "[MultiRTMP-Dock] Configuration dialog cancelled");
+        
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Dock] Exception in showConfigDialog(): %s", e.what());
+        QMessageBox::critical(this, "Error", QString("Failed to show configuration dialog: %1").arg(e.what()));
+    } catch (...) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Dock] Unknown exception in showConfigDialog()");
+        QMessageBox::critical(this, "Error", "Failed to show configuration dialog: Unknown error");
     }
     
     // Clean up dialog
-    delete m_configDialog;
-    m_configDialog = nullptr;
+    if (m_configDialog) {
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Cleaning up config dialog");
+        delete m_configDialog;
+        m_configDialog = nullptr;
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Config dialog cleaned up successfully");
+    }
+    
+    obs_log(LOG_INFO, "[MultiRTMP-Dock] showConfigDialog() completed");
 }

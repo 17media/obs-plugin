@@ -43,14 +43,14 @@ OneSevenLivePropertiesWidget::OneSevenLivePropertiesWidget(QWidget *parent, obs_
 }
 
 OneSevenLivePropertiesWidget::~OneSevenLivePropertiesWidget() {
-  if (m_props)
-    obs_properties_destroy(m_props);
+  // if (m_props)
+  //   obs_properties_destroy(m_props);
 
-  if (m_settings)
-    obs_data_release(m_settings);
+  // if (m_settings)
+  //   obs_data_release(m_settings);
 
-  if (m_origSettings)
-    obs_data_release(m_origSettings);
+  // if (m_origSettings)
+  //   obs_data_release(m_origSettings);
 }
 
 void OneSevenLivePropertiesWidget::RefreshUI() {
