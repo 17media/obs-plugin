@@ -208,6 +208,7 @@ void OneSevenMultiRtmpStreamItem::updateStatus(const OneSevenMultiRtmpStreamStat
     
     m_status = status;
     updateStatusDisplay();
+    updateButtonStates(); // Ensure button states are updated when status changes
 }
 
 void OneSevenMultiRtmpStreamItem::updateStats(const OneSevenMultiRtmpStreamStats& stats)
