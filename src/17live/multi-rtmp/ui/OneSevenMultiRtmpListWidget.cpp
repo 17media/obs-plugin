@@ -11,6 +11,7 @@ OneSevenMultiRtmpListWidget::OneSevenMultiRtmpListWidget(QWidget* parent)
     , m_emptyLayout(nullptr)
     , m_emptyTextLabel(nullptr)
     , m_showEmptyState(true)
+    , m_manager(nullptr)
 {
     setupUI();
     updateEmptyState();
@@ -82,6 +83,11 @@ void OneSevenMultiRtmpListWidget::addStream(const OneSevenMultiRtmpConfig& confi
     
     // Create new stream item
     auto* streamItem = new OneSevenMultiRtmpStreamItem(config, this);
+    
+    // Set manager reference
+    if (m_manager) {
+        streamItem->setManager(m_manager);
+    }
     
     // Connect signals
     connect(streamItem, &OneSevenMultiRtmpStreamItem::startRequested,
@@ -188,6 +194,18 @@ std::vector<std::string> OneSevenMultiRtmpListWidget::getActiveStreamIds() const
     }
     
     return activeIds;
+}
+
+void OneSevenMultiRtmpListWidget::setManager(OneSevenMultiRtmpManager* manager)
+{
+    m_manager = manager;
+    
+    // Update existing stream items
+    for (auto* item : m_streamItems) {
+        if (item) {
+            item->setManager(m_manager);
+        }
+    }
 }
 
 void OneSevenMultiRtmpListWidget::onStreamItemStartClicked(const std::string& streamId)

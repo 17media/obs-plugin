@@ -12,6 +12,7 @@
 #include <memory>
 
 class OneSevenMultiRtmpStreamItem;
+class OneSevenMultiRtmpManager;
 
 /**
  * List widget for displaying multiple RTMP stream items
@@ -38,6 +39,9 @@ public:
     size_t getStreamCount() const;
     std::vector<std::string> getAllStreamIds() const;
     std::vector<std::string> getActiveStreamIds() const;
+    
+    // Manager access
+    void setManager(OneSevenMultiRtmpManager* manager);
 
 signals:
     void streamStartRequested(const std::string& streamId);
@@ -75,4 +79,7 @@ private:
     
     // State
     bool m_showEmptyState;
+    
+    // Manager reference
+    OneSevenMultiRtmpManager* m_manager;
 };

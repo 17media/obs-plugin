@@ -520,6 +520,14 @@ bool OneSevenMultiRtmpManager::hasStreamOutput(const std::string& streamId) cons
     return m_streamController->hasOutput(streamId);
 }
 
+obs_output_t* OneSevenMultiRtmpManager::getStreamOutput(const std::string& streamId) const
+{
+    if (!m_initialized || !m_streamController) {
+        return nullptr;
+    }
+    return m_streamController->getStreamOutput(streamId);
+}
+
 // Private methods
 void OneSevenMultiRtmpManager::onConfigChanged(const std::string& streamId, const OneSevenMultiRtmpConfig& config)
 {

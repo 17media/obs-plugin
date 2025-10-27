@@ -49,6 +49,7 @@ void OneSevenMultiRtmpDock::setupUI()
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     
     m_streamListWidget = new OneSevenMultiRtmpListWidget();
+    m_streamListWidget->setManager(m_manager);
     m_scrollArea->setWidget(m_streamListWidget);
     
     // Control section (bottom part)

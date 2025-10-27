@@ -51,6 +51,9 @@ public:
     bool isStreamActive(const std::string& streamId) const;
     bool hasOutput(const std::string& streamId) const;
     
+    // OBS output access
+    obs_output_t* getStreamOutput(const std::string& streamId) const;
+    
     // Callback registration
     void setStreamStatusCallback(StreamStatusCallback callback);
     void setStreamStatsCallback(StreamStatsCallback callback);

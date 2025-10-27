@@ -86,6 +86,9 @@ public:
     bool isInitialized() const { return m_initialized; }
     bool isStreamActive(const std::string& streamId) const;
     bool hasStreamOutput(const std::string& streamId) const;
+    
+    // Get stream output for real-time statistics
+    obs_output_t* getStreamOutput(const std::string& streamId) const;
 
 private:
     // Internal callback handlers

@@ -13,6 +13,10 @@
 #include <QTimer>
 #include <QMenu>
 #include <QAction>
+#include <chrono>
+
+// Forward declaration
+class OneSevenMultiRtmpManager;
 
 /**
  * Individual stream item widget
@@ -29,6 +33,9 @@ public:
     void updateConfig(const OneSevenMultiRtmpConfig& config);
     void updateStatus(const OneSevenMultiRtmpStreamStatus& status);
     void updateStats(const OneSevenMultiRtmpStreamStats& stats);
+    
+    // Manager access
+    void setManager(OneSevenMultiRtmpManager* manager);
     
     // Getters
     const std::string& getStreamId() const { return m_config.id; }
@@ -69,6 +76,9 @@ private:
     QString formatBitrate(uint64_t bytes) const;
     QString formatDuration(uint64_t seconds) const;
     QString formatFrameRate(double fps) const;
+    
+    // Real-time statistics collection
+    void collectRealTimeStats();
 
     // Configuration and state
     OneSevenMultiRtmpConfig m_config;
@@ -108,6 +118,15 @@ private:
     
     // Update timer
     QTimer* m_statsTimer;
+    
+    // Manager reference for real-time stats
+    OneSevenMultiRtmpManager* m_manager;
+    
+    // Real-time statistics tracking
+    std::chrono::steady_clock::time_point m_startTime;
+    std::chrono::steady_clock::time_point m_lastStatsTime;
+    uint64_t m_lastTotalBytes;
+    uint64_t m_lastTotalFrames;
     
     // Style classes for different states
     static const QString STATUS_IDLE_CLASS;

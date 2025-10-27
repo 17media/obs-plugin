@@ -1,7 +1,11 @@
 #include "OneSevenMultiRtmpStreamItem.hpp"
+#include "../OneSevenMultiRtmpManager.hpp"
 #include <QApplication>
 #include <QStyle>
 #include <QMessageBox>
+#include <obs-output.h>
+#include <cmath>
+#include <chrono>
 
 // Static style class constants
 const QString OneSevenMultiRtmpStreamItem::STATUS_IDLE_CLASS = "status-idle";
@@ -33,6 +37,9 @@ OneSevenMultiRtmpStreamItem::OneSevenMultiRtmpStreamItem(const OneSevenMultiRtmp
     , m_duplicateAction(nullptr)
     , m_deleteAction(nullptr)
     , m_statsTimer(nullptr)
+    , m_manager(nullptr)
+    , m_lastTotalBytes(0)
+    , m_lastTotalFrames(0)
 {
     setFrameStyle(QFrame::StyledPanel | QFrame::Raised);
     setLineWidth(1);
@@ -73,7 +80,7 @@ void OneSevenMultiRtmpStreamItem::setupUI()
     
     // Stream name (left side)
     m_nameLabel = new QLabel();
-    m_nameLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #FFFFFF;");
+    m_nameLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #FFFFFF;background: transparent;");
     m_nameLabel->setWordWrap(false);
     
     // Status section (right side)
@@ -84,7 +91,7 @@ void OneSevenMultiRtmpStreamItem::setupUI()
     // Status dot (14px x 14px colored circle)
     m_statusDot = new QLabel();
     m_statusDot->setFixedSize(14, 14);
-    m_statusDot->setStyleSheet("background-color: #A1A9B6; border-radius: 7px;");
+    m_statusDot->setStyleSheet("background-color: #A1A9B6; border-radius: 7px; background: transparent;");
     
     // Status text
     m_statusLabel = new QLabel();
@@ -190,15 +197,28 @@ void OneSevenMultiRtmpStreamItem::updateConfig(const OneSevenMultiRtmpConfig& co
 
 void OneSevenMultiRtmpStreamItem::updateStatus(const OneSevenMultiRtmpStreamStatus& status)
 {
+    // Record start time when stream becomes active
+    if (status.state == OneSevenMultiRtmpStreamStatus::STREAMING && 
+        m_status.state != OneSevenMultiRtmpStreamStatus::STREAMING) {
+        m_startTime = std::chrono::steady_clock::now();
+        m_lastStatsTime = m_startTime;
+        m_lastTotalBytes = 0;
+        m_lastTotalFrames = 0;
+    }
+    
     m_status = status;
     updateStatusDisplay();
-    updateButtonStates();
 }
 
 void OneSevenMultiRtmpStreamItem::updateStats(const OneSevenMultiRtmpStreamStats& stats)
 {
     m_stats = stats;
     updateStatsDisplay();
+}
+
+void OneSevenMultiRtmpStreamItem::setManager(OneSevenMultiRtmpManager* manager)
+{
+    m_manager = manager;
 }
 
 bool OneSevenMultiRtmpStreamItem::isActive() const
@@ -258,6 +278,7 @@ void OneSevenMultiRtmpStreamItem::onStatsUpdateTimer()
 {
     // Update display if stream is active
     if (isActive()) {
+        collectRealTimeStats();
         updateStatsDisplay();
     }
 }
@@ -293,28 +314,19 @@ void OneSevenMultiRtmpStreamItem::updateStatsDisplay()
     bool isConnected = (m_status.state == OneSevenMultiRtmpStreamStatus::State::STREAMING);
     
     if (isConnected) {
-        // Show actual stats when connected
+        // Show actual stats when connected with "label: value" format
         QString duration = formatDuration(static_cast<uint64_t>(m_stats.duration.count()));
         QString bitrate = formatBitrate(static_cast<uint64_t>(m_stats.currentBitrate * 1000)); // Convert to bps
         QString fps = formatFrameRate(m_stats.currentFPS);
         
-        if (m_durationLabel) m_durationLabel->setText(duration);
-        if (m_bitrateLabel) m_bitrateLabel->setText(bitrate);
-        if (m_framesLabel) m_framesLabel->setText(fps);
+        if (m_durationLabel) m_durationLabel->setText(QString("连线时长: %1").arg(duration));
+        if (m_bitrateLabel) m_bitrateLabel->setText(QString("上传速率: %1 Kbps").arg(bitrate));
+        if (m_framesLabel) m_framesLabel->setText(QString("帧率: %1 FPS").arg(fps));
     } else {
         // Show labels with dashes when not connected
-        if (m_durationLabel) {
-            QString durationText = QString(obs_module_text("MultiRTMP.Stream.Duration")).arg("-");
-            m_durationLabel->setText(durationText);
-        }
-        if (m_bitrateLabel) {
-            QString bitrateText = QString(obs_module_text("MultiRTMP.Stream.Bitrate")).arg("-");
-            m_bitrateLabel->setText(bitrateText);
-        }
-        if (m_framesLabel) {
-            QString fpsText = QString(obs_module_text("MultiRTMP.Stream.FPS")).arg("-");
-            m_framesLabel->setText(fpsText);
-        }
+        if (m_durationLabel) m_durationLabel->setText("连线时长: --:--:--");
+        if (m_bitrateLabel) m_bitrateLabel->setText("上传速率: -- Kbps");
+        if (m_framesLabel) m_framesLabel->setText("帧率: -- FPS");
     }
 }
 
@@ -370,10 +382,10 @@ QString OneSevenMultiRtmpStreamItem::formatDuration(uint64_t seconds) const
 QString OneSevenMultiRtmpStreamItem::formatFrameRate(double fps) const
 {
     if (fps <= 0.0) {
-        return "0 FPS";
+        return "0";
     }
     
-    return QString("%1 FPS").arg(static_cast<int>(fps));
+    return QString("%1").arg(static_cast<int>(fps));
 }
 
 void OneSevenMultiRtmpStreamItem::updateStatusDot()
@@ -434,15 +446,65 @@ QString OneSevenMultiRtmpStreamItem::getStatusColor() const
 
 QString OneSevenMultiRtmpStreamItem::formatBitrate(uint64_t bytes) const
 {
-    // Convert bytes per second to Mbps
-    double mbps = static_cast<double>(bytes) / (1000.0 * 1000.0);
-    
-    if (mbps >= 1.0) {
-        return QString("%1 Mbps").arg(mbps, 0, 'f', 1);
-    } else {
-        double kbps = static_cast<double>(bytes) / 1000.0;
-        return QString("%1 kbps").arg(static_cast<int>(kbps));
+    if (bytes == 0) {
+        return "0 Kbps";
     }
+    
+    static const char* units[] = {"bps", "Kbps", "Mbps", "Gbps"};
+    int unitIndex = static_cast<int>(log10(bytes) / 3);
+    if (unitIndex >= 4) unitIndex = 3;
+    
+    double value = bytes / pow(1000, unitIndex);
+    return QString("%1 %2").arg(value, 0, 'f', 1).arg(units[unitIndex]);
+}
+
+void OneSevenMultiRtmpStreamItem::collectRealTimeStats()
+{
+    if (!m_manager || !isActive()) {
+        return;
+    }
+    
+    // Get obs_output_t* from manager
+    obs_output_t* output = m_manager->getStreamOutput(m_config.id);
+    if (!output) {
+        return;
+    }
+    
+    using namespace std::chrono;
+    
+    auto now = steady_clock::now();
+    auto newBytes = obs_output_get_total_bytes(output);
+    auto newFrames = obs_output_get_total_frames(output);
+    
+    // Calculate time interval
+    auto interval = duration_cast<duration<double>>(now - m_lastStatsTime).count();
+    
+    if (interval > 0 && m_lastStatsTime != m_startTime) {
+        // Calculate duration since start
+        // Update stats structure with real-time data
+        m_stats.duration = duration_cast<std::chrono::milliseconds>(now - m_startTime);
+        
+        // Calculate bitrate (bits per second)
+        if (newBytes > m_lastTotalBytes) {
+            auto byteDiff = newBytes - m_lastTotalBytes;
+            m_stats.currentBitrate = (byteDiff * 8) / (interval * 1000); // Convert to Kbps
+        }
+        
+        // Calculate frame rate
+        if (newFrames > static_cast<int>(m_lastTotalFrames)) {
+            auto frameDiff = newFrames - m_lastTotalFrames;
+            m_stats.currentFPS = static_cast<int>(frameDiff / interval);
+        }
+        
+        // Update total stats
+        m_stats.totalFrames = newFrames;
+        m_stats.droppedFrames = obs_output_get_frames_dropped(output);
+    }
+    
+    // Update tracking variables
+    m_lastTotalBytes = newBytes;
+    m_lastTotalFrames = newFrames;
+    m_lastStatsTime = now;
 }
 
 #include "moc_OneSevenMultiRtmpStreamItem.cpp"
