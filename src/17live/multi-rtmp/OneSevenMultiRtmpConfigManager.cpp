@@ -6,17 +6,26 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <QDir>
 
 OneSevenMultiRtmpConfigManager::OneSevenMultiRtmpConfigManager() {
     MULTI_RTMP_CONFIG_LOG_INFO("ConfigManager initialized");
     
-    // Initialize configuration directory path
-    char* configPath = obs_module_config_path("");
-    if (configPath) {
-        m_configDirectory = std::string(configPath) + "/multi-rtmp";
-        bfree(configPath);
+    // Initialize configuration directory path - use same directory as OneSevenLiveConfigManager
+    QString homeDir = QDir::homePath();
+    QString configDir = homeDir + "/.17Live";
+    QDir dir(configDir);
+    
+    // If directory doesn't exist, create it
+    if (!dir.exists()) {
+        if (!dir.mkpath(configDir)) {
+            MULTI_RTMP_CONFIG_LOG_ERROR("Failed to create config directory: %s", configDir.toStdString().c_str());
+            m_configDirectory = "./config/multi-rtmp";  // fallback
+        } else {
+            m_configDirectory = configDir.toStdString();
+        }
     } else {
-        m_configDirectory = "./config/multi-rtmp";
+        m_configDirectory = configDir.toStdString();
     }
     
     m_configFilePath = m_configDirectory + "/" + CONFIG_FILE_NAME;
@@ -374,6 +383,22 @@ void OneSevenMultiRtmpConfigManager::notifyConfigDelete(const std::string& strea
 }
 
 bool OneSevenMultiRtmpConfigManager::saveConfigurationInternal() {
+    // Create backup of existing config file before saving new one
+    if (std::filesystem::exists(m_configFilePath)) {
+        std::string timestamp = getCurrentTimestamp();
+        // Replace colons with dashes to ensure valid filename on all operating systems
+        std::replace(timestamp.begin(), timestamp.end(), ':', '-');
+        std::string backupPath = getBackupFilePath(timestamp);
+        
+        try {
+            std::filesystem::copy_file(m_configFilePath, backupPath);
+            MULTI_RTMP_CONFIG_LOG_INFO("Created backup of existing config: %s", backupPath.c_str());
+        } catch (const std::filesystem::filesystem_error& e) {
+            MULTI_RTMP_CONFIG_LOG_WARNING("Failed to create backup before saving: %s", e.what());
+            // Continue with save operation even if backup fails
+        }
+    }
+    
     if (!writeConfigToFile(m_globalConfig)) {
         MULTI_RTMP_CONFIG_LOG_ERROR("Failed to save configuration to file: %s", m_configFilePath.c_str());
         return false;
