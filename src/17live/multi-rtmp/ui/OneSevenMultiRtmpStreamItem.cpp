@@ -14,19 +14,21 @@ OneSevenMultiRtmpStreamItem::OneSevenMultiRtmpStreamItem(const OneSevenMultiRtmp
     : QFrame(parent)
     , m_config(config)
     , m_mainLayout(nullptr)
-    , m_infoLayout(nullptr)
+    , m_topLayout(nullptr)
     , m_nameLabel(nullptr)
-    , m_urlLabel(nullptr)
+    , m_statusLayout(nullptr)
+    , m_statusDot(nullptr)
     , m_statusLabel(nullptr)
     , m_statsLayout(nullptr)
-    , m_bitrateLabel(nullptr)
     , m_durationLabel(nullptr)
+    , m_bitrateLabel(nullptr)
     , m_framesLabel(nullptr)
-    , m_connectionProgress(nullptr)
     , m_controlLayout(nullptr)
     , m_startStopButton(nullptr)
     , m_editButton(nullptr)
     , m_menuButton(nullptr)
+    , m_urlLabel(nullptr)
+    , m_connectionProgress(nullptr)
     , m_contextMenu(nullptr)
     , m_duplicateAction(nullptr)
     , m_deleteAction(nullptr)
@@ -60,88 +62,112 @@ OneSevenMultiRtmpStreamItem::~OneSevenMultiRtmpStreamItem()
 
 void OneSevenMultiRtmpStreamItem::setupUI()
 {
-    // Main horizontal layout
-    m_mainLayout = new QHBoxLayout(this);
+    // Main vertical layout (3 layers)
+    m_mainLayout = new QVBoxLayout(this);
     m_mainLayout->setContentsMargins(12, 8, 12, 8);
-    m_mainLayout->setSpacing(12);
+    m_mainLayout->setSpacing(6);
     
-    // Left section - Stream info
-    m_infoLayout = new QVBoxLayout();
-    m_infoLayout->setSpacing(4);
+    // Top layer - Name and status
+    m_topLayout = new QHBoxLayout();
+    m_topLayout->setSpacing(8);
     
-    // Stream name
+    // Stream name (left side)
     m_nameLabel = new QLabel();
     m_nameLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #FFFFFF;");
     m_nameLabel->setWordWrap(false);
     
-    // Status/Stats label (combined)
+    // Status section (right side)
+    m_statusLayout = new QHBoxLayout();
+    m_statusLayout->setSpacing(6);
+    m_statusLayout->setAlignment(Qt::AlignRight);
+    
+    // Status dot (14px x 14px colored circle)
+    m_statusDot = new QLabel();
+    m_statusDot->setFixedSize(14, 14);
+    m_statusDot->setStyleSheet("background-color: #A1A9B6; border-radius: 7px;");
+    
+    // Status text
     m_statusLabel = new QLabel();
     m_statusLabel->setStyleSheet("font-size: 12px; color: #CCCCCC;");
     m_statusLabel->setWordWrap(false);
     
-    m_infoLayout->addWidget(m_nameLabel);
-    m_infoLayout->addWidget(m_statusLabel);
-    m_infoLayout->addStretch();
+    m_statusLayout->addWidget(m_statusDot);
+    m_statusLayout->addWidget(m_statusLabel);
     
-    // Right section - Controls
-    m_controlLayout = new QVBoxLayout();
+    m_topLayout->addWidget(m_nameLabel, 1);
+    m_topLayout->addLayout(m_statusLayout, 0);
+    
+    // Middle layer - Statistics (vertical stack)
+    m_statsLayout = new QVBoxLayout();
+    m_statsLayout->setSpacing(2);
+    
+    // Duration
+    m_durationLabel = new QLabel("-");
+    m_durationLabel->setStyleSheet("font-size: 11px; color: #AAAAAA;");
+    
+    // Upload speed
+    m_bitrateLabel = new QLabel("-");
+    m_bitrateLabel->setStyleSheet("font-size: 11px; color: #AAAAAA;");
+    
+    // Frame rate
+    m_framesLabel = new QLabel("-");
+    m_framesLabel->setStyleSheet("font-size: 11px; color: #AAAAAA;");
+    
+    m_statsLayout->addWidget(m_durationLabel);
+    m_statsLayout->addWidget(m_bitrateLabel);
+    m_statsLayout->addWidget(m_framesLabel);
+    
+    // Bottom layer - Controls (horizontal, right-aligned)
+    m_controlLayout = new QHBoxLayout();
     m_controlLayout->setSpacing(8);
     m_controlLayout->setAlignment(Qt::AlignRight);
     
-    // Start/Stop button
+    // Play/Stop button
     m_startStopButton = new QPushButton();
-    m_startStopButton->setMinimumSize(60, 28);
-    m_startStopButton->setMaximumSize(60, 28);
+    m_startStopButton->setMinimumSize(24, 24);
+    m_startStopButton->setMaximumSize(24, 24);
+    m_startStopButton->setIcon(QIcon(":/resources/play.svg"));
+    m_startStopButton->setIconSize(QSize(16, 16));
+    m_startStopButton->setStyleSheet("QPushButton { border: none; background: transparent; } QPushButton:hover { background-color: rgba(255,255,255,0.1); border-radius: 12px; }");
+    m_startStopButton->setToolTip(obs_module_text("MultiRTMP.Start"));
     connect(m_startStopButton, &QPushButton::clicked, this, &OneSevenMultiRtmpStreamItem::onStartStopClicked);
     
-    // Button container for edit and delete
-    QHBoxLayout* iconButtonLayout = new QHBoxLayout();
-    iconButtonLayout->setSpacing(8);
-    iconButtonLayout->setAlignment(Qt::AlignRight);
-    
-    // Edit button with SVG icon
+    // Settings button
     m_editButton = new QPushButton();
     m_editButton->setMinimumSize(24, 24);
     m_editButton->setMaximumSize(24, 24);
-    m_editButton->setIcon(QIcon(":/resources/edit.svg"));
+    m_editButton->setIcon(QIcon(":/resources/settings.svg"));
     m_editButton->setIconSize(QSize(16, 16));
     m_editButton->setStyleSheet("QPushButton { border: none; background: transparent; } QPushButton:hover { background-color: rgba(255,255,255,0.1); border-radius: 12px; }");
-    m_editButton->setToolTip("编辑");
+    m_editButton->setToolTip(obs_module_text("MultiRTMP.Edit"));
     connect(m_editButton, &QPushButton::clicked, this, &OneSevenMultiRtmpStreamItem::onEditClicked);
     
-    // Delete button with SVG icon  
+    // Delete button
     m_menuButton = new QPushButton();
     m_menuButton->setMinimumSize(24, 24);
     m_menuButton->setMaximumSize(24, 24);
-    m_menuButton->setIcon(QIcon(":/resources/delete.svg"));
+    m_menuButton->setIcon(QIcon(":/resources/trash.svg"));
     m_menuButton->setIconSize(QSize(16, 16));
     m_menuButton->setStyleSheet("QPushButton { border: none; background: transparent; } QPushButton:hover { background-color: rgba(255,255,255,0.1); border-radius: 12px; }");
-    m_menuButton->setToolTip("删除");
+    m_menuButton->setToolTip(obs_module_text("MultiRTMP.Delete"));
     connect(m_menuButton, &QPushButton::clicked, this, &OneSevenMultiRtmpStreamItem::onDeleteClicked);
     
-    iconButtonLayout->addWidget(m_editButton);
-    iconButtonLayout->addWidget(m_menuButton);
-    
     m_controlLayout->addWidget(m_startStopButton);
-    m_controlLayout->addLayout(iconButtonLayout);
-    m_controlLayout->addStretch();
+    m_controlLayout->addWidget(m_editButton);
+    m_controlLayout->addWidget(m_menuButton);
     
-    // Add sections to main layout
-    m_mainLayout->addLayout(m_infoLayout, 1);
-    m_mainLayout->addStretch();
-    m_mainLayout->addLayout(m_controlLayout, 0);
+    // Add all layers to main layout
+    m_mainLayout->addLayout(m_topLayout);
+    m_mainLayout->addLayout(m_statsLayout);
+    m_mainLayout->addLayout(m_controlLayout);
     
     // Set minimum height and dark background
-    setMinimumHeight(60);
-    setMaximumHeight(60);
+    setMinimumHeight(170);
+    setMaximumHeight(170);
     setStyleSheet("OneSevenMultiRtmpStreamItem { background-color: #2D2D30; border-radius: 8px; }");
     
-    // Initialize unused widgets to nullptr
+    // Initialize unused legacy widgets to nullptr
     m_urlLabel = nullptr;
-    m_statsLayout = nullptr;
-    m_bitrateLabel = nullptr;
-    m_durationLabel = nullptr;
-    m_framesLabel = nullptr;
     m_connectionProgress = nullptr;
 }
 
@@ -244,56 +270,52 @@ void OneSevenMultiRtmpStreamItem::updateUI()
     }
     
     updateStatusDisplay();
+    updateStatusDot();
     updateStatsDisplay();
     updateButtonStates();
 }
 
 void OneSevenMultiRtmpStreamItem::updateStatusDisplay()
 {
-    QString statusText;
-    
-    switch (m_status.state) {
-        case OneSevenMultiRtmpStreamStatus::State::STOPPED:
-            statusText = "未推流";
-            break;
-            
-        case OneSevenMultiRtmpStreamStatus::State::CONNECTING:
-            statusText = "连接中...";
-            break;
-            
-        case OneSevenMultiRtmpStreamStatus::State::STREAMING:
-            // Show duration, Mbps, FPS when streaming
-            {
-                QString duration = formatDuration(static_cast<uint64_t>(m_stats.duration.count()));
-                QString bitrate;
-                if (m_stats.currentBitrate >= 1000.0) {
-                    bitrate = QString("%1 Mbps").arg(m_stats.currentBitrate / 1000.0, 0, 'f', 1);
-                } else {
-                    bitrate = QString("%1 kbps").arg(static_cast<int>(m_stats.currentBitrate));
-                }
-                QString fps = QString("%1 FPS").arg(static_cast<int>(m_stats.currentFPS));
-                statusText = QString("%1 %2 %3").arg(duration).arg(bitrate).arg(fps);
-            }
-            break;
-            
-        case OneSevenMultiRtmpStreamStatus::State::RECONNECTING:
-            statusText = "重连中...";
-            break;
-            
-        case OneSevenMultiRtmpStreamStatus::State::ERROR:
-            statusText = QString("错误: %1").arg(QString::fromStdString(m_status.errorMessage));
-            break;
-    }
-    
+    // Update status text
+    QString statusText = getStatusText();
     if (m_statusLabel) {
         m_statusLabel->setText(statusText);
     }
+    
+    // Update status dot color
+    updateStatusDot();
 }
 
 void OneSevenMultiRtmpStreamItem::updateStatsDisplay()
 {
-    // Stats are now displayed in the status label when streaming
-    // This method is kept for compatibility but doesn't need to do anything
+    // Update individual stats labels based on connection state
+    bool isConnected = (m_status.state == OneSevenMultiRtmpStreamStatus::State::STREAMING);
+    
+    if (isConnected) {
+        // Show actual stats when connected
+        QString duration = formatDuration(static_cast<uint64_t>(m_stats.duration.count()));
+        QString bitrate = formatBitrate(static_cast<uint64_t>(m_stats.currentBitrate * 1000)); // Convert to bps
+        QString fps = formatFrameRate(m_stats.currentFPS);
+        
+        if (m_durationLabel) m_durationLabel->setText(duration);
+        if (m_bitrateLabel) m_bitrateLabel->setText(bitrate);
+        if (m_framesLabel) m_framesLabel->setText(fps);
+    } else {
+        // Show labels with dashes when not connected
+        if (m_durationLabel) {
+            QString durationText = QString(obs_module_text("MultiRTMP.Stream.Duration")).arg("-");
+            m_durationLabel->setText(durationText);
+        }
+        if (m_bitrateLabel) {
+            QString bitrateText = QString(obs_module_text("MultiRTMP.Stream.Bitrate")).arg("-");
+            m_bitrateLabel->setText(bitrateText);
+        }
+        if (m_framesLabel) {
+            QString fpsText = QString(obs_module_text("MultiRTMP.Stream.FPS")).arg("-");
+            m_framesLabel->setText(fpsText);
+        }
+    }
 }
 
 void OneSevenMultiRtmpStreamItem::updateButtonStates()
@@ -309,22 +331,26 @@ void OneSevenMultiRtmpStreamItem::updateButtonStates()
                     m_status.state == OneSevenMultiRtmpStreamStatus::State::RECONNECTING);
     
     if (canStart) {
-        m_startStopButton->setText("开启");
-        m_startStopButton->setStyleSheet("QPushButton { background-color: #FF0001; color: white; font-weight: bold; border: none; border-radius: 4px; }");
+        m_startStopButton->setIcon(QIcon(":/resources/play.svg"));
+        m_startStopButton->setToolTip(obs_module_text("MultiRTMP.Start"));
         m_startStopButton->setEnabled(true);
     } else if (canStop) {
-        m_startStopButton->setText("停止");
-        m_startStopButton->setStyleSheet("QPushButton { background-color: #007AFF; color: white; font-weight: bold; border: none; border-radius: 4px; }");
+        m_startStopButton->setIcon(QIcon(":/resources/stop.svg"));
+        m_startStopButton->setToolTip(obs_module_text("MultiRTMP.Stop"));
         m_startStopButton->setEnabled(true);
     } else {
-        m_startStopButton->setText("等待");
-        m_startStopButton->setStyleSheet("QPushButton { background-color: #999; color: white; border: none; border-radius: 4px; }");
+        m_startStopButton->setIcon(QIcon(":/resources/play.svg"));
+        m_startStopButton->setToolTip(obs_module_text("MultiRTMP.Wait"));
         m_startStopButton->setEnabled(false);
     }
     
     // Edit and delete buttons are disabled when streaming
-    m_editButton->setEnabled(!isActive() && !isConnecting());
-    m_menuButton->setEnabled(!isActive() && !isConnecting());
+    if (m_editButton) {
+        m_editButton->setEnabled(!isActive() && !isConnecting());
+    }
+    if (m_menuButton) {
+        m_menuButton->setEnabled(!isActive() && !isConnecting());
+    }
 }
 
 
@@ -344,8 +370,79 @@ QString OneSevenMultiRtmpStreamItem::formatDuration(uint64_t seconds) const
 QString OneSevenMultiRtmpStreamItem::formatFrameRate(double fps) const
 {
     if (fps <= 0.0) {
-        return "0 fps";
+        return "0 FPS";
     }
     
-    return QString("%1 fps").arg(fps, 0, 'f', 1);
+    return QString("%1 FPS").arg(static_cast<int>(fps));
 }
+
+void OneSevenMultiRtmpStreamItem::updateStatusDot()
+{
+    if (!m_statusDot) {
+        return;
+    }
+    
+    QString color = getStatusColor();
+    m_statusDot->setStyleSheet(QString("background-color: %1; border-radius: 7px;").arg(color));
+}
+
+QString OneSevenMultiRtmpStreamItem::getStatusText() const
+{
+    switch (m_status.state) {
+        case OneSevenMultiRtmpStreamStatus::State::STOPPED:
+            return obs_module_text("MultiRTMP.Status.Disconnected");
+            
+        case OneSevenMultiRtmpStreamStatus::State::CONNECTING:
+            return obs_module_text("MultiRTMP.Status.Connecting");
+            
+        case OneSevenMultiRtmpStreamStatus::State::STREAMING:
+            return obs_module_text("MultiRTMP.Status.Connected");
+            
+        case OneSevenMultiRtmpStreamStatus::State::RECONNECTING:
+            return obs_module_text("MultiRTMP.Status.Connecting");
+            
+        case OneSevenMultiRtmpStreamStatus::State::ERROR:
+            return obs_module_text("MultiRTMP.Status.Disconnected");
+            
+        default:
+            return obs_module_text("MultiRTMP.Status.Disconnected");
+    }
+}
+
+QString OneSevenMultiRtmpStreamItem::getStatusColor() const
+{
+    switch (m_status.state) {
+        case OneSevenMultiRtmpStreamStatus::State::STOPPED:
+            return "#A1A9B6"; // Disconnected - gray
+            
+        case OneSevenMultiRtmpStreamStatus::State::CONNECTING:
+            return "#FF873D"; // Connecting - orange
+            
+        case OneSevenMultiRtmpStreamStatus::State::STREAMING:
+            return "#00D22E"; // Connected - green
+            
+        case OneSevenMultiRtmpStreamStatus::State::RECONNECTING:
+            return "#FF873D"; // Reconnecting - orange
+            
+        case OneSevenMultiRtmpStreamStatus::State::ERROR:
+            return "#A1A9B6"; // Error - gray
+            
+        default:
+            return "#A1A9B6"; // Default - gray
+    }
+}
+
+QString OneSevenMultiRtmpStreamItem::formatBitrate(uint64_t bytes) const
+{
+    // Convert bytes per second to Mbps
+    double mbps = static_cast<double>(bytes) / (1000.0 * 1000.0);
+    
+    if (mbps >= 1.0) {
+        return QString("%1 Mbps").arg(mbps, 0, 'f', 1);
+    } else {
+        double kbps = static_cast<double>(bytes) / 1000.0;
+        return QString("%1 kbps").arg(static_cast<int>(kbps));
+    }
+}
+
+#include "moc_OneSevenMultiRtmpStreamItem.cpp"

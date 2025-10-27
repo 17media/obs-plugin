@@ -63,6 +63,9 @@ private:
     void updateStatsDisplay();
     void updateButtonStates();
     void setStatusStyle(const QString& className);
+    void updateStatusDot();
+    QString getStatusText() const;
+    QString getStatusColor() const;
     QString formatBitrate(uint64_t bytes) const;
     QString formatDuration(uint64_t seconds) const;
     QString formatFrameRate(double fps) const;
@@ -72,27 +75,31 @@ private:
     OneSevenMultiRtmpStreamStatus m_status;
     OneSevenMultiRtmpStreamStats m_stats;
 
-    // UI components - Main layout
-    QHBoxLayout* m_mainLayout;
+    // UI components - Main layout (3-layer vertical)
+    QVBoxLayout* m_mainLayout;
     
-    // Left section - Stream info
-    QVBoxLayout* m_infoLayout;
+    // Top layer - Name and status
+    QHBoxLayout* m_topLayout;
     QLabel* m_nameLabel;
-    QLabel* m_urlLabel;
+    QHBoxLayout* m_statusLayout;
+    QLabel* m_statusDot;
     QLabel* m_statusLabel;
     
-    // Center section - Statistics
+    // Middle layer - Statistics
     QVBoxLayout* m_statsLayout;
-    QLabel* m_bitrateLabel;
     QLabel* m_durationLabel;
+    QLabel* m_bitrateLabel;
     QLabel* m_framesLabel;
-    QProgressBar* m_connectionProgress;
     
-    // Right section - Controls
-    QVBoxLayout* m_controlLayout;
+    // Bottom layer - Controls
+    QHBoxLayout* m_controlLayout;
     QPushButton* m_startStopButton;
     QPushButton* m_editButton;
     QPushButton* m_menuButton;
+    
+    // Unused legacy components (kept for compatibility)
+    QLabel* m_urlLabel;
+    QProgressBar* m_connectionProgress;
     
     // Context menu
     QMenu* m_contextMenu;

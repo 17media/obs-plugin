@@ -5,6 +5,10 @@
         <file>resources/17live-logo-white.svg</file>
         <file>resources/edit.svg</file>
         <file>resources/delete.svg</file>
+        <file>resources/play.svg</file>
+        <file>resources/stop.svg</file>
+        <file>resources/settings.svg</file>
+        <file>resources/trash.svg</file>
         <file>resources/show-password.svg</file>
         <file>resources/hide-password.svg</file>
         <file>resources/question.svg</file>
