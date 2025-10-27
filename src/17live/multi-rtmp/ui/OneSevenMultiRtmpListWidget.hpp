@@ -1,15 +1,17 @@
 #pragma once
 
+#include <obs-module.h>
+
+#include <QFrame>
+#include <QLabel>
+#include <QScrollArea>
+#include <QVBoxLayout>
+#include <QWidget>
+#include <memory>
+#include <vector>
+
 #include "../OneSevenMultiRtmpModels.hpp"
 #include "plugin-support.h"
-#include <obs-module.h>
-#include <QWidget>
-#include <QVBoxLayout>
-#include <QScrollArea>
-#include <QLabel>
-#include <QFrame>
-#include <vector>
-#include <memory>
 
 class OneSevenMultiRtmpStreamItem;
 class OneSevenMultiRtmpManager;
@@ -21,7 +23,7 @@ class OneSevenMultiRtmpManager;
 class OneSevenMultiRtmpListWidget : public QWidget {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenMultiRtmpListWidget(QWidget* parent = nullptr);
     ~OneSevenMultiRtmpListWidget();
 
@@ -29,7 +31,8 @@ public:
     void addStream(const OneSevenMultiRtmpConfig& config);
     void removeStream(const std::string& streamId);
     void updateStream(const OneSevenMultiRtmpConfig& config);
-    void updateStreamStatus(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status);
+    void updateStreamStatus(const std::string& streamId,
+                            const OneSevenMultiRtmpStreamStatus& status);
     void updateStreamStats(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats);
     void clearAllStreams();
     void refreshAllStreams();
@@ -39,7 +42,7 @@ public:
     size_t getStreamCount() const;
     std::vector<std::string> getAllStreamIds() const;
     std::vector<std::string> getActiveStreamIds() const;
-    
+
     // Stream status statistics
     struct StreamStatusStats {
         size_t totalCount = 0;
@@ -48,26 +51,27 @@ public:
         size_t stoppedCount = 0;
         size_t errorCount = 0;
     };
+
     StreamStatusStats getStreamStatusStats() const;
-    
+
     // Manager access
     void setManager(OneSevenMultiRtmpManager* manager);
 
-signals:
+   signals:
     void streamStartRequested(const std::string& streamId);
     void streamStopRequested(const std::string& streamId);
     void streamEditRequested(const std::string& streamId);
     void streamDeleteRequested(const std::string& streamId);
     void streamDuplicateRequested(const std::string& streamId);
 
-private slots:
+   private slots:
     void onStreamItemStartClicked(const std::string& streamId);
     void onStreamItemStopClicked(const std::string& streamId);
     void onStreamItemEditClicked(const std::string& streamId);
     void onStreamItemDeleteClicked(const std::string& streamId);
     void onStreamItemDuplicateClicked(const std::string& streamId);
 
-private:
+   private:
     void setupUI();
     void setupEmptyState();
     void updateEmptyState();
@@ -78,18 +82,18 @@ private:
     QVBoxLayout* m_mainLayout;
     QVBoxLayout* m_streamLayout;
     QWidget* m_streamContainer;
-    
+
     // Empty state
     QFrame* m_emptyFrame;
     QVBoxLayout* m_emptyLayout;
     QLabel* m_emptyTextLabel;
-    
+
     // Stream items
     std::vector<OneSevenMultiRtmpStreamItem*> m_streamItems;
-    
+
     // State
     bool m_showEmptyState;
-    
+
     // Manager reference
     OneSevenMultiRtmpManager* m_manager;
 };

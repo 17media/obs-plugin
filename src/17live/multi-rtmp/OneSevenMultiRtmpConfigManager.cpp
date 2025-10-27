@@ -1,27 +1,30 @@
 #include "OneSevenMultiRtmpConfigManager.hpp"
-#include <util/config-file.h>
-#include <plugin-support.h>
+
 #include <obs-module.h>
-#include <fstream>
+#include <plugin-support.h>
+#include <util/config-file.h>
+
+#include <QDir>
+#include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <random>
 #include <sstream>
-#include <iomanip>
-#include <algorithm>
-#include <QDir>
 
 OneSevenMultiRtmpConfigManager::OneSevenMultiRtmpConfigManager() {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] ConfigManager initialized");
-    
+
     // Initialize configuration directory path - use same directory as OneSevenLiveConfigManager
     QString homeDir = QDir::homePath();
     QString configDir = homeDir + "/.17Live";
     QDir dir(configDir);
-    
+
     // If directory doesn't exist, create it
     if (!dir.exists()) {
         if (!dir.mkpath(configDir)) {
-            obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to create config directory: %s", configDir.toStdString().c_str());
+            obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to create config directory: %s",
+                    configDir.toStdString().c_str());
             m_configDirectory = "./config/multi-rtmp";  // fallback
         } else {
             m_configDirectory = configDir.toStdString();
@@ -29,12 +32,12 @@ OneSevenMultiRtmpConfigManager::OneSevenMultiRtmpConfigManager() {
     } else {
         m_configDirectory = configDir.toStdString();
     }
-    
+
     m_configFilePath = m_configDirectory + "/" + CONFIG_FILE_NAME;
-    
+
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Config directory: %s", m_configDirectory.c_str());
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Config file path: %s", m_configFilePath.c_str());
-    
+
     // Ensure config directory exists
     ensureConfigDirectoryExists();
 }
@@ -51,7 +54,8 @@ bool OneSevenMultiRtmpConfigManager::loadConfiguration() {
 
 bool OneSevenMultiRtmpConfigManager::saveConfiguration() {
     if (!writeConfigToFile(m_globalConfig)) {
-        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to save configuration to file: %s", m_configFilePath.c_str());
+        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to save configuration to file: %s",
+                m_configFilePath.c_str());
         return false;
     }
 
@@ -68,67 +72,71 @@ std::string OneSevenMultiRtmpConfigManager::getConfigFilePath() const {
     return m_configFilePath;
 }
 
-bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConfig& config)
-{
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Adding stream config: %s", config.streamName.c_str());
-    
+bool OneSevenMultiRtmpConfigManager::addStreamConfig(const OneSevenMultiRtmpConfig& config) {
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Adding stream config: %s",
+            config.streamName.c_str());
+
     // Check if stream with same ID already exists
     if (m_globalConfig.findStream(config.id)) {
-        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Stream with ID %s already exists", config.id.c_str());
+        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Stream with ID %s already exists",
+                config.id.c_str());
         return false;
     }
-    
+
     // Add to global config
     m_globalConfig.streams.push_back(config);
-    
+
     // Notify callback
     notifyConfigChange(config.id, config);
-    
+
     return true;
 }
 
 bool OneSevenMultiRtmpConfigManager::removeStreamConfig(const std::string& streamId) {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Removing stream config: %s", streamId.c_str());
-    
+
     // Find the config to remove
     auto* configToRemove = m_globalConfig.findStream(streamId);
     if (!configToRemove) {
-        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Stream with ID %s not found", streamId.c_str());
+        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Stream with ID %s not found",
+                streamId.c_str());
         return false;
     }
-    
+
     // Remove from global config
-    auto it = std::find_if(m_globalConfig.streams.begin(), m_globalConfig.streams.end(),
-                           [&streamId](const OneSevenMultiRtmpConfig& stream) {
-                               return stream.id == streamId;
-                           });
+    auto it = std::find_if(
+        m_globalConfig.streams.begin(), m_globalConfig.streams.end(),
+        [&streamId](const OneSevenMultiRtmpConfig& stream) { return stream.id == streamId; });
     if (it != m_globalConfig.streams.end()) {
         m_globalConfig.streams.erase(it);
     }
-    
+
     // Notify callback
     notifyConfigDelete(streamId);
-    
+
     return true;
 }
 
-bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
+bool OneSevenMultiRtmpConfigManager::updateStreamConfig(const std::string& streamId,
+                                                        const OneSevenMultiRtmpConfig& config) {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Updating stream config: %s", streamId.c_str());
-    
+
     OneSevenMultiRtmpConfig updatedConfig = config;
-    
+
     auto* existingConfig = m_globalConfig.findStream(streamId);
     if (!existingConfig) {
-        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Stream configuration not found for update: %s", streamId.c_str());
+        obs_log(LOG_ERROR,
+                "[MultiRTMP-ConfigManager] Stream configuration not found for update: %s",
+                streamId.c_str());
         return false;
     }
-    
+
     // Update the configuration
     *existingConfig = updatedConfig;
-    
+
     // Notify callback
     notifyConfigChange(streamId, updatedConfig);
-    
+
     return true;
 }
 
@@ -136,13 +144,15 @@ std::vector<OneSevenMultiRtmpConfig> OneSevenMultiRtmpConfigManager::getStreamCo
     return m_globalConfig.streams;
 }
 
-OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigManager::getStreamConfig(const std::string& streamId) const {
+OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigManager::getStreamConfig(
+    const std::string& streamId) const {
     const auto* config = m_globalConfig.findStream(streamId);
     if (config) {
         return *config;
     }
-    
-    obs_log(LOG_WARNING, "[MultiRTMP-ConfigManager] Stream configuration not found: %s", streamId.c_str());
+
+    obs_log(LOG_WARNING, "[MultiRTMP-ConfigManager] Stream configuration not found: %s",
+            streamId.c_str());
     return OneSevenMultiRtmpConfig();
 }
 
@@ -155,7 +165,7 @@ std::string OneSevenMultiRtmpConfigManager::generateStreamId() const {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(0, 15);
-    
+
     std::stringstream ss;
     ss << std::hex;
     for (int i = 0; i < 8; i++) {
@@ -165,12 +175,12 @@ std::string OneSevenMultiRtmpConfigManager::generateStreamId() const {
     for (int i = 0; i < 4; i++) {
         ss << dis(gen);
     }
-    ss << "-4"; // Version 4 UUID
+    ss << "-4";  // Version 4 UUID
     for (int i = 0; i < 3; i++) {
         ss << dis(gen);
     }
     ss << "-";
-    ss << (8 + (dis(gen) & 3)); // Variant bits
+    ss << (8 + (dis(gen) & 3));  // Variant bits
     for (int i = 0; i < 3; i++) {
         ss << dis(gen);
     }
@@ -178,7 +188,7 @@ std::string OneSevenMultiRtmpConfigManager::generateStreamId() const {
     for (int i = 0; i < 12; i++) {
         ss << dis(gen);
     }
-    
+
     return ss.str();
 }
 
@@ -197,11 +207,11 @@ size_t OneSevenMultiRtmpConfigManager::getStreamCount() const {
 std::vector<std::string> OneSevenMultiRtmpConfigManager::getStreamIds() const {
     std::vector<std::string> ids;
     ids.reserve(m_globalConfig.streams.size());
-    
+
     for (const auto& stream : m_globalConfig.streams) {
         ids.push_back(stream.id);
     }
-    
+
     return ids;
 }
 
@@ -217,7 +227,7 @@ bool OneSevenMultiRtmpConfigManager::createBackup() const {
     std::string timestamp = getCurrentTimestamp();
     std::replace(timestamp.begin(), timestamp.end(), ':', '-');
     std::string backupPath = getBackupFilePath(timestamp);
-    
+
     try {
         std::filesystem::copy_file(m_configFilePath, backupPath);
         return true;
@@ -234,12 +244,13 @@ bool OneSevenMultiRtmpConfigManager::restoreFromBackup() {
         obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] No backups available");
         return false;
     }
-    
-    std::string latestBackup = backups.back(); // Assuming sorted by timestamp
+
+    std::string latestBackup = backups.back();  // Assuming sorted by timestamp
     std::string backupPath = m_configDirectory + "/" + latestBackup;
-    
+
     try {
-        std::filesystem::copy_file(backupPath, m_configFilePath, std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::copy_file(backupPath, m_configFilePath,
+                                   std::filesystem::copy_options::overwrite_existing);
         return loadConfiguration();
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to restore from backup: %s", e.what());
@@ -249,25 +260,26 @@ bool OneSevenMultiRtmpConfigManager::restoreFromBackup() {
 
 std::vector<std::string> OneSevenMultiRtmpConfigManager::getAvailableBackups() const {
     std::vector<std::string> backups;
-    
+
     try {
         for (const auto& entry : std::filesystem::directory_iterator(m_configDirectory)) {
             if (entry.is_regular_file()) {
                 std::string filename = entry.path().filename().string();
-                if (filename.substr(0, strlen(CONFIG_BACKUP_PREFIX)) == CONFIG_BACKUP_PREFIX && 
+                if (filename.substr(0, strlen(CONFIG_BACKUP_PREFIX)) == CONFIG_BACKUP_PREFIX &&
                     filename.size() >= strlen(CONFIG_BACKUP_EXTENSION) &&
-                    filename.substr(filename.size() - strlen(CONFIG_BACKUP_EXTENSION)) == CONFIG_BACKUP_EXTENSION) {
+                    filename.substr(filename.size() - strlen(CONFIG_BACKUP_EXTENSION)) ==
+                        CONFIG_BACKUP_EXTENSION) {
                     backups.push_back(filename);
                 }
             }
         }
-        
+
         // Sort backups by timestamp (filename contains timestamp)
         std::sort(backups.begin(), backups.end());
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to list backups: %s", e.what());
     }
-    
+
     return backups;
 }
 
@@ -278,28 +290,35 @@ bool OneSevenMultiRtmpConfigManager::ensureConfigDirectoryExists() const {
         }
         return true;
     } catch (const std::exception& e) {
-        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to create configuration directory: %s", e.what());
+        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to create configuration directory: %s",
+                e.what());
         return false;
     }
 }
 
-bool OneSevenMultiRtmpConfigManager::writeConfigToFile(const OneSevenMultiRtmpGlobalConfig& config) const {
+bool OneSevenMultiRtmpConfigManager::writeConfigToFile(
+    const OneSevenMultiRtmpGlobalConfig& config) const {
     try {
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Preparing to write config with %zu streams to: %s", config.streams.size(), m_configFilePath.c_str());
+        obs_log(LOG_INFO,
+                "[MultiRTMP-ConfigManager] Preparing to write config with %zu streams to: %s",
+                config.streams.size(), m_configFilePath.c_str());
         nlohmann::json j = config;
-        
+
         obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] JSON content to write: %s", j.dump().c_str());
-        
+
         std::ofstream file(m_configFilePath);
         if (!file.is_open()) {
-            obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to open config file for writing: %s", m_configFilePath.c_str());
+            obs_log(LOG_ERROR,
+                    "[MultiRTMP-ConfigManager] Failed to open config file for writing: %s",
+                    m_configFilePath.c_str());
             return false;
         }
-        
-        file << j.dump(4); // Pretty print with 4 spaces
+
+        file << j.dump(4);  // Pretty print with 4 spaces
         file.close();
-        
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Successfully wrote config file: %s", m_configFilePath.c_str());
+
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Successfully wrote config file: %s",
+                m_configFilePath.c_str());
         return true;
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to write configuration: %s", e.what());
@@ -307,25 +326,30 @@ bool OneSevenMultiRtmpConfigManager::writeConfigToFile(const OneSevenMultiRtmpGl
     }
 }
 
-bool OneSevenMultiRtmpConfigManager::readConfigFromFile(OneSevenMultiRtmpGlobalConfig& config) const {
+bool OneSevenMultiRtmpConfigManager::readConfigFromFile(
+    OneSevenMultiRtmpGlobalConfig& config) const {
     try {
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Opening config file for reading: %s", m_configFilePath.c_str());
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Opening config file for reading: %s",
+                m_configFilePath.c_str());
         std::ifstream file(m_configFilePath);
         if (!file.is_open()) {
-            obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to open config file for reading: %s", m_configFilePath.c_str());
+            obs_log(LOG_ERROR,
+                    "[MultiRTMP-ConfigManager] Failed to open config file for reading: %s",
+                    m_configFilePath.c_str());
             return false;
         }
-        
+
         obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Reading JSON content from config file");
         nlohmann::json j;
         file >> j;
         file.close();
-        
+
         obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] JSON content: %s", j.dump().c_str());
-        
+
         config = j.get<OneSevenMultiRtmpGlobalConfig>();
-        
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Successfully parsed config with %zu streams", config.streams.size());
+
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Successfully parsed config with %zu streams",
+                config.streams.size());
         return true;
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to read configuration: %s", e.what());
@@ -337,7 +361,8 @@ std::string OneSevenMultiRtmpConfigManager::getBackupFilePath(const std::string&
     return m_configDirectory + "/" + CONFIG_BACKUP_PREFIX + timestamp + CONFIG_BACKUP_EXTENSION;
 }
 
-void OneSevenMultiRtmpConfigManager::notifyConfigChange(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
+void OneSevenMultiRtmpConfigManager::notifyConfigChange(const std::string& streamId,
+                                                        const OneSevenMultiRtmpConfig& config) {
     if (m_configChangeCallback) {
         m_configChangeCallback(streamId, config);
     }
@@ -356,18 +381,22 @@ bool OneSevenMultiRtmpConfigManager::saveConfigurationInternal() {
         // Replace colons with dashes to ensure valid filename on all operating systems
         std::replace(timestamp.begin(), timestamp.end(), ':', '-');
         std::string backupPath = getBackupFilePath(timestamp);
-        
+
         try {
             std::filesystem::copy_file(m_configFilePath, backupPath);
-            obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Created backup of existing config: %s", backupPath.c_str());
+            obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Created backup of existing config: %s",
+                    backupPath.c_str());
         } catch (const std::filesystem::filesystem_error& e) {
-            obs_log(LOG_WARNING, "[MultiRTMP-ConfigManager] Failed to create backup before saving: %s", e.what());
+            obs_log(LOG_WARNING,
+                    "[MultiRTMP-ConfigManager] Failed to create backup before saving: %s",
+                    e.what());
             // Continue with save operation even if backup fails
         }
     }
-    
+
     if (!writeConfigToFile(m_globalConfig)) {
-        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to save configuration to file: %s", m_configFilePath.c_str());
+        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to save configuration to file: %s",
+                m_configFilePath.c_str());
         return false;
     }
 
@@ -375,21 +404,27 @@ bool OneSevenMultiRtmpConfigManager::saveConfigurationInternal() {
 }
 
 bool OneSevenMultiRtmpConfigManager::loadConfigurationInternal() {
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Attempting to load configuration from: %s", m_configFilePath.c_str());
-    
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Attempting to load configuration from: %s",
+            m_configFilePath.c_str());
+
     if (!std::filesystem::exists(m_configFilePath)) {
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Config file does not exist, creating new empty configuration");
+        obs_log(LOG_INFO,
+                "[MultiRTMP-ConfigManager] Config file does not exist, creating new empty "
+                "configuration");
         m_globalConfig = OneSevenMultiRtmpGlobalConfig();
         return saveConfigurationInternal();
     }
-    
+
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Config file exists, attempting to read");
 
     if (!readConfigFromFile(m_globalConfig)) {
-        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to read configuration from file: %s", m_configFilePath.c_str());
+        obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to read configuration from file: %s",
+                m_configFilePath.c_str());
         return false;
     }
 
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Configuration loaded successfully, %zu streams found", m_globalConfig.streams.size());
+    obs_log(LOG_INFO,
+            "[MultiRTMP-ConfigManager] Configuration loaded successfully, %zu streams found",
+            m_globalConfig.streams.size());
     return true;
 }

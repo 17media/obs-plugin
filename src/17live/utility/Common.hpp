@@ -1,10 +1,9 @@
 #pragma once
 
-#include <string>
-
 #include <obs.h>
 
 #include <nlohmann/json.hpp>
+#include <string>
 
 #define OS_WINDOWS "Windows"
 #define OSL_OS_MAC "macOS"

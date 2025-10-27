@@ -1,19 +1,21 @@
 #pragma once
 
-#include "../OneSevenMultiRtmpModels.hpp"
-#include "plugin-support.h"
 #include <obs-module.h>
-#include <QWidget>
+
+#include <QAction>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QVBoxLayout>
 #include <QLabel>
-#include <QPushButton>
-#include <QProgressBar>
-#include <QTimer>
 #include <QMenu>
-#include <QAction>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QTimer>
+#include <QVBoxLayout>
+#include <QWidget>
 #include <chrono>
+
+#include "../OneSevenMultiRtmpModels.hpp"
+#include "plugin-support.h"
 
 // Forward declaration
 class OneSevenMultiRtmpManager;
@@ -25,36 +27,48 @@ class OneSevenMultiRtmpManager;
 class OneSevenMultiRtmpStreamItem : public QFrame {
     Q_OBJECT
 
-public:
-    explicit OneSevenMultiRtmpStreamItem(const OneSevenMultiRtmpConfig& config, QWidget* parent = nullptr);
+   public:
+    explicit OneSevenMultiRtmpStreamItem(const OneSevenMultiRtmpConfig& config,
+                                         QWidget* parent = nullptr);
     ~OneSevenMultiRtmpStreamItem();
 
     // Configuration management
     void updateConfig(const OneSevenMultiRtmpConfig& config);
     void updateStatus(const OneSevenMultiRtmpStreamStatus& status);
     void updateStats(const OneSevenMultiRtmpStreamStats& stats);
-    
+
     // Manager access
     void setManager(OneSevenMultiRtmpManager* manager);
-    
+
     // Getters
-    const std::string& getStreamId() const { return m_config.id; }
-    const OneSevenMultiRtmpConfig& getConfig() const { return m_config; }
-    const OneSevenMultiRtmpStreamStatus& getStatus() const { return m_status; }
-    const OneSevenMultiRtmpStreamStats& getStats() const { return m_stats; }
+    const std::string& getStreamId() const {
+        return m_config.id;
+    }
+
+    const OneSevenMultiRtmpConfig& getConfig() const {
+        return m_config;
+    }
+
+    const OneSevenMultiRtmpStreamStatus& getStatus() const {
+        return m_status;
+    }
+
+    const OneSevenMultiRtmpStreamStats& getStats() const {
+        return m_stats;
+    }
 
     // State queries
     bool isActive() const;
     bool isConnecting() const;
     bool isError() const;
 
-signals:
+   signals:
     void startRequested(const std::string& streamId);
     void stopRequested(const std::string& streamId);
     void editRequested(const std::string& streamId);
     void deleteRequested(const std::string& streamId);
 
-private slots:
+   private slots:
     void onStartStopClicked();
     void onEditClicked();
     void onDeleteClicked();
@@ -62,7 +76,7 @@ private slots:
     void onDeleteAction();
     void onStatsUpdateTimer();
 
-private:
+   private:
     void setupUI();
     void setupContextMenu();
     void updateUI();
@@ -76,7 +90,7 @@ private:
     QString formatBitrate(uint64_t bytes) const;
     QString formatDuration(uint64_t seconds) const;
     QString formatFrameRate(double fps) const;
-    
+
     // Real-time statistics collection
     void collectRealTimeStats();
 
@@ -87,47 +101,47 @@ private:
 
     // UI components - Main layout (3-layer vertical)
     QVBoxLayout* m_mainLayout;
-    
+
     // Top layer - Name and status
     QHBoxLayout* m_topLayout;
     QLabel* m_nameLabel;
     QHBoxLayout* m_statusLayout;
     QLabel* m_statusDot;
     QLabel* m_statusLabel;
-    
+
     // Middle layer - Statistics
     QVBoxLayout* m_statsLayout;
     QLabel* m_durationLabel;
     QLabel* m_bitrateLabel;
     QLabel* m_framesLabel;
-    
+
     // Bottom layer - Controls
     QHBoxLayout* m_controlLayout;
     QPushButton* m_startStopButton;
     QPushButton* m_editButton;
     QPushButton* m_menuButton;
-    
+
     // Unused legacy components (kept for compatibility)
     QLabel* m_urlLabel;
     QProgressBar* m_connectionProgress;
-    
+
     // Context menu
     QMenu* m_contextMenu;
     QAction* m_duplicateAction;
     QAction* m_deleteAction;
-    
+
     // Update timer
     QTimer* m_statsTimer;
-    
+
     // Manager reference for real-time stats
     OneSevenMultiRtmpManager* m_manager;
-    
+
     // Real-time statistics tracking
     std::chrono::steady_clock::time_point m_startTime;
     std::chrono::steady_clock::time_point m_lastStatsTime;
     uint64_t m_lastTotalBytes;
     uint64_t m_lastTotalFrames;
-    
+
     // Style classes for different states
     static const QString STATUS_IDLE_CLASS;
     static const QString STATUS_CONNECTING_CLASS;

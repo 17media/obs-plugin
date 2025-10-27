@@ -323,25 +323,26 @@ void OneSevenLiveRockViewerItem::mousePressEvent(QMouseEvent *event) {
 }
 
 QHBoxLayout *OneSevenLiveRockViewerItem::setupPointsRow() {
-    int points = user.userAttr.sentPoint; // sent points
-    
+    int points = user.userAttr.sentPoint;  // sent points
+
     // Create horizontal layout for icon and points
     QHBoxLayout *pointsLayout = new QHBoxLayout();
     pointsLayout->setContentsMargins(0, 0, 0, 0);
-    pointsLayout->setSpacing(4); // Small spacing between icon and text
-    
+    pointsLayout->setSpacing(4);  // Small spacing between icon and text
+
     // Add baobaobi icon
     QLabel *iconLabel = new QLabel(this);
     iconLabel->setFixedSize(16, 16);
     iconLabel->setStyleSheet("QLabel { background-color: transparent; }");
     iconLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    
+
     // Load SVG icon
     QPixmap iconPixmap(":/resources/baobaobi.svg");
     if (!iconPixmap.isNull()) {
-        iconLabel->setPixmap(iconPixmap.scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        iconLabel->setPixmap(
+            iconPixmap.scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
-    
+
     // Format points with thousand separators based on current language
     QLocale locale;
     std::string currentLang = GetCurrentLanguage();
@@ -349,11 +350,11 @@ QHBoxLayout *OneSevenLiveRockViewerItem::setupPointsRow() {
         locale = QLocale(QLocale::Chinese, QLocale::Taiwan);
     } else if (currentLang == "JP") {
         locale = QLocale(QLocale::Japanese, QLocale::Japan);
-    } else { // US
+    } else {  // US
         locale = QLocale(QLocale::English, QLocale::UnitedStates);
     }
     QString formattedPoints = locale.toString(points);
-    
+
     QLabel *pointsLabel = new QLabel(formattedPoints, this);
     pointsLabel->setStyleSheet(
         "QLabel {"
@@ -362,11 +363,11 @@ QHBoxLayout *OneSevenLiveRockViewerItem::setupPointsRow() {
         "}");
     pointsLabel->setAlignment(Qt::AlignLeft);
     pointsLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    
+
     pointsLayout->addWidget(iconLabel);
     pointsLayout->addWidget(pointsLabel);
-    pointsLayout->addStretch(); // Push content to the left
-    
+    pointsLayout->addStretch();  // Push content to the left
+
     return pointsLayout;
 }
 

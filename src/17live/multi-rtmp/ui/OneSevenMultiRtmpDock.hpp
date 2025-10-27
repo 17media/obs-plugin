@@ -1,18 +1,20 @@
 #pragma once
 
+#include <obs-module.h>
+
+#include <QDockWidget>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QShowEvent>
+#include <QTimer>
+#include <QVBoxLayout>
+#include <memory>
+
 #include "../OneSevenMultiRtmpManager.hpp"
 #include "plugin-support.h"
-#include <obs-module.h>
-#include <QDockWidget>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QScrollArea>
-#include <QPushButton>
-#include <QLabel>
-#include <QFrame>
-#include <QTimer>
-#include <QShowEvent>
-#include <memory>
 
 class OneSevenMultiRtmpListWidget;
 class OneSevenMultiRtmpConfigDialog;
@@ -24,16 +26,17 @@ class OneSevenMultiRtmpConfigDialog;
 class OneSevenMultiRtmpDock : public QDockWidget {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenMultiRtmpDock(QWidget* parent = nullptr);
     ~OneSevenMultiRtmpDock();
 
     // Public interface
     void refreshStreamList();
-    void updateStreamStatus(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status);
+    void updateStreamStatus(const std::string& streamId,
+                            const OneSevenMultiRtmpStreamStatus& status);
     void updateStreamStats(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats);
 
-public slots:
+   public slots:
     void onAddStreamClicked();
     void onStartAllClicked();
     void onStopAllClicked();
@@ -41,13 +44,13 @@ public slots:
     void onStreamConfigChanged(const std::string& streamId);
     void onStreamDeleted(const std::string& streamId);
 
-private slots:
+   private slots:
     void onStatsUpdateTimer();
 
-protected:
+   protected:
     void showEvent(QShowEvent* event) override;
 
-private:
+   private:
     void setupUI();
     void setupConnections();
     void setupManagerCallbacks();
@@ -59,7 +62,7 @@ private:
     // UI components
     QWidget* m_centralWidget;
     QVBoxLayout* m_mainLayout;
-    
+
     // Header section
     QFrame* m_headerFrame;
     QHBoxLayout* m_headerLayout;
@@ -67,31 +70,31 @@ private:
     QLabel* m_streamCountLabel;
     QPushButton* m_addStreamButton;
     QPushButton* m_refreshButton;
-    
+
     // Control section
     QFrame* m_controlFrame;
     QVBoxLayout* m_controlLayout;
     QPushButton* m_startAllButton;
     QPushButton* m_stopAllButton;
-    
+
     // Stream list section
     QScrollArea* m_scrollArea;
     OneSevenMultiRtmpListWidget* m_streamListWidget;
-    
+
     // Status section
     QFrame* m_statusFrame;
     QHBoxLayout* m_statusLayout;
     QLabel* m_statusLabel;
-    
+
     // Dialog
     OneSevenMultiRtmpConfigDialog* m_configDialog;
-    
+
     // Timer for periodic updates
     QTimer* m_statsUpdateTimer;
-    
+
     // Manager reference
     OneSevenMultiRtmpManager* m_manager;
-    
+
     // State management
     bool m_isUpdatingUI;
     bool m_isFirstShow;

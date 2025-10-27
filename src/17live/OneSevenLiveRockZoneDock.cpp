@@ -3,6 +3,7 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
+#include <QFile>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QHash>
@@ -14,7 +15,6 @@
 #include <QSharedPointer>
 #include <QTimer>
 #include <QVBoxLayout>
-#include <QFile>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveRockViewerItem.hpp"
@@ -178,12 +178,13 @@ void OneSevenLiveRockZoneDock::updateUserItem(
 
         connect(w, &OneSevenLiveRockViewerItem::clicked, this,
                 [this](const OneSevenLiveRockZoneViewer& viewer) {
-                    obs_log(LOG_INFO, "OneSevenLiveRockZoneDock::userClicked %s", viewer.displayUser.displayName.toStdString().c_str());
+                    obs_log(LOG_INFO, "OneSevenLiveRockZoneDock::userClicked %s",
+                            viewer.displayUser.displayName.toStdString().c_str());
                     if (!userDialog) {
                         obs_log(LOG_INFO, "Creating user dialog");
                         userDialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
                     }
-                    
+
                     userDialog->setAttribute(Qt::WA_DeleteOnClose);
                     userDialog->setUserInfo(viewer);
                     userDialog->show();
@@ -201,15 +202,16 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
 
     // Store count to avoid issues if list is modified during iteration
     int itemCount = userList->count();
-    
+
     for (int i = 0; i < itemCount; ++i) {
         // Double-check count hasn't changed during iteration
         if (i >= userList->count())
             break;
-            
+
         QListWidgetItem* item = userList->item(i);
-        if (!item) continue; // Skip null items
-        
+        if (!item)
+            continue;  // Skip null items
+
         QWidget* widget = userList->itemWidget(item);
         if (widget) {
             widget->resize(userList->viewport()->width(), widget->height());
@@ -218,17 +220,17 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
     }
 }
 
-static void mergeMockUsers(Json& originUsers, Json& mockUsers) { 
+static void mergeMockUsers(Json& originUsers, Json& mockUsers) {
     // Read mock users from local json file and merge with original users
     do {
         QFile file("/Users/zhuyu/workspace/mk/17live/dev/17live_dev/mock/test_viewers.json");
         if (!file.exists()) {
-            mockUsers = originUsers; // no mock data, return original
+            mockUsers = originUsers;  // no mock data, return original
             break;
         }
         if (!file.open(QIODevice::ReadOnly)) {
             obs_log(LOG_WARNING, "mergeMockUsers: cannot open test viewers file");
-            mockUsers = originUsers; // fallback to original
+            mockUsers = originUsers;  // fallback to original
             break;
         }
         QByteArray content = file.readAll();
@@ -239,7 +241,7 @@ static void mergeMockUsers(Json& originUsers, Json& mockUsers) {
             test_json = Json::parse(content.toStdString());
         } catch (const nlohmann::json::parse_error& e) {
             obs_log(LOG_WARNING, "mergeMockUsers: parse test viewers failed: %s", e.what());
-            mockUsers = originUsers; // fallback to original
+            mockUsers = originUsers;  // fallback to original
             break;
         }
 
@@ -250,8 +252,9 @@ static void mergeMockUsers(Json& originUsers, Json& mockUsers) {
         } else if (test_json.is_object() && test_json["viewers"].is_array()) {
             mock_array_json = test_json["viewers"];
         } else {
-            obs_log(LOG_WARNING, "mergeMockUsers: mock json is neither array nor object with 'viewers'");
-            mockUsers = originUsers; // fallback to original
+            obs_log(LOG_WARNING,
+                    "mergeMockUsers: mock json is neither array nor object with 'viewers'");
+            mockUsers = originUsers;  // fallback to original
             break;
         }
 
@@ -277,7 +280,7 @@ static void mergeMockUsers(Json& originUsers, Json& mockUsers) {
 
         // Merge mock users into the array
         if (mock_array_json.is_array()) {
-            for (const auto &item : mock_array_json) {
+            for (const auto& item : mock_array_json) {
                 merged.push_back(item);
             }
         }
@@ -324,7 +327,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         bool success = apiWrapper->GetRockViewers(roomID, jsonResponse);
 
         Json response = jsonResponse;
-        if (success) { 
+        if (success) {
             mergeMockUsers(jsonResponse, response);
         }
 
@@ -386,7 +389,8 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         }
                     }
 
-                    QList<OneSevenLiveRockZoneViewer> sortedViewersList = SortOneSevenLiveRockZoneViewers(viewersList);
+                    QList<OneSevenLiveRockZoneViewer> sortedViewersList =
+                        SortOneSevenLiveRockZoneViewers(viewersList);
 
                     // Update UI
                     // userList->setVisible(true);
@@ -398,7 +402,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     if (sortedViewersList.size() > 50) {
                         sortedViewersList = sortedViewersList.mid(0, 50);
                     }
-                    
+
                     // First pass: update existing items and create new ones
                     for (int i = 0; i < sortedViewersList.size(); ++i) {
                         const auto& user = sortedViewersList[i];
@@ -410,7 +414,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             // Existing user, update item
                             item = userItemMap.value(uid);
                             updateUserItem(item, user, armyNameResponse);
-                            
+
                             // Move item to correct position if needed
                             int currentRow = userList->row(item);
                             if (currentRow != i && currentRow >= 0) {
@@ -515,8 +519,6 @@ void OneSevenLiveRockZoneDock::handleTopLevelChanged(bool topLevel) {
         }
     }
 }
-
-
 
 void OneSevenLiveRockZoneDock::onCooldownTimerTimeout() {
     cooldownSeconds--;

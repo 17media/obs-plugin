@@ -6,18 +6,18 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <QMutex>
-#include <QMutexLocker>
 #include <atomic>
 
-#include "api/OneSevenLiveModels.hpp"
 #include "OneSevenLiveLoadRoomInfoWorker.hpp"
+#include "api/OneSevenLiveModels.hpp"
 
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
@@ -46,8 +46,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void updateUIWithRoomInfo();
     void updateRequiredArmyRankSelections();
     void updateUIValues();
-    void handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult& result);
-    void handleCriticalError(const QString& errorMessage);
+    void handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult &result);
+    void handleCriticalError(const QString &errorMessage);
 
    private:
     // UI elements
@@ -143,13 +143,17 @@ class OneSevenLiveStreamingDock : public QDockWidget {
    private:
     // RAII class for managing loading state
     class LoadingStateGuard {
-    public:
-        LoadingStateGuard(std::atomic<bool>& flag, QMutex& mutex);
+       public:
+        LoadingStateGuard(std::atomic<bool> &flag, QMutex &mutex);
         ~LoadingStateGuard();
-        bool isValid() const { return valid_; }
-    private:
-        std::atomic<bool>& flag_;
-        QMutex& mutex_;
+
+        bool isValid() const {
+            return valid_;
+        }
+
+       private:
+        std::atomic<bool> &flag_;
+        QMutex &mutex_;
         bool valid_;
     };
 
@@ -179,7 +183,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
 
     QString currentInfoUuid = "";
     std::atomic<bool> isLoading{false};  // Thread-safe loading state indicator
-    mutable QMutex loadingMutex;  // Mutex for protecting loading operations
+    mutable QMutex loadingMutex;         // Mutex for protecting loading operations
     OneSevenLiveStreamingStatus currentLiveStatus = OneSevenLiveStreamingStatus::NotStarted;
 
     // Category change cooldown timer

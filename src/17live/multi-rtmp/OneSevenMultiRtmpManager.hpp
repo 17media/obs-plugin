@@ -1,13 +1,15 @@
 #pragma once
 
-#include "OneSevenMultiRtmpModels.hpp"
+#include <obs-module.h>
+
+#include <functional>
+#include <memory>
+#include <mutex>
+
 #include "OneSevenMultiRtmpConfigManager.hpp"
+#include "OneSevenMultiRtmpModels.hpp"
 #include "OneSevenMultiRtmpStreamController.hpp"
 #include "plugin-support.h"
-#include <obs-module.h>
-#include <memory>
-#include <functional>
-#include <mutex>
 
 /**
  * Main Manager for Multi-RTMP functionality
@@ -15,11 +17,14 @@
  * Provides a unified interface for the UI layer
  */
 class OneSevenMultiRtmpManager {
-public:
+   public:
     // Callback types for UI notifications
-    using StreamStatusCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status)>;
-    using StreamStatsCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats)>;
-    using ConfigChangeCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpConfig& config)>;
+    using StreamStatusCallback = std::function<void(const std::string& streamId,
+                                                    const OneSevenMultiRtmpStreamStatus& status)>;
+    using StreamStatsCallback =
+        std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats)>;
+    using ConfigChangeCallback =
+        std::function<void(const std::string& streamId, const OneSevenMultiRtmpConfig& config)>;
     using ConfigDeleteCallback = std::function<void(const std::string& streamId)>;
 
     OneSevenMultiRtmpManager();
@@ -83,19 +88,24 @@ public:
     void stopStatsMonitoring();
 
     // State management
-    bool isInitialized() const { return m_initialized; }
+    bool isInitialized() const {
+        return m_initialized;
+    }
+
     bool isStreamActive(const std::string& streamId) const;
     bool hasStreamOutput(const std::string& streamId) const;
-    
+
     // Get stream output for real-time statistics
     obs_output_t* getStreamOutput(const std::string& streamId) const;
 
-private:
+   private:
     // Internal callback handlers
     void onConfigChanged(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
     void onConfigDeleted(const std::string& streamId);
-    void onStreamStatusChanged(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status);
-    void onStreamStatsUpdated(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats);
+    void onStreamStatusChanged(const std::string& streamId,
+                               const OneSevenMultiRtmpStreamStatus& status);
+    void onStreamStatsUpdated(const std::string& streamId,
+                              const OneSevenMultiRtmpStreamStats& stats);
 
     // Helper methods
     void setupCallbacks();
@@ -105,16 +115,16 @@ private:
     // Member variables
     std::unique_ptr<OneSevenMultiRtmpConfigManager> m_configManager;
     std::unique_ptr<OneSevenMultiRtmpStreamController> m_streamController;
-    
+
     // UI callbacks
     StreamStatusCallback m_statusCallback;
     StreamStatsCallback m_statsCallback;
     ConfigChangeCallback m_configChangeCallback;
     ConfigDeleteCallback m_configDeleteCallback;
-    
+
     // State
     bool m_initialized = false;
-    
+
     // Singleton instance
     static OneSevenMultiRtmpManager* s_instance;
     static std::mutex s_instanceMutex;

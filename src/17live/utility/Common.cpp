@@ -22,7 +22,6 @@
 
 #include "plugin-support.h"
 
-
 std::string GetCurrentLanguage() {
     const char* locale = obs_get_locale();
     if (strcmp(locale, "ja-JP") == 0) {
@@ -235,12 +234,13 @@ obs_data_t* ObsDataFromJson(nlohmann::json j) {
         auto jstr = j.dump();
         r = obs_data_create_from_json(jstr.c_str());
         if (!r) {
-            obs_log(LOG_ERROR, "[ObsDataFromJson] Failed to create obs_data_t from JSON: %s", jstr.c_str());
+            obs_log(LOG_ERROR, "[ObsDataFromJson] Failed to create obs_data_t from JSON: %s",
+                    jstr.c_str());
             return nullptr;
         }
         obs_log(LOG_DEBUG, "[ObsDataFromJson] Created obs_data_t from JSON: %s", jstr.c_str());
     }
-    
+
     // DO NOT release here - caller is responsible for managing the returned pointer
     return r;
 }

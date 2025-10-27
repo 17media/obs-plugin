@@ -115,7 +115,8 @@ void OneSevenLiveMenuManager::checkUpdate() {
 }
 
 void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible,
-                                                   bool liveListVisible, bool rockZoneVisible, bool multiRtmpVisible) {
+                                                   bool liveListVisible, bool rockZoneVisible,
+                                                   bool multiRtmpVisible) {
     // Update visibility status variables
     isChatRoomVisible = chatRoomVisible;
     isBroadcastVisible = broadcastVisible;

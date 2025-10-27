@@ -1,23 +1,21 @@
 #include "OneSevenMultiRtmpModels.hpp"
-#include <string>
-#include <sstream>
-#include <iomanip>
+
 #include <algorithm>
+#include <iomanip>
+#include <sstream>
+#include <string>
 
 static OneSevenLiveProtocol s_protocolList[] = {
     // protocol, label, output_id, service_id
-    { "rtmp", "RTMP", "rtmp_output", "rtmp_custom" }
-};
+    {"rtmp", "RTMP", "rtmp_output", "rtmp_custom"}};
 
 // OneSevenMultiRtmpVideoConfig implementation
 void OneSevenMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
-    j = nlohmann::json{
-        {"encoderId", encoderId},
-        {"fpsDenominator", fpsDenominator},
-        {"encoderSettings", encoderSettings},
-        {"outputScene", outputScene},
-        {"resolution", resolution}
-    };
+    j = nlohmann::json{{"encoderId", encoderId},
+                       {"fpsDenominator", fpsDenominator},
+                       {"encoderSettings", encoderSettings},
+                       {"outputScene", outputScene},
+                       {"resolution", resolution}};
 }
 
 void OneSevenMultiRtmpVideoConfig::from_json(const nlohmann::json& j) {
@@ -40,10 +38,7 @@ void OneSevenMultiRtmpVideoConfig::from_json(const nlohmann::json& j) {
 
 // AudioTrackConfig JSON serialization
 void to_json(nlohmann::json& j, const AudioTrackConfig& config) {
-    j = nlohmann::json{
-        {"mixer_track", config.mixer_track},
-        {"output_track", config.output_track}
-    };
+    j = nlohmann::json{{"mixer_track", config.mixer_track}, {"output_track", config.output_track}};
 }
 
 void from_json(const nlohmann::json& j, AudioTrackConfig& config) {
@@ -53,12 +48,10 @@ void from_json(const nlohmann::json& j, AudioTrackConfig& config) {
 
 // OneSevenMultiRtmpAudioConfig implementation
 void OneSevenMultiRtmpAudioConfig::to_json(nlohmann::json& j) const {
-    j = nlohmann::json{
-        {"encoderId", encoderId},
-        {"encoderSettings", encoderSettings},
-        {"mixerId", mixerId},
-        {"audioTracks", audioTracks}
-    };
+    j = nlohmann::json{{"encoderId", encoderId},
+                       {"encoderSettings", encoderSettings},
+                       {"mixerId", mixerId},
+                       {"audioTracks", audioTracks}};
 }
 
 void OneSevenMultiRtmpAudioConfig::from_json(const nlohmann::json& j) {
@@ -78,17 +71,17 @@ void OneSevenMultiRtmpAudioConfig::from_json(const nlohmann::json& j) {
 
 // OneSevenMultiRtmpConfig implementation
 void OneSevenMultiRtmpConfig::to_json(nlohmann::json& j) const {
-    j = nlohmann::json{
-        {"id", id},
-        {"streamName", streamName},
-        {"protocol", protocol},
-        {"syncStart", syncStart},
-        {"syncStop", syncStop},
-        {"serviceSettings", serviceSettings},
-        {"outputSettings", outputSettings},
-        {"videoConfig", videoConfig.has_value() ? nlohmann::json(videoConfig.value()) : nlohmann::json(nullptr)},
-        {"audioConfig", audioConfig.has_value() ? nlohmann::json(audioConfig.value()) : nlohmann::json(nullptr)}
-    };
+    j = nlohmann::json{{"id", id},
+                       {"streamName", streamName},
+                       {"protocol", protocol},
+                       {"syncStart", syncStart},
+                       {"syncStop", syncStop},
+                       {"serviceSettings", serviceSettings},
+                       {"outputSettings", outputSettings},
+                       {"videoConfig", videoConfig.has_value() ? nlohmann::json(videoConfig.value())
+                                                               : nlohmann::json(nullptr)},
+                       {"audioConfig", audioConfig.has_value() ? nlohmann::json(audioConfig.value())
+                                                               : nlohmann::json(nullptr)}};
 }
 
 void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
@@ -130,12 +123,18 @@ void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
 // OneSevenMultiRtmpStreamStatus implementation
 std::string OneSevenMultiRtmpStreamStatus::getStateString() const {
     switch (state) {
-        case STOPPED: return "Stopped";
-        case CONNECTING: return "Connecting";
-        case STREAMING: return "Streaming";
-        case RECONNECTING: return "Reconnecting";
-        case ERROR: return "Error";
-        default: return "Unknown";
+    case STOPPED:
+        return "Stopped";
+    case CONNECTING:
+        return "Connecting";
+    case STREAMING:
+        return "Streaming";
+    case RECONNECTING:
+        return "Reconnecting";
+    case ERROR:
+        return "Error";
+    default:
+        return "Unknown";
     }
 }
 
@@ -149,11 +148,10 @@ std::string OneSevenMultiRtmpStreamStats::getDurationString() const {
     int hours = totalSeconds / 3600;
     int minutes = (totalSeconds % 3600) / 60;
     int seconds = totalSeconds % 60;
-    
+
     std::ostringstream oss;
-    oss << std::setfill('0') << std::setw(2) << hours << ":"
-        << std::setfill('0') << std::setw(2) << minutes << ":"
-        << std::setfill('0') << std::setw(2) << seconds;
+    oss << std::setfill('0') << std::setw(2) << hours << ":" << std::setfill('0') << std::setw(2)
+        << minutes << ":" << std::setfill('0') << std::setw(2) << seconds;
     return oss.str();
 }
 
@@ -166,9 +164,7 @@ double OneSevenMultiRtmpStreamStats::getDroppedFramePercentage() const {
 
 // OneSevenMultiRtmpGlobalConfig implementation
 void OneSevenMultiRtmpGlobalConfig::to_json(nlohmann::json& j) const {
-    j = nlohmann::json{
-        {"streams", streams}
-    };
+    j = nlohmann::json{{"streams", streams}};
 }
 
 void OneSevenMultiRtmpGlobalConfig::from_json(const nlohmann::json& j) {
@@ -177,29 +173,25 @@ void OneSevenMultiRtmpGlobalConfig::from_json(const nlohmann::json& j) {
     }
 }
 
-
-
 OneSevenMultiRtmpConfig* OneSevenMultiRtmpGlobalConfig::findStream(const std::string& streamId) {
-    auto it = std::find_if(streams.begin(), streams.end(),
-        [&streamId](const OneSevenMultiRtmpConfig& config) {
-            return config.id == streamId;
-        });
+    auto it = std::find_if(
+        streams.begin(), streams.end(),
+        [&streamId](const OneSevenMultiRtmpConfig& config) { return config.id == streamId; });
     return (it != streams.end()) ? &(*it) : nullptr;
 }
 
-const OneSevenMultiRtmpConfig* OneSevenMultiRtmpGlobalConfig::findStream(const std::string& streamId) const {
-    auto it = std::find_if(streams.begin(), streams.end(),
-        [&streamId](const OneSevenMultiRtmpConfig& config) {
-            return config.id == streamId;
-        });
+const OneSevenMultiRtmpConfig* OneSevenMultiRtmpGlobalConfig::findStream(
+    const std::string& streamId) const {
+    auto it = std::find_if(
+        streams.begin(), streams.end(),
+        [&streamId](const OneSevenMultiRtmpConfig& config) { return config.id == streamId; });
     return (it != streams.end()) ? &(*it) : nullptr;
 }
 
 bool OneSevenMultiRtmpGlobalConfig::removeStream(const std::string& streamId) {
-    auto it = std::remove_if(streams.begin(), streams.end(),
-        [&streamId](const OneSevenMultiRtmpConfig& config) {
-            return config.id == streamId;
-        });
+    auto it = std::remove_if(
+        streams.begin(), streams.end(),
+        [&streamId](const OneSevenMultiRtmpConfig& config) { return config.id == streamId; });
     if (it != streams.end()) {
         streams.erase(it);
         return true;
@@ -211,7 +203,8 @@ void OneSevenMultiRtmpGlobalConfig::addStream(const OneSevenMultiRtmpConfig& con
     streams.push_back(config);
 }
 
-void OneSevenMultiRtmpGlobalConfig::updateStream(const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
+void OneSevenMultiRtmpGlobalConfig::updateStream(const std::string& streamId,
+                                                 const OneSevenMultiRtmpConfig& config) {
     auto* existingConfig = findStream(streamId);
     if (existingConfig) {
         *existingConfig = config;
@@ -263,12 +256,12 @@ size_t getProtocolCount() {
 const OneSevenLiveProtocol* findProtocol(const std::string& protocol) {
     const OneSevenLiveProtocol* protocols = getProtocolList();
     size_t count = getProtocolCount();
-    
+
     for (size_t i = 0; i < count; ++i) {
         if (protocols[i].protocol == protocol) {
             return &protocols[i];
         }
     }
-    
-    return nullptr; // Protocol not found
+
+    return nullptr;  // Protocol not found
 }

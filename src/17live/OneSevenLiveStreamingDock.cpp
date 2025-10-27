@@ -45,7 +45,8 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
 OneSevenLiveStreamingDock::~OneSevenLiveStreamingDock() = default;
 
 // LoadingStateGuard implementation
-OneSevenLiveStreamingDock::LoadingStateGuard::LoadingStateGuard(std::atomic<bool>& flag, QMutex& mutex)
+OneSevenLiveStreamingDock::LoadingStateGuard::LoadingStateGuard(std::atomic<bool> &flag,
+                                                                QMutex &mutex)
     : flag_(flag), mutex_(mutex), valid_(false) {
     QMutexLocker locker(&mutex_);
     if (!flag_.exchange(true)) {
@@ -465,7 +466,8 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
     // Use RAII guard to manage loading state thread-safely
     LoadingStateGuard guard(isLoading, loadingMutex);
     if (!guard.isValid()) {
-        obs_log(LOG_WARNING, "OneSevenLiveStreamingDock: Loading already in progress, ignoring new request");
+        obs_log(LOG_WARNING,
+                "OneSevenLiveStreamingDock: Loading already in progress, ignoring new request");
         return;
     }
 
@@ -482,42 +484,47 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
 
     // Create worker thread for background loading
     QThread *workerThread = new QThread(this);
-    
+
     // Create local copies of data structures for thread-safe access
     OneSevenLiveRoomInfo localRoomInfo;
     OneSevenLiveConfigStreamer localConfigStreamer;
     OneSevenLiveUserInfo localUserInfo;
     OneSevenLiveArmySubscriptionLevels localLevels;
-    
+
     // Connect thread lifecycle and start background work
-    connect(workerThread, &QThread::started, this, [this, roomID, workerThread, 
-                                                   localRoomInfo, localConfigStreamer, 
-                                                   localUserInfo, localLevels]() mutable {
-        // Create worker in the thread context
-        OneSevenLiveLoadRoomInfoWorker worker(apiWrapper, configManager);
-        worker.setDataStructures(&localRoomInfo, &localConfigStreamer, &localUserInfo, &localLevels);
-        
-        // Perform loading operation (convert qint64 to std::int64_t)
-        OneSevenLiveLoadRoomInfoWorker::LoadResult result = worker.loadRoomInfo(static_cast<std::int64_t>(roomID));
-        
-        // Use QMetaObject::invokeMethod to safely call back to main thread
-        QMetaObject::invokeMethod(this, [this, result, localRoomInfo, localConfigStreamer, 
-                                        localUserInfo, localLevels]() {
-            // Copy the loaded data back to member variables in main thread
-            roomInfo = localRoomInfo;
-            configStreamer = localConfigStreamer;
-            userInfo = localUserInfo;
-            levels = localLevels;
-            
-            handleLoadingCompleted(result);
-        }, Qt::QueuedConnection);
-        
-        // Signal thread completion
-        workerThread->quit();
-    });
+    connect(
+        workerThread, &QThread::started, this,
+        [this, roomID, workerThread, localRoomInfo, localConfigStreamer, localUserInfo,
+         localLevels]() mutable {
+            // Create worker in the thread context
+            OneSevenLiveLoadRoomInfoWorker worker(apiWrapper, configManager);
+            worker.setDataStructures(&localRoomInfo, &localConfigStreamer, &localUserInfo,
+                                     &localLevels);
+
+            // Perform loading operation (convert qint64 to std::int64_t)
+            OneSevenLiveLoadRoomInfoWorker::LoadResult result =
+                worker.loadRoomInfo(static_cast<std::int64_t>(roomID));
+
+            // Use QMetaObject::invokeMethod to safely call back to main thread
+            QMetaObject::invokeMethod(
+                this,
+                [this, result, localRoomInfo, localConfigStreamer, localUserInfo, localLevels]() {
+                    // Copy the loaded data back to member variables in main thread
+                    roomInfo = localRoomInfo;
+                    configStreamer = localConfigStreamer;
+                    userInfo = localUserInfo;
+                    levels = localLevels;
+
+                    handleLoadingCompleted(result);
+                },
+                Qt::QueuedConnection);
+
+            // Signal thread completion
+            workerThread->quit();
+        });
 
     connect(workerThread, &QThread::finished, workerThread, &QObject::deleteLater);
-    
+
     // Start the worker thread
     workerThread->start();
 }
@@ -600,7 +607,8 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
 }
 
 // Handle loading completion with comprehensive error handling
-void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult& result) {
+void OneSevenLiveStreamingDock::handleLoadingCompleted(
+    const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
     // Ensure loading state is properly reset using atomic operation
     isLoading.store(false);
     loadingOverlay->setVisible(false);
@@ -629,32 +637,35 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoo
         msgBox->setIcon(QMessageBox::Critical);
         msgBox->setWindowTitle(obs_module_text("Live.Settings.Error"));
         msgBox->setText(QString::fromStdString(result.errorMessage));
-        
-        QPushButton *retryButton = msgBox->addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
+
+        QPushButton *retryButton =
+            msgBox->addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
         msgBox->addButton(QMessageBox::Cancel);
         msgBox->setDefaultButton(retryButton);
         msgBox->setAttribute(Qt::WA_DeleteOnClose);
-        
+
         connect(msgBox, &QMessageBox::finished, this, [this, msgBox, retryButton]() {
             if (msgBox->clickedButton() == retryButton) {
                 // Get current room ID and retry loading
                 qint64 currentRoomID = configManager->getRoomID();
-                
+
                 if (currentRoomID > 0) {
                     loadRoomInfo(currentRoomID);
                 }
             }
         });
-        
+
         msgBox->show();
         return;
     }
 
     // Check if we have all required data for updateUIWithRoomInfo
     // Required: configStreamer, roomInfo, userInfo
-    // levels is required only when configStreamer.armyOnly == 2 && userInfo.onliveInfo.premiumType != 1
-    bool hasRequiredData = result.configStreamerSuccess && result.roomInfoSuccess && result.userInfoSuccess;
-    
+    // levels is required only when configStreamer.armyOnly == 2 && userInfo.onliveInfo.premiumType
+    // != 1
+    bool hasRequiredData =
+        result.configStreamerSuccess && result.roomInfoSuccess && result.userInfoSuccess;
+
     // Check if levels is required based on army settings
     bool levelsRequired = false;
     if (result.configStreamerSuccess && result.userInfoSuccess) {
@@ -663,7 +674,7 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoo
             hasRequiredData = hasRequiredData && result.levelsSuccess;
         }
     }
-    
+
     if (!hasRequiredData) {
         // Log detailed information for debugging
         QStringList missingDataDetails;
@@ -679,39 +690,44 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoo
         if (levelsRequired && !result.levelsSuccess) {
             missingDataDetails << "Levels (required for army settings)";
         }
-        
-        obs_log(LOG_WARNING, "[17Live] Failed to load required streaming configuration data. Missing: %s", 
-             missingDataDetails.join(", ").toUtf8().constData());
-        
+
+        obs_log(LOG_WARNING,
+                "[17Live] Failed to load required streaming configuration data. Missing: %s",
+                missingDataDetails.join(", ").toUtf8().constData());
+
         // Show simplified user message consistent with error message box above
         QMessageBox *msgBox = new QMessageBox(this);
         msgBox->setIcon(QMessageBox::Warning);
         msgBox->setWindowTitle(obs_module_text("Live.Settings.Warning"));
         msgBox->setText(obs_module_text("Live.Settings.RequiredDataMissing"));
-        
-        QPushButton *retryButton = msgBox->addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
+
+        QPushButton *retryButton =
+            msgBox->addButton(obs_module_text("Live.Settings.Retry"), QMessageBox::ActionRole);
         msgBox->addButton(QMessageBox::Cancel);
         msgBox->setDefaultButton(retryButton);
         msgBox->setAttribute(Qt::WA_DeleteOnClose);
-        
+
         connect(msgBox, &QMessageBox::finished, this, [this, msgBox, retryButton]() {
             if (msgBox->clickedButton() == retryButton) {
                 // Get current room ID and retry loading
                 qint64 currentRoomID = configManager->getRoomID();
                 if (currentRoomID > 0) {
-                    obs_log(LOG_INFO, "[17Live] User requested retry for room ID: %lld", currentRoomID);
+                    obs_log(LOG_INFO, "[17Live] User requested retry for room ID: %lld",
+                            currentRoomID);
                     loadRoomInfo(currentRoomID);
                 }
             }
         });
-        
+
         msgBox->show();
         return;
     }
 
-    // Show warnings for non-critical failures (levels is optional when not required for army settings)
+    // Show warnings for non-critical failures (levels is optional when not required for army
+    // settings)
     if (!levelsRequired && !result.levelsSuccess) {
-        obs_log(LOG_INFO, "[17Live] Levels data failed to load but not required for current army settings");
+        obs_log(LOG_INFO,
+                "[17Live] Levels data failed to load but not required for current army settings");
         // No user notification needed when levels is not required
     }
 
@@ -720,7 +736,7 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoo
 }
 
 // Handle critical errors that prevent loading
-void OneSevenLiveStreamingDock::handleCriticalError(const QString& errorMessage) {
+void OneSevenLiveStreamingDock::handleCriticalError(const QString &errorMessage) {
     // Hide loading state using atomic operation
     isLoading.store(false);
     loadingOverlay->setVisible(false);
@@ -736,11 +752,8 @@ void OneSevenLiveStreamingDock::handleCriticalError(const QString& errorMessage)
 
     // Show error message to user
     QMessageBox::critical(
-        this,
-        obs_module_text("Live.Settings.Error"),
-        QString("%1\n\n%2")
-            .arg(obs_module_text("Live.Settings.CriticalError"))
-            .arg(errorMessage));
+        this, obs_module_text("Live.Settings.Error"),
+        QString("%1\n\n%2").arg(obs_module_text("Live.Settings.CriticalError")).arg(errorMessage));
 }
 
 void OneSevenLiveStreamingDock::syncWithWeb(OneSevenLiveStreamingStatus status) {

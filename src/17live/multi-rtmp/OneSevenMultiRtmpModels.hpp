@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
 #include <chrono>
-#include <vector>
-#include <optional>
 #include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <vector>
 
 // Forward declarations
 struct OneSevenMultiRtmpVideoConfig;
@@ -12,7 +12,6 @@ struct OneSevenMultiRtmpAudioConfig;
 struct OneSevenMultiRtmpConfig;
 struct OneSevenMultiRtmpStreamStatus;
 struct OneSevenMultiRtmpStreamStats;
-
 
 struct OneSevenLiveProtocol {
     const char* protocol;
@@ -28,7 +27,7 @@ struct OneSevenMultiRtmpVideoConfig {
     std::string encoderId;
     int fpsDenominator = 1;
     nlohmann::json encoderSettings;
-    
+
     std::string outputScene;
     std::string resolution;
 
@@ -69,7 +68,7 @@ struct OneSevenMultiRtmpConfig {
 
     nlohmann::json serviceSettings;
     nlohmann::json outputSettings;
-    
+
     std::optional<OneSevenMultiRtmpVideoConfig> videoConfig;
     std::optional<OneSevenMultiRtmpAudioConfig> audioConfig;
 
@@ -82,13 +81,7 @@ struct OneSevenMultiRtmpConfig {
  * Stream status information
  */
 struct OneSevenMultiRtmpStreamStatus {
-    enum State {
-        STOPPED,
-        CONNECTING,
-        STREAMING,
-        RECONNECTING,
-        ERROR
-    };
+    enum State { STOPPED, CONNECTING, STREAMING, RECONNECTING, ERROR };
 
     std::string id;
     State state = STOPPED;

@@ -17,22 +17,24 @@ extern const char *service;
 // Safe JSON access helper functions
 namespace {
     // Safe string getter with default value
-    static std::string safeGetJsonString(const Json& j, const std::string& key, const std::string& defaultValue = "") {
+    static std::string safeGetJsonString(const Json &j, const std::string &key,
+                                         const std::string &defaultValue = "") {
         return j.contains(key) && j[key].is_string() ? j[key].get<std::string>() : defaultValue;
     }
-    
+
     // Safe error message handler for JSON responses
-    static QString buildErrorMessage(const Json& json_resp, const std::string& defaultError = "Unknown error") {
+    static QString buildErrorMessage(const Json &json_resp,
+                                     const std::string &defaultError = "Unknown error") {
         if (json_resp.is_null() || json_resp.empty()) {
             return QString::fromStdString(defaultError);
         }
-        
+
         std::string errorCode = safeGetJsonString(json_resp, "errorCode", "UNKNOWN_ERROR");
         std::string errorMessage = safeGetJsonString(json_resp, "errorMessage", defaultError);
-        
+
         return QString::fromStdString(errorCode + " " + errorMessage);
     }
-}
+}  // namespace
 
 // Optimized URL constants - avoid repeated string concatenations
 namespace {
@@ -108,11 +110,9 @@ void OneSevenLiveApiWrappers::initializeApiWrapper() {
     currentOS = GetCurrentOS();
     currentOSVersion = GetCurrentOSVersion();
     currentPlatformUUID = GetCurrentPlatformUUID();
-    
-    obs_log(LOG_INFO, "OneSevenLive API initialized - OS: %s, Version: %s, UUID: %s, Token: %s", 
-            currentOS.c_str(), 
-            currentOSVersion.c_str(), 
-            currentPlatformUUID.c_str(),
+
+    obs_log(LOG_INFO, "OneSevenLive API initialized - OS: %s, Version: %s, UUID: %s, Token: %s",
+            currentOS.c_str(), currentOSVersion.c_str(), currentPlatformUUID.c_str(),
             token.empty() ? "Not provided" : "Provided");
 }
 
@@ -202,7 +202,8 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
     } catch (const Json::parse_error &e) {
         // dump error message to stderr
         obs_log(LOG_ERROR, "Failed to parse JSON response: %s", e.what());
-        obs_log(LOG_ERROR, "Response is: %s, status code: %d [url: %s]", output.c_str(), httpStatusCode, url);
+        obs_log(LOG_ERROR, "Response is: %s, status code: %d [url: %s]", output.c_str(),
+                httpStatusCode, url);
         return false;
     }
     return httpStatusCode < 400;
@@ -1091,8 +1092,8 @@ bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request,
         // Pre-convert error strings to avoid repeated conversions
         const std::string errorCodeStr = json_out["errorCode"].get<std::string>();
         const std::string errorMessageStr = json_out["errorMessage"].get<std::string>();
-        setLastErrorMessage(
-            QString::fromStdString(errorCodeStr) + " " + QString::fromStdString(errorMessageStr));
+        setLastErrorMessage(QString::fromStdString(errorCodeStr) + " " +
+                            QString::fromStdString(errorMessageStr));
         return false;
     }
 

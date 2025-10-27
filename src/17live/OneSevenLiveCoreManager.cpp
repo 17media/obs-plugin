@@ -26,10 +26,10 @@
 #include "OneSevenLiveRockZoneDock.hpp"
 #include "OneSevenLiveStreamListDock.hpp"
 #include "OneSevenLiveStreamingDock.hpp"
-#include "multi-rtmp/ui/OneSevenMultiRtmpDock.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
+#include "multi-rtmp/ui/OneSevenMultiRtmpDock.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
@@ -1110,7 +1110,8 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
         // Center the dock on the main window
         QRect mainWindowGeometry = mainWindow->geometry();
         int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - multiRtmpDock->width()) / 2;
-        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - multiRtmpDock->height()) / 2;
+        int y =
+            mainWindowGeometry.y() + (mainWindowGeometry.height() - multiRtmpDock->height()) / 2;
         multiRtmpDock->move(x, y);
     }
 
@@ -1118,12 +1119,11 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
         // Connect visibility change signal to update menu status
         connect(multiRtmpDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (menuManager) {
-                menuManager->updateDockVisibility(
-                    chatRoomDock && chatRoomDock->isVisible(),
-                    streamingDock && streamingDock->isVisible(),
-                    liveListDock && liveListDock->isVisible(),
-                    rockZoneDock && rockZoneDock->isVisible(),
-                    visible);
+                menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+                                                  streamingDock && streamingDock->isVisible(),
+                                                  liveListDock && liveListDock->isVisible(),
+                                                  rockZoneDock && rockZoneDock->isVisible(),
+                                                  visible);
             }
         });
 

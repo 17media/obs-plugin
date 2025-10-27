@@ -61,7 +61,6 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     // User information dialog
     OneSevenLiveUserDialog* userDialog;
 
-
     // Auto refresh timer
     QTimer* refreshTimer = nullptr;
 

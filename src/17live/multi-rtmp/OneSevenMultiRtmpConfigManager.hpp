@@ -1,11 +1,13 @@
 #pragma once
 
+#include <obs-module.h>
+
+#include <functional>
+#include <memory>
+#include <string>
+
 #include "OneSevenMultiRtmpModels.hpp"
 #include "plugin-support.h"
-#include <obs-module.h>
-#include <string>
-#include <memory>
-#include <functional>
 
 /**
  * Configuration Manager for Multi-RTMP functionality
@@ -13,9 +15,10 @@
  * Does NOT handle any OBS runtime operations
  */
 class OneSevenMultiRtmpConfigManager {
-public:
+   public:
     // Callback types for configuration changes
-    using ConfigChangeCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpConfig& config)>;
+    using ConfigChangeCallback =
+        std::function<void(const std::string& streamId, const OneSevenMultiRtmpConfig& config)>;
     using ConfigDeleteCallback = std::function<void(const std::string& streamId)>;
 
     explicit OneSevenMultiRtmpConfigManager();
@@ -24,7 +27,7 @@ public:
     // Configuration file operations
     bool loadConfiguration();
     bool saveConfiguration();
-    bool forceSave(); // Force save configuration immediately (for manual save operations)
+    bool forceSave();  // Force save configuration immediately (for manual save operations)
     std::string getConfigFilePath() const;
 
     // Stream configuration CRUD operations (JSON only)
@@ -50,7 +53,7 @@ public:
     bool restoreFromBackup();
     std::vector<std::string> getAvailableBackups() const;
 
-private:
+   private:
     // Helper methods
     bool ensureConfigDirectoryExists() const;
     bool writeConfigToFile(const OneSevenMultiRtmpGlobalConfig& config) const;
@@ -58,7 +61,7 @@ private:
     std::string getBackupFilePath(const std::string& timestamp) const;
     void notifyConfigChange(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
     void notifyConfigDelete(const std::string& streamId);
-    
+
     // Internal methods
     bool saveConfigurationInternal();
     bool loadConfigurationInternal();
@@ -67,7 +70,7 @@ private:
     std::string m_configFilePath;
     std::string m_configDirectory;
     OneSevenMultiRtmpGlobalConfig m_globalConfig;
-    
+
     // Callbacks
     ConfigChangeCallback m_configChangeCallback;
     ConfigDeleteCallback m_configDeleteCallback;

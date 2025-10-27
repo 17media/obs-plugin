@@ -1,16 +1,18 @@
 #pragma once
 
-#include "OneSevenMultiRtmpModels.hpp"
-#include "plugin-support.h"
 #include <obs-module.h>
 #include <obs.h>
-#include <string>
-#include <map>
-#include <mutex>
-#include <memory>
-#include <functional>
-#include <thread>
+
 #include <atomic>
+#include <functional>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+
+#include "OneSevenMultiRtmpModels.hpp"
+#include "plugin-support.h"
 
 /**
  * Stream Controller for Multi-RTMP functionality
@@ -18,10 +20,12 @@
  * Does NOT handle configuration storage or JSON operations
  */
 class OneSevenMultiRtmpStreamController {
-public:
+   public:
     // Callback types for stream events
-    using StreamStatusCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status)>;
-    using StreamStatsCallback = std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats)>;
+    using StreamStatusCallback = std::function<void(const std::string& streamId,
+                                                    const OneSevenMultiRtmpStreamStatus& status)>;
+    using StreamStatsCallback =
+        std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats)>;
 
     OneSevenMultiRtmpStreamController();
     ~OneSevenMultiRtmpStreamController();
@@ -46,14 +50,14 @@ public:
     // OBS encoder sharing
     obs_encoder_t* getSharedVideoEncoder();
     obs_encoder_t* getSharedAudioEncoder(int mixerId = 1);
-    
+
     // Stream management
     bool isStreamActive(const std::string& streamId) const;
     bool hasOutput(const std::string& streamId) const;
-    
+
     // OBS output access
     obs_output_t* getStreamOutput(const std::string& streamId) const;
-    
+
     // Callback registration
     void setStreamStatusCallback(StreamStatusCallback callback);
     void setStreamStatsCallback(StreamStatsCallback callback);
@@ -62,7 +66,7 @@ public:
     void startStatsMonitoring();
     void stopStatsMonitoring();
 
-private:
+   private:
     // Internal structures
     struct StreamOutput {
         obs_output_t* output = nullptr;
@@ -76,39 +80,43 @@ private:
     };
 
     // Internal implementation methods
-    bool createService(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
-    bool createEncoders(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
-    bool setupOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config, StreamOutput* streamOutput);
+    bool createService(const std::string& streamId, const OneSevenMultiRtmpConfig& config,
+                       StreamOutput* streamOutput);
+    bool createEncoders(const std::string& streamId, const OneSevenMultiRtmpConfig& config,
+                        StreamOutput* streamOutput);
+    bool setupOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config,
+                     StreamOutput* streamOutput);
     bool startOutputInternal(const std::string& streamId, StreamOutput* streamOutput);
     bool stopOutputInternal(const std::string& streamId, StreamOutput* streamOutput);
-    
+
     void destroyService(const std::string& streamId);
     void destroyEncoders(const std::string& streamId);
-    
-    void updateStreamStatus(const std::string& streamId, OneSevenMultiRtmpStreamStatus::State state, const std::string& error = "");
+
+    void updateStreamStatus(const std::string& streamId, OneSevenMultiRtmpStreamStatus::State state,
+                            const std::string& error = "");
     void updateStreamStats(const std::string& streamId);
-    
+
     // OBS callbacks
     static void outputStartCallback(void* data, calldata_t* cd);
     static void outputStopCallback(void* data, calldata_t* cd);
     static void outputReconnectCallback(void* data, calldata_t* cd);
     static void outputReconnectSuccessCallback(void* data, calldata_t* cd);
-    
+
     // Statistics monitoring
     void statsMonitoringThread();
     void collectStreamStats(const std::string& streamId, StreamOutput& streamOutput);
-    
+
     // Helper methods
     std::string getOutputName(const std::string& streamId) const;
     std::string getServiceName(const std::string& streamId) const;
     std::string getVideoEncoderName(const std::string& streamId) const;
     std::string getAudioEncoderName(const std::string& streamId) const;
-    
+
     obs_data_t* createServiceSettings(const OneSevenMultiRtmpConfig& config) const;
     obs_data_t* createOutputSettings(const OneSevenMultiRtmpConfig& config) const;
     obs_data_t* createVideoEncoderSettings(const OneSevenMultiRtmpConfig& config) const;
     obs_data_t* createAudioEncoderSettings(const OneSevenMultiRtmpConfig& config) const;
-    
+
     // Helper methods for getting OBS default encoder settings
     obs_data_t* getObsDefaultVideoEncoderSettings() const;
     obs_data_t* getObsDefaultAudioEncoderSettings() const;
@@ -117,15 +125,15 @@ private:
     // Member variables
     std::map<std::string, std::unique_ptr<StreamOutput>> m_streamOutputs;
     mutable std::mutex m_outputsMutex;
-    
+
     // Shared encoders
     obs_encoder_t* m_sharedVideoEncoder = nullptr;
     std::map<int, obs_encoder_t*> m_sharedAudioEncoders;
-    
+
     // Callbacks
     StreamStatusCallback m_statusCallback;
     StreamStatsCallback m_statsCallback;
-    
+
     // Statistics monitoring
     std::atomic<bool> m_statsMonitoringActive{false};
     std::thread m_statsThread;
