@@ -11,6 +11,7 @@
 #include <QLabel>
 #include <QFrame>
 #include <QTimer>
+#include <QShowEvent>
 #include <memory>
 
 class OneSevenMultiRtmpListWidget;
@@ -42,6 +43,9 @@ public slots:
 
 private slots:
     void onStatsUpdateTimer();
+
+protected:
+    void showEvent(QShowEvent* event) override;
 
 private:
     void setupUI();
@@ -90,6 +94,7 @@ private:
     
     // State tracking
     bool m_isUpdatingUI;
+    bool m_isFirstShow;
 };
 
 // Helper function to get localized text

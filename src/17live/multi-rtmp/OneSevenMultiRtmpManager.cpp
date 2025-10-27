@@ -65,17 +65,23 @@ bool OneSevenMultiRtmpManager::initialize()
         // Setup callbacks between components
         setupCallbacks();
 
+        // Mark as initialized before loading configuration
+        m_initialized = true;
+
         // Load existing configuration
+        obs_log(LOG_INFO, "[MultiRTMP-Manager] Attempting to load configuration...");
         if (!loadConfiguration()) {
             obs_log(LOG_WARNING, "[MultiRTMP-Manager] Failed to load configuration, starting with empty config");
+            obs_log(LOG_INFO, "[MultiRTMP-Manager] Config manager state: %s", m_configManager ? "valid" : "null");
+        } else {
+            obs_log(LOG_INFO, "[MultiRTMP-Manager] Configuration loaded successfully");
         }
-
-        m_initialized = true;
         obs_log(LOG_INFO, "[MultiRTMP-Manager] MultiRTMP Manager initialized successfully");
         return true;
 
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[MultiRTMP-Manager] Exception during initialization: %s", e.what());
+        m_initialized = false;  // Reset initialization flag on failure
         return false;
     }
 }
@@ -132,6 +138,16 @@ bool OneSevenMultiRtmpManager::addStreamConfig(const OneSevenMultiRtmpConfig& co
     
     if (!result) {
         obs_log(LOG_ERROR, "[MultiRTMP-Manager] Config manager failed to add stream config");
+        return false;
+    }
+    
+    // Save configuration to file immediately after adding
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] Saving configuration after adding stream: %s", config.streamName.c_str());
+    if (!saveConfiguration()) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to save configuration after adding stream");
+        // Note: We don't return false here as the config was added to memory successfully
+    } else {
+        obs_log(LOG_INFO, "[MultiRTMP-Manager] Configuration saved successfully after adding stream");
     }
     
     return result;
@@ -152,7 +168,20 @@ bool OneSevenMultiRtmpManager::removeStreamConfig(const std::string& streamId)
     // Destroy output if it exists
     destroyStreamOutput(streamId);
 
-    return m_configManager->removeStreamConfig(streamId);
+    bool result = m_configManager->removeStreamConfig(streamId);
+    
+    if (result) {
+        // Save configuration to file immediately after removing
+        obs_log(LOG_INFO, "[MultiRTMP-Manager] Saving configuration after removing stream: %s", streamId.c_str());
+        if (!saveConfiguration()) {
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to save configuration after removing stream");
+            // Note: We don't return false here as the config was removed from memory successfully
+        } else {
+            obs_log(LOG_INFO, "[MultiRTMP-Manager] Configuration saved successfully after removing stream");
+        }
+    }
+    
+    return result;
 }
 
 bool OneSevenMultiRtmpManager::updateStreamConfig(const std::string& streamId, const OneSevenMultiRtmpConfig& config)
@@ -170,6 +199,17 @@ bool OneSevenMultiRtmpManager::updateStreamConfig(const std::string& streamId, c
     }
 
     bool result = m_configManager->updateStreamConfig(streamId, config);
+
+    if (result) {
+        // Save configuration to file immediately after updating
+        obs_log(LOG_INFO, "[MultiRTMP-Manager] Saving configuration after updating stream: %s", streamId.c_str());
+        if (!saveConfiguration()) {
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to save configuration after updating stream");
+            // Note: We don't return false here as the config was updated in memory successfully
+        } else {
+            obs_log(LOG_INFO, "[MultiRTMP-Manager] Configuration saved successfully after updating stream");
+        }
+    }
 
     // Restart if it was active
     if (result && wasActive) {
@@ -337,9 +377,15 @@ bool OneSevenMultiRtmpManager::saveConfiguration()
 bool OneSevenMultiRtmpManager::loadConfiguration()
 {
     if (!m_initialized || !m_configManager) {
+        obs_log(LOG_ERROR, "[MultiRTMP-Manager] loadConfiguration() failed - initialized: %s, configManager: %s", 
+                m_initialized ? "true" : "false", m_configManager ? "valid" : "null");
         return false;
     }
-    return m_configManager->loadConfiguration();
+    
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] Calling configManager->loadConfiguration()");
+    bool result = m_configManager->loadConfiguration();
+    obs_log(LOG_INFO, "[MultiRTMP-Manager] configManager->loadConfiguration() returned: %s", result ? "true" : "false");
+    return result;
 }
 
 bool OneSevenMultiRtmpManager::createConfigBackup()

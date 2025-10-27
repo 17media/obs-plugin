@@ -32,6 +32,9 @@ OneSevenMultiRtmpConfigManager::OneSevenMultiRtmpConfigManager() {
     
     m_configFilePath = m_configDirectory + "/" + CONFIG_FILE_NAME;
     
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Config directory: %s", m_configDirectory.c_str());
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Config file path: %s", m_configFilePath.c_str());
+    
     // Ensure config directory exists
     ensureConfigDirectoryExists();
 }
@@ -282,7 +285,11 @@ bool OneSevenMultiRtmpConfigManager::ensureConfigDirectoryExists() const {
 
 bool OneSevenMultiRtmpConfigManager::writeConfigToFile(const OneSevenMultiRtmpGlobalConfig& config) const {
     try {
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Preparing to write config with %zu streams to: %s", config.streams.size(), m_configFilePath.c_str());
         nlohmann::json j = config;
+        
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] JSON content to write: %s", j.dump().c_str());
+        
         std::ofstream file(m_configFilePath);
         if (!file.is_open()) {
             obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to open config file for writing: %s", m_configFilePath.c_str());
@@ -292,6 +299,7 @@ bool OneSevenMultiRtmpConfigManager::writeConfigToFile(const OneSevenMultiRtmpGl
         file << j.dump(4); // Pretty print with 4 spaces
         file.close();
         
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Successfully wrote config file: %s", m_configFilePath.c_str());
         return true;
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to write configuration: %s", e.what());
@@ -301,18 +309,23 @@ bool OneSevenMultiRtmpConfigManager::writeConfigToFile(const OneSevenMultiRtmpGl
 
 bool OneSevenMultiRtmpConfigManager::readConfigFromFile(OneSevenMultiRtmpGlobalConfig& config) const {
     try {
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Opening config file for reading: %s", m_configFilePath.c_str());
         std::ifstream file(m_configFilePath);
         if (!file.is_open()) {
             obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to open config file for reading: %s", m_configFilePath.c_str());
             return false;
         }
         
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Reading JSON content from config file");
         nlohmann::json j;
         file >> j;
         file.close();
         
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] JSON content: %s", j.dump().c_str());
+        
         config = j.get<OneSevenMultiRtmpGlobalConfig>();
         
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Successfully parsed config with %zu streams", config.streams.size());
         return true;
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to read configuration: %s", e.what());
@@ -362,10 +375,15 @@ bool OneSevenMultiRtmpConfigManager::saveConfigurationInternal() {
 }
 
 bool OneSevenMultiRtmpConfigManager::loadConfigurationInternal() {
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Attempting to load configuration from: %s", m_configFilePath.c_str());
+    
     if (!std::filesystem::exists(m_configFilePath)) {
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Config file does not exist, creating new empty configuration");
         m_globalConfig = OneSevenMultiRtmpGlobalConfig();
         return saveConfigurationInternal();
     }
+    
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Config file exists, attempting to read");
 
     if (!readConfigFromFile(m_globalConfig)) {
         obs_log(LOG_ERROR, "[MultiRTMP-ConfigManager] Failed to read configuration from file: %s", m_configFilePath.c_str());

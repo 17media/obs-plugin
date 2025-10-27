@@ -10,6 +10,7 @@ OneSevenMultiRtmpDock::OneSevenMultiRtmpDock(QWidget* parent)
     , m_manager(OneSevenMultiRtmpManager::getInstance())
     , m_streamListWidget(nullptr)
     , m_configDialog(nullptr)
+    , m_isFirstShow(true)
 {
     obs_log(LOG_INFO, "[MultiRTMP-Dock] Manager instance obtained, initialization will be done on first use");
     
@@ -240,6 +241,24 @@ void OneSevenMultiRtmpDock::setupManagerCallbacks()
             onStreamDeleted(streamId);
         }
     );
+}
+
+void OneSevenMultiRtmpDock::showEvent(QShowEvent* event)
+{
+    QDockWidget::showEvent(event);
+    
+    // Only load streams on first show to avoid unnecessary reloads
+    if (m_isFirstShow) {
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] First show event - loading stored stream configurations");
+        m_isFirstShow = false;
+        
+        // Ensure manager is initialized before loading streams
+        if (ensureManagerInitialized()) {
+            refreshStreamList();
+        } else {
+            obs_log(LOG_WARNING, "[MultiRTMP-Dock] Failed to initialize manager during first show");
+        }
+    }
 }
 
 void OneSevenMultiRtmpDock::refreshStreamList()
