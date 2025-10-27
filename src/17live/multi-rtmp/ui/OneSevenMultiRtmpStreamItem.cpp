@@ -80,7 +80,7 @@ void OneSevenMultiRtmpStreamItem::setupUI()
     
     // Stream name (left side)
     m_nameLabel = new QLabel();
-    m_nameLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #FFFFFF;background: transparent;");
+    m_nameLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #FFFFFF;");
     m_nameLabel->setWordWrap(false);
     
     // Status section (right side)
@@ -91,7 +91,7 @@ void OneSevenMultiRtmpStreamItem::setupUI()
     // Status dot (14px x 14px colored circle)
     m_statusDot = new QLabel();
     m_statusDot->setFixedSize(14, 14);
-    m_statusDot->setStyleSheet("background-color: #A1A9B6; border-radius: 7px; background: transparent;");
+    m_statusDot->setStyleSheet("background-color: #A1A9B6; border-radius: 7px;");
     
     // Status text
     m_statusLabel = new QLabel();
