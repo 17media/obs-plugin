@@ -371,8 +371,7 @@ bool OneSevenMultiRtmpStreamController::hasOutput(const std::string& streamId) c
 
 obs_output_t* OneSevenMultiRtmpStreamController::getStreamOutput(
     const std::string& streamId) const {
-    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
-    // std::lock_guard<std::mutex> lock(m_outputsMutex);
+    std::lock_guard<std::mutex> lock(m_outputsMutex);
 
     auto it = m_streamOutputs.find(streamId);
     if (it != m_streamOutputs.end()) {
