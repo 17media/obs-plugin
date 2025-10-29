@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QLabel>
 #include <QHBoxLayout>
+#include "../utility/OneSevenLivePreviewConfigLoader.hpp"
 
 class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
@@ -30,6 +31,10 @@ private:
     void updateVideoInfo();
     void createNotificationBar();
     void updateNotificationBarPosition();
+    void loadBrowserSourceConfig();
+    void createBrowserSource();
+    void destroyBrowserSource();
+    void updateBrowserSource();
     obs_source_t* getCurrentProgramSource();
     static void drawCallback(void* data, uint32_t cx, uint32_t cy);
     void renderScene(uint32_t cx, uint32_t cy);
@@ -51,4 +56,10 @@ private:
     QWidget* notificationBar;
     QLabel* alertIcon;
     QLabel* notificationText;
+    
+    // Browser source overlay components
+    obs_source_t* browserSource;
+    OneSevenLivePreviewConfigLoader* configLoader;
+    OneSevenLivePreviewConfigLoader::PreviewConfig browserConfig;
+    QTimer* browserRefreshTimer;
 };

@@ -8,6 +8,15 @@
 
 #include "moc_OneSevenLivePreviewDock.cpp"
 
+// Helper function to get module data path (static to avoid symbol conflicts)
+static std::string get_obs_module_data_path_str() {
+    const char* path = obs_get_module_data_path(obs_current_module());
+    if (path) {
+        return std::string(path);
+    }
+    return "";  // Or throw exception, or return a default known path
+}
+
 OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent)
     : QDockWidget(obs_module_text("PreviewDock.Title"), parent),
       previewWidget(nullptr),
@@ -50,9 +59,8 @@ void OneSevenLivePreviewDock::loadConfiguration() {
     configLoader = new OneSevenLivePreviewConfigLoader(this);
     
     // Get plugin data directory
-    char* dataPath = obs_module_get_config_path(obs_current_module(), "");
-    QString configPath = QString("%1/preview_config.json").arg(dataPath);
-    bfree(dataPath);
+    std::string dataPath = get_obs_module_data_path_str();
+    QString configPath = QString("%1/preview_config.json").arg(QString::fromStdString(dataPath));
     
     if (configLoader->loadConfiguration(configPath)) {
         // Configuration loaded but not applied to simplified preview widget
