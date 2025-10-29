@@ -2,30 +2,32 @@
 
 #include <obs-frontend-api.h>
 #include <obs.h>
-#include <QObject>
-#include <QWidget>
-#include <QTimer>
-#include <QLabel>
+
 #include <QHBoxLayout>
+#include <QLabel>
+#include <QObject>
+#include <QTimer>
+#include <QWidget>
+
 #include "../utility/OneSevenLivePreviewConfigLoader.hpp"
 
 class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr);
     ~OneSevenLivePreviewWidget();
 
-protected:
+   protected:
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
 
-private slots:
+   private slots:
     void refreshVideo();
 
-private:
+   private:
     void createDisplay();
     void destroyDisplay();
     void updateVideoInfo();
@@ -43,20 +45,20 @@ private:
     // Core display components
     obs_display_t* previewDisplay;
     bool display_created;
-    
+
     // Video source management
     obs_source_t* currentSource;
     QTimer* refreshTimer;
-    
+
     // Display dimensions
     int display_width;
     int display_height;
-    
+
     // Notification bar components
     QWidget* notificationBar;
     QLabel* alertIcon;
     QLabel* notificationText;
-    
+
     // Browser source overlay components
     obs_source_t* browserSource;
     OneSevenLivePreviewConfigLoader* configLoader;

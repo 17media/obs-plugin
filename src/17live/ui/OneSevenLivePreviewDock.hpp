@@ -3,31 +3,31 @@
 #include <QDockWidget>
 #include <QPointer>
 
-#include "OneSevenLivePreviewWidget.hpp"
 #include "../utility/OneSevenLivePreviewConfigLoader.hpp"
+#include "OneSevenLivePreviewWidget.hpp"
 
 class OneSevenLivePreviewDock : public QDockWidget {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenLivePreviewDock(QWidget* parent = nullptr);
     ~OneSevenLivePreviewDock();
 
     void initializePreview();
 
-protected:
+   protected:
     void showEvent(QShowEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
 
-signals:
+   signals:
     void dockClosed();
 
-private:
+   private:
     void setupUi();
     void loadConfiguration();
-    
+
     QPointer<OneSevenLivePreviewWidget> previewWidget;
     QPointer<OneSevenLivePreviewConfigLoader> configLoader;
-    
+
     bool initialized;
 };

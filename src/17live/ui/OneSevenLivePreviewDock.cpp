@@ -1,11 +1,12 @@
 #include "OneSevenLivePreviewDock.hpp"
 
-#include "../../plugin-support.h"
 #include <obs-module.h>
+
 #include <QCloseEvent>
 #include <QShowEvent>
 #include <QStandardPaths>
 
+#include "../../plugin-support.h"
 #include "moc_OneSevenLivePreviewDock.cpp"
 
 // Helper function to get module data path (static to avoid symbol conflicts)
@@ -22,7 +23,6 @@ OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent)
       previewWidget(nullptr),
       configLoader(nullptr),
       initialized(false) {
-    
     setupUi();
     loadConfiguration();
 }
@@ -31,7 +31,7 @@ OneSevenLivePreviewDock::~OneSevenLivePreviewDock() {
     if (previewWidget) {
         previewWidget->deleteLater();
     }
-    
+
     if (configLoader) {
         configLoader->deleteLater();
     }
@@ -40,31 +40,27 @@ OneSevenLivePreviewDock::~OneSevenLivePreviewDock() {
 void OneSevenLivePreviewDock::setupUi() {
     setObjectName("OneSevenLivePreviewDock");
     setAllowedAreas(Qt::AllDockWidgetAreas);
-    setFeatures(QDockWidget::DockWidgetMovable | 
-                QDockWidget::DockWidgetFloatable | 
+    setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable |
                 QDockWidget::DockWidgetClosable);
-    
+
     // Set minimum size
     setMinimumSize(320, 240);
     resize(640, 480);
-    
+
     // Create preview widget
     previewWidget = new OneSevenLivePreviewWidget(this);
     setWidget(previewWidget);
-    
-    obs_log(LOG_INFO, "Preview dock UI setup completed");
 }
 
 void OneSevenLivePreviewDock::loadConfiguration() {
     configLoader = new OneSevenLivePreviewConfigLoader(this);
-    
+
     // Get plugin data directory
     std::string dataPath = get_obs_module_data_path_str();
     QString configPath = QString("%1/preview_config.json").arg(QString::fromStdString(dataPath));
-    
+
     if (configLoader->loadConfiguration(configPath)) {
         // Configuration loaded but not applied to simplified preview widget
-        obs_log(LOG_INFO, "Preview configuration loaded successfully");
     } else {
         obs_log(LOG_WARNING, "Failed to load preview configuration, using defaults");
     }
@@ -74,17 +70,16 @@ void OneSevenLivePreviewDock::initializePreview() {
     if (!initialized && previewWidget) {
         // Preview widget is automatically initialized when shown
         initialized = true;
-        obs_log(LOG_INFO, "Preview dock initialized");
     }
 }
 
 void OneSevenLivePreviewDock::showEvent(QShowEvent* event) {
     QDockWidget::showEvent(event);
-    
+
     if (!initialized) {
         initializePreview();
     }
-    
+
     // Preview widget automatically updates when shown
 }
 
