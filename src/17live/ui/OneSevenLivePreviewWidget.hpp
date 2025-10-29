@@ -2,12 +2,9 @@
 
 #include <obs-frontend-api.h>
 #include <obs.h>
+#include <QObject>
 #include <QWidget>
-#include <QVBoxLayout>
-#include <QLabel>
 #include <QTimer>
-
-#include "../utility/OneSevenLivePreviewConfigLoader.hpp"
 
 class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
@@ -16,10 +13,6 @@ public:
     explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr);
     ~OneSevenLivePreviewWidget();
 
-    void setupPreview();
-    void createOverlaySource(const OneSevenLivePreviewConfigLoader::PreviewConfig& config);
-    void updatePreview();
-
 protected:
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
@@ -27,27 +20,26 @@ protected:
     void paintEvent(QPaintEvent* event) override;
 
 private slots:
-    void onSceneChanged();
+    void refreshVideo();
 
 private:
-    void setupPreviewDisplay();
-    void cleanupPreview();
-    void createBrowserSource(const OneSevenLivePreviewConfigLoader::PreviewConfig& config);
-    static void renderPreview(void* data, uint32_t cx, uint32_t cy);
+    void createDisplay();
+    void destroyDisplay();
+    void updateVideoInfo();
+    obs_source_t* getCurrentProgramSource();
+    static void drawCallback(void* data, uint32_t cx, uint32_t cy);
+    void renderScene(uint32_t cx, uint32_t cy);
     static void frontendEvent(enum obs_frontend_event event, void* data);
 
-    QVBoxLayout* mainLayout;
-    QLabel* statusLabel;
+    // Core display components
+    obs_display_t* previewDisplay;
+    bool display_created;
+    
+    // Video source management
+    obs_source_t* currentSource;
     QTimer* refreshTimer;
     
-    obs_display_t* previewDisplay;
-    obs_source_t* overlaySource;
-    obs_scene_t* compositeScene;
-    obs_source_t* compositeSceneSource;
-    obs_sceneitem_t* backgroundItem;
-    obs_sceneitem_t* overlayItem;
-    
-    bool previewActive;
-    uint32_t previewWidth;
-    uint32_t previewHeight;
+    // Display dimensions
+    int display_width;
+    int display_height;
 };

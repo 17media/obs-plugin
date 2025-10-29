@@ -55,10 +55,7 @@ void OneSevenLivePreviewDock::loadConfiguration() {
     bfree(dataPath);
     
     if (configLoader->loadConfiguration(configPath)) {
-        auto config = configLoader->getConfiguration();
-        if (previewWidget) {
-            previewWidget->createOverlaySource(config);
-        }
+        // Configuration loaded but not applied to simplified preview widget
         obs_log(LOG_INFO, "Preview configuration loaded successfully");
     } else {
         obs_log(LOG_WARNING, "Failed to load preview configuration, using defaults");
@@ -67,7 +64,7 @@ void OneSevenLivePreviewDock::loadConfiguration() {
 
 void OneSevenLivePreviewDock::initializePreview() {
     if (!initialized && previewWidget) {
-        previewWidget->setupPreview();
+        // Preview widget is automatically initialized when shown
         initialized = true;
         obs_log(LOG_INFO, "Preview dock initialized");
     }
@@ -80,9 +77,7 @@ void OneSevenLivePreviewDock::showEvent(QShowEvent* event) {
         initializePreview();
     }
     
-    if (previewWidget) {
-        previewWidget->updatePreview();
-    }
+    // Preview widget automatically updates when shown
 }
 
 void OneSevenLivePreviewDock::closeEvent(QCloseEvent* event) {
