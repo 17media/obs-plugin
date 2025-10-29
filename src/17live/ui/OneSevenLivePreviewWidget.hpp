@@ -9,17 +9,6 @@
 
 #include "../utility/OneSevenLivePreviewConfigLoader.hpp"
 
-// Custom container widget that properly handles paintEvent when WA_PaintOnScreen is set
-class PreviewContainerWidget : public QWidget {
-    Q_OBJECT
-
-public:
-    explicit PreviewContainerWidget(QWidget* parent = nullptr);
-
-protected:
-    void paintEvent(QPaintEvent* event) override;
-};
-
 class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
 
@@ -48,7 +37,6 @@ private:
     static void frontendEvent(enum obs_frontend_event event, void* data);
 
     QVBoxLayout* mainLayout;
-    PreviewContainerWidget* previewContainer;
     QLabel* statusLabel;
     QTimer* refreshTimer;
     

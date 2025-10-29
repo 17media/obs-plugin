@@ -13,24 +13,9 @@
 
 #include "moc_OneSevenLivePreviewWidget.cpp"
 
-// PreviewContainerWidget implementation
-PreviewContainerWidget::PreviewContainerWidget(QWidget* parent) : QWidget(parent) {
-}
-
-void PreviewContainerWidget::paintEvent(QPaintEvent* event) {
-    // Check if paintEngine is available before using QPainter
-    // This prevents the "QWidget::paintEngine: Should no longer be called" error
-    // when WA_PaintOnScreen is set
-    if (!paintEngine()) {
-        return;
-    }
-    QWidget::paintEvent(event);
-}
-
 OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     : QWidget(parent),
       mainLayout(nullptr),
-      previewContainer(nullptr),
       statusLabel(nullptr),
       previewDisplay(nullptr),
       overlaySource(nullptr),
@@ -68,37 +53,30 @@ OneSevenLivePreviewWidget::~OneSevenLivePreviewWidget() {
 }
 
 void OneSevenLivePreviewWidget::setupPreviewDisplay() {
-    mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    
-    previewContainer = new PreviewContainerWidget(this);
-    previewContainer->setMinimumSize(320, 240);
-    previewContainer->setStyleSheet("background-color: #000000;");
-    
-    // Set widget attributes for proper native rendering
-    previewContainer->setAttribute(Qt::WA_NativeWindow, true);
-    previewContainer->setAttribute(Qt::WA_PaintOnScreen, true);
-    previewContainer->setAttribute(Qt::WA_OpaquePaintEvent, true);
-    
-    // Set size policy to expand and fill available space
-    previewContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    
-    // Enable automatic background filling
-    previewContainer->setAutoFillBackground(true);
+    // Set minimum size for the widget
+    setMinimumSize(320, 240);
     
     // Set background color to black
-    QPalette palette = previewContainer->palette();
+    QPalette palette = this->palette();
     palette.setColor(QPalette::Window, Qt::black);
-    previewContainer->setPalette(palette);
+    setPalette(palette);
     
+    // Set widget attributes for proper native rendering - directly on main widget
+    setAttribute(Qt::WA_NativeWindow, true);
+    setAttribute(Qt::WA_PaintOnScreen, true);
+    setAttribute(Qt::WA_OpaquePaintEvent, true);
+    
+    // Set focus policy to accept focus
+    setFocusPolicy(Qt::StrongFocus);
+    
+    // Enable automatic background filling
+    setAutoFillBackground(true);
+    
+    // Create status label if needed (can be overlaid or positioned separately)
     statusLabel = new QLabel(obs_module_text("PreviewDock.Status.Ready"), this);
     statusLabel->setAlignment(Qt::AlignCenter);
-    statusLabel->setStyleSheet("color: #ffffff; padding: 5px;");
-    
-    mainLayout->addWidget(previewContainer, 1);
-    mainLayout->addWidget(statusLabel, 0);
-    
-    setLayout(mainLayout);
+    statusLabel->setStyleSheet("color: #ffffff; padding: 5px; background-color: rgba(0,0,0,128);");
+    statusLabel->hide(); // Hide by default, show when needed
 }
 
 void OneSevenLivePreviewWidget::setupPreview() {
@@ -261,21 +239,26 @@ void OneSevenLivePreviewWidget::renderPreview(void* data, uint32_t cx, uint32_t 
 void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     
-    if (previewDisplay && previewContainer) {
-        // Update display size
-        QSize containerSize = previewContainer->size();
-        obs_display_resize(previewDisplay, containerSize.width(), containerSize.height());
+    if (previewDisplay) {
+        // Update display size to match widget size
+        obs_display_resize(previewDisplay, width(), height());
+    }
+    
+    // Position status label if visible
+    if (statusLabel && statusLabel->isVisible()) {
+        statusLabel->resize(width(), 30);
+        statusLabel->move(0, height() - 30);
     }
 }
 
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
     
-    if (!previewDisplay && previewContainer) {
-        // Create display when widget becomes visible
+    if (!previewDisplay) {
+        // Create display when widget becomes visible - directly on main widget
         gs_init_data info = {};
-        info.cx = static_cast<uint32_t>(previewContainer->width());
-        info.cy = static_cast<uint32_t>(previewContainer->height());
+        info.cx = static_cast<uint32_t>(width());
+        info.cy = static_cast<uint32_t>(height());
         info.num_backbuffers = 2;
         info.format = GS_BGRA;
         info.zsformat = GS_ZS_NONE;
@@ -283,16 +266,16 @@ void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
 
 #ifdef __APPLE__
         // Ensure a native window is created and retrieve its handle
-        if (!previewContainer->testAttribute(Qt::WA_NativeWindow)) {
-            previewContainer->setAttribute(Qt::WA_NativeWindow, true);
+        if (!testAttribute(Qt::WA_NativeWindow)) {
+            setAttribute(Qt::WA_NativeWindow, true);
         }
-        WId wid = previewContainer->winId(); // forces native window creation
+        WId wid = winId(); // forces native window creation on main widget
         info.window.view = (id)reinterpret_cast<void*>(wid);
 #elif defined(_WIN32)
-        WId wid = previewContainer->winId();
+        WId wid = winId();
         info.window.hwnd = reinterpret_cast<void*>(wid);
 #else
-        WId wid = previewContainer->winId();
+        WId wid = winId();
         info.window.id = static_cast<uint32_t>(wid);
         info.window.display = nullptr;
 #endif
