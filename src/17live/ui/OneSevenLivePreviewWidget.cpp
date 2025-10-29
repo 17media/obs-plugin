@@ -13,6 +13,8 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <QWindow>
+#include <QLabel>
+#include <QHBoxLayout>
 #include <cmath>
 
 #include "moc_OneSevenLivePreviewWidget.cpp"
@@ -24,7 +26,10 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
       currentSource(nullptr),
       refreshTimer(new QTimer(this)),
       display_width(0),
-      display_height(0) {
+      display_height(0),
+      notificationBar(nullptr),
+      alertIcon(nullptr),
+      notificationText(nullptr) {
     
     // Set widget attributes for proper native rendering
     setAttribute(Qt::WA_NativeWindow, true);
@@ -46,6 +51,9 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     
     // Connect to OBS frontend events
     obs_frontend_add_event_callback(frontendEvent, this);
+    
+    // Create notification bar
+    createNotificationBar();
 }
 
 OneSevenLivePreviewWidget::~OneSevenLivePreviewWidget() {
@@ -277,6 +285,7 @@ void OneSevenLivePreviewWidget::updateVideoInfo() {
 void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     updateVideoInfo();
+    updateNotificationBarPosition();
 }
 
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
@@ -310,4 +319,59 @@ void OneSevenLivePreviewWidget::frontendEvent(enum obs_frontend_event event, voi
     if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
         QMetaObject::invokeMethod(widget, "refreshVideo", Qt::QueuedConnection);
     }
+}
+
+void OneSevenLivePreviewWidget::createNotificationBar() {
+    // Create notification bar widget
+    notificationBar = new QWidget(this);
+    
+    // Create layout for notification bar
+    QHBoxLayout* layout = new QHBoxLayout(notificationBar);
+    layout->setContentsMargins(10, 5, 10, 5);
+    layout->setSpacing(8);
+    
+    // Create alert icon using QPixmap and QLabel
+    alertIcon = new QLabel(this);
+    QPixmap alertPixmap(":/resources/alert-white.svg");
+    alertPixmap = alertPixmap.scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    alertIcon->setPixmap(alertPixmap);
+    alertIcon->setFixedSize(16, 16);
+    
+    // Create notification text
+    notificationText = new QLabel("視窗僅展示動畫效果，不推流。", this);
+    notificationText->setStyleSheet("color: white; font-size: 12px;");
+    
+    // Add widgets to layout
+    layout->addWidget(alertIcon);
+    layout->addWidget(notificationText);
+    layout->addStretch(); // Add stretch to center the content
+    
+    // Style the notification bar
+    notificationBar->setStyleSheet(
+        "QWidget {"
+        "    background-color: rgba(0, 0, 0, 0.7);"
+        "    border-radius: 4px;"
+        "}"
+    );
+    
+    // Position and show the notification bar
+    updateNotificationBarPosition();
+    notificationBar->show();
+}
+
+void OneSevenLivePreviewWidget::updateNotificationBarPosition() {
+    if (!notificationBar) {
+        return;
+    }
+    
+    // Calculate notification bar size
+    notificationBar->adjustSize();
+    int barWidth = notificationBar->sizeHint().width();
+    int barHeight = notificationBar->sizeHint().height();
+    
+    // Position at top center with some margin
+    int x = (width() - barWidth) / 2;
+    int y = 10; // 10px from top
+    
+    notificationBar->setGeometry(x, y, barWidth, barHeight);
 }

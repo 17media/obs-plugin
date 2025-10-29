@@ -5,6 +5,8 @@
 #include <QObject>
 #include <QWidget>
 #include <QTimer>
+#include <QLabel>
+#include <QHBoxLayout>
 
 class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
@@ -26,6 +28,8 @@ private:
     void createDisplay();
     void destroyDisplay();
     void updateVideoInfo();
+    void createNotificationBar();
+    void updateNotificationBarPosition();
     obs_source_t* getCurrentProgramSource();
     static void drawCallback(void* data, uint32_t cx, uint32_t cy);
     void renderScene(uint32_t cx, uint32_t cy);
@@ -42,4 +46,9 @@ private:
     // Display dimensions
     int display_width;
     int display_height;
+    
+    // Notification bar components
+    QWidget* notificationBar;
+    QLabel* alertIcon;
+    QLabel* notificationText;
 };
