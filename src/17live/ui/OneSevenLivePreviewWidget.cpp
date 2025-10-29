@@ -13,6 +13,20 @@
 
 #include "moc_OneSevenLivePreviewWidget.cpp"
 
+// PreviewContainerWidget implementation
+PreviewContainerWidget::PreviewContainerWidget(QWidget* parent) : QWidget(parent) {
+}
+
+void PreviewContainerWidget::paintEvent(QPaintEvent* event) {
+    // Check if paintEngine is available before using QPainter
+    // This prevents the "QWidget::paintEngine: Should no longer be called" error
+    // when WA_PaintOnScreen is set
+    if (!paintEngine()) {
+        return;
+    }
+    QWidget::paintEvent(event);
+}
+
 OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     : QWidget(parent),
       mainLayout(nullptr),
@@ -57,7 +71,7 @@ void OneSevenLivePreviewWidget::setupPreviewDisplay() {
     mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     
-    previewContainer = new QWidget(this);
+    previewContainer = new PreviewContainerWidget(this);
     previewContainer->setMinimumSize(320, 240);
     previewContainer->setStyleSheet("background-color: #000000;");
     
