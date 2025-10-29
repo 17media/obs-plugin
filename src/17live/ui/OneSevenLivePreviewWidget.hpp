@@ -5,6 +5,7 @@
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QTimer>
 
 #include "../utility/OneSevenLivePreviewConfigLoader.hpp"
 
@@ -37,6 +38,7 @@ private:
     QVBoxLayout* mainLayout;
     QWidget* previewContainer;
     QLabel* statusLabel;
+    QTimer* refreshTimer;
     
     obs_display_t* previewDisplay;
     obs_source_t* overlaySource;

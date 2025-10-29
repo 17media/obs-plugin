@@ -24,15 +24,29 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
       overlayItem(nullptr),
       previewActive(false),
       previewWidth(1920),
-      previewHeight(1080) {
+      previewHeight(1080),
+      refreshTimer(new QTimer(this)) {
     
     setupPreviewDisplay();
+    
+    // Set up refresh timer for dynamic content updates
+    refreshTimer->setInterval(33); // Refresh at ~30 FPS for smooth dynamic content updates
+    connect(refreshTimer, &QTimer::timeout, this, [this]() {
+        if (previewDisplay && previewActive) {
+            // Force display refresh for dynamic content
+            obs_display_set_enabled(previewDisplay, true);
+        }
+    });
+    refreshTimer->start();
     
     // Connect to OBS frontend events
     obs_frontend_add_event_callback(frontendEvent, this);
 }
 
 OneSevenLivePreviewWidget::~OneSevenLivePreviewWidget() {
+    if (refreshTimer) {
+        refreshTimer->stop();
+    }
     obs_frontend_remove_event_callback(frontendEvent, this);
     cleanupPreview();
 }
@@ -44,7 +58,22 @@ void OneSevenLivePreviewWidget::setupPreviewDisplay() {
     previewContainer = new QWidget(this);
     previewContainer->setMinimumSize(320, 240);
     previewContainer->setStyleSheet("background-color: #000000;");
+    
+    // Set widget attributes for proper native rendering
     previewContainer->setAttribute(Qt::WA_NativeWindow, true);
+    previewContainer->setAttribute(Qt::WA_PaintOnScreen, true);
+    previewContainer->setAttribute(Qt::WA_OpaquePaintEvent, true);
+    
+    // Set size policy to expand and fill available space
+    previewContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    
+    // Enable automatic background filling
+    previewContainer->setAutoFillBackground(true);
+    
+    // Set background color to black
+    QPalette palette = previewContainer->palette();
+    palette.setColor(QPalette::Window, Qt::black);
+    previewContainer->setPalette(palette);
     
     statusLabel = new QLabel(obs_module_text("PreviewDock.Status.Ready"), this);
     statusLabel->setAlignment(Qt::AlignCenter);
@@ -155,10 +184,62 @@ void OneSevenLivePreviewWidget::renderPreview(void* data, uint32_t cx, uint32_t 
     if (!widget || !widget->compositeSceneSource)
         return;
 
-    // Render the composite scene source
-    UNUSED_PARAMETER(cx);
-    UNUSED_PARAMETER(cy);
-    obs_source_video_render(widget->compositeSceneSource);
+    obs_log(LOG_DEBUG, "Rendering preview with size %dx%d", cx, cy);
+    
+    // Set up viewport and projection
+    gs_viewport_push();
+    gs_projection_push();
+    
+    // Set viewport to match display size
+    gs_set_viewport(0, 0, cx, cy);
+    
+    // Set up orthographic projection (standard coordinate system)
+    gs_ortho(0.0f, (float)cx, 0.0f, (float)cy, -100.0f, 100.0f);
+    
+    // Clear the background
+    vec4 clear_color;
+    vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 1.0f);
+    gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
+    
+    // Get source dimensions
+    uint32_t source_width = obs_source_get_width(widget->compositeSceneSource);
+    uint32_t source_height = obs_source_get_height(widget->compositeSceneSource);
+    
+    if (source_width > 0 && source_height > 0) {
+        // Calculate scaling to fit the widget while maintaining aspect ratio
+        float scale_x = (float)cx / (float)source_width;
+        float scale_y = (float)cy / (float)source_height;
+        
+        // Use the smaller scale to maintain aspect ratio
+        float scale = std::min(scale_x, scale_y);
+        
+        // Calculate the actual rendered size
+        float rendered_width = (float)source_width * scale;
+        float rendered_height = (float)source_height * scale;
+        
+        // Calculate offsets to center the video
+        float offset_x = ((float)cx - rendered_width) / 2.0f;
+        float offset_y = ((float)cy - rendered_height) / 2.0f;
+        
+        obs_log(LOG_DEBUG, "Source %dx%d, Widget %dx%d, Scale: %.2f, Rendered: %.0fx%.0f, Offset: %.0f,%.0f", 
+                source_width, source_height, cx, cy, scale, rendered_width, rendered_height, offset_x, offset_y);
+        
+        // Set up transformation matrix with scaling and centering
+        gs_matrix_push();
+        gs_matrix_translate3f(offset_x, offset_y, 0.0f);
+        gs_matrix_scale3f(scale, scale, 1.0f);
+        
+        // Render the composite scene source
+        obs_source_video_render(widget->compositeSceneSource);
+        
+        gs_matrix_pop();
+    } else {
+        // If no valid source dimensions, just render without scaling
+        obs_source_video_render(widget->compositeSceneSource);
+    }
+    
+    gs_projection_pop();
+    gs_viewport_pop();
 }
 
 void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
