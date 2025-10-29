@@ -24,6 +24,7 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
 
 private slots:
     void onSceneChanged();

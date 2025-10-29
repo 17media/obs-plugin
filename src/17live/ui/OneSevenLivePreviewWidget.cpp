@@ -8,6 +8,8 @@
 #include <graphics/graphics.h>
 #include <QResizeEvent>
 #include <QTimer>
+#include <QPaintEvent>
+#include <QPainter>
 
 #include "moc_OneSevenLivePreviewWidget.cpp"
 
@@ -292,6 +294,25 @@ void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
 void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
     // Keep display active for performance, just hide widget
+}
+
+void OneSevenLivePreviewWidget::paintEvent(QPaintEvent* event) {
+    // Avoid QPainter usage if paint engine is unavailable (e.g., during shutdown or WA_PaintOnScreen)
+    if (!paintEngine()) {
+        return;
+    }
+    
+    // The OBS display handles rendering; we only draw simple placeholders when safe
+    QPainter painter(this);
+    
+    // Fill background with black in case display isn't ready
+    painter.fillRect(event->rect(), Qt::black);
+    
+    // Draw status text if display isn't created
+    if (!previewDisplay) {
+        painter.setPen(Qt::white);
+        painter.drawText(rect(), Qt::AlignCenter, "Initializing video display...");
+    }
 }
 
 void OneSevenLivePreviewWidget::cleanupPreview() {
