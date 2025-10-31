@@ -459,24 +459,25 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
         return;
     }
 
-    // Create simple test settings
+    // Only create browser source if we have valid configuration
+    if (!browserConfig.isValid) {
+        obs_log(LOG_INFO, "No valid browser source configuration, skipping browser source creation");
+        return;
+    }
+
+    // Create settings from configuration
     obs_data_t* settings = obs_data_create();
 
-    // Use simple HTML content for testing
-    const char* test_html =
-        "data:text/html,<html><body "
-        "style='background:red;color:white;font-size:48px;text-align:center;padding-top:100px;'>"
-        "TEST OVERLAY</body></html>";
-    obs_data_set_string(settings, "url", test_html);
-    obs_data_set_int(settings, "width", 640);
-    obs_data_set_int(settings, "height", 480);
-    obs_data_set_int(settings, "fps", 30);
+    obs_data_set_string(settings, "url", browserConfig.url.toUtf8().constData());
+    obs_data_set_int(settings, "width", browserConfig.width);
+    obs_data_set_int(settings, "height", browserConfig.height);
+    obs_data_set_int(settings, "fps", browserConfig.fps);
     obs_data_set_bool(settings, "shutdown", false);
     obs_data_set_bool(settings, "restart_when_active", false);
     obs_data_set_bool(settings, "reroute_audio", false);
 
     // Create browser source
-    browserSource = obs_source_create("browser_source", "TestBrowserOverlay", settings, nullptr);
+    browserSource = obs_source_create("browser_source", "LivePreviewOverlay", settings, nullptr);
 
     if (browserSource) {
         // Get reference and activate source
@@ -486,8 +487,9 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
             obs_source_inc_active(source_ref);
             obs_source_release(source_ref);
         }
+        obs_log(LOG_INFO, "Browser source created successfully");
     } else {
-        obs_log(LOG_ERROR, "Failed to create test browser source");
+        obs_log(LOG_ERROR, "Failed to create browser source");
     }
 
     obs_data_release(settings);
