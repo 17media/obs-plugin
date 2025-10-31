@@ -4,7 +4,7 @@
 #include <QPointer>
 
 #include "../utility/OneSevenLivePreviewConfigLoader.hpp"
-#include "OneSevenLivePreviewWidget.hpp"
+#include "OneSevenLivePreviewScreen.hpp"
 
 class OneSevenLivePreviewDock : public QDockWidget {
     Q_OBJECT
@@ -26,7 +26,7 @@ class OneSevenLivePreviewDock : public QDockWidget {
     void setupUi();
     void loadConfiguration();
 
-    QPointer<OneSevenLivePreviewWidget> previewWidget;
+    QPointer<OneSevenLivePreviewScreen> previewScreen;
     QPointer<OneSevenLivePreviewConfigLoader> configLoader;
 
     bool initialized;

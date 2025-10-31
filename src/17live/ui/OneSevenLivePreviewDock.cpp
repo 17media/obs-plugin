@@ -20,7 +20,7 @@ static std::string get_obs_module_data_path_str() {
 
 OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent)
     : QDockWidget(obs_module_text("PreviewDock.Title"), parent),
-      previewWidget(nullptr),
+      previewScreen(nullptr),
       configLoader(nullptr),
       initialized(false) {
     setupUi();
@@ -28,8 +28,8 @@ OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent)
 }
 
 OneSevenLivePreviewDock::~OneSevenLivePreviewDock() {
-    if (previewWidget) {
-        previewWidget->deleteLater();
+    if (previewScreen) {
+        previewScreen->deleteLater();
     }
 
     if (configLoader) {
@@ -43,13 +43,13 @@ void OneSevenLivePreviewDock::setupUi() {
     setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable |
                 QDockWidget::DockWidgetClosable);
 
-    // Set minimum size
-    setMinimumSize(320, 240);
-    resize(640, 480);
+    // Set minimum size for vertical preview (160x284 minimum)
+    setMinimumSize(180, 320);
+    resize(400, 720);
 
-    // Create preview widget
-    previewWidget = new OneSevenLivePreviewWidget(this);
-    setWidget(previewWidget);
+    // Create preview screen widget
+    previewScreen = new OneSevenLivePreviewScreen(this);
+    setWidget(previewScreen);
 }
 
 void OneSevenLivePreviewDock::loadConfiguration() {
@@ -60,15 +60,18 @@ void OneSevenLivePreviewDock::loadConfiguration() {
     QString configPath = QString("%1/preview_config.json").arg(QString::fromStdString(dataPath));
 
     if (configLoader->loadConfiguration(configPath)) {
-        // Configuration loaded but not applied to simplified preview widget
+        // Pass configuration to preview screen
+        if (previewScreen) {
+            previewScreen->setConfigLoader(configLoader);
+        }
     } else {
         obs_log(LOG_WARNING, "Failed to load preview configuration, using defaults");
     }
 }
 
 void OneSevenLivePreviewDock::initializePreview() {
-    if (!initialized && previewWidget) {
-        // Preview widget is automatically initialized when shown
+    if (!initialized && previewScreen) {
+        // Preview screen is automatically initialized when shown
         initialized = true;
     }
 }
@@ -80,7 +83,7 @@ void OneSevenLivePreviewDock::showEvent(QShowEvent* event) {
         initializePreview();
     }
 
-    // Preview widget automatically updates when shown
+    // Preview screen automatically updates when shown
 }
 
 void OneSevenLivePreviewDock::closeEvent(QCloseEvent* event) {

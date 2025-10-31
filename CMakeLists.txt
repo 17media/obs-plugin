@@ -134,6 +134,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
   src/17live/ui/OneSevenLivePropertiesWidget.cpp
   src/17live/utility/OneSevenLivePreviewConfigLoader.cpp
   src/17live/ui/OneSevenLivePreviewWidget.cpp
+  src/17live/ui/OneSevenLivePreviewScreen.cpp
   src/17live/ui/OneSevenLivePreviewDock.cpp
   src/17live/multi-rtmp/OneSevenMultiRtmpConfigManager.cpp
   src/17live/multi-rtmp/OneSevenMultiRtmpStreamController.cpp

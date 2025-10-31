@@ -18,6 +18,12 @@ class OneSevenLivePreviewWidget : public QWidget {
     explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr);
     ~OneSevenLivePreviewWidget();
 
+    /**
+     * @brief Set the overlay scale factor for browser sources
+     * @param scale Scale factor (1.0 = original size)
+     */
+    void setOverlayScale(float scale);
+
    protected:
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
@@ -64,4 +70,7 @@ class OneSevenLivePreviewWidget : public QWidget {
     OneSevenLivePreviewConfigLoader* configLoader;
     OneSevenLivePreviewConfigLoader::PreviewConfig browserConfig;
     QTimer* browserRefreshTimer;
+
+    // Overlay scaling
+    float overlayScale;
 };

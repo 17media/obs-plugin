@@ -43,7 +43,8 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
       notificationText(nullptr),
       browserSource(nullptr),
       configLoader(new OneSevenLivePreviewConfigLoader(this)),
-      browserRefreshTimer(new QTimer(this)) {
+      browserRefreshTimer(new QTimer(this)),
+      overlayScale(1.0f) {
     // Set widget attributes for proper native rendering
     setAttribute(Qt::WA_NativeWindow, true);
     setAttribute(Qt::WA_PaintOnScreen, true);
@@ -216,15 +217,33 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
             bool is_showing = obs_source_showing(source_ref);
 
             if (browser_width > 0 && browser_height > 0 && is_active && is_showing) {
-                // Apply overlay transformation (fixed position for debugging)
+                // Apply overlay transformation to cover entire preview area
                 gs_matrix_push();
 
-                float overlay_scale = 0.5f;
-                float overlay_x = 50.0f;
-                float overlay_y = 50.0f;
+                // Calculate scale to fill the entire preview area
+                float preview_width = static_cast<float>(cx);
+                float preview_height = static_cast<float>(cy);
+                float browser_width_f = static_cast<float>(browser_width);
+                float browser_height_f = static_cast<float>(browser_height);
+                
+                // Calculate scale factors for both dimensions
+                float scale_x = preview_width / browser_width_f;
+                float scale_y = preview_height / browser_height_f;
+                
+                // Use the larger scale to ensure overlay covers entire area
+                float fill_scale = qMax(scale_x, scale_y);
+                
+                // Apply the overlay scale factor from OneSevenLivePreviewScreen
+                float final_scale = fill_scale * overlayScale;
+                
+                // Calculate position to center the scaled overlay
+                float scaled_browser_width = browser_width_f * final_scale;
+                float scaled_browser_height = browser_height_f * final_scale;
+                float overlay_x = (preview_width - scaled_browser_width) * 0.5f;
+                float overlay_y = (preview_height - scaled_browser_height) * 0.5f;
 
                 gs_matrix_translate3f(overlay_x, overlay_y, 0.0f);
-                gs_matrix_scale3f(overlay_scale, overlay_scale, 1.0f);
+                gs_matrix_scale3f(final_scale, final_scale, 1.0f);
 
                 obs_source_video_render(source_ref);
 
@@ -496,4 +515,8 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
         obs_source_update(browserSource, settings);
         obs_data_release(settings);
     }
+}
+
+void OneSevenLivePreviewWidget::setOverlayScale(float scale) {
+    overlayScale = qMax(0.1f, qMin(5.0f, scale)); // Clamp between 0.1 and 5.0
 }
