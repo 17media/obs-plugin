@@ -132,10 +132,10 @@ void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool br
         liveListAction->setChecked(isLiveListVisible);
     }
 
-    if (rockZoneAction) {
-        rockZoneAction->setCheckable(true);
-        rockZoneAction->setChecked(isRockZoneVisible);
-    }
+    // if (rockZoneAction) {
+    //     rockZoneAction->setCheckable(true);
+    //     rockZoneAction->setChecked(isRockZoneVisible);
+    // }
 }
 
 void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
