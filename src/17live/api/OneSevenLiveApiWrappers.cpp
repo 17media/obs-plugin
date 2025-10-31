@@ -289,6 +289,8 @@ bool OneSevenLiveApiWrappers::Login(const QString &username, const QString &pass
 
     if (!InsertCommand(url, "application/json", "", postData.c_str(), json_out, 0, false)) {
         setLastErrorMessage(buildErrorMessage(json_out, "Login failed"));
+        // Login failed display json_out
+        obs_log(LOG_ERROR, "Login failed: %s", json_out.dump().c_str());
         return false;
     }
     obs_log(LOG_INFO, "Login success");
