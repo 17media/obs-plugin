@@ -180,14 +180,17 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
         uint32_t source_height = obs_source_get_height(currentSource);
 
         if (source_width > 0 && source_height > 0) {
-            // Calculate scaling to fit while maintaining aspect ratio
+            // Calculate scaling to fit while maintaining aspect ratio (ensure entire video is visible)
             float scale_x = (float) cx / (float) source_width;
             float scale_y = (float) cy / (float) source_height;
+            // Use the smaller scale to ensure entire video content is visible within preview bounds
             float scale = std::min(scale_x, scale_y);
 
             // Center the source
-            float offset_x = ((float) cx - ((float) source_width * scale)) * 0.5f;
-            float offset_y = ((float) cy - ((float) source_height * scale)) * 0.5f;
+            float scaled_width = (float) source_width * scale;
+            float scaled_height = (float) source_height * scale;
+            float offset_x = ((float) cx - scaled_width) * 0.5f;
+            float offset_y = ((float) cy - scaled_height) * 0.5f;
 
             // Apply transformation and render
             gs_matrix_push();
@@ -337,6 +340,9 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
         display_height = physical_height;
 
         obs_display_resize(previewDisplay, physical_width, physical_height);
+        
+        // Force refresh to ensure content scales properly with new size
+        forceRefresh();
     }
 
     updateNotificationBarPosition();
@@ -519,4 +525,18 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
 
 void OneSevenLivePreviewWidget::setOverlayScale(float scale) {
     overlayScale = qMax(0.1f, qMin(5.0f, scale)); // Clamp between 0.1 and 5.0
+    
+    // Force refresh to apply new scale
+    forceRefresh();
+}
+
+void OneSevenLivePreviewWidget::forceRefresh() {
+    if (previewDisplay && display_created) {
+        // Invalidate the display to force re-rendering
+        obs_display_set_enabled(previewDisplay, false);
+        obs_display_set_enabled(previewDisplay, true);
+        
+        // Also trigger a video refresh
+        refreshVideo();
+    }
 }
