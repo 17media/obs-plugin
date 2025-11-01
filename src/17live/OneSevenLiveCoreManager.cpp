@@ -21,6 +21,7 @@
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
+#include "OneSevenLiveWebsocketServer.hpp"
 #include "OneSevenLiveLoginDialog.hpp"
 #include "OneSevenLiveMenuManager.hpp"
 #include "OneSevenLiveRockZoneDock.hpp"
@@ -92,6 +93,36 @@ bool OneSevenLiveCoreManager::initialize() {
         } else {
             obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
         }
+
+        // Initialize and start WebSocket server
+        websocketServer_ = std::make_unique<OneSevenLiveWebsocketServer>("localhost", 0);
+        if (!websocketServer_) {
+            obs_log(LOG_ERROR, "[17Live Core] Failed to create WebSocket server instance");
+            return false;
+        }
+
+        if (!websocketServer_->start()) {
+            obs_log(LOG_ERROR, "[17Live Core] Failed to start WebSocket server");
+            // Continue initialization even if WebSocket server fails
+        } else {
+            obs_log(LOG_INFO, "[17Live Core] WebSocket server started successfully on port %d", 
+                   websocketServer_->getPort());
+        }
+
+        // Set up WebSocket server callbacks
+        websocketServer_->setMessageCallback([](const std::string& clientId, const std::string& message) {
+            obs_log(LOG_INFO, "[17Live WebSocket] Received message from %s: %s", 
+                   clientId.c_str(), message.c_str());
+            // Handle incoming WebSocket messages here
+        });
+
+        websocketServer_->setConnectionCallback([](const std::string& clientId, bool connected) {
+            if (connected) {
+                obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
+            } else {
+                obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
+            }
+        });
 
         // Initialize configuration manager
         configManager = std::make_unique<OneSevenLiveConfigManager>();
@@ -293,6 +324,18 @@ void OneSevenLiveCoreManager::shutdown() {
     saveDockState();
 
     closeAllDocks();
+
+    // Stop WebSocket server
+    if (websocketServer_) {
+        websocketServer_->stop();
+        obs_log(LOG_INFO, "[17Live Core] WebSocket server stopped");
+    }
+
+    // Stop HTTP server
+    if (httpServer_) {
+        httpServer_->stop();
+        obs_log(LOG_INFO, "[17Live Core] HTTP server stopped");
+    }
 
     // Clean up menu manager resources
     if (menuManager) {

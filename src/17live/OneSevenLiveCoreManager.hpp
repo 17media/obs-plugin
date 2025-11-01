@@ -37,6 +37,8 @@ class OneSevenLivePreviewDock;
 
 class OneSevenLiveHttpServer;
 
+class OneSevenLiveWebsocketServer;
+
 class QCefView;
 
 /**
@@ -132,6 +134,8 @@ class OneSevenLiveCoreManager : public QObject {
     std::unique_ptr<OneSevenLiveApiWrappers> apiWrapper;
 
     std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
+
+    std::unique_ptr<OneSevenLiveWebsocketServer> websocketServer_;
 
     /**
      * @brief Slot function to handle successful login

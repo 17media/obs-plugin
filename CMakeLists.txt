@@ -92,11 +92,16 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
   CEF::Library
   CEF::Wrapper
   Threads::Threads # For cpp-httplib
+  ixwebsocket # For WebSocket functionality
 )
+
+# Add IXWebSocket as subdirectory
+add_subdirectory(deps/IXWebSocket)
 
 # Add cpp-httplib include directory (though it might already be covered by 'deps')
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/deps/cpp-httplib
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/IXWebSocket
 )
 
 # Configure plugin-support.c file
@@ -129,6 +134,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
   src/17live/OneSevenLiveRockViewerItem.cpp
   src/17live/api/OneSevenLiveUtility.cpp
   src/17live/OneSevenLiveHttpServer.cpp
+  src/17live/OneSevenLiveWebsocketServer.cpp
   src/17live/OneSevenLiveUpdateManager.cpp
   src/17live/ui/OneSevenLivePropertyWidget.cpp
   src/17live/ui/OneSevenLivePropertiesWidget.cpp
