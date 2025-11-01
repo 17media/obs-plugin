@@ -8,10 +8,15 @@
 #include <random>
 #include <sstream>
 
+// System headers for socket operations
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "plugin-support.h"
 
 OneSevenLiveWebsocketServer::OneSevenLiveWebsocketServer(const std::string& host, int port)
-    : host_(host), port_(port), running_(false) {
+    : host_(host == "localhost" ? "127.0.0.1" : host), port_(port), running_(false) {
     blog(LOG_INFO, "[17Live WebSocket Server] Initializing WebSocket server on %s:%d", 
          host_.c_str(), port_);
 }
@@ -39,8 +44,20 @@ bool OneSevenLiveWebsocketServer::start() {
     }
 
     try {
-        // Create WebSocket server instance
-        server_ = std::make_unique<ix::WebSocketServer>(port_, host_);
+        // If port is 0, find an available port first
+        int actual_port = port_;
+        if (port_ == 0) {
+            actual_port = getAvailablePort();
+            if (actual_port == 0) {
+                blog(LOG_ERROR, "[17Live WebSocket Server] Failed to find available port");
+                return false;
+            }
+            port_ = actual_port;
+            blog(LOG_INFO, "[17Live WebSocket Server] Using auto-assigned port: %d", actual_port);
+        }
+
+        // Create WebSocket server instance with the determined port
+        server_ = std::make_unique<ix::WebSocketServer>(actual_port, host_);
         
         // Set connection handler
         server_->setOnConnectionCallback(
@@ -50,10 +67,10 @@ bool OneSevenLiveWebsocketServer::start() {
             });
 
         // Start server in new thread to avoid blocking main thread
-        server_thread_ = std::make_unique<std::thread>([this]() {
+        server_thread_ = std::make_unique<std::thread>([this, actual_port]() {
             try {
                 blog(LOG_INFO, "[17Live WebSocket Server] Starting server on %s:%d", 
-                     host_.c_str(), port_);
+                     host_.c_str(), actual_port);
                 
                 auto result = server_->listen();
                 if (!result.first) {
@@ -63,7 +80,8 @@ bool OneSevenLiveWebsocketServer::start() {
                     return;
                 }
                 
-                blog(LOG_INFO, "[17Live WebSocket Server] Server started successfully");
+                blog(LOG_INFO, "[17Live WebSocket Server] Server started successfully on %s:%d", 
+                     host_.c_str(), actual_port);
                 
                 // Start the server
                 server_->start();
@@ -260,6 +278,43 @@ std::string OneSevenLiveWebsocketServer::get_client_ip(std::shared_ptr<ix::Conne
         return connectionState->getRemoteIp();
     }
     return "unknown";
+}
+
+int OneSevenLiveWebsocketServer::getAvailablePort() const {
+    // Create a socket to find an available port
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        blog(LOG_ERROR, "[17Live WebSocket Server] Failed to create socket for port detection");
+        return 0;
+    }
+
+    // Set up address structure
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(host_.c_str());
+    addr.sin_port = 0; // Let system choose port
+
+    // Bind to get an available port
+    if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        blog(LOG_ERROR, "[17Live WebSocket Server] Failed to bind socket for port detection");
+        close(sockfd);
+        return 0;
+    }
+
+    // Get the actual port assigned by the system
+    socklen_t addr_len = sizeof(addr);
+    if (getsockname(sockfd, (struct sockaddr*)&addr, &addr_len) < 0) {
+        blog(LOG_ERROR, "[17Live WebSocket Server] Failed to get socket name for port detection");
+        close(sockfd);
+        return 0;
+    }
+
+    int available_port = ntohs(addr.sin_port);
+    close(sockfd);
+    
+    blog(LOG_INFO, "[17Live WebSocket Server] Found available port: %d", available_port);
+    return available_port;
 }
 
 void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webSocket, 

@@ -13,6 +13,7 @@
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveWebsocketServer.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
 
@@ -306,6 +307,86 @@ bool OneSevenLiveHttpServer::start() {
         const nlohmann::json response = {{"success", true}, {"csrf_token", csrf_token_}};
         const std::string responseStr = response.dump();
         res.set_content(responseStr, "application/json");
+    });
+
+    // Add /ws route to handle websocket connections
+
+    // Add /ws-url route to get WebSocket server URL
+    svr_.Get("/ws-url", [this](const httplib::Request& req, httplib::Response& res) {
+        // Security check: get client IP
+        std::string client_ip = req.get_header_value("X-Forwarded-For");
+        if (client_ip.empty()) {
+            client_ip = req.get_header_value("X-Real-IP");
+        }
+        if (client_ip.empty()) {
+            client_ip = "127.0.0.1";  // local request
+        }
+
+        // Security check: rate limiting
+        if (!check_rate_limit(client_ip)) {
+            res.status = 429;
+            res.set_header("Content-Type", "application/json");
+            const nlohmann::json errorResponse = {{"success", false},
+                                                  {"error", "Rate limit exceeded"}};
+            const std::string responseStr = errorResponse.dump();
+            res.set_content(responseStr, "application/json");
+            return;
+        }
+
+        // Set response headers
+        res.set_header("Content-Type", "application/json");
+        res.set_header("X-Content-Type-Options", "nosniff");
+        res.set_header("X-Frame-Options", "DENY");
+        res.set_header("X-XSS-Protection", "1; mode=block");
+
+        try {
+            // Get OneSevenLiveCoreManager instance
+            auto& coreManager = OneSevenLiveCoreManager::getInstance();
+            
+            // Get WebSocket server instance
+            auto websocketServer = coreManager.getWebsocketServer();
+            if (!websocketServer) {
+                const nlohmann::json errorResponse = {{"success", false},
+                                                      {"error", "WebSocket server not initialized"}};
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
+                return;
+            }
+
+            // Check if WebSocket server is running
+            if (!websocketServer->is_running()) {
+                const nlohmann::json errorResponse = {{"success", false},
+                                                      {"error", "WebSocket server not running"}};
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
+                return;
+            }
+
+            // Get WebSocket server port
+            int wsPort = websocketServer->getPort();
+            if (wsPort <= 0) {
+                const nlohmann::json errorResponse = {{"success", false},
+                                                      {"error", "WebSocket server port not available"}};
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
+                return;
+            }
+
+            // Build WebSocket URL
+            const std::string wsUrl = "ws://127.0.0.1:" + std::to_string(wsPort);
+            
+            // Return success response with WebSocket URL
+            const nlohmann::json response = {{"success", true}, {"ws_url", wsUrl}};
+            const std::string responseStr = response.dump();
+            res.set_content(responseStr, "application/json");
+            
+        } catch (const std::exception& e) {
+            // Handle exceptions
+            const std::string errorMsg = std::string("Exception: ") + e.what();
+            const nlohmann::json errorResponse = {{"success", false}, {"error", errorMsg}};
+            const std::string responseStr = errorResponse.dump();
+            res.set_content(responseStr, "application/json");
+        }
     });
 
     // Add /lapi route to handle API requests

@@ -44,6 +44,9 @@ class OneSevenLiveWebsocketServer {
     bool validate_message_size(const std::string& message) const;
     std::string generate_client_id();
     std::string get_client_ip(std::shared_ptr<ix::ConnectionState> connectionState);
+    
+    // Port management helper
+    int getAvailablePort() const;
 
     // WebSocket event handlers
     void onConnection(std::weak_ptr<ix::WebSocket> webSocket, 
