@@ -342,6 +342,16 @@ void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webS
         onMessage(nullptr, *ws, msg);
     });
     
+    // Send welcome message to newly connected client
+    try {
+        std::string welcomeMessage = "Hello! Welcome to 17Live WebSocket Server. Connection established successfully.";
+        ws->send(welcomeMessage);
+        blog(LOG_INFO, "[17Live WebSocket Server] Sent welcome message to client %s", clientId.c_str());
+    } catch (const std::exception& e) {
+        blog(LOG_WARNING, "[17Live WebSocket Server] Failed to send welcome message to client %s: %s", 
+             clientId.c_str(), e.what());
+    }
+    
     // Notify connection callback
     {
         std::lock_guard<std::mutex> lock(callback_mutex_);
