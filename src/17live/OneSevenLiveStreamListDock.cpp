@@ -3,6 +3,16 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
+// Qt widgets and helpers used in this translation unit
+#include <QAbstractItemView>
+#include <QListWidget>
+#include <QListWidgetItem>
+#include <QPushButton>
+#include <QIcon>
+#include <QSize>
+#include <QSizePolicy>
+#include <QVariant>
+
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -10,6 +20,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "api/OneSevenLiveModels.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveStreamListItem.hpp"
 #include "moc_OneSevenLiveStreamListDock.cpp"
@@ -71,9 +82,11 @@ void OneSevenLiveStreamListDock::setupUi() {
         "QListWidget::item:hover:!selected {"
         "    background-color: #454b5a;"
         "}");
-    streamList->setResizeMode(QListWidget::Adjust);
+    // streamList->setResizeMode(QListWidget::Adjust);
     streamList->setWordWrap(true);
     streamList->setSpacing(10);
+    streamList->setVerticalScrollMode(QAbstractItemView::ScrollMode::ScrollPerPixel);
+    streamList->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     mainLayout->addWidget(streamList);
 
     // Create start streaming button
@@ -107,13 +120,13 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item,
                                                   const OneSevenLiveStreamInfo& info) {
     QWidget* itemContainer = new QWidget(this);
 
-    QHBoxLayout* mainLayout = new QHBoxLayout(this);
+    QHBoxLayout* mainLayout = new QHBoxLayout();
+    itemContainer->setLayout(mainLayout);
+
     mainLayout->setContentsMargins(0, 0, 0, 0);
-    // mainLayout->setSpacing(0);
 
     // Left layout (title, category, time)
     QVBoxLayout* leftLayout = new QVBoxLayout();
-    // leftLayout->setAlignment(Qt::AlignVCenter);
     leftLayout->setSpacing(5);
 
     QLabel* titleLabel = new QLabel(info.request.caption);
@@ -121,32 +134,36 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item,
         "color: white; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: "
         "20px;");
     titleLabel->setWordWrap(true);
-    titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    titleLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    titleLabel->setMinimumWidth(0);
 
     QLabel* categoryLabel = new QLabel(info.categoryName);
     categoryLabel->setStyleSheet(
         "color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: "
         "20px;");
     categoryLabel->setWordWrap(true);
-    categoryLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    categoryLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    categoryLabel->setMinimumWidth(0);
 
     QLabel* timeLabel = new QLabel(info.createdAt.toString("yyyy-MM-dd hh:mm:ss"));
     timeLabel->setStyleSheet(
         "color: #d9d9d9; font-weight: bold; font-size: 14px; font-family: 'Inter'; line-height: "
         "20px;");
-    timeLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    timeLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    timeLabel->setMinimumWidth(0);
 
     leftLayout->addWidget(titleLabel);
     leftLayout->addWidget(categoryLabel);
     leftLayout->addWidget(timeLabel);
 
     // Right buttons (edit + delete)
-    QWidget* buttonContainer = new QWidget();
+    QWidget* buttonContainer = new QWidget(itemContainer);
     buttonContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
     QHBoxLayout* buttonLayout = new QHBoxLayout(buttonContainer);
     buttonLayout->setContentsMargins(0, 0, 0, 0);
     buttonLayout->setSpacing(4);
-    buttonLayout->setAlignment(Qt::AlignCenter);
+    // Align buttons to the right within the container
+    buttonLayout->setAlignment(Qt::AlignRight);
 
     QPushButton* editButton = new QPushButton();
     editButton->setFixedSize(24, 24);
@@ -163,14 +180,10 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item,
     buttonLayout->addWidget(editButton);
     buttonLayout->addWidget(deleteButton);
 
-    // Add to main layout
-    mainLayout->addLayout(leftLayout);
-    mainLayout->addStretch();
-    mainLayout->addWidget(buttonContainer);
+    // Add to main layout: left content expands, buttons container fixed and right-aligned
+    mainLayout->addLayout(leftLayout, 1);
+    mainLayout->addWidget(buttonContainer, 0, Qt::AlignRight);
 
-    itemContainer->setLayout(mainLayout);
-    // Adjust size to ensure all content is visible, especially after word wrap
-    itemContainer->adjustSize();
     item->setSizeHint(QSize(-1, itemContainer->sizeHint().height()));
     streamList->setItemWidget(item, itemContainer);
 
@@ -268,12 +281,16 @@ void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent* event) {
         emptyContainer->setGeometry(widget()->rect());
     }
 
+    const int viewportWidth = streamList->viewport()->width();
     for (int i = 0; i < streamList->count(); ++i) {
-        QListWidgetItem* item = streamList->item(i);
-        QWidget* widget = streamList->itemWidget(item);
-        if (widget)
-            widget->resize(streamList->viewport()->width(), widget->height());
-        item->setSizeHint(widget->sizeHint());
+        auto item = streamList->item(i);
+        if (auto w = streamList->itemWidget(item)) {
+            // Clamp width to viewport to avoid horizontal overflow
+            w->setMinimumWidth(0);
+            w->setMaximumWidth(viewportWidth);
+            w->updateGeometry();
+            item->setSizeHint(QSize(viewportWidth, w->sizeHint().height()));
+        }
     }
 }
 

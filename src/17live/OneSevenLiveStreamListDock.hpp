@@ -1,11 +1,14 @@
 #pragma once
 
-#include <QDateTime>
+// Qt includes (keep minimal in header to reduce transitive dependencies)
 #include <QDockWidget>
-#include <QListWidget>
-#include <QPushButton>
 
 #include "api/OneSevenLiveModels.hpp"
+
+// Forward declarations to avoid heavy includes in header
+class QListWidget;
+class QListWidgetItem;
+class QPushButton;
 
 class OneSevenLiveConfigManager;
 
