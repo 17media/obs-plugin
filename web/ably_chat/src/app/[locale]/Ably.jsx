@@ -15,7 +15,8 @@ import {
     getAblyTokenFromServer,
     getGifts,
     getGiftByID,
-    getRoomInfo
+    getRoomInfo,
+    getWebSocketServerURL,
 } from '../../api';
 
 import {
@@ -322,6 +323,41 @@ export default function AblyComponent() {
         })
         const channel = ably.channels.get(roomID);
 
+        // Connect to WebSocket server
+        let ws;
+        (async () => {
+            try {
+                const wsUrl = await getWebSocketServerURL();
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    // Optionally send initial info if server expects it
+                    // ws.send(JSON.stringify({ type: 'INIT', roomID, userID }));
+                    console.log('WebSocket connected:', wsUrl);
+                };
+
+                ws.onmessage = (event) => {
+                    // For now just log incoming messages; integrate as needed later
+                    try {
+                        const payload = JSON.parse(event.data);
+                        console.log('WebSocket message:', payload);
+                    } catch {
+                        console.log('WebSocket message (text):', event.data);
+                    }
+                };
+
+                ws.onerror = (err) => {
+                    console.error('WebSocket error:', err);
+                };
+
+                ws.onclose = () => {
+                    console.log('WebSocket closed');
+                };
+            } catch (err) {
+                console.error('Failed to connect to WebSocket server:', err);
+            }
+        })();
+
         channel.subscribe((message) => {
             const decodeMessage = getAblyDecodeData(message);
             const streamerInfo = roomInfo.userInfo;
@@ -362,6 +398,13 @@ export default function AblyComponent() {
         // Cleanup on unmount
         return () => {
             channel.unsubscribe();
+            if (ws && ws.readyState !== WebSocket.CLOSED) {
+                try {
+                    ws.close();
+                } catch (e) {
+                    // ignore
+                }
+            }
         };
     }, [roomID, userID, roomInfo]);
 
