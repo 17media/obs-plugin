@@ -121,10 +121,8 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
 
             if (userInfoJson.contains("lastUsedHashtags") &&
                 userInfoJson["lastUsedHashtags"].is_array()) {
-                for (const auto &hashtag : userInfoJson["lastUsedHashtags"]) {
-                    loginData.userInfo.lastUsedHashtags.append(
-                        QString::fromStdString(hashtag.get<std::string>()));
-                }
+                    // Parse last used hashtags
+                JsonToOneSevenLiveHashtags(userInfoJson["lastUsedHashtags"], loginData.userInfo.lastUsedHashtags);
             }
 
             if (userInfoJson.contains("levelBadges") && userInfoJson["levelBadges"].is_array()) {
@@ -2206,14 +2204,9 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
             }
         }
 
+        // Parse last used hashtags
         if (json.contains("lastUsedHashtags") && json["lastUsedHashtags"].is_array()) {
-            userInfo.lastUsedHashtags.clear();
-            for (const auto &item : json["lastUsedHashtags"]) {
-                if (item.is_string()) {
-                    userInfo.lastUsedHashtags.append(
-                        QString::fromStdString(item.get<std::string>()));
-                }
-            }
+            JsonToOneSevenLiveHashtags(json["lastUsedHashtags"], userInfo.lastUsedHashtags);
         }
 
         if (json.contains("levelBadges") && json["levelBadges"].is_array()) {

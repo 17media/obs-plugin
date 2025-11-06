@@ -1256,7 +1256,9 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
     // }
 
     // Add current userID and streamerType to request
-    request.userID = roomInfo.userID;
+    std::string userID;
+    configManager->getConfigValue("UserID", userID);
+    request.userID = QString::fromStdString(userID);
     request.streamerType = roomInfo.streamerType;
 
     OneSevenLiveRtmpResponse response;
@@ -1511,8 +1513,8 @@ void OneSevenLiveStreamingDock::stopStreaming() {
 void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpRequest &request) {
     // Note: userID and streamerType are generally not editable, only displayed in interface or kept
     // synchronized
-    roomInfo.userID = request.userID;
-    roomInfo.streamerType = request.streamerType;
+    // roomInfo.userID = request.userID;
+    // roomInfo.streamerType = request.streamerType;
 
     titleEdit->setText(request.caption);
 

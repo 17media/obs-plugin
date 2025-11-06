@@ -75,6 +75,12 @@ struct OneSevenLiveOnliveInfo {
     int premiumType;
 };
 
+// hashtag struct
+struct OneSevenLiveHashtag {
+    QString text;
+    bool isOfficial;
+};
+
 struct OneSevenLiveUserInfo {
     QString userID;
     QString openID;
@@ -113,7 +119,7 @@ struct OneSevenLiveUserInfo {
     QStringList loyaltyInfo;
     bool streamerRecapEnable;
     int gloryroadMode;
-    QStringList lastUsedHashtags;
+    QList<OneSevenLiveHashtag> lastUsedHashtags;
     bool newbieDisplayAllGiftTabsToast;
     int avatarOnboardingPhase;
     bool isUnderaged;
@@ -275,12 +281,6 @@ struct OneSevenLiveArchiveConfig {
 
 bool JsonToOneSevenLiveArchiveConfig(const nlohmann::json &json,
                                      OneSevenLiveArchiveConfig &archiveConfig);
-
-// hashtag struct
-struct OneSevenLiveHashtag {
-    QString text;
-    bool isOfficial;
-};
 
 // Main room information struct
 struct OneSevenLiveRoomInfo {
