@@ -63,6 +63,10 @@ void OneSevenLiveStreamListDock::setupUi() {
 
     // Create live stream list
     streamList = new QListWidget();
+    // Constrain list width: min 350px, max 600px; prevent horizontal scrollbar
+    streamList->setMinimumWidth(300);
+    streamList->setMaximumWidth(600);
+    streamList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     streamList->setStyleSheet(
         "QListWidget {"
         "   background-color: transparent;"
@@ -71,7 +75,7 @@ void OneSevenLiveStreamListDock::setupUi() {
         "QListWidget::item {"
         "   background-color: #3C404C;"
         "   border-radius: 6px;"
-        "   padding: 0px;"
+        "   padding: 0px 10px 0px 0px;"
         "   margin: 0px;"
         "}"
         "QListWidget::item:selected {"
@@ -82,11 +86,8 @@ void OneSevenLiveStreamListDock::setupUi() {
         "QListWidget::item:hover:!selected {"
         "    background-color: #454b5a;"
         "}");
-    // streamList->setResizeMode(QListWidget::Adjust);
     streamList->setWordWrap(true);
     streamList->setSpacing(10);
-    streamList->setVerticalScrollMode(QAbstractItemView::ScrollMode::ScrollPerPixel);
-    streamList->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     mainLayout->addWidget(streamList);
 
     // Create start streaming button
@@ -165,6 +166,16 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item,
     // Align buttons to the right within the container
     buttonLayout->setAlignment(Qt::AlignRight);
 
+    int btnCount = 2;
+    int btnSize = 24;                     
+    int spacing = buttonLayout->spacing();
+    int margins = 0;
+
+    int totalWidth = btnCount * btnSize + (btnCount - 1) * spacing + margins;
+    buttonContainer->setFixedWidth(totalWidth);
+    buttonContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    
+
     QPushButton* editButton = new QPushButton();
     editButton->setFixedSize(24, 24);
     editButton->setIcon(QIcon(":/resources/edit.svg"));
@@ -180,11 +191,11 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item,
     buttonLayout->addWidget(editButton);
     buttonLayout->addWidget(deleteButton);
 
-    // Add to main layout: left content expands, buttons container fixed and right-aligned
+    itemContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
     mainLayout->addLayout(leftLayout, 1);
     mainLayout->addWidget(buttonContainer, 0, Qt::AlignRight);
 
-    item->setSizeHint(QSize(-1, itemContainer->sizeHint().height()));
     streamList->setItemWidget(item, itemContainer);
 
     connect(editButton, &QPushButton::clicked, this,
@@ -281,15 +292,12 @@ void OneSevenLiveStreamListDock::resizeEvent(QResizeEvent* event) {
         emptyContainer->setGeometry(widget()->rect());
     }
 
-    const int viewportWidth = streamList->viewport()->width();
     for (int i = 0; i < streamList->count(); ++i) {
         auto item = streamList->item(i);
         if (auto w = streamList->itemWidget(item)) {
-            // Clamp width to viewport to avoid horizontal overflow
-            w->setMinimumWidth(0);
-            w->setMaximumWidth(viewportWidth);
-            w->updateGeometry();
-            item->setSizeHint(QSize(viewportWidth, w->sizeHint().height()));
+            if (w) {
+                item->setSizeHint(QSize(streamList->viewport()->width(), w->sizeHint().height()));
+            }
         }
     }
 }
