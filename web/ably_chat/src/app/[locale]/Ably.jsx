@@ -340,9 +340,9 @@ export default function AblyComponent() {
                     // For now just log incoming messages; integrate as needed later
                     try {
                         const payload = JSON.parse(event.data);
-                        console.log('WebSocket message:', payload);
+                        // console.log('WebSocket message:', payload);
                     } catch {
-                        console.log('WebSocket message (text):', event.data);
+                        // console.log('WebSocket message (text):', event.data);
                     }
                 };
 
@@ -387,6 +387,32 @@ export default function AblyComponent() {
                 || decodeMessage?.type === MsgType_POKE
             ) {
                 const indexedChat = prepareIndexedChat(decodeMessage);
+                const gift = indexedChat.get('gift');
+                if (gift) {
+                    let playData = {
+                        type: 'play_vff',
+                        vffURL: gift.get('vffURL'),
+                        vffJson: gift.get('vffJson'),
+                    }
+                    const composite = decodeMessage.giftMsg?.giftMetas[0]?.composite;
+                    if (composite) {
+                        playData.compositeData = Object.fromEntries(composite.map(item => [item.tag, item.imageURL]));
+                    }
+                    // Forward selected message types to WebSocket server when connected
+                    try {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                type: decodeMessage?.type,
+                                roomID,
+                                userID,
+                                payload: playData,
+                            }));
+                        }
+                    } catch (e) {
+                        console.error('Failed to forward message via WebSocket:', e);
+                    }
+                }
+
                 setChatList(prevChatList => {
                     const newChatList = [...prevChatList, indexedChat];
                     // only keep the last 1000 chat messages

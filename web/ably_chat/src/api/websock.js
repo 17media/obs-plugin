@@ -21,7 +21,7 @@ export async function getWebSocketServerURL() {
         let url = '';
         if (contentType && contentType.includes('application/json')) {
             const data = await res.json();
-            url = data?.url || data?.wsUrl || data?.WS_URL || '';
+            url = data?.url || data?.wsUrl || data?.WS_URL || data?.ws_url || '';
         } else {
             url = (await res.text())?.trim();
         }
