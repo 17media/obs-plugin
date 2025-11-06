@@ -110,10 +110,61 @@ bool OneSevenLiveCoreManager::initialize() {
         }
 
         // Set up WebSocket server callbacks
-        websocketServer_->setMessageCallback([](const std::string& clientId, const std::string& message) {
-            obs_log(LOG_INFO, "[17Live WebSocket] Received message from %s: %s", 
-                   clientId.c_str(), message.c_str());
-            // Handle incoming WebSocket messages here
+        websocketServer_->setMessageCallback([this](const std::string& clientId, const std::string& message) {
+            // Parse incoming WebSocket JSON message and forward specific payloads
+            try {
+                Json msgJson = Json::parse(message);
+
+                // Check top-level type == 13 (numeric or string "13")
+                int typeInt = -1;
+                if (msgJson.contains("type")) {
+                    if (msgJson["type"].is_number_integer()) {
+                        typeInt = msgJson["type"].get<int>();
+                    } else if (msgJson["type"].is_string()) {
+                        const std::string typeStr = msgJson["type"].get<std::string>();
+                        try {
+                            typeInt = std::stoi(typeStr);
+                        } catch (...) {
+                            typeInt = -1;
+                        }
+                    }
+                }
+
+                if (typeInt == 13 && msgJson.contains("payload")) {
+                    const auto& payload = msgJson["payload"];
+                    if (payload.is_object()) {
+                        bool shouldForward = false;
+                        if (payload.contains("type") && payload["type"].is_string()) {
+                            const std::string payloadType = payload["type"].get<std::string>();
+                            if (payloadType == "play_vff") {
+                                shouldForward = true;
+                            }
+                        }
+
+                        if (shouldForward) {
+                            if (this->websocketServer_ && this->websocketServer_->is_running()) {
+                                const std::string out = payload.dump();
+                                this->websocketServer_->broadcastMessage(out);
+                                // obs_log(LOG_INFO,
+                                //         "[17Live WebSocket] Forwarded payload (type=play_vff) from %s",
+                                //         clientId.c_str());
+                            } else {
+                                obs_log(LOG_WARNING,
+                                        "[17Live WebSocket] Server not running; cannot forward payload from %s",
+                                        clientId.c_str());
+                            }
+                        }
+                    }
+                }
+            } catch (const Json::parse_error& e) {
+                obs_log(LOG_WARNING,
+                        "[17Live WebSocket] JSON parse error in message from %s: %s",
+                        clientId.c_str(), e.what());
+            } catch (const std::exception& e) {
+                obs_log(LOG_WARNING,
+                        "[17Live WebSocket] Exception processing message from %s: %s",
+                        clientId.c_str(), e.what());
+            }
         });
 
         websocketServer_->setConnectionCallback([](const std::string& clientId, bool connected) {

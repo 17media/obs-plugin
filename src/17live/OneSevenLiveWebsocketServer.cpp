@@ -17,29 +17,29 @@
 
 OneSevenLiveWebsocketServer::OneSevenLiveWebsocketServer(const std::string& host, int port)
     : host_(host == "localhost" ? "127.0.0.1" : host), port_(port), running_(false) {
-    blog(LOG_INFO, "[17Live WebSocket Server] Initializing WebSocket server on %s:%d", 
-         host_.c_str(), port_);
+    // obs_log(LOG_INFO, "[17Live WebSocket Server] Initializing WebSocket server on %s:%d", 
+//         host_.c_str(), port_);
 }
 
 OneSevenLiveWebsocketServer::~OneSevenLiveWebsocketServer() {
-    blog(LOG_INFO, "[17Live WebSocket Server] Starting WebSocket server destruction");
+    obs_log(LOG_INFO, "[17Live WebSocket Server] Starting WebSocket server destruction");
     
     // Ensure server is completely stopped and thread properly terminated
     stop();
     
     // Additional safety check: ensure thread has completely finished
     if (server_thread_ && server_thread_->joinable()) {
-        blog(LOG_WARNING,
+        obs_log(LOG_WARNING,
              "[17Live WebSocket Server] Thread still joinable in destructor, forcing thread termination wait");
         server_thread_->join();
     }
     
-    blog(LOG_INFO, "[17Live WebSocket Server] WebSocket server successfully destroyed");
+    obs_log(LOG_INFO, "[17Live WebSocket Server] WebSocket server successfully destroyed");
 }
 
 bool OneSevenLiveWebsocketServer::start() {
     if (running_) {
-        blog(LOG_WARNING, "[17Live WebSocket Server] Server already running.");
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Server already running.");
         return true;
     }
 
@@ -49,11 +49,11 @@ bool OneSevenLiveWebsocketServer::start() {
         if (port_ == 0) {
             actual_port = getAvailablePort();
             if (actual_port == 0) {
-                blog(LOG_ERROR, "[17Live WebSocket Server] Failed to find available port");
+                obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to find available port");
                 return false;
             }
             port_ = actual_port;
-            blog(LOG_INFO, "[17Live WebSocket Server] Using auto-assigned port: %d", actual_port);
+            obs_log(LOG_INFO, "[17Live WebSocket Server] Using auto-assigned port: %d", actual_port);
         }
 
         // Create WebSocket server instance with the determined port
@@ -69,29 +69,29 @@ bool OneSevenLiveWebsocketServer::start() {
         // Start server in new thread to avoid blocking main thread
         server_thread_ = std::make_unique<std::thread>([this, actual_port]() {
             try {
-                blog(LOG_INFO, "[17Live WebSocket Server] Starting server on %s:%d", 
+                obs_log(LOG_INFO, "[17Live WebSocket Server] Starting server on %s:%d", 
                      host_.c_str(), actual_port);
                 
                 auto result = server_->listen();
                 if (!result.first) {
-                    blog(LOG_ERROR, "[17Live WebSocket Server] Failed to start server: %s", 
+                    obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to start server: %s", 
                          result.second.c_str());
                     running_ = false;
                     return;
                 }
                 
-                blog(LOG_INFO, "[17Live WebSocket Server] Server started successfully on %s:%d", 
+                obs_log(LOG_INFO, "[17Live WebSocket Server] Server started successfully on %s:%d", 
                      host_.c_str(), actual_port);
                 
                 // Start the server
                 server_->start();
                 
             } catch (const std::exception& e) {
-                blog(LOG_ERROR, "[17Live WebSocket Server] Exception during server startup: %s", 
+                obs_log(LOG_ERROR, "[17Live WebSocket Server] Exception during server startup: %s", 
                      e.what());
                 running_ = false;
             } catch (...) {
-                blog(LOG_ERROR, "[17Live WebSocket Server] Unknown exception during server startup");
+                obs_log(LOG_ERROR, "[17Live WebSocket Server] Unknown exception during server startup");
                 running_ = false;
             }
         });
@@ -100,12 +100,12 @@ bool OneSevenLiveWebsocketServer::start() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         
         running_ = true;
-        blog(LOG_INFO, "[17Live WebSocket Server] Server thread started successfully");
+        obs_log(LOG_INFO, "[17Live WebSocket Server] Server thread started successfully");
         
         return true;
         
     } catch (const std::exception& e) {
-        blog(LOG_ERROR, "[17Live WebSocket Server] Failed to create server: %s", e.what());
+        obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to create server: %s", e.what());
         return false;
     }
 }
@@ -115,7 +115,7 @@ void OneSevenLiveWebsocketServer::stop() {
         return;
     }
     
-    blog(LOG_INFO, "[17Live WebSocket Server] Stopping WebSocket server");
+    obs_log(LOG_INFO, "[17Live WebSocket Server] Stopping WebSocket server");
     
     running_ = false;
     
@@ -136,7 +136,7 @@ void OneSevenLiveWebsocketServer::stop() {
         client_ips_.clear();
     }
     
-    blog(LOG_INFO, "[17Live WebSocket Server] WebSocket server stopped");
+    obs_log(LOG_INFO, "[17Live WebSocket Server] WebSocket server stopped");
 }
 
 bool OneSevenLiveWebsocketServer::is_running() const {
@@ -149,7 +149,7 @@ int OneSevenLiveWebsocketServer::getPort() const {
 
 void OneSevenLiveWebsocketServer::broadcastMessage(const std::string& message) {
     if (!validate_message_size(message)) {
-        blog(LOG_WARNING, "[17Live WebSocket Server] Message too large for broadcast: %zu bytes", 
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Message too large for broadcast: %zu bytes", 
              message.size());
         return;
     }
@@ -162,7 +162,7 @@ void OneSevenLiveWebsocketServer::broadcastMessage(const std::string& message) {
                 webSocket->send(message);
                 ++it;
             } catch (const std::exception& e) {
-                blog(LOG_WARNING, "[17Live WebSocket Server] Failed to send message to client %s: %s", 
+                obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to send message to client %s: %s", 
                      it->first.c_str(), e.what());
                 it = clients_.erase(it);
             }
@@ -176,7 +176,7 @@ void OneSevenLiveWebsocketServer::broadcastMessage(const std::string& message) {
 void OneSevenLiveWebsocketServer::sendMessageToClient(const std::string& clientId, 
                                                      const std::string& message) {
     if (!validate_message_size(message)) {
-        blog(LOG_WARNING, "[17Live WebSocket Server] Message too large for client %s: %zu bytes", 
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Message too large for client %s: %zu bytes", 
              clientId.c_str(), message.size());
         return;
     }
@@ -189,7 +189,7 @@ void OneSevenLiveWebsocketServer::sendMessageToClient(const std::string& clientI
             try {
                 webSocket->send(message);
             } catch (const std::exception& e) {
-                blog(LOG_WARNING, "[17Live WebSocket Server] Failed to send message to client %s: %s", 
+                obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to send message to client %s: %s", 
                      clientId.c_str(), e.what());
                 clients_.erase(it);
             }
@@ -198,7 +198,7 @@ void OneSevenLiveWebsocketServer::sendMessageToClient(const std::string& clientI
             clients_.erase(it);
         }
     } else {
-        blog(LOG_WARNING, "[17Live WebSocket Server] Client %s not found", clientId.c_str());
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Client %s not found", clientId.c_str());
     }
 }
 
@@ -284,7 +284,7 @@ int OneSevenLiveWebsocketServer::getAvailablePort() const {
     // Create a socket to find an available port
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        blog(LOG_ERROR, "[17Live WebSocket Server] Failed to create socket for port detection");
+        obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to create socket for port detection");
         return 0;
     }
 
@@ -297,7 +297,7 @@ int OneSevenLiveWebsocketServer::getAvailablePort() const {
 
     // Bind to get an available port
     if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        blog(LOG_ERROR, "[17Live WebSocket Server] Failed to bind socket for port detection");
+        obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to bind socket for port detection");
         close(sockfd);
         return 0;
     }
@@ -305,7 +305,7 @@ int OneSevenLiveWebsocketServer::getAvailablePort() const {
     // Get the actual port assigned by the system
     socklen_t addr_len = sizeof(addr);
     if (getsockname(sockfd, (struct sockaddr*)&addr, &addr_len) < 0) {
-        blog(LOG_ERROR, "[17Live WebSocket Server] Failed to get socket name for port detection");
+        obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to get socket name for port detection");
         close(sockfd);
         return 0;
     }
@@ -313,7 +313,7 @@ int OneSevenLiveWebsocketServer::getAvailablePort() const {
     int available_port = ntohs(addr.sin_port);
     close(sockfd);
     
-    blog(LOG_INFO, "[17Live WebSocket Server] Found available port: %d", available_port);
+    obs_log(LOG_INFO, "[17Live WebSocket Server] Found available port: %d", available_port);
     return available_port;
 }
 
@@ -327,7 +327,7 @@ void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webS
     std::string clientId = generate_client_id();
     std::string clientIp = get_client_ip(connectionState);
     
-    blog(LOG_INFO, "[17Live WebSocket Server] New connection: %s from %s", 
+    obs_log(LOG_INFO, "[17Live WebSocket Server] New connection: %s from %s", 
          clientId.c_str(), clientIp.c_str());
     
     // Store client connection
@@ -346,9 +346,9 @@ void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webS
     try {
         std::string welcomeMessage = "Hello! Welcome to 17Live WebSocket Server. Connection established successfully.";
         ws->send(welcomeMessage);
-        blog(LOG_INFO, "[17Live WebSocket Server] Sent welcome message to client %s", clientId.c_str());
+        // obs_log(LOG_INFO, "[17Live WebSocket Server] Sent welcome message to client %s", clientId.c_str());
     } catch (const std::exception& e) {
-        blog(LOG_WARNING, "[17Live WebSocket Server] Failed to send welcome message to client %s: %s", 
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to send welcome message to client %s: %s", 
              clientId.c_str(), e.what());
     }
     
@@ -390,7 +390,7 @@ void OneSevenLiveWebsocketServer::onMessage(std::shared_ptr<ix::ConnectionState>
     }
     
     if (clientId.empty()) {
-        blog(LOG_WARNING, "[17Live WebSocket Server] Received message from unknown client");
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Received message from unknown client");
         return;
     }
     
@@ -399,7 +399,7 @@ void OneSevenLiveWebsocketServer::onMessage(std::shared_ptr<ix::ConnectionState>
             {
                 // Rate limiting check
                 if (!check_rate_limit(clientIp)) {
-                    blog(LOG_WARNING, "[17Live WebSocket Server] Rate limit exceeded for client %s", 
+                    obs_log(LOG_WARNING, "[17Live WebSocket Server] Rate limit exceeded for client %s", 
                          clientId.c_str());
                     webSocket.close();
                     return;
@@ -407,13 +407,13 @@ void OneSevenLiveWebsocketServer::onMessage(std::shared_ptr<ix::ConnectionState>
                 
                 // Message size validation
                 if (!validate_message_size(msg->str)) {
-                    blog(LOG_WARNING, "[17Live WebSocket Server] Message too large from client %s: %zu bytes", 
+                    obs_log(LOG_WARNING, "[17Live WebSocket Server] Message too large from client %s: %zu bytes", 
                          clientId.c_str(), msg->str.size());
                     return;
                 }
                 
-                blog(LOG_INFO, "[17Live WebSocket Server] Received message from %s: %s", 
-                     clientId.c_str(), msg->str.c_str());
+                // obs_log(LOG_INFO, "[17Live WebSocket Server] Received message from %s: %s", 
+                //      clientId.c_str(), msg->str.c_str());
                 
                 // Notify message callback
                 {
@@ -427,7 +427,7 @@ void OneSevenLiveWebsocketServer::onMessage(std::shared_ptr<ix::ConnectionState>
             
         case ix::WebSocketMessageType::Close:
             {
-                blog(LOG_INFO, "[17Live WebSocket Server] Client %s disconnected", clientId.c_str());
+                obs_log(LOG_INFO, "[17Live WebSocket Server] Client %s disconnected", clientId.c_str());
                 
                 // Remove client from connections
                 {
@@ -448,26 +448,26 @@ void OneSevenLiveWebsocketServer::onMessage(std::shared_ptr<ix::ConnectionState>
             
         case ix::WebSocketMessageType::Error:
             {
-                blog(LOG_ERROR, "[17Live WebSocket Server] Error from client %s: %s", 
+                obs_log(LOG_ERROR, "[17Live WebSocket Server] Error from client %s: %s", 
                      clientId.c_str(), msg->errorInfo.reason.c_str());
             }
             break;
             
         case ix::WebSocketMessageType::Ping:
             {
-                blog(LOG_DEBUG, "[17Live WebSocket Server] Ping from client %s", clientId.c_str());
+                obs_log(LOG_DEBUG, "[17Live WebSocket Server] Ping from client %s", clientId.c_str());
                 // IXWebSocket automatically handles pong responses
             }
             break;
             
         case ix::WebSocketMessageType::Pong:
             {
-                blog(LOG_DEBUG, "[17Live WebSocket Server] Pong from client %s", clientId.c_str());
+                obs_log(LOG_DEBUG, "[17Live WebSocket Server] Pong from client %s", clientId.c_str());
             }
             break;
             
         default:
-            blog(LOG_DEBUG, "[17Live WebSocket Server] Unknown message type from client %s", 
+            obs_log(LOG_DEBUG, "[17Live WebSocket Server] Unknown message type from client %s", 
                  clientId.c_str());
             break;
     }
