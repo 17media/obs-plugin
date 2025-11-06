@@ -1,3 +1,0 @@
-[submodule "web/vff"]
-	path = web/vff
-	url = git@github.com:passwind/17live-vff.git
