@@ -8,6 +8,7 @@
 #include <QObject>
 #include <QTimer>
 #include <QWidget>
+#include <QString>
 
 #include "../utility/OneSevenLivePreviewConfigLoader.hpp"
 
@@ -28,6 +29,12 @@ class OneSevenLivePreviewWidget : public QWidget {
      * @brief Force refresh the display and overlays
      */
     void forceRefresh();
+
+    /**
+     * @brief Set an override URL for the browser overlay.
+     *        When set (non-empty), this URL is used instead of config-defined URL.
+     */
+    void setOverlayUrl(const QString& url);
 
    protected:
     void resizeEvent(QResizeEvent* event) override;
@@ -78,4 +85,7 @@ class OneSevenLivePreviewWidget : public QWidget {
 
     // Overlay scaling
     float overlayScale;
+
+    // Optional overlay URL override
+    QString overlayUrl_;
 };

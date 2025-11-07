@@ -1085,10 +1085,12 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
 
     std::string locale = GetCurrentLocale();
 
+    QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
+
     QString chatUrl =
-        QString("http://localhost:%1/%2.html?roomID=%3&userID=%4")
+        QString("http://localhost:%1/%2.html?roomID=%3&userID=%4&ws=%5")
             .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
-                 QString::number(loginData.userInfo.roomID), loginData.userInfo.userID);
+                 QString::number(loginData.userInfo.roomID), loginData.userInfo.userID, wsUrl);
     obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
 
     chatRoomDock->resize(378, 600);
@@ -1291,8 +1293,15 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         return;
     }
 
+    
+    QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
+
+    QString cartoonUrl =
+        QString("http://localhost:%1/vff/?ws=%2")
+            .arg(QString::number(httpServer_->getPort()), wsUrl);
+    obs_log(LOG_INFO, "cartoonUrl: %s", cartoonUrl.toStdString().c_str());
     // Create preview dock
-    previewDock = new OneSevenLivePreviewDock(mainWindow);
+    previewDock = new OneSevenLivePreviewDock(mainWindow, cartoonUrl);
     previewDock->setObjectName("OneSevenLivePreviewDock");
 
     previewDock->setMaximumWidth(800);

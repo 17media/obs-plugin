@@ -44,7 +44,8 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
       browserSource(nullptr),
       configLoader(new OneSevenLivePreviewConfigLoader(this)),
       browserRefreshTimer(new QTimer(this)),
-      overlayScale(1.0f) {
+      overlayScale(1.0f),
+      overlayUrl_() {
     // Set widget attributes for proper native rendering
     setAttribute(Qt::WA_NativeWindow, true);
     setAttribute(Qt::WA_PaintOnScreen, true);
@@ -465,10 +466,12 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
         return;
     }
 
-    // Create settings from configuration
+    // Create settings from configuration (allow override by overlayUrl_)
     obs_data_t* settings = obs_data_create();
 
-    obs_data_set_string(settings, "url", browserConfig.url.toUtf8().constData());
+    const QString effectiveUrl = overlayUrl_.isEmpty() ? browserConfig.url : overlayUrl_;
+    obs_log(LOG_INFO, "Using overlay URL: %s", effectiveUrl.toUtf8().constData());
+    obs_data_set_string(settings, "url", effectiveUrl.toUtf8().constData());
     obs_data_set_int(settings, "width", browserConfig.width);
     obs_data_set_int(settings, "height", browserConfig.height);
     obs_data_set_int(settings, "fps", browserConfig.fps);
@@ -518,8 +521,9 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
     // Force browser source to refresh by triggering a property update
     obs_data_t* settings = obs_source_get_settings(browserSource);
     if (settings) {
-        // Update the URL to trigger a refresh (set to same URL)
-        obs_data_set_string(settings, "url", browserConfig.url.toUtf8().constData());
+        // Update the URL to trigger a refresh; overlayUrl_ overrides config
+        const QString effectiveUrl = overlayUrl_.isEmpty() ? browserConfig.url : overlayUrl_;
+        obs_data_set_string(settings, "url", effectiveUrl.toUtf8().constData());
         obs_source_update(browserSource, settings);
         obs_data_release(settings);
     }
@@ -530,6 +534,14 @@ void OneSevenLivePreviewWidget::setOverlayScale(float scale) {
     
     // Force refresh to apply new scale
     forceRefresh();
+}
+
+void OneSevenLivePreviewWidget::setOverlayUrl(const QString& url) {
+    overlayUrl_ = url;
+    // Apply immediately if browser source exists
+    updateBrowserSource();
+    obs_log(LOG_INFO, "Preview overlay URL %s",
+            overlayUrl_.isEmpty() ? "(using config)" : overlayUrl_.toUtf8().constData());
 }
 
 void OneSevenLivePreviewWidget::forceRefresh() {

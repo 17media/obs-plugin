@@ -9,6 +9,7 @@
 #include "../../plugin-support.h"
 #include "moc_OneSevenLivePreviewDock.cpp"
 
+
 // Helper function to get module data path (static to avoid symbol conflicts)
 static std::string get_obs_module_data_path_str() {
     const char* path = obs_get_module_data_path(obs_current_module());
@@ -18,8 +19,9 @@ static std::string get_obs_module_data_path_str() {
     return "";  // Or throw exception, or return a default known path
 }
 
-OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent)
+OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent, const QString& overlayUrl)
     : QDockWidget(obs_module_text("PreviewDock.Title"), parent),
+      overlayUrl_(overlayUrl),
       previewScreen(nullptr),
       configLoader(nullptr),
       initialized(false) {
@@ -50,6 +52,14 @@ void OneSevenLivePreviewDock::setupUi() {
     // Create preview screen widget
     previewScreen = new OneSevenLivePreviewScreen(this);
     setWidget(previewScreen);
+
+    // If an overlayUrl was provided, pass it to the preview widget to override
+    if (previewScreen && !overlayUrl_.isEmpty()) {
+        OneSevenLivePreviewWidget* widget = previewScreen->getPreviewWidget();
+        if (widget) {
+            widget->setOverlayUrl(overlayUrl_);
+        }
+    }
 }
 
 void OneSevenLivePreviewDock::loadConfiguration() {

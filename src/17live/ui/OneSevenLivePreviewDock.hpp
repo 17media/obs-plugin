@@ -2,6 +2,7 @@
 
 #include <QDockWidget>
 #include <QPointer>
+#include <QString>
 
 #include "../utility/OneSevenLivePreviewConfigLoader.hpp"
 #include "OneSevenLivePreviewScreen.hpp"
@@ -10,7 +11,7 @@ class OneSevenLivePreviewDock : public QDockWidget {
     Q_OBJECT
 
    public:
-    explicit OneSevenLivePreviewDock(QWidget* parent = nullptr);
+    explicit OneSevenLivePreviewDock(QWidget* parent = nullptr, const QString& overlayUrl = QString());
     ~OneSevenLivePreviewDock();
 
     void initializePreview();
@@ -30,4 +31,5 @@ class OneSevenLivePreviewDock : public QDockWidget {
     QPointer<OneSevenLivePreviewConfigLoader> configLoader;
 
     bool initialized;
+    QString overlayUrl_;
 };

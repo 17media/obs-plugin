@@ -327,7 +327,21 @@ export default function AblyComponent() {
         let ws;
         (async () => {
             try {
-                const wsUrl = await getWebSocketServerURL();
+                // Prefer `ws` query parameter if provided; fallback to server-provided URL
+                const params = new URLSearchParams(window.location.search);
+                const wsParam = params.get('ws');
+                let wsUrl;
+                if (wsParam && wsParam.trim()) {
+                    try {
+                        // Resolve relative paths against current origin; keep absolute as-is
+                        wsUrl = new URL(wsParam.trim(), window.location.origin).toString();
+                    } catch {
+                        wsUrl = wsParam.trim();
+                    }
+                    console.log('Using WebSocket URL from query param:', wsUrl);
+                } else {
+                    wsUrl = await getWebSocketServerURL();
+                }
                 ws = new WebSocket(wsUrl);
 
                 ws.onopen = () => {
