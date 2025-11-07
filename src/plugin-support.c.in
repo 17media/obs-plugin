@@ -21,6 +21,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 const char *PLUGIN_NAME = "@CMAKE_PROJECT_NAME@";
 const char *PLUGIN_VERSION = "@CMAKE_PROJECT_VERSION@";
 const char *ONESEVENLIVE_API_URL = "@ONESEVENLIVE_API_URL@";
+const char *YOUTUBE_API_CLIENT_ID = "@YOUTUBE_API_CLIENT_ID@";
+const char *TWITCH_API_CLIENT_ID = "@TWITCH_API_CLIENT_ID@";
 
 void obs_log(int log_level, const char *format, ...)
 {

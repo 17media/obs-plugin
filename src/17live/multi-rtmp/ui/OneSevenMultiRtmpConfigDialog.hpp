@@ -90,7 +90,7 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
     // Basic info section
     QWidget* m_basicInfoWidget;
     QFormLayout* m_basicInfoLayout;
-    QLineEdit* m_streamNameEdit;
+    QComboBox* m_streamNameCombo;
     QComboBox* m_protocolCombo;
     OneSevenLivePropertiesWidget* m_serviceWidget;
     QCheckBox* m_syncStartCheckbox;

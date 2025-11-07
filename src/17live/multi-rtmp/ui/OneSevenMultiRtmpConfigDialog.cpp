@@ -128,18 +128,16 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection() {
     m_basicInfoLayout->setSpacing(12);
     m_basicInfoLayout->setContentsMargins(0, 0, 0, 0);
 
-    // Stream name input (required field)
+    // RTMP channel selection (stored in config.streamName)
     QLabel* streamNameLabel = new QLabel();
     streamNameLabel->setText(
         QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
             .arg(obs_module_text("MultiRtmp.Config.StreamName")));
-
-    m_streamNameEdit = new QLineEdit();
-    m_streamNameEdit->setPlaceholderText(
-        obs_module_text("MultiRtmp.Config.StreamName.Placeholder"));
-    m_streamNameEdit->setText(obs_module_text("MultiRtmp.Config.StreamName.Default"));
-    m_streamNameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_basicInfoLayout->addRow(streamNameLabel, m_streamNameEdit);
+    m_streamNameCombo = new QComboBox();
+    m_streamNameCombo->addItem("YouTube");
+    m_streamNameCombo->addItem("Twitch");
+    m_streamNameCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_basicInfoLayout->addRow(streamNameLabel, m_streamNameCombo);
 
     // Protocol dropdown - only RTMP, SRT/RIST, WHIP
     QLabel* protocolLabel = new QLabel();
@@ -430,9 +428,13 @@ void OneSevenMultiRtmpConfigDialog::loadConfig() {
     }
 
     // Load basic information
-    // Only set stream name if it's not empty, preserve default value for new configs
+    // Map existing streamName to combo selection if matches supported channels
     if (!m_config->streamName.empty()) {
-        m_streamNameEdit->setText(QString::fromStdString(m_config->streamName));
+        const QString name = QString::fromStdString(m_config->streamName);
+        int idx = m_streamNameCombo->findText(name, Qt::MatchFixedString);
+        if (idx >= 0) {
+            m_streamNameCombo->setCurrentIndex(idx);
+        }
     }
 
     // Load protocol and URL
@@ -662,12 +664,12 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const {
         }
 
         // Basic configuration with null checks
-        if (!m_streamNameEdit) {
-            obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_streamNameEdit is null");
-            throw std::runtime_error("Stream name edit widget is null");
+        if (!m_streamNameCombo) {
+            obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_streamNameCombo is null");
+            throw std::runtime_error("Stream name combo widget is null");
         }
-        config.streamName = m_streamNameEdit->text().toStdString();
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Stream name: '%s'", config.streamName.c_str());
+        config.streamName = m_streamNameCombo->currentText().toStdString();
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] RTMP channel (stream name): '%s'", config.streamName.c_str());
 
         if (!m_protocolCombo) {
             obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_protocolCombo is null");
