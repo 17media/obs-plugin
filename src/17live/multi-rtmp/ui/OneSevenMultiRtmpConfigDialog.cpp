@@ -139,6 +139,10 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection() {
     m_streamNameCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_basicInfoLayout->addRow(streamNameLabel, m_streamNameCombo);
 
+    // Authorize login button (YouTube/Twitch)
+    m_authorizeButton = new QPushButton(obs_module_text("MultiRtmp.Config.Authorize"));
+    m_basicInfoLayout->addRow(m_authorizeButton);
+
     // Protocol dropdown - only RTMP, SRT/RIST, WHIP
     QLabel* protocolLabel = new QLabel();
     protocolLabel->setText(QString("<span style='color:white;'>%1</span>")
@@ -363,6 +367,12 @@ void OneSevenMultiRtmpConfigDialog::setupConnections() {
     // Buttons
     connect(m_okButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::accept);
     connect(m_cancelButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::reject);
+
+    // Authorize button
+    if (m_authorizeButton) {
+        connect(m_authorizeButton, &QPushButton::clicked, this,
+                &OneSevenMultiRtmpConfigDialog::onAuthorizeClicked);
+    }
 }
 
 void OneSevenMultiRtmpConfigDialog::setEditMode(bool isEdit) {
@@ -420,6 +430,28 @@ void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled() {
             resize(width(), 400);
         }
     }
+}
+
+void OneSevenMultiRtmpConfigDialog::onAuthorizeClicked() {
+    // Determine selected RTMP channel
+    QString channel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
+
+    // Log and basic UX placeholder
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Authorize clicked for channel: %s",
+            channel.isEmpty() ? "(none)" : channel.toUtf8().constData());
+
+    QString msg;
+    if (!channel.isEmpty()) {
+        msg = QString("%1: %2")
+                  .arg(obs_module_text("MultiRtmp.Config.Authorize"))
+                  .arg(channel);
+    } else {
+        msg = obs_module_text("MultiRtmp.Config.Authorize");
+    }
+
+    QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                             msg + "\n\n" +
+                                 QString("Authorization flow will be implemented in a future update."));
 }
 
 void OneSevenMultiRtmpConfigDialog::loadConfig() {

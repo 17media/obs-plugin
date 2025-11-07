@@ -24,7 +24,6 @@
 #include <QWidget>
 
 #include "../OneSevenMultiRtmpModels.hpp"
-#include "plugin-support.h"
 
 class OneSevenLivePropertiesWidget;
 
@@ -56,6 +55,7 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
 
    private slots:
     void onAdvancedSettingsToggled();
+    void onAuthorizeClicked();
 
    private:
     void setupUI();
@@ -91,6 +91,7 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
     QWidget* m_basicInfoWidget;
     QFormLayout* m_basicInfoLayout;
     QComboBox* m_streamNameCombo;
+    QPushButton* m_authorizeButton;
     QComboBox* m_protocolCombo;
     OneSevenLivePropertiesWidget* m_serviceWidget;
     QCheckBox* m_syncStartCheckbox;
