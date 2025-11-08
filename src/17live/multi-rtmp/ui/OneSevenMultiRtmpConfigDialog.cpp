@@ -458,7 +458,7 @@ void OneSevenMultiRtmpConfigDialog::onAuthorizeClicked() {
 
         m_isTwitchAuthorizing = true;
 
-        OneSevenLiveCoreManager& coreManager = OneSevenLiveCoreManager::getInstance();
+//        OneSevenLiveCoreManager& coreManager = OneSevenLiveCoreManager::getInstance();
         // QString redirectUri = QString("http://localhost:%1")
         //     .arg(coreManager.getHttpServer()->getPort());
         QString redirectUri = "https://17.live";

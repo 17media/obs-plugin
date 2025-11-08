@@ -69,6 +69,7 @@ class OneSevenLiveConfigManager {
     bool setTwitchTokens(const QString &accessToken, const QString &refreshToken);
     bool getTwitchTokens(QString &accessToken, QString &refreshToken);
     bool clearTwitchTokens();
+    bool setTwitchAccessTokenFetchedAt(qint64 fetchedAtEpochSec);
 
    private:
     bool initialized = false;

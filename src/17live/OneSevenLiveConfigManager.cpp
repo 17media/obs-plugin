@@ -782,3 +782,27 @@ bool OneSevenLiveConfigManager::clearTwitchTokens() {
     obs_log(LOG_INFO, "Twitch tokens cleared successfully");
     return true;
 }
+
+bool OneSevenLiveConfigManager::setTwitchAccessTokenFetchedAt(qint64 fetchedAtEpochSec) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string fetchedStr = std::to_string(static_cast<long long>(fetchedAtEpochSec));
+    config_set_string(config, service, "TwitchAccessTokenFetchedAt", fetchedStr.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save Twitch token fetched time");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "Twitch token fetched time saved successfully");
+    return true;
+}

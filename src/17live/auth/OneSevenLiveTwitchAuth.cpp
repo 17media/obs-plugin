@@ -1,5 +1,10 @@
 #include "OneSevenLiveTwitchAuth.hpp"
-#include "../../plugin-support.h"
+#include "plugin-support.h"
+#include "utility/RemoteTextThread.hpp"
+#include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveConfigManager.hpp"
+#include <QTimer>
+#include <QDateTime>
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -13,7 +18,7 @@
 #include <obs-module.h>
 
 // https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=hof5gwx0su6owfnys0nyan9c87zr6t&redirect_uri=http://localhost:3000&scope=channel%3Amanage%3Apolls+channel%3Aread%3Apolls&state=c3ab8aa609ea11e793ae92361f002671
-const QString OneSevenLiveTwitchAuth::TWITCH_DEVICE_AUTH_URL = "https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=%1&redirect_uri=%2&scope=%3&state=%4";
+const QString OneSevenLiveTwitchAuth::TWITCH_DEVICE_AUTH_URL = "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=%1&redirect_uri=%2&scope=%3&state=%4";
 const QString OneSevenLiveTwitchAuth::TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const QString OneSevenLiveTwitchAuth::TWITCH_SCOPE = "channel:read:stream_key channel:manage:broadcast user:read:email chat:read chat:edit";
 
@@ -305,28 +310,48 @@ void OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
         return;
     }
 
-    QUrlQuery query(url);
-    const QString code = query.queryItemValue("code");
-    const QString scope = query.queryItemValue("scope");
-    const QString state = query.queryItemValue("state");
+    // Support implicit grant style: http://localhost:3000/#access_token=...&scope=...&state=...&token_type=bearer
+    const QString fragment = url.fragment();
+    if (!fragment.isEmpty()) {
+        QUrlQuery fragQuery(fragment);
+        const QString accessToken = fragQuery.queryItemValue("access_token");
+        const QString tokenType = fragQuery.queryItemValue("token_type");
+        const QString scope = fragQuery.queryItemValue("scope");
+        const QString state = fragQuery.queryItemValue("state");
 
-    if (code.isEmpty()) {
-        obs_log(LOG_WARNING, "Twitch callback missing 'code' parameter");
+        if (accessToken.isEmpty()) {
+            obs_log(LOG_WARNING, "Twitch implicit callback missing 'access_token' in fragment");
+            return;
+        }
+
+        // Validate CSRF state if present (warn only)
+        if (!state.isEmpty() && !validateState(state)) {
+            obs_log(LOG_WARNING, "Twitch callback state mismatch: expected=%s got=%s",
+                    m_state.toUtf8().constData(), state.toUtf8().constData());
+        }
+
+        // Persist access token and fetched time
+        auto* cfg = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        if (cfg && cfg->initialize()) {
+            const qint64 fetchedAt = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
+            // Save token (no refresh token in implicit flow)
+            if (!cfg->setTwitchTokens(accessToken, "")) {
+                obs_log(LOG_ERROR, "Failed to save Twitch access token to config.ini");
+            }
+            // Save fetched time
+            if (!cfg->setTwitchAccessTokenFetchedAt(fetchedAt)) {
+                obs_log(LOG_ERROR, "Failed to save Twitch token fetched time to config.ini");
+            }
+        } else {
+            obs_log(LOG_ERROR, "ConfigManager not initialized; cannot persist Twitch token");
+        }
+
+        // Update local state and notify
+        setTokens(accessToken, "");
+        m_callbackScope = scope;
+        obs_log(LOG_INFO, "Twitch implicit callback parsed: access_token set, scope=%s token_type=%s",
+                m_callbackScope.toUtf8().constData(), tokenType.toUtf8().constData());
+        emit authorizationCompleted(m_accessToken, m_refreshToken);
+        return;
     }
-    if (state.isEmpty()) {
-        obs_log(LOG_WARNING, "Twitch callback missing 'state' parameter");
-    }
-
-    // Validate CSRF state - do not abort if mismatched, only log warning
-    if (!state.isEmpty() && !validateState(state)) {
-        obs_log(LOG_WARNING, "Twitch callback state mismatch: expected=%s got=%s",
-                m_state.toUtf8().constData(), state.toUtf8().constData());
-    }
-
-    // Store parsed values for subsequent token exchange (if needed)
-    m_authorizationCode = code;
-    m_callbackScope = scope;
-
-    obs_log(LOG_INFO, "Twitch callback parsed: code=%s scope=%s",
-            m_authorizationCode.toUtf8().constData(), m_callbackScope.toUtf8().constData());
 }
