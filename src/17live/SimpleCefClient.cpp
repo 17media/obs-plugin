@@ -40,3 +40,18 @@ void SimpleCefClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
         m_browser = nullptr;
     }
 }
+
+void SimpleCefClient::OnAddressChange(CefRefPtr<CefBrowser> browser,
+                                      CefRefPtr<CefFrame> frame,
+                                      const CefString &url) {
+    CEF_REQUIRE_UI_THREAD();
+    // Only care about main frame navigation
+    if (!frame || !frame->IsMain()) {
+        return;
+    }
+
+    if (onUrlChanged_) {
+        QString qurl = QString::fromStdString(url.ToString());
+        onUrlChanged_(qurl);
+    }
+}

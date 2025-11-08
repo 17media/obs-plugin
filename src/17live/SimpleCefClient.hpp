@@ -18,8 +18,10 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QWindow>
+#include <QString>
+#include <functional>
 
-class SimpleCefClient : public CefClient, public CefLifeSpanHandler {
+class SimpleCefClient : public CefClient, public CefLifeSpanHandler, public CefDisplayHandler {
    public:
     SimpleCefClient() {}
 
@@ -27,8 +29,15 @@ class SimpleCefClient : public CefClient, public CefLifeSpanHandler {
         return m_browser;
     }
 
+    // Callback to notify URL changes (Qt bridge sets this)
+    void setUrlChangedCallback(const std::function<void(QString)> &cb) { onUrlChanged_ = cb; }
+
     // CefClient interface implementation
     virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override {
+        return this;
+    }
+
+    virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler() override {
         return this;
     }
 
@@ -37,8 +46,14 @@ class SimpleCefClient : public CefClient, public CefLifeSpanHandler {
     virtual bool DoClose(CefRefPtr<CefBrowser> browser) override;
     virtual void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
 
+    // CefDisplayHandler
+    virtual void OnAddressChange(CefRefPtr<CefBrowser> browser,
+                                 CefRefPtr<CefFrame> frame,
+                                 const CefString &url) override;
+
    private:
     CefRefPtr<CefBrowser> m_browser;
+    std::function<void(QString)> onUrlChanged_;
 
     // CEF reference counting implementation
     IMPLEMENT_REFCOUNTING(SimpleCefClient);

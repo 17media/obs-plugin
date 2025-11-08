@@ -38,6 +38,10 @@ class QCefView : public QWidget {
    protected:
     virtual void resizeEvent(QResizeEvent *event) override;
 
+   signals:
+    // Emitted when the browser's current URL changes
+    void urlChanged(const QString &url);
+
    private:
     CefRefPtr<SimpleCefClient> m_client;
 

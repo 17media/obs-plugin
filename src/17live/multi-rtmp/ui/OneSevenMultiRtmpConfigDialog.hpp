@@ -19,13 +19,16 @@
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QTextEdit>
-#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include "../OneSevenMultiRtmpModels.hpp"
+#include <memory>
 
+#include "multi-rtmp/OneSevenMultiRtmpModels.hpp"
+
+// Forward declarations
 class OneSevenLivePropertiesWidget;
+class OneSevenLiveTwitchAuth;
 
 /**
  * Configuration dialog for Multi-RTMP stream settings
@@ -132,4 +135,11 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
 
     // State
     bool m_isEditMode;
+
+    // Twitch authorization
+    std::unique_ptr<OneSevenLiveTwitchAuth> m_twitchAuth;
+    bool m_isTwitchAuthorizing;
+
+    // Private slots for Twitch authorization
+    void onTwitchAuthUrlChanged(const QString& url);
 };

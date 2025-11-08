@@ -705,3 +705,80 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
         return false;
     }
 }
+
+bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken, const QString &refreshToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    // Convert to std::string and maintain reference
+    std::string accessTokenStr = accessToken.toStdString();
+    std::string refreshTokenStr = refreshToken.toStdString();
+
+    config_set_string(config, service, "TwitchAccessToken", accessTokenStr.c_str());
+    config_set_string(config, service, "TwitchRefreshToken", refreshTokenStr.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save Twitch tokens");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "Twitch tokens saved successfully");
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getTwitchTokens(QString &accessToken, QString &refreshToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    const char *accessTokenChar = config_get_string(config, service, "TwitchAccessToken");
+    const char *refreshTokenChar = config_get_string(config, service, "TwitchRefreshToken");
+
+    if (!accessTokenChar || !refreshTokenChar) {
+        return false;
+    }
+
+    accessToken = QString::fromUtf8(accessTokenChar);
+    refreshToken = QString::fromUtf8(refreshTokenChar);
+
+    return true;
+}
+
+bool OneSevenLiveConfigManager::clearTwitchTokens() {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    config_set_string(config, service, "TwitchAccessToken", "");
+    config_set_string(config, service, "TwitchRefreshToken", "");
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to clear Twitch tokens");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "Twitch tokens cleared successfully");
+    return true;
+}

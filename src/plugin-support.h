@@ -30,6 +30,8 @@ extern "C" {
 extern const char *PLUGIN_NAME;
 extern const char *PLUGIN_VERSION;
 extern const char *ONESEVENLIVE_API_URL;
+extern const char *YOUTUBE_API_CLIENT_ID;
+extern const char *TWITCH_API_CLIENT_ID;
 
 void obs_log(int log_level, const char *format, ...);
 extern void blogva(int log_level, const char *format, va_list args);

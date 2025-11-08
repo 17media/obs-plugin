@@ -416,6 +416,10 @@ OneSevenLiveWebsocketServer* OneSevenLiveCoreManager::getWebsocketServer() const
     return websocketServer_.get();
 }
 
+OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const {
+    return httpServer_.get();
+}
+
 bool OneSevenLiveCoreManager::handleLoginClicked() {
     OneSevenLiveLoginDialog dialog(mainWindow, getApiWrapper());
 

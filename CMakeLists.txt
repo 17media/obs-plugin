@@ -136,8 +136,10 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
   src/17live/OneSevenLiveHttpServer.cpp
   src/17live/OneSevenLiveWebsocketServer.cpp
   src/17live/OneSevenLiveUpdateManager.cpp
+  src/17live/auth/OneSevenLiveTwitchAuth.cpp
   src/17live/ui/OneSevenLivePropertyWidget.cpp
   src/17live/ui/OneSevenLivePropertiesWidget.cpp
+  src/17live/ui/OneSevenLiveAuthDialog.cpp
   src/17live/utility/OneSevenLivePreviewConfigLoader.cpp
   src/17live/ui/OneSevenLivePreviewWidget.cpp
   src/17live/ui/OneSevenLivePreviewScreen.cpp

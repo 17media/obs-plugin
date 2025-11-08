@@ -9,8 +9,16 @@
 #include <QStyle>
 #include <QUuid>
 
-#include "../../ui/OneSevenLivePropertiesWidget.hpp"
-#include "../../utility/Common.hpp"
+#include "ui/OneSevenLivePropertiesWidget.hpp"
+#include "ui/OneSevenLiveAuthDialog.hpp"
+#include "auth/OneSevenLiveTwitchAuth.hpp"
+#include "utility/Common.hpp"
+#include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveHttpServer.hpp"
+
+#include "plugin-support.h"
+
 #include "moc_OneSevenMultiRtmpConfigDialog.cpp"
 
 OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
@@ -21,7 +29,8 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
       m_tabWidget(nullptr),
       m_isEditMode(config != nullptr),
       m_advancedExpanded(false),
-      m_baseHeight(0) {
+      m_baseHeight(0),
+      m_isTwitchAuthorizing(false) {
     setWindowTitle(obs_module_text("MultiRTMP.Config.Title"));
     setModal(true);
 
@@ -31,7 +40,9 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
     resize(400, 450);          // Set initial size to ensure content fits properly
 
     setupUI();
-    setupConnections();
+
+    // Initialize Twitch authorization components
+    m_twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
 
     // Load configuration if provided
     if (m_config) {
@@ -45,6 +56,8 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
     // Record the base height after UI setup (when advanced settings are collapsed)
     // Use a small delay to ensure layout is fully calculated
     QTimer::singleShot(0, [this]() { m_baseHeight = height(); });
+
+    setupConnections();
 }
 
 OneSevenMultiRtmpConfigDialog::~OneSevenMultiRtmpConfigDialog() {}
@@ -369,10 +382,7 @@ void OneSevenMultiRtmpConfigDialog::setupConnections() {
     connect(m_cancelButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::reject);
 
     // Authorize button
-    if (m_authorizeButton) {
-        connect(m_authorizeButton, &QPushButton::clicked, this,
-                &OneSevenMultiRtmpConfigDialog::onAuthorizeClicked);
-    }
+    connect(m_authorizeButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::onAuthorizeClicked);
 }
 
 void OneSevenMultiRtmpConfigDialog::setEditMode(bool isEdit) {
@@ -436,22 +446,66 @@ void OneSevenMultiRtmpConfigDialog::onAuthorizeClicked() {
     // Determine selected RTMP channel
     QString channel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
 
-    // Log and basic UX placeholder
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Authorize clicked for channel: %s",
             channel.isEmpty() ? "(none)" : channel.toUtf8().constData());
 
-    QString msg;
-    if (!channel.isEmpty()) {
-        msg = QString("%1: %2")
-                  .arg(obs_module_text("MultiRtmp.Config.Authorize"))
-                  .arg(channel);
+    if (channel == "Twitch") {
+        // Handle Twitch authorization using device code flow
+        if (m_isTwitchAuthorizing) {
+            obs_log(LOG_WARNING, "Twitch authorization already in progress");
+            return;
+        }
+
+        m_isTwitchAuthorizing = true;
+
+        OneSevenLiveCoreManager& coreManager = OneSevenLiveCoreManager::getInstance();
+        // QString redirectUri = QString("http://localhost:%1")
+        //     .arg(coreManager.getHttpServer()->getPort());
+        QString redirectUri = "https://17.live";
+        QString authUrl = m_twitchAuth->getAuthUrl(redirectUri);
+        obs_log(LOG_INFO, "Opening Twitch authorization URL: %s", authUrl.toStdString().c_str());
+
+        // Show authorization dialog with embedded browser
+        OneSevenLiveAuthDialog authDialog(authUrl, this);
+
+        connect(&authDialog, &OneSevenLiveAuthDialog::urlChanged, this,
+                &OneSevenMultiRtmpConfigDialog::onTwitchAuthUrlChanged);
+
+        authDialog.exec();
+    } else if (channel == "YouTube") {
+        // Handle YouTube authorization (placeholder for future implementation)
+        QString msg = QString("%1: %2")
+                          .arg(obs_module_text("MultiRtmp.Config.Authorize"))
+                          .arg(channel);
+        
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                 msg + "\n\n" +
+                                     QString("YouTube authorization will be implemented in a future update."));
     } else {
-        msg = obs_module_text("MultiRtmp.Config.Authorize");
+        // Generic message for other channels
+        QString msg = channel.isEmpty() ? obs_module_text("MultiRtmp.Config.Authorize")
+                                       : QString("%1: %2")
+                                             .arg(obs_module_text("MultiRtmp.Config.Authorize"))
+                                             .arg(channel);
+        
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                 msg + "\n\n" +
+                                     QString("Authorization flow will be implemented in a future update."));
+    }
+}
+
+void OneSevenMultiRtmpConfigDialog::onTwitchAuthUrlChanged(const QString& url)
+{
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Twitch auth URL changed: %s",
+            url.toUtf8().constData());
+
+    if (!m_twitchAuth) {
+        obs_log(LOG_WARNING, "[MultiRTMP-ConfigDialog] Twitch auth handler is not initialized");
+        return;
     }
 
-    QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
-                             msg + "\n\n" +
-                                 QString("Authorization flow will be implemented in a future update."));
+    // Forward the callback URL to the Twitch auth handler to parse code/scope/state
+    m_twitchAuth->handleAuthorizationCallbackUrl(url);
 }
 
 void OneSevenMultiRtmpConfigDialog::loadConfig() {

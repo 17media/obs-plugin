@@ -110,6 +110,13 @@ void QCefView::loadUrl(const QString &url) {
             CefString cefUrl(url.toStdString());
 
             m_client = new SimpleCefClient();
+            // Forward URL changes from CEF to Qt layer safely
+            m_client->setUrlChangedCallback([this](const QString &newUrl) {
+                QTimer::singleShot(0, this, [this, newUrl]() {
+                    m_currentUrl = newUrl;
+                    emit urlChanged(newUrl);
+                });
+            });
             CefBrowserHost::CreateBrowser(windowInfo, m_client.get(), cefUrl, browserSettings,
                                           nullptr, nullptr);
 

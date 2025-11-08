@@ -102,6 +102,13 @@ class OneSevenLiveCoreManager : public QObject {
      */
     OneSevenLiveWebsocketServer* getWebsocketServer() const;
 
+    /**
+     * @brief Get HTTP server
+     *
+     * @return OneSevenLiveHttpServer* Pointer to HTTP server
+     */
+    OneSevenLiveHttpServer* getHttpServer() const;
+
     bool handleLoginClicked();
 
     // Disable copy constructor and assignment operator

@@ -65,6 +65,11 @@ class OneSevenLiveConfigManager {
     bool saveGifts(const json &gifts);
     bool loadGifts(json &gifts);
 
+    // Twitch token management
+    bool setTwitchTokens(const QString &accessToken, const QString &refreshToken);
+    bool getTwitchTokens(QString &accessToken, QString &refreshToken);
+    bool clearTwitchTokens();
+
    private:
     bool initialized = false;
 
