@@ -4,6 +4,8 @@
 #include <QString>
 #include <memory>
 
+class QTimer;
+
 /**
  * YouTube authorization handler using implicit grant flow
  * Encapsulates building auth URL and handling the callback to persist tokens.
@@ -24,6 +26,17 @@ public:
 
     // Callback handler: parse fragment and persist access token
     void handleAuthorizationCallbackUrl(const QString& callbackUrl);
+
+    // Refresh the access token using stored refresh_token
+    // Returns true on success; persists new token and updates in-memory state
+    bool refreshAccessToken();
+
+    // Schedule auto-refresh 1 minute before access token expiry
+    // If already expired on startup, refresh immediately if refresh_token is valid,
+    // otherwise clear tokens from config
+    void scheduleAutoRefresh(int accessExpiresInSec, qint64 accessFetchedAtEpochSec,
+                             int refreshExpiresInSec, qint64 refreshFetchedAtEpochSec);
+    void stopAutoRefresh();
 
     // Token state
     bool hasValidToken() const;
@@ -46,8 +59,13 @@ private:
     QString m_callbackScope;
     QString m_redirectUri;
     QString m_refreshToken;
+    QTimer* m_refreshTimer{nullptr};
 
     // Constants
     static const QString YT_AUTH_URL_TEMPLATE;
     static const QString YT_SCOPE;
+    static const QString YT_TOKEN_URL;
+
+private slots:
+    void onRefreshTimerTimeout();
 };

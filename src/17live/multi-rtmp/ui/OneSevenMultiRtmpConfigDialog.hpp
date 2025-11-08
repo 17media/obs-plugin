@@ -75,6 +75,9 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
     void loadScenes();
     void loadConfig();
 
+    // Update authorize button based on selected channel token validity
+    void updateAuthorizeButtonState();
+
     // Helper function to parse and load encoders for both video and audio
     std::vector<std::string> parseAndLoadEncoders(const std::string& supportedEncoders,
                                                   bool isVideoEncoder);
@@ -135,15 +138,15 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
     // State
     bool m_isEditMode;
 
-    // Twitch authorization
-    std::unique_ptr<OneSevenLiveTwitchAuth> m_twitchAuth;
+    // Twitch authorization (non-owning; managed by CoreManager)
+    OneSevenLiveTwitchAuth* m_twitchAuth{nullptr};
     bool m_isTwitchAuthorizing;
 
     // Private slots for Twitch authorization
     void onTwitchAuthUrlChanged(const QString& url);
 
-    // YouTube authorization
-    std::unique_ptr<OneSevenLiveYouTubeAuth> m_youtubeAuth;
+    // YouTube authorization (non-owning; managed by CoreManager)
+    OneSevenLiveYouTubeAuth* m_youtubeAuth{nullptr};
     bool m_isYouTubeAuthorizing = false;
     void onYouTubeAuthUrlChanged(const QString& url);
 };

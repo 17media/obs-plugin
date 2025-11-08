@@ -10,6 +10,10 @@
 #include "api/OneSevenLiveModels.hpp"
 #include "utility/NetworkDiagnostics.hpp"
 
+// Forward declarations for auth handlers
+class OneSevenLiveTwitchAuth;
+class OneSevenLiveYouTubeAuth;
+
 // Forward declarations
 class QMainWindow;
 class QTimer;
@@ -108,6 +112,10 @@ class OneSevenLiveCoreManager : public QObject {
      * @return OneSevenLiveHttpServer* Pointer to HTTP server
      */
     OneSevenLiveHttpServer* getHttpServer() const;
+
+    // Auth handlers accessors
+    OneSevenLiveTwitchAuth* getTwitchAuth() const;
+    OneSevenLiveYouTubeAuth* getYouTubeAuth() const;
 
     bool handleLoginClicked();
 
@@ -224,4 +232,8 @@ class OneSevenLiveCoreManager : public QObject {
     void loadGifts();
 
     class OneSevenLiveUpdateManager* updateManager = nullptr;
+
+    // Auth handlers
+    std::unique_ptr<OneSevenLiveTwitchAuth> twitchAuth;
+    std::unique_ptr<OneSevenLiveYouTubeAuth> youtubeAuth;
 };

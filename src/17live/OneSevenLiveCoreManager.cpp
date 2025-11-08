@@ -35,6 +35,8 @@
 #include "plugin-support.h"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
+#include "twitch/OneSevenLiveTwitchAuth.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
 
 using Json = nlohmann::json;
 using namespace std;
@@ -185,6 +187,58 @@ bool OneSevenLiveCoreManager::initialize() {
         if (!configManager->initialize()) {
             obs_log(LOG_ERROR, "[17Live Core] Failed to initialize config manager");
             return false;
+        }
+
+        // Instantiate auth handlers
+        twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
+        youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
+
+        // Load tokens from config and schedule checks/refreshes
+        {
+            // Twitch: load access token for status check
+            QString twAccess;
+            qint64 twFetched{0};
+            if (configManager->getTwitchTokens(twAccess, twFetched)) {
+                if (!twAccess.isEmpty()) {
+                    twitchAuth->setTokens(twAccess, QString());
+                    obs_log(LOG_INFO, "[17Live Core] Loaded Twitch access token from config");
+                }
+            }
+        }
+
+        {
+            // YouTube: load access and refresh tokens
+            QString ytAccess;
+            int ytExpiresIn{0};
+            qint64 ytFetchedAt{0};
+            const bool hasAccess = configManager->getYouTubeAccessToken(ytAccess, ytExpiresIn, ytFetchedAt) && !ytAccess.isEmpty();
+
+            QString ytRefresh;
+            int ytRefreshExpiresIn{0};
+            qint64 ytRefreshFetchedAt{0};
+            const bool hasRefresh = configManager->getYouTubeRefreshToken(ytRefresh, ytRefreshExpiresIn, ytRefreshFetchedAt) && !ytRefresh.isEmpty();
+
+            const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
+
+            if (hasAccess) {
+                youtubeAuth->setAccessToken(ytAccess);
+                // Schedule auto refresh; if access already expired, this will attempt immediate refresh
+                youtubeAuth->scheduleAutoRefresh(ytExpiresIn, ytFetchedAt,
+                                                 ytRefreshExpiresIn, ytRefreshFetchedAt);
+            } else if (hasRefresh) {
+                // No access token but valid refresh token: refresh immediately if not expired
+                const bool refreshValid = (ytRefreshExpiresIn > 0) && (nowEpoch < ytRefreshFetchedAt + ytRefreshExpiresIn);
+                if (refreshValid) {
+                    obs_log(LOG_INFO, "[17Live Core] No YouTube access token; refreshing using valid refresh token");
+                    if (!youtubeAuth->refreshAccessToken()) {
+                        obs_log(LOG_ERROR, "[17Live Core] Immediate YouTube refresh failed on startup");
+                    }
+                } else {
+                    obs_log(LOG_INFO, "[17Live Core] YouTube refresh token expired; clearing stored tokens");
+                    configManager->clearYouTubeAccessToken();
+                    configManager->clearYouTubeRefreshToken();
+                }
+            }
         }
     } catch (const std::bad_alloc& e) {
         obs_log(LOG_ERROR, "[17Live Core] Memory allocation failed during initialization: %s",
@@ -418,6 +472,14 @@ OneSevenLiveWebsocketServer* OneSevenLiveCoreManager::getWebsocketServer() const
 
 OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const {
     return httpServer_.get();
+}
+
+OneSevenLiveTwitchAuth* OneSevenLiveCoreManager::getTwitchAuth() const {
+    return twitchAuth.get();
+}
+
+OneSevenLiveYouTubeAuth* OneSevenLiveCoreManager::getYouTubeAuth() const {
+    return youtubeAuth.get();
 }
 
 bool OneSevenLiveCoreManager::handleLoginClicked() {

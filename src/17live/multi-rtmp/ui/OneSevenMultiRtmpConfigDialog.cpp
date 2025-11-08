@@ -45,10 +45,10 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
 
     setupUI();
 
-    // Initialize Twitch authorization components
-    m_twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
-    // Initialize YouTube authorization handler
-    m_youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
+    // Use CoreManager-owned authorization handlers to keep unified state
+    OneSevenLiveCoreManager& coreManager = OneSevenLiveCoreManager::getInstance();
+    m_twitchAuth = coreManager.getTwitchAuth();
+    m_youtubeAuth = coreManager.getYouTubeAuth();
 
     // Load configuration if provided
     if (m_config) {
@@ -161,6 +161,10 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection() {
     // Authorize login button (YouTube/Twitch)
     m_authorizeButton = new QPushButton(obs_module_text("MultiRtmp.Config.Authorize"));
     m_basicInfoLayout->addRow(m_authorizeButton);
+
+    // Initialize authorize button state based on current selection and token validity
+    // The state will be updated again after config load and when selection changes
+    updateAuthorizeButtonState();
 
     // Protocol dropdown - only RTMP, SRT/RIST, WHIP
     QLabel* protocolLabel = new QLabel();
@@ -389,6 +393,11 @@ void OneSevenMultiRtmpConfigDialog::setupConnections() {
 
     // Authorize button
     connect(m_authorizeButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::onAuthorizeClicked);
+
+    // Update authorize button whenever channel selection changes
+    connect(m_streamNameCombo, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        updateAuthorizeButtonState();
+    });
 }
 
 void OneSevenMultiRtmpConfigDialog::setEditMode(bool isEdit) {
@@ -525,6 +534,9 @@ void OneSevenMultiRtmpConfigDialog::onTwitchAuthUrlChanged(const QString& url)
 
     // Forward the callback URL to the Twitch auth handler to parse code/scope/state
     m_twitchAuth->handleAuthorizationCallbackUrl(url);
+
+    // Update button state after potential token change
+    updateAuthorizeButtonState();
 }
 
 void OneSevenMultiRtmpConfigDialog::onYouTubeAuthUrlChanged(const QString& url)
@@ -536,6 +548,9 @@ void OneSevenMultiRtmpConfigDialog::onYouTubeAuthUrlChanged(const QString& url)
         return;
     }
     m_youtubeAuth->handleAuthorizationCallbackUrl(url);
+
+    // Update button state after potential token change
+    updateAuthorizeButtonState();
 }
 
 void OneSevenMultiRtmpConfigDialog::loadConfig() {
@@ -551,6 +566,8 @@ void OneSevenMultiRtmpConfigDialog::loadConfig() {
         if (idx >= 0) {
             m_streamNameCombo->setCurrentIndex(idx);
         }
+        // Ensure authorize button reflects token state for the selected channel
+        updateAuthorizeButtonState();
     }
 
     // Load protocol and URL
@@ -759,6 +776,31 @@ void OneSevenMultiRtmpConfigDialog::loadConfig() {
         obs_data_release(settings);
         obs_encoder_release(encoder);
         obs_data_release(encoder_settings);
+    }
+}
+
+// Helper to set authorize button text/enabled based on token validity of selected channel
+void OneSevenMultiRtmpConfigDialog::updateAuthorizeButtonState()
+{
+    if (!m_authorizeButton) {
+        return;
+    }
+
+    const QString channel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
+
+    bool isAuthorized = false;
+    if (channel == "YouTube") {
+        isAuthorized = (m_youtubeAuth && m_youtubeAuth->hasValidToken());
+    } else if (channel == "Twitch") {
+        isAuthorized = (m_twitchAuth && m_twitchAuth->hasValidToken());
+    }
+
+    if (isAuthorized) {
+        m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Authorized"));
+        m_authorizeButton->setEnabled(false);
+    } else {
+        m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Authorize"));
+        m_authorizeButton->setEnabled(true);
     }
 }
 
