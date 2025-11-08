@@ -71,6 +71,15 @@ class OneSevenLiveConfigManager {
     bool clearTwitchTokens();
     bool setTwitchAccessTokenFetchedAt(qint64 fetchedAtEpochSec);
 
+    // YouTube token management
+    bool setYouTubeAccessToken(const QString &accessToken, const QString &refreshToken = QString());
+    bool getYouTubeAccessToken(QString &accessToken);
+    bool getYouTubeRefreshToken(QString &refreshToken);
+    bool clearYouTubeRefreshToken();
+    bool clearYouTubeAccessToken();
+    bool setYouTubeAccessTokenFetchedAt(qint64 fetchedAtEpochSec);
+    bool setYouTubeAccessTokenExpiresIn(int expiresInSec);
+
    private:
     bool initialized = false;
 

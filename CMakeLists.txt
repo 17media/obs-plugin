@@ -107,52 +107,55 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Configure plugin-support.c file
 configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
 
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
-  src/plugin-support.c
-  src/17live/OneSevenLiveCoreManager.cpp
-  src/17live/OneSevenLiveConfigManager.cpp
-  src/17live/api/OneSevenLiveModels.cpp
-  src/17live/utility/RemoteTextThread.cpp
-  src/17live/utility/Common.cpp
-  src/17live/utility/Meta.cpp
-  src/17live/utility/DownloadWorker.cpp
-  src/17live/utility/NetworkDiagnostics.cpp
-  src/17live/utility/CustomCalendarWidget.cpp
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+  resources.qrc
   src/17live/api/OneSevenLiveApiWrappers.cpp
-  src/17live/CefDummy.cpp
-  src/17live/QCefView.cpp
-  src/17live/SimpleCefClient.cpp
-  src/17live/OneSevenLiveMenuManager.cpp
-  src/17live/OneSevenLiveLoginDialog.cpp
-  src/17live/OneSevenLiveCustomEventDialog.cpp
-  src/17live/OneSevenLiveStreamingDock.cpp
-  src/17live/OneSevenLiveStreamListItem.cpp
-  src/17live/OneSevenLiveLoadRoomInfoWorker.cpp
-  src/17live/OneSevenLiveStreamListDock.cpp
-  src/17live/OneSevenLiveRockZoneDock.cpp
-  src/17live/OneSevenLiveUserDialog.cpp
-  src/17live/OneSevenLiveRockViewerItem.cpp
+  src/17live/api/OneSevenLiveModels.cpp
   src/17live/api/OneSevenLiveUtility.cpp
-  src/17live/OneSevenLiveHttpServer.cpp
-  src/17live/OneSevenLiveWebsocketServer.cpp
-  src/17live/OneSevenLiveUpdateManager.cpp
-  src/17live/auth/OneSevenLiveTwitchAuth.cpp
-  src/17live/ui/OneSevenLivePropertyWidget.cpp
-  src/17live/ui/OneSevenLivePropertiesWidget.cpp
-  src/17live/ui/OneSevenLiveAuthDialog.cpp
-  src/17live/utility/OneSevenLivePreviewConfigLoader.cpp
-  src/17live/ui/OneSevenLivePreviewWidget.cpp
-  src/17live/ui/OneSevenLivePreviewScreen.cpp
-  src/17live/ui/OneSevenLivePreviewDock.cpp
+  src/17live/CefDummy.cpp
   src/17live/multi-rtmp/OneSevenMultiRtmpConfigManager.cpp
-  src/17live/multi-rtmp/OneSevenMultiRtmpStreamController.cpp
-  src/17live/multi-rtmp/OneSevenMultiRtmpModels.cpp
   src/17live/multi-rtmp/OneSevenMultiRtmpManager.cpp
-  src/17live/multi-rtmp/ui/OneSevenMultiRtmpDock.cpp
+  src/17live/multi-rtmp/OneSevenMultiRtmpModels.cpp
+  src/17live/multi-rtmp/OneSevenMultiRtmpStreamController.cpp
   src/17live/multi-rtmp/ui/OneSevenMultiRtmpConfigDialog.cpp
+  src/17live/multi-rtmp/ui/OneSevenMultiRtmpDock.cpp
   src/17live/multi-rtmp/ui/OneSevenMultiRtmpListWidget.cpp
   src/17live/multi-rtmp/ui/OneSevenMultiRtmpStreamItem.cpp
-  resources.qrc)
+  src/17live/OneSevenLiveConfigManager.cpp
+  src/17live/OneSevenLiveCoreManager.cpp
+  src/17live/OneSevenLiveCustomEventDialog.cpp
+  src/17live/OneSevenLiveHttpServer.cpp
+  src/17live/OneSevenLiveLoadRoomInfoWorker.cpp
+  src/17live/OneSevenLiveLoginDialog.cpp
+  src/17live/OneSevenLiveMenuManager.cpp
+  src/17live/OneSevenLiveRockViewerItem.cpp
+  src/17live/OneSevenLiveRockZoneDock.cpp
+  src/17live/OneSevenLiveStreamListDock.cpp
+  src/17live/OneSevenLiveStreamListItem.cpp
+  src/17live/OneSevenLiveStreamingDock.cpp
+  src/17live/OneSevenLiveUpdateManager.cpp
+  src/17live/OneSevenLiveUserDialog.cpp
+  src/17live/OneSevenLiveWebsocketServer.cpp
+  src/17live/QCefView.cpp
+  src/17live/SimpleCefClient.cpp
+  src/17live/twitch/OneSevenLiveTwitchAuth.cpp
+  src/17live/ui/OneSevenLiveAuthDialog.cpp
+  src/17live/ui/OneSevenLivePreviewDock.cpp
+  src/17live/ui/OneSevenLivePreviewScreen.cpp
+  src/17live/ui/OneSevenLivePreviewWidget.cpp
+  src/17live/ui/OneSevenLivePropertiesWidget.cpp
+  src/17live/ui/OneSevenLivePropertyWidget.cpp
+  src/17live/utility/Common.cpp
+  src/17live/utility/CustomCalendarWidget.cpp
+  src/17live/utility/DownloadWorker.cpp
+  src/17live/utility/Meta.cpp
+  src/17live/utility/NetworkDiagnostics.cpp
+  src/17live/utility/OneSevenLivePreviewConfigLoader.cpp
+  src/17live/utility/RemoteTextThread.cpp
+  src/17live/youtube/OneSevenLiveYouTubeAuth.cpp
+  src/plugin-main.cpp
+  src/plugin-support.c
+)
 
 if(MSVC)
   target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE /wd4996)

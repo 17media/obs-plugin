@@ -1,7 +1,5 @@
 #pragma once
 
-#include <obs-module.h>
-
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
@@ -29,6 +27,7 @@
 // Forward declarations
 class OneSevenLivePropertiesWidget;
 class OneSevenLiveTwitchAuth;
+class OneSevenLiveYouTubeAuth;
 
 /**
  * Configuration dialog for Multi-RTMP stream settings
@@ -142,4 +141,9 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
 
     // Private slots for Twitch authorization
     void onTwitchAuthUrlChanged(const QString& url);
+
+    // YouTube authorization
+    std::unique_ptr<OneSevenLiveYouTubeAuth> m_youtubeAuth;
+    bool m_isYouTubeAuthorizing = false;
+    void onYouTubeAuthUrlChanged(const QString& url);
 };

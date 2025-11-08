@@ -806,3 +806,166 @@ bool OneSevenLiveConfigManager::setTwitchAccessTokenFetchedAt(qint64 fetchedAtEp
     obs_log(LOG_INFO, "Twitch token fetched time saved successfully");
     return true;
 }
+
+bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken, const QString &refreshToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string accessTokenStr = accessToken.toStdString();
+    config_set_string(config, service, "YouTubeAccessToken", accessTokenStr.c_str());
+    std::string refreshTokenStr = refreshToken.toStdString();
+    config_set_string(config, service, "YouTubeRefreshToken", refreshTokenStr.c_str());
+
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save YouTube access token");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube access token saved successfully");
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    const char *accessTokenChar = config_get_string(config, service, "YouTubeAccessToken");
+    if (!accessTokenChar) {
+        return false;
+    }
+
+    accessToken = QString::fromUtf8(accessTokenChar);
+    return true;
+}
+
+bool OneSevenLiveConfigManager::clearYouTubeAccessToken() {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    config_set_string(config, service, "YouTubeAccessToken", "");
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to clear YouTube access token");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube access token cleared successfully");
+    return true;
+}
+
+bool OneSevenLiveConfigManager::setYouTubeAccessTokenFetchedAt(qint64 fetchedAtEpochSec) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string fetchedStr = std::to_string(static_cast<long long>(fetchedAtEpochSec));
+    config_set_string(config, service, "YouTubeAccessTokenFetchedAt", fetchedStr.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save YouTube token fetched time");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube token fetched time saved successfully");
+    return true;
+}
+
+bool OneSevenLiveConfigManager::setYouTubeAccessTokenExpiresIn(int expiresInSec) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string expiresStr = std::to_string(static_cast<long long>(expiresInSec));
+    config_set_string(config, service, "YouTubeAccessTokenExpiresIn", expiresStr.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save YouTube token expires_in");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube token expires_in saved successfully");
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Read operation uses shared lock
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    const char *refreshTokenChar = config_get_string(config, service, "YouTubeRefreshToken");
+    if (!refreshTokenChar) {
+        return false;
+    }
+
+    refreshToken = QString::fromUtf8(refreshTokenChar);
+    return true;
+}
+
+bool OneSevenLiveConfigManager::clearYouTubeRefreshToken() {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    config_set_string(config, service, "YouTubeRefreshToken", "");
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to clear YouTube refresh token");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube refresh token cleared successfully");
+    return true;
+}

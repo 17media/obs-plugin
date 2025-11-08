@@ -1,6 +1,9 @@
 #include "OneSevenMultiRtmpConfigDialog.hpp"
 
+// OBS headers are included in the source to avoid transitive system headers in the dialog header
+#include <obs-module.h>
 #include <obs-frontend-api.h>
+#include <plugin-support.h>
 
 #include <QApplication>
 #include <QDateTime>
@@ -8,16 +11,17 @@
 #include <QScrollArea>
 #include <QStyle>
 #include <QUuid>
+#include <QUrl>
+#include <QUrlQuery>
 
 #include "ui/OneSevenLivePropertiesWidget.hpp"
 #include "ui/OneSevenLiveAuthDialog.hpp"
-#include "auth/OneSevenLiveTwitchAuth.hpp"
+#include "twitch/OneSevenLiveTwitchAuth.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
 #include "utility/Common.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
-
-#include "plugin-support.h"
 
 #include "moc_OneSevenMultiRtmpConfigDialog.cpp"
 
@@ -43,6 +47,8 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
 
     // Initialize Twitch authorization components
     m_twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
+    // Initialize YouTube authorization handler
+    m_youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
 
     // Load configuration if provided
     if (m_config) {
@@ -473,14 +479,27 @@ void OneSevenMultiRtmpConfigDialog::onAuthorizeClicked() {
 
         authDialog.exec();
     } else if (channel == "YouTube") {
-        // Handle YouTube authorization (placeholder for future implementation)
-        QString msg = QString("%1: %2")
-                          .arg(obs_module_text("MultiRtmp.Config.Authorize"))
-                          .arg(channel);
-        
-        QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
-                                 msg + "\n\n" +
-                                     QString("YouTube authorization will be implemented in a future update."));
+        if (m_isYouTubeAuthorizing) {
+            obs_log(LOG_WARNING, "YouTube authorization already in progress");
+            return;
+        }
+
+        m_isYouTubeAuthorizing = true;
+
+        // Build YouTube authorization URL (authorization code flow)
+        OneSevenLiveCoreManager& coreManager = OneSevenLiveCoreManager::getInstance();
+        QString redirectUri = QString("http://localhost:%1")
+            .arg(coreManager.getHttpServer()->getPort());
+        QString authUrl = m_youtubeAuth ? m_youtubeAuth->getAuthUrl(redirectUri) : QString();
+
+        obs_log(LOG_INFO, "Opening YouTube authorization URL: %s", authUrl.toStdString().c_str());
+
+        OneSevenLiveAuthDialog authDialog(authUrl, this);
+        connect(&authDialog, &OneSevenLiveAuthDialog::urlChanged, this,
+                &OneSevenMultiRtmpConfigDialog::onYouTubeAuthUrlChanged);
+
+        authDialog.exec();
+        m_isYouTubeAuthorizing = false;
     } else {
         // Generic message for other channels
         QString msg = channel.isEmpty() ? obs_module_text("MultiRtmp.Config.Authorize")
@@ -506,6 +525,17 @@ void OneSevenMultiRtmpConfigDialog::onTwitchAuthUrlChanged(const QString& url)
 
     // Forward the callback URL to the Twitch auth handler to parse code/scope/state
     m_twitchAuth->handleAuthorizationCallbackUrl(url);
+}
+
+void OneSevenMultiRtmpConfigDialog::onYouTubeAuthUrlChanged(const QString& url)
+{
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] YouTube auth URL changed: %s",
+            url.toUtf8().constData());
+    if (!m_youtubeAuth) {
+        obs_log(LOG_WARNING, "YouTube auth handler is not initialized");
+        return;
+    }
+    m_youtubeAuth->handleAuthorizationCallbackUrl(url);
 }
 
 void OneSevenMultiRtmpConfigDialog::loadConfig() {
