@@ -706,7 +706,7 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
     }
 }
 
-bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken, const QString &refreshToken) {
+bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken, qint64 fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -720,21 +720,21 @@ bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken, cons
 
     // Convert to std::string and maintain reference
     std::string accessTokenStr = accessToken.toStdString();
-    std::string refreshTokenStr = refreshToken.toStdString();
+    std::string fetchedStr = std::to_string(static_cast<long long>(fetchedAtEpochSec));
 
     config_set_string(config, service, "TwitchAccessToken", accessTokenStr.c_str());
-    config_set_string(config, service, "TwitchRefreshToken", refreshTokenStr.c_str());
+    config_set_string(config, service, "TwitchAccessTokenFetchedAt", fetchedStr.c_str());
 
     if (config_save(config) < 0) {
-        obs_log(LOG_ERROR, "Failed to save Twitch tokens");
+        obs_log(LOG_ERROR, "Failed to save Twitch access token");
         return false;
     }
 
-    obs_log(LOG_INFO, "Twitch tokens saved successfully");
+    obs_log(LOG_INFO, "Twitch access token saved successfully");
     return true;
 }
 
-bool OneSevenLiveConfigManager::getTwitchTokens(QString &accessToken, QString &refreshToken) {
+bool OneSevenLiveConfigManager::getTwitchTokens(QString &accessToken, qint64 &fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -747,14 +747,22 @@ bool OneSevenLiveConfigManager::getTwitchTokens(QString &accessToken, QString &r
     }
 
     const char *accessTokenChar = config_get_string(config, service, "TwitchAccessToken");
-    const char *refreshTokenChar = config_get_string(config, service, "TwitchRefreshToken");
+    const char *fetchedChar = config_get_string(config, service, "TwitchAccessTokenFetchedAt");
 
-    if (!accessTokenChar || !refreshTokenChar) {
+    if (!accessTokenChar) {
         return false;
     }
 
     accessToken = QString::fromUtf8(accessTokenChar);
-    refreshToken = QString::fromUtf8(refreshTokenChar);
+    if (fetchedChar) {
+        try {
+            fetchedAtEpochSec = static_cast<qint64>(std::stoll(fetchedChar));
+        } catch (...) {
+            fetchedAtEpochSec = 0;
+        }
+    } else {
+        fetchedAtEpochSec = 0;
+    }
 
     return true;
 }
@@ -772,42 +780,18 @@ bool OneSevenLiveConfigManager::clearTwitchTokens() {
     }
 
     config_set_string(config, service, "TwitchAccessToken", "");
-    config_set_string(config, service, "TwitchRefreshToken", "");
+    config_set_string(config, service, "TwitchAccessTokenFetchedAt", "");
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to clear Twitch tokens");
         return false;
     }
 
-    obs_log(LOG_INFO, "Twitch tokens cleared successfully");
+    obs_log(LOG_INFO, "Twitch access token cleared successfully");
     return true;
 }
 
-bool OneSevenLiveConfigManager::setTwitchAccessTokenFetchedAt(qint64 fetchedAtEpochSec) {
-    if (!initialized) {
-        return false;
-    }
-
-    // Write operation uses exclusive lock
-    std::unique_lock<std::shared_mutex> lock(configMutex);
-
-    if (!config) {
-        return false;
-    }
-
-    std::string fetchedStr = std::to_string(static_cast<long long>(fetchedAtEpochSec));
-    config_set_string(config, service, "TwitchAccessTokenFetchedAt", fetchedStr.c_str());
-
-    if (config_save(config) < 0) {
-        obs_log(LOG_ERROR, "Failed to save Twitch token fetched time");
-        return false;
-    }
-
-    obs_log(LOG_INFO, "Twitch token fetched time saved successfully");
-    return true;
-}
-
-bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken, const QString &refreshToken) {
+bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken, int expiresInSec, qint64 fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -820,9 +804,12 @@ bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken
     }
 
     std::string accessTokenStr = accessToken.toStdString();
+    std::string fetchedStr = std::to_string(static_cast<long long>(fetchedAtEpochSec));
+    std::string expiresStr = std::to_string(static_cast<long long>(expiresInSec));
+
     config_set_string(config, service, "YouTubeAccessToken", accessTokenStr.c_str());
-    std::string refreshTokenStr = refreshToken.toStdString();
-    config_set_string(config, service, "YouTubeRefreshToken", refreshTokenStr.c_str());
+    config_set_string(config, service, "YouTubeAccessTokenFetchedAt", fetchedStr.c_str());
+    config_set_string(config, service, "YouTubeAccessTokenExpiresIn", expiresStr.c_str());
 
 
     if (config_save(config) < 0) {
@@ -834,7 +821,7 @@ bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken
     return true;
 }
 
-bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken) {
+bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken, int &expiresInSec, qint64 &fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -847,11 +834,35 @@ bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken) {
     }
 
     const char *accessTokenChar = config_get_string(config, service, "YouTubeAccessToken");
+    const char *fetchedChar = config_get_string(config, service, "YouTubeAccessTokenFetchedAt");
+    const char *expiresChar = config_get_string(config, service, "YouTubeAccessTokenExpiresIn");
+
     if (!accessTokenChar) {
         return false;
     }
 
     accessToken = QString::fromUtf8(accessTokenChar);
+
+    if (fetchedChar) {
+        try {
+            fetchedAtEpochSec = static_cast<qint64>(std::stoll(fetchedChar));
+        } catch (...) {
+            fetchedAtEpochSec = 0;
+        }
+    } else {
+        fetchedAtEpochSec = 0;
+    }
+
+    if (expiresChar) {
+        try {
+            expiresInSec = static_cast<int>(std::stoi(expiresChar));
+        } catch (...) {
+            expiresInSec = 0;
+        }
+    } else {
+        expiresInSec = 0;
+    }
+
     return true;
 }
 
@@ -868,6 +879,8 @@ bool OneSevenLiveConfigManager::clearYouTubeAccessToken() {
     }
 
     config_set_string(config, service, "YouTubeAccessToken", "");
+    config_set_string(config, service, "YouTubeAccessTokenFetchedAt", "");
+    config_set_string(config, service, "YouTubeAccessTokenExpiresIn", "");
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to clear YouTube access token");
@@ -878,55 +891,7 @@ bool OneSevenLiveConfigManager::clearYouTubeAccessToken() {
     return true;
 }
 
-bool OneSevenLiveConfigManager::setYouTubeAccessTokenFetchedAt(qint64 fetchedAtEpochSec) {
-    if (!initialized) {
-        return false;
-    }
-
-    // Write operation uses exclusive lock
-    std::unique_lock<std::shared_mutex> lock(configMutex);
-
-    if (!config) {
-        return false;
-    }
-
-    std::string fetchedStr = std::to_string(static_cast<long long>(fetchedAtEpochSec));
-    config_set_string(config, service, "YouTubeAccessTokenFetchedAt", fetchedStr.c_str());
-
-    if (config_save(config) < 0) {
-        obs_log(LOG_ERROR, "Failed to save YouTube token fetched time");
-        return false;
-    }
-
-    obs_log(LOG_INFO, "YouTube token fetched time saved successfully");
-    return true;
-}
-
-bool OneSevenLiveConfigManager::setYouTubeAccessTokenExpiresIn(int expiresInSec) {
-    if (!initialized) {
-        return false;
-    }
-
-    // Write operation uses exclusive lock
-    std::unique_lock<std::shared_mutex> lock(configMutex);
-
-    if (!config) {
-        return false;
-    }
-
-    std::string expiresStr = std::to_string(static_cast<long long>(expiresInSec));
-    config_set_string(config, service, "YouTubeAccessTokenExpiresIn", expiresStr.c_str());
-
-    if (config_save(config) < 0) {
-        obs_log(LOG_ERROR, "Failed to save YouTube token expires_in");
-        return false;
-    }
-
-    obs_log(LOG_INFO, "YouTube token expires_in saved successfully");
-    return true;
-}
-
-bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken) {
+bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec, qint64 &fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -939,11 +904,33 @@ bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken) {
     }
 
     const char *refreshTokenChar = config_get_string(config, service, "YouTubeRefreshToken");
+    const char *fetchedChar = config_get_string(config, service, "YouTubeRefreshTokenFetchedAt");
+    const char *expiresChar = config_get_string(config, service, "YouTubeRefreshTokenExpiresIn");
     if (!refreshTokenChar) {
         return false;
     }
 
     refreshToken = QString::fromUtf8(refreshTokenChar);
+
+    if (fetchedChar) {
+        try {
+            fetchedAtEpochSec = static_cast<qint64>(std::stoll(fetchedChar));
+        } catch (...) {
+            fetchedAtEpochSec = 0;
+        }
+    } else {
+        fetchedAtEpochSec = 0;
+    }
+
+    if (expiresChar) {
+        try {
+            expiresInSec = static_cast<int>(std::stoi(expiresChar));
+        } catch (...) {
+            expiresInSec = 0;
+        }
+    } else {
+        expiresInSec = 0;
+    }
     return true;
 }
 
@@ -960,6 +947,8 @@ bool OneSevenLiveConfigManager::clearYouTubeRefreshToken() {
     }
 
     config_set_string(config, service, "YouTubeRefreshToken", "");
+    config_set_string(config, service, "YouTubeRefreshTokenFetchedAt", "");
+    config_set_string(config, service, "YouTubeRefreshTokenExpiresIn", "");
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to clear YouTube refresh token");
@@ -967,5 +956,34 @@ bool OneSevenLiveConfigManager::clearYouTubeRefreshToken() {
     }
 
     obs_log(LOG_INFO, "YouTube refresh token cleared successfully");
+    return true;
+}
+
+bool OneSevenLiveConfigManager::setYouTubeRefreshToken(const QString &refreshToken, int expiresInSec, qint64 fetchedAtEpochSec) {
+    if (!initialized) {
+        return false;
+    }
+
+    // Write operation uses exclusive lock
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string refreshTokenStr = refreshToken.toStdString();
+    std::string fetchedStr = std::to_string(static_cast<long long>(fetchedAtEpochSec));
+    std::string expiresStr = std::to_string(static_cast<long long>(expiresInSec));
+
+    config_set_string(config, service, "YouTubeRefreshToken", refreshTokenStr.c_str());
+    config_set_string(config, service, "YouTubeRefreshTokenFetchedAt", fetchedStr.c_str());
+    config_set_string(config, service, "YouTubeRefreshTokenExpiresIn", expiresStr.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save YouTube refresh token");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube refresh token saved successfully");
     return true;
 }

@@ -121,6 +121,8 @@ void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
     int expiresIn = 0;
     QString tokenType;
     QString refreshToken;
+    int refreshTokenExpiresIn = 0;
+
     try {
         Json json = Json::parse(responseBody);
         if (json.contains("access_token") && json["access_token"].is_string()) {
@@ -134,6 +136,9 @@ void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
         }
         if (json.contains("refresh_token") && json["refresh_token"].is_string()) {
             refreshToken = QString::fromStdString(json["refresh_token"].get<std::string>());
+        }
+        if (json.contains("refresh_token_expires_in") && json["refresh_token_expires_in"].is_number_integer()) {
+            refreshTokenExpiresIn = json["refresh_token_expires_in"].get<int>();
         }
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "Failed to parse YouTube token JSON: %s", e.what());
@@ -156,16 +161,17 @@ void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
     }
 
     const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
-    if (!cfg->setYouTubeAccessToken(accessToken, refreshToken)) {
+    if (!cfg->setYouTubeAccessToken(accessToken, expiresIn, nowEpoch)) {
         obs_log(LOG_ERROR, "Failed to save YouTube access token");
         emit authorizationFailed("Failed to save YouTube access token");
         return;
     }
-    cfg->setYouTubeAccessTokenFetchedAt(nowEpoch);
-    if (expiresIn > 0) {
-        cfg->setYouTubeAccessTokenExpiresIn(expiresIn);
+    if (!cfg->setYouTubeRefreshToken(refreshToken, refreshTokenExpiresIn, nowEpoch)) {
+        obs_log(LOG_ERROR, "Failed to save YouTube refresh token");
+        emit authorizationFailed("Failed to save YouTube refresh token");
+        return;
     }
-
+    
     // Update local state and notify
     setAccessToken(accessToken);
     m_callbackScope = scope;

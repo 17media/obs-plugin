@@ -45,6 +45,7 @@ private:
     QString m_accessToken;
     QString m_callbackScope;
     QString m_redirectUri;
+    QString m_refreshToken;
 
     // Constants
     static const QString YT_AUTH_URL_TEMPLATE;

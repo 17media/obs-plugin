@@ -66,19 +66,18 @@ class OneSevenLiveConfigManager {
     bool loadGifts(json &gifts);
 
     // Twitch token management
-    bool setTwitchTokens(const QString &accessToken, const QString &refreshToken);
-    bool getTwitchTokens(QString &accessToken, QString &refreshToken);
+    bool setTwitchTokens(const QString &accessToken, qint64 fetchedAtEpochSec);
+    bool getTwitchTokens(QString &accessToken, qint64 &fetchedAtEpochSec);
     bool clearTwitchTokens();
-    bool setTwitchAccessTokenFetchedAt(qint64 fetchedAtEpochSec);
 
     // YouTube token management
-    bool setYouTubeAccessToken(const QString &accessToken, const QString &refreshToken = QString());
-    bool getYouTubeAccessToken(QString &accessToken);
-    bool getYouTubeRefreshToken(QString &refreshToken);
-    bool clearYouTubeRefreshToken();
+    bool setYouTubeAccessToken(const QString &accessToken, int expiresInSec, qint64 fetchedAtEpochSec);
+    bool getYouTubeAccessToken(QString &accessToken, int &expiresInSec, qint64 &fetchedAtEpochSec);
     bool clearYouTubeAccessToken();
-    bool setYouTubeAccessTokenFetchedAt(qint64 fetchedAtEpochSec);
-    bool setYouTubeAccessTokenExpiresIn(int expiresInSec);
+
+    bool setYouTubeRefreshToken(const QString &refreshToken, int expiresInSec, qint64 fetchedAtEpochSec);
+    bool getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec, qint64 &fetchedAtEpochSec);
+    bool clearYouTubeRefreshToken();
 
    private:
     bool initialized = false;
