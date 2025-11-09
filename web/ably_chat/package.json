@@ -9,8 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@heroui/react": "^2.8.5",
+    "@nextui-org/react": "^2.6.11",
     "ably": "^2.12.0",
     "axios": "^1.13.2",
+    "framer-motion": "^12.23.24",
     "immutable": "^3.8.2",
     "immutable-v4": "npm:immutable@4.0.0-rc.12",
     "lodash": "^4.17.21",
@@ -19,8 +22,8 @@
     "next-intl": "^4.1.0",
     "pako": "^1.0.6",
     "polished": "^4.3.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "react-inlinesvg": "^4.2.0",
     "rxjs": "^7.8.2",
     "shortid": "^2.2.17",

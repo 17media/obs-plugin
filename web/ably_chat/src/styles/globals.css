@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* NextUI/Tailwind base setup */
+:root {
+  color-scheme: dark;
+}
+
+html.dark {
+  background-color: #000;
+}
+
+body {
+  margin: 0;
+}
