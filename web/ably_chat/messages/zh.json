@@ -7,5 +7,19 @@
     "POKE_ONE": "主播戳了 {receiverName}",
     "POKE_BACK": "回戳了主播",
     "POKE_ALL": "主播戳了 所有觀眾"
+  },
+  "PlatformSelector": {
+    "label": "平台選擇",
+    "platforms": {
+      "all": "全部",
+      "17live": "17live",
+      "youtube": "YouTube",
+      "twitch": "Twitch"
+    },
+    "status": {
+      "connected": "已連線",
+      "disconnected": "未連線",
+      "format": "（{status}）"
+    }
   }
 }

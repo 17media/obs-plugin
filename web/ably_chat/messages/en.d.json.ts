@@ -10,6 +10,20 @@ declare const messages: {
     "POKE_ONE": "Streamer pokes {receiverName}",
     "POKE_BACK": "pokes back",
     "POKE_ALL": "Streamer pokes All"
+  },
+  "PlatformSelector": {
+    "label": "Platform Selection",
+    "platforms": {
+      "all": "All",
+      "17live": "17live",
+      "youtube": "YouTube",
+      "twitch": "Twitch"
+    },
+    "status": {
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "format": "({status})"
+    }
   }
 };
 export default messages;

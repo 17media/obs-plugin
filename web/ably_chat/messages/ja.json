@@ -7,5 +7,19 @@
     "POKE_ONE": "ライバーが {receiverName} にPokeしました",
     "POKE_BACK": "がPokeを返しました",
     "POKE_ALL": "ライバーが 全て にPokeしました"
+  },
+  "PlatformSelector": {
+    "label": "プラットフォーム選択",
+    "platforms": {
+      "all": "すべて",
+      "17live": "17live",
+      "youtube": "YouTube",
+      "twitch": "Twitch"
+    },
+    "status": {
+      "connected": "接続済み",
+      "disconnected": "未接続",
+      "format": "（{status}）"
+    }
   }
 }

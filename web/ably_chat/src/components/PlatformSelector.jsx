@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import {useTranslations} from 'next-intl';
 
 const Wrapper = styled.div`
   position: relative;
@@ -83,6 +84,7 @@ const Item = styled.button`
 `;
 
 export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageAggregator }) => {
+  const t = useTranslations('PlatformSelector');
   const [platformsStatus, setPlatformsStatus] = useState({});
   const [selected, setSelected] = useState('all');
   const [open, setOpen] = useState(false);
@@ -90,21 +92,22 @@ export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageA
   const popoverRef = useRef(null);
 
   const platformDefs = [
-    { id: 'all', name: '全部' },
-    { id: '17live', name: '17live' },
-    { id: 'youtube', name: 'youtube' },
-    { id: 'twitch', name: 'twitch' },
+    { id: 'all', name: t('platforms.all') },
+    { id: '17live', name: t('platforms.17live') },
+    { id: 'youtube', name: t('platforms.youtube') },
+    { id: 'twitch', name: t('platforms.twitch') },
   ];
 
   const statusText = (platformId) => {
     if (platformId === 'all') return '';
     const isConnected = platformsStatus[platformId]?.status === 'connected';
-    return `（${isConnected ? '已连线' : '未连线'}）`;
+    const status = isConnected ? t('status.connected') : t('status.disconnected');
+    return t('status.format', {status});
   };
 
   const selectedLabel = (() => {
     const def = platformDefs.find(d => d.id === selected);
-    if (!def) return '全部';
+    if (!def) return t('platforms.all');
     if (def.id === 'all') return def.name;
     return `${def.name} ${statusText(def.id)}`;
   })();
@@ -201,7 +204,7 @@ export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageA
   return (
     <Wrapper>
       <Trigger
-        aria-label="平台选择"
+        aria-label={t('label')}
         onClick={() => setOpen((prev) => !prev)}
         ref={triggerRef}
       >
