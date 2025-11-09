@@ -1,14 +1,20 @@
+'use client';
+import styled from 'styled-components';
 import MultiPlatformChat from '@/components/MultiPlatformChat';
-import {setRequestLocale} from 'next-intl/server';
 
-export default async function Home({params}) {
-  const { locale } = await params;
+const PageContainer = styled.div`
+  min-height: 100vh;
+  background-color: #f9fafb;
   
-  setRequestLocale(locale);
-  
+  &.dark {
+    background-color: #111827;
+  }
+`;
+
+export default function Home({params}) {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <PageContainer>
       <MultiPlatformChat />
-    </div>
+    </PageContainer>
   );
 }

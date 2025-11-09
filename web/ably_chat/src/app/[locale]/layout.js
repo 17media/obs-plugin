@@ -2,7 +2,7 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import {setRequestLocale} from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
-import "@/styles/globals.css";
+import StyledComponentsProvider from '@/styles/StyledComponentsProvider';
 
 export const metadata = {
   title: '17Live Chatroom',
@@ -24,9 +24,11 @@ export default async function RootLayout({ children, params }) {
   return (
     <html lang={locale} className="dark">
       <body style={{backgroundColor: 'black'}}>
-        <NextIntlClientProvider>
-          {children}
-        </NextIntlClientProvider>
+        <StyledComponentsProvider>
+          <NextIntlClientProvider>
+            {children}
+          </NextIntlClientProvider>
+        </StyledComponentsProvider>
       </body>
     </html>
   );

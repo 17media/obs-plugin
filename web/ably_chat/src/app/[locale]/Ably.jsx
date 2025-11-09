@@ -449,7 +449,7 @@ export default function AblyComponent() {
     }, [roomID, userID, roomInfo]);
 
     return (
-        <ChatListWrapper className="chat-list-wrapper">
+        <ChatListWrapper>
             {chatList.length === 0 ? (
                 <div style={{
                     display: 'flex',

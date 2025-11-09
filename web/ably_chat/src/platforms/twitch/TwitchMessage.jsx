@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { memo } from 'react';
+import styled from 'styled-components';
 import { Twitch } from 'lucide-react';
 
 /**
@@ -6,7 +7,85 @@ import { Twitch } from 'lucide-react';
  * 将统一消息格式转换为Twitch特定的UI显示
  */
 
-export const TwitchMessage = ({ message }) => {
+const MessageContainer = styled.div`
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+`;
+
+const MessageRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+`;
+
+const MessageContent = styled.div`
+  flex: 1;
+`;
+
+const AuthorInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+`;
+
+const Badge = styled.span`
+  padding: 0.125rem 0.25rem;
+  font-size: 0.75rem;
+  color: white;
+  border-radius: 0.125rem;
+`;
+
+const Username = styled.span`
+  font-weight: 500;
+  font-size: 0.875rem;
+`;
+
+const MessageText = styled.div`
+  font-size: 0.875rem;
+  color: ${props => props.dark ? '#e5e7eb' : '#1f2937'};
+`;
+
+const SubscriptionContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: ${props => props.variant === 'subscription' ? (props.dark ? 'rgba(88, 28, 135, 0.2)' : '#faf5ff') : (props.dark ? 'rgba(88, 28, 135, 0.3)' : '#f3e8ff')};
+`;
+
+const SubscriptionContent = styled.div`
+  flex: 1;
+`;
+
+const SubscriptionText = styled.div`
+  font-size: 0.875rem;
+  color: ${props => props.variant === 'subscription' ? (props.dark ? '#c084fc' : '#9333ea') : (props.dark ? '#d8b4fe' : '#7c3aed')};
+`;
+
+const SubscriptionMeta = styled.div`
+  font-size: 0.75rem;
+  color: ${props => props.variant === 'subscription' ? (props.dark ? '#a855f7' : '#a855f7') : (props.dark ? '#c084fc' : '#9333ea')};
+`;
+
+const SimpleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: ${props => props.dark ? '#9ca3af' : '#6b7280'};
+  font-size: ${props => props.small ? '0.75rem' : '0.875rem'};
+`;
+
+const SimpleIcon = styled(Twitch)`
+  width: ${props => props.small ? '0.75rem' : '1rem'};
+  height: ${props => props.small ? '0.75rem' : '1rem'};
+  color: ${props => props.color === 'purple' ? '#a855f7' : props.color === 'blue' ? '#3b82f6' : '#a855f7'};
+  flex-shrink: 0;
+`;
+
+export const TwitchMessage = memo(({ message }) => {
   const getMessageStyle = () => {
     switch (message.type) {
       case 'comment':
@@ -69,103 +148,102 @@ export const TwitchMessage = ({ message }) => {
   };
 
   const renderContent = () => {
+    const isDark = document.documentElement.classList.contains('dark');
+    
     switch (message.type) {
       case 'comment':
         return (
-          <div className="flex items-start space-x-2">
-            <Twitch className="w-4 h-4 text-purple-500 mt-1 flex-shrink-0" />
-            <div className="flex-1">
-              <div className="flex items-center space-x-1 mb-1">
+          <MessageRow>
+            <SimpleIcon small color="purple" />
+            <MessageContent>
+              <AuthorInfo>
                 {getAuthorBadges().map((badge, index) => (
-                  <span 
+                  <Badge 
                     key={index}
-                    className={`px-1 py-0.5 text-xs text-white rounded ${badge.color}`}
+                    style={{ backgroundColor: badge.color }}
                   >
                     {badge.text}
-                  </span>
+                  </Badge>
                 ))}
-                <span 
-                  className="font-medium text-sm"
-                  style={{ color: message.author?.color || '#9146FF' }}
-                >
+                <Username style={{ color: message.author?.color || '#9146FF' }}>
                   {message.author?.displayName || message.author?.name}
-                </span>
-              </div>
-              <div className="text-sm text-gray-800 dark:text-gray-200">
+                </Username>
+              </AuthorInfo>
+              <MessageText dark={isDark}>
                 {message.content}
-              </div>
-            </div>
-          </div>
+              </MessageText>
+            </MessageContent>
+          </MessageRow>
         );
         
       case 'subscription':
         return (
-          <div className="flex items-center space-x-2 bg-purple-50 dark:bg-purple-900/20 p-2 rounded">
-            <Twitch className="w-4 h-4 text-purple-500" />
-            <div className="flex-1">
-              <div className="text-sm text-purple-600 dark:text-purple-400">
+          <SubscriptionContainer variant="subscription" dark={isDark}>
+            <SimpleIcon color="purple" />
+            <SubscriptionContent>
+              <SubscriptionText variant="subscription" dark={isDark}>
                 🎉 {message.content}
-              </div>
-            </div>
-          </div>
+              </SubscriptionText>
+            </SubscriptionContent>
+          </SubscriptionContainer>
         );
         
       case 'resub':
         return (
-          <div className="flex items-center space-x-2 bg-purple-100 dark:bg-purple-900/30 p-2 rounded">
-            <Twitch className="w-4 h-4 text-purple-600" />
-            <div className="flex-1">
-              <div className="text-sm text-purple-700 dark:text-purple-300">
+          <SubscriptionContainer variant="resub" dark={isDark}>
+            <SimpleIcon color="purple" />
+            <SubscriptionContent>
+              <SubscriptionText variant="resub" dark={isDark}>
                 🎊 {message.content}
-              </div>
+              </SubscriptionText>
               {message.metadata?.months && (
-                <div className="text-xs text-purple-500 dark:text-purple-400">
+                <SubscriptionMeta variant="resub" dark={isDark}>
                   订阅时长: {message.metadata.months} 个月
-                </div>
+                </SubscriptionMeta>
               )}
-            </div>
-          </div>
+            </SubscriptionContent>
+          </SubscriptionContainer>
         );
         
       case 'cheer':
         return (
-          <div className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-            <Twitch className="w-4 h-4 text-blue-500" />
-            <div className="flex-1">
-              <div className="text-sm text-blue-600 dark:text-blue-400">
+          <SubscriptionContainer variant="cheer" dark={isDark}>
+            <SimpleIcon color="blue" />
+            <SubscriptionContent>
+              <SubscriptionText variant="cheer" dark={isDark}>
                 💎 {message.content}
-              </div>
+              </SubscriptionText>
               {message.metadata?.bits && (
-                <div className="text-xs text-blue-500 dark:text-blue-400">
+                <SubscriptionMeta variant="cheer" dark={isDark}>
                   Bits: {message.metadata.bits}
-                </div>
+                </SubscriptionMeta>
               )}
-            </div>
-          </div>
+            </SubscriptionContent>
+          </SubscriptionContainer>
         );
         
       case 'join':
         return (
-          <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 text-xs">
-            <Twitch className="w-3 h-3" />
+          <SimpleRow dark={isDark} small>
+            <SimpleIcon small />
             <span>{message.content}</span>
-          </div>
+          </SimpleRow>
         );
         
       default:
         return (
-          <div className="flex items-center space-x-2">
-            <Twitch className="w-4 h-4 text-purple-500" />
-            <span className="text-sm">{message.content}</span>
-          </div>
+          <SimpleRow>
+            <SimpleIcon color="purple" />
+            <span>{message.content}</span>
+          </SimpleRow>
         );
     }
   };
 
   return (
-    <div className={`twitch-message ${getMessageStyle()} p-2 rounded transition-colors`}>
+    <MessageContainer className={`twitch-message ${getMessageStyle()}`}>
       {renderContent()}
-    </div>
+    </MessageContainer>
   );
 };
 

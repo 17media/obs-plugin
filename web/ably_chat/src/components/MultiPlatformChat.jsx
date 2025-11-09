@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
 import { messageAggregator } from '../services/MessageAggregator';
 import { PlatformSelector } from './PlatformSelector';
 import { convertToChatProps as convert17LiveChatProps } from '../platforms/17live/OneSevenLiveMessage';
@@ -9,6 +10,65 @@ import Chat from '@/lib/Chat';
  * 多平台消息显示组件
  * 整合显示来自不同平台的消息
  */
+
+const Container = styled.div`
+  min-height: 100vh;
+  background-color: #000000;
+  color: #f3f4f6;
+`;
+
+const Header = styled.div`
+  padding: 1rem;
+  border-bottom: 1px solid #1f2937;
+`;
+
+const HeaderContent = styled.div`
+  max-width: 28rem;
+`;
+
+const MessageList = styled.div`
+  height: calc(100vh - 72px);
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const EmptyState = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+`;
+
+const MessageItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+`;
+
+const PlatformIcon = styled.img`
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+`;
+
+const MessageContent = styled.div`
+  flex: 1;
+`;
+
+const SimpleMessage = styled.div`
+  font-size: 0.875rem;
+`;
+
+const Username = styled.span`
+  font-weight: 600;
+  margin-right: 0.5rem;
+`;
 
 export const MultiPlatformChat = () => {
   const [messages, setMessages] = useState([]); // 原始统一消息格式
@@ -74,12 +134,15 @@ export const MultiPlatformChat = () => {
     if (message.platform === '17live') {
       const chatProps = convert17LiveChatProps(message, message.metadata?.streamerInfo);
       return (
-        <div key={message.id || index} className="flex items-start space-x-2">
-          <img src={platformIcon(message.platform)} alt={message.platform} className="w-5 h-5 rounded-full mt-1" />
-          <div className="flex-1">
+        <MessageItem key={message.id || index}>
+          <PlatformIcon
+            src={platformIcon(message.platform)}
+            alt={message.platform}
+          />
+          <MessageContent>
             <Chat {...chatProps} />
-          </div>
-        </div>
+          </MessageContent>
+        </MessageItem>
       );
     }
 
@@ -87,31 +150,37 @@ export const MultiPlatformChat = () => {
     const username = message?.author?.displayName || message?.author?.name || '用户';
     const content = message?.content || '';
     return (
-      <div key={message.id || index} className="flex items-start space-x-2">
-        <img src={platformIcon(message.platform)} alt={message.platform} className="w-5 h-5 rounded-full mt-1" />
-        <div className="text-sm"><span className="font-semibold mr-2">{username}:</span>{content}</div>
-      </div>
+      <MessageItem key={message.id || index}>
+        <PlatformIcon
+          src={platformIcon(message.platform)}
+          alt={message.platform}
+        />
+        <SimpleMessage>
+          <Username>{username}:</Username>
+          {content}
+        </SimpleMessage>
+      </MessageItem>
     );
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100">
+    <Container>
       {/* 顶部选择器 */}
-      <div className="p-4 border-b border-gray-800">
-        <div className="max-w-md">
+      <Header>
+        <HeaderContent>
           <PlatformSelector onPlatformChange={handlePlatformChange} messageAggregator={messageAggregator} />
-        </div>
-      </div>
+        </HeaderContent>
+      </Header>
 
       {/* 消息列表 */}
-      <div className="h-[calc(100vh-72px)] overflow-y-auto p-4 space-y-2">
+      <MessageList>
         {visibleMessages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400">暂无消息</div>
+          <EmptyState>暂无消息</EmptyState>
         ) : (
           visibleMessages.map((m, i) => renderMessageItem(m, i))
         )}
-      </div>
-    </div>
+      </MessageList>
+    </Container>
   );
 };
 
