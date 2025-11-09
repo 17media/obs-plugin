@@ -17,7 +17,7 @@ import {
     getGiftByID,
     getRoomInfo,
     getWebSocketServerURL,
-} from '../../api';
+} from '../../platforms/17live/api';
 
 import {
     MsgType_COMMENT,

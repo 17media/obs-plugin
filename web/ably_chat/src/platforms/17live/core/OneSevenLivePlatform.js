@@ -3,7 +3,7 @@
  * 处理17Live平台的消息连接和处理
  */
 
-import { BasePlatform } from '../BasePlatform';
+import { BasePlatform } from '../../BasePlatform';
 import * as Ably from 'ably';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
@@ -16,7 +16,7 @@ import {
   MsgType_AI_COHOST_MESSAGE,
   MsgType_POKE,
 } from '@/lib/constants';
-import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '@/api';
+import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '../api';
 import { sendWSMessage } from '@/services/WSSender';
 
 // Dev-only mock messages (same as Ably.jsx)
