@@ -3,7 +3,8 @@
  * 使用TMI.js处理Twitch聊天消息
  */
 
-import { BasePlatform } from '../BasePlatform';
+import { BasePlatform } from '../../BasePlatform';
+import { getTwitchToken } from '../api/auth';
 import tmi from 'tmi.js';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
@@ -43,14 +44,22 @@ export class TwitchPlatform extends BasePlatform {
         reconnect: reconnect
       };
 
-      // 如果有OAuth令牌，使用它
-      if (oauth) {
+      // 优先使用显式传入的 oauth；否则在 dev/prod 采用统一的 token 获取逻辑
+      let password = oauth;
+      if (!password) {
+        try {
+          password = await getTwitchToken();
+        } catch (e) {
+          console.warn('Twitch token 获取失败，回退匿名连接:', e);
+        }
+      }
+      if (password) {
         this.connectionConfig.identity = {
-          username: username || 'justinfan12345', // 匿名用户名
-          password: oauth
+          username: username || 'justinfan12345', // 未提供用户名则使用匿名用户名
+          password
         };
       } else {
-        // 匿名连接
+        // 匿名连接回退
         this.connectionConfig.identity = {
           username: 'justinfan12345',
           password: 'oauth:justinfan12345'

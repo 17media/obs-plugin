@@ -3,7 +3,8 @@
  * 处理YouTube直播聊天消息
  */
 
-import { BasePlatform } from '../BasePlatform';
+import { BasePlatform } from '../../BasePlatform';
+import { getYouTubeToken } from '../api/auth';
 import axios from 'axios';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
@@ -37,13 +38,38 @@ export class YouTubePlatform extends BasePlatform {
 
   async connect(config) {
     try {
-      const { apiKey, liveChatId } = config;
-      
-      this.apiKey = apiKey;
+      const { apiKey, accessToken, liveChatId } = config || {};
+
       this.liveChatId = liveChatId;
-      
-      if (!apiKey || !liveChatId) {
-        throw new Error('YouTube配置错误：缺少API密钥或直播聊天ID');
+
+      // 获取令牌：优先使用显式配置，其次使用环境/REST
+      let token = apiKey || accessToken || null;
+      if (!token) {
+        try {
+          token = await getYouTubeToken();
+        } catch (e) {
+          console.warn('YouTube token 获取失败:', e);
+        }
+      }
+
+      // 根据令牌形式决定调用方式：Bearer 访问令牌 或 API Key
+      if (token) {
+        const lower = token.toLowerCase();
+        if (lower.startsWith('bearer ')) {
+          this.accessToken = token.slice(7).trim();
+          this.apiKey = null;
+        } else if (token.startsWith('ya29.')) {
+          // 常见Google OAuth访问令牌前缀
+          this.accessToken = token.trim();
+          this.apiKey = null;
+        } else {
+          this.apiKey = token.trim();
+          this.accessToken = null;
+        }
+      }
+
+      if ((!this.apiKey && !this.accessToken) || !this.liveChatId) {
+        throw new Error('YouTube配置错误：缺少有效Token或直播聊天ID');
       }
 
       // 开始轮询
@@ -162,8 +188,11 @@ export class YouTubePlatform extends BasePlatform {
     const params = {
       part: 'snippet,authorDetails',
       liveChatId: this.liveChatId,
-      key: this.apiKey
     };
+
+    if (this.apiKey) {
+      params.key = this.apiKey;
+    }
 
     if (this.nextPageToken) {
       params.pageToken = this.nextPageToken;
@@ -171,7 +200,8 @@ export class YouTubePlatform extends BasePlatform {
 
     const response = await axios.get('https://www.googleapis.com/youtube/v3/liveChat/messages', {
       params,
-      timeout: 10000
+      timeout: 10000,
+      headers: this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : undefined,
     });
 
     const { data } = response;

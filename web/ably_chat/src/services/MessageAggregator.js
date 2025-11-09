@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { OneSevenLivePlatform } from '../platforms/17live/core/OneSevenLivePlatform';
-import { YouTubePlatform } from '../platforms/youtube/YouTubePlatform';
-import { TwitchPlatform } from '../platforms/twitch/TwitchPlatform';
+import { YouTubePlatform } from '../platforms/youtube/core/YouTubePlatform';
+import { TwitchPlatform } from '../platforms/twitch/core/TwitchPlatform';
 import { wsManager } from './WebSocketManager';
 import { sendWSMessage } from './WSSender';
 
