@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 
 import styled from 'styled-components';
+import { useTranslations } from 'next-intl';
 
 import Multiline from './Multiline';
 import SVG from './SVG';
@@ -93,6 +94,8 @@ const Chat = ({
     luckyBag,
     pokeInfo,
 }) => {
+    const t = useTranslations('ChatPage');
+
     const {
         commentRef,
         size,
@@ -204,7 +207,7 @@ const Chat = ({
                         levelBadges={levelBadges}
                         isConcert={isConcert}
                         openID={openID || ''}
-                        displayName={displayName || ''}
+                        displayName={isAiCohost ? t('AI_COHOST') : displayName || ''}
                         streamerInfo={streamerInfo}
                         userID={userID}
                         roomID={roomID}

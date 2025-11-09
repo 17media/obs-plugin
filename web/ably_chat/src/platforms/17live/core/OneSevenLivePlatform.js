@@ -18,7 +18,6 @@ import {
 } from '@/lib/constants';
 import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '../api';
 import { sendWSMessage } from '@/services/WSSender';
-import { useTranslations } from 'next-intl';
 
 // Dev-only mock messages (same as Ably.jsx)
 import giftdata from '@/../public/mock/chat_new_gift_2.json';
@@ -207,7 +206,8 @@ export class OneSevenLivePlatform extends BasePlatform {
         comment: {
           textColor: '#333333',
         },
-        displayName: 'AI助手',
+        // Use i18n key so UI can resolve translation per locale
+        displayName: 'AI_COHOST',
         name: {
           textColor: '#527fff',
         },
