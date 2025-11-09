@@ -15,6 +15,18 @@ export class TwitchPlatform extends BasePlatform {
     this.client = null;
     this.channel = null;
     this.connectionConfig = null;
+    this.devMocksInjected = false;
+
+    // 在开发环境下提前注入 mock 数据，用于样式预览（无需连接）
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(() => {
+        try {
+          this.injectDevMocks();
+        } catch (e) {
+          console.warn('Twitch mock 注入失败:', e);
+        }
+      }, 300);
+    }
   }
 
   async connect(config) {
@@ -56,6 +68,10 @@ export class TwitchPlatform extends BasePlatform {
       
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, channel: this.channel });
+      // 若连接后仍未注入 mock，在开发环境下兜底一次
+      if (process.env.NODE_ENV === 'development' && !this.devMocksInjected) {
+        this.injectDevMocks();
+      }
       
     } catch (error) {
       console.error('Twitch连接失败:', error);
@@ -64,6 +80,39 @@ export class TwitchPlatform extends BasePlatform {
     }
   }
 
+  // 开发环境：注入 mock 数据（加入/留言），与统一结构兼容
+  injectDevMocks() {
+    if (this.devMocksInjected || process.env.NODE_ENV !== 'development') return;
+
+    const mockChat = {
+      type: 'chat',
+      channel: `#${this.channel || 'test'}`,
+      tags: {
+        id: nanoid(),
+        'display-name': 'Twitch Tester',
+        username: 'twitch_tester',
+        'user-id': 'TWITCH_TESTER_ID',
+        color: '#9146FF',
+      },
+      message: '这是来自 Twitch 的测试留言 ~',
+      timestamp: Date.now(),
+    };
+
+    const mockJoin = {
+      type: 'join',
+      channel: `#${this.channel || 'test'}`,
+      username: 'twitch_visitor',
+      timestamp: Date.now(),
+    };
+
+    const mocks = [
+      this.processRawMessage(mockChat),
+      this.processRawMessage(mockJoin),
+    ].filter(Boolean);
+
+    mocks.forEach((mock) => this.enqueueMessage(mock));
+    this.devMocksInjected = true;
+  }
   async disconnect() {
     try {
       if (this.client) {

@@ -82,7 +82,7 @@ const Item = styled.button`
   &:hover { background: #4A4F5D; }
 `;
 
-export const PlatformSelector = ({ onPlatformChange, messageAggregator }) => {
+export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageAggregator }) => {
   const [platformsStatus, setPlatformsStatus] = useState({});
   const [selected, setSelected] = useState('all');
   const [open, setOpen] = useState(false);
@@ -112,6 +112,10 @@ export const PlatformSelector = ({ onPlatformChange, messageAggregator }) => {
   const updateSelection = (value) => {
     setSelected(value);
     setOpen(false);
+    // 先通知父组件整体选择变化，便于父组件一次性更新筛选集合
+    if (onSelectionChange) {
+      onSelectionChange(value);
+    }
     if (!onPlatformChange) return;
 
     if (value === 'all') {

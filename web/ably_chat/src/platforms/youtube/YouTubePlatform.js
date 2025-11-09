@@ -7,7 +7,7 @@ import { BasePlatform } from '../BasePlatform';
 import axios from 'axios';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
-import { MsgType_COMMENT } from '@/lib/constants';
+import { MsgType_COMMENT, MsgType_JOIN_ROOM } from '@/lib/constants';
 
 export class YouTubePlatform extends BasePlatform {
   constructor() {
@@ -20,6 +20,19 @@ export class YouTubePlatform extends BasePlatform {
     this.lastPollTime = 0;
     this.retryCount = 0;
     this.maxRetries = 3;
+    this.devMocksInjected = false;
+
+    // 在开发环境下提前注入 mock 数据，用于样式预览（无需连接）
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(() => {
+        try {
+          this.injectDevMocks();
+        } catch (e) {
+          // 安静失败以免影响启动
+          console.warn('YouTube mock 注入失败:', e);
+        }
+      }, 300);
+    }
   }
 
   async connect(config) {
@@ -38,6 +51,11 @@ export class YouTubePlatform extends BasePlatform {
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, liveChatId });
       
+      // 若连接后仍未注入 mock（例如延迟或被跳过），在开发环境下兜底一次
+      if (process.env.NODE_ENV === 'development' && !this.devMocksInjected) {
+        this.injectDevMocks();
+      }
+      
     } catch (error) {
       console.error('YouTube连接失败:', error);
       this.emit('error', { platform: this.platformId, error });
@@ -45,6 +63,52 @@ export class YouTubePlatform extends BasePlatform {
     }
   }
 
+  // 开发环境：注入 mock 数据（加入/留言），与统一结构兼容
+  injectDevMocks() {
+    if (this.devMocksInjected || process.env.NODE_ENV !== 'development') return;
+
+    const mockComment = {
+      id: nanoid(),
+      snippet: {
+        type: 'textMessageEvent',
+        displayMessage: '这是来自 YouTube 的测试留言 ~',
+        publishedAt: new Date().toISOString(),
+      },
+      authorDetails: {
+        displayName: 'YouTube Tester',
+        channelId: 'UC_TESTER_YT',
+        isChatOwner: false,
+        isChatModerator: false,
+      },
+    };
+
+    const mockJoinContent = fromJS({
+      id: nanoid(),
+      messageType: MsgType_JOIN_ROOM,
+      displayName: 'YouTube Visitor',
+      openID: 'UC_VISITOR_YT',
+      userID: 'UC_VISITOR_YT',
+      content: 'YouTube Visitor 加入了直播间',
+      level: 1,
+      name: { textColor: '#5e84f1' },
+      comment: { textColor: '#333333' },
+      backgroundColor: '',
+      streamerInfo: null,
+    });
+
+    const mocks = [
+      this.processRawMessage(mockComment),
+      {
+        id: mockJoinContent.get('id'),
+        platform: this.platformId,
+        timestamp: Date.now(),
+        content: mockJoinContent,
+      },
+    ].filter(Boolean);
+
+    mocks.forEach((mock) => this.enqueueMessage(mock));
+    this.devMocksInjected = true;
+  }
   async disconnect() {
     try {
       if (this.pollingTimer) {

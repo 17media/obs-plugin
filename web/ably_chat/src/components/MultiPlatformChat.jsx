@@ -88,6 +88,7 @@ const Username = styled.span`
 export const MultiPlatformChat = () => {
   const [messages, setMessages] = useState([]); // 原始统一消息格式
   const [activePlatforms, setActivePlatforms] = useState(new Set(['17live', 'youtube', 'twitch']));
+  const [selectedPlatform, setSelectedPlatform] = useState('all');
   const t = useTranslations('ChatPage');
 
   // 监听消息聚合器事件（直接使用统一消息格式）
@@ -128,8 +129,17 @@ export const MultiPlatformChat = () => {
     });
   };
 
+  const handleSelectionChange = (value) => {
+    setSelectedPlatform(value);
+    if (value === 'all') {
+      setActivePlatforms(new Set(['17live', 'youtube', 'twitch']));
+    } else {
+      setActivePlatforms(new Set([value]));
+    }
+  };
+
   // 按选择的平台过滤展示
-  const visibleMessages = messages.filter(m => activePlatforms.size === 0 || activePlatforms.has(m.platform));
+  const visibleMessages = messages.filter(m => selectedPlatform === 'all' || activePlatforms.has(m.platform));
 
   // 平台图标映射
   const platformIcon = (platform) => {
@@ -169,7 +179,7 @@ export const MultiPlatformChat = () => {
       {/* 顶部选择器 */}
       <Header>
         <HeaderContent>
-          <PlatformSelector onPlatformChange={handlePlatformChange} messageAggregator={messageAggregator} />
+          <PlatformSelector onPlatformChange={handlePlatformChange} onSelectionChange={handleSelectionChange} messageAggregator={messageAggregator} />
         </HeaderContent>
       </Header>
 
