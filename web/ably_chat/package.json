@@ -10,9 +10,11 @@
   },
   "dependencies": {
     "ably": "^2.12.0",
+    "axios": "^1.13.2",
     "immutable": "^3.8.2",
     "immutable-v4": "npm:immutable@4.0.0-rc.12",
     "lodash": "^4.17.21",
+    "lucide-react": "^0.553.0",
     "next": "15.3.2",
     "next-intl": "^4.1.0",
     "pako": "^1.0.6",
@@ -23,7 +25,8 @@
     "rxjs": "^7.8.2",
     "shortid": "^2.2.17",
     "styled-components": "^6.1.18",
-    "styled-system": "^5.1.5"
+    "styled-system": "^5.1.5",
+    "tmi.js": "^1.8.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
