@@ -17,6 +17,7 @@ import {
   MsgType_POKE,
 } from '@/lib/constants';
 import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '@/api';
+import { sendWSMessage } from '@/services/WSSender';
 
 // Dev-only mock messages (same as Ably.jsx)
 import giftdata from '@/../public/mock/chat_new_gift_2.json';
@@ -37,6 +38,8 @@ export class OneSevenLivePlatform extends BasePlatform {
     this.channel = null;
     this.roomInfo = null;
     this.gifts = null;
+    this.roomID = '';
+    this.userID = '';
   }
 
   async connect(config = {}) {
@@ -49,6 +52,10 @@ export class OneSevenLivePlatform extends BasePlatform {
         roomID = roomID || urlParams.get('roomID') || '';
         userID = userID || urlParams.get('userID') || '';
       }
+
+      // 保存连接上下文
+      this.roomID = roomID;
+      this.userID = userID;
 
       // 拉取房间信息与礼物信息
       this.roomInfo = await getRoomInfo();
@@ -266,6 +273,27 @@ export class OneSevenLivePlatform extends BasePlatform {
 
   processGiftMessage(data) {
     const content = this.prepareIndexedChat(data);
+
+    const gift = content.get('gift');
+    
+    if (gift) {
+      let playData = {
+        type: 'play_vff',
+        vffURL: gift.get('vffURL'),
+        vffJson: gift.get('vffJson'),
+      }
+      const composite = decodeMessage.giftMsg?.giftMetas[0]?.composite;
+      if (composite) {
+        playData.compositeData = Object.fromEntries(composite.map(item => [item.tag, item.imageURL]));
+      }
+      sendWSMessage({
+        type: data.type,
+        payload: playData,
+        roomID: chat.get('roomID'),
+        userID: chat.get('userID'),
+      });
+    }
+
     return {
       id: content.get('id'),
       platform: this.platformId,
@@ -302,10 +330,5 @@ export class OneSevenLivePlatform extends BasePlatform {
       timestamp: Date.now(),
       content,
     };
-  }
-
-  async sendMessage(message) {
-    // 17Live目前不支持发送消息
-    throw new Error('17Live平台不支持发送消息');
   }
 }

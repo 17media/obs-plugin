@@ -39,6 +39,8 @@ import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
 import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
 import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
 import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
+import { wsManager } from '@/services/WebSocketManager';
+import { sendWSMessage } from '@/services/WSSender';
 
 export default function AblyComponent() {
 
@@ -333,52 +335,17 @@ export default function AblyComponent() {
         })
         const channel = ably.channels.get(roomID);
 
-        // Connect to WebSocket server
-        let ws;
+        // Connect to unified WebSocket manager
         (async () => {
             try {
-                // Prefer `ws` query parameter if provided; fallback to server-provided URL
-                const params = new URLSearchParams(window.location.search);
-                const wsParam = params.get('ws');
-                let wsUrl;
-                if (wsParam && wsParam.trim()) {
-                    try {
-                        // Resolve relative paths against current origin; keep absolute as-is
-                        wsUrl = new URL(wsParam.trim(), window.location.origin).toString();
-                    } catch {
-                        wsUrl = wsParam.trim();
-                    }
-                    console.log('Using WebSocket URL from query param:', wsUrl);
-                } else {
-                    wsUrl = await getWebSocketServerURL();
-                }
-                ws = new WebSocket(wsUrl);
-
-                ws.onopen = () => {
-                    // Optionally send initial info if server expects it
-                    // ws.send(JSON.stringify({ type: 'INIT', roomID, userID }));
-                    console.log('WebSocket connected:', wsUrl);
-                };
-
-                ws.onmessage = (event) => {
-                    // For now just log incoming messages; integrate as needed later
-                    try {
-                        const payload = JSON.parse(event.data);
-                        // console.log('WebSocket message:', payload);
-                    } catch {
-                        // console.log('WebSocket message (text):', event.data);
-                    }
-                };
-
-                ws.onerror = (err) => {
-                    console.error('WebSocket error:', err);
-                };
-
-                ws.onclose = () => {
-                    console.log('WebSocket closed');
-                };
+                await wsManager.connect();
+                // Optional: listen to manager events
+                wsManager.on('open', ({ url }) => console.log('WebSocket open:', url));
+                wsManager.on('close', () => console.log('WebSocket closed'));
+                wsManager.on('error', (e) => console.error('WebSocket error:', e));
+                // wsManager.on('message', (payload) => console.log('WS message:', payload));
             } catch (err) {
-                console.error('Failed to connect to WebSocket server:', err);
+                console.error('Failed to init WebSocketManager:', err);
             }
         })();
 
@@ -422,19 +389,14 @@ export default function AblyComponent() {
                     if (composite) {
                         playData.compositeData = Object.fromEntries(composite.map(item => [item.tag, item.imageURL]));
                     }
-                    // Forward selected message types to WebSocket server when connected
-                    try {
-                        if (ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({
-                                type: decodeMessage?.type,
-                                roomID,
-                                userID,
-                                payload: playData,
-                            }));
-                        }
-                    } catch (e) {
-                        console.error('Failed to forward message via WebSocket:', e);
-                    }
+                    // 使用统一发送函数
+                    sendWSMessage({
+                        type: decodeMessage?.type,
+                        roomID,
+                        userID,
+                        platform: '17live',
+                        payload: playData,
+                    });
                 }
 
                 setChatList(prevChatList => {
@@ -448,13 +410,8 @@ export default function AblyComponent() {
         // Cleanup on unmount
         return () => {
             channel.unsubscribe();
-            if (ws && ws.readyState !== WebSocket.CLOSED) {
-                try {
-                    ws.close();
-                } catch (e) {
-                    // ignore
-                }
-            }
+            // Keep WebSocketManager alive globally; do not close here to avoid flicker across components.
+            // If needed, introduce reference counting before closing.
         };
     }, [roomID, userID, roomInfo]);
 

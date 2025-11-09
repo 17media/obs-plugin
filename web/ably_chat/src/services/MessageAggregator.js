@@ -2,6 +2,8 @@ import { EventEmitter } from 'events';
 import { OneSevenLivePlatform } from '../platforms/17live/OneSevenLivePlatform';
 import { YouTubePlatform } from '../platforms/youtube/YouTubePlatform';
 import { TwitchPlatform } from '../platforms/twitch/TwitchPlatform';
+import { wsManager } from './WebSocketManager';
+import { sendWSMessage } from './WSSender';
 
 /**
  * 统一消息聚合管理器
@@ -48,6 +50,14 @@ export class MessageAggregator extends EventEmitter {
     
     // 监听平台事件
     this.setupEventListeners();
+
+    // 统一初始化 WebSocket 连接
+    wsManager.connect().catch(err => {
+      console.error('初始化 WebSocket 失败:', err);
+    });
+    wsManager.on('open', ({ url }) => console.log('WS 已连接:', url));
+    wsManager.on('close', () => console.log('WS 已关闭'));
+    wsManager.on('error', (e) => console.error('WS 错误:', e));
   }
 
   setupEventListeners() {
@@ -221,6 +231,28 @@ export class MessageAggregator extends EventEmitter {
 
       // 立即触发消息事件
       this.emit('message', enrichedMessage);
+
+      // 中央转发到 WebSocket（按需）
+      try {
+        const content = enrichedMessage.content;
+        const type = content && typeof content.get === 'function' ? content.get('messageType') : undefined;
+        const gift = content && typeof content.get === 'function' ? content.get('gift') : undefined;
+
+        if (gift) {
+          const playData = {
+            type: 'play_vff',
+            vffURL: gift.get('vffURL'),
+            vffJson: gift.get('vffJson'),
+          };
+          sendWSMessage({
+            type,
+            platform: platformId,
+            payload: playData,
+          });
+        }
+      } catch (e) {
+        console.error('WS 转发失败:', e);
+      }
       
     } catch (error) {
       console.error('处理平台消息失败:', error);
