@@ -35,6 +35,13 @@ const MessageList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  /* 移除内部列表的默认圆点与内边距 */
+  & ul,
+  & ol {
+    list-style: none;
+    margin: 0;
+    padding-left: 0;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -54,7 +61,7 @@ const EmptyIcon = styled.img`
 
 const MessageItem = styled.div`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.5rem;
 `;
 
@@ -62,7 +69,6 @@ const PlatformIcon = styled.img`
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 50%;
-  margin-top: 0.25rem;
   flex-shrink: 0;
 `;
 
