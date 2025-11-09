@@ -7,7 +7,7 @@ import React, { memo } from 'react';
 import { fromJS } from 'immutable';
 import styled from 'styled-components';
 import Chat from '@/lib/Chat';
-import { getChatProps } from '@/util/getChatProps';
+import { getChatProps } from '@/platforms/17live/util/getChatProps';
 import {
   MsgType_COMMENT,
   MsgType_NEW_GIFT,

@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { messageAggregator } from '../services/MessageAggregator';
 import { PlatformSelector } from './PlatformSelector';
 import Chat from '@/lib/Chat';
-import { getChatProps } from '@/util/getChatProps';
+import { getChatProps } from '@/platforms/17live/util/getChatProps';
 import { fromJS } from 'immutable';
 
 /**

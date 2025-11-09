@@ -7,7 +7,7 @@ import { BasePlatform } from '../../BasePlatform';
 import * as Ably from 'ably';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
-import { getAblyDecodeData } from '@/util/getAblyDecodeData';
+import { getAblyDecodeData } from '@/platforms/17live/util/getAblyDecodeData';
 import {
   MsgType_COMMENT,
   MsgType_NEW_GIFT,
@@ -18,6 +18,7 @@ import {
 } from '@/lib/constants';
 import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '../api';
 import { sendWSMessage } from '@/services/WSSender';
+import { useTranslations } from 'next-intl';
 
 // Dev-only mock messages (same as Ably.jsx)
 import giftdata from '@/../public/mock/chat_new_gift_2.json';

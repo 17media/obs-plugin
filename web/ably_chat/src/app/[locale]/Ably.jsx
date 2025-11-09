@@ -8,8 +8,8 @@ import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
 
 import Chat from '@/lib/Chat';
-import { getAblyDecodeData } from '@/util/getAblyDecodeData';
-import { getChatProps } from '@/util/getChatProps';
+import { getAblyDecodeData } from '@/platforms/17live/util/getAblyDecodeData';
+import { getChatProps } from '@/platforms/17live/util/getChatProps';
 import { ChatListWrapper } from '@/lib/ChatListWrapper';
 import {
     getAblyTokenFromServer,
