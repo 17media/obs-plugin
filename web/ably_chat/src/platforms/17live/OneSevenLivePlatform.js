@@ -18,6 +18,18 @@ import {
 } from '@/lib/constants';
 import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '@/api';
 
+// Dev-only mock messages (same as Ably.jsx)
+import giftdata from '@/../public/mock/chat_new_gift_2.json';
+import comment from '@/../public/mock/chat_message.json';
+import newjoin from '@/../public/mock/chat_new_join.json';
+import aicohost from '@/../public/mock/chat_ai_cohost.json';
+import pokeone from '@/../public/mock/chat_poke.json';
+import pokeall from '@/../public/mock/chat_poke_all.json';
+import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
+import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
+import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
+import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
+
 export class OneSevenLivePlatform extends BasePlatform {
   constructor() {
     super('17live', '17Live');
@@ -76,6 +88,33 @@ export class OneSevenLivePlatform extends BasePlatform {
 
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, roomID });
+
+      if (process.env.NODE_ENV === 'development') {
+        const mocks = [
+          this.prepareIndexedChat(comment),
+          this.prepareIndexedChat(newjoin),
+          this.prepareIndexedChat(giftdata),
+          this.prepareIndexedChat(aicohost),
+          this.prepareIndexedChat(pokeone),
+          this.prepareIndexedChat(pokeall),
+          this.prepareIndexedChat(pokeback0),
+          this.prepareIndexedChat(pokeback1),
+          this.prepareIndexedChat(pokeback2),
+          this.prepareIndexedChat(pokeback3),
+        ];
+        console.log('mocks', mocks);
+        mocks.forEach((mock) => {
+          if (mock) {
+            const unifiedMessage = {
+              id: mock.get('id'),
+              platform: this.platformId,
+              timestamp: Date.now(),
+              content: mock,
+            };
+            this.enqueueMessage(unifiedMessage);
+          }
+        });
+      }
       
     } catch (error) {
       console.error('17Live连接失败:', error);
@@ -119,6 +158,81 @@ export class OneSevenLivePlatform extends BasePlatform {
     return data;
   }
 
+  // 与 Ably.jsx#prepareIndexedChat 保持一致的内容构建，返回 Immutable 对象
+  prepareIndexedChat(message) {
+    const id = nanoid();
+    const streamerInfo = this.roomInfo?.userInfo;
+
+    if (message.type === MsgType_NEW_GIFT || message.type === MsgType_NEW_LUCKYBAG) {
+      const { displayUser, barrage, ...restGift } = message?.giftMsg || {};
+      const gift = getGiftByID(restGift?.giftID);
+
+      if (message.type === MsgType_NEW_LUCKYBAG && restGift?.extID) {
+        const luckyBag = getGiftByID(restGift.extID);
+        const indexedGift = fromJS({
+          ...restGift,
+          ...(displayUser || {}),
+          barrage,
+          id,
+          messageType: message.type,
+          gift,
+          luckyBag,
+          streamerInfo,
+        });
+        return indexedGift;
+      }
+
+      const indexedGift = fromJS({
+        ...restGift,
+        ...(displayUser || {}),
+        barrage,
+        id,
+        messageType: message.type,
+        gift,
+        streamerInfo,
+      });
+      return indexedGift;
+    } else if (message.type === MsgType_AI_COHOST_MESSAGE) {
+      const { commentTxt } = message?.aiCohostMsg || {};
+      const indexedChat = fromJS({
+        content: commentTxt,
+        comment: {
+          textColor: '#333333',
+        },
+        displayName: 'AI助手',
+        name: {
+          textColor: '#527fff',
+        },
+        backgroundColor: '#FFFFFFE6',
+        id,
+        messageType: message.type,
+        streamerInfo,
+      });
+      return indexedChat;
+    } else if (message.type === MsgType_POKE) {
+      const { sender } = message?.pokeInfo || {};
+      return fromJS({
+        ...(sender || {}),
+        isStreamer: sender?.userID && streamerInfo?.userID ? sender.userID === streamerInfo.userID : false,
+        pokeInfo: message?.pokeInfo,
+        id,
+        messageType: message.type,
+        streamerInfo,
+      });
+    }
+
+    const { displayUser, barrage, ...restChat } = message?.commentMsg || {};
+    const indexedChat = fromJS({
+      ...restChat,
+      ...(displayUser || {}),
+      barrage,
+      id,
+      messageType: message.type,
+      streamerInfo,
+    });
+    return indexedChat;
+  }
+
   processRawMessage(rawData) {
     const { type } = rawData;
     
@@ -141,128 +255,52 @@ export class OneSevenLivePlatform extends BasePlatform {
   }
 
   processCommentMessage(data) {
-    const { commentMsg } = data;
-    const { displayUser, barrage, content } = commentMsg;
-    
+    const content = this.prepareIndexedChat(data);
     return {
-      id: nanoid(),
+      id: content.get('id'),
       platform: this.platformId,
-      type: 'comment',
-      content: content,
-      author: {
-        id: displayUser.userID,
-        name: displayUser.userName,
-        displayName: displayUser.displayName,
-        level: displayUser.level,
-        isStreamer: displayUser.userID === this.roomInfo?.userInfo?.userID
-      },
       timestamp: Date.now(),
-      rawData: data,
-      metadata: {
-        barrage,
-        textColor: commentMsg.comment?.textColor,
-        backgroundColor: commentMsg.comment?.backgroundColor,
-        streamerInfo: this.roomInfo?.userInfo
-      }
+      content,
     };
   }
 
   processGiftMessage(data) {
-    const { giftMsg } = data;
-    const { displayUser, giftID, giftNum, extID } = giftMsg;
-    const gift = getGiftByID(giftID);
-    const luckyBag = extID ? getGiftByID(extID) : undefined;
-    
+    const content = this.prepareIndexedChat(data);
     return {
-      id: nanoid(),
+      id: content.get('id'),
       platform: this.platformId,
-      type: 'gift',
-      content: `${displayUser.displayName} 送出了 ${giftNum} 个 ${gift?.name || '礼物'}`,
-      author: {
-        id: displayUser.userID,
-        name: displayUser.userName,
-        displayName: displayUser.displayName,
-        level: displayUser.level
-      },
       timestamp: Date.now(),
-      rawData: data,
-      metadata: {
-        gift,
-        giftNum,
-        giftID,
-        luckyBag,
-        streamerInfo: this.roomInfo?.userInfo
-      }
+      content,
     };
   }
 
   processJoinMessage(data) {
-    // 与 Ably.jsx 一致：JOIN_ROOM 也使用 commentMsg 结构
-    const { commentMsg } = data;
-    const { displayUser } = commentMsg || {};
-    
+    const content = this.prepareIndexedChat(data);
     return {
-      id: nanoid(),
+      id: content.get('id'),
       platform: this.platformId,
-      type: 'join',
-      content: `${displayUser.displayName} 加入了直播间`,
-      author: {
-        id: displayUser.userID,
-        name: displayUser.userName,
-        displayName: displayUser.displayName,
-        level: displayUser.level
-      },
       timestamp: Date.now(),
-      rawData: data
+      content,
     };
   }
 
   processAICohostMessage(data) {
-    const { aiCohostMsg } = data;
-    
+    const content = this.prepareIndexedChat(data);
     return {
-      id: nanoid(),
+      id: content.get('id'),
       platform: this.platformId,
-      type: 'ai_cohost',
-      content: aiCohostMsg.commentTxt,
-      author: {
-        id: 'ai_cohost',
-        name: 'AI_COHOST',
-        displayName: 'AI助手',
-        isAI: true
-      },
       timestamp: Date.now(),
-      rawData: data,
-      metadata: {
-        backgroundColor: '#FFFFFFE6',
-        textColor: '#333333',
-        streamerInfo: this.roomInfo?.userInfo
-      }
+      content,
     };
   }
 
   processPokeMessage(data) {
-    const { pokeInfo } = data;
-    const { sender } = pokeInfo;
-    
+    const content = this.prepareIndexedChat(data);
     return {
-      id: nanoid(),
+      id: content.get('id'),
       platform: this.platformId,
-      type: 'poke',
-      content: `${sender.displayName} 戳了一下`,
-      author: {
-        id: sender.userID,
-        name: sender.userName,
-        displayName: sender.displayName,
-        level: sender.level,
-        isStreamer: sender.userID === this.roomInfo?.userInfo?.userID
-      },
       timestamp: Date.now(),
-      rawData: data,
-      metadata: {
-        pokeInfo,
-        streamerInfo: this.roomInfo?.userInfo
-      }
+      content,
     };
   }
 

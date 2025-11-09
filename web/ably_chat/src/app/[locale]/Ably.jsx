@@ -29,16 +29,16 @@ import {
     MsgType_POKE,
 } from '@/lib/constants';
 
-// import giftdata from '@/../public/mock/chat_new_gift_2.json';
-// import comment from '@/../public/mock/chat_message.json';
-// import newjoin from '@/../public/mock/chat_new_join.json';
-// import aicohost from '@/../public/mock/chat_ai_cohost.json';
-// import pokeone from '@/../public/mock/chat_poke.json';
-// import pokeall from '@/../public/mock/chat_poke_all.json';
-// import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
-// import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
-// import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
-// import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
+import giftdata from '@/../public/mock/chat_new_gift_2.json';
+import comment from '@/../public/mock/chat_message.json';
+import newjoin from '@/../public/mock/chat_new_join.json';
+import aicohost from '@/../public/mock/chat_ai_cohost.json';
+import pokeone from '@/../public/mock/chat_poke.json';
+import pokeall from '@/../public/mock/chat_poke_all.json';
+import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
+import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
+import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
+import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
 
 export default function AblyComponent() {
 
@@ -292,21 +292,31 @@ export default function AblyComponent() {
             return;
         }
 
-        // setTimeout(() => {
-        //     console.log('loading mock messages...');
-        //     setChatList([
-        //         prepareIndexedChat(comment),
-        //         prepareIndexedChat(newjoin),
-        //         prepareIndexedChat(giftdata),
-        //         prepareIndexedChat(aicohost),
-        //         prepareIndexedChat(pokeone),
-        //         prepareIndexedChat(pokeall),
-        //         prepareIndexedChat(pokeback0),
-        //         prepareIndexedChat(pokeback1),
-        //         prepareIndexedChat(pokeback2),
-        //         prepareIndexedChat(pokeback3),
-        //     ]);
-        // }, 1000);
+        if (process.env.NODE_ENV === 'development') {
+            setTimeout(() => {
+                try {
+                    // Load a representative set of mock messages
+                    const mocks = [
+                        prepareIndexedChat(comment),
+                        prepareIndexedChat(newjoin),
+                        prepareIndexedChat(giftdata),
+                        prepareIndexedChat(aicohost),
+                        prepareIndexedChat(pokeone),
+                        prepareIndexedChat(pokeall),
+                        prepareIndexedChat(pokeback0),
+                        prepareIndexedChat(pokeback1),
+                        prepareIndexedChat(pokeback2),
+                        prepareIndexedChat(pokeback3),
+                    ];
+                    setChatList(prev => {
+                        const next = [...prev, ...mocks];
+                        return next.length > 1000 ? next.slice(-1000) : next;
+                    });
+                } catch (e) {
+                    console.error('Failed to load mock messages:', e);
+                }
+            }, 500);
+        }
 
         const ably = new Ably.Realtime({
             environment: '17media',

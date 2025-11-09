@@ -4,9 +4,9 @@ import { useTranslations } from 'next-intl';
 import styled from 'styled-components';
 import { messageAggregator } from '../services/MessageAggregator';
 import { PlatformSelector } from './PlatformSelector';
-import { convertToChatProps as convert17LiveChatProps } from '../platforms/17live/OneSevenLiveMessage';
 import Chat from '@/lib/Chat';
 import { getChatProps } from '@/util/getChatProps';
+import { fromJS } from 'immutable';
 
 /**
  * 多平台消息显示组件
@@ -139,38 +139,21 @@ export const MultiPlatformChat = () => {
     }
   };
 
-  // 渲染单条消息
-  const renderMessageItem = (message, index) => {
-    if (message.platform === '17live') {
-      // 17Live 转换结果为 immutable，需要通过 getChatProps 提取为 Chat 可用的 props
-      const immutableChat = convert17LiveChatProps(message, message.metadata?.streamerInfo);
-      const chatProps = getChatProps(immutableChat);
-      return (
-        <MessageItem key={message.id || index}>
-          <PlatformIcon
-            src={platformIcon(message.platform)}
-            alt={message.platform}
-          />
-          <MessageContent>
-            <Chat {...chatProps} />
-          </MessageContent>
-        </MessageItem>
-      );
-    }
+  // 平台消息统一：直接使用 content 作为 Immutable 对象
 
-    // YouTube / Twitch 简单文本：username: message content
-    const username = message?.author?.displayName || message?.author?.name || '用户';
-    const content = message?.content || '';
+  // 渲染单条消息（统一用 Chat + 平台图标）
+  const renderMessageItem = (message, index) => {
+    const immutableChat = message.content; // 平台已生成 Immutable 内容
+    const chatProps = getChatProps(immutableChat);
     return (
       <MessageItem key={message.id || index}>
         <PlatformIcon
           src={platformIcon(message.platform)}
           alt={message.platform}
         />
-        <SimpleMessage>
-          <Username>{username}:</Username>
-          {content}
-        </SimpleMessage>
+        <MessageContent>
+          <Chat {...chatProps} />
+        </MessageContent>
       </MessageItem>
     );
   };

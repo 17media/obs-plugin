@@ -6,6 +6,8 @@
 import { BasePlatform } from '../BasePlatform';
 import tmi from 'tmi.js';
 import { nanoid } from 'nanoid';
+import { fromJS } from 'immutable';
+import { MsgType_COMMENT, MsgType_JOIN_ROOM, MsgType_NEW_GIFT } from '@/lib/constants';
 
 export class TwitchPlatform extends BasePlatform {
   constructor() {
@@ -256,121 +258,130 @@ export class TwitchPlatform extends BasePlatform {
     }
   }
 
-  processChatMessage(rawData) {
-    const { tags, message } = rawData;
-    
-    return {
-      id: tags.id || nanoid(),
-      platform: this.platformId,
-      type: 'comment',
-      content: message,
-      author: {
-        id: tags['user-id'],
-        name: tags.username,
+  // 构建与 Chat 组件兼容的 Immutable 内容
+  prepareIndexedChat(base) {
+    const type = base?.type;
+    const id = base?.tags?.id || base?.id || nanoid();
+
+    if (type === 'chat') {
+      const { tags, message } = base;
+      return fromJS({
+        id,
+        messageType: MsgType_COMMENT,
         displayName: tags['display-name'] || tags.username,
-        avatar: null, // Twitch IRC不提供头像
-        color: tags.color,
-        isMod: tags.mod,
-        isSubscriber: tags.subscriber,
-        isTurbo: tags.turbo,
-        userType: tags['user-type'],
-        badges: this.parseBadges(tags.badges)
-      },
+        openID: tags['user-id'],
+        userID: tags['user-id'],
+        content: message,
+        level: 1,
+        name: { textColor: tags.color || '#9146FF' },
+        comment: { textColor: '#e5e7eb' },
+        backgroundColor: '',
+        streamerInfo: null,
+      });
+    }
+
+    if (type === 'join') {
+      const { username } = base;
+      return fromJS({
+        id,
+        messageType: MsgType_JOIN_ROOM,
+        displayName: username,
+        openID: username,
+        userID: username,
+        content: `${username} 加入了频道`,
+        level: 1,
+        name: { textColor: '#9146FF' },
+        comment: { textColor: '#e5e7eb' },
+        backgroundColor: '',
+        streamerInfo: null,
+      });
+    }
+
+    if (type === 'subscription' || type === 'resub' || type === 'cheer') {
+      const { username, months, userstate, message } = base;
+      const bits = parseInt(userstate?.bits) || 0;
+      const giftName = type === 'subscription' ? '订阅' : (type === 'resub' ? `订阅 ${months} 个月` : 'Bits');
+      const count = type === 'cheer' ? bits : (months || 1);
+
+      return fromJS({
+        id,
+        messageType: MsgType_NEW_GIFT,
+        displayName: userstate?.['display-name'] || username,
+        openID: userstate?.['user-id'] || username,
+        userID: userstate?.['user-id'] || username,
+        content: message || '',
+        gift: fromJS({ name: giftName, point: count, icon: '' }),
+        level: 1,
+        name: { textColor: '#9146FF' },
+        comment: { textColor: '#e5e7eb' },
+        backgroundColor: '',
+        streamerInfo: null,
+      });
+    }
+
+    // fallback 普通评论
+    return fromJS({
+      id,
+      messageType: MsgType_COMMENT,
+      displayName: base?.username || 'Twitch用户',
+      openID: base?.username,
+      userID: base?.username,
+      content: base?.message || '',
+      level: 1,
+      name: { textColor: '#9146FF' },
+      comment: { textColor: '#e5e7eb' },
+      backgroundColor: '',
+      streamerInfo: null,
+    });
+  }
+
+  processChatMessage(rawData) {
+    const immutableContent = this.prepareIndexedChat({ ...rawData, type: 'chat' });
+    return {
+      id: immutableContent.get('id'),
+      platform: this.platformId,
       timestamp: Date.now(),
-      rawData: rawData,
-      metadata: {
-        emotes: tags.emotes,
-        messageType: tags['message-type'],
-        channel: rawData.channel
-      }
+      content: immutableContent,
     };
   }
 
   processJoinMessage(rawData) {
-    const { username } = rawData;
-    
+    const immutableContent = this.prepareIndexedChat({ ...rawData, type: 'join' });
     return {
-      id: nanoid(),
+      id: immutableContent.get('id'),
       platform: this.platformId,
-      type: 'join',
-      content: `${username} 加入了频道`,
-      author: {
-        id: username,
-        name: username,
-        displayName: username
-      },
       timestamp: Date.now(),
-      rawData: rawData
+      content: immutableContent,
     };
   }
 
   processSubscriptionMessage(rawData) {
-    const { username, message, userstate } = rawData;
-    
+    const immutableContent = this.prepareIndexedChat({ ...rawData, type: 'subscription' });
     return {
-      id: nanoid(),
+      id: immutableContent.get('id'),
       platform: this.platformId,
-      type: 'subscription',
-      content: `${username} 订阅了频道${message ? ': ' + message : ''}`,
-      author: {
-        id: userstate['user-id'] || username,
-        name: username,
-        displayName: username,
-        isSubscriber: true
-      },
       timestamp: Date.now(),
-      rawData: rawData,
-      metadata: {
-        subscriptionType: userstate['msg-param-sub-plan'],
-        message
-      }
+      content: immutableContent,
     };
   }
 
   processResubMessage(rawData) {
-    const { username, months, message, userstate } = rawData;
-    
+    const immutableContent = this.prepareIndexedChat({ ...rawData, type: 'resub' });
     return {
-      id: nanoid(),
+      id: immutableContent.get('id'),
       platform: this.platformId,
-      type: 'resub',
-      content: `${username} 订阅了 ${months} 个月${message ? ': ' + message : ''}`,
-      author: {
-        id: userstate['user-id'] || username,
-        name: username,
-        displayName: username,
-        isSubscriber: true
-      },
       timestamp: Date.now(),
-      rawData: rawData,
-      metadata: {
-        months,
-        subscriptionType: userstate['msg-param-sub-plan'],
-        message
-      }
+      content: immutableContent,
     };
   }
 
   processCheerMessage(rawData) {
-    const { userstate, message } = rawData;
-    const bits = parseInt(userstate.bits) || 0;
-    
+    const immutableContent = this.prepareIndexedChat({ ...rawData, type: 'cheer' });
     return {
-      id: nanoid(),
+      id: immutableContent.get('id'),
       platform: this.platformId,
-      type: 'cheer',
-      content: `${userstate['display-name']} 欢呼了 ${bits} bits${message ? ': ' + message : ''}`,
-      author: {
-        id: userstate['user-id'],
-        name: userstate.username,
-        displayName: userstate['display-name'] || userstate.username
-      },
       timestamp: Date.now(),
-      rawData: rawData,
-      metadata: {
-        bits,
-        message
-      }
+      content: immutableContent,
     };
   }
 

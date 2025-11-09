@@ -6,6 +6,8 @@
 import { BasePlatform } from '../BasePlatform';
 import axios from 'axios';
 import { nanoid } from 'nanoid';
+import { fromJS } from 'immutable';
+import { MsgType_COMMENT } from '@/lib/constants';
 
 export class YouTubePlatform extends BasePlatform {
   constructor() {
@@ -169,6 +171,31 @@ export class YouTubePlatform extends BasePlatform {
     }
   }
 
+  // 构建与 Chat 组件兼容的 Immutable 内容
+  prepareIndexedChat(rawData) {
+    const { snippet, authorDetails } = rawData || {};
+    const id = rawData?.id || nanoid();
+    const displayName = authorDetails?.displayName || 'YouTube用户';
+    const isOwner = !!authorDetails?.isChatOwner;
+    const isModerator = !!authorDetails?.isChatModerator;
+    const nameColor = isOwner ? '#ffd700' : (isModerator ? '#5e84f1' : '#333333');
+
+    return fromJS({
+      id,
+      messageType: MsgType_COMMENT,
+      displayName,
+      openID: authorDetails?.channelId,
+      userID: authorDetails?.channelId,
+      content: snippet?.displayMessage || '',
+      level: 1,
+      isStreamer: isOwner,
+      name: { textColor: nameColor },
+      comment: { textColor: '#333333' },
+      backgroundColor: '',
+      streamerInfo: null,
+    });
+  }
+
   processRawMessage(rawData) {
     try {
       const { snippet, authorDetails } = rawData;
@@ -182,32 +209,14 @@ export class YouTubePlatform extends BasePlatform {
         return null;
       }
 
-      const messageId = rawData.id || nanoid();
       const timestamp = new Date(snippet.publishedAt).getTime();
-      const content = snippet.displayMessage || '';
-      
+      const immutableContent = this.prepareIndexedChat(rawData);
+
       return {
-        id: messageId,
+        id: immutableContent.get('id'),
         platform: this.platformId,
-        type: 'comment',
-        content: content,
-        author: {
-          id: authorDetails.channelId,
-          name: authorDetails.displayName,
-          displayName: authorDetails.displayName,
-          avatar: authorDetails.profileImageUrl,
-          isVerified: authorDetails.isVerified,
-          isChatOwner: authorDetails.isChatOwner,
-          isChatModerator: authorDetails.isChatModerator,
-          isChatSponsor: authorDetails.isChatSponsor
-        },
-        timestamp: timestamp,
-        rawData: rawData,
-        metadata: {
-          messageId: rawData.id,
-          liveChatId: snippet.liveChatId,
-          type: snippet.type
-        }
+        timestamp,
+        content: immutableContent,
       };
     } catch (error) {
       console.error('处理YouTube消息失败:', error);
