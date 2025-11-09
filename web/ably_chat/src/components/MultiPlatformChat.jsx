@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import styled from 'styled-components';
 import { messageAggregator } from '../services/MessageAggregator';
 import { PlatformSelector } from './PlatformSelector';
@@ -39,8 +40,15 @@ const EmptyState = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: #9ca3af;
+  padding: 40px 20px;
+  color: #A1A9B6;
+  font-size: 14px;
+`;
+
+const EmptyIcon = styled.img`
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
 `;
 
 const MessageItem = styled.div`
@@ -73,6 +81,7 @@ const Username = styled.span`
 export const MultiPlatformChat = () => {
   const [messages, setMessages] = useState([]); // 原始统一消息格式
   const [activePlatforms, setActivePlatforms] = useState(new Set(['17live', 'youtube', 'twitch']));
+  const t = useTranslations('ChatPage');
 
   // 监听消息聚合器事件（直接使用统一消息格式）
   useEffect(() => {
@@ -175,7 +184,10 @@ export const MultiPlatformChat = () => {
       {/* 消息列表 */}
       <MessageList>
         {visibleMessages.length === 0 ? (
-          <EmptyState>暂无消息</EmptyState>
+          <EmptyState>
+            <EmptyIcon src="/images/exclaimark.svg" alt="" />
+            <span>{t('EMPTY_CHAT_MESSAGE')}</span>
+          </EmptyState>
         ) : (
           visibleMessages.map((m, i) => renderMessageItem(m, i))
         )}
