@@ -497,7 +497,13 @@ export const getUserType = (
         streamerInfo
 ) => {
     // this order is important (streamer -> guardian -> vip -> normal)
-    if (streamerInfo && user.userID === streamerInfo.get('userID')) {
+    const streamerId = streamerInfo
+        ? (typeof streamerInfo.get === 'function'
+            ? streamerInfo.get('userID')
+            : streamerInfo.userID)
+        : undefined;
+
+    if (streamerId && user?.userID === streamerId) {
         return USER_STREAMER;
     } else if (user.isGuardian) {
         return USER_GUARDIAN;

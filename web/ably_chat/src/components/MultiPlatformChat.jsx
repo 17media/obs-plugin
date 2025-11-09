@@ -6,6 +6,7 @@ import { messageAggregator } from '../services/MessageAggregator';
 import { PlatformSelector } from './PlatformSelector';
 import { convertToChatProps as convert17LiveChatProps } from '../platforms/17live/OneSevenLiveMessage';
 import Chat from '@/lib/Chat';
+import { getChatProps } from '@/util/getChatProps';
 
 /**
  * 多平台消息显示组件
@@ -141,7 +142,9 @@ export const MultiPlatformChat = () => {
   // 渲染单条消息
   const renderMessageItem = (message, index) => {
     if (message.platform === '17live') {
-      const chatProps = convert17LiveChatProps(message, message.metadata?.streamerInfo);
+      // 17Live 转换结果为 immutable，需要通过 getChatProps 提取为 Chat 可用的 props
+      const immutableChat = convert17LiveChatProps(message, message.metadata?.streamerInfo);
+      const chatProps = getChatProps(immutableChat);
       return (
         <MessageItem key={message.id || index}>
           <PlatformIcon

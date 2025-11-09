@@ -7,13 +7,13 @@ import React, {
     useState,
 } from 'react';
 
-import { isImmutable } from 'immutable';
+// Immutable v3 不提供 isImmutable；使用通用的 toJS 检测替代
 
 import BadgeImage from './BadgeImage';
 
 
 const transformImmutable = item => {
-    if (isImmutable(item)) {
+    if (item && typeof item.toJS === 'function') {
         return item.toJS();
     }
     return item;

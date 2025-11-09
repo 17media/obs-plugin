@@ -8,6 +8,14 @@ import * as Ably from 'ably';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
 import { getAblyDecodeData } from '@/util/getAblyDecodeData';
+import {
+  MsgType_COMMENT,
+  MsgType_NEW_GIFT,
+  MsgType_JOIN_ROOM,
+  MsgType_NEW_LUCKYBAG,
+  MsgType_AI_COHOST_MESSAGE,
+  MsgType_POKE,
+} from '@/lib/constants';
 import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '@/api';
 
 export class OneSevenLivePlatform extends BasePlatform {
@@ -115,16 +123,16 @@ export class OneSevenLivePlatform extends BasePlatform {
     const { type } = rawData;
     
     switch (type) {
-      case 'COMMENT':
+      case MsgType_COMMENT:
         return this.processCommentMessage(rawData);
-      case 'NEW_GIFT':
-      case 'NEW_LUCKYBAG':
+      case MsgType_NEW_GIFT:
+      case MsgType_NEW_LUCKYBAG:
         return this.processGiftMessage(rawData);
-      case 'JOIN_ROOM':
+      case MsgType_JOIN_ROOM:
         return this.processJoinMessage(rawData);
-      case 'AI_COHOST_MESSAGE':
+      case MsgType_AI_COHOST_MESSAGE:
         return this.processAICohostMessage(rawData);
-      case 'POKE':
+      case MsgType_POKE:
         return this.processPokeMessage(rawData);
       default:
         console.warn('未知的17Live消息类型:', type);

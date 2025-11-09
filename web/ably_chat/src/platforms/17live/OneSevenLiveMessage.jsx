@@ -4,8 +4,10 @@
  */
 
 import React, { memo } from 'react';
+import { fromJS } from 'immutable';
 import styled from 'styled-components';
 import Chat from '@/lib/Chat';
+import { getChatProps } from '@/util/getChatProps';
 import {
   MsgType_COMMENT,
   MsgType_NEW_GIFT,
@@ -65,7 +67,7 @@ export const OneSevenLiveMessage = memo(({ message, streamerInfo, asideLiveWidth
       </PlatformBadge>
       <div style={{ flex: 1 }}>
         <Chat 
-          {...chatProps}
+          {...getChatProps(chatProps)}
           asideLiveWidth={asideLiveWidth}
         />
       </div>
@@ -83,66 +85,68 @@ export function convertToChatProps(message, streamerInfo) {
     id,
     messageType: getMessageType(type),
     content,
-    asideLiveWidth: undefined,
-    streamerInfo: metadata?.streamerInfo || streamerInfo
+    streamerInfo: metadata?.streamerInfo || streamerInfo,
   };
 
   switch (type) {
     case 'comment':
-      return {
+      return fromJS({
         ...baseProps,
         userID: author.id,
         displayName: author.displayName,
-        nameColor: metadata?.textColor || '#333333',
-        textColor: metadata?.textColor || '#333333',
+        name: { textColor: metadata?.textColor || '#333333' },
+        comment: { textColor: metadata?.textColor || '#333333' },
         backgroundColor: metadata?.backgroundColor || '',
         level: author.level || 1,
         isStreamer: author.isStreamer || false,
-        openID: author.id
-      };
+        openID: author.id,
+      });
 
     case 'gift':
       const giftData = rawData?.giftMsg || {};
-      return {
+      return fromJS({
         ...baseProps,
         userID: author.id,
         displayName: author.displayName,
         gift: metadata?.gift,
         luckyBag: metadata?.luckyBag,
-        messageType: metadata?.luckyBag ? MsgType_NEW_LUCKYBAG : MsgType_NEW_GIFT
-      };
+        messageType: metadata?.luckyBag ? MsgType_NEW_LUCKYBAG : MsgType_NEW_GIFT,
+      });
 
     case 'join':
-      return {
+      return fromJS({
         ...baseProps,
         userID: author.id,
         displayName: author.displayName,
-        messageType: MsgType_JOIN_ROOM
-      };
+        name: { textColor: metadata?.textColor || '#333333' },
+        comment: { textColor: metadata?.textColor || '#333333' },
+        backgroundColor: metadata?.backgroundColor || '',
+        messageType: MsgType_JOIN_ROOM,
+      });
 
     case 'ai_cohost':
-      return {
+      return fromJS({
         ...baseProps,
         userID: 'ai_cohost',
         displayName: author.displayName,
         messageType: MsgType_AI_COHOST_MESSAGE,
         backgroundColor: metadata?.backgroundColor || '#FFFFFFE6',
-        nameColor: '#527fff',
-        textColor: metadata?.textColor || '#333333'
-      };
+        name: { textColor: '#527fff' },
+        comment: { textColor: metadata?.textColor || '#333333' },
+      });
 
     case 'poke':
-      return {
+      return fromJS({
         ...baseProps,
         userID: author.id,
         displayName: author.displayName,
         messageType: MsgType_POKE,
         pokeInfo: metadata?.pokeInfo,
-        isStreamer: author.isStreamer || false
-      };
+        isStreamer: author.isStreamer || false,
+      });
 
     default:
-      return baseProps;
+      return fromJS(baseProps);
   }
 }
 
