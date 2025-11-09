@@ -6,6 +6,14 @@
 import React, { memo } from 'react';
 import styled from 'styled-components';
 import Chat from '@/lib/Chat';
+import {
+  MsgType_COMMENT,
+  MsgType_NEW_GIFT,
+  MsgType_JOIN_ROOM,
+  MsgType_AI_COHOST_MESSAGE,
+  MsgType_POKE,
+  MsgType_NEW_LUCKYBAG,
+} from '@/lib/constants';
 
 const PlatformIcon = styled.img`
   width: 16px;
@@ -101,7 +109,7 @@ export function convertToChatProps(message, streamerInfo) {
         displayName: author.displayName,
         gift: metadata?.gift,
         luckyBag: metadata?.luckyBag,
-        messageType: metadata?.luckyBag ? 32 : 13
+        messageType: metadata?.luckyBag ? MsgType_NEW_LUCKYBAG : MsgType_NEW_GIFT
       };
 
     case 'join':
@@ -109,7 +117,7 @@ export function convertToChatProps(message, streamerInfo) {
         ...baseProps,
         userID: author.id,
         displayName: author.displayName,
-        messageType: 18
+        messageType: MsgType_JOIN_ROOM
       };
 
     case 'ai_cohost':
@@ -117,7 +125,7 @@ export function convertToChatProps(message, streamerInfo) {
         ...baseProps,
         userID: 'ai_cohost',
         displayName: author.displayName,
-        messageType: 120,
+        messageType: MsgType_AI_COHOST_MESSAGE,
         backgroundColor: metadata?.backgroundColor || '#FFFFFFE6',
         nameColor: '#527fff',
         textColor: metadata?.textColor || '#333333'
@@ -128,7 +136,7 @@ export function convertToChatProps(message, streamerInfo) {
         ...baseProps,
         userID: author.id,
         displayName: author.displayName,
-        messageType: 47,
+        messageType: MsgType_POKE,
         pokeInfo: metadata?.pokeInfo,
         isStreamer: author.isStreamer || false
       };
@@ -140,13 +148,13 @@ export function convertToChatProps(message, streamerInfo) {
 
 function getMessageType(type) {
   const typeMap = {
-    'comment': 3,
-    'gift': 13,
-    'join': 18,
-    'ai_cohost': 120,
-    'poke': 47
+    comment: MsgType_COMMENT,
+    gift: MsgType_NEW_GIFT,
+    join: MsgType_JOIN_ROOM,
+    ai_cohost: MsgType_AI_COHOST_MESSAGE,
+    poke: MsgType_POKE,
   };
-  return typeMap[type] || 3;
+  return typeMap[type] || MsgType_COMMENT;
 }
 
 export default OneSevenLiveMessage;
