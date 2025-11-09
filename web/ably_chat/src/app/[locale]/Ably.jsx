@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, use } from 'react';
 import { useTranslations } from 'next-intl';
 
 import * as Ably from 'ably';
-import shortid from 'shortid';
+import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
 
 import Chat from '@/lib/Chat';
@@ -129,7 +129,7 @@ export default function AblyComponent() {
     };
 
     const prepareIndexedChat = (message) => {
-        const id = shortid.generate();
+        const id = nanoid();
         const { userInfo } = roomInfo;
         const streamerInfo = userInfo;
 

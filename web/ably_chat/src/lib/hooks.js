@@ -7,7 +7,7 @@ import React, {
     useState,
 } from 'react';
 
-import { isImmutable } from 'immutable-v4';
+import { isImmutable } from 'immutable';
 
 import BadgeImage from './BadgeImage';
 

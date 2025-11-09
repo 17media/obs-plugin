@@ -12,7 +12,6 @@ import BadgeImage from './BadgeImage';
 import ChatWrapper from './ChatWrapper';
 import InnerWrapper from './InnerWrapper';
 import useComment from './hooks';
-import Box from './Box';
 import GiftItem from './GiftItem';
 import PokeItem from './PokeItem';
 
@@ -179,9 +178,9 @@ const Chat = ({
 
                     {/* Prefix badges */}
                     {prefixBadgeContents && (
-                        <Box display="inline" mr={1}>
+                        <span style={{ display: 'inline', marginRight: 4 }}>
                             {prefixBadgeContents}
-                        </Box>
+                        </span>
                     )}
 
                     {/* AI Cohost avatar */}
@@ -216,12 +215,14 @@ const Chat = ({
                     {middleBadge && <BadgeImage src={middleBadge} />}
 
                     {SVGSrc && (
-                        <Box
-                            display="inline-block"
-                            width={userType === USER_GUARDIAN ? 24 : 21}
+                        <span
+                            style={{
+                                display: 'inline-block',
+                                width: userType === USER_GUARDIAN ? 24 : 21,
+                            }}
                         >
                             <SVG src={SVGSrc} />
-                        </Box>
+                        </span>
                     )}
 
                     <CheckingLevel
@@ -239,9 +240,9 @@ const Chat = ({
 
                     {/* Top right badge */}
                     {hasTopRightBadge && (
-                        <Box position="absolute" top="5px" right="6px">
+                        <div style={{ position: 'absolute', top: '5px', right: '6px' }}>
                             <BadgeImage src={topRightBadge} />
-                        </Box>
+                        </div>
                     )}
                 </InnerWrapper>
             </CommentFrameWrapper>

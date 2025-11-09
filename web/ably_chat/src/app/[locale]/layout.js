@@ -2,8 +2,6 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import {setRequestLocale} from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
-import { NextUIProvider } from '@nextui-org/react';
-import { HeroUIProvider } from '@heroui/react'
 import "@/styles/globals.css";
 
 export const metadata = {
@@ -27,11 +25,7 @@ export default async function RootLayout({ children, params }) {
     <html lang={locale} className="dark">
       <body style={{backgroundColor: 'black'}}>
         <NextIntlClientProvider>
-          <NextUIProvider>
-            <HeroUIProvider>
-              {children}
-            </HeroUIProvider>
-          </NextUIProvider>
+          {children}
         </NextIntlClientProvider>
       </body>
     </html>
