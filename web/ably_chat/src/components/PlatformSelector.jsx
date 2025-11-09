@@ -5,7 +5,10 @@ import {useTranslations} from 'next-intl';
 
 const Wrapper = styled.div`
   position: relative;
-  width: 162px;
+  /* 自适应宽度，避免多语言文本溢出 */
+  width: auto;
+  min-width: 162px;
+  max-width: 320px;
 `;
 
 const Trigger = styled.button`
@@ -17,6 +20,7 @@ const Trigger = styled.button`
   width: 100%;
   height: 32px;
   padding: 6px 12px;
+  /* 背景色调整为 3C404C，提升文字对比度 */
   background: #3C404C;
   border-radius: 6px;
   border: none;
@@ -33,6 +37,11 @@ const Trigger = styled.button`
 const LabelText = styled.span`
   flex: 1;
   text-align: left;
+  /* 长文本省略处理 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const RightChevron = styled.span`
@@ -73,12 +82,15 @@ const Item = styled.button`
   border: none;
   border-radius: 6px;
   padding: 6px 8px;
+  /* 统一文字颜色与字号 */
   color: #A1A9B6;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   font-weight: 400;
-  font-size: 16px;
-  line-height: 22px;
+  font-size: 14px;
+  line-height: 20px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
   &:hover { background: #4A4F5D; }
 `;
