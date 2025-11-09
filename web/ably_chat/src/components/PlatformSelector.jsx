@@ -5,7 +5,7 @@ import {useTranslations} from 'next-intl';
 
 const Wrapper = styled.div`
   position: relative;
-  /* 自适应宽度，避免多语言文本溢出 */
+  /* Adaptive width to avoid multilingual text overflow */
   width: auto;
   min-width: 162px;
   max-width: 320px;
@@ -20,7 +20,7 @@ const Trigger = styled.button`
   width: 100%;
   height: 32px;
   padding: 6px 12px;
-  /* 背景色调整为 3C404C，提升文字对比度 */
+  /* Background color set to #3C404C to improve text contrast */
   background: #3C404C;
   border-radius: 6px;
   border: none;
@@ -37,7 +37,7 @@ const Trigger = styled.button`
 const LabelText = styled.span`
   flex: 1;
   text-align: left;
-  /* 长文本省略处理 */
+  /* Long text truncation with ellipsis */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -82,7 +82,7 @@ const Item = styled.button`
   border: none;
   border-radius: 6px;
   padding: 6px 8px;
-  /* 统一文字颜色与字号 */
+  /* Unified text color and font size */
   color: #A1A9B6;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   font-weight: 400;
@@ -95,7 +95,7 @@ const Item = styled.button`
   &:hover { background: #4A4F5D; }
 `;
 
-export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageAggregator }) => {
+export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
   const t = useTranslations('PlatformSelector');
   const [platformsStatus, setPlatformsStatus] = useState({});
   const [selected, setSelected] = useState('all');
@@ -127,16 +127,9 @@ export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageA
   const updateSelection = (value) => {
     setSelected(value);
     setOpen(false);
-    // 先通知父组件整体选择变化，便于父组件一次性更新筛选集合
+    // Notify parent of selection change for unified filtering updates
     if (onSelectionChange) {
       onSelectionChange(value);
-    }
-    if (!onPlatformChange) return;
-
-    if (value === 'all') {
-      ['17live', 'youtube', 'twitch'].forEach(p => onPlatformChange(p, true));
-    } else {
-      ['17live', 'youtube', 'twitch'].forEach(p => onPlatformChange(p, p === value));
     }
   };
 
@@ -149,7 +142,7 @@ export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageA
       }
       await messageAggregator.connectPlatform(platformId, config);
     } catch (error) {
-      console.error(`连接 ${platformId} 失败:`, error);
+      console.error(`Failed to connect ${platformId}:`, error);
     }
   };
 
@@ -166,19 +159,15 @@ export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageA
     messageAggregator.on('status_change', handleStatusChange);
 
     (async () => {
-      // 添加所有平台占位（存在则跳过）
-      for (const p of ['17live', 'youtube', 'twitch']) {
-        try {
-          const statusMap = messageAggregator.getPlatformsStatus?.();
-          if (!statusMap || !statusMap[p]) {
-            await messageAggregator.addPlatform(p, {});
-          }
-        } catch { }
-      }
-      // 连接 17live（无需配置）
+      // Only add and connect 17live (avoid creating instances for unused platforms that inject mock data)
+      try {
+        const statusMap = messageAggregator.getPlatformsStatus?.();
+        if (!statusMap || !statusMap['17live']) {
+          await messageAggregator.addPlatform('17live', {});
+        }
+      } catch {}
       await connectPlatform('17live', {});
-      if (onPlatformChange) onPlatformChange('17live', true);
-      // 标记其他平台为未连线
+      // Mark other platforms as disconnected (status display only, no instance creation)
       setPlatformsStatus(prev => ({
         ...prev,
         youtube: { ...(prev.youtube || {}), status: 'disconnected' },
@@ -192,7 +181,7 @@ export const PlatformSelector = ({ onPlatformChange, onSelectionChange, messageA
     };
   }, [messageAggregator]);
 
-  // 点击外部关闭 & ESC 关闭
+  // Close on outside click and ESC
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!open) return;

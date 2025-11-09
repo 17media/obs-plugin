@@ -87,8 +87,8 @@ const Username = styled.span`
 
 export const MultiPlatformChat = () => {
   const [messages, setMessages] = useState([]); // 原始统一消息格式
-  const [activePlatforms, setActivePlatforms] = useState(new Set(['17live', 'youtube', 'twitch']));
   const [selectedPlatform, setSelectedPlatform] = useState('all');
+  const [filteredMessages, setFilteredMessages] = useState([]);
   const t = useTranslations('ChatPage');
 
   // 监听消息聚合器事件（直接使用统一消息格式）
@@ -119,27 +119,15 @@ export const MultiPlatformChat = () => {
     };
   }, []);
 
-  // 处理平台选择变化（用于筛选显示的消息）
-  const handlePlatformChange = (platformId, isEnabled) => {
-    setActivePlatforms(prev => {
-      const next = new Set(prev);
-      if (isEnabled) next.add(platformId);
-      else next.delete(platformId);
-      return next;
-    });
-  };
-
   const handleSelectionChange = (value) => {
     setSelectedPlatform(value);
-    if (value === 'all') {
-      setActivePlatforms(new Set(['17live', 'youtube', 'twitch']));
-    } else {
-      setActivePlatforms(new Set([value]));
-    }
   };
 
-  // 按选择的平台过滤展示
-  const visibleMessages = messages.filter(m => selectedPlatform === 'all' || activePlatforms.has(m.platform));
+  // 依据选择的平台过滤显示
+  useEffect(() => {
+    const next = messages.filter(m => selectedPlatform === 'all' || m.platform === selectedPlatform);
+    setFilteredMessages(next);
+  }, [messages, selectedPlatform]);
 
   // 平台图标映射
   const platformIcon = (platform) => {
@@ -179,19 +167,19 @@ export const MultiPlatformChat = () => {
       {/* 顶部选择器 */}
       <Header>
         <HeaderContent>
-          <PlatformSelector onPlatformChange={handlePlatformChange} onSelectionChange={handleSelectionChange} messageAggregator={messageAggregator} />
+          <PlatformSelector onSelectionChange={handleSelectionChange} messageAggregator={messageAggregator} />
         </HeaderContent>
       </Header>
 
       {/* 消息列表 */}
       <MessageList>
-        {visibleMessages.length === 0 ? (
+        {filteredMessages.length === 0 ? (
           <EmptyState>
             <EmptyIcon src="/images/exclaimark.svg" alt="" />
             <span>{t('EMPTY_CHAT_MESSAGE')}</span>
           </EmptyState>
         ) : (
-          visibleMessages.map((m, i) => renderMessageItem(m, i))
+          filteredMessages.map((m, i) => renderMessageItem(m, i))
         )}
       </MessageList>
     </Container>

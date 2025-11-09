@@ -1,6 +1,6 @@
 /**
- * Twitch平台处理器
- * 使用TMI.js处理Twitch聊天消息
+ * Twitch Platform Handler
+ * Uses TMI.js to process Twitch chat messages
  */
 
 import { BasePlatform } from '../../BasePlatform';
@@ -18,13 +18,13 @@ export class TwitchPlatform extends BasePlatform {
     this.connectionConfig = null;
     this.devMocksInjected = false;
 
-    // 在开发环境下提前注入 mock 数据，用于样式预览（无需连接）
+    // In development, pre-inject mock data for style preview (no connection needed)
     if (process.env.NODE_ENV === 'development') {
       setTimeout(() => {
         try {
           this.injectDevMocks();
         } catch (e) {
-          console.warn('Twitch mock 注入失败:', e);
+          console.warn('Failed to inject Twitch mock:', e);
         }
       }, 300);
     }
@@ -35,7 +35,7 @@ export class TwitchPlatform extends BasePlatform {
       const { channel, username, oauth, reconnect = true } = config;
       
       if (!channel) {
-        throw new Error('Twitch配置错误：缺少频道名称');
+        throw new Error('Twitch config error: missing channel name');
       }
 
       this.channel = channel.toLowerCase().replace('#', '');
@@ -44,52 +44,52 @@ export class TwitchPlatform extends BasePlatform {
         reconnect: reconnect
       };
 
-      // 优先使用显式传入的 oauth；否则在 dev/prod 采用统一的 token 获取逻辑
+      // Prefer explicitly provided oauth; otherwise use unified token retrieval in dev/prod
       let password = oauth;
       if (!password) {
         try {
           password = await getTwitchToken();
         } catch (e) {
-          console.warn('Twitch token 获取失败，回退匿名连接:', e);
+          console.warn('Failed to obtain Twitch token, falling back to anonymous connection:', e);
         }
       }
       if (password) {
         this.connectionConfig.identity = {
-          username: username || 'justinfan12345', // 未提供用户名则使用匿名用户名
+          username: username || 'justinfan12345', // Use anonymous username if not provided
           password
         };
       } else {
-        // 匿名连接回退
+        // Fallback to anonymous connection
         this.connectionConfig.identity = {
           username: 'justinfan12345',
           password: 'oauth:justinfan12345'
         };
       }
 
-      // 创建TMI客户端
+      // Create TMI client
       this.client = new tmi.Client(this.connectionConfig);
 
-      // 设置事件监听器
+      // Set up event listeners
       this.setupEventListeners();
 
-      // 连接到Twitch
+      // Connect to Twitch
       await this.client.connect();
       
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, channel: this.channel });
-      // 若连接后仍未注入 mock，在开发环境下兜底一次
+      // In development, inject mocks once after connect if not yet injected
       if (process.env.NODE_ENV === 'development' && !this.devMocksInjected) {
         this.injectDevMocks();
       }
       
     } catch (error) {
-      console.error('Twitch连接失败:', error);
+      console.error('Twitch connection failed:', error);
       this.emit('error', { platform: this.platformId, error });
       throw error;
     }
   }
 
-  // 开发环境：注入 mock 数据（加入/留言），与统一结构兼容
+  // Development: inject mock data (join/comment), compatible with unified structure
   injectDevMocks() {
     if (this.devMocksInjected || process.env.NODE_ENV !== 'development') return;
 
@@ -103,7 +103,7 @@ export class TwitchPlatform extends BasePlatform {
         'user-id': 'TWITCH_TESTER_ID',
         color: '#9146FF',
       },
-      message: '这是来自 Twitch 的测试留言 ~',
+      message: 'This is a test comment from Twitch ~',
       timestamp: Date.now(),
     };
 
@@ -131,7 +131,7 @@ export class TwitchPlatform extends BasePlatform {
       this.isConnected = false;
       this.emit('disconnected', { platform: this.platformId });
     } catch (error) {
-      console.error('Twitch断开连接失败:', error);
+      console.error('Failed to disconnect Twitch:', error);
       throw error;
     }
   }
@@ -139,19 +139,19 @@ export class TwitchPlatform extends BasePlatform {
   setupEventListeners() {
     if (!this.client) return;
 
-    // 聊天消息
+    // Chat messages
     this.client.on('message', (channel, tags, message, self) => {
       this.handleChatMessage(channel, tags, message, self);
     });
 
-    // 加入频道
+    // Join channel
     this.client.on('join', (channel, username, self) => {
-      if (!self) { // 不是自己加入
+      if (!self) { // Not self
         this.handleJoinMessage(channel, username);
       }
     });
 
-    // 订阅/关注事件
+    // Subscription/Follow events
     this.client.on('subscription', (channel, username, method, message, userstate) => {
       this.handleSubscription(channel, username, method, message, userstate);
     });
@@ -160,18 +160,18 @@ export class TwitchPlatform extends BasePlatform {
       this.handleResub(channel, username, months, message, userstate, methods);
     });
 
-    // 礼物/捐赠
+    // Gifts/Donations
     this.client.on('cheer', (channel, userstate, message) => {
       this.handleCheer(channel, userstate, message);
     });
 
-    // 连接事件
+    // Connection events
     this.client.on('connected', (addr, port) => {
-      console.log(`Twitch已连接到: ${addr}:${port}`);
+      console.log(`Twitch connected to: ${addr}:${port}`);
     });
 
     this.client.on('disconnected', (reason) => {
-      console.log('Twitch已断开连接:', reason);
+      console.log('Twitch disconnected:', reason);
       if (this.isConnected) {
         this.isConnected = false;
         this.emit('disconnected', { platform: this.platformId, reason });
@@ -179,19 +179,19 @@ export class TwitchPlatform extends BasePlatform {
     });
 
     this.client.on('reconnect', () => {
-      console.log('Twitch正在重新连接...');
+      console.log('Twitch reconnecting...');
     });
 
-    // 错误处理
+    // Error handling
     this.client.on('error', (error) => {
-      console.error('Twitch错误:', error);
+      console.error('Twitch error:', error);
       this.emit('error', { platform: this.platformId, error });
     });
   }
 
   handleChatMessage(channel, tags, message, self) {
     try {
-      // 忽略自己的消息
+      // Ignore self messages
       if (self) return;
 
       const unifiedMessage = this.processRawMessage({
@@ -206,7 +206,7 @@ export class TwitchPlatform extends BasePlatform {
         this.enqueueMessage(unifiedMessage);
       }
     } catch (error) {
-      console.error('处理Twitch聊天消息失败:', error);
+      console.error('Failed to process Twitch chat message:', error);
       this.emit('error', { platform: this.platformId, error });
     }
   }
@@ -224,7 +224,7 @@ export class TwitchPlatform extends BasePlatform {
         this.enqueueMessage(unifiedMessage);
       }
     } catch (error) {
-      console.error('处理Twitch加入消息失败:', error);
+      console.error('Failed to process Twitch join message:', error);
       this.emit('error', { platform: this.platformId, error });
     }
   }
@@ -245,7 +245,7 @@ export class TwitchPlatform extends BasePlatform {
         this.enqueueMessage(unifiedMessage);
       }
     } catch (error) {
-      console.error('处理Twitch订阅消息失败:', error);
+      console.error('Failed to process Twitch subscription message:', error);
       this.emit('error', { platform: this.platformId, error });
     }
   }
@@ -267,7 +267,7 @@ export class TwitchPlatform extends BasePlatform {
         this.enqueueMessage(unifiedMessage);
       }
     } catch (error) {
-      console.error('处理Twitch重新订阅消息失败:', error);
+      console.error('Failed to process Twitch resubscription message:', error);
       this.emit('error', { platform: this.platformId, error });
     }
   }
@@ -286,7 +286,7 @@ export class TwitchPlatform extends BasePlatform {
         this.enqueueMessage(unifiedMessage);
       }
     } catch (error) {
-      console.error('处理Twitch欢呼消息失败:', error);
+      console.error('Failed to process Twitch cheer message:', error);
       this.emit('error', { platform: this.platformId, error });
     }
   }
@@ -307,16 +307,16 @@ export class TwitchPlatform extends BasePlatform {
         case 'cheer':
           return this.processCheerMessage(rawData);
         default:
-          console.warn('未知的Twitch消息类型:', type);
+          console.warn('Unknown Twitch message type:', type);
           return null;
       }
     } catch (error) {
-      console.error('处理Twitch原始消息失败:', error);
+      console.error('Failed to process Twitch raw message:', error);
       return null;
     }
   }
 
-  // 构建与 Chat 组件兼容的 Immutable 内容
+  // Build Immutable content compatible with the Chat component
   prepareIndexedChat(base) {
     const type = base?.type;
     const id = base?.tags?.id || base?.id || nanoid();
@@ -346,7 +346,7 @@ export class TwitchPlatform extends BasePlatform {
         displayName: username,
         openID: username,
         userID: username,
-        content: `${username} 加入了频道`,
+        content: `${username} joined the channel`,
         level: 1,
         name: { textColor: '#9146FF' },
         comment: { textColor: '#e5e7eb' },
@@ -358,7 +358,7 @@ export class TwitchPlatform extends BasePlatform {
     if (type === 'subscription' || type === 'resub' || type === 'cheer') {
       const { username, months, userstate, message } = base;
       const bits = parseInt(userstate?.bits) || 0;
-      const giftName = type === 'subscription' ? '订阅' : (type === 'resub' ? `订阅 ${months} 个月` : 'Bits');
+      const giftName = type === 'subscription' ? 'Subscription' : (type === 'resub' ? `Resubscription for ${months} months` : 'Bits');
       const count = type === 'cheer' ? bits : (months || 1);
 
       return fromJS({
@@ -377,11 +377,11 @@ export class TwitchPlatform extends BasePlatform {
       });
     }
 
-    // fallback 普通评论
+    // Fallback regular comment
     return fromJS({
       id,
       messageType: MsgType_COMMENT,
-      displayName: base?.username || 'Twitch用户',
+      displayName: base?.username || 'Twitch user',
       openID: base?.username,
       userID: base?.username,
       content: base?.message || '',
@@ -459,13 +459,13 @@ export class TwitchPlatform extends BasePlatform {
 
   async sendMessage(message) {
     if (!this.client || !this.isConnected) {
-      throw new Error('Twitch未连接');
+      throw new Error('Twitch not connected');
     }
     
     try {
       await this.client.say(this.channel, message);
     } catch (error) {
-      console.error('发送Twitch消息失败:', error);
+      console.error('Failed to send Twitch message:', error);
       throw error;
     }
   }

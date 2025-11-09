@@ -1,6 +1,6 @@
 /**
- * 17Live平台处理器
- * 处理17Live平台的消息连接和处理
+ * 17Live Platform Handler
+ * Handles 17Live message connection and processing
  */
 
 import { BasePlatform } from '../../BasePlatform';
@@ -46,22 +46,22 @@ export class OneSevenLivePlatform extends BasePlatform {
     try {
       let { roomID, userID, ablyToken } = config;
 
-      // 允许无配置时从 URL 获取 roomID/userID（与 Ably.jsx 对齐）
+      // Allow fetching roomID/userID from URL when not provided (aligned with Ably.jsx)
       if (!roomID || !userID) {
         const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
         roomID = roomID || urlParams.get('roomID') || '';
         userID = userID || urlParams.get('userID') || '';
       }
 
-      // 保存连接上下文
+      // Save connection context
       this.roomID = roomID;
       this.userID = userID;
 
-      // 拉取房间信息与礼物信息
+      // Fetch room info and gifts
       this.roomInfo = await getRoomInfo();
       await getGifts();
 
-      // 创建Ably客户端（与 Ably.jsx 保持一致设置）
+      // Create Ably client (same settings as Ably.jsx)
       this.ablyClient = new Ably.Realtime({
         environment: '17media',
         fallbackHosts: [
@@ -71,12 +71,12 @@ export class OneSevenLivePlatform extends BasePlatform {
         ],
         authCallback: async (data, cb) => {
           try {
-            // 由调用方传入的 token 优先；否则继续抛出以让上层处理
+            // Prefer caller-provided token; otherwise fetch and pass to upper layer
             if (ablyToken) {
               cb(null, ablyToken);
               return;
             }
-            // 与 Ably.jsx 保持一致：按 roomID 请求 token
+            // Consistent with Ably.jsx: request token by roomID
             const token = await getAblyTokenFromServer(roomID);
             cb(null, token);
           } catch (e) {
@@ -85,10 +85,10 @@ export class OneSevenLivePlatform extends BasePlatform {
         },
       });
 
-      // 按 Ably.jsx 约定订阅房间 ID 频道
+      // Subscribe to room ID channel per Ably.jsx
       this.channel = this.ablyClient.channels.get(roomID);
       
-      // 监听消息
+      // Listen for messages
       this.channel.subscribe((message) => {
         this.handleAblyMessage(message);
       });
@@ -124,7 +124,7 @@ export class OneSevenLivePlatform extends BasePlatform {
       }
       
     } catch (error) {
-      console.error('17Live连接失败:', error);
+      console.error('17Live connection failed:', error);
       this.emit('error', { platform: this.platformId, error });
       throw error;
     }
@@ -141,7 +141,7 @@ export class OneSevenLivePlatform extends BasePlatform {
       this.isConnected = false;
       this.emit('disconnected', { platform: this.platformId });
     } catch (error) {
-      console.error('17Live断开连接失败:', error);
+      console.error('17Live disconnect failed:', error);
       throw error;
     }
   }
@@ -155,17 +155,17 @@ export class OneSevenLivePlatform extends BasePlatform {
         this.enqueueMessage(unifiedMessage);
       }
     } catch (error) {
-      console.error('处理17Live消息失败:', error);
+      console.error('Failed to process 17Live message:', error);
       this.emit('error', { platform: this.platformId, error });
     }
   }
 
   decodeMessageData(data) {
-    // Ably.jsx 使用 gzip_base64 + pako 解码，平台层直接透传已解码数据
+    // Ably.jsx uses gzip_base64 + pako to decode; platform layer pass-through decoded data
     return data;
   }
 
-  // 与 Ably.jsx#prepareIndexedChat 保持一致的内容构建，返回 Immutable 对象
+  // Build content consistent with Ably.jsx#prepareIndexedChat; returns an Immutable object
   prepareIndexedChat(message) {
     const id = nanoid();
     const streamerInfo = this.roomInfo?.userInfo;
@@ -257,7 +257,7 @@ export class OneSevenLivePlatform extends BasePlatform {
       case MsgType_POKE:
         return this.processPokeMessage(rawData);
       default:
-        console.warn('未知的17Live消息类型:', type);
+        // console.warn('Unknown 17Live message type:', type);
         return null;
     }
   }
