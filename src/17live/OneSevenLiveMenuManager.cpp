@@ -58,6 +58,10 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     checkUpdateAction = menu->addAction(obs_module_text("Menu.CheckUpdate"));
     connect(checkUpdateAction, &QAction::triggered, this, &OneSevenLiveMenuManager::checkUpdate);
 
+    // Create diagnostics menu item
+    diagnosticsAction = menu->addAction(obs_module_text("Menu.Diagnostics"));
+    connect(diagnosticsAction, &QAction::triggered, this, [this]() { emit diagnosticsClicked(); });
+
     menu->addSeparator();
 
     // Create login menu item
@@ -171,6 +175,7 @@ void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
     rockZoneAction->setEnabled(isLoggedIn);
     multiRtmpAction->setEnabled(isLoggedIn);
     previewDockAction->setEnabled(isLoggedIn);
+    // Diagnostics action is always enabled regardless of login status
 }
 
 void OneSevenLiveMenuManager::cleanup() {
@@ -190,4 +195,5 @@ void OneSevenLiveMenuManager::cleanup() {
     helpAction = nullptr;
     loginAction = nullptr;
     checkUpdateAction = nullptr;
+    diagnosticsAction = nullptr;
 }

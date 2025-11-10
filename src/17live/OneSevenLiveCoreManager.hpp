@@ -248,6 +248,9 @@ class OneSevenLiveCoreManager : public QObject {
     void handleCheckUpdateClicked();
     void checkForUpdates();
 
+    // Diagnostics related methods
+    void handleDiagnosticsClicked();
+
     void loadGifts();
 
     class OneSevenLiveUpdateManager* updateManager = nullptr;

@@ -157,9 +157,23 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/youtube/OneSevenLiveYouTubeAuth.cpp
   src/17live/youtube/OneSevenLiveYouTubeChatClient.cpp
   src/17live/youtube/OneSevenLiveYouTubeClient.cpp
+  src/diag/DiagnosticsCollectorFactory.cpp
+  src/diag/DiagnosticsCollectorBase.cpp
+  src/diag/PrivacyFilter.cpp
+  src/diag/ui/DiagnosticsDialog.cpp
   src/plugin-main.cpp
   src/plugin-support.c
 )
+
+if(OS_MACOS)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    src/diag/DiagnosticsCollectorMacOS.cpp
+  )
+elseif(OS_WINDOWS)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    src/diag/DiagnosticsCollectorWindows.cpp
+  )
+endif()
 
 if(MSVC)
   target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE /wd4996)

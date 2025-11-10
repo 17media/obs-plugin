@@ -1,5 +1,7 @@
 #include "OneSevenLiveCoreManager.hpp"
 
+#include "../diag/ui/DiagnosticsDialog.hpp"
+
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
@@ -304,6 +306,9 @@ bool OneSevenLiveCoreManager::initialize() {
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this,
                      &OneSevenLiveCoreManager::handleCheckUpdateClicked);
 
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::diagnosticsClicked, this,
+                     &OneSevenLiveCoreManager::handleDiagnosticsClicked);
+
     // Initialize update manager
     updateManager = new OneSevenLiveUpdateManager(this);
 
@@ -400,6 +405,12 @@ void OneSevenLiveCoreManager::handleCheckUpdateClicked() {
     if (updateManager) {
         updateManager->checkForUpdates();
     }
+}
+
+void OneSevenLiveCoreManager::handleDiagnosticsClicked() {
+    // Create and show the diagnostics dialog
+    seventeen::diag::ui::DiagnosticsDialog dialog(mainWindow);
+    dialog.exec();
 }
 
 void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& loginData) {

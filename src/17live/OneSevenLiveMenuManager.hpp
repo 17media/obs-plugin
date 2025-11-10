@@ -46,6 +46,7 @@ class OneSevenLiveMenuManager : public QObject {
     void loginClicked();
     void logoutClicked();
     void checkUpdateClicked();
+    void diagnosticsClicked();
 
    private:
     QMainWindow* mainWindow;
@@ -60,6 +61,7 @@ class OneSevenLiveMenuManager : public QObject {
     QAction* previewDockAction;
     QAction* helpAction;
     QAction* checkUpdateAction;
+    QAction* diagnosticsAction;
     QAction* loginAction;
     bool isLoggedIn;
 
