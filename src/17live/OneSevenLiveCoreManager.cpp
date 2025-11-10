@@ -37,6 +37,9 @@
 #include "utility/Meta.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
+// Chat clients
+#include "twitch/OneSevenLiveTwitchChatClient.hpp"
+#include "youtube/OneSevenLiveYouTubeChatClient.hpp"
 
 using Json = nlohmann::json;
 using namespace std;
@@ -482,6 +485,124 @@ OneSevenLiveYouTubeAuth* OneSevenLiveCoreManager::getYouTubeAuth() const {
     return youtubeAuth.get();
 }
 
+OneSevenLiveYouTubeChatClient* OneSevenLiveCoreManager::getYouTubeChatClient() const {
+    return youtubeChatClient.get();
+}
+
+OneSevenLiveTwitchChatClient* OneSevenLiveCoreManager::getTwitchChatClient() const {
+    return twitchChatClient.get();
+}
+
+void OneSevenLiveCoreManager::createYouTubeChatClient() {
+    if (youtubeChatClient) {
+        return;
+    }
+
+    youtubeChatClient = std::make_unique<OneSevenLiveYouTubeChatClient>(this);
+
+    // Configure token and API key from auth/config
+    if (youtubeAuth) {
+        const QString accessToken = youtubeAuth->getAccessToken();
+        if (!accessToken.isEmpty()) {
+            youtubeChatClient->setAccessToken(accessToken);
+        }
+    }
+}
+
+void OneSevenLiveCoreManager::createTwitchChatClient() {
+    if (twitchChatClient) {
+        return;
+    }
+
+    twitchChatClient = std::make_unique<OneSevenLiveTwitchChatClient>(this);
+
+    // If we have Twitch auth, try to connect automatically when needed
+    if (twitchAuth) {
+        const QString oauth = twitchAuth->getAccessToken();
+        QString login;
+        QString displayName;
+        QString userId;
+        QString profileImageUrl;
+        QString email;
+        int viewCount = 0;
+        if (configManager && configManager->getTwitchUserInfo(userId, login, displayName,
+                                                             profileImageUrl, email, viewCount)) {
+            if (!login.isEmpty() && !oauth.isEmpty()) {
+                twitchChatClient->connectToChat(login, oauth);
+            }
+        }
+    }
+}
+
+void OneSevenLiveCoreManager::destroyYouTubeChatClient() {
+    if (youtubeChatClient) {
+        youtubeChatClient->stopChatPolling();
+        youtubeChatClient.reset();
+    }
+}
+
+void OneSevenLiveCoreManager::destroyTwitchChatClient() {
+    if (twitchChatClient) {
+        twitchChatClient->disconnectFromChat();
+        twitchChatClient.reset();
+    }
+}
+
+void OneSevenLiveCoreManager::startYouTubeChatPolling(const QString& liveChatId) {
+    if (!youtubeChatClient) {
+        createYouTubeChatClient();
+    }
+    if (!youtubeChatClient) {
+        obs_log(LOG_ERROR, "Failed to create YouTubeChatClient");
+        return;
+    }
+    youtubeChatClient->startChatPolling(liveChatId);
+}
+
+void OneSevenLiveCoreManager::stopYouTubeChatPolling() {
+    if (youtubeChatClient) {
+        youtubeChatClient->stopChatPolling();
+    }
+}
+
+void OneSevenLiveCoreManager::connectTwitchChatClient(const QString& channel) {
+    if (!twitchChatClient) {
+        createTwitchChatClient();
+    }
+    if (!twitchChatClient) {
+        obs_log(LOG_ERROR, "Failed to create TwitchChatClient");
+        return;
+    }
+
+    // If not connected, authenticate and optionally join a channel
+    if (!twitchChatClient->isConnected()) {
+        QString login;
+        QString displayName;
+        QString userId;
+        QString profileImageUrl;
+        QString email;
+        int viewCount = 0;
+        QString oauth = twitchAuth ? twitchAuth->getAccessToken() : QString();
+        if (configManager && configManager->getTwitchUserInfo(userId, login, displayName,
+                                                             profileImageUrl, email, viewCount)) {
+            if (!login.isEmpty() && !oauth.isEmpty()) {
+                twitchChatClient->connectToChat(login, oauth);
+            }
+        }
+    }
+
+    if (!channel.isEmpty()) {
+        twitchChatClient->joinChannel(channel);
+    }
+}
+
+void OneSevenLiveCoreManager::disconnectTwitchChatClient() {
+    if (twitchChatClient) {
+        twitchChatClient->leaveAllChannels();
+        twitchChatClient->disconnectFromChat();
+    }
+}
+
 bool OneSevenLiveCoreManager::handleLoginClicked() {
     OneSevenLiveLoginDialog dialog(mainWindow, getApiWrapper());
 
@@ -541,6 +662,10 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
         restoreDockStatesOnLogin();
         isStartupRestore = false;
     }
+
+    // Create chat clients on login
+    createYouTubeChatClient();
+    createTwitchChatClient();
 }
 
 void OneSevenLiveCoreManager::performLogoutOperations() {
@@ -554,6 +679,10 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
 
     // Clear login data
     configManager->clearLoginData();
+
+    // Destroy chat clients on logout
+    destroyYouTubeChatClient();
+    destroyTwitchChatClient();
 }
 
 void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {

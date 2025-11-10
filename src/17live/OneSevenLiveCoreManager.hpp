@@ -44,6 +44,9 @@ class OneSevenLiveHttpServer;
 class OneSevenLiveWebsocketServer;
 
 class QCefView;
+// Forward declarations for chat clients
+class OneSevenLiveYouTubeChatClient;
+class OneSevenLiveTwitchChatClient;
 
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
@@ -116,6 +119,22 @@ class OneSevenLiveCoreManager : public QObject {
     // Auth handlers accessors
     OneSevenLiveTwitchAuth* getTwitchAuth() const;
     OneSevenLiveYouTubeAuth* getYouTubeAuth() const;
+
+    // Chat clients accessors
+    OneSevenLiveYouTubeChatClient* getYouTubeChatClient() const;
+    OneSevenLiveTwitchChatClient* getTwitchChatClient() const;
+
+    // Chat clients lifecycle
+    void createYouTubeChatClient();
+    void createTwitchChatClient();
+    void destroyYouTubeChatClient();
+    void destroyTwitchChatClient();
+
+    // Chat tracking external calls
+    void startYouTubeChatPolling(const QString& liveChatId);
+    void stopYouTubeChatPolling();
+    void connectTwitchChatClient(const QString& channel = QString());
+    void disconnectTwitchChatClient();
 
     bool handleLoginClicked();
 
@@ -236,4 +255,8 @@ class OneSevenLiveCoreManager : public QObject {
     // Auth handlers
     std::unique_ptr<OneSevenLiveTwitchAuth> twitchAuth;
     std::unique_ptr<OneSevenLiveYouTubeAuth> youtubeAuth;
+
+    // Chat clients
+    std::unique_ptr<OneSevenLiveYouTubeChatClient> youtubeChatClient;
+    std::unique_ptr<OneSevenLiveTwitchChatClient> twitchChatClient;
 };
