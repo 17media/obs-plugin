@@ -94,14 +94,7 @@ export const MultiPlatformChat = () => {
   // Listen to message aggregator events (directly using unified format)
   useEffect(() => {
     if (!messageAggregator) return;
-
-    const handleMessage = (message) => {
-      setMessages(prev => {
-        const next = [...prev, message];
-        return next.length > 1000 ? next.slice(-1000) : next;
-      });
-    };
-
+    // Consume only batch events to avoid duplicate inserts
     const handleMessagesBatch = (batch) => {
       if (!batch || batch.length === 0) return;
       setMessages(prev => {
@@ -109,12 +102,9 @@ export const MultiPlatformChat = () => {
         return next.length > 1000 ? next.slice(-1000) : next;
       });
     };
-
-    messageAggregator.on('message', handleMessage);
     messageAggregator.on('messages_batch', handleMessagesBatch);
 
     return () => {
-      messageAggregator.off('message', handleMessage);
       messageAggregator.off('messages_batch', handleMessagesBatch);
     };
   }, []);
