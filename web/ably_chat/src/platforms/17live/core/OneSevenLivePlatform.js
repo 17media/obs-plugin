@@ -288,10 +288,9 @@ export class OneSevenLivePlatform extends BasePlatform {
         playData.compositeData = Object.fromEntries(composite.map(item => [item.tag, item.imageURL]));
       }
       sendWSMessage({
-        type: data.type,
-        payload: playData,
-        roomID: chat.get('roomID'),
-        userID: chat.get('userID'),
+        type: 'transmit',
+        source: 'client',
+        payload: playData
       });
     }
 
