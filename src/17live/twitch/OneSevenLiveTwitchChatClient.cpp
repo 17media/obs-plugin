@@ -4,8 +4,7 @@
 #include <QDebug>
 #include <QRegularExpression>
 #include <QDateTime>
-#include <QJsonDocument>
-#include <QJsonObject>
+#include <nlohmann/json.hpp>
 
 const QString OneSevenLiveTwitchChatClient::TWITCH_IRC_SERVER = "wss://irc-ws.chat.twitch.tv:443";
 const int OneSevenLiveTwitchChatClient::DEFAULT_PING_INTERVAL = 300; // 5 minutes
