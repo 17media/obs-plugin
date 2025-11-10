@@ -4,8 +4,6 @@
  */
 
 import { BasePlatform } from '../../BasePlatform';
-import { getTwitchToken } from '../api/auth';
-import tmi from 'tmi.js';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
 import { MsgType_COMMENT, MsgType_JOIN_ROOM, MsgType_NEW_GIFT } from '@/lib/constants';
@@ -13,12 +11,8 @@ import { MsgType_COMMENT, MsgType_JOIN_ROOM, MsgType_NEW_GIFT } from '@/lib/cons
 export class TwitchPlatform extends BasePlatform {
   constructor() {
     super('twitch', 'Twitch');
-    this.client = null;
-    this.channel = null;
-    this.connectionConfig = null;
     this.devMocksInjected = false;
 
-    // In development, pre-inject mock data for style preview (no connection needed)
     if (process.env.NODE_ENV === 'development') {
       setTimeout(() => {
         try {
@@ -31,71 +25,19 @@ export class TwitchPlatform extends BasePlatform {
   }
 
   async connect(config) {
-    try {
-      const { channel, username, oauth, reconnect = true } = config;
-      
-      if (!channel) {
-        throw new Error('Twitch config error: missing channel name');
-      }
-
-      this.channel = channel.toLowerCase().replace('#', '');
-      this.connectionConfig = {
-        channels: [this.channel],
-        reconnect: reconnect
-      };
-
-      // Prefer explicitly provided oauth; otherwise use unified token retrieval in dev/prod
-      let password = oauth;
-      if (!password) {
-        try {
-          password = await getTwitchToken();
-        } catch (e) {
-          console.warn('Failed to obtain Twitch token, falling back to anonymous connection:', e);
-        }
-      }
-      if (password) {
-        this.connectionConfig.identity = {
-          username: username || 'justinfan12345', // Use anonymous username if not provided
-          password
-        };
-      } else {
-        // Fallback to anonymous connection
-        this.connectionConfig.identity = {
-          username: 'justinfan12345',
-          password: 'oauth:justinfan12345'
-        };
-      }
-
-      // Create TMI client
-      this.client = new tmi.Client(this.connectionConfig);
-
-      // Set up event listeners
-      this.setupEventListeners();
-
-      // Connect to Twitch
-      await this.client.connect();
-      
-      this.isConnected = true;
-      this.emit('connected', { platform: this.platformId, channel: this.channel });
-      // In development, inject mocks once after connect if not yet injected
-      if (process.env.NODE_ENV === 'development' && !this.devMocksInjected) {
-        this.injectDevMocks();
-      }
-      
-    } catch (error) {
-      console.error('Twitch connection failed:', error);
-      this.emit('error', { platform: this.platformId, error });
-      throw error;
+    this.isConnected = true;
+    this.emit('connected', { platform: this.platformId, config: config || {} });
+    if (process.env.NODE_ENV === 'development' && !this.devMocksInjected) {
+      this.injectDevMocks();
     }
   }
 
-  // Development: inject mock data (join/comment), compatible with unified structure
   injectDevMocks() {
     if (this.devMocksInjected || process.env.NODE_ENV !== 'development') return;
 
     const mockChat = {
       type: 'chat',
-      channel: `#${this.channel || 'test'}`,
+      channel: '#test',
       tags: {
         id: nanoid(),
         'display-name': 'Twitch Tester',
@@ -109,7 +51,7 @@ export class TwitchPlatform extends BasePlatform {
 
     const mockJoin = {
       type: 'join',
-      channel: `#${this.channel || 'test'}`,
+      channel: '#test',
       username: 'twitch_visitor',
       timestamp: Date.now(),
     };
@@ -123,71 +65,11 @@ export class TwitchPlatform extends BasePlatform {
     this.devMocksInjected = true;
   }
   async disconnect() {
-    try {
-      if (this.client) {
-        await this.client.disconnect();
-        this.client = null;
-      }
-      this.isConnected = false;
-      this.emit('disconnected', { platform: this.platformId });
-    } catch (error) {
-      console.error('Failed to disconnect Twitch:', error);
-      throw error;
-    }
+    this.isConnected = false;
+    this.emit('disconnected', { platform: this.platformId });
   }
 
-  setupEventListeners() {
-    if (!this.client) return;
-
-    // Chat messages
-    this.client.on('message', (channel, tags, message, self) => {
-      this.handleChatMessage(channel, tags, message, self);
-    });
-
-    // Join channel
-    this.client.on('join', (channel, username, self) => {
-      if (!self) { // Not self
-        this.handleJoinMessage(channel, username);
-      }
-    });
-
-    // Subscription/Follow events
-    this.client.on('subscription', (channel, username, method, message, userstate) => {
-      this.handleSubscription(channel, username, method, message, userstate);
-    });
-
-    this.client.on('resub', (channel, username, months, message, userstate, methods) => {
-      this.handleResub(channel, username, months, message, userstate, methods);
-    });
-
-    // Gifts/Donations
-    this.client.on('cheer', (channel, userstate, message) => {
-      this.handleCheer(channel, userstate, message);
-    });
-
-    // Connection events
-    this.client.on('connected', (addr, port) => {
-      console.log(`Twitch connected to: ${addr}:${port}`);
-    });
-
-    this.client.on('disconnected', (reason) => {
-      console.log('Twitch disconnected:', reason);
-      if (this.isConnected) {
-        this.isConnected = false;
-        this.emit('disconnected', { platform: this.platformId, reason });
-      }
-    });
-
-    this.client.on('reconnect', () => {
-      console.log('Twitch reconnecting...');
-    });
-
-    // Error handling
-    this.client.on('error', (error) => {
-      console.error('Twitch error:', error);
-      this.emit('error', { platform: this.platformId, error });
-    });
-  }
+  // No external event listeners; messages arrive via WebSocket routing
 
   handleChatMessage(channel, tags, message, self) {
     try {

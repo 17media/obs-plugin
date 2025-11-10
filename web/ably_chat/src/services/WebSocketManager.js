@@ -93,13 +93,59 @@ class WebSocketManager extends EventEmitter {
     };
 
     this.ws.onmessage = (event) => {
-      let data = event.data;
+      const raw = event.data;
+      let msg = null;
       try {
-        data = JSON.parse(event.data);
+        msg = JSON.parse(raw);
       } catch {
-        // keep as text
+        // 非 JSON 消息忽略（仅处理统一协议）
+        return;
       }
-      this.emit('message', data);
+
+      const type = msg?.type;
+      const payload = msg?.payload;
+      if (!type) return;
+
+      // 路由到平台处理：twitch-chat / youtube-chat
+      try {
+        import('./MessageAggregator')
+          .then(({ messageAggregator }) => {
+            if (!messageAggregator) return;
+
+            const routeTo = (platformId, transform) => {
+              const platform = messageAggregator.platforms?.get(platformId);
+              if (platform && typeof platform.processRawMessage === 'function') {
+                const raw = typeof transform === 'function' ? transform(payload) : payload;
+                const unified = platform.processRawMessage(raw);
+                if (unified) platform.enqueueMessage(unified);
+              }
+            };
+
+            if (type === 'twitch-chat') {
+              if (!messageAggregator.platforms?.get('twitch')) {
+                // 确保实例存在，但不触发连接
+                messageAggregator.addPlatform('twitch', {})
+                  .then(() => routeTo('twitch', (p) => ({ ...p, type: 'chat' })))
+                  .catch(() => {});
+              } else {
+                routeTo('twitch', (p) => ({ ...p, type: 'chat' }));
+              }
+            } else if (type === 'youtube-chat') {
+              if (!messageAggregator.platforms?.get('youtube')) {
+                // 确保实例存在，但不触发连接
+                messageAggregator.addPlatform('youtube', {})
+                  .then(() => routeTo('youtube'))
+                  .catch(() => {});
+              } else {
+                routeTo('youtube');
+              }
+            }
+          })
+          .catch(() => {});
+      } catch (e) {
+        // 记录但不打断连接
+        this.emit('error', e);
+      }
     };
 
     this.ws.onerror = (err) => {
