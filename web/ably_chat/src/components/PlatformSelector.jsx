@@ -159,20 +159,31 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
     messageAggregator.on('status_change', handleStatusChange);
 
     (async () => {
-      // Only add and connect 17live (avoid creating instances for unused platforms that inject mock data)
+      // Create instances for youtube and twitch to trigger mock injection via constructors.
+      // Keep them disconnected in UI; only 17live is connected by default.
       try {
         const statusMap = messageAggregator.getPlatformsStatus?.();
+        if (!statusMap || !statusMap['youtube']) {
+          await messageAggregator.addPlatform('youtube', {});
+        }
+        if (!statusMap || !statusMap['twitch']) {
+          await messageAggregator.addPlatform('twitch', {});
+        }
         if (!statusMap || !statusMap['17live']) {
           await messageAggregator.addPlatform('17live', {});
         }
       } catch {}
+
+      // Connect 17live only; youtube and twitch remain disconnected but instances exist.
       await connectPlatform('17live', {});
-      // Mark other platforms as disconnected (status display only, no instance creation)
+
+      // Explicitly mark youtube and twitch as disconnected for status display, without connecting them.
       setPlatformsStatus(prev => ({
         ...prev,
         youtube: { ...(prev.youtube || {}), status: 'disconnected' },
         twitch: { ...(prev.twitch || {}), status: 'disconnected' },
       }));
+
       updateSelection('all');
     })();
 

@@ -95,10 +95,8 @@ export function convertToChatProps(message, streamerInfo) {
         ...baseProps,
         userID: author.id,
         displayName: author.displayName,
-        nameColor: author.isChatOwner ? '#ffd700' : 
-                   author.isChatModerator ? '#5e84f1' :
-                   author.isVerified ? '#c0c0c0' : '#333333',
-        textColor: '#333333',
+        nameColor: '#FF0000',
+        textColor: '#FFFFFF',
         backgroundColor: '',
         level: 1, // YouTube does not have a level system
         isStreamer: author.isChatOwner,

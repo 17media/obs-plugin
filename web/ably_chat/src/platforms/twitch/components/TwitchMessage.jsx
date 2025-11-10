@@ -44,7 +44,7 @@ const Username = styled.span`
 
 const MessageText = styled.div`
   font-size: 0.875rem;
-  color: ${props => props.dark ? '#e5e7eb' : '#1f2937'};
+  color: #FFFFFF;
 `;
 
 const SubscriptionContainer = styled.div`
@@ -165,7 +165,7 @@ export const TwitchMessage = memo(({ message }) => {
                     {badge.text}
                   </Badge>
                 ))}
-                <Username style={{ color: message.author?.color || '#9146FF' }}>
+                <Username style={{ color: '#9146FF' }}>
                   {message.author?.displayName || message.author?.name}
                 </Username>
               </AuthorInfo>

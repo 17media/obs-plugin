@@ -7,58 +7,35 @@ import { BasePlatform } from '../../BasePlatform';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
 import { MsgType_COMMENT, MsgType_JOIN_ROOM, MsgType_NEW_GIFT } from '@/lib/constants';
+// Dev-only mock messages (aligned with 17live pattern)
+import twitchMockChat from '@/../public/mock/twitch_chat_message.json';
+import twitchMockJoin from '@/../public/mock/twitch_chat_join.json';
+import twitchMockSub from '@/../public/mock/twitch_chat_subscription.json';
 
 export class TwitchPlatform extends BasePlatform {
   constructor() {
     super('twitch', 'Twitch');
     this.devMocksInjected = false;
-
-    if (process.env.NODE_ENV === 'development') {
-      setTimeout(() => {
-        try {
-          this.injectDevMocks();
-        } catch (e) {
-          console.warn('Failed to inject Twitch mock:', e);
-        }
-      }, 300);
+    // Always attempt to inject mocks at construction time; gating handled in injectDevMocks
+    try {
+      this.injectDevMocks();
+    } catch (e) {
+      console.warn('Failed to inject Twitch mock:', e);
     }
   }
 
   async connect(config) {
     this.isConnected = true;
     this.emit('connected', { platform: this.platformId, config: config || {} });
-    if (process.env.NODE_ENV === 'development' && !this.devMocksInjected) {
-      this.injectDevMocks();
-    }
   }
 
   injectDevMocks() {
-    if (this.devMocksInjected || process.env.NODE_ENV !== 'development') return;
-
-    const mockChat = {
-      type: 'chat',
-      channel: '#test',
-      tags: {
-        id: nanoid(),
-        'display-name': 'Twitch Tester',
-        username: 'twitch_tester',
-        'user-id': 'TWITCH_TESTER_ID',
-        color: '#9146FF',
-      },
-      message: 'This is a test comment from Twitch ~',
-      timestamp: Date.now(),
-    };
-
-    const mockJoin = {
-      type: 'join',
-      channel: '#test',
-      username: 'twitch_visitor',
-      timestamp: Date.now(),
-    };
-
+    if (this.devMocksInjected || process.env.NEXT_PUBLIC_MOCK !== '1') return;
+    // Use imported mock data to ensure bundler resolves JSON correctly
     const mocks = [
-      this.processRawMessage(mockChat),
-      this.processRawMessage(mockJoin),
+      this.processRawMessage(twitchMockChat),
+      this.processRawMessage(twitchMockJoin),
+      this.processRawMessage(twitchMockSub),
     ].filter(Boolean);
 
     mocks.forEach((mock) => this.enqueueMessage(mock));
@@ -214,7 +191,7 @@ export class TwitchPlatform extends BasePlatform {
         content: message,
         level: 1,
         name: { textColor: tags.color || '#9146FF' },
-        comment: { textColor: '#e5e7eb' },
+        comment: { textColor: '#FFFFFF' },
         backgroundColor: '',
         streamerInfo: null,
       });
@@ -231,7 +208,7 @@ export class TwitchPlatform extends BasePlatform {
         content: `${username} joined the channel`,
         level: 1,
         name: { textColor: '#9146FF' },
-        comment: { textColor: '#e5e7eb' },
+        comment: { textColor: '#FFFFFF' },
         backgroundColor: '',
         streamerInfo: null,
       });
@@ -253,7 +230,7 @@ export class TwitchPlatform extends BasePlatform {
         gift: fromJS({ name: giftName, point: count, icon: '' }),
         level: 1,
         name: { textColor: '#9146FF' },
-        comment: { textColor: '#e5e7eb' },
+        comment: { textColor: '#FFFFFF' },
         backgroundColor: '',
         streamerInfo: null,
       });
@@ -269,7 +246,7 @@ export class TwitchPlatform extends BasePlatform {
       content: base?.message || '',
       level: 1,
       name: { textColor: '#9146FF' },
-      comment: { textColor: '#e5e7eb' },
+      comment: { textColor: '#FFFFFF' },
       backgroundColor: '',
       streamerInfo: null,
     });

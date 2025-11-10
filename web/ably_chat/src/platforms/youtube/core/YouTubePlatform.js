@@ -7,76 +7,53 @@ import { BasePlatform } from '../../BasePlatform';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
 import { MsgType_COMMENT, MsgType_JOIN_ROOM } from '@/lib/constants';
+// Dev-only mock messages (aligned with 17live pattern)
+import youtubeMockComment from '@/../public/mock/youtube_chat_message.json';
+import youtubeMockJoin from '@/../public/mock/youtube_chat_join.json';
 
 export class YouTubePlatform extends BasePlatform {
   constructor() {
     super('youtube', 'YouTube');
     this.devMocksInjected = false;
-
-    // In development, inject mock data early for style preview (no connection required)
-    if (process.env.NODE_ENV === 'development') {
-      setTimeout(() => {
-        try {
-          this.injectDevMocks();
-        } catch (e) {
-          // Fail silently to avoid affecting startup
-          console.warn('YouTube mock injection failed:', e);
-        }
-      }, 300);
+    // Always attempt to inject mocks at construction time; gating handled in injectDevMocks
+    try {
+      this.injectDevMocks();
+    } catch (e) {
+      console.warn('YouTube mock injection failed:', e);
     }
   }
 
   async connect(config) {
     this.isConnected = true;
     this.emit('connected', { platform: this.platformId, config: config || {} });
-    if (process.env.NODE_ENV === 'development' && !this.devMocksInjected) {
-      this.injectDevMocks();
-    }
   }
 
   injectDevMocks() {
-    if (this.devMocksInjected || process.env.NODE_ENV !== 'development') return;
-
-    const mockComment = {
-      id: nanoid(),
-      snippet: {
-        type: 'textMessageEvent',
-        displayMessage: 'This is a test comment from YouTube ~',
-        publishedAt: new Date().toISOString(),
-      },
-      authorDetails: {
-        displayName: 'YouTube Tester',
-        channelId: 'UC_TESTER_YT',
-        isChatOwner: false,
-        isChatModerator: false,
-      },
-    };
-
-    const mockJoinContent = fromJS({
-      id: nanoid(),
-      messageType: MsgType_JOIN_ROOM,
-      displayName: 'YouTube Visitor',
-      openID: 'UC_VISITOR_YT',
-      userID: 'UC_VISITOR_YT',
-      content: 'YouTube Visitor joined the live room',
-      level: 1,
-      name: { textColor: '#5e84f1' },
-      comment: { textColor: '#333333' },
-      backgroundColor: '',
-      streamerInfo: null,
-    });
-
+    if (this.devMocksInjected || process.env.NEXT_PUBLIC_MOCK !== '1') return;
     const mocks = [
-      this.processRawMessage(mockComment),
+      this.processRawMessage(youtubeMockComment),
       {
-        id: mockJoinContent.get('id'),
+        id: youtubeMockJoin.id,
         platform: this.platformId,
         timestamp: Date.now(),
-        content: mockJoinContent,
+        content: fromJS({
+          id: youtubeMockJoin.id,
+          messageType: MsgType_JOIN_ROOM,
+          displayName: youtubeMockJoin.authorDetails?.displayName || 'YouTube Visitor',
+          openID: youtubeMockJoin.authorDetails?.channelId,
+          userID: youtubeMockJoin.authorDetails?.channelId,
+          content: 'YouTube Visitor joined the live room',
+          level: 1,
+          name: { textColor: '#FF0000' },
+          comment: { textColor: '#FFFFFF' },
+          backgroundColor: '',
+          streamerInfo: null,
+        }),
       },
     ].filter(Boolean);
 
     mocks.forEach((mock) => this.enqueueMessage(mock));
+    console.log('youtube', mocks);
     this.devMocksInjected = true;
   }
   async disconnect() {
@@ -92,8 +69,6 @@ export class YouTubePlatform extends BasePlatform {
     const id = rawData?.id || nanoid();
     const displayName = authorDetails?.displayName || 'YouTube User';
     const isOwner = !!authorDetails?.isChatOwner;
-    const isModerator = !!authorDetails?.isChatModerator;
-    const nameColor = isOwner ? '#ffd700' : (isModerator ? '#5e84f1' : '#333333');
 
     return fromJS({
       id,
@@ -104,8 +79,8 @@ export class YouTubePlatform extends BasePlatform {
       content: snippet?.displayMessage || '',
       level: 1,
       isStreamer: isOwner,
-      name: { textColor: nameColor },
-      comment: { textColor: '#333333' },
+      name: { textColor: '#FF0000' },
+      comment: { textColor: '#FFFFFF' },
       backgroundColor: '',
       streamerInfo: null,
     });
