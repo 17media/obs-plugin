@@ -1,13 +1,13 @@
 /**
- * 公共 WebSocket 发送函数
- * - 任何地方可直接调用
- * - 自动确保连接（幂等）
- * - 统一封装消息信封格式
+ * Common WebSocket send function
+ * - Can be called from anywhere
+ * - Ensures connection automatically (idempotent)
+ * - Unified envelope format for messages
  */
 import { wsManager } from './WebSocketManager';
 
 /**
- * 发送到 WS 服务端
+ * Send to WS server
  * params: { type, payload, platform, roomID, userID, source, extra }
  */
 export async function sendWSMessage({
@@ -20,7 +20,7 @@ export async function sendWSMessage({
   extra = {},
 } = {}) {
   if (!type) {
-    throw new Error('sendWSMessage 需要提供 type');
+    throw new Error('sendWSMessage requires a type');
   }
   try {
     await wsManager.connect();
@@ -34,11 +34,11 @@ export async function sendWSMessage({
       timestamp: Date.now(),
       ...extra,
     };
-    // 发送（若未连接则进入队列，连接后自动发送）
+    // Send (if not connected it queues, will send after connect)
     wsManager.send(envelope);
     return true;
   } catch (error) {
-    console.error('sendWSMessage 发送失败:', error);
+    console.error('sendWSMessage failed:', error);
     return false;
   }
 }

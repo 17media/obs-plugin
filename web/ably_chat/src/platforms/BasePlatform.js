@@ -1,6 +1,6 @@
 /**
- * 平台处理器抽象基类
- * 定义所有平台必须实现的接口
+ * Platform handler abstract base class
+ * Defines interfaces all platforms must implement
  */
 
 import { EventEmitter } from 'events';
@@ -16,7 +16,7 @@ export class BasePlatform extends EventEmitter {
   }
 
   /**
-   * 连接到平台
+   * Connect to the platform
    * @abstract
    */
   async connect(config) {
@@ -24,7 +24,7 @@ export class BasePlatform extends EventEmitter {
   }
 
   /**
-   * 断开连接
+   * Disconnect
    * @abstract
    */
   async disconnect() {
@@ -32,7 +32,7 @@ export class BasePlatform extends EventEmitter {
   }
 
   /**
-   * 处理原始消息数据
+   * Process raw message data
    * @abstract
    */
   processRawMessage(rawData) {
@@ -40,7 +40,7 @@ export class BasePlatform extends EventEmitter {
   }
 
   /**
-   * 发送消息到平台
+   * Send a message to the platform
    * @abstract
    */
   async sendMessage(message) {
@@ -48,7 +48,7 @@ export class BasePlatform extends EventEmitter {
   }
 
   /**
-   * 获取平台状态
+   * Get platform status
    */
   getStatus() {
     return {
@@ -60,25 +60,25 @@ export class BasePlatform extends EventEmitter {
   }
 
   /**
-   * 清空消息队列
+   * Clear message queue
    */
   clearQueue() {
     this.messageQueue = [];
   }
 
   /**
-   * 添加消息到队列
+   * Add message to queue
    */
   enqueueMessage(message) {
     if (this.messageQueue.length >= this.maxQueueSize) {
-      this.messageQueue.shift(); // 移除最老的消息
+      this.messageQueue.shift(); // Remove the oldest message
     }
     this.messageQueue.push(message);
     this.emit('message', message);
   }
 
   /**
-   * 获取平台图标路径
+   * Get platform icon path
    */
   getPlatformIcon() {
     return `/images/${this.platformId}.svg`;

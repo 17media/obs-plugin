@@ -24,12 +24,12 @@ const GlobalStyle = createGlobalStyle`
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* 暗色模式样式 */
+  /* Dark mode styles */
   .dark {
     color-scheme: dark;
   }
 
-  /* 滚动条样式 */
+  /* Scrollbar styles */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -56,7 +56,7 @@ const GlobalStyle = createGlobalStyle`
     background: #64748b;
   }
 
-  /* 工具类 */
+  /* Utility classes */
   .sr-only {
     position: absolute;
     width: 1px;

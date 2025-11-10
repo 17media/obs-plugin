@@ -3,8 +3,8 @@ import styled from 'styled-components';
 import { Twitch } from 'lucide-react';
 
 /**
- * Twitch消息UI组件
- * 将统一消息格式转换为Twitch特定的UI显示
+ * Twitch message UI component
+ * Converts the unified message format into Twitch-specific UI
  */
 
 const MessageContainer = styled.div`
@@ -112,11 +112,11 @@ export const TwitchMessage = memo(({ message }) => {
       
       switch (badge.name) {
         case 'broadcaster':
-          badgeText = '主播';
+          badgeText = 'Broadcaster';
           badgeColor = 'bg-red-500';
           break;
         case 'moderator':
-          badgeText = '房管';
+          badgeText = 'Moderator';
           badgeColor = 'bg-green-500';
           break;
         case 'vip':
@@ -124,7 +124,7 @@ export const TwitchMessage = memo(({ message }) => {
           badgeColor = 'bg-blue-500';
           break;
         case 'subscriber':
-          badgeText = '订阅';
+          badgeText = 'Subscriber';
           badgeColor = 'bg-purple-500';
           break;
         case 'premium':
@@ -198,7 +198,7 @@ export const TwitchMessage = memo(({ message }) => {
               </SubscriptionText>
               {message.metadata?.months && (
                 <SubscriptionMeta variant="resub" dark={isDark}>
-                  订阅时长: {message.metadata.months} 个月
+                  Subscription duration: {message.metadata.months} months
                 </SubscriptionMeta>
               )}
             </SubscriptionContent>
@@ -248,7 +248,7 @@ export const TwitchMessage = memo(({ message }) => {
 };
 
 /**
- * 将统一消息格式转换为Chat组件需要的props格式
+ * Convert the unified message format to Chat component props
  */
 export const convertToChatProps = (message) => {
   const baseProps = {
@@ -282,7 +282,7 @@ export const convertToChatProps = (message) => {
           name: message.author?.displayName || message.author?.name
         },
         gift: {
-          name: '订阅',
+          name: 'Subscription',
           count: 1
         },
         message: message.content
@@ -296,7 +296,7 @@ export const convertToChatProps = (message) => {
           name: message.author?.displayName || message.author?.name
         },
         gift: {
-          name: '重新订阅',
+          name: 'Resubscription',
           count: message.metadata?.months || 1
         },
         message: message.content
@@ -331,7 +331,7 @@ export const convertToChatProps = (message) => {
         ...baseProps,
         type: 'comment',
         user: {
-          name: message.author?.displayName || message.author?.name || 'Twitch用户'
+          name: message.author?.displayName || message.author?.name || 'Twitch User'
         },
         message: message.content
       };

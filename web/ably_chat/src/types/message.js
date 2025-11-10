@@ -1,6 +1,6 @@
 /**
- * 统一消息类型定义
- * 用于所有平台的消息格式标准化
+ * Unified message type definitions
+ * Standardizes message formats across all platforms
  */
 
 export const Platform = {
@@ -20,7 +20,7 @@ export const MessageType = {
 };
 
 /**
- * 标准化消息格式
+ * Standardized message format
  */
 export class UnifiedMessage {
   constructor({
@@ -44,7 +44,7 @@ export class UnifiedMessage {
   }
 
   /**
-   * 获取平台图标路径
+   * Get platform icon path
    */
   getPlatformIcon() {
     const iconMap = {
@@ -56,7 +56,7 @@ export class UnifiedMessage {
   }
 
   /**
-   * 转换为Immutable对象（兼容现有代码）
+   * Convert to Immutable object (compatible with existing code)
    */
   toImmutable() {
     const { fromJS } = require('immutable');
@@ -75,7 +75,7 @@ export class UnifiedMessage {
 }
 
 /**
- * 消息作者信息
+ * Message author information
  */
 export class MessageAuthor {
   constructor({

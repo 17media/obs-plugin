@@ -1,4 +1,4 @@
-// styled-components 主题配置
+// styled-components theme configuration
 export const theme = {
   colors: {
     primary: {

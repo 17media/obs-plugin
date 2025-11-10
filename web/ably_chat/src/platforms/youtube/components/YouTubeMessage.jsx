@@ -1,6 +1,6 @@
 /**
- * YouTube平台消息UI组件
- * 专门处理YouTube平台消息的显示
+ * YouTube platform message UI component
+ * Specially handles YouTube platform message display
  */
 
 import React, { memo } from 'react';
@@ -53,7 +53,7 @@ export const YouTubeMessage = memo(({ message, streamerInfo, asideLiveWidth }) =
     rawData 
   } = message;
 
-  // 转换消息格式以兼容现有的Chat组件
+  // Convert message format to be compatible with existing Chat component
   const chatProps = convertToChatProps(message, streamerInfo);
 
   return (
@@ -76,7 +76,7 @@ export const YouTubeMessage = memo(({ message, streamerInfo, asideLiveWidth }) =
 });
 
 /**
- * 将统一消息格式转换为Chat组件需要的props
+ * Convert unified message format to props required by Chat component
  */
 export function convertToChatProps(message, streamerInfo) {
   const { id, type, content, author, metadata, rawData } = message;
@@ -100,10 +100,10 @@ export function convertToChatProps(message, streamerInfo) {
                    author.isVerified ? '#c0c0c0' : '#333333',
         textColor: '#333333',
         backgroundColor: '',
-        level: 1, // YouTube没有等级系统
+        level: 1, // YouTube does not have a level system
         isStreamer: author.isChatOwner,
         openID: author.id,
-        // 添加YouTube特有的标识
+        // Add YouTube-specific flags
         isVerified: author.isVerified,
         isModerator: author.isChatModerator,
         isSponsor: author.isChatSponsor

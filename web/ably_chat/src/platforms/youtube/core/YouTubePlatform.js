@@ -1,6 +1,6 @@
 /**
- * YouTube平台处理器
- * 处理YouTube直播聊天消息
+ * YouTube platform handler
+ * Handles YouTube live chat messages
  */
 
 import { BasePlatform } from '../../BasePlatform';
@@ -16,21 +16,21 @@ export class YouTubePlatform extends BasePlatform {
     this.apiKey = null;
     this.liveChatId = null;
     this.nextPageToken = null;
-    this.pollingInterval = 5000; // 默认5秒
+    this.pollingInterval = 5000; // Default 5 seconds
     this.pollingTimer = null;
     this.lastPollTime = 0;
     this.retryCount = 0;
     this.maxRetries = 3;
     this.devMocksInjected = false;
 
-    // 在开发环境下提前注入 mock 数据，用于样式预览（无需连接）
+    // In development, inject mock data early for style preview (no connection required)
     if (process.env.NODE_ENV === 'development') {
       setTimeout(() => {
         try {
           this.injectDevMocks();
         } catch (e) {
-          // 安静失败以免影响启动
-          console.warn('YouTube mock 注入失败:', e);
+          // Fail silently to avoid affecting startup
+          console.warn('YouTube mock injection failed:', e);
         }
       }, 300);
     }
@@ -42,24 +42,24 @@ export class YouTubePlatform extends BasePlatform {
 
       this.liveChatId = liveChatId;
 
-      // 获取令牌：优先使用显式配置，其次使用环境/REST
+      // Get token: prefer explicit config, then environment/REST
       let token = apiKey || accessToken || null;
       if (!token) {
         try {
           token = await getYouTubeToken();
         } catch (e) {
-          console.warn('YouTube token 获取失败:', e);
+          console.warn('YouTube token fetch failed:', e);
         }
       }
 
-      // 根据令牌形式决定调用方式：Bearer 访问令牌 或 API Key
+      // Decide call method based on token type: Bearer access token or API key
       if (token) {
         const lower = token.toLowerCase();
         if (lower.startsWith('bearer ')) {
           this.accessToken = token.slice(7).trim();
           this.apiKey = null;
         } else if (token.startsWith('ya29.')) {
-          // 常见Google OAuth访问令牌前缀
+          // Common Google OAuth access token prefix
           this.accessToken = token.trim();
           this.apiKey = null;
         } else {
@@ -69,27 +69,27 @@ export class YouTubePlatform extends BasePlatform {
       }
 
       if ((!this.apiKey && !this.accessToken) || !this.liveChatId) {
-        throw new Error('YouTube配置错误：缺少有效Token或直播聊天ID');
+        throw new Error('YouTube configuration error: missing valid token or live chat ID');
       }
 
-      // 开始轮询
+      // Start polling
       this.startPolling();
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, liveChatId });
       
-      // 若连接后仍未注入 mock（例如延迟或被跳过），在开发环境下兜底一次
+      // If mocks not injected after connect (delay or skipped), inject once in dev
       if (process.env.NODE_ENV === 'development' && !this.devMocksInjected) {
         this.injectDevMocks();
       }
       
     } catch (error) {
-      console.error('YouTube连接失败:', error);
+      console.error('YouTube connection failed:', error);
       this.emit('error', { platform: this.platformId, error });
       throw error;
     }
   }
 
-  // 开发环境：注入 mock 数据（加入/留言），与统一结构兼容
+  // Development: inject mock data (join/comment), compatible with unified structure
   injectDevMocks() {
     if (this.devMocksInjected || process.env.NODE_ENV !== 'development') return;
 
@@ -97,7 +97,7 @@ export class YouTubePlatform extends BasePlatform {
       id: nanoid(),
       snippet: {
         type: 'textMessageEvent',
-        displayMessage: '这是来自 YouTube 的测试留言 ~',
+        displayMessage: 'This is a test comment from YouTube ~',
         publishedAt: new Date().toISOString(),
       },
       authorDetails: {
@@ -114,7 +114,7 @@ export class YouTubePlatform extends BasePlatform {
       displayName: 'YouTube Visitor',
       openID: 'UC_VISITOR_YT',
       userID: 'UC_VISITOR_YT',
-      content: 'YouTube Visitor 加入了直播间',
+      content: 'YouTube Visitor joined the live room',
       level: 1,
       name: { textColor: '#5e84f1' },
       comment: { textColor: '#333333' },
@@ -144,7 +144,7 @@ export class YouTubePlatform extends BasePlatform {
       this.isConnected = false;
       this.emit('disconnected', { platform: this.platformId });
     } catch (error) {
-      console.error('YouTube断开连接失败:', error);
+      console.error('YouTube disconnect failed:', error);
       throw error;
     }
   }
@@ -155,17 +155,17 @@ export class YouTubePlatform extends BasePlatform {
     const poll = async () => {
       try {
         await this.pollMessages();
-        this.retryCount = 0; // 重置重试计数
+        this.retryCount = 0; // Reset retry count
       } catch (error) {
-        console.error('YouTube轮询失败:', error);
+        console.error('YouTube polling failed:', error);
         this.handlePollingError(error);
       }
     };
 
-    // 立即执行一次
+    // Execute once immediately
     poll();
     
-    // 设置定时器
+    // Set timer
     this.scheduleNextPoll();
   }
 
@@ -180,7 +180,7 @@ export class YouTubePlatform extends BasePlatform {
   async pollMessages() {
     const now = Date.now();
     if (now - this.lastPollTime < this.pollingInterval) {
-      return; // 避免过于频繁的请求
+      return; // Avoid overly frequent requests
     }
     
     this.lastPollTime = now;
@@ -206,13 +206,13 @@ export class YouTubePlatform extends BasePlatform {
 
     const { data } = response;
     
-    // 更新分页token和轮询间隔
+    // Update page token and polling interval
     this.nextPageToken = data.nextPageToken;
     if (data.pollingIntervalMillis) {
-      this.pollingInterval = Math.max(1000, data.pollingIntervalMillis); // 最少1秒
+      this.pollingInterval = Math.max(1000, data.pollingIntervalMillis); // At least 1 second
     }
 
-    // 处理消息
+    // Process messages
     if (data.items && data.items.length > 0) {
       data.items.forEach(item => {
         const message = this.processRawMessage(item);
@@ -228,20 +228,20 @@ export class YouTubePlatform extends BasePlatform {
       const { status, data } = error.response;
       
       if (status === 403) {
-        // API密钥无效或权限不足
-        console.error('YouTube API权限错误:', data.error?.message);
+        // API key invalid or insufficient permissions
+        console.error('YouTube API permission error:', data.error?.message);
         this.emit('error', { 
           platform: this.platformId, 
-          error: new Error('YouTube API权限不足，请检查API密钥') 
+          error: new Error('YouTube API permissions insufficient, please check API key') 
         });
         return;
       }
       
       if (status === 429) {
-        // 速率限制，指数退避
+        // Rate limit, exponential backoff
         this.retryCount++;
         const backoffTime = Math.min(60000, 1000 * Math.pow(2, this.retryCount));
-        console.warn(`YouTube API速率限制，${backoffTime}ms后重试`);
+        console.warn(`YouTube API rate limited, retry after ${backoffTime}ms`);
         
         setTimeout(() => {
           this.startPolling();
@@ -250,26 +250,26 @@ export class YouTubePlatform extends BasePlatform {
       }
     }
 
-    // 其他错误，简单重试
+    // Other errors, simple retry
     this.retryCount++;
     if (this.retryCount < this.maxRetries) {
       setTimeout(() => {
         this.startPolling();
       }, 5000);
     } else {
-      console.error('YouTube轮询失败次数过多，停止重试');
+      console.error('Too many YouTube polling failures, stop retrying');
       this.emit('error', { 
         platform: this.platformId, 
-        error: new Error('YouTube连接失败，请检查配置') 
+        error: new Error('YouTube connection failed, please check configuration') 
       });
     }
   }
 
-  // 构建与 Chat 组件兼容的 Immutable 内容
+  // Build Immutable content compatible with Chat component
   prepareIndexedChat(rawData) {
     const { snippet, authorDetails } = rawData || {};
     const id = rawData?.id || nanoid();
-    const displayName = authorDetails?.displayName || 'YouTube用户';
+    const displayName = authorDetails?.displayName || 'YouTube User';
     const isOwner = !!authorDetails?.isChatOwner;
     const isModerator = !!authorDetails?.isChatModerator;
     const nameColor = isOwner ? '#ffd700' : (isModerator ? '#5e84f1' : '#333333');
@@ -297,8 +297,8 @@ export class YouTubePlatform extends BasePlatform {
       if (!snippet || !authorDetails) {
         return null;
       }
-
-      // 只处理聊天消息
+  
+      // Only process chat messages
       if (snippet.type !== 'textMessageEvent') {
         return null;
       }
@@ -313,13 +313,13 @@ export class YouTubePlatform extends BasePlatform {
         content: immutableContent,
       };
     } catch (error) {
-      console.error('处理YouTube消息失败:', error);
+      console.error('Failed to process YouTube message:', error);
       return null;
     }
   }
 
   async sendMessage(message) {
-    // YouTube需要OAuth认证才能发送消息，这里暂时不支持
-    throw new Error('YouTube平台发送消息需要OAuth认证，暂不支持');
+    // YouTube requires OAuth to send messages; not supported here
+    throw new Error('YouTube platform sending messages requires OAuth; not supported');
   }
 }

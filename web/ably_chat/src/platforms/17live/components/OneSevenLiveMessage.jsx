@@ -1,6 +1,6 @@
 /**
- * 17Live平台消息UI组件
- * 专门处理17Live平台消息的显示
+ * 17Live platform message UI component
+ * Dedicated to rendering messages from the 17Live platform
  */
 
 import React, { memo } from 'react';
@@ -53,7 +53,7 @@ export const OneSevenLiveMessage = memo(({ message, streamerInfo, asideLiveWidth
     rawData
   } = message;
 
-  // 转换消息格式以兼容现有的Chat组件
+  // Convert message format to be compatible with the existing Chat component
   const chatProps = convertToChatProps(message, streamerInfo);
 
   return (
@@ -66,7 +66,7 @@ export const OneSevenLiveMessage = memo(({ message, streamerInfo, asideLiveWidth
         />
       </PlatformBadge>
       <div style={{ flex: 1 }}>
-        <Chat 
+        <Chat
           {...getChatProps(chatProps)}
           asideLiveWidth={asideLiveWidth}
         />
@@ -76,7 +76,7 @@ export const OneSevenLiveMessage = memo(({ message, streamerInfo, asideLiveWidth
 });
 
 /**
- * 将统一消息格式转换为Chat组件需要的props
+ * Convert unified message format to props required by the Chat component
  */
 export function convertToChatProps(message, streamerInfo) {
   const { id, type, content, author, metadata, rawData } = message;

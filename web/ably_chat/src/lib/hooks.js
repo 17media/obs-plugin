@@ -7,7 +7,7 @@ import React, {
     useState,
 } from 'react';
 
-// Immutable v3 不提供 isImmutable；使用通用的 toJS 检测替代
+// Immutable v3 does not provide isImmutable; use generic toJS detection instead
 
 import BadgeImage from './BadgeImage';
 

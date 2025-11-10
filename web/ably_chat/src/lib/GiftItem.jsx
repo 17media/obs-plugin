@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import GiftIcon from './GiftIcon'; // 假设 GiftIcon.jsx 在同一目录下
+import GiftIcon from './GiftIcon'; // Assume GiftIcon.jsx is in the same directory
 import { useTranslations } from 'next-intl';
 import { MsgType_NEW_LUCKYBAG } from './constants';
 
@@ -37,13 +37,13 @@ const GiftItem = ({ messageType, giftInfo, luckyBagInfo }) => {
 
   return (
     <GiftItemContainer>
-      {messageType === MsgType_NEW_LUCKYBAG ? 
+      {messageType === MsgType_NEW_LUCKYBAG ?
         t('GIVE_LUCKYBAG_GIFT', {
           giftName: name,
           luckyBagName: luckyBagInfo.get('name'),
           point
-        }) 
-        : 
+        })
+        :
         (
           <>
             {t('GIVE_GIFT')}

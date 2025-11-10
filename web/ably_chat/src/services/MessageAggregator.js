@@ -6,35 +6,35 @@ import { wsManager } from './WebSocketManager';
 import { sendWSMessage } from './WSSender';
 
 /**
- * 统一消息聚合管理器
- * 管理多个平台的消息流，提供统一的消息处理和分发机制
+ * Unified message aggregation manager
+ * Manages multiple platform message streams with unified processing and dispatch
  */
 export class MessageAggregator extends EventEmitter {
   constructor() {
     super();
     
-    // 平台实例映射
+    // Platform instance map
     this.platforms = new Map();
     
-    // 活动平台配置
+    // Active platform set
     this.activePlatforms = new Set();
     
-    // 消息队列（按时间戳排序）
+    // Message queue (sorted by timestamp)
     this.messageQueue = [];
     
-    // 消息去重映射（基于消息ID）
+    // Message deduplication set (based on message ID)
     this.messageIds = new Set();
     
-    // 最大消息队列长度
+    // Max message queue length
     this.maxQueueSize = 1000;
     
-    // 消息处理间隔（毫秒）
+    // Message processing interval (ms)
     this.processInterval = 100;
     
-    // 定时器引用
+    // Timer reference
     this.processTimer = null;
     
-    // 平台处理器映射
+    // Platform handler mapping
     this.platformHandlers = {
       '17live': OneSevenLivePlatform,
       'youtube': YouTubePlatform,
@@ -45,46 +45,46 @@ export class MessageAggregator extends EventEmitter {
   }
 
   initialize() {
-    // 启动消息处理定时器
+    // Start message processing timer
     this.startMessageProcessor();
     
-    // 监听平台事件
+    // Setup listeners for platform events
     this.setupEventListeners();
 
-    // 统一初始化 WebSocket 连接
+    // Initialize WebSocket connection in a unified way
     wsManager.connect().catch(err => {
-      console.error('初始化 WebSocket 失败:', err);
+      console.error('Initialize WebSocket failed:', err);
     });
-    wsManager.on('open', ({ url }) => console.log('WS 已连接:', url));
-    wsManager.on('close', () => console.log('WS 已关闭'));
-    wsManager.on('error', (e) => console.error('WS 错误:', e));
+    wsManager.on('open', ({ url }) => console.log('WS connected:', url));
+    wsManager.on('close', () => console.log('WS closed'));
+    wsManager.on('error', (e) => console.error('WS error:', e));
   }
 
   setupEventListeners() {
-    // 监听平台连接状态变化
+    // Listen for platform connection state changes
     this.on('platform_connected', this.handlePlatformConnected.bind(this));
     this.on('platform_disconnected', this.handlePlatformDisconnected.bind(this));
     this.on('platform_error', this.handlePlatformError.bind(this));
   }
 
   /**
-   * 添加平台
+   * Add platform
    */
   async addPlatform(platformId, config) {
     try {
       if (this.platforms.has(platformId)) {
-        throw new Error(`平台 ${platformId} 已存在`);
+        throw new Error(`Platform ${platformId} already exists`);
       }
 
       const PlatformClass = this.platformHandlers[platformId];
       if (!PlatformClass) {
-        throw new Error(`不支持的平��: ${platformId}`);
+        throw new Error(`Unsupported platform: ${platformId}`);
       }
 
-      // 创建平台实例
+      // Create platform instance
       const platform = new PlatformClass();
       
-      // 监听平台消息事件
+      // Listen for platform message events
       platform.on('message', (message) => {
         this.handlePlatformMessage(platformId, message);
       });
@@ -101,138 +101,138 @@ export class MessageAggregator extends EventEmitter {
         this.emit('platform_error', { platformId, error });
       });
 
-      // 添加到平台映射
+      // Add to platform map
       this.platforms.set(platformId, platform);
 
-      // 如果提供了配置，自动连接
+      // Auto-connect if config is provided
       if (config && Object.keys(config).length > 0) {
         await this.connectPlatform(platformId, config);
       }
 
-      console.log(`平台 ${platformId} 已添加`);
+      console.log(`Platform ${platformId} added`);
       
     } catch (error) {
-      console.error(`添加平台 ${platformId} 失败:`, error);
+      console.error(`Failed to add platform ${platformId}:`, error);
       throw error;
     }
   }
 
   /**
-   * 移除平台
+   * Remove platform
    */
   async removePlatform(platformId) {
     try {
       const platform = this.platforms.get(platformId);
       if (!platform) {
-        throw new Error(`平台 ${platformId} 不存在`);
+        throw new Error(`Platform ${platformId} does not exist`);
       }
 
-      // 断开连接
+      // Disconnect
       if (platform.isConnected) {
         await platform.disconnect();
       }
 
-      // 移除事件监听器
+      // Remove event listeners
       platform.removeAllListeners();
 
-      // 从映射中删除
+      // Delete from map
       this.platforms.delete(platformId);
       this.activePlatforms.delete(platformId);
 
-      console.log(`平台 ${platformId} 已移除`);
+      console.log(`Platform ${platformId} removed`);
       
     } catch (error) {
-      console.error(`移除平台 ${platformId} 失败:`, error);
+      console.error(`Failed to remove platform ${platformId}:`, error);
       throw error;
     }
   }
 
   /**
-   * 连接平台
+   * Connect platform
    */
   async connectPlatform(platformId, config) {
     try {
       const platform = this.platforms.get(platformId);
       if (!platform) {
-        throw new Error(`平台 ${platformId} 不存在`);
+        throw new Error(`Platform ${platformId} does not exist`);
       }
 
       if (platform.isConnected) {
-        console.log(`平台 ${platformId} 已连接`);
+        console.log(`Platform ${platformId} already connected`);
         return;
       }
 
       await platform.connect(config);
       this.activePlatforms.add(platformId);
       
-      console.log(`平台 ${platformId} 已连接`);
+      console.log(`Platform ${platformId} connected`);
       
     } catch (error) {
-      console.error(`连接平台 ${platformId} 失败:`, error);
+      console.error(`Failed to connect platform ${platformId}:`, error);
       throw error;
     }
   }
 
   /**
-   * 断开平台连接
+   * Disconnect platform
    */
   async disconnectPlatform(platformId) {
     try {
       const platform = this.platforms.get(platformId);
       if (!platform) {
-        throw new Error(`平台 ${platformId} 不存在`);
+        throw new Error(`Platform ${platformId} does not exist`);
       }
 
       if (!platform.isConnected) {
-        console.log(`平台 ${platformId} 已断开连接`);
+        console.log(`Platform ${platformId} already disconnected`);
         return;
       }
 
       await platform.disconnect();
       this.activePlatforms.delete(platformId);
       
-      console.log(`平台 ${platformId} 已断开连接`);
+      console.log(`Platform ${platformId} disconnected`);
       
     } catch (error) {
-      console.error(`断开平台 ${platformId} 失败:`, error);
+      console.error(`Failed to disconnect platform ${platformId}:`, error);
       throw error;
     }
   }
 
   /**
-   * 处理平台消息
+   * Handle platform message
    */
   handlePlatformMessage(platformId, message) {
     try {
-      // 消息去重
+      // Message deduplication
       if (this.messageIds.has(message.id)) {
         return;
       }
 
-      // 添加平台标识
+      // Add platform identifier
       const enrichedMessage = {
         ...message,
         platform: platformId,
         aggregatedAt: Date.now()
       };
 
-      // 添加到消息队列
+      // Add to message queue
       this.messageQueue.push(enrichedMessage);
       this.messageIds.add(message.id);
 
-      // 保持队列长度
+      // Keep queue length
       if (this.messageQueue.length > this.maxQueueSize) {
         const removedMessage = this.messageQueue.shift();
         this.messageIds.delete(removedMessage.id);
       }
 
-      // 按时间戳排序
+      // Sort by timestamp
       this.messageQueue.sort((a, b) => a.timestamp - b.timestamp);
 
-      // 立即触发消息事件
+      // Emit message event immediately
       this.emit('message', enrichedMessage);
 
-      // 中央转发到 WebSocket（按需）
+      // Forward to WebSocket centrally (on demand)
       try {
         const content = enrichedMessage.content;
         const type = content && typeof content.get === 'function' ? content.get('messageType') : undefined;
@@ -251,20 +251,20 @@ export class MessageAggregator extends EventEmitter {
           });
         }
       } catch (e) {
-        console.error('WS 转发失败:', e);
+        console.error('WS forwarding failed:', e);
       }
       
     } catch (error) {
-      console.error('处理平台消息失败:', error);
+      console.error('Failed to process platform message:', error);
       this.emit('error', { type: 'message_processing', error, platformId, message });
     }
   }
 
   /**
-   * 处理平台连接事件
+   * Handle platform connected event
    */
   handlePlatformConnected({ platformId, data }) {
-    console.log(`平台 ${platformId} 连接成功:`, data);
+    console.log(`Platform ${platformId} connected successfully:`, data);
     this.emit('status_change', { 
       platformId, 
       status: 'connected',
@@ -273,10 +273,10 @@ export class MessageAggregator extends EventEmitter {
   }
 
   /**
-   * 处理平台断开连接事件
+   * Handle platform disconnected event
    */
   handlePlatformDisconnected({ platformId, data }) {
-    console.log(`平台 ${platformId} 断开连接:`, data);
+    console.log(`Platform ${platformId} disconnected:`, data);
     this.activePlatforms.delete(platformId);
     this.emit('status_change', { 
       platformId, 
@@ -286,10 +286,10 @@ export class MessageAggregator extends EventEmitter {
   }
 
   /**
-   * 处理平台错误事件
+   * Handle platform error event
    */
   handlePlatformError({ platformId, error }) {
-    console.error(`平台 ${platformId} 错误:`, error);
+    console.error(`Platform ${platformId} error:`, error);
     this.emit('error', { 
       type: 'platform_error',
       platformId, 
@@ -299,7 +299,7 @@ export class MessageAggregator extends EventEmitter {
   }
 
   /**
-   * 启动消息处理器
+   * Start message processor
    */
   startMessageProcessor() {
     if (this.processTimer) {
@@ -312,7 +312,7 @@ export class MessageAggregator extends EventEmitter {
   }
 
   /**
-   * 处理消息队列
+   * Process message queue
    */
   processMessageQueue() {
     if (this.messageQueue.length === 0) {
@@ -322,11 +322,11 @@ export class MessageAggregator extends EventEmitter {
     const now = Date.now();
     const messagesToProcess = [];
 
-    // 获取应该处理的消息（基于时间戳）
+    // Get messages to process (based on timestamp)
     while (this.messageQueue.length > 0) {
       const message = this.messageQueue[0];
       
-      // 如果消息时间戳小于等于当前时间，处理它
+      // If message timestamp <= now, process it
       if (message.timestamp <= now) {
         messagesToProcess.push(this.messageQueue.shift());
       } else {
@@ -334,14 +334,14 @@ export class MessageAggregator extends EventEmitter {
       }
     }
 
-    // 批量发送消息
+    // Emit batch of messages
     if (messagesToProcess.length > 0) {
       this.emit('messages_batch', messagesToProcess);
     }
   }
 
   /**
-   * 获取所有平台状态
+   * Get all platform statuses
    */
   getPlatformsStatus() {
     const status = {};
@@ -360,7 +360,7 @@ export class MessageAggregator extends EventEmitter {
   }
 
   /**
-   * 获取消息统计
+   * Get message statistics
    */
   getMessageStats() {
     const stats = {
@@ -370,7 +370,7 @@ export class MessageAggregator extends EventEmitter {
       timestamp: Date.now()
     };
 
-    // 按平台统计
+    // Stats by platform
     this.messageQueue.forEach(message => {
       const platform = message.platform;
       const type = message.type;
@@ -390,7 +390,7 @@ export class MessageAggregator extends EventEmitter {
   }
 
   /**
-   * 清空消息队列
+   * Clear message queue
    */
   clearMessageQueue() {
     this.messageQueue = [];
@@ -399,29 +399,29 @@ export class MessageAggregator extends EventEmitter {
   }
 
   /**
-   * 发送消息到指定平台
+   * Send message to specified platform
    */
   async sendMessage(platformId, message) {
     try {
       const platform = this.platforms.get(platformId);
       if (!platform) {
-        throw new Error(`平台 ${platformId} 不存在`);
+        throw new Error(`Platform ${platformId} does not exist`);
       }
 
       if (!platform.isConnected) {
-        throw new Error(`平台 ${platformId} 未连接`);
+        throw new Error(`Platform ${platformId} not connected`);
       }
 
       await platform.sendMessage(message);
       
     } catch (error) {
-      console.error(`发送消息到平台 ${platformId} 失败:`, error);
+      console.error(`Failed to send message to platform ${platformId}:`, error);
       throw error;
     }
   }
 
   /**
-   * 获取所有活动平台的消息
+   * Get messages from all active platforms
    */
   getActiveMessages(limit = 100) {
     const activeMessages = this.messageQueue.filter(message => 
@@ -432,43 +432,43 @@ export class MessageAggregator extends EventEmitter {
   }
 
   /**
-   * 停止聚合器
+   * Stop aggregator
    */
   async stop() {
     try {
-      // 停止消息处理器
+      // Stop message processor
       if (this.processTimer) {
         clearInterval(this.processTimer);
         this.processTimer = null;
       }
 
-      // 断开所有平台连接
+      // Disconnect all platforms
       const disconnectPromises = Array.from(this.platforms.keys()).map(platformId => 
         this.disconnectPlatform(platformId).catch(error => 
-          console.error(`断开平台 ${platformId} 失败:`, error)
+          console.error(`Failed to disconnect platform ${platformId}:`, error)
         )
       );
 
       await Promise.all(disconnectPromises);
 
-      // 清空数据
+      // Clear data
       this.clearMessageQueue();
       this.platforms.clear();
       this.activePlatforms.clear();
 
-      // 移除所有事件监听器
+      // Remove all event listeners
       this.removeAllListeners();
 
-      console.log('消息聚合器已停止');
+      console.log('Message aggregator stopped');
       
     } catch (error) {
-      console.error('停止消息聚合器失败:', error);
+      console.error('Failed to stop message aggregator:', error);
       throw error;
     }
   }
 }
 
-// 创建单例实例
+// Create singleton instance
 export const messageAggregator = new MessageAggregator();
 
 export default MessageAggregator;
