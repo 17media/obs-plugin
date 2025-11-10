@@ -4,6 +4,7 @@
 #include <QString>
 #include <QTimer>
 #include "../utility/RemoteTextThread.hpp"
+#include "OneSevenLiveTwitchClient.hpp"
 #include <memory>
 
 /**
@@ -40,6 +41,9 @@ public:
 
     // Authorization callback handler: parse code/scope/state from redirect URL
     void handleAuthorizationCallbackUrl(const QString& callbackUrl);
+
+    // Get Twitch API client instance
+    OneSevenLiveTwitchClient* getTwitchClient() { return m_twitchClient.get(); }
 
 signals:
     void deviceCodeReceived(const QString& userCode, const QString& verificationUri, const QString& verificationUriComplete);
@@ -95,4 +99,7 @@ private:
     static const QString TWITCH_DEVICE_AUTH_URL;
     static const QString TWITCH_TOKEN_URL;
     static const QString TWITCH_SCOPE;
+
+    // Twitch API client
+    std::unique_ptr<OneSevenLiveTwitchClient> m_twitchClient;
 };

@@ -139,6 +139,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/QCefView.cpp
   src/17live/SimpleCefClient.cpp
   src/17live/twitch/OneSevenLiveTwitchAuth.cpp
+  src/17live/twitch/OneSevenLiveTwitchClient.cpp
   src/17live/ui/OneSevenLiveAuthDialog.cpp
   src/17live/ui/OneSevenLivePreviewDock.cpp
   src/17live/ui/OneSevenLivePreviewScreen.cpp

@@ -79,6 +79,13 @@ class OneSevenLiveConfigManager {
     bool getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec, qint64 &fetchedAtEpochSec);
     bool clearYouTubeRefreshToken();
 
+    // Twitch user information management
+    bool setTwitchUserInfo(const QString &userId, const QString &login, const QString &displayName,
+                          const QString &profileImageUrl, const QString &email, int viewCount);
+    bool getTwitchUserInfo(QString &userId, QString &login, QString &displayName,
+                          QString &profileImageUrl, QString &email, int &viewCount);
+    bool clearTwitchUserInfo();
+
    private:
     bool initialized = false;
 

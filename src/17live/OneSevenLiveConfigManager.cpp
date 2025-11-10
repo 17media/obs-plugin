@@ -959,6 +959,98 @@ bool OneSevenLiveConfigManager::clearYouTubeRefreshToken() {
     return true;
 }
 
+bool OneSevenLiveConfigManager::setTwitchUserInfo(const QString &userId, const QString &login, const QString &displayName,
+                                                  const QString &profileImageUrl, const QString &email, int viewCount) {
+    if (!initialized) {
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string userIdStr = userId.toStdString();
+    std::string loginStr = login.toStdString();
+    std::string displayNameStr = displayName.toStdString();
+    std::string profileImageUrlStr = profileImageUrl.toStdString();
+    std::string emailStr = email.toStdString();
+
+    config_set_string(config, service, "TwitchUserId", userIdStr.c_str());
+    config_set_string(config, service, "TwitchLogin", loginStr.c_str());
+    config_set_string(config, service, "TwitchDisplayName", displayNameStr.c_str());
+    config_set_string(config, service, "TwitchProfileImageUrl", profileImageUrlStr.c_str());
+    config_set_string(config, service, "TwitchEmail", emailStr.c_str());
+    config_set_int(config, service, "TwitchViewCount", viewCount);
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save Twitch user info config");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "Twitch user info saved - User ID: %s, Login: %s", userIdStr.c_str(), loginStr.c_str());
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getTwitchUserInfo(QString &userId, QString &login, QString &displayName,
+                                                  QString &profileImageUrl, QString &email, int &viewCount) {
+    if (!initialized) {
+        return false;
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    const char *userIdChar = config_get_string(config, service, "TwitchUserId");
+    const char *loginChar = config_get_string(config, service, "TwitchLogin");
+    const char *displayNameChar = config_get_string(config, service, "TwitchDisplayName");
+    const char *profileImageUrlChar = config_get_string(config, service, "TwitchProfileImageUrl");
+    const char *emailChar = config_get_string(config, service, "TwitchEmail");
+
+    if (!userIdChar || !loginChar) {
+        return false; // Required fields missing
+    }
+
+    userId = QString::fromUtf8(userIdChar);
+    login = QString::fromUtf8(loginChar);
+    displayName = displayNameChar ? QString::fromUtf8(displayNameChar) : "";
+    profileImageUrl = profileImageUrlChar ? QString::fromUtf8(profileImageUrlChar) : "";
+    email = emailChar ? QString::fromUtf8(emailChar) : "";
+    viewCount = config_get_int(config, service, "TwitchViewCount");
+
+    return true;
+}
+
+bool OneSevenLiveConfigManager::clearTwitchUserInfo() {
+    if (!initialized) {
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    config_set_string(config, service, "TwitchUserId", "");
+    config_set_string(config, service, "TwitchLogin", "");
+    config_set_string(config, service, "TwitchDisplayName", "");
+    config_set_string(config, service, "TwitchProfileImageUrl", "");
+    config_set_string(config, service, "TwitchEmail", "");
+    config_set_int(config, service, "TwitchViewCount", 0);
+    
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save config");
+        return false;
+    }
+
+    return true;
+}
+
 bool OneSevenLiveConfigManager::setYouTubeRefreshToken(const QString &refreshToken, int expiresInSec, qint64 fetchedAtEpochSec) {
     if (!initialized) {
         return false;

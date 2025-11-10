@@ -1,4 +1,5 @@
 #include "OneSevenLiveTwitchAuth.hpp"
+#include "OneSevenLiveTwitchClient.hpp"
 #include "plugin-support.h"
 #include "utility/RemoteTextThread.hpp"
 #include "OneSevenLiveCoreManager.hpp"
@@ -31,8 +32,31 @@ OneSevenLiveTwitchAuth::OneSevenLiveTwitchAuth(QObject* parent)
     , m_isAuthorizing(false)
     , m_isPolling(false)
     , m_wasCancelled(false)
+    , m_twitchClient(std::make_unique<OneSevenLiveTwitchClient>(this))
 {
     connect(m_pollingTimer, &QTimer::timeout, this, &OneSevenLiveTwitchAuth::pollForToken);
+    
+    // Connect Twitch client signals to handle user info retrieval
+    connect(m_twitchClient.get(), &OneSevenLiveTwitchClient::userInfoReceived, this, [this](const TwitchUserInfo& userInfo) {
+        obs_log(LOG_INFO, "Twitch user info received for: %s", userInfo.login.toUtf8().constData());
+        
+        // Save user info to config manager
+        auto* configManager = OneSevenLiveCoreManager::getInstance()->getConfigManager();
+        if (configManager) {
+            configManager->setTwitchUserInfo(
+                userInfo.id,
+                userInfo.login,
+                userInfo.displayName,
+                userInfo.profileImageUrl,
+                userInfo.email,
+                userInfo.viewCount
+            );
+        }
+    });
+    
+    connect(m_twitchClient.get(), &OneSevenLiveTwitchClient::errorOccurred, this, [](const QString& errorMessage) {
+        obs_log(LOG_ERROR, "Twitch API client error: %s", errorMessage.toUtf8().constData());
+    });
 }
 
 OneSevenLiveTwitchAuth::~OneSevenLiveTwitchAuth()
@@ -285,6 +309,13 @@ void OneSevenLiveTwitchAuth::onTokenResult(const QString& text, const QString& e
         obs_log(LOG_INFO, "Twitch authorization completed successfully");
         stopPolling();
         m_isAuthorizing = false;
+        
+        // Initialize Twitch client with the access token and fetch user info
+        if (m_twitchClient && !m_accessToken.isEmpty()) {
+            m_twitchClient->setAuthData(m_accessToken, getClientId());
+            m_twitchClient->getCurrentUser();
+        }
+        
         emit authorizationCompleted(m_accessToken, m_refreshToken);
     } else {
         emit authorizationFailed("Invalid token response from Twitch");
@@ -300,6 +331,11 @@ QString OneSevenLiveTwitchAuth::getClientId() const
 QString OneSevenLiveTwitchAuth::getScope() const
 {
     return TWITCH_SCOPE;
+}
+
+OneSevenLiveTwitchClient* OneSevenLiveTwitchAuth::getTwitchClient() const
+{
+    return m_twitchClient.get();
 }
 
 void OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callbackUrl)
@@ -347,6 +383,13 @@ void OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
         m_callbackScope = scope;
         obs_log(LOG_INFO, "Twitch implicit callback parsed: access_token set, scope=%s token_type=%s",
                 m_callbackScope.toUtf8().constData(), tokenType.toUtf8().constData());
+        
+        // Initialize Twitch client with the access token and fetch user info
+        if (m_twitchClient && !m_accessToken.isEmpty()) {
+            m_twitchClient->setAuthData(m_accessToken, getClientId());
+            m_twitchClient->getCurrentUser();
+        }
+        
         emit authorizationCompleted(m_accessToken, m_refreshToken);
         return;
     }
