@@ -5,6 +5,8 @@
 #include <nlohmann/json.hpp>
 #include <QUrlQuery>
 
+#include <obs-module.h>
+
 // API endpoints
 const QString OneSevenLiveTwitchClient::TWITCH_HELIX_API_BASE = "https://api.twitch.tv/helix";
 const QString OneSevenLiveTwitchClient::TWITCH_USERS_ENDPOINT = "/users";
@@ -93,16 +95,18 @@ void OneSevenLiveTwitchClient::getChannelInformation(const QString& broadcasterI
     QString url = TWITCH_HELIX_API_BASE + TWITCH_CHANNELS_ENDPOINT;
     QString fullUrl = QString("%1?broadcaster_id=%2").arg(url, broadcasterId);
     
+    // Build required headers
+    std::vector<std::string> headers;
+    headers.push_back(std::string("Authorization: ") + QString("Bearer %1").arg(m_accessToken).toStdString());
+    headers.push_back(std::string("Client-Id: ") + m_clientId.toStdString());
+
     RemoteTextThread* thread = new RemoteTextThread(
         fullUrl.toStdString(),
+        std::move(headers),
         "application/json",
         "", // No post data for GET request
         /*timeoutSec=*/15,
         /*isImageRequest=*/false);
-
-    // Set required headers
-    thread->setHeader("Authorization", QString("Bearer %1").arg(m_accessToken).toStdString());
-    thread->setHeader("Client-Id", m_clientId.toStdString());
 
     connect(thread, &RemoteTextThread::Result, this, &OneSevenLiveTwitchClient::onChannelInfoResult);
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
@@ -116,16 +120,18 @@ void OneSevenLiveTwitchClient::makeApiRequest(const QString& endpoint, const QSt
         url += "?" + query;
     }
     
+    // Build required headers
+    std::vector<std::string> headers;
+    headers.push_back(std::string("Authorization: ") + QString("Bearer %1").arg(m_accessToken).toStdString());
+    headers.push_back(std::string("Client-Id: ") + m_clientId.toStdString());
+
     RemoteTextThread* thread = new RemoteTextThread(
         url.toStdString(),
+        std::move(headers),
         "application/json",
         "", // No post data for GET request
         /*timeoutSec=*/15,
         /*isImageRequest=*/false);
-
-    // Set required headers
-    thread->setHeader("Authorization", QString("Bearer %1").arg(m_accessToken).toStdString());
-    thread->setHeader("Client-Id", m_clientId.toStdString());
 
     connect(thread, &RemoteTextThread::Result, this, &OneSevenLiveTwitchClient::onUserInfoResult);
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);

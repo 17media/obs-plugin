@@ -41,7 +41,7 @@ OneSevenLiveTwitchAuth::OneSevenLiveTwitchAuth(QObject* parent)
         obs_log(LOG_INFO, "Twitch user info received for: %s", userInfo.login.toUtf8().constData());
         
         // Save user info to config manager
-        auto* configManager = OneSevenLiveCoreManager::getInstance()->getConfigManager();
+        auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
         if (configManager) {
             configManager->setTwitchUserInfo(
                 userInfo.id,
@@ -333,10 +333,7 @@ QString OneSevenLiveTwitchAuth::getScope() const
     return TWITCH_SCOPE;
 }
 
-OneSevenLiveTwitchClient* OneSevenLiveTwitchAuth::getTwitchClient() const
-{
-    return m_twitchClient.get();
-}
+// getTwitchClient is defined inline in the header; no out-of-line definition needed.
 
 void OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callbackUrl)
 {
