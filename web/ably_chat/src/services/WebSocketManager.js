@@ -4,7 +4,6 @@
  * - Re-emits events via EventEmitter for subscribers
  */
 import { EventEmitter } from 'events';
-import { getWebSocketServerURL } from '@/api';
 
 class WebSocketManager extends EventEmitter {
   constructor() {
@@ -19,12 +18,10 @@ class WebSocketManager extends EventEmitter {
   }
 
   /**
-   * Connect (idempotent). Resolves URL from:
-   * 1) explicit `url` arg
-   * 2) `ws` query param
-   * 3) server API `getWebSocketServerURL()`
+   * Connect (idempotent) ONLY when `ws` query param exists.
+   * If the param is missing, no connection attempt is made.
    */
-  async connect({ url } = {}) {
+  async connect() {
     // If already open/connecting, skip
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return this.url;
@@ -33,25 +30,28 @@ class WebSocketManager extends EventEmitter {
     this.isClosing = false;
     this.reconnectAttempts = 0;
 
-    // Resolve URL
-    let resolvedUrl = url;
-    if (!resolvedUrl && typeof window !== 'undefined') {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const wsParam = params.get('ws');
-        if (wsParam && wsParam.trim()) {
-          try {
-            resolvedUrl = new URL(wsParam.trim(), window.location.origin).toString();
-          } catch {
-            resolvedUrl = wsParam.trim();
-          }
-        }
-      } catch {
-        // ignore
-      }
+    // Resolve URL from `ws` query param only
+    if (typeof window === 'undefined') {
+      this.url = null;
+      return null;
     }
-    if (!resolvedUrl) {
-      resolvedUrl = await getWebSocketServerURL();
+
+    let resolvedUrl = null;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get('ws');
+      if (!raw || !raw.trim()) {
+        this.url = null;
+        return null;
+      }
+      try {
+        resolvedUrl = new URL(raw.trim(), window.location.origin).toString();
+      } catch {
+        resolvedUrl = raw.trim();
+      }
+    } catch {
+      this.url = null;
+      return null;
     }
 
     this.url = resolvedUrl;
@@ -59,7 +59,16 @@ class WebSocketManager extends EventEmitter {
     return this.url;
   }
 
+  /** Whether a WS URL has been configured (via query param) */
+  hasConfiguredURL() {
+    return !!this.url;
+  }
+
   _open() {
+    // Only attempt open if a URL is configured
+    if (!this.url || this.isClosing) {
+      return;
+    }
     try {
       this.ws = new WebSocket(this.url);
     } catch (err) {
@@ -106,7 +115,7 @@ class WebSocketManager extends EventEmitter {
   }
 
   _scheduleReconnect() {
-    if (this.isClosing) return;
+    if (this.isClosing || !this.url) return;
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       this.emit('error', new Error('Max WebSocket reconnect attempts reached'));
       return;
@@ -130,8 +139,10 @@ class WebSocketManager extends EventEmitter {
         return false;
       }
     }
-    // Queue while connecting/reconnecting
-    this.messageQueue.push(data);
+    // Only queue while an actual connection lifecycle is in progress
+    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.CLOSING)) {
+      this.messageQueue.push(data);
+    }
     return false;
   }
 
@@ -158,6 +169,7 @@ class WebSocketManager extends EventEmitter {
     };
     return {
       url: this.url,
+      configured: !!this.url,
       state,
       status: map[state],
       reconnectAttempts: this.reconnectAttempts,

@@ -23,7 +23,12 @@ export async function sendWSMessage({
     throw new Error('sendWSMessage requires a type');
   }
   try {
-    await wsManager.connect();
+    // Do not auto-connect. Only send when WS is already configured and open.
+    const status = wsManager.getStatus();
+    if (!status.configured || status.status !== 'open') {
+      console.warn('WS not connected or URL missing, skipping send');
+      return false;
+    }
     const envelope = {
       source,
       platform,

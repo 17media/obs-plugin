@@ -2,7 +2,6 @@ import { EventEmitter } from 'events';
 import { OneSevenLivePlatform } from '../platforms/17live/core/OneSevenLivePlatform';
 import { YouTubePlatform } from '../platforms/youtube/core/YouTubePlatform';
 import { TwitchPlatform } from '../platforms/twitch/core/TwitchPlatform';
-import { wsManager } from './WebSocketManager';
 import { sendWSMessage } from './WSSender';
 
 /**
@@ -50,14 +49,6 @@ export class MessageAggregator extends EventEmitter {
     
     // Setup listeners for platform events
     this.setupEventListeners();
-
-    // Initialize WebSocket connection in a unified way
-    wsManager.connect().catch(err => {
-      console.error('Initialize WebSocket failed:', err);
-    });
-    wsManager.on('open', ({ url }) => console.log('WS connected:', url));
-    wsManager.on('close', () => console.log('WS closed'));
-    wsManager.on('error', (e) => console.error('WS error:', e));
   }
 
   setupEventListeners() {
