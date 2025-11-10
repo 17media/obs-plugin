@@ -155,6 +155,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/utility/OneSevenLivePreviewConfigLoader.cpp
   src/17live/utility/RemoteTextThread.cpp
   src/17live/youtube/OneSevenLiveYouTubeAuth.cpp
+  src/17live/youtube/OneSevenLiveYouTubeClient.cpp
   src/plugin-main.cpp
   src/plugin-support.c
 )
