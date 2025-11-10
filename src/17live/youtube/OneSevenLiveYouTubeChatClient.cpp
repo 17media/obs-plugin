@@ -5,11 +5,43 @@
 #include <QUrlQuery>
 #include <QTimer>
 #include <QRegularExpression>
+#include "../OneSevenLiveCoreManager.hpp"
+#include "../OneSevenLiveWebsocketServer.hpp"
 
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3";
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_VERSION = "v3";
 const int OneSevenLiveYouTubeChatClient::DEFAULT_POLLING_INTERVAL = 5000; // 5 seconds
 const int OneSevenLiveYouTubeChatClient::MAX_EXPONENTIAL_BACKOFF_DELAY = 32000; // 32 seconds max
+
+// Helper: convert YouTubeChatMessage to JSON for websocket payload
+static nlohmann::json toJson(const YouTubeChatMessage& msg) {
+    nlohmann::json j;
+    j["kind"] = msg.kind.toStdString();
+    j["etag"] = msg.etag.toStdString();
+    j["id"] = msg.id.toStdString();
+
+    nlohmann::json snippet;
+    snippet["type"] = msg.snippet.type.toStdString();
+    snippet["liveChatId"] = msg.snippet.liveChatId.toStdString();
+    snippet["authorChannelId"] = msg.snippet.authorChannelId.toStdString();
+    snippet["publishedAt"] = msg.snippet.publishedAt.toStdString();
+    snippet["displayMessage"] = msg.snippet.displayMessage.toStdString();
+    snippet["textMessageDetails"] = msg.snippet.textMessageDetails.toStdString();
+    snippet["messageId"] = msg.snippet.messageId.toStdString();
+    j["snippet"] = snippet;
+
+    nlohmann::json author;
+    author["channelId"] = msg.authorDetails.channelId.toStdString();
+    author["displayName"] = msg.authorDetails.displayName.toStdString();
+    author["profileImageUrl"] = msg.authorDetails.profileImageUrl.toStdString();
+    author["isVerified"] = msg.authorDetails.isVerified;
+    author["isChatOwner"] = msg.authorDetails.isChatOwner;
+    author["isChatSponsor"] = msg.authorDetails.isChatSponsor;
+    author["isChatModerator"] = msg.authorDetails.isChatModerator;
+    j["authorDetails"] = author;
+
+    return j;
+}
 
 OneSevenLiveYouTubeChatClient::OneSevenLiveYouTubeChatClient(QObject* parent)
     : QObject(parent)
@@ -280,6 +312,23 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
         // Emit individual messages
         for (const auto& message : chatResponse.items) {
             emit newChatMessage(message);
+
+            // Broadcast to websocket clients: { type: "youtube-chat", payload: message }
+            OneSevenLiveCoreManager* core = qobject_cast<OneSevenLiveCoreManager*>(parent());
+            if (core) {
+                OneSevenLiveWebsocketServer* ws = core->getWebsocketServer();
+                if (ws && ws->is_running()) {
+                    try {
+                        nlohmann::json payload = {
+                            {"type", "youtube-chat"},
+                            {"payload", toJson(message)}
+                        };
+                        ws->broadcastMessage(payload.dump());
+                    } catch (const std::exception& e) {
+                        qWarning() << "Failed to serialize/broadcast YouTube chat message:" << e.what();
+                    }
+                }
+            }
         }
         
         // Reset retry count on successful request

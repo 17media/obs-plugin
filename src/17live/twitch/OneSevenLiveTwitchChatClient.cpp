@@ -1,5 +1,7 @@
 #include "OneSevenLiveTwitchChatClient.hpp"
 #include "deps/IXWebSocket/ixwebsocket/IXWebSocket.h"
+#include "../OneSevenLiveCoreManager.hpp"
+#include "../OneSevenLiveWebsocketServer.hpp"
 #include <QTimer>
 #include <QDebug>
 #include <QRegularExpression>
@@ -10,6 +12,48 @@ const QString OneSevenLiveTwitchChatClient::TWITCH_IRC_SERVER = "wss://irc-ws.ch
 const int OneSevenLiveTwitchChatClient::DEFAULT_PING_INTERVAL = 300; // 5 minutes
 const int OneSevenLiveTwitchChatClient::DEFAULT_RECONNECT_DELAY = 5; // 5 seconds
 const int OneSevenLiveTwitchChatClient::MAX_RECONNECT_ATTEMPTS = 5;
+
+// Helper to convert TwitchMessageType to string
+static const char* toString(TwitchMessageType type) {
+    switch (type) {
+        case TwitchMessageType::Chat: return "chat";
+        case TwitchMessageType::Subscription: return "subscription";
+        case TwitchMessageType::Resubscription: return "resubscription";
+        case TwitchMessageType::GiftSubscription: return "gift_subscription";
+        case TwitchMessageType::Raid: return "raid";
+        case TwitchMessageType::Host: return "host";
+        case TwitchMessageType::Whisper: return "whisper";
+        case TwitchMessageType::Notice: return "notice";
+        case TwitchMessageType::UserNotice: return "user_notice";
+        case TwitchMessageType::RoomState: return "room_state";
+        case TwitchMessageType::UserState: return "user_state";
+        case TwitchMessageType::GlobalUserState: return "global_user_state";
+        case TwitchMessageType::Unknown: default: return "unknown";
+    }
+}
+
+// Helper to convert TwitchChatMessage to JSON
+static nlohmann::json toJson(const TwitchChatMessage& msg) {
+    return {
+        {"id", msg.id.toStdString()},
+        {"channel", msg.channel.toStdString()},
+        {"username", msg.username.toStdString()},
+        {"displayName", msg.displayName.toStdString()},
+        {"message", msg.message.toStdString()},
+        {"userId", msg.userId.toStdString()},
+        {"color", msg.color.toStdString()},
+        {"timestamp", msg.timestamp.toString(Qt::ISODate).toStdString()},
+        {"isModerator", msg.isModerator},
+        {"isSubscriber", msg.isSubscriber},
+        {"isTurbo", msg.isTurbo},
+        {"isFirstMessage", msg.isFirstMessage},
+        {"isReturningChatter", msg.isReturningChatter},
+        {"bits", msg.bits},
+        {"emotes", msg.emotes.toStdString()},
+        {"badges", msg.badges.toStdString()},
+        {"type", toString(msg.type)}
+    };
+}
 
 OneSevenLiveTwitchChatClient::OneSevenLiveTwitchChatClient(QObject* parent)
     : QObject(parent)
@@ -410,6 +454,23 @@ void OneSevenLiveTwitchChatClient::parseIRCMessage(const QString& rawMessage)
     } else if (command == "PRIVMSG") {
         TwitchChatMessage chatMessage = parseChatMessage(rawMessage, command, tags, prefix);
         emit messageReceived(chatMessage);
+
+        // Broadcast to websocket clients: { type: "twitch-chat", payload: message }
+        OneSevenLiveCoreManager* core = qobject_cast<OneSevenLiveCoreManager*>(parent());
+        if (core) {
+            OneSevenLiveWebsocketServer* ws = core->getWebsocketServer();
+            if (ws && ws->is_running()) {
+                try {
+                    nlohmann::json payload = {
+                        {"type", "twitch-chat"},
+                        {"payload", toJson(chatMessage)}
+                    };
+                    ws->broadcastMessage(payload.dump());
+                } catch (const std::exception& e) {
+                    qWarning() << "Failed to serialize/broadcast Twitch chat message:" << e.what();
+                }
+            }
+        }
         
         if (chatMessage.type == TwitchMessageType::Subscription) {
             emit subscriptionReceived(chatMessage);
