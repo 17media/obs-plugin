@@ -1,4 +1,4 @@
-#include "OneSevenMultiRtmpConfigDialog.hpp"
+#include "OneSevenLiveMultiRtmpConfigDialog.hpp"
 
 // OBS headers are included in the source to avoid transitive system headers in the dialog header
 #include <obs-module.h>
@@ -23,10 +23,10 @@
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
 
-#include "moc_OneSevenMultiRtmpConfigDialog.cpp"
+#include "moc_OneSevenLiveMultiRtmpConfigDialog.cpp"
 
-OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
-    QWidget* parent, std::shared_ptr<OneSevenMultiRtmpConfig> config)
+OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
+    QWidget* parent, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config)
     : QDialog(parent),
       m_config(config),
       m_mainLayout(nullptr),
@@ -53,7 +53,7 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
     // Load configuration if provided
     if (m_config) {
         // duplicate config to m_origConfig
-        m_originalConfig = std::make_shared<OneSevenMultiRtmpConfig>(*m_config);
+        m_originalConfig = std::make_shared<OneSevenLiveMultiRtmpConfig>(*m_config);
 
         // Load configuration
         loadConfig();
@@ -66,9 +66,9 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
     setupConnections();
 }
 
-OneSevenMultiRtmpConfigDialog::~OneSevenMultiRtmpConfigDialog() {}
+OneSevenLiveMultiRtmpConfigDialog::~OneSevenLiveMultiRtmpConfigDialog() {}
 
-void OneSevenMultiRtmpConfigDialog::setupUI() {
+void OneSevenLiveMultiRtmpConfigDialog::setupUI() {
     // Create main layout for the dialog
     m_mainLayout = new QVBoxLayout(this);
     m_mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -136,7 +136,7 @@ void OneSevenMultiRtmpConfigDialog::setupUI() {
     loadScenes();
 }
 
-void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection() {
+void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
     m_basicInfoWidget = new QWidget();
     m_basicInfoLayout = new QFormLayout(m_basicInfoWidget);
 
@@ -200,7 +200,7 @@ void OneSevenMultiRtmpConfigDialog::setupBasicInfoSection() {
     m_syncStopCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStop"));
 }
 
-void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsButton() {
+void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsButton() {
     m_advancedButton = new QPushButton(obs_module_text("MultiRtmp.Config.AdvancedSettings"));
     m_advancedButton->setStyleSheet(
         "QPushButton { "
@@ -222,7 +222,7 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsButton() {
     m_advancedButton->setLayoutDirection(Qt::RightToLeft);  // Icon on the right, centered layout
 }
 
-void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
+void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
     m_advancedWidget = new QWidget(this);
     m_advancedWidget->setVisible(false);  // Initially collapsed
 
@@ -244,7 +244,7 @@ void OneSevenMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
 
 // Service tab removed - integrated into basic info section
 
-void OneSevenMultiRtmpConfigDialog::setupOutputTab() {
+void OneSevenLiveMultiRtmpConfigDialog::setupOutputTab() {
     m_outputTab = new QWidget(m_tabWidget);
     m_outputLayout = new QFormLayout(m_outputTab);
     m_outputLayout->setSpacing(12);
@@ -258,7 +258,7 @@ void OneSevenMultiRtmpConfigDialog::setupOutputTab() {
     m_tabWidget->addTab(m_outputWidget, obs_module_text("MultiRTMP.Config.Tab.Output"));
 }
 
-void OneSevenMultiRtmpConfigDialog::setupVideoTab() {
+void OneSevenLiveMultiRtmpConfigDialog::setupVideoTab() {
     m_videoTab = new QWidget(m_tabWidget);
     m_videoLayout = new QFormLayout(m_videoTab);
     m_videoLayout->setSpacing(12);
@@ -299,7 +299,7 @@ void OneSevenMultiRtmpConfigDialog::setupVideoTab() {
     m_tabWidget->addTab(m_videoTab, obs_module_text("MultiRTMP.Config.Tab.Video"));
 }
 
-void OneSevenMultiRtmpConfigDialog::setupAudioTab() {
+void OneSevenLiveMultiRtmpConfigDialog::setupAudioTab() {
     m_audioTab = new QWidget(m_tabWidget);
     m_audioLayout = new QFormLayout(m_audioTab);
     m_audioLayout->setSpacing(12);
@@ -327,7 +327,7 @@ void OneSevenMultiRtmpConfigDialog::setupAudioTab() {
     m_tabWidget->addTab(m_audioTab, obs_module_text("MultiRTMP.Config.Tab.Audio"));
 }
 
-void OneSevenMultiRtmpConfigDialog::setupButtonBox() {
+void OneSevenLiveMultiRtmpConfigDialog::setupButtonBox() {
     m_buttonLayout = new QHBoxLayout();
     m_buttonLayout->setSpacing(12);
     m_buttonLayout->setContentsMargins(16, 16, 16, 16);
@@ -382,17 +382,17 @@ void OneSevenMultiRtmpConfigDialog::setupButtonBox() {
     m_buttonLayout->addStretch();
 }
 
-void OneSevenMultiRtmpConfigDialog::setupConnections() {
+void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
     // Advanced settings toggle
     connect(m_advancedButton, &QPushButton::clicked, this,
-            &OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled);
+            &OneSevenLiveMultiRtmpConfigDialog::onAdvancedSettingsToggled);
 
     // Buttons
-    connect(m_okButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::accept);
-    connect(m_cancelButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::reject);
+    connect(m_okButton, &QPushButton::clicked, this, &OneSevenLiveMultiRtmpConfigDialog::accept);
+    connect(m_cancelButton, &QPushButton::clicked, this, &OneSevenLiveMultiRtmpConfigDialog::reject);
 
     // Authorize button
-    connect(m_authorizeButton, &QPushButton::clicked, this, &OneSevenMultiRtmpConfigDialog::onAuthorizeClicked);
+    connect(m_authorizeButton, &QPushButton::clicked, this, &OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked);
 
     // Update authorize button whenever channel selection changes
     connect(m_streamNameCombo, &QComboBox::currentTextChanged, this, [this](const QString&) {
@@ -400,25 +400,25 @@ void OneSevenMultiRtmpConfigDialog::setupConnections() {
     });
 }
 
-void OneSevenMultiRtmpConfigDialog::setEditMode(bool isEdit) {
+void OneSevenLiveMultiRtmpConfigDialog::setEditMode(bool isEdit) {
     m_isEditMode = isEdit;
 }
 
-void OneSevenMultiRtmpConfigDialog::accept() {
-    // Note: SaveConfig() is called by the parent dialog (OneSevenMultiRtmpDock)
+void OneSevenLiveMultiRtmpConfigDialog::accept() {
+    // Note: SaveConfig() is called by the parent dialog (OneSevenLiveMultiRtmpDock)
     // to avoid double calls and potential memory issues
     obs_log(LOG_INFO,
             "[MultiRTMP-ConfigDialog] Dialog accepted, SaveConfig will be called by parent");
     QDialog::accept();
 }
 
-void OneSevenMultiRtmpConfigDialog::reject() {
+void OneSevenLiveMultiRtmpConfigDialog::reject() {
     QDialog::reject();
 }
 
 // Service-related slot functions removed - functionality integrated into basic info section
 
-void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled() {
+void OneSevenLiveMultiRtmpConfigDialog::onAdvancedSettingsToggled() {
     m_advancedExpanded = !m_advancedExpanded;
     m_advancedWidget->setVisible(m_advancedExpanded);
 
@@ -457,7 +457,7 @@ void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled() {
     }
 }
 
-void OneSevenMultiRtmpConfigDialog::onAuthorizeClicked() {
+void OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked() {
     // Determine selected RTMP channel
     QString channel = m_streamNameCombo->currentText();
 
@@ -496,13 +496,13 @@ void OneSevenMultiRtmpConfigDialog::onAuthorizeClicked() {
     m_authDialog = new OneSevenLiveAuthDialog(authUrl, this);
 
     connect(m_authDialog, &OneSevenLiveAuthDialog::urlChanged, this,
-            &OneSevenMultiRtmpConfigDialog::onAuthUrlChanged);
+            &OneSevenLiveMultiRtmpConfigDialog::onAuthUrlChanged);
 
     m_authDialog->exec();
     m_isAuthorizing = false;
 }
 
-void OneSevenMultiRtmpConfigDialog::onAuthUrlChanged(const QString& url)
+void OneSevenLiveMultiRtmpConfigDialog::onAuthUrlChanged(const QString& url)
 {
     QString channel = m_streamNameCombo->currentText();
 
@@ -534,7 +534,7 @@ void OneSevenMultiRtmpConfigDialog::onAuthUrlChanged(const QString& url)
     updateAuthorizeButtonState();
 }
 
-void OneSevenMultiRtmpConfigDialog::loadConfig() {
+void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
     if (!m_config) {
         return;
     }
@@ -761,7 +761,7 @@ void OneSevenMultiRtmpConfigDialog::loadConfig() {
 }
 
 // Helper to set authorize button text/enabled based on token validity of selected channel
-void OneSevenMultiRtmpConfigDialog::updateAuthorizeButtonState()
+void OneSevenLiveMultiRtmpConfigDialog::updateAuthorizeButtonState()
 {
     if (!m_authorizeButton) {
         return;
@@ -785,11 +785,11 @@ void OneSevenMultiRtmpConfigDialog::updateAuthorizeButtonState()
     }
 }
 
-OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const {
+OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() const {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] SaveConfig called - starting configuration save");
 
     try {
-        OneSevenMultiRtmpConfig config;
+        OneSevenLiveMultiRtmpConfig config;
 
         // Set ID based on edit mode - only preserve existing ID for edit mode
         if (m_isEditMode && m_config) {
@@ -852,7 +852,7 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const {
 
         if (!m_useOBSVideoCheck->isChecked()) {
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving custom video configuration...");
-            OneSevenMultiRtmpVideoConfig vcfg;
+            OneSevenLiveMultiRtmpVideoConfig vcfg;
 
             if (m_videoEncoderCombo) {
                 vcfg.encoderId = m_videoEncoderCombo->currentData().toString().toStdString();
@@ -899,7 +899,7 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const {
 
         if (!m_useOBSAudioCheck->isChecked()) {
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving custom audio configuration...");
-            OneSevenMultiRtmpAudioConfig acfg;
+            OneSevenLiveMultiRtmpAudioConfig acfg;
 
             if (m_audioEncoderCombo) {
                 acfg.encoderId = m_audioEncoderCombo->currentData().toString().toStdString();
@@ -934,7 +934,7 @@ OneSevenMultiRtmpConfig OneSevenMultiRtmpConfigDialog::SaveConfig() const {
     }
 }
 
-void OneSevenMultiRtmpConfigDialog::loadScenes() {
+void OneSevenLiveMultiRtmpConfigDialog::loadScenes() {
     if (!m_outputSceneCombo)
         return;
 
@@ -959,7 +959,7 @@ void OneSevenMultiRtmpConfigDialog::loadScenes() {
     }
 }
 
-std::vector<std::string> OneSevenMultiRtmpConfigDialog::parseAndLoadEncoders(
+std::vector<std::string> OneSevenLiveMultiRtmpConfigDialog::parseAndLoadEncoders(
     const std::string& supportedEncoders, bool isVideoEncoder) {
     std::vector<std::string> encoderIds;
 
@@ -1027,7 +1027,7 @@ std::vector<std::string> OneSevenMultiRtmpConfigDialog::parseAndLoadEncoders(
     return encoderIds;
 }
 
-void OneSevenMultiRtmpConfigDialog::loadEncoders() {
+void OneSevenLiveMultiRtmpConfigDialog::loadEncoders() {
     auto ui_text = [](const std::string& id) {
         const char* dn = obs_encoder_get_display_name(id.c_str());
         if (!dn)

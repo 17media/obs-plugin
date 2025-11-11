@@ -1,15 +1,15 @@
-#include "OneSevenMultiRtmpDock.hpp"
+#include "OneSevenLiveMultiRtmpDock.hpp"
 
 #include <QApplication>
 #include <QMessageBox>
 #include <QStyle>
 
-#include "OneSevenMultiRtmpConfigDialog.hpp"
-#include "OneSevenMultiRtmpListWidget.hpp"
+#include "OneSevenLiveMultiRtmpConfigDialog.hpp"
+#include "OneSevenLiveMultiRtmpListWidget.hpp"
 
-OneSevenMultiRtmpDock::OneSevenMultiRtmpDock(QWidget* parent)
+OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
     : QDockWidget(parent),
-      m_manager(OneSevenMultiRtmpManager::getInstance()),
+      m_manager(OneSevenLiveMultiRtmpManager::getInstance()),
       m_streamListWidget(nullptr),
       m_configDialog(nullptr),
       m_isFirstShow(true),
@@ -22,7 +22,7 @@ OneSevenMultiRtmpDock::OneSevenMultiRtmpDock(QWidget* parent)
     setupManagerCallbacks();
 }
 
-OneSevenMultiRtmpDock::~OneSevenMultiRtmpDock() {
+OneSevenLiveMultiRtmpDock::~OneSevenLiveMultiRtmpDock() {
     if (m_statsUpdateTimer) {
         m_statsUpdateTimer->stop();
     }
@@ -32,7 +32,7 @@ OneSevenMultiRtmpDock::~OneSevenMultiRtmpDock() {
     }
 }
 
-void OneSevenMultiRtmpDock::setupUI() {
+void OneSevenLiveMultiRtmpDock::setupUI() {
     // Create central widget
     m_centralWidget = new QWidget(this);
     setWidget(m_centralWidget);
@@ -49,7 +49,7 @@ void OneSevenMultiRtmpDock::setupUI() {
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    m_streamListWidget = new OneSevenMultiRtmpListWidget();
+    m_streamListWidget = new OneSevenLiveMultiRtmpListWidget();
     m_streamListWidget->setManager(m_manager);
     m_scrollArea->setWidget(m_streamListWidget);
 
@@ -139,21 +139,21 @@ void OneSevenMultiRtmpDock::setupUI() {
     // Setup stats update timer
     m_statsUpdateTimer = new QTimer(this);
     m_statsUpdateTimer->setInterval(1000);  // Update every second
-    connect(m_statsUpdateTimer, &QTimer::timeout, this, &OneSevenMultiRtmpDock::onStatsUpdateTimer);
+    connect(m_statsUpdateTimer, &QTimer::timeout, this, &OneSevenLiveMultiRtmpDock::onStatsUpdateTimer);
     m_statsUpdateTimer->start();
 }
 
-void OneSevenMultiRtmpDock::setupConnections() {
+void OneSevenLiveMultiRtmpDock::setupConnections() {
     // Control buttons
     connect(m_addStreamButton, &QPushButton::clicked, this,
-            &OneSevenMultiRtmpDock::onAddStreamClicked);
+            &OneSevenLiveMultiRtmpDock::onAddStreamClicked);
     connect(m_startAllButton, &QPushButton::clicked, this,
-            &OneSevenMultiRtmpDock::onStartAllClicked);
-    connect(m_stopAllButton, &QPushButton::clicked, this, &OneSevenMultiRtmpDock::onStopAllClicked);
+            &OneSevenLiveMultiRtmpDock::onStartAllClicked);
+    connect(m_stopAllButton, &QPushButton::clicked, this, &OneSevenLiveMultiRtmpDock::onStopAllClicked);
 
     // Stream list widget signals
     if (m_streamListWidget) {
-        connect(m_streamListWidget, &OneSevenMultiRtmpListWidget::streamStartRequested, this,
+        connect(m_streamListWidget, &OneSevenLiveMultiRtmpListWidget::streamStartRequested, this,
                 [this](const std::string& streamId) {
                     if (m_manager) {
                         m_manager->startStream(streamId);
@@ -162,7 +162,7 @@ void OneSevenMultiRtmpDock::setupConnections() {
                     }
                 });
 
-        connect(m_streamListWidget, &OneSevenMultiRtmpListWidget::streamStopRequested, this,
+        connect(m_streamListWidget, &OneSevenLiveMultiRtmpListWidget::streamStopRequested, this,
                 [this](const std::string& streamId) {
                     if (m_manager) {
                         m_manager->stopStream(streamId);
@@ -172,7 +172,7 @@ void OneSevenMultiRtmpDock::setupConnections() {
                     }
                 });
 
-        connect(m_streamListWidget, &OneSevenMultiRtmpListWidget::streamEditRequested, this,
+        connect(m_streamListWidget, &OneSevenLiveMultiRtmpListWidget::streamEditRequested, this,
                 [this](const std::string& streamId) {
                     if (m_manager) {
                         auto config = m_manager->getStreamConfig(streamId);
@@ -180,7 +180,7 @@ void OneSevenMultiRtmpDock::setupConnections() {
                     }
                 });
 
-        connect(m_streamListWidget, &OneSevenMultiRtmpListWidget::streamDeleteRequested, this,
+        connect(m_streamListWidget, &OneSevenLiveMultiRtmpListWidget::streamDeleteRequested, this,
                 [this](const std::string& streamId) {
                     auto reply =
                         QMessageBox::question(this, getMultiRtmpText("MultiRTMP.Delete.Title"),
@@ -195,7 +195,7 @@ void OneSevenMultiRtmpDock::setupConnections() {
     }
 }
 
-bool OneSevenMultiRtmpDock::ensureManagerInitialized() {
+bool OneSevenLiveMultiRtmpDock::ensureManagerInitialized() {
     if (!m_manager) {
         obs_log(LOG_ERROR, "[MultiRTMP-Dock] Manager instance is null");
         return false;
@@ -213,24 +213,24 @@ bool OneSevenMultiRtmpDock::ensureManagerInitialized() {
     return true;
 }
 
-void OneSevenMultiRtmpDock::setupManagerCallbacks() {
+void OneSevenLiveMultiRtmpDock::setupManagerCallbacks() {
     if (!ensureManagerInitialized()) {
         return;
     }
 
     // Set up callbacks for manager events
     m_manager->setStreamStatusCallback(
-        [this](const std::string& streamId, const OneSevenMultiRtmpStreamStatus& status) {
+        [this](const std::string& streamId, const OneSevenLiveMultiRtmpStreamStatus& status) {
             updateStreamStatus(streamId, status);
         });
 
     m_manager->setStreamStatsCallback(
-        [this](const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats) {
+        [this](const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats) {
             updateStreamStats(streamId, stats);
         });
 
     m_manager->setConfigChangeCallback(
-        [this](const std::string& streamId, const OneSevenMultiRtmpConfig& config) {
+        [this](const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
             Q_UNUSED(config);  // Parameter not used in current implementation
             onStreamConfigChanged(streamId);
         });
@@ -239,7 +239,7 @@ void OneSevenMultiRtmpDock::setupManagerCallbacks() {
         [this](const std::string& streamId) { onStreamDeleted(streamId); });
 }
 
-void OneSevenMultiRtmpDock::showEvent(QShowEvent* event) {
+void OneSevenLiveMultiRtmpDock::showEvent(QShowEvent* event) {
     QDockWidget::showEvent(event);
 
     // Only load streams on first show to avoid unnecessary reloads
@@ -257,7 +257,7 @@ void OneSevenMultiRtmpDock::showEvent(QShowEvent* event) {
     }
 }
 
-void OneSevenMultiRtmpDock::refreshStreamList() {
+void OneSevenLiveMultiRtmpDock::refreshStreamList() {
     obs_log(LOG_INFO, "[MultiRTMP-Dock] refreshStreamList() called");
 
     if (!ensureManagerInitialized()) {
@@ -318,8 +318,8 @@ void OneSevenMultiRtmpDock::refreshStreamList() {
     m_isUpdatingUI = false;
 }
 
-void OneSevenMultiRtmpDock::updateStreamStatus(const std::string& streamId,
-                                               const OneSevenMultiRtmpStreamStatus& status) {
+void OneSevenLiveMultiRtmpDock::updateStreamStatus(const std::string& streamId,
+                                               const OneSevenLiveMultiRtmpStreamStatus& status) {
     // Update stream status in the list widget if not in bulk update mode
     if (m_streamListWidget && !m_isUpdatingUI) {
         m_streamListWidget->updateStreamStatus(streamId, status);
@@ -335,18 +335,18 @@ void OneSevenMultiRtmpDock::updateStreamStatus(const std::string& streamId,
     updateButtonStates();
 }
 
-void OneSevenMultiRtmpDock::updateStreamStats(const std::string& streamId,
-                                              const OneSevenMultiRtmpStreamStats& stats) {
+void OneSevenLiveMultiRtmpDock::updateStreamStats(const std::string& streamId,
+                                              const OneSevenLiveMultiRtmpStreamStats& stats) {
     if (m_streamListWidget && !m_isUpdatingUI) {
         m_streamListWidget->updateStreamStats(streamId, stats);
     }
 }
 
-void OneSevenMultiRtmpDock::onAddStreamClicked() {
+void OneSevenLiveMultiRtmpDock::onAddStreamClicked() {
     showConfigDialog();
 }
 
-void OneSevenMultiRtmpDock::onStartAllClicked() {
+void OneSevenLiveMultiRtmpDock::onStartAllClicked() {
     if (ensureManagerInitialized()) {
         m_startAllButton->setEnabled(false);
 
@@ -362,7 +362,7 @@ void OneSevenMultiRtmpDock::onStartAllClicked() {
     }
 }
 
-void OneSevenMultiRtmpDock::onStopAllClicked() {
+void OneSevenLiveMultiRtmpDock::onStopAllClicked() {
     if (ensureManagerInitialized()) {
         m_stopAllButton->setEnabled(false);
 
@@ -378,11 +378,11 @@ void OneSevenMultiRtmpDock::onStopAllClicked() {
     }
 }
 
-void OneSevenMultiRtmpDock::onRefreshClicked() {
+void OneSevenLiveMultiRtmpDock::onRefreshClicked() {
     refreshStreamList();
 }
 
-void OneSevenMultiRtmpDock::onStreamConfigChanged(const std::string& streamId) {
+void OneSevenLiveMultiRtmpDock::onStreamConfigChanged(const std::string& streamId) {
     if (m_streamListWidget) {
         // Get the updated config from the manager
         if (ensureManagerInitialized()) {
@@ -392,14 +392,14 @@ void OneSevenMultiRtmpDock::onStreamConfigChanged(const std::string& streamId) {
     }
 }
 
-void OneSevenMultiRtmpDock::onStreamDeleted(const std::string& streamId) {
+void OneSevenLiveMultiRtmpDock::onStreamDeleted(const std::string& streamId) {
     if (m_streamListWidget) {
         m_streamListWidget->removeStream(streamId);
         updateButtonStates();
     }
 }
 
-void OneSevenMultiRtmpDock::onStatsUpdateTimer() {
+void OneSevenLiveMultiRtmpDock::onStatsUpdateTimer() {
     if (!ensureManagerInitialized() || !m_streamListWidget || m_isUpdatingUI) {
         return;
     }
@@ -412,7 +412,7 @@ void OneSevenMultiRtmpDock::onStatsUpdateTimer() {
     }
 }
 
-void OneSevenMultiRtmpDock::updateButtonStates() {
+void OneSevenLiveMultiRtmpDock::updateButtonStates() {
     if (!ensureManagerInitialized() || !m_streamListWidget) {
         return;
     }
@@ -447,7 +447,7 @@ void OneSevenMultiRtmpDock::updateButtonStates() {
     }
 }
 
-void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& config) {
+void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConfig& config) {
     obs_log(LOG_INFO, "[MultiRTMP-Dock] showConfigDialog() called");
 
     try {
@@ -455,11 +455,11 @@ void OneSevenMultiRtmpDock::showConfigDialog(const OneSevenMultiRtmpConfig& conf
         bool isEdit = !config.id.empty();
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Dialog mode: %s", isEdit ? "edit" : "new");
 
-        std::shared_ptr<OneSevenMultiRtmpConfig> configPtr =
-            std::make_shared<OneSevenMultiRtmpConfig>(config);
+        std::shared_ptr<OneSevenLiveMultiRtmpConfig> configPtr =
+            std::make_shared<OneSevenLiveMultiRtmpConfig>(config);
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Created config pointer");
 
-        m_configDialog = new OneSevenMultiRtmpConfigDialog(this, configPtr);
+        m_configDialog = new OneSevenLiveMultiRtmpConfigDialog(this, configPtr);
         if (!m_configDialog) {
             obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to create config dialog");
             return;

@@ -7,11 +7,11 @@
 #include <vector>
 
 // Forward declarations
-struct OneSevenMultiRtmpVideoConfig;
-struct OneSevenMultiRtmpAudioConfig;
-struct OneSevenMultiRtmpConfig;
-struct OneSevenMultiRtmpStreamStatus;
-struct OneSevenMultiRtmpStreamStats;
+struct OneSevenLiveMultiRtmpVideoConfig;
+struct OneSevenLiveMultiRtmpAudioConfig;
+struct OneSevenLiveMultiRtmpConfig;
+struct OneSevenLiveMultiRtmpStreamStatus;
+struct OneSevenLiveMultiRtmpStreamStats;
 
 struct OneSevenLiveProtocol {
     const char* protocol;
@@ -23,7 +23,7 @@ struct OneSevenLiveProtocol {
 /**
  * Video configuration for RTMP stream
  */
-struct OneSevenMultiRtmpVideoConfig {
+struct OneSevenLiveMultiRtmpVideoConfig {
     std::string encoderId;
     int fpsDenominator = 1;
     nlohmann::json encoderSettings;
@@ -45,7 +45,7 @@ struct AudioTrackConfig {
     int output_track;
 };
 
-struct OneSevenMultiRtmpAudioConfig {
+struct OneSevenLiveMultiRtmpAudioConfig {
     std::string encoderId;
     nlohmann::json encoderSettings;
     int mixerId = 0;
@@ -59,7 +59,7 @@ struct OneSevenMultiRtmpAudioConfig {
 /**
  * Complete configuration for a single RTMP stream
  */
-struct OneSevenMultiRtmpConfig {
+struct OneSevenLiveMultiRtmpConfig {
     std::string id;
     std::string streamName;
     std::string protocol = "rtmp";
@@ -69,8 +69,8 @@ struct OneSevenMultiRtmpConfig {
     nlohmann::json serviceSettings;
     nlohmann::json outputSettings;
 
-    std::optional<OneSevenMultiRtmpVideoConfig> videoConfig;
-    std::optional<OneSevenMultiRtmpAudioConfig> audioConfig;
+    std::optional<OneSevenLiveMultiRtmpVideoConfig> videoConfig;
+    std::optional<OneSevenLiveMultiRtmpAudioConfig> audioConfig;
 
     // JSON serialization
     void to_json(nlohmann::json& j) const;
@@ -80,7 +80,7 @@ struct OneSevenMultiRtmpConfig {
 /**
  * Stream status information
  */
-struct OneSevenMultiRtmpStreamStatus {
+struct OneSevenLiveMultiRtmpStreamStatus {
     enum State { STOPPED, CONNECTING, STREAMING, RECONNECTING, ERROR };
 
     std::string id;
@@ -96,7 +96,7 @@ struct OneSevenMultiRtmpStreamStatus {
 /**
  * Stream statistics information
  */
-struct OneSevenMultiRtmpStreamStats {
+struct OneSevenLiveMultiRtmpStreamStats {
     std::string id;
     std::chrono::duration<double> duration;
     double currentBitrate = 0.0;
@@ -114,33 +114,33 @@ struct OneSevenMultiRtmpStreamStats {
 /**
  * Multi-RTMP configuration container
  */
-struct OneSevenMultiRtmpGlobalConfig {
-    std::vector<OneSevenMultiRtmpConfig> streams;
+struct OneSevenLiveMultiRtmpGlobalConfig {
+    std::vector<OneSevenLiveMultiRtmpConfig> streams;
 
     // JSON serialization
     void to_json(nlohmann::json& j) const;
     void from_json(const nlohmann::json& j);
 
     // Helper methods
-    OneSevenMultiRtmpConfig* findStream(const std::string& streamId);
-    const OneSevenMultiRtmpConfig* findStream(const std::string& streamId) const;
+    OneSevenLiveMultiRtmpConfig* findStream(const std::string& streamId);
+    const OneSevenLiveMultiRtmpConfig* findStream(const std::string& streamId) const;
     bool removeStream(const std::string& streamId);
-    void addStream(const OneSevenMultiRtmpConfig& config);
-    void updateStream(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
+    void addStream(const OneSevenLiveMultiRtmpConfig& config);
+    void updateStream(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config);
 };
 
 // JSON serialization helpers
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpVideoConfig& config);
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpVideoConfig& config);
+void to_json(nlohmann::json& j, const OneSevenLiveMultiRtmpVideoConfig& config);
+void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpVideoConfig& config);
 
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpAudioConfig& config);
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpAudioConfig& config);
+void to_json(nlohmann::json& j, const OneSevenLiveMultiRtmpAudioConfig& config);
+void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpAudioConfig& config);
 
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpConfig& config);
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpConfig& config);
+void to_json(nlohmann::json& j, const OneSevenLiveMultiRtmpConfig& config);
+void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpConfig& config);
 
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpGlobalConfig& config);
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpGlobalConfig& config);
+void to_json(nlohmann::json& j, const OneSevenLiveMultiRtmpGlobalConfig& config);
+void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpGlobalConfig& config);
 
 // Protocol helper functions
 const OneSevenLiveProtocol* getProtocolList();

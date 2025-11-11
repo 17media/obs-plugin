@@ -10,30 +10,30 @@
 #include <memory>
 #include <vector>
 
-#include "../OneSevenMultiRtmpModels.hpp"
+#include "../OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
 
-class OneSevenMultiRtmpStreamItem;
-class OneSevenMultiRtmpManager;
+class OneSevenLiveMultiRtmpStreamItem;
+class OneSevenLiveMultiRtmpManager;
 
 /**
  * List widget for displaying multiple RTMP stream items
  * Manages the layout and interaction of individual stream widgets
  */
-class OneSevenMultiRtmpListWidget : public QWidget {
+class OneSevenLiveMultiRtmpListWidget : public QWidget {
     Q_OBJECT
 
    public:
-    explicit OneSevenMultiRtmpListWidget(QWidget* parent = nullptr);
-    ~OneSevenMultiRtmpListWidget();
+    explicit OneSevenLiveMultiRtmpListWidget(QWidget* parent = nullptr);
+    ~OneSevenLiveMultiRtmpListWidget();
 
     // Stream management
-    void addStream(const OneSevenMultiRtmpConfig& config);
+    void addStream(const OneSevenLiveMultiRtmpConfig& config);
     void removeStream(const std::string& streamId);
-    void updateStream(const OneSevenMultiRtmpConfig& config);
+    void updateStream(const OneSevenLiveMultiRtmpConfig& config);
     void updateStreamStatus(const std::string& streamId,
-                            const OneSevenMultiRtmpStreamStatus& status);
-    void updateStreamStats(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats);
+                            const OneSevenLiveMultiRtmpStreamStatus& status);
+    void updateStreamStats(const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats);
     void clearAllStreams();
     void refreshAllStreams();
 
@@ -55,7 +55,7 @@ class OneSevenMultiRtmpListWidget : public QWidget {
     StreamStatusStats getStreamStatusStats() const;
 
     // Manager access
-    void setManager(OneSevenMultiRtmpManager* manager);
+    void setManager(OneSevenLiveMultiRtmpManager* manager);
 
    signals:
     void streamStartRequested(const std::string& streamId);
@@ -75,8 +75,8 @@ class OneSevenMultiRtmpListWidget : public QWidget {
     void setupUI();
     void setupEmptyState();
     void updateEmptyState();
-    OneSevenMultiRtmpStreamItem* findStreamItem(const std::string& streamId) const;
-    void removeStreamItem(OneSevenMultiRtmpStreamItem* item);
+    OneSevenLiveMultiRtmpStreamItem* findStreamItem(const std::string& streamId) const;
+    void removeStreamItem(OneSevenLiveMultiRtmpStreamItem* item);
 
     // UI components
     QVBoxLayout* m_mainLayout;
@@ -89,11 +89,11 @@ class OneSevenMultiRtmpListWidget : public QWidget {
     QLabel* m_emptyTextLabel;
 
     // Stream items
-    std::vector<OneSevenMultiRtmpStreamItem*> m_streamItems;
+    std::vector<OneSevenLiveMultiRtmpStreamItem*> m_streamItems;
 
     // State
     bool m_showEmptyState;
 
     // Manager reference
-    OneSevenMultiRtmpManager* m_manager;
+    OneSevenLiveMultiRtmpManager* m_manager;
 };

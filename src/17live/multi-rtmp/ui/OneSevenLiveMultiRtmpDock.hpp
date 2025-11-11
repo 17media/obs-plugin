@@ -13,28 +13,28 @@
 #include <QVBoxLayout>
 #include <memory>
 
-#include "../OneSevenMultiRtmpManager.hpp"
+#include "../OneSevenLiveMultiRtmpManager.hpp"
 #include "plugin-support.h"
 
-class OneSevenMultiRtmpListWidget;
-class OneSevenMultiRtmpConfigDialog;
+class OneSevenLiveMultiRtmpListWidget;
+class OneSevenLiveMultiRtmpConfigDialog;
 
 /**
  * Main dock widget for Multi-RTMP functionality
  * Provides the primary UI interface for managing multiple RTMP streams
  */
-class OneSevenMultiRtmpDock : public QDockWidget {
+class OneSevenLiveMultiRtmpDock : public QDockWidget {
     Q_OBJECT
 
    public:
-    explicit OneSevenMultiRtmpDock(QWidget* parent = nullptr);
-    ~OneSevenMultiRtmpDock();
+    explicit OneSevenLiveMultiRtmpDock(QWidget* parent = nullptr);
+    ~OneSevenLiveMultiRtmpDock();
 
     // Public interface
     void refreshStreamList();
     void updateStreamStatus(const std::string& streamId,
-                            const OneSevenMultiRtmpStreamStatus& status);
-    void updateStreamStats(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats);
+                            const OneSevenLiveMultiRtmpStreamStatus& status);
+    void updateStreamStats(const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats);
 
    public slots:
     void onAddStreamClicked();
@@ -56,7 +56,7 @@ class OneSevenMultiRtmpDock : public QDockWidget {
     void setupManagerCallbacks();
     void updateButtonStates();
     void updateStreamCount();
-    void showConfigDialog(const OneSevenMultiRtmpConfig& config = {});
+    void showConfigDialog(const OneSevenLiveMultiRtmpConfig& config = {});
     bool ensureManagerInitialized();
 
     // UI components
@@ -79,7 +79,7 @@ class OneSevenMultiRtmpDock : public QDockWidget {
 
     // Stream list section
     QScrollArea* m_scrollArea;
-    OneSevenMultiRtmpListWidget* m_streamListWidget;
+    OneSevenLiveMultiRtmpListWidget* m_streamListWidget;
 
     // Status section
     QFrame* m_statusFrame;
@@ -87,13 +87,13 @@ class OneSevenMultiRtmpDock : public QDockWidget {
     QLabel* m_statusLabel;
 
     // Dialog
-    OneSevenMultiRtmpConfigDialog* m_configDialog;
+    OneSevenLiveMultiRtmpConfigDialog* m_configDialog;
 
     // Timer for periodic updates
     QTimer* m_statsUpdateTimer;
 
     // Manager reference
-    OneSevenMultiRtmpManager* m_manager;
+    OneSevenLiveMultiRtmpManager* m_manager;
 
     // State management
     bool m_isUpdatingUI;

@@ -33,7 +33,7 @@
 #include "OneSevenLiveUpdateManager.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include "multi-rtmp/ui/OneSevenMultiRtmpDock.hpp"
+#include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "ui/OneSevenLivePreviewDock.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
@@ -1431,8 +1431,8 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
     }
 
     // Create multi-RTMP dock
-    multiRtmpDock = new OneSevenMultiRtmpDock(mainWindow);
-    multiRtmpDock->setObjectName("OneSevenMultiRtmpDock");
+multiRtmpDock = new OneSevenLiveMultiRtmpDock(mainWindow);
+multiRtmpDock->setObjectName("OneSevenLiveMultiRtmpDock");
 
     multiRtmpDock->setMaximumWidth(600);
     multiRtmpDock->resize(450, 600);

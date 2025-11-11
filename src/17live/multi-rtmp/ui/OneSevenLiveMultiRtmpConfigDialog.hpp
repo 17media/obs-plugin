@@ -22,7 +22,7 @@
 
 #include <memory>
 
-#include "multi-rtmp/OneSevenMultiRtmpModels.hpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpModels.hpp"
 
 // Forward declarations
 class OneSevenLivePropertiesWidget;
@@ -34,13 +34,13 @@ class OneSevenLiveAuthDialog;
  * Configuration dialog for Multi-RTMP stream settings
  * Provides comprehensive configuration interface with multiple tabs
  */
-class OneSevenMultiRtmpConfigDialog : public QDialog {
+class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     Q_OBJECT
 
    public:
-    explicit OneSevenMultiRtmpConfigDialog(
-        QWidget* parent = nullptr, std::shared_ptr<OneSevenMultiRtmpConfig> config = nullptr);
-    ~OneSevenMultiRtmpConfigDialog();
+    explicit OneSevenLiveMultiRtmpConfigDialog(
+        QWidget* parent = nullptr, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config = nullptr);
+    ~OneSevenLiveMultiRtmpConfigDialog();
 
     // Dialog modes
     void setEditMode(bool isEdit);
@@ -50,7 +50,7 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
     }
 
     // Configuration access
-    OneSevenMultiRtmpConfig SaveConfig() const;
+    OneSevenLiveMultiRtmpConfig SaveConfig() const;
 
    public slots:
     void accept() override;
@@ -83,8 +83,8 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
     std::vector<std::string> parseAndLoadEncoders(const std::string& supportedEncoders,
                                                   bool isVideoEncoder);
 
-    std::shared_ptr<OneSevenMultiRtmpConfig> m_config;
-    std::shared_ptr<OneSevenMultiRtmpConfig> m_originalConfig;
+    std::shared_ptr<OneSevenLiveMultiRtmpConfig> m_config;
+    std::shared_ptr<OneSevenLiveMultiRtmpConfig> m_originalConfig;
 
     std::string m_supportedVideoEncoders;
     std::string m_supportedAudioEncoders;

@@ -11,7 +11,7 @@
 #include <string>
 #include <thread>
 
-#include "OneSevenMultiRtmpModels.hpp"
+#include "OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
 
 /**
@@ -19,19 +19,19 @@
  * Handles ONLY OBS runtime operations (service/output creation and management)
  * Does NOT handle configuration storage or JSON operations
  */
-class OneSevenMultiRtmpStreamController {
+class OneSevenLiveMultiRtmpStreamController {
    public:
     // Callback types for stream events
     using StreamStatusCallback = std::function<void(const std::string& streamId,
-                                                    const OneSevenMultiRtmpStreamStatus& status)>;
+                                                    const OneSevenLiveMultiRtmpStreamStatus& status)>;
     using StreamStatsCallback =
-        std::function<void(const std::string& streamId, const OneSevenMultiRtmpStreamStats& stats)>;
+        std::function<void(const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats)>;
 
-    OneSevenMultiRtmpStreamController();
-    ~OneSevenMultiRtmpStreamController();
+    OneSevenLiveMultiRtmpStreamController();
+    ~OneSevenLiveMultiRtmpStreamController();
 
     // OBS output lifecycle management
-    bool createOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
+    bool createOutput(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config);
     bool startOutput(const std::string& streamId);
     bool stopOutput(const std::string& streamId);
     bool destroyOutput(const std::string& streamId);
@@ -42,8 +42,8 @@ class OneSevenMultiRtmpStreamController {
     void destroyAllOutputs();
 
     // Status and statistics
-    OneSevenMultiRtmpStreamStatus getStreamStatus(const std::string& streamId) const;
-    OneSevenMultiRtmpStreamStats getStreamStats(const std::string& streamId) const;
+    OneSevenLiveMultiRtmpStreamStatus getStreamStatus(const std::string& streamId) const;
+    OneSevenLiveMultiRtmpStreamStats getStreamStats(const std::string& streamId) const;
     std::vector<std::string> getActiveStreamIds() const;
     std::vector<std::string> getAllStreamIds() const;
 
@@ -73,18 +73,18 @@ class OneSevenMultiRtmpStreamController {
         obs_service_t* service = nullptr;
         obs_encoder_t* videoEncoder = nullptr;
         obs_encoder_t* audioEncoder = nullptr;
-        OneSevenMultiRtmpConfig config;
-        OneSevenMultiRtmpStreamStatus status;
-        OneSevenMultiRtmpStreamStats stats;
+        OneSevenLiveMultiRtmpConfig config;
+        OneSevenLiveMultiRtmpStreamStatus status;
+        OneSevenLiveMultiRtmpStreamStats stats;
         std::chrono::steady_clock::time_point startTime;
     };
 
     // Internal implementation methods
-    bool createService(const std::string& streamId, const OneSevenMultiRtmpConfig& config,
+    bool createService(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config,
                        StreamOutput* streamOutput);
-    bool createEncoders(const std::string& streamId, const OneSevenMultiRtmpConfig& config,
+    bool createEncoders(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config,
                         StreamOutput* streamOutput);
-    bool setupOutput(const std::string& streamId, const OneSevenMultiRtmpConfig& config,
+    bool setupOutput(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config,
                      StreamOutput* streamOutput);
     bool startOutputInternal(const std::string& streamId, StreamOutput* streamOutput);
     bool stopOutputInternal(const std::string& streamId, StreamOutput* streamOutput);
@@ -92,7 +92,7 @@ class OneSevenMultiRtmpStreamController {
     void destroyService(const std::string& streamId);
     void destroyEncoders(const std::string& streamId);
 
-    void updateStreamStatus(const std::string& streamId, OneSevenMultiRtmpStreamStatus::State state,
+    void updateStreamStatus(const std::string& streamId, OneSevenLiveMultiRtmpStreamStatus::State state,
                             const std::string& error = "");
     void updateStreamStats(const std::string& streamId);
 
@@ -112,10 +112,10 @@ class OneSevenMultiRtmpStreamController {
     std::string getVideoEncoderName(const std::string& streamId) const;
     std::string getAudioEncoderName(const std::string& streamId) const;
 
-    obs_data_t* createServiceSettings(const OneSevenMultiRtmpConfig& config) const;
-    obs_data_t* createOutputSettings(const OneSevenMultiRtmpConfig& config) const;
-    obs_data_t* createVideoEncoderSettings(const OneSevenMultiRtmpConfig& config) const;
-    obs_data_t* createAudioEncoderSettings(const OneSevenMultiRtmpConfig& config) const;
+    obs_data_t* createServiceSettings(const OneSevenLiveMultiRtmpConfig& config) const;
+    obs_data_t* createOutputSettings(const OneSevenLiveMultiRtmpConfig& config) const;
+    obs_data_t* createVideoEncoderSettings(const OneSevenLiveMultiRtmpConfig& config) const;
+    obs_data_t* createAudioEncoderSettings(const OneSevenLiveMultiRtmpConfig& config) const;
 
     // Helper methods for getting OBS default encoder settings
     obs_data_t* getObsDefaultVideoEncoderSettings() const;

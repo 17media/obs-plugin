@@ -113,14 +113,14 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/api/OneSevenLiveModels.cpp
   src/17live/api/OneSevenLiveUtility.cpp
   src/17live/CefDummy.cpp
-  src/17live/multi-rtmp/OneSevenMultiRtmpConfigManager.cpp
-  src/17live/multi-rtmp/OneSevenMultiRtmpManager.cpp
-  src/17live/multi-rtmp/OneSevenMultiRtmpModels.cpp
-  src/17live/multi-rtmp/OneSevenMultiRtmpStreamController.cpp
-  src/17live/multi-rtmp/ui/OneSevenMultiRtmpConfigDialog.cpp
-  src/17live/multi-rtmp/ui/OneSevenMultiRtmpDock.cpp
-  src/17live/multi-rtmp/ui/OneSevenMultiRtmpListWidget.cpp
-  src/17live/multi-rtmp/ui/OneSevenMultiRtmpStreamItem.cpp
+  src/17live/multi-rtmp/OneSevenLiveMultiRtmpConfigManager.cpp
+  src/17live/multi-rtmp/OneSevenLiveMultiRtmpManager.cpp
+  src/17live/multi-rtmp/OneSevenLiveMultiRtmpModels.cpp
+  src/17live/multi-rtmp/OneSevenLiveMultiRtmpStreamController.cpp
+  src/17live/multi-rtmp/ui/OneSevenLiveMultiRtmpConfigDialog.cpp
+  src/17live/multi-rtmp/ui/OneSevenLiveMultiRtmpDock.cpp
+  src/17live/multi-rtmp/ui/OneSevenLiveMultiRtmpListWidget.cpp
+  src/17live/multi-rtmp/ui/OneSevenLiveMultiRtmpStreamItem.cpp
   src/17live/OneSevenLiveConfigManager.cpp
   src/17live/OneSevenLiveCoreManager.cpp
   src/17live/OneSevenLiveCustomEventDialog.cpp

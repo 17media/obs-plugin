@@ -14,46 +14,46 @@
 #include <QWidget>
 #include <chrono>
 
-#include "../OneSevenMultiRtmpModels.hpp"
+#include "../OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
 
 // Forward declaration
-class OneSevenMultiRtmpManager;
+class OneSevenLiveMultiRtmpManager;
 
 /**
  * Individual stream item widget
  * Displays stream configuration, status, and controls for a single RTMP stream
  */
-class OneSevenMultiRtmpStreamItem : public QFrame {
+class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     Q_OBJECT
 
    public:
-    explicit OneSevenMultiRtmpStreamItem(const OneSevenMultiRtmpConfig& config,
+    explicit OneSevenLiveMultiRtmpStreamItem(const OneSevenLiveMultiRtmpConfig& config,
                                          QWidget* parent = nullptr);
-    ~OneSevenMultiRtmpStreamItem();
+    ~OneSevenLiveMultiRtmpStreamItem();
 
     // Configuration management
-    void updateConfig(const OneSevenMultiRtmpConfig& config);
-    void updateStatus(const OneSevenMultiRtmpStreamStatus& status);
-    void updateStats(const OneSevenMultiRtmpStreamStats& stats);
+    void updateConfig(const OneSevenLiveMultiRtmpConfig& config);
+    void updateStatus(const OneSevenLiveMultiRtmpStreamStatus& status);
+    void updateStats(const OneSevenLiveMultiRtmpStreamStats& stats);
 
     // Manager access
-    void setManager(OneSevenMultiRtmpManager* manager);
+    void setManager(OneSevenLiveMultiRtmpManager* manager);
 
     // Getters
     const std::string& getStreamId() const {
         return m_config.id;
     }
 
-    const OneSevenMultiRtmpConfig& getConfig() const {
+    const OneSevenLiveMultiRtmpConfig& getConfig() const {
         return m_config;
     }
 
-    const OneSevenMultiRtmpStreamStatus& getStatus() const {
+    const OneSevenLiveMultiRtmpStreamStatus& getStatus() const {
         return m_status;
     }
 
-    const OneSevenMultiRtmpStreamStats& getStats() const {
+    const OneSevenLiveMultiRtmpStreamStats& getStats() const {
         return m_stats;
     }
 
@@ -95,9 +95,9 @@ class OneSevenMultiRtmpStreamItem : public QFrame {
     void collectRealTimeStats();
 
     // Configuration and state
-    OneSevenMultiRtmpConfig m_config;
-    OneSevenMultiRtmpStreamStatus m_status;
-    OneSevenMultiRtmpStreamStats m_stats;
+    OneSevenLiveMultiRtmpConfig m_config;
+    OneSevenLiveMultiRtmpStreamStatus m_status;
+    OneSevenLiveMultiRtmpStreamStats m_stats;
 
     // UI components - Main layout (3-layer vertical)
     QVBoxLayout* m_mainLayout;
@@ -134,7 +134,7 @@ class OneSevenMultiRtmpStreamItem : public QFrame {
     QTimer* m_statsTimer;
 
     // Manager reference for real-time stats
-    OneSevenMultiRtmpManager* m_manager;
+    OneSevenLiveMultiRtmpManager* m_manager;
 
     // Real-time statistics tracking
     std::chrono::steady_clock::time_point m_startTime;

@@ -1,10 +1,10 @@
-#include "OneSevenMultiRtmpListWidget.hpp"
+#include "OneSevenLiveMultiRtmpListWidget.hpp"
 
 #include <algorithm>
 
-#include "OneSevenMultiRtmpStreamItem.hpp"
+#include "OneSevenLiveMultiRtmpStreamItem.hpp"
 
-OneSevenMultiRtmpListWidget::OneSevenMultiRtmpListWidget(QWidget* parent)
+OneSevenLiveMultiRtmpListWidget::OneSevenLiveMultiRtmpListWidget(QWidget* parent)
     : QWidget(parent),
       m_mainLayout(nullptr),
       m_streamLayout(nullptr),
@@ -18,11 +18,11 @@ OneSevenMultiRtmpListWidget::OneSevenMultiRtmpListWidget(QWidget* parent)
     updateEmptyState();
 }
 
-OneSevenMultiRtmpListWidget::~OneSevenMultiRtmpListWidget() {
+OneSevenLiveMultiRtmpListWidget::~OneSevenLiveMultiRtmpListWidget() {
     clearAllStreams();
 }
 
-void OneSevenMultiRtmpListWidget::setupUI() {
+void OneSevenLiveMultiRtmpListWidget::setupUI() {
     // Main layout
     m_mainLayout = new QVBoxLayout(this);
     m_mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -44,7 +44,7 @@ void OneSevenMultiRtmpListWidget::setupUI() {
     m_mainLayout->addStretch();
 }
 
-void OneSevenMultiRtmpListWidget::setupEmptyState() {
+void OneSevenLiveMultiRtmpListWidget::setupEmptyState() {
     m_emptyFrame = new QFrame();
     m_emptyFrame->setStyleSheet(
         "QFrame { "
@@ -69,7 +69,7 @@ void OneSevenMultiRtmpListWidget::setupEmptyState() {
     m_emptyLayout->addStretch();
 }
 
-void OneSevenMultiRtmpListWidget::addStream(const OneSevenMultiRtmpConfig& config) {
+void OneSevenLiveMultiRtmpListWidget::addStream(const OneSevenLiveMultiRtmpConfig& config) {
     // Check if stream already exists
     if (hasStream(config.id)) {
         updateStream(config);
@@ -77,7 +77,7 @@ void OneSevenMultiRtmpListWidget::addStream(const OneSevenMultiRtmpConfig& confi
     }
 
     // Create new stream item
-    auto* streamItem = new OneSevenMultiRtmpStreamItem(config, this);
+    auto* streamItem = new OneSevenLiveMultiRtmpStreamItem(config, this);
 
     // Set manager reference
     if (m_manager) {
@@ -85,14 +85,14 @@ void OneSevenMultiRtmpListWidget::addStream(const OneSevenMultiRtmpConfig& confi
     }
 
     // Connect signals
-    connect(streamItem, &OneSevenMultiRtmpStreamItem::startRequested, this,
-            &OneSevenMultiRtmpListWidget::onStreamItemStartClicked);
-    connect(streamItem, &OneSevenMultiRtmpStreamItem::stopRequested, this,
-            &OneSevenMultiRtmpListWidget::onStreamItemStopClicked);
-    connect(streamItem, &OneSevenMultiRtmpStreamItem::editRequested, this,
-            &OneSevenMultiRtmpListWidget::onStreamItemEditClicked);
-    connect(streamItem, &OneSevenMultiRtmpStreamItem::deleteRequested, this,
-            &OneSevenMultiRtmpListWidget::onStreamItemDeleteClicked);
+    connect(streamItem, &OneSevenLiveMultiRtmpStreamItem::startRequested, this,
+            &OneSevenLiveMultiRtmpListWidget::onStreamItemStartClicked);
+    connect(streamItem, &OneSevenLiveMultiRtmpStreamItem::stopRequested, this,
+            &OneSevenLiveMultiRtmpListWidget::onStreamItemStopClicked);
+    connect(streamItem, &OneSevenLiveMultiRtmpStreamItem::editRequested, this,
+            &OneSevenLiveMultiRtmpListWidget::onStreamItemEditClicked);
+    connect(streamItem, &OneSevenLiveMultiRtmpStreamItem::deleteRequested, this,
+            &OneSevenLiveMultiRtmpListWidget::onStreamItemDeleteClicked);
 
     // Add to layout (before stretch)
     int insertIndex = m_streamLayout->count() - 1;  // Before stretch
@@ -104,7 +104,7 @@ void OneSevenMultiRtmpListWidget::addStream(const OneSevenMultiRtmpConfig& confi
     updateEmptyState();
 }
 
-void OneSevenMultiRtmpListWidget::removeStream(const std::string& streamId) {
+void OneSevenLiveMultiRtmpListWidget::removeStream(const std::string& streamId) {
     auto* item = findStreamItem(streamId);
     if (item) {
         removeStreamItem(item);
@@ -112,30 +112,30 @@ void OneSevenMultiRtmpListWidget::removeStream(const std::string& streamId) {
     }
 }
 
-void OneSevenMultiRtmpListWidget::updateStream(const OneSevenMultiRtmpConfig& config) {
+void OneSevenLiveMultiRtmpListWidget::updateStream(const OneSevenLiveMultiRtmpConfig& config) {
     auto* item = findStreamItem(config.id);
     if (item) {
         item->updateConfig(config);
     }
 }
 
-void OneSevenMultiRtmpListWidget::updateStreamStatus(const std::string& streamId,
-                                                     const OneSevenMultiRtmpStreamStatus& status) {
+void OneSevenLiveMultiRtmpListWidget::updateStreamStatus(const std::string& streamId,
+                                                    const OneSevenLiveMultiRtmpStreamStatus& status) {
     auto* item = findStreamItem(streamId);
     if (item) {
         item->updateStatus(status);
     }
 }
 
-void OneSevenMultiRtmpListWidget::updateStreamStats(const std::string& streamId,
-                                                    const OneSevenMultiRtmpStreamStats& stats) {
+void OneSevenLiveMultiRtmpListWidget::updateStreamStats(const std::string& streamId,
+                                                   const OneSevenLiveMultiRtmpStreamStats& stats) {
     auto* item = findStreamItem(streamId);
     if (item) {
         item->updateStats(stats);
     }
 }
 
-void OneSevenMultiRtmpListWidget::clearAllStreams() {
+void OneSevenLiveMultiRtmpListWidget::clearAllStreams() {
     // Remove all stream items
     for (auto* item : m_streamItems) {
         m_streamLayout->removeWidget(item);
@@ -146,21 +146,21 @@ void OneSevenMultiRtmpListWidget::clearAllStreams() {
     updateEmptyState();
 }
 
-void OneSevenMultiRtmpListWidget::refreshAllStreams() {
+void OneSevenLiveMultiRtmpListWidget::refreshAllStreams() {
     // This would typically reload from manager
     // For now, just update empty state
     updateEmptyState();
 }
 
-bool OneSevenMultiRtmpListWidget::hasStream(const std::string& streamId) const {
+bool OneSevenLiveMultiRtmpListWidget::hasStream(const std::string& streamId) const {
     return findStreamItem(streamId) != nullptr;
 }
 
-size_t OneSevenMultiRtmpListWidget::getStreamCount() const {
+size_t OneSevenLiveMultiRtmpListWidget::getStreamCount() const {
     return m_streamItems.size();
 }
 
-std::vector<std::string> OneSevenMultiRtmpListWidget::getAllStreamIds() const {
+std::vector<std::string> OneSevenLiveMultiRtmpListWidget::getAllStreamIds() const {
     std::vector<std::string> ids;
     ids.reserve(m_streamItems.size());
 
@@ -171,7 +171,7 @@ std::vector<std::string> OneSevenMultiRtmpListWidget::getAllStreamIds() const {
     return ids;
 }
 
-std::vector<std::string> OneSevenMultiRtmpListWidget::getActiveStreamIds() const {
+std::vector<std::string> OneSevenLiveMultiRtmpListWidget::getActiveStreamIds() const {
     std::vector<std::string> activeIds;
 
     for (const auto* item : m_streamItems) {
@@ -183,7 +183,7 @@ std::vector<std::string> OneSevenMultiRtmpListWidget::getActiveStreamIds() const
     return activeIds;
 }
 
-OneSevenMultiRtmpListWidget::StreamStatusStats OneSevenMultiRtmpListWidget::getStreamStatusStats()
+OneSevenLiveMultiRtmpListWidget::StreamStatusStats OneSevenLiveMultiRtmpListWidget::getStreamStatusStats()
     const {
     StreamStatusStats stats;
     stats.totalCount = m_streamItems.size();
@@ -194,17 +194,17 @@ OneSevenMultiRtmpListWidget::StreamStatusStats OneSevenMultiRtmpListWidget::getS
 
         const auto& status = item->getStatus();
         switch (status.state) {
-        case OneSevenMultiRtmpStreamStatus::State::STREAMING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::STREAMING:
             stats.activeCount++;
             break;
-        case OneSevenMultiRtmpStreamStatus::State::CONNECTING:
-        case OneSevenMultiRtmpStreamStatus::State::RECONNECTING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::CONNECTING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING:
             stats.connectingCount++;
             break;
-        case OneSevenMultiRtmpStreamStatus::State::STOPPED:
+    case OneSevenLiveMultiRtmpStreamStatus::State::STOPPED:
             stats.stoppedCount++;
             break;
-        case OneSevenMultiRtmpStreamStatus::State::ERROR:
+    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR:
             stats.errorCount++;
             break;
         }
@@ -213,7 +213,7 @@ OneSevenMultiRtmpListWidget::StreamStatusStats OneSevenMultiRtmpListWidget::getS
     return stats;
 }
 
-void OneSevenMultiRtmpListWidget::setManager(OneSevenMultiRtmpManager* manager) {
+void OneSevenLiveMultiRtmpListWidget::setManager(OneSevenLiveMultiRtmpManager* manager) {
     m_manager = manager;
 
     // Update existing stream items
@@ -224,27 +224,27 @@ void OneSevenMultiRtmpListWidget::setManager(OneSevenMultiRtmpManager* manager) 
     }
 }
 
-void OneSevenMultiRtmpListWidget::onStreamItemStartClicked(const std::string& streamId) {
+void OneSevenLiveMultiRtmpListWidget::onStreamItemStartClicked(const std::string& streamId) {
     emit streamStartRequested(streamId);
 }
 
-void OneSevenMultiRtmpListWidget::onStreamItemStopClicked(const std::string& streamId) {
+void OneSevenLiveMultiRtmpListWidget::onStreamItemStopClicked(const std::string& streamId) {
     emit streamStopRequested(streamId);
 }
 
-void OneSevenMultiRtmpListWidget::onStreamItemEditClicked(const std::string& streamId) {
+void OneSevenLiveMultiRtmpListWidget::onStreamItemEditClicked(const std::string& streamId) {
     emit streamEditRequested(streamId);
 }
 
-void OneSevenMultiRtmpListWidget::onStreamItemDeleteClicked(const std::string& streamId) {
+void OneSevenLiveMultiRtmpListWidget::onStreamItemDeleteClicked(const std::string& streamId) {
     emit streamDeleteRequested(streamId);
 }
 
-void OneSevenMultiRtmpListWidget::onStreamItemDuplicateClicked(const std::string& streamId) {
+void OneSevenLiveMultiRtmpListWidget::onStreamItemDuplicateClicked(const std::string& streamId) {
     emit streamDuplicateRequested(streamId);
 }
 
-void OneSevenMultiRtmpListWidget::updateEmptyState() {
+void OneSevenLiveMultiRtmpListWidget::updateEmptyState() {
     bool isEmpty = m_streamItems.empty();
 
     if (isEmpty != m_showEmptyState) {
@@ -255,17 +255,17 @@ void OneSevenMultiRtmpListWidget::updateEmptyState() {
     }
 }
 
-OneSevenMultiRtmpStreamItem* OneSevenMultiRtmpListWidget::findStreamItem(
+OneSevenLiveMultiRtmpStreamItem* OneSevenLiveMultiRtmpListWidget::findStreamItem(
     const std::string& streamId) const {
     auto it = std::find_if(m_streamItems.begin(), m_streamItems.end(),
-                           [&streamId](const OneSevenMultiRtmpStreamItem* item) {
+    [&streamId](const OneSevenLiveMultiRtmpStreamItem* item) {
                                return item && item->getStreamId() == streamId;
                            });
 
     return (it != m_streamItems.end()) ? *it : nullptr;
 }
 
-void OneSevenMultiRtmpListWidget::removeStreamItem(OneSevenMultiRtmpStreamItem* item) {
+void OneSevenLiveMultiRtmpListWidget::removeStreamItem(OneSevenLiveMultiRtmpStreamItem* item) {
     if (!item) {
         return;
     }

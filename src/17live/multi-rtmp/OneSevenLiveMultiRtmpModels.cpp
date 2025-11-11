@@ -1,4 +1,4 @@
-#include "OneSevenMultiRtmpModels.hpp"
+#include "OneSevenLiveMultiRtmpModels.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -9,8 +9,8 @@ static OneSevenLiveProtocol s_protocolList[] = {
     // protocol, label, output_id, service_id
     {"rtmp", "RTMP", "rtmp_output", "rtmp_custom"}};
 
-// OneSevenMultiRtmpVideoConfig implementation
-void OneSevenMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
+// OneSevenLiveMultiRtmpVideoConfig implementation
+void OneSevenLiveMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{{"encoderId", encoderId},
                        {"fpsDenominator", fpsDenominator},
                        {"encoderSettings", encoderSettings},
@@ -18,7 +18,7 @@ void OneSevenMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
                        {"resolution", resolution}};
 }
 
-void OneSevenMultiRtmpVideoConfig::from_json(const nlohmann::json& j) {
+void OneSevenLiveMultiRtmpVideoConfig::from_json(const nlohmann::json& j) {
     if (j.contains("encoderId")) {
         j.at("encoderId").get_to(encoderId);
     }
@@ -46,15 +46,15 @@ void from_json(const nlohmann::json& j, AudioTrackConfig& config) {
     j.at("output_track").get_to(config.output_track);
 }
 
-// OneSevenMultiRtmpAudioConfig implementation
-void OneSevenMultiRtmpAudioConfig::to_json(nlohmann::json& j) const {
+// OneSevenLiveMultiRtmpAudioConfig implementation
+void OneSevenLiveMultiRtmpAudioConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{{"encoderId", encoderId},
                        {"encoderSettings", encoderSettings},
                        {"mixerId", mixerId},
                        {"audioTracks", audioTracks}};
 }
 
-void OneSevenMultiRtmpAudioConfig::from_json(const nlohmann::json& j) {
+void OneSevenLiveMultiRtmpAudioConfig::from_json(const nlohmann::json& j) {
     if (j.contains("encoderId")) {
         j.at("encoderId").get_to(encoderId);
     }
@@ -69,8 +69,8 @@ void OneSevenMultiRtmpAudioConfig::from_json(const nlohmann::json& j) {
     }
 }
 
-// OneSevenMultiRtmpConfig implementation
-void OneSevenMultiRtmpConfig::to_json(nlohmann::json& j) const {
+// OneSevenLiveMultiRtmpConfig implementation
+void OneSevenLiveMultiRtmpConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{{"id", id},
                        {"streamName", streamName},
                        {"protocol", protocol},
@@ -84,7 +84,7 @@ void OneSevenMultiRtmpConfig::to_json(nlohmann::json& j) const {
                                                                : nlohmann::json(nullptr)}};
 }
 
-void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
+void OneSevenLiveMultiRtmpConfig::from_json(const nlohmann::json& j) {
     j.at("id").get_to(id);
     if (j.contains("streamName")) {
         j.at("streamName").get_to(streamName);
@@ -108,20 +108,20 @@ void OneSevenMultiRtmpConfig::from_json(const nlohmann::json& j) {
         if (j["videoConfig"].is_null()) {
             videoConfig.reset();
         } else {
-            videoConfig = j["videoConfig"].get<OneSevenMultiRtmpVideoConfig>();
+            videoConfig = j["videoConfig"].get<OneSevenLiveMultiRtmpVideoConfig>();
         }
     }
     if (j.contains("audioConfig")) {
         if (j["audioConfig"].is_null()) {
             audioConfig.reset();
         } else {
-            audioConfig = j["audioConfig"].get<OneSevenMultiRtmpAudioConfig>();
+            audioConfig = j["audioConfig"].get<OneSevenLiveMultiRtmpAudioConfig>();
         }
     }
 }
 
-// OneSevenMultiRtmpStreamStatus implementation
-std::string OneSevenMultiRtmpStreamStatus::getStateString() const {
+// OneSevenLiveMultiRtmpStreamStatus implementation
+std::string OneSevenLiveMultiRtmpStreamStatus::getStateString() const {
     switch (state) {
     case STOPPED:
         return "Stopped";
@@ -138,12 +138,12 @@ std::string OneSevenMultiRtmpStreamStatus::getStateString() const {
     }
 }
 
-bool OneSevenMultiRtmpStreamStatus::isActive() const {
+bool OneSevenLiveMultiRtmpStreamStatus::isActive() const {
     return state == CONNECTING || state == STREAMING || state == RECONNECTING;
 }
 
-// OneSevenMultiRtmpStreamStats implementation
-std::string OneSevenMultiRtmpStreamStats::getDurationString() const {
+// OneSevenLiveMultiRtmpStreamStats implementation
+std::string OneSevenLiveMultiRtmpStreamStats::getDurationString() const {
     auto totalSeconds = static_cast<int>(duration.count());
     int hours = totalSeconds / 3600;
     int minutes = (totalSeconds % 3600) / 60;
@@ -155,43 +155,43 @@ std::string OneSevenMultiRtmpStreamStats::getDurationString() const {
     return oss.str();
 }
 
-double OneSevenMultiRtmpStreamStats::getDroppedFramePercentage() const {
+double OneSevenLiveMultiRtmpStreamStats::getDroppedFramePercentage() const {
     if (totalFrames == 0) {
         return 0.0;
     }
     return (static_cast<double>(droppedFrames) / totalFrames) * 100.0;
 }
 
-// OneSevenMultiRtmpGlobalConfig implementation
-void OneSevenMultiRtmpGlobalConfig::to_json(nlohmann::json& j) const {
+// OneSevenLiveMultiRtmpGlobalConfig implementation
+void OneSevenLiveMultiRtmpGlobalConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{{"streams", streams}};
 }
 
-void OneSevenMultiRtmpGlobalConfig::from_json(const nlohmann::json& j) {
+void OneSevenLiveMultiRtmpGlobalConfig::from_json(const nlohmann::json& j) {
     if (j.contains("streams")) {
         j.at("streams").get_to(streams);
     }
 }
 
-OneSevenMultiRtmpConfig* OneSevenMultiRtmpGlobalConfig::findStream(const std::string& streamId) {
+OneSevenLiveMultiRtmpConfig* OneSevenLiveMultiRtmpGlobalConfig::findStream(const std::string& streamId) {
     auto it = std::find_if(
         streams.begin(), streams.end(),
-        [&streamId](const OneSevenMultiRtmpConfig& config) { return config.id == streamId; });
+        [&streamId](const OneSevenLiveMultiRtmpConfig& config) { return config.id == streamId; });
     return (it != streams.end()) ? &(*it) : nullptr;
 }
 
-const OneSevenMultiRtmpConfig* OneSevenMultiRtmpGlobalConfig::findStream(
+const OneSevenLiveMultiRtmpConfig* OneSevenLiveMultiRtmpGlobalConfig::findStream(
     const std::string& streamId) const {
     auto it = std::find_if(
         streams.begin(), streams.end(),
-        [&streamId](const OneSevenMultiRtmpConfig& config) { return config.id == streamId; });
+        [&streamId](const OneSevenLiveMultiRtmpConfig& config) { return config.id == streamId; });
     return (it != streams.end()) ? &(*it) : nullptr;
 }
 
-bool OneSevenMultiRtmpGlobalConfig::removeStream(const std::string& streamId) {
+bool OneSevenLiveMultiRtmpGlobalConfig::removeStream(const std::string& streamId) {
     auto it = std::remove_if(
         streams.begin(), streams.end(),
-        [&streamId](const OneSevenMultiRtmpConfig& config) { return config.id == streamId; });
+        [&streamId](const OneSevenLiveMultiRtmpConfig& config) { return config.id == streamId; });
     if (it != streams.end()) {
         streams.erase(it);
         return true;
@@ -199,12 +199,12 @@ bool OneSevenMultiRtmpGlobalConfig::removeStream(const std::string& streamId) {
     return false;
 }
 
-void OneSevenMultiRtmpGlobalConfig::addStream(const OneSevenMultiRtmpConfig& config) {
+void OneSevenLiveMultiRtmpGlobalConfig::addStream(const OneSevenLiveMultiRtmpConfig& config) {
     streams.push_back(config);
 }
 
-void OneSevenMultiRtmpGlobalConfig::updateStream(const std::string& streamId,
-                                                 const OneSevenMultiRtmpConfig& config) {
+void OneSevenLiveMultiRtmpGlobalConfig::updateStream(const std::string& streamId,
+                                                     const OneSevenLiveMultiRtmpConfig& config) {
     auto* existingConfig = findStream(streamId);
     if (existingConfig) {
         *existingConfig = config;
@@ -212,35 +212,35 @@ void OneSevenMultiRtmpGlobalConfig::updateStream(const std::string& streamId,
 }
 
 // Global JSON serialization functions
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpVideoConfig& config) {
+void to_json(nlohmann::json& j, const OneSevenLiveMultiRtmpVideoConfig& config) {
     config.to_json(j);
 }
 
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpVideoConfig& config) {
+void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpVideoConfig& config) {
     config.from_json(j);
 }
 
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpAudioConfig& config) {
+void to_json(nlohmann::json& j, const OneSevenLiveMultiRtmpAudioConfig& config) {
     config.to_json(j);
 }
 
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpAudioConfig& config) {
+void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpAudioConfig& config) {
     config.from_json(j);
 }
 
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpConfig& config) {
+void to_json(nlohmann::json& j, const OneSevenLiveMultiRtmpConfig& config) {
     config.to_json(j);
 }
 
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpConfig& config) {
+void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpConfig& config) {
     config.from_json(j);
 }
 
-void to_json(nlohmann::json& j, const OneSevenMultiRtmpGlobalConfig& config) {
+void to_json(nlohmann::json& j, const OneSevenLiveMultiRtmpGlobalConfig& config) {
     config.to_json(j);
 }
 
-void from_json(const nlohmann::json& j, OneSevenMultiRtmpGlobalConfig& config) {
+void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpGlobalConfig& config) {
     config.from_json(j);
 }
 

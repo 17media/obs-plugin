@@ -1,4 +1,4 @@
-#include "OneSevenMultiRtmpStreamItem.hpp"
+#include "OneSevenLiveMultiRtmpStreamItem.hpp"
 
 #include <obs-output.h>
 
@@ -8,16 +8,16 @@
 #include <chrono>
 #include <cmath>
 
-#include "../OneSevenMultiRtmpManager.hpp"
+#include "../OneSevenLiveMultiRtmpManager.hpp"
 
 // Static style class constants
-const QString OneSevenMultiRtmpStreamItem::STATUS_IDLE_CLASS = "status-idle";
-const QString OneSevenMultiRtmpStreamItem::STATUS_CONNECTING_CLASS = "status-connecting";
-const QString OneSevenMultiRtmpStreamItem::STATUS_ACTIVE_CLASS = "status-active";
-const QString OneSevenMultiRtmpStreamItem::STATUS_ERROR_CLASS = "status-error";
-const QString OneSevenMultiRtmpStreamItem::STATUS_STOPPING_CLASS = "status-stopping";
+const QString OneSevenLiveMultiRtmpStreamItem::STATUS_IDLE_CLASS = "status-idle";
+const QString OneSevenLiveMultiRtmpStreamItem::STATUS_CONNECTING_CLASS = "status-connecting";
+const QString OneSevenLiveMultiRtmpStreamItem::STATUS_ACTIVE_CLASS = "status-active";
+const QString OneSevenLiveMultiRtmpStreamItem::STATUS_ERROR_CLASS = "status-error";
+const QString OneSevenLiveMultiRtmpStreamItem::STATUS_STOPPING_CLASS = "status-stopping";
 
-OneSevenMultiRtmpStreamItem::OneSevenMultiRtmpStreamItem(const OneSevenMultiRtmpConfig& config,
+OneSevenLiveMultiRtmpStreamItem::OneSevenLiveMultiRtmpStreamItem(const OneSevenLiveMultiRtmpConfig& config,
                                                          QWidget* parent)
     : QFrame(parent),
       m_config(config),
@@ -55,11 +55,11 @@ OneSevenMultiRtmpStreamItem::OneSevenMultiRtmpStreamItem(const OneSevenMultiRtmp
     // Setup stats update timer
     m_statsTimer = new QTimer(this);
     m_statsTimer->setInterval(1000);  // Update every second
-    connect(m_statsTimer, &QTimer::timeout, this, &OneSevenMultiRtmpStreamItem::onStatsUpdateTimer);
+    connect(m_statsTimer, &QTimer::timeout, this, &OneSevenLiveMultiRtmpStreamItem::onStatsUpdateTimer);
     m_statsTimer->start();
 }
 
-OneSevenMultiRtmpStreamItem::~OneSevenMultiRtmpStreamItem() {
+OneSevenLiveMultiRtmpStreamItem::~OneSevenLiveMultiRtmpStreamItem() {
     if (m_statsTimer) {
         m_statsTimer->stop();
     }
@@ -69,7 +69,7 @@ OneSevenMultiRtmpStreamItem::~OneSevenMultiRtmpStreamItem() {
     }
 }
 
-void OneSevenMultiRtmpStreamItem::setupUI() {
+void OneSevenLiveMultiRtmpStreamItem::setupUI() {
     // Main vertical layout (3 layers)
     m_mainLayout = new QVBoxLayout(this);
     m_mainLayout->setContentsMargins(12, 8, 12, 8);
@@ -141,7 +141,7 @@ void OneSevenMultiRtmpStreamItem::setupUI() {
         "background-color: rgba(255,255,255,0.1); border-radius: 12px; }");
     m_startStopButton->setToolTip(obs_module_text("MultiRTMP.Start"));
     connect(m_startStopButton, &QPushButton::clicked, this,
-            &OneSevenMultiRtmpStreamItem::onStartStopClicked);
+            &OneSevenLiveMultiRtmpStreamItem::onStartStopClicked);
 
     // Settings button
     m_editButton = new QPushButton();
@@ -153,7 +153,7 @@ void OneSevenMultiRtmpStreamItem::setupUI() {
         "QPushButton { border: none; background: transparent; } QPushButton:hover { "
         "background-color: rgba(255,255,255,0.1); border-radius: 12px; }");
     m_editButton->setToolTip(obs_module_text("MultiRTMP.Edit"));
-    connect(m_editButton, &QPushButton::clicked, this, &OneSevenMultiRtmpStreamItem::onEditClicked);
+    connect(m_editButton, &QPushButton::clicked, this, &OneSevenLiveMultiRtmpStreamItem::onEditClicked);
 
     // Delete button
     m_menuButton = new QPushButton();
@@ -166,7 +166,7 @@ void OneSevenMultiRtmpStreamItem::setupUI() {
         "background-color: rgba(255,255,255,0.1); border-radius: 12px; }");
     m_menuButton->setToolTip(obs_module_text("MultiRTMP.Delete"));
     connect(m_menuButton, &QPushButton::clicked, this,
-            &OneSevenMultiRtmpStreamItem::onDeleteClicked);
+            &OneSevenLiveMultiRtmpStreamItem::onDeleteClicked);
 
     m_controlLayout->addWidget(m_startStopButton);
     m_controlLayout->addWidget(m_editButton);
@@ -180,32 +180,32 @@ void OneSevenMultiRtmpStreamItem::setupUI() {
     // Set minimum height and dark background
     setMinimumHeight(170);
     setMaximumHeight(170);
-    setStyleSheet("OneSevenMultiRtmpStreamItem { background-color: #2D2D30; border-radius: 8px; }");
+    setStyleSheet("OneSevenLiveMultiRtmpStreamItem { background-color: #2D2D30; border-radius: 8px; }");
 
     // Initialize unused legacy widgets to nullptr
     m_urlLabel = nullptr;
     m_connectionProgress = nullptr;
 }
 
-void OneSevenMultiRtmpStreamItem::setupContextMenu() {
+void OneSevenLiveMultiRtmpStreamItem::setupContextMenu() {
     m_contextMenu = new QMenu(this);
 
     m_deleteAction =
         m_contextMenu->addAction(QApplication::style()->standardIcon(QStyle::SP_TrashIcon),
                                  obs_module_text("MultiRTMP.Delete"));
     connect(m_deleteAction, &QAction::triggered, this,
-            &OneSevenMultiRtmpStreamItem::onDeleteAction);
+            &OneSevenLiveMultiRtmpStreamItem::onDeleteAction);
 }
 
-void OneSevenMultiRtmpStreamItem::updateConfig(const OneSevenMultiRtmpConfig& config) {
+void OneSevenLiveMultiRtmpStreamItem::updateConfig(const OneSevenLiveMultiRtmpConfig& config) {
     m_config = config;
     updateUI();
 }
 
-void OneSevenMultiRtmpStreamItem::updateStatus(const OneSevenMultiRtmpStreamStatus& status) {
+void OneSevenLiveMultiRtmpStreamItem::updateStatus(const OneSevenLiveMultiRtmpStreamStatus& status) {
     // Record start time when stream becomes active
-    if (status.state == OneSevenMultiRtmpStreamStatus::STREAMING &&
-        m_status.state != OneSevenMultiRtmpStreamStatus::STREAMING) {
+    if (status.state == OneSevenLiveMultiRtmpStreamStatus::STREAMING &&
+        m_status.state != OneSevenLiveMultiRtmpStreamStatus::STREAMING) {
         m_startTime = std::chrono::steady_clock::now();
         m_lastStatsTime = m_startTime;
         m_lastTotalBytes = 0;
@@ -217,29 +217,29 @@ void OneSevenMultiRtmpStreamItem::updateStatus(const OneSevenMultiRtmpStreamStat
     updateButtonStates();  // Ensure button states are updated when status changes
 }
 
-void OneSevenMultiRtmpStreamItem::updateStats(const OneSevenMultiRtmpStreamStats& stats) {
+void OneSevenLiveMultiRtmpStreamItem::updateStats(const OneSevenLiveMultiRtmpStreamStats& stats) {
     m_stats = stats;
     updateStatsDisplay();
 }
 
-void OneSevenMultiRtmpStreamItem::setManager(OneSevenMultiRtmpManager* manager) {
+void OneSevenLiveMultiRtmpStreamItem::setManager(OneSevenLiveMultiRtmpManager* manager) {
     m_manager = manager;
 }
 
-bool OneSevenMultiRtmpStreamItem::isActive() const {
-    return m_status.state == OneSevenMultiRtmpStreamStatus::State::STREAMING;
+bool OneSevenLiveMultiRtmpStreamItem::isActive() const {
+    return m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::STREAMING;
 }
 
-bool OneSevenMultiRtmpStreamItem::isConnecting() const {
-    return m_status.state == OneSevenMultiRtmpStreamStatus::State::CONNECTING ||
-           m_status.state == OneSevenMultiRtmpStreamStatus::State::RECONNECTING;
+bool OneSevenLiveMultiRtmpStreamItem::isConnecting() const {
+    return m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::CONNECTING ||
+           m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING;
 }
 
-bool OneSevenMultiRtmpStreamItem::isError() const {
-    return m_status.state == OneSevenMultiRtmpStreamStatus::State::ERROR;
+bool OneSevenLiveMultiRtmpStreamItem::isError() const {
+    return m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::ERROR;
 }
 
-void OneSevenMultiRtmpStreamItem::onStartStopClicked() {
+void OneSevenLiveMultiRtmpStreamItem::onStartStopClicked() {
     if (isActive() || isConnecting()) {
         emit stopRequested(m_config.id);
     } else {
@@ -247,11 +247,11 @@ void OneSevenMultiRtmpStreamItem::onStartStopClicked() {
     }
 }
 
-void OneSevenMultiRtmpStreamItem::onEditClicked() {
+void OneSevenLiveMultiRtmpStreamItem::onEditClicked() {
     emit editRequested(m_config.id);
 }
 
-void OneSevenMultiRtmpStreamItem::onMenuRequested() {
+void OneSevenLiveMultiRtmpStreamItem::onMenuRequested() {
     if (m_contextMenu && m_duplicateAction && m_deleteAction && m_menuButton) {
         // Update menu state
         m_duplicateAction->setEnabled(true);
@@ -263,15 +263,15 @@ void OneSevenMultiRtmpStreamItem::onMenuRequested() {
     }
 }
 
-void OneSevenMultiRtmpStreamItem::onDeleteAction() {
+void OneSevenLiveMultiRtmpStreamItem::onDeleteAction() {
     emit deleteRequested(m_config.id);
 }
 
-void OneSevenMultiRtmpStreamItem::onDeleteClicked() {
+void OneSevenLiveMultiRtmpStreamItem::onDeleteClicked() {
     emit deleteRequested(m_config.id);
 }
 
-void OneSevenMultiRtmpStreamItem::onStatsUpdateTimer() {
+void OneSevenLiveMultiRtmpStreamItem::onStatsUpdateTimer() {
     // Update display if stream is active
     if (isActive()) {
         collectRealTimeStats();
@@ -279,7 +279,7 @@ void OneSevenMultiRtmpStreamItem::onStatsUpdateTimer() {
     }
 }
 
-void OneSevenMultiRtmpStreamItem::updateUI() {
+void OneSevenLiveMultiRtmpStreamItem::updateUI() {
     // Update basic info
     if (m_nameLabel) {
         m_nameLabel->setText(QString::fromStdString(m_config.streamName));
@@ -291,7 +291,7 @@ void OneSevenMultiRtmpStreamItem::updateUI() {
     updateButtonStates();
 }
 
-void OneSevenMultiRtmpStreamItem::updateStatusDisplay() {
+void OneSevenLiveMultiRtmpStreamItem::updateStatusDisplay() {
     // Update status text
     QString statusText = getStatusText();
     if (m_statusLabel) {
@@ -302,9 +302,9 @@ void OneSevenMultiRtmpStreamItem::updateStatusDisplay() {
     updateStatusDot();
 }
 
-void OneSevenMultiRtmpStreamItem::updateStatsDisplay() {
+void OneSevenLiveMultiRtmpStreamItem::updateStatsDisplay() {
     // Update individual stats labels based on connection state
-    bool isConnected = (m_status.state == OneSevenMultiRtmpStreamStatus::State::STREAMING);
+    bool isConnected = (m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::STREAMING);
 
     if (isConnected) {
         // Show actual stats when connected with "label: value" format
@@ -337,16 +337,16 @@ void OneSevenMultiRtmpStreamItem::updateStatsDisplay() {
     }
 }
 
-void OneSevenMultiRtmpStreamItem::updateButtonStates() {
+void OneSevenLiveMultiRtmpStreamItem::updateButtonStates() {
     if (!m_startStopButton) {
         return;
     }
 
-    bool canStart = (m_status.state == OneSevenMultiRtmpStreamStatus::State::STOPPED ||
-                     m_status.state == OneSevenMultiRtmpStreamStatus::State::ERROR);
-    bool canStop = (m_status.state == OneSevenMultiRtmpStreamStatus::State::STREAMING ||
-                    m_status.state == OneSevenMultiRtmpStreamStatus::State::CONNECTING ||
-                    m_status.state == OneSevenMultiRtmpStreamStatus::State::RECONNECTING);
+    bool canStart = (m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::STOPPED ||
+                     m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::ERROR);
+    bool canStop = (m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::STREAMING ||
+                    m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::CONNECTING ||
+                    m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING);
 
     if (canStart) {
         m_startStopButton->setIcon(QIcon(":/resources/play.svg"));
@@ -371,7 +371,7 @@ void OneSevenMultiRtmpStreamItem::updateButtonStates() {
     }
 }
 
-QString OneSevenMultiRtmpStreamItem::formatDuration(uint64_t seconds) const {
+QString OneSevenLiveMultiRtmpStreamItem::formatDuration(uint64_t seconds) const {
     uint64_t hours = seconds / 3600;
     uint64_t minutes = (seconds % 3600) / 60;
     uint64_t secs = seconds % 60;
@@ -382,7 +382,7 @@ QString OneSevenMultiRtmpStreamItem::formatDuration(uint64_t seconds) const {
         .arg(secs, 2, 10, QChar('0'));
 }
 
-QString OneSevenMultiRtmpStreamItem::formatFrameRate(double fps) const {
+QString OneSevenLiveMultiRtmpStreamItem::formatFrameRate(double fps) const {
     if (fps <= 0.0) {
         return "0";
     }
@@ -390,7 +390,7 @@ QString OneSevenMultiRtmpStreamItem::formatFrameRate(double fps) const {
     return QString("%1").arg(static_cast<int>(fps));
 }
 
-void OneSevenMultiRtmpStreamItem::updateStatusDot() {
+void OneSevenLiveMultiRtmpStreamItem::updateStatusDot() {
     if (!m_statusDot) {
         return;
     }
@@ -399,21 +399,21 @@ void OneSevenMultiRtmpStreamItem::updateStatusDot() {
     m_statusDot->setStyleSheet(QString("background-color: %1; border-radius: 7px;").arg(color));
 }
 
-QString OneSevenMultiRtmpStreamItem::getStatusText() const {
+QString OneSevenLiveMultiRtmpStreamItem::getStatusText() const {
     switch (m_status.state) {
-    case OneSevenMultiRtmpStreamStatus::State::STOPPED:
+    case OneSevenLiveMultiRtmpStreamStatus::State::STOPPED:
         return obs_module_text("MultiRTMP.Status.Disconnected");
 
-    case OneSevenMultiRtmpStreamStatus::State::CONNECTING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::CONNECTING:
         return obs_module_text("MultiRTMP.Status.Connecting");
 
-    case OneSevenMultiRtmpStreamStatus::State::STREAMING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::STREAMING:
         return obs_module_text("MultiRTMP.Status.Connected");
 
-    case OneSevenMultiRtmpStreamStatus::State::RECONNECTING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING:
         return obs_module_text("MultiRTMP.Status.Connecting");
 
-    case OneSevenMultiRtmpStreamStatus::State::ERROR:
+    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR:
         return obs_module_text("MultiRTMP.Status.Disconnected");
 
     default:
@@ -421,21 +421,21 @@ QString OneSevenMultiRtmpStreamItem::getStatusText() const {
     }
 }
 
-QString OneSevenMultiRtmpStreamItem::getStatusColor() const {
+QString OneSevenLiveMultiRtmpStreamItem::getStatusColor() const {
     switch (m_status.state) {
-    case OneSevenMultiRtmpStreamStatus::State::STOPPED:
+    case OneSevenLiveMultiRtmpStreamStatus::State::STOPPED:
         return "#A1A9B6";  // Disconnected - gray
 
-    case OneSevenMultiRtmpStreamStatus::State::CONNECTING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::CONNECTING:
         return "#FF873D";  // Connecting - orange
 
-    case OneSevenMultiRtmpStreamStatus::State::STREAMING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::STREAMING:
         return "#00D22E";  // Connected - green
 
-    case OneSevenMultiRtmpStreamStatus::State::RECONNECTING:
+    case OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING:
         return "#FF873D";  // Reconnecting - orange
 
-    case OneSevenMultiRtmpStreamStatus::State::ERROR:
+    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR:
         return "#A1A9B6";  // Error - gray
 
     default:
@@ -443,7 +443,7 @@ QString OneSevenMultiRtmpStreamItem::getStatusColor() const {
     }
 }
 
-QString OneSevenMultiRtmpStreamItem::formatBitrate(uint64_t bytes) const {
+QString OneSevenLiveMultiRtmpStreamItem::formatBitrate(uint64_t bytes) const {
     if (bytes == 0) {
         return "0 Kbps";
     }
@@ -457,7 +457,7 @@ QString OneSevenMultiRtmpStreamItem::formatBitrate(uint64_t bytes) const {
     return QString("%1 %2").arg(value, 0, 'f', 1).arg(units[unitIndex]);
 }
 
-void OneSevenMultiRtmpStreamItem::collectRealTimeStats() {
+void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
     if (!m_manager || !isActive()) {
         // Reset stats when not active to prevent stale data
         m_stats.currentBitrate = 0.0;
@@ -567,4 +567,4 @@ void OneSevenMultiRtmpStreamItem::collectRealTimeStats() {
     }
 }
 
-#include "moc_OneSevenMultiRtmpStreamItem.cpp"
+#include "moc_OneSevenLiveMultiRtmpStreamItem.cpp"

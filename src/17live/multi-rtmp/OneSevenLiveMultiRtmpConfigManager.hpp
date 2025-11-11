@@ -6,7 +6,7 @@
 #include <memory>
 #include <string>
 
-#include "OneSevenMultiRtmpModels.hpp"
+#include "OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
 
 /**
@@ -14,15 +14,15 @@
  * Handles ONLY JSON file operations and configuration CRUD
  * Does NOT handle any OBS runtime operations
  */
-class OneSevenMultiRtmpConfigManager {
+class OneSevenLiveMultiRtmpConfigManager {
    public:
     // Callback types for configuration changes
     using ConfigChangeCallback =
-        std::function<void(const std::string& streamId, const OneSevenMultiRtmpConfig& config)>;
+        std::function<void(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config)>;
     using ConfigDeleteCallback = std::function<void(const std::string& streamId)>;
 
-    explicit OneSevenMultiRtmpConfigManager();
-    ~OneSevenMultiRtmpConfigManager();
+    explicit OneSevenLiveMultiRtmpConfigManager();
+    ~OneSevenLiveMultiRtmpConfigManager();
 
     // Configuration file operations
     bool loadConfiguration();
@@ -31,11 +31,11 @@ class OneSevenMultiRtmpConfigManager {
     std::string getConfigFilePath() const;
 
     // Stream configuration CRUD operations (JSON only)
-    bool addStreamConfig(const OneSevenMultiRtmpConfig& config);
+    bool addStreamConfig(const OneSevenLiveMultiRtmpConfig& config);
     bool removeStreamConfig(const std::string& streamId);
-    bool updateStreamConfig(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
-    std::vector<OneSevenMultiRtmpConfig> getStreamConfigs() const;
-    OneSevenMultiRtmpConfig getStreamConfig(const std::string& streamId) const;
+    bool updateStreamConfig(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config);
+    std::vector<OneSevenLiveMultiRtmpConfig> getStreamConfigs() const;
+    OneSevenLiveMultiRtmpConfig getStreamConfig(const std::string& streamId) const;
     bool hasStreamConfig(const std::string& streamId) const;
 
     // Utility methods
@@ -56,10 +56,10 @@ class OneSevenMultiRtmpConfigManager {
    private:
     // Helper methods
     bool ensureConfigDirectoryExists() const;
-    bool writeConfigToFile(const OneSevenMultiRtmpGlobalConfig& config) const;
-    bool readConfigFromFile(OneSevenMultiRtmpGlobalConfig& config) const;
+    bool writeConfigToFile(const OneSevenLiveMultiRtmpGlobalConfig& config) const;
+    bool readConfigFromFile(OneSevenLiveMultiRtmpGlobalConfig& config) const;
     std::string getBackupFilePath(const std::string& timestamp) const;
-    void notifyConfigChange(const std::string& streamId, const OneSevenMultiRtmpConfig& config);
+    void notifyConfigChange(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config);
     void notifyConfigDelete(const std::string& streamId);
 
     // Internal methods
@@ -69,7 +69,7 @@ class OneSevenMultiRtmpConfigManager {
     // Member variables
     std::string m_configFilePath;
     std::string m_configDirectory;
-    OneSevenMultiRtmpGlobalConfig m_globalConfig;
+    OneSevenLiveMultiRtmpGlobalConfig m_globalConfig;
 
     // Callbacks
     ConfigChangeCallback m_configChangeCallback;
