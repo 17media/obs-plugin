@@ -198,14 +198,7 @@ void DiagnosticsDialog::onCollectionCompleted(const CollectResult& result) {
             .arg(QString::fromStdString(result.outputPath))
             .arg(obs_module_text("Diagnostics.Status.FilesCollected"))
             .arg(result.collectedFiles.size()));
-        
-        QMessageBox::information(this, obs_module_text("Diagnostics.Status.SuccessTitle"), 
-            QString("%1\n%2\n\n%3")
-            .arg(obs_module_text("Diagnostics.Status.SuccessMessage"))
-            .arg(QString::fromStdString(result.outputPath))
-            .arg(obs_module_text("Diagnostics.Status.OpenFolderQuestion")),
-            QMessageBox::Yes | QMessageBox::No);
-        
+
         if (QMessageBox::question(this, obs_module_text("Diagnostics.Status.OpenFolderTitle"), 
                 obs_module_text("Diagnostics.Status.OpenFolderQuestion")) == QMessageBox::Yes) {
             QDesktopServices::openUrl(QUrl::fromLocalFile(

@@ -57,7 +57,21 @@ std::vector<std::string> DiagnosticsCollectorMacOS::collectPluginLogs() {
     std::string pluginLogDir = getPluginLogDirectory();
     
     if (std::filesystem::exists(pluginLogDir)) {
-        auto files = getFilesInDirectory(pluginLogDir, "*.log");
+        // Collect .log plus any rotated logs like .log.N or .log.gz under ~/.17Live/logs
+        std::vector<std::string> files;
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(pluginLogDir)) {
+                if (!entry.is_regular_file()) continue;
+                std::string name = entry.path().filename().string();
+                if (name.find(".log") != std::string::npos ||
+                    name.find(".gz") != std::string::npos ||
+                    std::regex_match(name, std::regex(R"(.*\.log\.[0-9]+)"))) {
+                    files.push_back(entry.path().string());
+                }
+            }
+        } catch (const std::exception& e) {
+            setLastError(std::string("Error reading plugin logs: ") + e.what());
+        }
         std::string tempDir = generateTempDirectory();
         
         for (const auto& file : files) {
@@ -131,7 +145,8 @@ std::vector<std::string> DiagnosticsCollectorMacOS::collectConfigSnapshot() {
     std::string homeDir = getHomeDirectory();
     
     std::string obsConfigDir = homeDir + "/Library/Application Support/obs-studio";
-    std::string pluginConfigDir = homeDir + "/Library/Application Support/17live-obs-plugin";
+    // Use correct plugin config path defined by OneSevenLiveConfigManager: ~/.17Live
+    std::string pluginConfigDir = homeDir + "/.17Live";
     
     std::string tempDir = generateTempDirectory();
     
@@ -154,13 +169,13 @@ std::vector<std::string> DiagnosticsCollectorMacOS::collectConfigSnapshot() {
     }
     
     if (std::filesystem::exists(pluginConfigDir)) {
-        auto pluginFiles = getFilesInDirectory(pluginConfigDir, "*.json");
-        for (const auto& file : pluginFiles) {
-            std::string fileName = std::filesystem::path(file).filename().string();
-            std::string destPath = std::filesystem::path(tempDir) / ("plugin_" + fileName);
-            
-            if (copyFile(file, destPath)) {
-                configFiles.push_back(destPath);
+        // Recursively copy all files under ~/.17Live to staging temp with preserved structure
+        for (auto const& entry : std::filesystem::recursive_directory_iterator(pluginConfigDir)) {
+            if (!entry.is_regular_file()) continue;
+            std::filesystem::path rel = std::filesystem::relative(entry.path(), pluginConfigDir);
+            std::filesystem::path destPath = std::filesystem::path(tempDir) / "plugin_config" / rel;
+            if (copyFile(entry.path().string(), destPath.string())) {
+                configFiles.push_back(destPath.string());
             }
         }
     }
@@ -220,6 +235,10 @@ bool DiagnosticsCollectorMacOS::createZipArchive(const std::string& outputPath, 
             return "Configuration snapshot";
         }
         if (name.rfind("plugin_", 0) == 0 && name.find(".json") != std::string::npos) {
+            return "Configuration snapshot";
+        }
+        // Any files under plugin_config directory should be treated as configuration snapshot
+        if (path.find("plugin_config") != std::string::npos) {
             return "Configuration snapshot";
         }
         // System information
@@ -289,7 +308,8 @@ std::string DiagnosticsCollectorMacOS::getOBSLogDirectory() const {
 }
 
 std::string DiagnosticsCollectorMacOS::getPluginLogDirectory() const {
-    return getHomeDirectory() + "/Library/Application Support/17live-obs-plugin/logs";
+    // Logs are expected under ~/.17Live/logs for macOS
+    return getHomeDirectory() + "/.17Live/logs";
 }
 
 std::string DiagnosticsCollectorMacOS::getCrashReportsDirectory() const {
