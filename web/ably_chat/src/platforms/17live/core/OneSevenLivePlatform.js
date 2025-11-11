@@ -283,7 +283,7 @@ export class OneSevenLivePlatform extends BasePlatform {
         vffURL: gift.get('vffURL'),
         vffJson: gift.get('vffJson'),
       }
-      const composite = decodeMessage.giftMsg?.giftMetas[0]?.composite;
+      const composite = data?.giftMsg?.giftMetas?.[0]?.composite;
       if (composite) {
         playData.compositeData = Object.fromEntries(composite.map(item => [item.tag, item.imageURL]));
       }
