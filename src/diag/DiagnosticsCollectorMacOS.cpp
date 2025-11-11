@@ -34,56 +34,71 @@ std::string DiagnosticsCollectorMacOS::getSystemInfoImpl() const {
 std::vector<std::string> DiagnosticsCollectorMacOS::collectOBSLogs() {
     std::vector<std::string> logFiles;
     std::string obsLogDir = getOBSLogDirectory();
-    
+
     if (std::filesystem::exists(obsLogDir)) {
-        auto files = getFilesInDirectory(obsLogDir, "*.log");
+        // Collect .txt logs and pick latest 5
+        auto files = getFilesInDirectory(obsLogDir, "*.txt");
+        // Sort by modification time desc
+        std::sort(files.begin(), files.end(), [](const std::string& a, const std::string& b) {
+            return std::filesystem::last_write_time(a) > std::filesystem::last_write_time(b);
+        });
+        if (files.size() > 5) files.resize(5);
+
         std::string tempDir = generateTempDirectory();
-        
         for (const auto& file : files) {
             std::string fileName = std::filesystem::path(file).filename().string();
             std::string destPath = std::filesystem::path(tempDir) / ("obs_" + fileName);
-            
-            if (copyFile(file, destPath)) {
+            if (copyWithSizeLimit(file, destPath)) {
                 logFiles.push_back(destPath);
             }
         }
     }
-    
+
     return logFiles;
 }
 
 std::vector<std::string> DiagnosticsCollectorMacOS::collectPluginLogs() {
     std::vector<std::string> logFiles;
-    std::string pluginLogDir = getPluginLogDirectory();
-    
-    if (std::filesystem::exists(pluginLogDir)) {
-        // Collect .log plus any rotated logs like .log.N or .log.gz under ~/.17Live/logs
-        std::vector<std::string> files;
+
+    // Candidate plugin log directories under OBS plugin_config and legacy ~/.17Live/logs
+    std::string homeDir = getHomeDirectory();
+    std::vector<std::string> candidates = {
+        homeDir + "/Library/Application Support/obs-studio/plugin_config/17live/logs",
+        homeDir + "/Library/Application Support/obs-studio/plugin_config/obs-17live/logs",
+        homeDir + "/.17Live/logs"
+    };
+
+    std::vector<std::string> files;
+    for (const auto& dir : candidates) {
+        if (!std::filesystem::exists(dir)) continue;
         try {
-            for (const auto& entry : std::filesystem::directory_iterator(pluginLogDir)) {
+            for (const auto& entry : std::filesystem::directory_iterator(dir)) {
                 if (!entry.is_regular_file()) continue;
                 std::string name = entry.path().filename().string();
-                if (name.find(".log") != std::string::npos ||
-                    name.find(".gz") != std::string::npos ||
-                    std::regex_match(name, std::regex(R"(.*\.log\.[0-9]+)"))) {
+                if (name.find(".log") != std::string::npos) {
                     files.push_back(entry.path().string());
                 }
             }
         } catch (const std::exception& e) {
             setLastError(std::string("Error reading plugin logs: ") + e.what());
         }
-        std::string tempDir = generateTempDirectory();
-        
-        for (const auto& file : files) {
-            std::string fileName = std::filesystem::path(file).filename().string();
-            std::string destPath = std::filesystem::path(tempDir) / ("plugin_" + fileName);
-            
-            if (copyFile(file, destPath)) {
-                logFiles.push_back(destPath);
-            }
+    }
+
+    // Sort by modification time desc and choose latest 5
+    std::sort(files.begin(), files.end(), [](const std::string& a, const std::string& b) {
+        return std::filesystem::last_write_time(a) > std::filesystem::last_write_time(b);
+    });
+    if (files.size() > 5) files.resize(5);
+
+    std::string tempDir = generateTempDirectory();
+    for (const auto& file : files) {
+        std::string fileName = std::filesystem::path(file).filename().string();
+        std::string destPath = std::filesystem::path(tempDir) / ("plugin_" + fileName);
+        if (copyWithSizeLimit(file, destPath)) {
+            logFiles.push_back(destPath);
         }
     }
-    
+
     return logFiles;
 }
 
@@ -110,33 +125,62 @@ std::vector<std::string> DiagnosticsCollectorMacOS::collectNetworkLogs() {
 
 std::vector<std::string> DiagnosticsCollectorMacOS::collectCrashInfo() {
     std::vector<std::string> crashFiles;
-    std::string crashDir = getCrashReportsDirectory();
-    
-    if (std::filesystem::exists(crashDir)) {
-        auto files = getFilesInDirectory(crashDir, "*.crash");
-        auto diagFiles = getFilesInDirectory(crashDir, "*.diag");
-        
-        std::string tempDir = generateTempDirectory();
-        
-        for (const auto& file : files) {
-            std::string fileName = std::filesystem::path(file).filename().string();
-            std::string destPath = std::filesystem::path(tempDir) / ("crash_" + fileName);
-            
-            if (copyFile(file, destPath)) {
-                crashFiles.push_back(destPath);
+    std::string homeDir = getHomeDirectory();
+    // macOS crash reports locations
+    std::vector<std::string> crashDirs = {
+        homeDir + "/Library/Logs/DiagnosticReports",
+        std::string("/Library/Logs/DiagnosticReports")
+    };
+
+    auto now = std::chrono::system_clock::now();
+    auto cutoff = now - std::chrono::hours(24);
+    auto cutoff_fs = std::filesystem::file_time_type::clock::now() - (std::chrono::system_clock::now() - cutoff);
+
+    std::string tempDir = generateTempDirectory();
+
+    for (const auto& dir : crashDirs) {
+        if (!std::filesystem::exists(dir)) continue;
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+                if (!entry.is_regular_file()) continue;
+                auto name = entry.path().filename().string();
+                if (entry.path().extension() == ".crash" && name.rfind("obs_", 0) == 0) {
+                    auto mtime = std::filesystem::last_write_time(entry.path());
+                    if (mtime >= cutoff_fs) {
+                        std::string destPath = std::filesystem::path(tempDir) / ("crash_" + name);
+                        if (copyWithSizeLimit(entry.path().string(), destPath)) {
+                            crashFiles.push_back(destPath);
+                        }
+                    }
+                }
             }
-        }
-        
-        for (const auto& file : diagFiles) {
-            std::string fileName = std::filesystem::path(file).filename().string();
-            std::string destPath = std::filesystem::path(tempDir) / ("diag_" + fileName);
-            
-            if (copyFile(file, destPath)) {
-                crashFiles.push_back(destPath);
-            }
+        } catch (const std::exception& e) {
+            setLastError(std::string("Error reading crash reports: ") + e.what());
         }
     }
-    
+
+    // Plugin custom crash dumps under plugin_config/<Plugin>/crash/*.dmp
+    std::vector<std::string> pluginCrashDirs = {
+        homeDir + "/Library/Application Support/obs-studio/plugin_config/17live/crash",
+        homeDir + "/Library/Application Support/obs-studio/plugin_config/obs-17live/crash"
+    };
+    for (const auto& dir : pluginCrashDirs) {
+        if (!std::filesystem::exists(dir)) continue;
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+                if (!entry.is_regular_file()) continue;
+                if (entry.path().extension() == ".dmp") {
+                    std::string destPath = std::filesystem::path(tempDir) / ("crash_" + entry.path().filename().string());
+                    if (copyWithSizeLimit(entry.path().string(), destPath)) {
+                        crashFiles.push_back(destPath);
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            setLastError(std::string("Error reading plugin crash dumps: ") + e.what());
+        }
+    }
+
     return crashFiles;
 }
 
@@ -219,16 +263,16 @@ bool DiagnosticsCollectorMacOS::createZipArchive(const std::string& outputPath, 
     auto determineCategory = [](const std::string& path) -> std::string {
         std::string name = std::filesystem::path(path).filename().string();
         // OBS logs
-        if (name.rfind("obs_", 0) == 0 && name.find(".log") != std::string::npos) {
-            return "OBS logs";
+        if (name.rfind("obs_", 0) == 0 && name.find(".txt") != std::string::npos) {
+            return "obs_logs";
         }
         // Plugin logs
         if (name.rfind("plugin_", 0) == 0 && name.find(".log") != std::string::npos) {
-            return "Plugin logs";
+            return "plugin_logs";
         }
         // Crash information
         if (name.rfind("crash_", 0) == 0 || name.rfind("diag_", 0) == 0) {
-            return "Crash information";
+            return "crash_reports";
         }
         // Configuration snapshot
         if (name == "obs_global.ini" || name == "obs_basic.ini") {
@@ -241,9 +285,9 @@ bool DiagnosticsCollectorMacOS::createZipArchive(const std::string& outputPath, 
         if (path.find("plugin_config") != std::string::npos) {
             return "Configuration snapshot";
         }
-        // System information
-        if (name == "system_info.txt") {
-            return "System information";
+        // System information goes to root
+        if (name == "systeminfo.txt") {
+            return "ROOT";
         }
         // Network requests
         if (name == "network_requests.txt") {
@@ -260,9 +304,15 @@ bool DiagnosticsCollectorMacOS::createZipArchive(const std::string& outputPath, 
                 continue;
             }
             std::string category = determineCategory(file);
-            std::filesystem::path categoryDir = std::filesystem::path(stagingDir) / category;
-            std::filesystem::create_directories(categoryDir);
-            std::filesystem::path destPath = categoryDir / std::filesystem::path(file).filename();
+            std::filesystem::path destPath;
+            if (category == "ROOT") {
+                destPath = std::filesystem::path(stagingDir) / std::filesystem::path(file).filename();
+                std::filesystem::create_directories(std::filesystem::path(stagingDir));
+            } else {
+                std::filesystem::path categoryDir = std::filesystem::path(stagingDir) / category;
+                std::filesystem::create_directories(categoryDir);
+                destPath = categoryDir / std::filesystem::path(file).filename();
+            }
             std::filesystem::copy_file(file, destPath, std::filesystem::copy_options::overwrite_existing);
         }
     } catch (const std::exception& e) {
@@ -308,12 +358,17 @@ std::string DiagnosticsCollectorMacOS::getOBSLogDirectory() const {
 }
 
 std::string DiagnosticsCollectorMacOS::getPluginLogDirectory() const {
-    // Logs are expected under ~/.17Live/logs for macOS
-    return getHomeDirectory() + "/.17Live/logs";
+    // Prefer OBS plugin_config path; fallback to legacy ~/.17Live/logs
+    std::string home = getHomeDirectory();
+    std::string primary = home + "/Library/Application Support/obs-studio/plugin_config/17live/logs";
+    if (std::filesystem::exists(primary)) return primary;
+    std::string alt = home + "/Library/Application Support/obs-studio/plugin_config/obs-17live/logs";
+    if (std::filesystem::exists(alt)) return alt;
+    return home + "/.17Live/logs";
 }
 
 std::string DiagnosticsCollectorMacOS::getCrashReportsDirectory() const {
-    return getHomeDirectory() + "/Library/DiagnosticReports";
+    return getHomeDirectory() + "/Library/Logs/DiagnosticReports";
 }
 
 std::vector<std::string> DiagnosticsCollectorMacOS::getFilesInDirectory(const std::string& directory, const std::string& pattern) {
@@ -335,6 +390,8 @@ std::vector<std::string> DiagnosticsCollectorMacOS::getFilesInDirectory(const st
                 } else if (pattern == "*.diag" && filename.find(".diag") != std::string::npos) {
                     files.push_back(entry.path().string());
                 } else if (pattern == "*.json" && filename.find(".json") != std::string::npos) {
+                    files.push_back(entry.path().string());
+                } else if (pattern == "*.txt" && filename.find(".txt") != std::string::npos) {
                     files.push_back(entry.path().string());
                 }
             }

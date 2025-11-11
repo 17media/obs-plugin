@@ -44,6 +44,7 @@ protected:
     std::string sanitizeFileName(const std::string& filename);
     bool writeToFile(const std::string& path, const std::string& content);
     std::string writeSystemInfoToFile();
+    bool copyWithSizeLimit(const std::string& source, const std::string& destination, std::uintmax_t maxBytes = 1024 * 1024);
     
     std::unique_ptr<PrivacyFilter> m_privacyFilter;
     

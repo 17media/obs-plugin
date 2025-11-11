@@ -43,14 +43,17 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectOBSLogs() {
     std::string obsLogDir = getOBSLogDirectory();
     
     if (std::filesystem::exists(obsLogDir)) {
-        auto files = getFilesInDirectory(obsLogDir, ".log");
+        auto files = getFilesInDirectory(obsLogDir, ".txt");
+        std::sort(files.begin(), files.end(), [](const std::string& a, const std::string& b) {
+            return std::filesystem::last_write_time(a) > std::filesystem::last_write_time(b);
+        });
+        if (files.size() > 5) files.resize(5);
         std::string tempDir = generateTempDirectory();
         
         for (const auto& file : files) {
             std::string fileName = std::filesystem::path(file).filename().string();
             std::string destPath = std::filesystem::path(tempDir) / ("obs_" + fileName);
-            
-            if (copyFile(file, destPath)) {
+            if (copyWithSizeLimit(file, destPath)) {
                 logFiles.push_back(destPath);
             }
         }
@@ -65,13 +68,16 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectPluginLogs() {
     
     if (std::filesystem::exists(pluginLogDir)) {
         auto files = getFilesInDirectory(pluginLogDir, ".log");
+        std::sort(files.begin(), files.end(), [](const std::string& a, const std::string& b) {
+            return std::filesystem::last_write_time(a) > std::filesystem::last_write_time(b);
+        });
+        if (files.size() > 5) files.resize(5);
         std::string tempDir = generateTempDirectory();
         
         for (const auto& file : files) {
             std::string fileName = std::filesystem::path(file).filename().string();
             std::string destPath = std::filesystem::path(tempDir) / ("plugin_" + fileName);
-            
-            if (copyFile(file, destPath)) {
+            if (copyWithSizeLimit(file, destPath)) {
                 logFiles.push_back(destPath);
             }
         }
@@ -105,13 +111,21 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectCrashInfo() {
     
     if (std::filesystem::exists(crashDir)) {
         auto files = getFilesInDirectory(crashDir, ".dmp");
+        // Filter to obs*.dmp only
+        files.erase(std::remove_if(files.begin(), files.end(), [](const std::string& path) {
+            std::string name = std::filesystem::path(path).filename().string();
+            return name.rfind("obs", 0) != 0; // keep names starting with 'obs'
+        }), files.end());
+        std::sort(files.begin(), files.end(), [](const std::string& a, const std::string& b) {
+            return std::filesystem::last_write_time(a) > std::filesystem::last_write_time(b);
+        });
+        if (files.size() > 3) files.resize(3);
         std::string tempDir = generateTempDirectory();
         
         for (const auto& file : files) {
             std::string fileName = std::filesystem::path(file).filename().string();
             std::string destPath = std::filesystem::path(tempDir) / ("crash_" + fileName);
-            
-            if (copyFile(file, destPath)) {
+            if (copyWithSizeLimit(file, destPath)) {
                 crashFiles.push_back(destPath);
             }
         }
@@ -197,26 +211,57 @@ bool DiagnosticsCollectorWindows::createZipArchive(const std::string& outputPath
     if (files.empty()) {
         return false;
     }
-    
-    std::string tempDir = generateTempDirectory();
-    std::string fileListPath = std::filesystem::path(tempDir) / "file_list.txt";
-    
-    std::ofstream fileList(fileListPath);
-    if (!fileList.is_open()) {
-        setLastError("Failed to create file list for zip");
+
+    // Create staging directory and categorize similar to macOS
+    std::string stagingDir = generateTempDirectory();
+    if (stagingDir.empty()) {
+        setLastError("Failed to create staging directory");
         return false;
     }
-    
-    for (const auto& file : files) {
-        if (std::filesystem::exists(file)) {
-            fileList << file << std::endl;
+
+    auto determineCategory = [](const std::string& path) -> std::string {
+        std::string name = std::filesystem::path(path).filename().string();
+        if (name.rfind("obs_", 0) == 0 && name.find(".txt") != std::string::npos) {
+            return "obs_logs";
         }
+        if (name.rfind("plugin_", 0) == 0 && name.find(".log") != std::string::npos) {
+            return "plugin_logs";
+        }
+        if (name.rfind("crash_", 0) == 0) {
+            return "crash_reports";
+        }
+        if (name == "systeminfo.txt") {
+            return "ROOT";
+        }
+        if (name == "network_requests.txt") {
+            return "Network requests";
+        }
+        return "Misc";
+    };
+
+    try {
+        for (const auto& file : files) {
+            if (!std::filesystem::exists(file)) continue;
+            std::string category = determineCategory(file);
+            std::filesystem::path destPath;
+            if (category == "ROOT") {
+                destPath = std::filesystem::path(stagingDir) / std::filesystem::path(file).filename();
+                std::filesystem::create_directories(std::filesystem::path(stagingDir));
+            } else {
+                std::filesystem::path categoryDir = std::filesystem::path(stagingDir) / category;
+                std::filesystem::create_directories(categoryDir);
+                destPath = categoryDir / std::filesystem::path(file).filename();
+            }
+            std::filesystem::copy_file(file, destPath, std::filesystem::copy_options::overwrite_existing);
+        }
+    } catch (const std::exception& e) {
+        setLastError(std::string("Failed to prepare staging files: ") + e.what());
+        return false;
     }
-    fileList.close();
-    
-    std::string zipCommand = "Get-Content \"" + fileListPath + "\" | Compress-Archive -DestinationPath \"" + outputPath + "\"";
+
+    // Compress the staging directory
+    std::string zipCommand = "Compress-Archive -Path \"" + stagingDir + "\" -DestinationPath \"" + outputPath + "\" -Force";
     std::string result = executePowerShellCommand(zipCommand);
-    
     return std::filesystem::exists(outputPath) && std::filesystem::file_size(outputPath) > 0;
 }
 
@@ -257,11 +302,21 @@ std::string DiagnosticsCollectorWindows::getOBSLogDirectory() const {
 }
 
 std::string DiagnosticsCollectorWindows::getPluginLogDirectory() const {
-    return getAppDataPath() + "\\17live-obs-plugin\\logs";
+    std::string path = getAppDataPath() + "\\obs-studio\\plugin_config\\17live\\logs";
+    if (std::filesystem::exists(path)) return path;
+    path = getAppDataPath() + "\\obs-studio\\plugin_config\\obs-17live\\logs";
+    return path;
 }
 
 std::string DiagnosticsCollectorWindows::getCrashDumpDirectory() const {
-    return getAppDataPath() + "\\17live-obs-plugin\\crashes";
+    char* localAppData = nullptr;
+    size_t len = 0;
+    if (_dupenv_s(&localAppData, &len, "LOCALAPPDATA") == 0 && localAppData != nullptr) {
+        std::string result(localAppData);
+        free(localAppData);
+        return result + "\\CrashDumps";
+    }
+    return std::string();
 }
 
 std::vector<std::string> DiagnosticsCollectorWindows::getFilesInDirectory(const std::string& directory, const std::string& extension) {

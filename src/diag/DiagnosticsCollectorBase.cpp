@@ -207,7 +207,7 @@ std::string DiagnosticsCollectorBase::writeSystemInfoToFile() {
         return "";
     }
     
-    std::string filePath = std::filesystem::path(tempDir) / "system_info.txt";
+    std::string filePath = std::filesystem::path(tempDir) / "systeminfo.txt";
     std::string systemInfo = getSystemInfo();
     
     if (writeToFile(filePath, systemInfo)) {
@@ -215,6 +215,33 @@ std::string DiagnosticsCollectorBase::writeSystemInfoToFile() {
     }
     
     return "";
+}
+
+bool DiagnosticsCollectorBase::copyWithSizeLimit(const std::string& source, const std::string& destination, std::uintmax_t maxBytes) {
+    try {
+        if (!std::filesystem::exists(source)) {
+            return false;
+        }
+        std::filesystem::create_directories(std::filesystem::path(destination).parent_path());
+        auto size = std::filesystem::file_size(source);
+        if (size <= maxBytes) {
+            std::filesystem::copy_file(source, destination, std::filesystem::copy_options::overwrite_existing);
+            return true;
+        }
+        // Create a marker .txt noting the original file path when too large
+        std::string marker = destination;
+        if (std::filesystem::path(destination).extension() != ".txt") {
+            marker = (std::filesystem::path(destination).parent_path() / (std::filesystem::path(destination).filename().string() + ".txt")).string();
+        }
+        std::stringstream ss;
+        ss << "File exceeds size limit (" << maxBytes << " bytes).\n";
+        ss << "Original path: " << source << "\n";
+        ss << "Size: " << size << " bytes\n";
+        return writeToFile(marker, ss.str());
+    } catch (const std::exception& e) {
+        setLastError(std::string("Failed to copy with size limit: ") + e.what());
+        return false;
+    }
 }
 
 } // namespace diag
