@@ -135,7 +135,7 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
             // Object attributes - monthlyVIPBadges
             // Note: This assumes QVariantMap can be built directly from JSON object, actual
             // implementation may need adjustment
-            if (userInfoJson["monthlyVIPBadges"].is_object()) {
+            if (userInfoJson.contains("monthlyVIPBadges") && userInfoJson["monthlyVIPBadges"].is_object()) {
                 // Need to handle monthlyVIPBadges based on actual situation
                 // Simple example:
                 // const auto& badges = userInfoJson["monthlyVIPBadges"].object_items();
@@ -425,7 +425,7 @@ bool JsonToOneSevenLiveArmyInfo(const nlohmann::json &json, OneSevenLiveArmyInfo
         return false;
     }
 
-    if (json["user"].is_object()) {
+    if (json.contains("user") && json["user"].is_object()) {
         JsonToOneSevenLiveArmyInfoUser(json["user"], armyInfo.user);
     }
 
@@ -522,7 +522,7 @@ bool JsonToOneSevenLiveUserAttr(const nlohmann::json &json, OneSevenLiveUserAttr
         userAttr.gloryroadMode = json["gloryroadMode"].get<int>();
     }
 
-    if (json["gloryroadInfo"].is_object()) {
+    if (json.contains("gloryroadInfo") && json["gloryroadInfo"].is_object()) {
         JsonToOneSevenLiveGloryroadInfo(json["gloryroadInfo"], userAttr.gloryroadInfo);
     }
 
@@ -619,7 +619,7 @@ bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json,
         displayUser.fgColor = QString::fromStdString(json["fgColor"].get<std::string>());
     }
 
-    if (json["gloryroadInfo"].is_object()) {
+    if (json.contains("gloryroadInfo") && json["gloryroadInfo"].is_object()) {
         JsonToOneSevenLiveGloryroadInfo(json["gloryroadInfo"], displayUser.gloryroadInfo);
     }
 
@@ -1789,9 +1789,9 @@ bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json,
 
     try {
         // Parse event section
-        if (json["event"].is_object()) {
-            JsonToOneSevenLiveEventSection(json["event"], response.event);
-        }
+    if (json.contains("event") && json["event"].is_object()) {
+        JsonToOneSevenLiveEventSection(json["event"], response.event);
+    }
 
         // Parse customEvent section
         if (json.contains("customEvent") && json["customEvent"].is_object()) {
