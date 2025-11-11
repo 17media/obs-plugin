@@ -39,8 +39,9 @@ public:
     void setTokens(const QString& accessToken, const QString& refreshToken);
     void clearTokens();
 
-    // Authorization callback handler: parse code/scope/state from redirect URL
-    void handleAuthorizationCallbackUrl(const QString& callbackUrl);
+    // Authorization callback handler: parse token/scope/state or errors from redirect URL
+    // Returns true on successful token parsing; false on error or unexpected format
+    bool handleAuthorizationCallbackUrl(const QString& callbackUrl);
 
     // Get Twitch API client instance
     OneSevenLiveTwitchClient* getTwitchClient() { return m_twitchClient.get(); }

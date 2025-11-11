@@ -15,6 +15,7 @@
 #include <QDesktopServices>
 #include <QTimerEvent>
 #include <QRandomGenerator>
+#include <QMessageBox>
 
 #include <obs-module.h>
 
@@ -335,13 +336,32 @@ QString OneSevenLiveTwitchAuth::getScope() const
 
 // getTwitchClient is defined inline in the header; no out-of-line definition needed.
 
-void OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callbackUrl)
+bool OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callbackUrl)
 {
     QUrl url(callbackUrl);
     if (!url.isValid()) {
         obs_log(LOG_WARNING, "Twitch callback URL invalid: %s", callbackUrl.toUtf8().constData());
-        return;
+        return false;
     }
+
+    // If the callback contains error parameters, notify user and fail
+    const QUrlQuery query(url.query());
+    const QString error = query.queryItemValue("error");
+    const QString errorDescription = query.queryItemValue("error_description");
+    if (!error.isEmpty()) {
+        const QString desc = errorDescription.isEmpty() ? error : errorDescription;
+        obs_log(LOG_WARNING, "Twitch authorization error: %s - %s",
+                error.toUtf8().constData(), desc.toUtf8().constData());
+        QMessageBox::warning(nullptr, obs_module_text("Live.Common.Notice"),
+                             QString("Twitch authorization failed: %1").arg(desc));
+        emit authorizationFailed(desc);
+        return false;
+    }
+
+    // Validate expected origin: only localhost:3000 is accepted for implicit flow
+    const QString origin = url.scheme() + "://" + url.host() +
+                           (url.port() != -1 ? (":" + QString::number(url.port())) : QString()) + "/";
+    const bool originIsLocalhost = (origin == "http://localhost:3000/");
 
     // Support implicit grant style: http://localhost:3000/#access_token=...&scope=...&state=...&token_type=bearer
     const QString fragment = url.fragment();
@@ -354,7 +374,14 @@ void OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
 
         if (accessToken.isEmpty()) {
             obs_log(LOG_WARNING, "Twitch implicit callback missing 'access_token' in fragment");
-            return;
+            return false;
+        }
+
+        // If origin is unexpected, treat as error and fail
+        if (!originIsLocalhost) {
+            obs_log(LOG_WARNING, "Twitch callback origin unexpected: %s",
+                    origin.toUtf8().constData());
+            return false;
         }
 
         // Validate CSRF state if present (warn only)
@@ -388,6 +415,11 @@ void OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
         }
         
         emit authorizationCompleted(m_accessToken, m_refreshToken);
-        return;
+        return true;
     }
+
+    // No fragment and no explicit error -> treat as unexpected format
+    obs_log(LOG_WARNING, "Twitch callback URL does not contain expected fragment or error: %s",
+            callbackUrl.toUtf8().constData());
+    return false;
 }
