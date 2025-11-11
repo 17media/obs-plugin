@@ -8,9 +8,9 @@ import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
 import { MsgType_COMMENT, MsgType_JOIN_ROOM, MsgType_NEW_GIFT } from '@/lib/constants';
 // Dev-only mock messages (aligned with 17live pattern)
-import twitchMockChat from '@/../public/mock/twitch_chat_message.json';
-import twitchMockJoin from '@/../public/mock/twitch_chat_join.json';
-import twitchMockSub from '@/../public/mock/twitch_chat_subscription.json';
+// import twitchMockChat from '@/../public/mock/twitch_chat_message.json';
+// import twitchMockJoin from '@/../public/mock/twitch_chat_join.json';
+// import twitchMockSub from '@/../public/mock/twitch_chat_subscription.json';
 
 export class TwitchPlatform extends BasePlatform {
   constructor() {
@@ -33,9 +33,9 @@ export class TwitchPlatform extends BasePlatform {
     if (this.devMocksInjected || process.env.NEXT_PUBLIC_MOCK !== '1') return;
     // Use imported mock data to ensure bundler resolves JSON correctly
     const mocks = [
-      this.processRawMessage(twitchMockChat),
-      this.processRawMessage(twitchMockJoin),
-      this.processRawMessage(twitchMockSub),
+      // this.processRawMessage(twitchMockChat),
+      // this.processRawMessage(twitchMockJoin),
+      // this.processRawMessage(twitchMockSub),
     ].filter(Boolean);
 
     mocks.forEach((mock) => this.enqueueMessage(mock));

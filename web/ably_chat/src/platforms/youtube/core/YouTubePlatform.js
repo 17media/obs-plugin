@@ -8,8 +8,8 @@ import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
 import { MsgType_COMMENT, MsgType_JOIN_ROOM } from '@/lib/constants';
 // Dev-only mock messages (aligned with 17live pattern)
-import youtubeMockComment from '@/../public/mock/youtube_chat_message.json';
-import youtubeMockJoin from '@/../public/mock/youtube_chat_join.json';
+// import youtubeMockComment from '@/../public/mock/youtube_chat_message.json';
+// import youtubeMockJoin from '@/../public/mock/youtube_chat_join.json';
 
 export class YouTubePlatform extends BasePlatform {
   constructor() {
@@ -31,25 +31,25 @@ export class YouTubePlatform extends BasePlatform {
   injectDevMocks() {
     if (this.devMocksInjected || process.env.NEXT_PUBLIC_MOCK !== '1') return;
     const mocks = [
-      this.processRawMessage(youtubeMockComment),
-      {
-        id: youtubeMockJoin.id,
-        platform: this.platformId,
-        timestamp: Date.now(),
-        content: fromJS({
-          id: youtubeMockJoin.id,
-          messageType: MsgType_JOIN_ROOM,
-          displayName: youtubeMockJoin.authorDetails?.displayName || 'YouTube Visitor',
-          openID: youtubeMockJoin.authorDetails?.channelId,
-          userID: youtubeMockJoin.authorDetails?.channelId,
-          content: 'YouTube Visitor joined the live room',
-          level: 1,
-          name: { textColor: '#FF0000' },
-          comment: { textColor: '#FFFFFF' },
-          backgroundColor: '',
-          streamerInfo: null,
-        }),
-      },
+      // this.processRawMessage(youtubeMockComment),
+      // {
+      //   id: youtubeMockJoin.id,
+      //   platform: this.platformId,
+      //   timestamp: Date.now(),
+      //   content: fromJS({
+      //     id: youtubeMockJoin.id,
+      //     messageType: MsgType_JOIN_ROOM,
+      //     displayName: youtubeMockJoin.authorDetails?.displayName || 'YouTube Visitor',
+      //     openID: youtubeMockJoin.authorDetails?.channelId,
+      //     userID: youtubeMockJoin.authorDetails?.channelId,
+      //     content: 'YouTube Visitor joined the live room',
+      //     level: 1,
+      //     name: { textColor: '#FF0000' },
+      //     comment: { textColor: '#FFFFFF' },
+      //     backgroundColor: '',
+      //     streamerInfo: null,
+      //   }),
+      // },
     ].filter(Boolean);
 
     mocks.forEach((mock) => this.enqueueMessage(mock));

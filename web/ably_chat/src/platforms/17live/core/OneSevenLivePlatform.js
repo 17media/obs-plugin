@@ -21,16 +21,16 @@ import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '../a
 import { sendWSMessage } from '@/services/WSSender';
 
 // Dev-only mock messages (same as Ably.jsx)
-import giftdata from '@/../public/mock/chat_new_gift_2.json';
-import comment from '@/../public/mock/chat_message.json';
-import newjoin from '@/../public/mock/chat_new_join.json';
-import aicohost from '@/../public/mock/chat_ai_cohost.json';
-import pokeone from '@/../public/mock/chat_poke.json';
-import pokeall from '@/../public/mock/chat_poke_all.json';
-import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
-import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
-import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
-import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
+// import giftdata from '@/../public/mock/chat_new_gift_2.json';
+// import comment from '@/../public/mock/chat_message.json';
+// import newjoin from '@/../public/mock/chat_new_join.json';
+// import aicohost from '@/../public/mock/chat_ai_cohost.json';
+// import pokeone from '@/../public/mock/chat_poke.json';
+// import pokeall from '@/../public/mock/chat_poke_all.json';
+// import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
+// import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
+// import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
+// import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
 
 export class OneSevenLivePlatform extends BasePlatform {
   constructor() {
@@ -97,32 +97,32 @@ export class OneSevenLivePlatform extends BasePlatform {
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, roomID });
 
-      if (process.env.NODE_ENV === 'development') {
-        const mocks = [
-          this.prepareIndexedChat(comment),
-          this.prepareIndexedChat(newjoin),
-          this.prepareIndexedChat(giftdata),
-          this.prepareIndexedChat(aicohost),
-          this.prepareIndexedChat(pokeone),
-          this.prepareIndexedChat(pokeall),
-          this.prepareIndexedChat(pokeback0),
-          this.prepareIndexedChat(pokeback1),
-          this.prepareIndexedChat(pokeback2),
-          this.prepareIndexedChat(pokeback3),
-        ];
-        console.log('mocks', mocks);
-        mocks.forEach((mock) => {
-          if (mock) {
-            const unifiedMessage = {
-              id: mock.get('id'),
-              platform: this.platformId,
-              timestamp: Date.now(),
-              content: mock,
-            };
-            this.enqueueMessage(unifiedMessage);
-          }
-        });
-      }
+      // if (process.env.NODE_ENV === 'development') {
+      //   const mocks = [
+      //     this.prepareIndexedChat(comment),
+      //     this.prepareIndexedChat(newjoin),
+      //     this.prepareIndexedChat(giftdata),
+      //     this.prepareIndexedChat(aicohost),
+      //     this.prepareIndexedChat(pokeone),
+      //     this.prepareIndexedChat(pokeall),
+      //     this.prepareIndexedChat(pokeback0),
+      //     this.prepareIndexedChat(pokeback1),
+      //     this.prepareIndexedChat(pokeback2),
+      //     this.prepareIndexedChat(pokeback3),
+      //   ];
+      //   console.log('mocks', mocks);
+      //   mocks.forEach((mock) => {
+      //     if (mock) {
+      //       const unifiedMessage = {
+      //         id: mock.get('id'),
+      //         platform: this.platformId,
+      //         timestamp: Date.now(),
+      //         content: mock,
+      //       };
+      //       this.enqueueMessage(unifiedMessage);
+      //     }
+      //   });
+      // }
       
     } catch (error) {
       console.error('17Live connection failed:', error);
