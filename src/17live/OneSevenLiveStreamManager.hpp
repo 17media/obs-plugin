@@ -100,6 +100,24 @@ public:
     const OneSevenLiveRtmpResponse& getCurrentStreamResponse() const;
 
     /**
+     * @brief Get current stream request used for creation
+     * @return OneSevenLiveRtmpRequest Current stream request
+     */
+    const OneSevenLiveRtmpRequest& getCurrentStreamRequest() const;
+
+    /**
+     * @brief Get current live stream info snapshot
+     * @return OneSevenLiveStreamInfo Current live stream info
+     */
+    const OneSevenLiveStreamInfo& getCurrentLiveStreamInfo() const;
+
+    /**
+     * @brief Check if there is an active live stream
+     * @return bool True if a live stream is active
+     */
+    bool hasActiveLiveStream() const;
+
+    /**
      * @brief Stop OBS streaming (frontend control)
      */
     void stopOBSStreaming();
@@ -255,6 +273,8 @@ private:
     std::string currentUserID;
     
     OneSevenLiveRtmpResponse currentStreamResponse;  // Store current stream response
+    OneSevenLiveRtmpRequest currentStreamRequest;    // Store current stream request
+    OneSevenLiveStreamInfo currentLiveStreamInfo;    // Snapshot info for current live
     
     // Event cooldown management
     QTimer* eventCooldownTimer;

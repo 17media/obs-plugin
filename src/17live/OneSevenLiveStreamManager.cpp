@@ -62,6 +62,15 @@ bool OneSevenLiveStreamManager::createLiveStream(const OneSevenLiveRtmpRequest& 
     // Store the current stream ID and user ID
     currentLiveStreamID = response.liveStreamID.toStdString();
     currentUserID = userID;
+    // Store full request/response and snapshot info
+    currentStreamRequest = modifiedRequest;
+    currentStreamResponse = response;
+    OneSevenLiveStreamInfo info;
+    info.request = modifiedRequest;
+    info.categoryName = QString();
+    info.createdAt = QDateTime::currentDateTime();
+    info.streamUuid = response.streamID;
+    currentLiveStreamInfo = info;
     
     // Update status
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
@@ -143,6 +152,9 @@ bool OneSevenLiveStreamManager::stopStreaming(const std::string& userID,
     // Clear current stream info
     currentLiveStreamID.clear();
     currentUserID.clear();
+    currentStreamRequest = OneSevenLiveRtmpRequest{};
+    currentStreamResponse = OneSevenLiveRtmpResponse{};
+    currentLiveStreamInfo = OneSevenLiveStreamInfo{};
     
     obs_log(LOG_INFO, "Streaming stopped successfully");
     return true;
@@ -482,4 +494,16 @@ void OneSevenLiveStreamManager::configureStreamingSettings(const OneSevenLiveRtm
 
 const OneSevenLiveRtmpResponse& OneSevenLiveStreamManager::getCurrentStreamResponse() const {
     return currentStreamResponse;
+}
+
+const OneSevenLiveRtmpRequest& OneSevenLiveStreamManager::getCurrentStreamRequest() const {
+    return currentStreamRequest;
+}
+
+const OneSevenLiveStreamInfo& OneSevenLiveStreamManager::getCurrentLiveStreamInfo() const {
+    return currentLiveStreamInfo;
+}
+
+bool OneSevenLiveStreamManager::hasActiveLiveStream() const {
+    return !currentLiveStreamID.empty() && currentStreamingStatus != OneSevenLiveStreamingStatus::NotStarted;
 }
