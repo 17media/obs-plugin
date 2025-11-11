@@ -87,6 +87,28 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
+# Add IXWebSocket as subdirectory
+add_subdirectory(deps/IXWebSocket)
+
+if(TARGET ixwebsocket)
+  # MSVC: suppress common conversion warnings (add/remove based on compiler diagnostics)
+  target_compile_options(ixwebsocket PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267 /wd4305 /WX-> # /WX- attempt to disable warnings-as-errors
+  )
+
+  # GCC/Clang: suppress conversion/sign-conversion warnings and prevent -Werror from promoting them to errors
+  target_compile_options(ixwebsocket PRIVATE
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:
+    -Wno-conversion -Wno-sign-conversion -Wno-error=conversion -Wno-error=sign-conversion>
+  )
+
+# If ixwebsocket globally sets -Werror on its target, the -Wno-error=... flags above try to override it.
+# If that is insufficient, you can further remove all -Werror (use with caution):
+# target_compile_options(ixwebsocket PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wno-error>)
+else()
+  message(WARNING "Target 'ixwebsocket' not found. Check deps/IXWebSocket CMakeLists or actual target name.")
+endif()
+
 # Link CEF libraries (nlohmann json is header-only)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
   CEF::Library
@@ -94,9 +116,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
   Threads::Threads # For cpp-httplib
   ixwebsocket # For WebSocket functionality
 )
-
-# Add IXWebSocket as subdirectory
-add_subdirectory(deps/IXWebSocket)
 
 # Add cpp-httplib include directory (though it might already be covered by 'deps')
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
