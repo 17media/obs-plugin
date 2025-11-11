@@ -61,7 +61,7 @@ private:
     QLabel* m_outputPathLabel;
     
     QString m_outputPath;
-    std::unique_ptr<DiagnosticsWorker> m_worker;
+    DiagnosticsWorker* m_worker;
     QThread* m_workerThread;
 };
 

@@ -193,27 +193,72 @@ bool DiagnosticsCollectorMacOS::createZipArchive(const std::string& outputPath, 
         return false;
     }
     
-    std::string tempDir = generateTempDirectory();
-    std::string fileListPath = std::filesystem::path(tempDir) / "file_list.txt";
-    
-    std::ofstream fileList(fileListPath);
-    if (!fileList.is_open()) {
-        setLastError("Failed to create file list for zip");
+    // Create a staging directory where files are organized into category subdirectories
+    std::string stagingDir = generateTempDirectory();
+    if (stagingDir.empty()) {
+        setLastError("Failed to create staging directory");
         return false;
     }
-    
-    for (const auto& file : files) {
-        if (std::filesystem::exists(file)) {
-            fileList << file << std::endl;
+
+    // Helper to determine category folder name based on filename pattern
+    auto determineCategory = [](const std::string& path) -> std::string {
+        std::string name = std::filesystem::path(path).filename().string();
+        // OBS logs
+        if (name.rfind("obs_", 0) == 0 && name.find(".log") != std::string::npos) {
+            return "OBS logs";
         }
+        // Plugin logs
+        if (name.rfind("plugin_", 0) == 0 && name.find(".log") != std::string::npos) {
+            return "Plugin logs";
+        }
+        // Crash information
+        if (name.rfind("crash_", 0) == 0 || name.rfind("diag_", 0) == 0) {
+            return "Crash information";
+        }
+        // Configuration snapshot
+        if (name == "obs_global.ini" || name == "obs_basic.ini") {
+            return "Configuration snapshot";
+        }
+        if (name.rfind("plugin_", 0) == 0 && name.find(".json") != std::string::npos) {
+            return "Configuration snapshot";
+        }
+        // System information
+        if (name == "system_info.txt") {
+            return "System information";
+        }
+        // Network requests
+        if (name == "network_requests.txt") {
+            return "Network requests";
+        }
+        // Fallback
+        return "Misc";
+    };
+
+    // Copy files into categorized subdirectories under the staging directory
+    try {
+        for (const auto& file : files) {
+            if (!std::filesystem::exists(file)) {
+                continue;
+            }
+            std::string category = determineCategory(file);
+            std::filesystem::path categoryDir = std::filesystem::path(stagingDir) / category;
+            std::filesystem::create_directories(categoryDir);
+            std::filesystem::path destPath = categoryDir / std::filesystem::path(file).filename();
+            std::filesystem::copy_file(file, destPath, std::filesystem::copy_options::overwrite_existing);
+        }
+    } catch (const std::exception& e) {
+        setLastError(std::string("Failed to prepare staging files: ") + e.what());
+        return false;
     }
-    fileList.close();
-    
-    std::string zipCommand = "cd \"" + std::filesystem::path(files[0]).parent_path().string() + 
-                            "\" && zip -@ \"" + outputPath + "\" < \"" + fileListPath + "\"";
-    
+
+    // Zip from the parent of the staging directory so the ZIP contains
+    // a top-level diagnostics folder with categorized subdirectories
+    std::filesystem::path stagingPath(stagingDir);
+    std::string parentDir = stagingPath.parent_path().string();
+    std::string baseName = stagingPath.filename().string();
+    std::string zipCommand = "cd \"" + parentDir + "\" && zip -r \"" + outputPath + "\" \"" + baseName + "\"";
     std::string result = executeCommand(zipCommand);
-    
+
     return std::filesystem::exists(outputPath) && std::filesystem::file_size(outputPath) > 0;
 }
 

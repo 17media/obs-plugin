@@ -28,16 +28,16 @@ DiagnosticsDialog::DiagnosticsDialog(QWidget* parent)
     
     // Create worker thread
     m_workerThread = new QThread(this);
-    m_worker = std::make_unique<DiagnosticsWorker>();
+    m_worker = new DiagnosticsWorker();
     m_worker->moveToThread(m_workerThread);
     
     // Connect signals
-    connect(this, &DiagnosticsDialog::startCollection, m_worker.get(), &DiagnosticsWorker::performCollection);
-    connect(m_worker.get(), &DiagnosticsWorker::collectionCompleted, this, &DiagnosticsDialog::onCollectionCompleted);
-    connect(m_worker.get(), &DiagnosticsWorker::progressUpdate, this, &DiagnosticsDialog::onProgressUpdate);
-    connect(m_worker.get(), &DiagnosticsWorker::error, this, &DiagnosticsDialog::onCollectionError);
+    connect(this, &DiagnosticsDialog::startCollection, m_worker, &DiagnosticsWorker::performCollection);
+    connect(m_worker, &DiagnosticsWorker::collectionCompleted, this, &DiagnosticsDialog::onCollectionCompleted);
+    connect(m_worker, &DiagnosticsWorker::progressUpdate, this, &DiagnosticsDialog::onProgressUpdate);
+    connect(m_worker, &DiagnosticsWorker::error, this, &DiagnosticsDialog::onCollectionError);
     
-    connect(m_workerThread, &QThread::finished, m_worker.get(), &QObject::deleteLater);
+    connect(m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
     
     m_workerThread->start();
     
@@ -52,9 +52,13 @@ DiagnosticsDialog::DiagnosticsDialog(QWidget* parent)
 
 DiagnosticsDialog::~DiagnosticsDialog() {
     if (m_workerThread) {
+        // Stop thread and ensure queued deletes run
         m_workerThread->quit();
         m_workerThread->wait();
+        m_workerThread->deleteLater();
     }
+    // Worker will be deleted by deleteLater when the thread finishes
+    m_worker = nullptr;
 }
 
 void DiagnosticsDialog::setupUI() {
