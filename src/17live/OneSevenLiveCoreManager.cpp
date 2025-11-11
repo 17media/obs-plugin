@@ -156,6 +156,16 @@ bool OneSevenLiveCoreManager::initialize() {
                             clientId.c_str());
                 }
                 return;
+            } else if (typeStr == "action") {
+                if (payload && payload->is_object()) { 
+                    // payload.type == "refresh_rockzone"
+                    if (payload->contains("type") && payload->at("type").is_string() &&
+                        payload->at("type").get<std::string>() == "refresh_rockzone") {
+                        // rockzoneDock refreshUserList
+                        rockZoneDock->refreshUserList();
+                    }
+                }
+                return;
             }
 
             obs_log(LOG_INFO,

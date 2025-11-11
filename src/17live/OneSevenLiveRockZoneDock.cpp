@@ -32,11 +32,6 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
     setupUi();
     createConnections();
 
-    // Initialize auto refresh timer
-    refreshTimer = new QTimer(this);
-    refreshTimer->setInterval(5000);  // 5 seconds
-    connect(refreshTimer, &QTimer::timeout, this, &OneSevenLiveRockZoneDock::refreshUserList);
-
     // Initialize cooldown timer
     cooldownTimer = new QTimer(this);
     cooldownTimer->setInterval(1000);  // 1 second
@@ -44,7 +39,6 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
             &OneSevenLiveRockZoneDock::onCooldownTimerTimeout);
 
     refreshUserList();
-    refreshTimer->start();
 
     connect(this, &QDockWidget::topLevelChanged, this,
             &OneSevenLiveRockZoneDock::handleTopLevelChanged);

@@ -61,9 +61,6 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     // User information dialog
     OneSevenLiveUserDialog* userDialog;
 
-    // Auto refresh timer
-    QTimer* refreshTimer = nullptr;
-
     // Cooldown timer for poke all button
     QTimer* cooldownTimer = nullptr;
     int cooldownSeconds = 0;

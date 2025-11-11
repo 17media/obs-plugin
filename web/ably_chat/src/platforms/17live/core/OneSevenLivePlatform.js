@@ -15,6 +15,7 @@ import {
   MsgType_NEW_LUCKYBAG,
   MsgType_AI_COHOST_MESSAGE,
   MsgType_POKE,
+  MsgType_ROCKZONE,
 } from '@/lib/constants';
 import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '../api';
 import { sendWSMessage } from '@/services/WSSender';
@@ -256,6 +257,10 @@ export class OneSevenLivePlatform extends BasePlatform {
         return this.processAICohostMessage(rawData);
       case MsgType_POKE:
         return this.processPokeMessage(rawData);
+      case MsgType_ROCKZONE:
+        // just send refresh-rockzone message
+        this.processRockZoneMessage(rawData);
+        return null;
       default:
         // console.warn('Unknown 17Live message type:', type);
         return null;
@@ -330,5 +335,16 @@ export class OneSevenLivePlatform extends BasePlatform {
       timestamp: Date.now(),
       content,
     };
+  }
+
+  processRockZoneMessage(data) {
+    let playData = {
+      type: 'refresh_rockzone',
+    }
+    sendWSMessage({
+      type: 'action',
+      source: 'client',
+      payload: playData
+    });
   }
 }
