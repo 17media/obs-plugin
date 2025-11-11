@@ -19,6 +19,8 @@
 #include "OneSevenLiveLoadRoomInfoWorker.hpp"
 #include "api/OneSevenLiveModels.hpp"
 
+#include "OneSevenLiveStreamManager.hpp"
+
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
 class OneSevenLiveCustomEventDialog;
@@ -27,9 +29,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     Q_OBJECT
 
    public:
-    explicit OneSevenLiveStreamingDock(QWidget *parent = nullptr,
-                                       OneSevenLiveApiWrappers *apiWrapper = nullptr,
-                                       OneSevenLiveConfigManager *configManager = nullptr);
+    explicit OneSevenLiveStreamingDock(QWidget *parent = nullptr);
     ~OneSevenLiveStreamingDock();
 
     void updateLiveStatus(OneSevenLiveStreamingStatus status);
@@ -178,8 +178,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void updateTagsFromList();
     int hashtagSelectLimit = 2;  // Maximum number of tags that can be added
 
-    OneSevenLiveApiWrappers *apiWrapper = nullptr;
-    OneSevenLiveConfigManager *configManager = nullptr;
+    OneSevenLiveStreamManager *streamManager = nullptr;
 
     QString currentInfoUuid = "";
     std::atomic<bool> isLoading{false};  // Thread-safe loading state indicator

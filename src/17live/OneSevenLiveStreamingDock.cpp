@@ -25,12 +25,13 @@
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
 
-OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
-                                                     OneSevenLiveApiWrappers *apiWrapper_,
-                                                     OneSevenLiveConfigManager *configManager_)
-    : QDockWidget(obs_module_text("Live.Settings"), parent),
-      apiWrapper(apiWrapper_),
-      configManager(configManager_) {
+#include "OneSevenLiveCoreManager.hpp"
+
+OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent)
+    : QDockWidget(obs_module_text("Live.Settings"), parent) {
+    // Get stream manager from core manager
+    streamManager = OneSevenLiveCoreManager::getInstance().getStreamManager();
+    
     // Initialize category cooldown timer
     eventCooldownTimer = new QTimer(this);
     eventCooldownTimer->setSingleShot(false);
@@ -497,7 +498,9 @@ void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
         [this, roomID, workerThread, localRoomInfo, localConfigStreamer, localUserInfo,
          localLevels]() mutable {
             // Create worker in the thread context
-            OneSevenLiveLoadRoomInfoWorker worker(apiWrapper, configManager);
+            auto* apiWrapper = OneSevenLiveCoreManager::getInstance().getApiWrapper();
+    auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
+    OneSevenLiveLoadRoomInfoWorker worker(apiWrapper, configManager);
             worker.setDataStructures(&localRoomInfo, &localConfigStreamer, &localUserInfo,
                                      &localLevels);
 
@@ -647,7 +650,7 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(
         connect(msgBox, &QMessageBox::finished, this, [this, msgBox, retryButton]() {
             if (msgBox->clickedButton() == retryButton) {
                 // Get current room ID and retry loading
-                qint64 currentRoomID = configManager->getRoomID();
+                qint64 currentRoomID = streamManager->getRoomID();
 
                 if (currentRoomID > 0) {
                     loadRoomInfo(currentRoomID);
@@ -710,7 +713,7 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(
         connect(msgBox, &QMessageBox::finished, this, [this, msgBox, retryButton]() {
             if (msgBox->clickedButton() == retryButton) {
                 // Get current room ID and retry loading
-                qint64 currentRoomID = configManager->getRoomID();
+                qint64 currentRoomID = streamManager->getRoomID();
                 if (currentRoomID > 0) {
                     obs_log(LOG_INFO, "[17Live] User requested retry for room ID: %lld",
                             currentRoomID);
@@ -760,22 +763,27 @@ void OneSevenLiveStreamingDock::syncWithWeb(OneSevenLiveStreamingStatus status) 
     if (roomInfo.rtmpUrls.size() > 0) {
         QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
         OneSevenLiveRtmpResponse rtmpResponse;
-        if (apiWrapper->GetRtmpByProvider(provider.toStdString(), rtmpResponse)) {
+        
+        // Get API wrapper from core manager
+        auto* apiWrapper = OneSevenLiveCoreManager::getInstance().getApiWrapper();
+        if (apiWrapper && apiWrapper->GetRtmpByProvider(provider.toStdString(), rtmpResponse)) {
             rtmpResponse.liveStreamID = QString::number(roomInfo.liveStreamID);
             startLive(roomInfo.userInfo.userID.toStdString(), rtmpResponse,
                       roomInfo.archiveConfig.autoRecording,
                       status == OneSevenLiveStreamingStatus::Streaming);
         } else {
+            QString errorMsg = apiWrapper ? apiWrapper->getLastErrorMessage() : "Unknown error";
             QMessageBox::warning(
                 this, obs_module_text("Live.Settings.Error"),
-                QString::fromStdString(obs_module_text("Live.Settings.GetRtmpError"))
-                    .arg(apiWrapper->getLastErrorMessage()));
+                QString(obs_module_text("Live.Settings.GetRtmpError")).arg(errorMsg));
         }
     } else {
+        // Get API wrapper from core manager
+        auto* apiWrapper = OneSevenLiveCoreManager::getInstance().getApiWrapper();
+        QString errorMsg = apiWrapper ? apiWrapper->getLastErrorMessage() : "Unknown error";
         QMessageBox::warning(
             this, obs_module_text("Live.Settings.Error"),
-            QString::fromStdString(obs_module_text("Live.Settings.GetRoomInfoError"))
-                .arg(apiWrapper->getLastErrorMessage()));
+            QString(obs_module_text("Live.Settings.GetRoomInfoError")).arg(errorMsg));
     }
 }
 
@@ -783,6 +791,7 @@ void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections() {
     // obs_log(LOG_INFO, "updateRequiredArmyRankSelections");
 
     OneSevenLiveConfig config;
+    auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
     if (!configManager->getConfig(config)) {
         return;
     }
@@ -931,6 +940,8 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
         customEventDialog = nullptr;
     } else {
         // Open dialog first; dialog will fetch custom event asynchronously
+        auto* apiWrapper = OneSevenLiveCoreManager::getInstance().getApiWrapper();
+        auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
         customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
 
         // Connect dialog close signal to reset button state
@@ -1067,7 +1078,7 @@ void OneSevenLiveStreamingDock::onSaveConfigClicked() {
         streamInfo.streamUuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
     }
 
-    if (!configManager->saveLiveConfig(streamInfo)) {
+    if (!streamManager->saveStreamConfiguration(streamInfo)) {
         obs_log(LOG_ERROR, "Failed to save stream info");
         return;
     }
@@ -1183,62 +1194,7 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
 void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request_) {
     obs_log(LOG_INFO, "createLive");
 
-    // check current region changed?
-    std::string currentRegion;
-    configManager->getConfigValue("Region", currentRegion);
-
-    // Check feature 207 to control createLiveButton state
-    OneSevenLiveConfig currentConfig;
-    configManager->getConfig(currentConfig);
-    bool currentIsFeature207Enabled = (currentConfig.addOns.features["207"] == 1);
-
-    OneSevenLiveLoginData loginData;
-    if (!apiWrapper->GetSelfInfo(loginData)) {
-        obs_log(LOG_ERROR, "GetSelfInfo failed");
-        QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
-                             obs_module_text("Live.Create.GetSelfInfoFailed"));
-        return;
-    }
-
-    if (loginData.userInfo.region != QString::fromStdString(currentRegion)) {
-        obs_log(LOG_INFO, "Region changed, reload config");
-        std::string language = GetCurrentLanguage();
-
-        // Call API to get configuration
-        nlohmann::json configJson;
-        if (apiWrapper->GetConfig(currentRegion, language, configJson)) {
-            // Save configuration
-            configManager->setConfig(configJson);
-            obs_log(LOG_INFO, "Config loaded successfully");
-        } else {
-            obs_log(LOG_ERROR, "Failed to load config from API");
-        }
-
-        OneSevenLiveConfig newConfig;
-        JsonToOneSevenLiveConfig(configJson, newConfig);
-
-        bool newIsFeature207Enabled = (newConfig.addOns.features["207"] == 1);
-
-        if (!newIsFeature207Enabled) {
-            QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
-                                 obs_module_text("Live.Create.Feature207Disabled"));
-            return;
-        } else if (!currentIsFeature207Enabled && request_.subtabID.isEmpty()) {
-            // Feature 207 enabled now, but subtabID is empty, show warning
-            // Show dialog to prompt user to select category
-            loadRoomInfo(loginData.userInfo.roomID);
-
-            QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-                                 obs_module_text("Live.Settings.Save.Category.Empty"));
-
-            return;
-        }
-    } else if (!currentIsFeature207Enabled) {
-        QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
-                             obs_module_text("Live.Create.Feature207Disabled"));
-        return;
-    }
-
+    // Validate request
     OneSevenLiveRtmpRequest request = request_;
 
     if (request.caption.isEmpty()) {
@@ -1248,105 +1204,42 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         return;
     }
 
-    // if (request.subtabID.isEmpty()) {
-    //     // Show dialog to prompt user to select category
-    //     QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
-    //                          obs_module_text("Live.Settings.Save.Category.Empty"));
-    //     return;
-    // }
-
     // Add current userID and streamerType to request
-    std::string userID;
-    configManager->getConfigValue("UserID", userID);
-    request.userID = QString::fromStdString(userID);
+    request.userID = QString::fromStdString(streamManager->getCurrentUserID());
     request.streamerType = roomInfo.streamerType;
 
-    OneSevenLiveRtmpResponse response;
-    if (!apiWrapper->CreateRtmp(request, response)) {
-        QString errorMsg = apiWrapper->getLastErrorMessage();
+    // Use stream manager to create live stream
+    if (!streamManager->createLiveStream(request)) {
+        QString errorMsg = "Failed to create stream";
         obs_log(LOG_ERROR, "Failed to create stream. UserID: %s, Error: %s, Timestamp: %lld",
                 request.userID.toStdString().c_str(),
-                errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                errorMsg.toStdString().c_str(),
                 QDateTime::currentMSecsSinceEpoch());
         return;
     }
 
     emit streamStatusUpdated(OneSevenLiveStreamingStatus::Live);
 
-    startLive(request.userID.toStdString(), response, request.archiveConfig.autoRecording);
+    // Start streaming with the response from stream manager
+    startLive(request.userID.toStdString(), streamManager->getCurrentStreamResponse(), request.archiveConfig.autoRecording);
 }
 
 void OneSevenLiveStreamingDock::startLive(const std::string userID,
                                           const OneSevenLiveRtmpResponse &response,
                                           bool autoRecording, bool skip) {
-    // Check if WHIP information is available
-    bool hasWhipInfo = !response.whipInfo.server.isEmpty() && !response.whipInfo.token.isEmpty();
-
-    if (hasWhipInfo) {
-        // WHIP mode
-        obs_log(LOG_INFO, "Using WHIP streaming mode");
-
-        // Save WHIP streaming settings
-        configManager->setWhipStreamingInfo(response.liveStreamID.toStdString(),
-                                            response.whipInfo.server.toStdString(),
-                                            response.whipInfo.token.toStdString());
-        configManager->setWhipMode(true);
-
-        saveWhipStreamingSettings(response.liveStreamID.toStdString(),
-                                  response.whipInfo.server.toStdString(),
-                                  response.whipInfo.token.toStdString());
-    } else {
-        // RTMP mode
-        obs_log(LOG_INFO, "Using RTMP streaming mode");
-
-        QString streamUrl;
-        QString streamKey;
-
-        // Regular expression /(^.+:\/\/[^/]+\/[^/]+)\/(.+)$/ to parse response.rtmpURL
-        // First captured group is streamUrl, second captured group is streamKey
-        // Example:
-        // rtmp://live-push.bilivideo.com/live-bvc/1234567890?expire=1680000000&usign=abcdefg
-        QRegularExpression re("(^.+://[^/]+/[^/]+)/(.+)$");
-        QRegularExpressionMatch match = re.match(response.rtmpURL);
-        if (match.hasMatch()) {
-            streamUrl = match.captured(1);
-            streamKey = match.captured(2);
-        } else {
-            obs_log(LOG_ERROR, "Failed to parse stream url");
-            return;
-        }
-
-        configManager->setStreamingInfo(response.liveStreamID.toStdString(),
-                                        streamUrl.toStdString(), streamKey.toStdString());
-        configManager->setWhipMode(false);
-
-        saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(),
-                              streamKey.toStdString());
-    }
-
-    // Start live stream
-    if (!skip && !apiWrapper->StartStream(response.liveStreamID.toStdString(), userID)) {
-        QString errorMsg = apiWrapper->getLastErrorMessage();
+    // Use stream manager to start live streaming
+    if (!skip && !streamManager->startLiveStream(response.liveStreamID.toStdString(), userID, autoRecording)) {
+        QString errorMsg = "Failed to start stream";
         obs_log(LOG_ERROR,
                 "Failed to start stream. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: %lld",
                 response.liveStreamID.toStdString().c_str(), userID.c_str(),
-                errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
+                errorMsg.toStdString().c_str(),
                 QDateTime::currentMSecsSinceEpoch());
         return;
     }
 
-    // archive
-    if (!skip && autoRecording) {
-        if (!apiWrapper->EnableStreamArchive(response.liveStreamID.toStdString(), 1)) {
-            QString errorMsg = apiWrapper->getLastErrorMessage();
-            obs_log(LOG_ERROR,
-                    "Failed to enable archive. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: "
-                    "%lld",
-                    response.liveStreamID.toStdString().c_str(), userID.c_str(),
-                    errorMsg.isEmpty() ? "Unknown error" : errorMsg.toStdString().c_str(),
-                    QDateTime::currentMSecsSinceEpoch());
-        }
-    }
+    // Handle streaming settings (WHIP or RTMP)
+    streamManager->configureStreamingSettings(response);
 
     updateLiveStatus(OneSevenLiveStreamingStatus::Streaming);
     emit streamStatusUpdated(OneSevenLiveStreamingStatus::Streaming);
@@ -1394,10 +1287,8 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
         return;
     }
 
-    std::string currUserID;
-    std::string currLiveStreamID;
-    configManager->getConfigValue("UserID", currUserID);
-    configManager->getConfigValue("LiveStreamID", currLiveStreamID);
+    std::string currUserID = streamManager->getCurrentUserID();
+    std::string currLiveStreamID = streamManager->getCurrentLiveStreamID();
 
     closeLive(currUserID, currLiveStreamID);
 }
@@ -1409,15 +1300,14 @@ void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
 
     QString endReason = isAutoClose ? "autoClose" : "normalEnd";
 
-    // Send close live stream request
+    // Use stream manager to stop live stream
     OneSevenLiveCloseLiveRequest request;
     request.reason = "normalEnd";
     request.userID = QString::fromStdString(currUserID);
 
-    if (!apiWrapper->StopStream(currLiveStreamID, request)) {
+    if (!streamManager->stopLiveStream(currLiveStreamID, request)) {
         obs_log(LOG_ERROR, "Failed to stop stream. LiveStreamID: %s, Reason: %s",
                 currLiveStreamID.c_str(), endReason.toStdString().c_str());
-        // return;
     } else {
         obs_log(LOG_INFO,
                 "Successfully stopped stream. LiveStreamID: %s, Reason: %s, IsAutoClose: %s",
@@ -1426,12 +1316,7 @@ void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
     }
 
     // Clear streaming configuration based on current mode
-    if (configManager->isWhipMode()) {
-        configManager->clearWhipStreamingInfo();
-    } else {
-        configManager->clearStreamingInfo();
-    }
-    configManager->setWhipMode(false);
+    streamManager->clearStreamingConfiguration();
 
     updateLiveStatus(OneSevenLiveStreamingStatus::NotStarted);
     emit streamStatusUpdated(OneSevenLiveStreamingStatus::NotStarted);
@@ -1821,7 +1706,7 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
     OneSevenLiveChangeEventRequest request;
     request.eventID = eventID;
 
-    bool success = apiWrapper->ChangeEvent(request);
+    bool success = streamManager->changeEvent(eventID);
     if (success) {
         obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
 

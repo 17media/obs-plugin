@@ -43,6 +43,8 @@ class OneSevenLiveHttpServer;
 
 class OneSevenLiveWebsocketServer;
 
+class OneSevenLiveStreamManager;
+
 class QCefView;
 // Forward declarations for chat clients
 class OneSevenLiveYouTubeChatClient;
@@ -101,6 +103,13 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveApiWrappers* getApiWrapper() const;
 
     OneSevenLiveConfigManager* getConfigManager() const;
+
+    /**
+     * @brief Get stream manager
+     *
+     * @return OneSevenLiveStreamManager* Pointer to stream manager
+     */
+    OneSevenLiveStreamManager* getStreamManager() const;
 
     /**
      * @brief Get WebSocket server
@@ -168,6 +177,9 @@ class OneSevenLiveCoreManager : public QObject {
     bool isStartupRestore = false;
 
     std::unique_ptr<OneSevenLiveConfigManager> configManager;
+
+    // Stream manager
+    std::unique_ptr<OneSevenLiveStreamManager> streamManager;
 
     // Menu manager
     std::unique_ptr<OneSevenLiveMenuManager> menuManager;

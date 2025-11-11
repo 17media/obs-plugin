@@ -29,6 +29,7 @@
 #include "OneSevenLiveRockZoneDock.hpp"
 #include "OneSevenLiveStreamListDock.hpp"
 #include "OneSevenLiveStreamingDock.hpp"
+#include "OneSevenLiveStreamManager.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
@@ -189,6 +190,13 @@ bool OneSevenLiveCoreManager::initialize() {
 
         if (!configManager->initialize()) {
             obs_log(LOG_ERROR, "[17Live Core] Failed to initialize config manager");
+            return false;
+        }
+
+        // Initialize stream manager
+        streamManager = std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
+        if (!streamManager) {
+            obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
             return false;
         }
 
@@ -476,6 +484,10 @@ OneSevenLiveApiWrappers* OneSevenLiveCoreManager::getApiWrapper() const {
 
 OneSevenLiveConfigManager* OneSevenLiveCoreManager::getConfigManager() const {
     return configManager.get();
+}
+
+OneSevenLiveStreamManager* OneSevenLiveCoreManager::getStreamManager() const {
+    return streamManager.get();
 }
 
 OneSevenLiveWebsocketServer* OneSevenLiveCoreManager::getWebsocketServer() const {
@@ -903,8 +915,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
     }
 
     // Create and show streaming window
-    streamingDock =
-        new OneSevenLiveStreamingDock(mainWindow, apiWrapper.get(), configManager.get());
+    streamingDock = new OneSevenLiveStreamingDock(mainWindow);
     streamingDock->setObjectName("OneSevenLiveStreamingDock");
 
     streamingDock->setMaximumWidth(600);
