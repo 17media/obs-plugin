@@ -81,7 +81,7 @@ struct OneSevenLiveMultiRtmpConfig {
  * Stream status information
  */
 struct OneSevenLiveMultiRtmpStreamStatus {
-    enum State { STOPPED, CONNECTING, STREAMING, RECONNECTING, ERROR };
+    enum State { STOPPED, CONNECTING, STREAMING, RECONNECTING, ERROR_STATE };
 
     std::string id;
     State state = STOPPED;

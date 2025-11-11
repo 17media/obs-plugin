@@ -20,7 +20,7 @@ std::string PrivacyFilter::filterSensitiveData(const std::string& input) {
         
         try {
             result = std::regex_replace(result, pattern.pattern, pattern.replacement);
-        } catch (const std::regex_error& e) {
+        } catch (const std::regex_error&) {
             // Skip invalid patterns
             continue;
         }
@@ -32,7 +32,7 @@ std::string PrivacyFilter::filterSensitiveData(const std::string& input) {
 void PrivacyFilter::addCustomPattern(const std::string& pattern, const std::string& replacement) {
     try {
         m_patterns.push_back({std::regex(pattern, std::regex_constants::icase), replacement, true});
-    } catch (const std::regex_error& e) {
+    } catch (const std::regex_error&) {
         // Invalid regex pattern, ignore
     }
 }

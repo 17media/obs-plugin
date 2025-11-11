@@ -236,7 +236,7 @@ bool OneSevenLiveMultiRtmpStreamItem::isConnecting() const {
 }
 
 bool OneSevenLiveMultiRtmpStreamItem::isError() const {
-    return m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::ERROR;
+    return m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::ERROR_STATE;
 }
 
 void OneSevenLiveMultiRtmpStreamItem::onStartStopClicked() {
@@ -343,7 +343,7 @@ void OneSevenLiveMultiRtmpStreamItem::updateButtonStates() {
     }
 
     bool canStart = (m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::STOPPED ||
-                     m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::ERROR);
+                     m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::ERROR_STATE);
     bool canStop = (m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::STREAMING ||
                     m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::CONNECTING ||
                     m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING);
@@ -413,7 +413,7 @@ QString OneSevenLiveMultiRtmpStreamItem::getStatusText() const {
     case OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING:
         return obs_module_text("MultiRTMP.Status.Connecting");
 
-    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR:
+    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR_STATE:
         return obs_module_text("MultiRTMP.Status.Disconnected");
 
     default:
@@ -435,7 +435,7 @@ QString OneSevenLiveMultiRtmpStreamItem::getStatusColor() const {
     case OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING:
         return "#FF873D";  // Reconnecting - orange
 
-    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR:
+    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR_STATE:
         return "#A1A9B6";  // Error - gray
 
     default:

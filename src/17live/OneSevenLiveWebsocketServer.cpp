@@ -9,9 +9,16 @@
 #include <sstream>
 
 // System headers for socket operations
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#endif
+#include <cstring>
 
 #include "plugin-support.h"
 
@@ -281,28 +288,65 @@ std::string OneSevenLiveWebsocketServer::get_client_ip(std::shared_ptr<ix::Conne
 }
 
 int OneSevenLiveWebsocketServer::getAvailablePort() const {
-    // Create a socket to find an available port
+    int available_port = 0;
+    // Create a socket to find an available port (platform-specific)
+#ifdef _WIN32
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        obs_log(LOG_ERROR, "[17Live WebSocket Server] WSAStartup failed for port detection");
+        return 0;
+    }
+
+    SOCKET sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sockfd == INVALID_SOCKET) {
+        obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to create socket for port detection");
+        WSACleanup();
+        return 0;
+    }
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(host_.c_str());
+    addr.sin_port = 0; // Let system choose port
+
+    if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
+        obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to bind socket for port detection");
+        closesocket(sockfd);
+        WSACleanup();
+        return 0;
+    }
+
+    int addr_len = sizeof(addr);
+    if (getsockname(sockfd, (struct sockaddr*)&addr, &addr_len) == SOCKET_ERROR) {
+        obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to get socket name for port detection");
+        closesocket(sockfd);
+        WSACleanup();
+        return 0;
+    }
+
+    available_port = ntohs(addr.sin_port);
+    closesocket(sockfd);
+    WSACleanup();
+#else
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to create socket for port detection");
         return 0;
     }
 
-    // Set up address structure
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(host_.c_str());
     addr.sin_port = 0; // Let system choose port
 
-    // Bind to get an available port
     if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to bind socket for port detection");
         close(sockfd);
         return 0;
     }
 
-    // Get the actual port assigned by the system
     socklen_t addr_len = sizeof(addr);
     if (getsockname(sockfd, (struct sockaddr*)&addr, &addr_len) < 0) {
         obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to get socket name for port detection");
@@ -310,9 +354,10 @@ int OneSevenLiveWebsocketServer::getAvailablePort() const {
         return 0;
     }
 
-    int available_port = ntohs(addr.sin_port);
+    available_port = ntohs(addr.sin_port);
     close(sockfd);
-    
+#endif
+
     obs_log(LOG_INFO, "[17Live WebSocket Server] Found available port: %d", available_port);
     return available_port;
 }

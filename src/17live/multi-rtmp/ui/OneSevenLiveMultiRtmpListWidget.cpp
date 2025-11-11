@@ -204,7 +204,7 @@ OneSevenLiveMultiRtmpListWidget::StreamStatusStats OneSevenLiveMultiRtmpListWidg
     case OneSevenLiveMultiRtmpStreamStatus::State::STOPPED:
             stats.stoppedCount++;
             break;
-    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR:
+    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR_STATE:
             stats.errorCount++;
             break;
         }

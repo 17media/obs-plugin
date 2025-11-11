@@ -131,7 +131,7 @@ std::string OneSevenLiveMultiRtmpStreamStatus::getStateString() const {
         return "Streaming";
     case RECONNECTING:
         return "Reconnecting";
-    case ERROR:
+    case ERROR_STATE:
         return "Error";
     default:
         return "Unknown";

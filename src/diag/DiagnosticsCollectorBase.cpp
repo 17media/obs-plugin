@@ -65,8 +65,8 @@ CollectResult DiagnosticsCollectorBase::collect(const DiagnosticConfig& config) 
         
         std::string outputPath = config.outputDirectory;
         if (outputPath.empty()) {
-            outputPath = std::filesystem::path(std::filesystem::temp_directory_path()) / 
-                        ("diagnostics_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + ".zip");
+            outputPath = (std::filesystem::path(std::filesystem::temp_directory_path()) /
+                          ("diagnostics_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + ".zip")).string();
         }
         
         if (!createZipArchive(outputPath, allFiles)) {
@@ -207,7 +207,7 @@ std::string DiagnosticsCollectorBase::writeSystemInfoToFile() {
         return "";
     }
     
-    std::string filePath = std::filesystem::path(tempDir) / "systeminfo.txt";
+    std::string filePath = (std::filesystem::path(tempDir) / "systeminfo.txt").string();
     std::string systemInfo = getSystemInfo();
     
     if (writeToFile(filePath, systemInfo)) {

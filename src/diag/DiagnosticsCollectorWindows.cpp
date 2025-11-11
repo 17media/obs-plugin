@@ -52,7 +52,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectOBSLogs() {
         
         for (const auto& file : files) {
             std::string fileName = std::filesystem::path(file).filename().string();
-            std::string destPath = std::filesystem::path(tempDir) / ("obs_" + fileName);
+            std::string destPath = (std::filesystem::path(tempDir) / ("obs_" + fileName)).string();
             if (copyWithSizeLimit(file, destPath)) {
                 logFiles.push_back(destPath);
             }
@@ -76,7 +76,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectPluginLogs() {
         
         for (const auto& file : files) {
             std::string fileName = std::filesystem::path(file).filename().string();
-            std::string destPath = std::filesystem::path(tempDir) / ("plugin_" + fileName);
+            std::string destPath = (std::filesystem::path(tempDir) / ("plugin_" + fileName)).string();
             if (copyWithSizeLimit(file, destPath)) {
                 logFiles.push_back(destPath);
             }
@@ -90,7 +90,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectNetworkLogs() {
     std::vector<std::string> networkLogs;
     
     std::string tempDir = generateTempDirectory();
-    std::string networkInfoPath = std::filesystem::path(tempDir) / "network_info.txt";
+    std::string networkInfoPath = (std::filesystem::path(tempDir) / "network_info.txt").string();
     
     std::stringstream ss;
     ss << "Network Interfaces:" << std::endl;
@@ -124,7 +124,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectCrashInfo() {
         
         for (const auto& file : files) {
             std::string fileName = std::filesystem::path(file).filename().string();
-            std::string destPath = std::filesystem::path(tempDir) / ("crash_" + fileName);
+            std::string destPath = (std::filesystem::path(tempDir) / ("crash_" + fileName)).string();
             if (copyWithSizeLimit(file, destPath)) {
                 crashFiles.push_back(destPath);
             }
@@ -132,7 +132,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectCrashInfo() {
     }
     
     std::string tempDir = generateTempDirectory();
-    std::string eventLogPath = std::filesystem::path(tempDir) / "application_events.txt";
+    std::string eventLogPath = (std::filesystem::path(tempDir) / "application_events.txt").string();
     
     std::stringstream ss;
     ss << "Application Error Events:" << std::endl;
@@ -157,7 +157,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectConfigSnapshot() {
     if (std::filesystem::exists(obsConfigDir)) {
         auto globalIni = obsConfigDir + "\\global.ini";
         if (std::filesystem::exists(globalIni)) {
-            std::string destPath = std::filesystem::path(tempDir) / "obs_global.ini";
+            std::string destPath = (std::filesystem::path(tempDir) / "obs_global.ini").string();
             if (copyFile(globalIni, destPath)) {
                 configFiles.push_back(destPath);
             }
@@ -165,7 +165,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectConfigSnapshot() {
         
         auto basicIni = obsConfigDir + "\\basic.ini";
         if (std::filesystem::exists(basicIni)) {
-            std::string destPath = std::filesystem::path(tempDir) / "obs_basic.ini";
+            std::string destPath = (std::filesystem::path(tempDir) / "obs_basic.ini").string();
             if (copyFile(basicIni, destPath)) {
                 configFiles.push_back(destPath);
             }
@@ -176,7 +176,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectConfigSnapshot() {
         auto pluginFiles = getFilesInDirectory(pluginConfigDir, ".json");
         for (const auto& file : pluginFiles) {
             std::string fileName = std::filesystem::path(file).filename().string();
-            std::string destPath = std::filesystem::path(tempDir) / ("plugin_" + fileName);
+            std::string destPath = (std::filesystem::path(tempDir) / ("plugin_" + fileName)).string();
             
             if (copyFile(file, destPath)) {
                 configFiles.push_back(destPath);
@@ -191,7 +191,7 @@ std::vector<std::string> DiagnosticsCollectorWindows::collectNetworkRequests() {
     std::vector<std::string> requestFiles;
     
     std::string tempDir = generateTempDirectory();
-    std::string requestsPath = std::filesystem::path(tempDir) / "network_requests.txt";
+    std::string requestsPath = (std::filesystem::path(tempDir) / "network_requests.txt").string();
     
     std::stringstream ss;
     ss << "Network Request Log (Sanitized)" << std::endl;
@@ -265,7 +265,7 @@ bool DiagnosticsCollectorWindows::createZipArchive(const std::string& outputPath
     return std::filesystem::exists(outputPath) && std::filesystem::file_size(outputPath) > 0;
 }
 
-std::string DiagnosticsCollectorWindows::executePowerShellCommand(const std::string& command) {
+std::string DiagnosticsCollectorWindows::executePowerShellCommand(const std::string& command) const {
     std::string fullCommand = "powershell -Command \"" + command + "\"";
     
     FILE* pipe = _popen(fullCommand.c_str(), "r");

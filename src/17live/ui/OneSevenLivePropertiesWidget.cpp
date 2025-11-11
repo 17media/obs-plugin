@@ -324,6 +324,7 @@ nlohmann::json OneSevenLivePropertiesWidget::SaveData() {
     try {
         return nlohmann::json::parse(jsonstr);
     } catch (const nlohmann::json::parse_error &e) {
+        obs_log(LOG_ERROR, "[SaveData] JSON parse error: %s", e.what());
         return {};
     }
 }
