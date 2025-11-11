@@ -34,7 +34,7 @@ OneSevenMultiRtmpConfigDialog::OneSevenMultiRtmpConfigDialog(
       m_isEditMode(config != nullptr),
       m_advancedExpanded(false),
       m_baseHeight(0),
-      m_isTwitchAuthorizing(false) {
+      m_isAuthorizing(false) {
     setWindowTitle(obs_module_text("MultiRTMP.Config.Title"));
     setModal(true);
 
@@ -459,95 +459,76 @@ void OneSevenMultiRtmpConfigDialog::onAdvancedSettingsToggled() {
 
 void OneSevenMultiRtmpConfigDialog::onAuthorizeClicked() {
     // Determine selected RTMP channel
-    QString channel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
+    QString channel = m_streamNameCombo->currentText();
 
     obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Authorize clicked for channel: %s",
             channel.isEmpty() ? "(none)" : channel.toUtf8().constData());
+    if (channel != OneSevenLiveTwitchAuth::PLATFORM
+        && channel != OneSevenLiveYouTubeAuth::PLATFORM) {
+        obs_log(LOG_WARNING, "Unknown type authorization cancelled");
+        return;
+    }
 
-    if (channel == "Twitch") {
+    if (m_isAuthorizing) {
+        obs_log(LOG_WARNING, "Authorization already in progress");
+        return;
+    }
+
+    m_isAuthorizing = true;
+
+    QString authUrl;
+
+    if (channel == OneSevenLiveTwitchAuth::PLATFORM) {
         // Handle Twitch authorization using device code flow
-        if (m_isTwitchAuthorizing) {
-            obs_log(LOG_WARNING, "Twitch authorization already in progress");
-            return;
-        }
-
-        m_isTwitchAuthorizing = true;
-
-//        OneSevenLiveCoreManager& coreManager = OneSevenLiveCoreManager::getInstance();
-        // QString redirectUri = QString("http://localhost:%1")
-        //     .arg(coreManager.getHttpServer()->getPort());
-        QString redirectUri = "https://17.live";
-        QString authUrl = m_twitchAuth->getAuthUrl(redirectUri);
+        QString redirectUri = OneSevenLiveTwitchAuth::TWITCH_CALLBACK_URI;
+        authUrl = m_twitchAuth->getAuthUrl(redirectUri);
         obs_log(LOG_INFO, "Opening Twitch authorization URL: %s", authUrl.toStdString().c_str());
-
-        // Show authorization dialog with embedded browser
-        OneSevenLiveAuthDialog authDialog(authUrl, this);
-
-        connect(&authDialog, &OneSevenLiveAuthDialog::urlChanged, this,
-                &OneSevenMultiRtmpConfigDialog::onTwitchAuthUrlChanged);
-
-        authDialog.exec();
-    } else if (channel == "YouTube") {
-        if (m_isYouTubeAuthorizing) {
-            obs_log(LOG_WARNING, "YouTube authorization already in progress");
-            return;
-        }
-
-        m_isYouTubeAuthorizing = true;
-
+    } else if (channel == OneSevenLiveYouTubeAuth::PLATFORM) {
         // Build YouTube authorization URL (authorization code flow)
         OneSevenLiveCoreManager& coreManager = OneSevenLiveCoreManager::getInstance();
         QString redirectUri = QString("http://localhost:%1")
             .arg(coreManager.getHttpServer()->getPort());
-        QString authUrl = m_youtubeAuth ? m_youtubeAuth->getAuthUrl(redirectUri) : QString();
-
+        authUrl = m_youtubeAuth->getAuthUrl(redirectUri);
         obs_log(LOG_INFO, "Opening YouTube authorization URL: %s", authUrl.toStdString().c_str());
+    } 
 
-        OneSevenLiveAuthDialog authDialog(authUrl, this);
-        connect(&authDialog, &OneSevenLiveAuthDialog::urlChanged, this,
-                &OneSevenMultiRtmpConfigDialog::onYouTubeAuthUrlChanged);
+    // Show authorization dialog with embedded browser
+    m_authDialog = new OneSevenLiveAuthDialog(authUrl, this);
 
-        authDialog.exec();
-        m_isYouTubeAuthorizing = false;
-    } else {
-        // Generic message for other channels
-        QString msg = channel.isEmpty() ? obs_module_text("MultiRtmp.Config.Authorize")
-                                       : QString("%1: %2")
-                                             .arg(obs_module_text("MultiRtmp.Config.Authorize"))
-                                             .arg(channel);
+    connect(m_authDialog, &OneSevenLiveAuthDialog::urlChanged, this,
+            &OneSevenMultiRtmpConfigDialog::onAuthUrlChanged);
+
+    m_authDialog->exec();
+    m_isAuthorizing = false;
+}
+
+void OneSevenMultiRtmpConfigDialog::onAuthUrlChanged(const QString& url)
+{
+    QString channel = m_streamNameCombo->currentText();
+
+    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] %s auth URL changed: %s",
+        channel.toUtf8().constData(), url.toUtf8().constData());
         
-        QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
-                                 msg + "\n\n" +
-                                     QString("Authorization flow will be implemented in a future update."));
+    QString redirectUrl;
+    if (channel == OneSevenLiveTwitchAuth::PLATFORM) {
+        redirectUrl = OneSevenLiveTwitchAuth::TWITCH_CALLBACK_URI;
+    } else if (channel == OneSevenLiveYouTubeAuth::PLATFORM) {
+        redirectUrl = m_youtubeAuth->getRedirectUri();
     }
-}
 
-void OneSevenMultiRtmpConfigDialog::onTwitchAuthUrlChanged(const QString& url)
-{
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Twitch auth URL changed: %s",
-            url.toUtf8().constData());
-
-    if (!m_twitchAuth) {
-        obs_log(LOG_WARNING, "[MultiRTMP-ConfigDialog] Twitch auth handler is not initialized");
+    // ignore the url not same with redirect url
+    if (!url.startsWith(redirectUrl)) {
         return;
     }
 
-    // Forward the callback URL to the Twitch auth handler to parse code/scope/state
-    m_twitchAuth->handleAuthorizationCallbackUrl(url);
-
-    // Update button state after potential token change
-    updateAuthorizeButtonState();
-}
-
-void OneSevenMultiRtmpConfigDialog::onYouTubeAuthUrlChanged(const QString& url)
-{
-    obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] YouTube auth URL changed: %s",
-            url.toUtf8().constData());
-    if (!m_youtubeAuth) {
-        obs_log(LOG_WARNING, "YouTube auth handler is not initialized");
-        return;
+    if (channel == OneSevenLiveTwitchAuth::PLATFORM) {
+        m_twitchAuth->handleAuthorizationCallbackUrl(url);
+    } else if (channel == OneSevenLiveYouTubeAuth::PLATFORM) {
+        m_youtubeAuth->handleAuthorizationCallbackUrl(url);
     }
-    m_youtubeAuth->handleAuthorizationCallbackUrl(url);
+
+    m_authDialog->close();
+    m_authDialog->deleteLater();
 
     // Update button state after potential token change
     updateAuthorizeButtonState();

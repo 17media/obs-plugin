@@ -24,8 +24,9 @@ public:
     QString getState();
     bool validateState(const QString& state) const;
 
-    // Callback handler: parse fragment and persist access token
-    void handleAuthorizationCallbackUrl(const QString& callbackUrl);
+    // Callback handler: parse query and persist access token
+    // Returns true on success; false on error or unexpected format
+    bool handleAuthorizationCallbackUrl(const QString& callbackUrl);
 
     // Refresh the access token using stored refresh_token
     // Returns true on success; persists new token and updates in-memory state
@@ -37,6 +38,8 @@ public:
     void scheduleAutoRefresh(int accessExpiresInSec, qint64 accessFetchedAtEpochSec,
                              int refreshExpiresInSec, qint64 refreshFetchedAtEpochSec);
     void stopAutoRefresh();
+
+    QString getRedirectUri() const { return m_redirectUri; }
 
     // Token state
     bool hasValidToken() const;
@@ -61,10 +64,12 @@ private:
     QString m_refreshToken;
     QTimer* m_refreshTimer{nullptr};
 
+public:
     // Constants
     static const QString YT_AUTH_URL_TEMPLATE;
     static const QString YT_SCOPE;
     static const QString YT_TOKEN_URL;
+    static const QString PLATFORM;
 
 private slots:
     void onRefreshTimerTimeout();

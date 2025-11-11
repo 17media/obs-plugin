@@ -95,12 +95,15 @@ private:
     // Authorization code flow (via redirect)
     QString m_authorizationCode;
     QString m_callbackScope;
-    
-    // Constants
-    static const QString TWITCH_DEVICE_AUTH_URL;
-    static const QString TWITCH_TOKEN_URL;
-    static const QString TWITCH_SCOPE;
 
     // Twitch API client
     std::unique_ptr<OneSevenLiveTwitchClient> m_twitchClient;
+
+public:
+    // Constants
+    static const QString PLATFORM;
+    static const QString TWITCH_DEVICE_AUTH_URL;
+    static const QString TWITCH_TOKEN_URL;
+    static const QString TWITCH_SCOPE;
+    static const QString TWITCH_CALLBACK_URI;
 };

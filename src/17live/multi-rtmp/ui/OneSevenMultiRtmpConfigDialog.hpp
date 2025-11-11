@@ -28,6 +28,7 @@
 class OneSevenLivePropertiesWidget;
 class OneSevenLiveTwitchAuth;
 class OneSevenLiveYouTubeAuth;
+class OneSevenLiveAuthDialog;
 
 /**
  * Configuration dialog for Multi-RTMP stream settings
@@ -138,15 +139,14 @@ class OneSevenMultiRtmpConfigDialog : public QDialog {
     // State
     bool m_isEditMode;
 
+    bool m_isAuthorizing;
     // Twitch authorization (non-owning; managed by CoreManager)
     OneSevenLiveTwitchAuth* m_twitchAuth{nullptr};
-    bool m_isTwitchAuthorizing;
-
-    // Private slots for Twitch authorization
-    void onTwitchAuthUrlChanged(const QString& url);
-
     // YouTube authorization (non-owning; managed by CoreManager)
     OneSevenLiveYouTubeAuth* m_youtubeAuth{nullptr};
-    bool m_isYouTubeAuthorizing = false;
-    void onYouTubeAuthUrlChanged(const QString& url);
+
+    // Private slots for authorization
+    void onAuthUrlChanged(const QString& url);
+
+    OneSevenLiveAuthDialog* m_authDialog{nullptr};
 };

@@ -23,6 +23,8 @@
 const QString OneSevenLiveTwitchAuth::TWITCH_DEVICE_AUTH_URL = "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=%1&redirect_uri=%2&scope=%3&state=%4";
 const QString OneSevenLiveTwitchAuth::TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const QString OneSevenLiveTwitchAuth::TWITCH_SCOPE = "channel:read:stream_key channel:manage:broadcast user:read:email chat:read chat:edit";
+const QString OneSevenLiveTwitchAuth::TWITCH_CALLBACK_URI = "https://17.live";
+const QString OneSevenLiveTwitchAuth::PLATFORM = "Twitch";
 
 OneSevenLiveTwitchAuth::OneSevenLiveTwitchAuth(QObject* parent)
     : QObject(parent)
@@ -358,11 +360,6 @@ bool OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
         return false;
     }
 
-    // Validate expected origin: only localhost:3000 is accepted for implicit flow
-    const QString origin = url.scheme() + "://" + url.host() +
-                           (url.port() != -1 ? (":" + QString::number(url.port())) : QString()) + "/";
-    const bool originIsLocalhost = (origin == "http://localhost:3000/");
-
     // Support implicit grant style: http://localhost:3000/#access_token=...&scope=...&state=...&token_type=bearer
     const QString fragment = url.fragment();
     if (!fragment.isEmpty()) {
@@ -374,13 +371,6 @@ bool OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
 
         if (accessToken.isEmpty()) {
             obs_log(LOG_WARNING, "Twitch implicit callback missing 'access_token' in fragment");
-            return false;
-        }
-
-        // If origin is unexpected, treat as error and fail
-        if (!originIsLocalhost) {
-            obs_log(LOG_WARNING, "Twitch callback origin unexpected: %s",
-                    origin.toUtf8().constData());
             return false;
         }
 

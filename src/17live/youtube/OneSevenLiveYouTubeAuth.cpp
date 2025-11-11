@@ -5,6 +5,7 @@
 #include <QRandomGenerator>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QMessageBox>
 
 #include "plugin-support.h"
 #include "OneSevenLiveCoreManager.hpp"
@@ -21,6 +22,7 @@ const QString OneSevenLiveYouTubeAuth::YT_AUTH_URL_TEMPLATE =
 const QString OneSevenLiveYouTubeAuth::YT_SCOPE =
     "https://www.googleapis.com/auth/youtube.force-ssl";
 const QString OneSevenLiveYouTubeAuth::YT_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const QString OneSevenLiveYouTubeAuth::PLATFORM = "YouTube";
 
 OneSevenLiveYouTubeAuth::OneSevenLiveYouTubeAuth(QObject* parent)
     : QObject(parent) {}
@@ -66,16 +68,28 @@ void OneSevenLiveYouTubeAuth::clearToken()
     m_accessToken.clear();
 }
 
-void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& callbackUrl)
+bool OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& callbackUrl)
 {
     QUrl url(callbackUrl);
     if (!url.isValid()) {
         obs_log(LOG_WARNING, "YouTube callback URL invalid: %s", callbackUrl.toUtf8().constData());
-        return;
+        return false;
     }
 
-
+    
     const QUrlQuery query(url.query());
+    const QString error = query.queryItemValue("error");
+    const QString errorDescription = query.queryItemValue("error_description");
+    if (!error.isEmpty()) {
+        const QString desc = errorDescription.isEmpty() ? error : errorDescription;
+        obs_log(LOG_WARNING, "YouTube authorization error: %s - %s",
+                error.toUtf8().constData(), desc.toUtf8().constData());
+        QMessageBox::warning(nullptr, obs_module_text("Live.Common.Notice"),
+                             QString("YouTube authorization failed: %1").arg(desc));
+        emit authorizationFailed(desc);
+        return false;
+    }
+
     const QString code = query.queryItemValue("code");
     const QString state = query.queryItemValue("state");
     const QString scope = query.queryItemValue("scope");
@@ -83,7 +97,7 @@ void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
     if (code.isEmpty()) {
         obs_log(LOG_WARNING, "YouTube authorization code not found in callback query");
         emit authorizationFailed("Authorization code missing in callback");
-        return;
+        return false;
     }
 
     if (!state.isEmpty() && !validateState(state)) {
@@ -104,18 +118,18 @@ void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
                                .toStdString();
 
     std::string responseBody;
-    std::string error;
+    std::string httpError;
     long httpStatusCode = 0;
-    bool ok = GetRemoteFile(tokenUrl.toUtf8().constData(), responseBody, error, &httpStatusCode,
+    bool ok = GetRemoteFile(tokenUrl.toUtf8().constData(), responseBody, httpError, &httpStatusCode,
                             "application/x-www-form-urlencoded", "POST", postData.c_str(),
                             std::vector<std::string>(), nullptr, /*timeout*/ 0, /*fail_on_error*/ true,
                             static_cast<int>(postData.size()));
 
     if (!ok || httpStatusCode < 200 || httpStatusCode >= 300) {
         obs_log(LOG_ERROR, "YouTube token exchange failed (HTTP %ld): %s", httpStatusCode,
-                error.c_str());
-        emit authorizationFailed(QString::fromUtf8(error.c_str()));
-        return;
+                httpError.c_str());
+        emit authorizationFailed(QString::fromUtf8(httpError.c_str()));
+        return false;
     }
 
     // Parse JSON response
@@ -145,13 +159,13 @@ void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "Failed to parse YouTube token JSON: %s", e.what());
         emit authorizationFailed("Failed to parse token response");
-        return;
+        return false;
     }
 
     if (accessToken.isEmpty()) {
         obs_log(LOG_ERROR, "YouTube token exchange did not return access_token");
         emit authorizationFailed("Token exchange missing access_token");
-        return;
+        return false;
     }
 
     // Persist token, fetched time, and expires_in
@@ -159,19 +173,19 @@ void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
     if (!cfg || !cfg->initialize()) {
         obs_log(LOG_ERROR, "ConfigManager not initialized; cannot save YouTube token");
         emit authorizationFailed("Configuration manager not initialized");
-        return;
+        return false;
     }
 
     const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
     if (!cfg->setYouTubeAccessToken(accessToken, expiresIn, nowEpoch)) {
         obs_log(LOG_ERROR, "Failed to save YouTube access token");
         emit authorizationFailed("Failed to save YouTube access token");
-        return;
+        return false;
     }
     if (!cfg->setYouTubeRefreshToken(refreshToken, refreshTokenExpiresIn, nowEpoch)) {
         obs_log(LOG_ERROR, "Failed to save YouTube refresh token");
         emit authorizationFailed("Failed to save YouTube refresh token");
-        return;
+        return false;
     }
 
     // Update local state and notify
@@ -185,6 +199,7 @@ void OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
     scheduleAutoRefresh(expiresIn, nowEpoch, refreshTokenExpiresIn, nowEpoch);
 
     emit authorizationCompleted(m_accessToken);
+    return true;
 }
 
 QString OneSevenLiveYouTubeAuth::getClientId() const
