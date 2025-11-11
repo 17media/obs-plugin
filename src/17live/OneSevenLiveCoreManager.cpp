@@ -81,188 +81,118 @@ bool OneSevenLiveCoreManager::initialize() {
 
     obs_log(LOG_INFO, "[17Live Core] Initializing OneSevenLiveCoreManager...");
 
-    try {
-        // Run network diagnostics to check API connectivity
-        obs_log(LOG_INFO, "[17Live Core] Running startup network diagnostics...");
-        NetworkDiagnostics::runStartupDiagnostics(ONESEVENLIVE_API_URL);
+    // Run network diagnostics to check API connectivity
+    obs_log(LOG_INFO, "[17Live Core] Running startup network diagnostics...");
+    NetworkDiagnostics::runStartupDiagnostics(ONESEVENLIVE_API_URL);
 
-        // Initialize and start HTTP server
-        // "html" is the path relative to obs_get_module_data_path()
-        httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");
-        if (!httpServer_) {
-            obs_log(LOG_ERROR, "[17Live Core] Failed to create HTTP server instance");
-            return false;
-        }
-
-        if (!httpServer_->start()) {
-            obs_log(LOG_ERROR, "[17Live Core] Failed to start HTTP server");
-            // Decide whether to interrupt the entire initialization due to HTTP server startup
-            // failure based on requirements return false;
-        } else {
-            obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
-        }
-
-        // Initialize and start WebSocket server
-        websocketServer_ = std::make_unique<OneSevenLiveWebsocketServer>("localhost", 0);
-        if (!websocketServer_) {
-            obs_log(LOG_ERROR, "[17Live Core] Failed to create WebSocket server instance");
-            return false;
-        }
-
-        if (!websocketServer_->start()) {
-            obs_log(LOG_ERROR, "[17Live Core] Failed to start WebSocket server");
-            // Continue initialization even if WebSocket server fails
-        } else {
-            obs_log(LOG_INFO, "[17Live Core] WebSocket server started successfully on port %d", 
-                   websocketServer_->getPort());
-        }
-
-        // Set up WebSocket server callbacks
-        websocketServer_->setMessageCallback([this](const std::string& clientId, const std::string& message) {
-            try {
-                const Json msg = Json::parse(message);
-
-                std::string typeStr;
-                if (msg.contains("type")) {
-                    if (msg["type"].is_string()) {
-                        typeStr = msg["type"].get<std::string>();
-                    }
-                }
-
-                const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
-                if (typeStr.empty()) {
-                    obs_log(LOG_WARNING,
-                            "[17Live WebSocket] Missing 'type' in message from %s",
-                            clientId.c_str());
-                    return;
-                }
-                if (!hasServer) {
-                    obs_log(LOG_WARNING,
-                            "[17Live WebSocket] Server not running; cannot handle message from %s",
-                            clientId.c_str());
-                    return;
-                }
-
-                const Json* payload = nullptr;
-                if (msg.contains("payload") && msg["payload"].is_object()) {
-                    payload = &msg["payload"];
-                }
-
-                if (typeStr == "transmit") {
-                    if (payload) {
-                        this->websocketServer_->broadcastMessage(payload->dump());
-                    } else {
-                        obs_log(LOG_WARNING,
-                                "[17Live WebSocket] 'transmit' missing object payload from %s",
-                                clientId.c_str());
-                    }
-                    return;
-                }
-
-                obs_log(LOG_INFO,
-                        "[17Live WebSocket] Unhandled message type '%s' from %s",
-                        typeStr.c_str(), clientId.c_str());
-            } catch (const Json::parse_error& e) {
-                obs_log(LOG_WARNING,
-                        "[17Live WebSocket] JSON parse error in message from %s: %s",
-                        clientId.c_str(), e.what());
-            } catch (const std::exception& e) {
-                obs_log(LOG_WARNING,
-                        "[17Live WebSocket] Exception processing message from %s: %s",
-                        clientId.c_str(), e.what());
-            }
-        });
-
-        websocketServer_->setConnectionCallback([](const std::string& clientId, bool connected) {
-            if (connected) {
-                obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
-            } else {
-                obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
-            }
-        });
-
-        // Initialize configuration manager
-        configManager = std::make_unique<OneSevenLiveConfigManager>();
-        if (!configManager) {
-            obs_log(LOG_ERROR, "[17Live Core] Failed to create config manager instance");
-            return false;
-        }
-
-        if (!configManager->initialize()) {
-            obs_log(LOG_ERROR, "[17Live Core] Failed to initialize config manager");
-            return false;
-        }
-
-        // Initialize stream manager
-        streamManager = std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
-        if (!streamManager) {
-            obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
-            return false;
-        }
-
-        // Instantiate auth handlers
-        twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
-        youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
-
-        // Load tokens from config and schedule checks/refreshes
-        {
-            // Twitch: load access token for status check
-            QString twAccess;
-            qint64 twFetched{0};
-            if (configManager->getTwitchTokens(twAccess, twFetched)) {
-                if (!twAccess.isEmpty()) {
-                    twitchAuth->setTokens(twAccess, QString());
-                    obs_log(LOG_INFO, "[17Live Core] Loaded Twitch access token from config");
-                }
-            }
-        }
-
-        {
-            // YouTube: load access and refresh tokens
-            QString ytAccess;
-            int ytExpiresIn{0};
-            qint64 ytFetchedAt{0};
-            const bool hasAccess = configManager->getYouTubeAccessToken(ytAccess, ytExpiresIn, ytFetchedAt) && !ytAccess.isEmpty();
-
-            QString ytRefresh;
-            int ytRefreshExpiresIn{0};
-            qint64 ytRefreshFetchedAt{0};
-            const bool hasRefresh = configManager->getYouTubeRefreshToken(ytRefresh, ytRefreshExpiresIn, ytRefreshFetchedAt) && !ytRefresh.isEmpty();
-
-            const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
-
-            if (hasAccess) {
-                youtubeAuth->setAccessToken(ytAccess);
-                // Schedule auto refresh; if access already expired, this will attempt immediate refresh
-                youtubeAuth->scheduleAutoRefresh(ytExpiresIn, ytFetchedAt,
-                                                 ytRefreshExpiresIn, ytRefreshFetchedAt);
-            } else if (hasRefresh) {
-                // No access token but valid refresh token: refresh immediately if not expired
-                const bool refreshValid = (ytRefreshExpiresIn > 0) && (nowEpoch < ytRefreshFetchedAt + ytRefreshExpiresIn);
-                if (refreshValid) {
-                    obs_log(LOG_INFO, "[17Live Core] No YouTube access token; refreshing using valid refresh token");
-                    if (!youtubeAuth->refreshAccessToken()) {
-                        obs_log(LOG_ERROR, "[17Live Core] Immediate YouTube refresh failed on startup");
-                    }
-                } else {
-                    obs_log(LOG_INFO, "[17Live Core] YouTube refresh token expired; clearing stored tokens");
-                    configManager->clearYouTubeAccessToken();
-                    configManager->clearYouTubeRefreshToken();
-                }
-            }
-        }
-    } catch (const std::bad_alloc& e) {
-        obs_log(LOG_ERROR, "[17Live Core] Memory allocation failed during initialization: %s",
-                e.what());
-        return false;
-    } catch (const std::exception& e) {
-        obs_log(LOG_ERROR, "[17Live Core] Exception during initialization: %s", e.what());
-        return false;
-    } catch (...) {
-        obs_log(LOG_ERROR, "[17Live Core] Unknown exception during initialization");
+    // Initialize and start HTTP server
+    // "html" is the path relative to obs_get_module_data_path()
+    httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");
+    if (!httpServer_) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to create HTTP server instance");
         return false;
     }
 
+    if (!httpServer_->start()) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to start HTTP server");
+        // Decide whether to interrupt the entire initialization due to HTTP server startup
+        // failure based on requirements return false;
+    } else {
+        obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
+    }
+
+    // Initialize and start WebSocket server
+    websocketServer_ = std::make_unique<OneSevenLiveWebsocketServer>("localhost", 0);
+    if (!websocketServer_) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to create WebSocket server instance");
+        return false;
+    }
+
+    if (!websocketServer_->start()) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to start WebSocket server");
+        // Continue initialization even if WebSocket server fails
+    } else {
+        obs_log(LOG_INFO, "[17Live Core] WebSocket server started successfully on port %d", 
+                websocketServer_->getPort());
+    }
+
+    // Set up WebSocket server callbacks
+    websocketServer_->setMessageCallback([this](const std::string& clientId, const std::string& message) {
+        try {
+            const Json msg = Json::parse(message);
+
+            std::string typeStr;
+            if (msg.contains("type")) {
+                if (msg["type"].is_string()) {
+                    typeStr = msg["type"].get<std::string>();
+                }
+            }
+
+            const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
+            if (typeStr.empty()) {
+                obs_log(LOG_WARNING,
+                        "[17Live WebSocket] Missing 'type' in message from %s",
+                        clientId.c_str());
+                return;
+            }
+            if (!hasServer) {
+                obs_log(LOG_WARNING,
+                        "[17Live WebSocket] Server not running; cannot handle message from %s",
+                        clientId.c_str());
+                return;
+            }
+
+            const Json* payload = nullptr;
+            if (msg.contains("payload") && msg["payload"].is_object()) {
+                payload = &msg["payload"];
+            }
+
+            if (typeStr == "transmit") {
+                if (payload) {
+                    this->websocketServer_->broadcastMessage(payload->dump());
+                } else {
+                    obs_log(LOG_WARNING,
+                            "[17Live WebSocket] 'transmit' missing object payload from %s",
+                            clientId.c_str());
+                }
+                return;
+            }
+
+            obs_log(LOG_INFO,
+                    "[17Live WebSocket] Unhandled message type '%s' from %s",
+                    typeStr.c_str(), clientId.c_str());
+        } catch (const Json::parse_error& e) {
+            obs_log(LOG_WARNING,
+                    "[17Live WebSocket] JSON parse error in message from %s: %s",
+                    clientId.c_str(), e.what());
+        } catch (const std::exception& e) {
+            obs_log(LOG_WARNING,
+                    "[17Live WebSocket] Exception processing message from %s: %s",
+                    clientId.c_str(), e.what());
+        }
+    });
+
+    websocketServer_->setConnectionCallback([](const std::string& clientId, bool connected) {
+        if (connected) {
+            obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
+        } else {
+            obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
+        }
+    });
+
+    // Initialize configuration manager
+    configManager = std::make_unique<OneSevenLiveConfigManager>();
+    if (!configManager) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to create config manager instance");
+        return false;
+    }
+
+    if (!configManager->initialize()) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to initialize config manager");
+        return false;
+    }
+
+    // Initialize API wrapper before creating stream manager
     OneSevenLiveLoginData loginData;
     configManager->getLoginData(loginData);
 
@@ -275,9 +205,68 @@ bool OneSevenLiveCoreManager::initialize() {
         isLogin = checkLoginStatus();
     }
 
-    // if not login, reinitialize apiWrapper
+    // if not login, initialize apiWrapper without token
     if (!isLogin) {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
+    }
+
+    // Initialize stream manager (after apiWrapper is ready)
+    streamManager = std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
+    if (!streamManager) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
+        return false;
+    }
+
+    // Instantiate auth handlers
+    twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
+    youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
+
+    // Load tokens from config and schedule checks/refreshes
+    {
+        // Twitch: load access token for status check
+        QString twAccess;
+        qint64 twFetched{0};
+        if (configManager->getTwitchTokens(twAccess, twFetched)) {
+            if (!twAccess.isEmpty()) {
+                twitchAuth->setTokens(twAccess, QString());
+                obs_log(LOG_INFO, "[17Live Core] Loaded Twitch access token from config");
+            }
+        }
+    }
+
+    {
+        // YouTube: load access and refresh tokens
+        QString ytAccess;
+        int ytExpiresIn{0};
+        qint64 ytFetchedAt{0};
+        const bool hasAccess = configManager->getYouTubeAccessToken(ytAccess, ytExpiresIn, ytFetchedAt) && !ytAccess.isEmpty();
+
+        QString ytRefresh;
+        int ytRefreshExpiresIn{0};
+        qint64 ytRefreshFetchedAt{0};
+        const bool hasRefresh = configManager->getYouTubeRefreshToken(ytRefresh, ytRefreshExpiresIn, ytRefreshFetchedAt) && !ytRefresh.isEmpty();
+
+        const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
+
+        if (hasAccess) {
+            youtubeAuth->setAccessToken(ytAccess);
+            // Schedule auto refresh; if access already expired, this will attempt immediate refresh
+            youtubeAuth->scheduleAutoRefresh(ytExpiresIn, ytFetchedAt,
+                                                ytRefreshExpiresIn, ytRefreshFetchedAt);
+        } else if (hasRefresh) {
+            // No access token but valid refresh token: refresh immediately if not expired
+            const bool refreshValid = (ytRefreshExpiresIn > 0) && (nowEpoch < ytRefreshFetchedAt + ytRefreshExpiresIn);
+            if (refreshValid) {
+                obs_log(LOG_INFO, "[17Live Core] No YouTube access token; refreshing using valid refresh token");
+                if (!youtubeAuth->refreshAccessToken()) {
+                    obs_log(LOG_ERROR, "[17Live Core] Immediate YouTube refresh failed on startup");
+                }
+            } else {
+                obs_log(LOG_INFO, "[17Live Core] YouTube refresh token expired; clearing stored tokens");
+                configManager->clearYouTubeAccessToken();
+                configManager->clearYouTubeRefreshToken();
+            }
+        }
     }
 
     // Initialize menu manager
