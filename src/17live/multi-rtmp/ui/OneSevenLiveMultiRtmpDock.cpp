@@ -183,8 +183,8 @@ void OneSevenLiveMultiRtmpDock::setupConnections() {
         connect(m_streamListWidget, &OneSevenLiveMultiRtmpListWidget::streamDeleteRequested, this,
                 [this](const std::string& streamId) {
                     auto reply =
-                        QMessageBox::question(this, getMultiRtmpText("MultiRTMP.Delete.Title"),
-                                              getMultiRtmpText("MultiRTMP.Delete.Confirm"),
+                        QMessageBox::question(this, QString::fromUtf8(obs_module_text("MultiRTMP.Delete.Title")),
+                                              QString::fromUtf8(obs_module_text("MultiRTMP.Delete.Confirm")),
                                               QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
 
                     if (reply == QMessageBox::Yes && m_manager) {
@@ -438,12 +438,12 @@ void OneSevenLiveMultiRtmpDock::updateButtonStates() {
     // Update button text with actual counts
     if (totalCount > 0) {
         m_startAllButton->setText(
-            QString(getMultiRtmpText("MultiRTMP.Dock.StartAll.WithCount")).arg(inactiveCount));
-        m_stopAllButton->setText(QString(getMultiRtmpText("MultiRTMP.Dock.StopAll.WithCount"))
+            QString(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StartAll.WithCount"))).arg(inactiveCount));
+        m_stopAllButton->setText(QString(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StopAll.WithCount")))
                                      .arg(activeCount + stats.connectingCount));
     } else {
-        m_startAllButton->setText(getMultiRtmpText("MultiRTMP.Dock.StartAll"));
-        m_stopAllButton->setText(getMultiRtmpText("MultiRTMP.Dock.StopAll"));
+        m_startAllButton->setText(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StartAll")));
+        m_stopAllButton->setText(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StopAll")));
     }
 }
 
@@ -469,9 +469,9 @@ void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConf
         m_configDialog->setEditMode(isEdit);
 
         if (isEdit) {
-            m_configDialog->setWindowTitle(getMultiRtmpText("MultiRTMP.EditStream.Title"));
+            m_configDialog->setWindowTitle(QString::fromUtf8(obs_module_text("MultiRTMP.EditStream.Title")));
         } else {
-            m_configDialog->setWindowTitle(getMultiRtmpText("MultiRTMP.AddStream.Title"));
+            m_configDialog->setWindowTitle(QString::fromUtf8(obs_module_text("MultiRTMP.AddStream.Title")));
         }
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Dialog setup completed");
 
@@ -539,10 +539,10 @@ void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConf
                     } else {
                         obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to %s stream configuration",
                                 isEdit ? "update" : "add");
-                        QMessageBox::warning(this, getMultiRtmpText("MultiRTMP.Error.Title"),
+                        QMessageBox::warning(this, QString::fromUtf8(obs_module_text("MultiRTMP.Error.Title")),
                                              isEdit
-                                                 ? getMultiRtmpText("MultiRTMP.Error.UpdateFailed")
-                                                 : getMultiRtmpText("MultiRTMP.Error.AddFailed"));
+                                                 ? QString::fromUtf8(obs_module_text("MultiRTMP.Error.UpdateFailed"))
+                                                 : QString::fromUtf8(obs_module_text("MultiRTMP.Error.AddFailed")));
                     }
                 } else {
                     obs_log(LOG_ERROR, "[MultiRTMP-Dock] Manager initialization failed");

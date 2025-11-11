@@ -99,8 +99,3 @@ class OneSevenLiveMultiRtmpDock : public QDockWidget {
     bool m_isUpdatingUI;
     bool m_isFirstShow;
 };
-
-// Helper function to get localized text
-inline QString getMultiRtmpText(const char* key) {
-    return QString::fromUtf8(obs_module_text(key));
-}
