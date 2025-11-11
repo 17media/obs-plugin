@@ -67,7 +67,7 @@ void DiagnosticsDialog::setupUI() {
     // Information label
     auto* infoLabel = new QLabel(obs_module_text("Diagnostics.Description"), this);
     infoLabel->setWordWrap(true);
-    infoLabel->setStyleSheet("QLabel { padding: 10px; background-color: #f0f0f0; border-radius: 5px; }");
+    infoLabel->setStyleSheet("QLabel { padding: 10px; background-color: #000000; color: white; border-radius: 5px; }");
     mainLayout->addWidget(infoLabel);
     
     // Categories group
@@ -92,6 +92,17 @@ void DiagnosticsDialog::setupUI() {
     categoriesLayout->addWidget(m_networkRequestsCheckBox);
     categoriesLayout->addWidget(m_privacyFilterCheckBox);
     
+    // 默认启用且选中四个分类：OBS 日志、插件日志、崩溃信息、配置快照
+    m_obsLogsCheckBox->setChecked(true);
+    m_pluginLogsCheckBox->setChecked(true);
+    m_crashInfoCheckBox->setChecked(true);
+    m_configSnapshotCheckBox->setChecked(true);
+
+    // 隐藏暂不启用的分类
+    m_networkLogsCheckBox->setVisible(false);
+    m_systemInfoCheckBox->setVisible(false);
+    m_networkRequestsCheckBox->setVisible(false);
+
     mainLayout->addWidget(categoriesGroup);
     
     // Output path selection
@@ -224,12 +235,9 @@ void DiagnosticsDialog::onCollectionError(const QString& error) {
 void DiagnosticsDialog::updateCategories() {
     // Update UI based on selections
     bool hasSelection = m_obsLogsCheckBox->isChecked() ||
-                       m_pluginLogsCheckBox->isChecked() ||
-                       m_networkLogsCheckBox->isChecked() ||
-                       m_systemInfoCheckBox->isChecked() ||
-                       m_crashInfoCheckBox->isChecked() ||
-                       m_configSnapshotCheckBox->isChecked() ||
-                       m_networkRequestsCheckBox->isChecked();
+                        m_pluginLogsCheckBox->isChecked() ||
+                        m_crashInfoCheckBox->isChecked() ||
+                        m_configSnapshotCheckBox->isChecked();
     
     m_collectButton->setEnabled(hasSelection);
 }
@@ -245,21 +253,14 @@ DiagnosticConfig DiagnosticsDialog::getCurrentConfig() const {
     if (m_pluginLogsCheckBox->isChecked()) {
         config.categories.push_back(DiagnosticCategory::PLUGIN_LOGS);
     }
-    if (m_networkLogsCheckBox->isChecked()) {
-        config.categories.push_back(DiagnosticCategory::NETWORK_LOGS);
-    }
-    if (m_systemInfoCheckBox->isChecked()) {
-        config.categories.push_back(DiagnosticCategory::SYSTEM_INFO);
-    }
+    // 暂不导出网络日志与系统信息
     if (m_crashInfoCheckBox->isChecked()) {
         config.categories.push_back(DiagnosticCategory::CRASH_INFO);
     }
     if (m_configSnapshotCheckBox->isChecked()) {
         config.categories.push_back(DiagnosticCategory::CONFIG_SNAPSHOT);
     }
-    if (m_networkRequestsCheckBox->isChecked()) {
-        config.categories.push_back(DiagnosticCategory::NETWORK_REQUESTS);
-    }
+    // 暂不导出网络请求
     
     return config;
 }
