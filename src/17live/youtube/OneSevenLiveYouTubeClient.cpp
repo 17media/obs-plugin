@@ -1,9 +1,10 @@
 #include "OneSevenLiveYouTubeClient.hpp"
 #include "utility/RemoteTextThread.hpp"
 #include <nlohmann/json.hpp>
-#include <QDebug>
 #include <QUrlQuery>
 #include <QRegularExpression>
+#include "plugin-support.h"
+#include <obs-module.h>
 
 const QString OneSevenLiveYouTubeClient::YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3";
 const QString OneSevenLiveYouTubeClient::YOUTUBE_API_VERSION = "v3";
@@ -21,7 +22,7 @@ void OneSevenLiveYouTubeClient::setAccessToken(const QString& accessToken)
 {
     m_accessToken = accessToken;
     m_hasValidAuth = !accessToken.isEmpty();
-    qDebug() << "YouTube access token set, valid:" << m_hasValidAuth;
+    obs_log(LOG_INFO, "YouTube access token set, valid: %s", m_hasValidAuth ? "true" : "false");
 }
 
 bool OneSevenLiveYouTubeClient::hasValidAuth() const
@@ -115,20 +116,20 @@ void OneSevenLiveYouTubeClient::deleteLiveStream(const QString& streamId)
 void OneSevenLiveYouTubeClient::setApiKey(const QString& apiKey)
 {
     m_apiKey = apiKey;
-    qDebug() << "YouTube API key set";
+    obs_log(LOG_INFO, "YouTube API key set");
 }
 
 void OneSevenLiveYouTubeClient::setTimeout(int timeoutMs)
 {
     m_timeoutMs = timeoutMs;
-    qDebug() << "API timeout set to" << timeoutMs << "ms";
+    obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
 }
 
 void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QString& method, const QString& body)
 {
-    qDebug() << "YouTube API Request:" << method << endpoint;
+    obs_log(LOG_INFO, "YouTube API Request: %s %s", method.toUtf8().constData(), endpoint.toUtf8().constData());
     if (!body.isEmpty()) {
-        qDebug() << "Request body:" << body;
+        obs_log(LOG_INFO, "Request body: %s", body.toUtf8().constData());
     }
     
     // Build headers
@@ -172,7 +173,7 @@ QString OneSevenLiveYouTubeClient::buildApiUrl(const QString& endpoint, const QM
 void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response, const QString& error)
 {
     if (!error.isEmpty()) {
-        qWarning() << "YouTube API Error:" << error;
+        obs_log(LOG_WARNING, "YouTube API Error: %s", error.toUtf8().constData());
         handleApiError(error, m_currentOperation, -1);
         return;
     }
@@ -206,7 +207,7 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response, co
 
 void OneSevenLiveYouTubeClient::onApiRequestError(const QString& response, const QString& error)
 {
-    qWarning() << "YouTube API Error:" << error << ":" << response;
+    obs_log(LOG_WARNING, "YouTube API Error: %s : %s", error.toUtf8().constData(), response.toUtf8().constData());
     handleApiError(error, m_currentOperation, -1);
 }
 

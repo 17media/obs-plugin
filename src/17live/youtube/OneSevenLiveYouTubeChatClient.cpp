@@ -2,6 +2,8 @@
 #include "utility/RemoteTextThread.hpp"
 #include <nlohmann/json.hpp>
 #include <QDebug>
+#include "plugin-support.h"
+#include <obs-module.h>
 #include <QUrlQuery>
 #include <QTimer>
 #include <QRegularExpression>
@@ -69,7 +71,7 @@ void OneSevenLiveYouTubeChatClient::setAccessToken(const QString& accessToken)
 {
     m_accessToken = accessToken;
     m_hasValidAuth = !accessToken.isEmpty();
-    qDebug() << "YouTube chat access token set, valid:" << m_hasValidAuth;
+    obs_log(LOG_INFO, "YouTube chat access token set, valid: %s", m_hasValidAuth ? "true" : "false");
 }
 
 bool OneSevenLiveYouTubeChatClient::hasValidAuth() const
@@ -90,7 +92,7 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId)
     }
     
     if (m_isPolling) {
-        qDebug() << "Chat polling already running, stopping first";
+        obs_log(LOG_INFO, "Chat polling already running, stopping first");
         stopChatPolling();
     }
     
@@ -100,7 +102,7 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId)
     m_exponentialBackoffDelay = m_retryDelayMs;
     m_isRateLimited = false;
     
-    qDebug() << "Starting YouTube chat polling for liveChatId:" << liveChatId;
+    obs_log(LOG_INFO, "Starting YouTube chat polling for liveChatId: %s", liveChatId.toUtf8().constData());
     
     m_isPolling = true;
     emit pollingStarted(liveChatId);
@@ -115,7 +117,7 @@ void OneSevenLiveYouTubeChatClient::stopChatPolling()
         return;
     }
     
-    qDebug() << "Stopping YouTube chat polling";
+    obs_log(LOG_INFO, "Stopping YouTube chat polling");
     
     m_isPolling = false;
     m_pollingTimer->stop();
@@ -137,26 +139,26 @@ bool OneSevenLiveYouTubeChatClient::isPolling() const
 void OneSevenLiveYouTubeChatClient::setApiKey(const QString& apiKey)
 {
     m_apiKey = apiKey;
-    qDebug() << "YouTube chat API key set";
+    obs_log(LOG_INFO, "YouTube chat API key set");
 }
 
 void OneSevenLiveYouTubeChatClient::setTimeout(int timeoutMs)
 {
     m_timeoutMs = timeoutMs;
-    qDebug() << "API timeout set to" << timeoutMs << "ms";
+    obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
 }
 
 void OneSevenLiveYouTubeChatClient::setMaxRetries(int maxRetries)
 {
     m_maxRetries = maxRetries;
-    qDebug() << "Max retries set to" << maxRetries;
+    obs_log(LOG_INFO, "Max retries set to %d", maxRetries);
 }
 
 void OneSevenLiveYouTubeChatClient::setRetryDelay(int baseDelayMs)
 {
     m_retryDelayMs = baseDelayMs;
     m_exponentialBackoffDelay = baseDelayMs;
-    qDebug() << "Retry delay set to" << baseDelayMs << "ms";
+    obs_log(LOG_INFO, "Retry delay set to %d ms", baseDelayMs);
 }
 
 void OneSevenLiveYouTubeChatClient::fetchChatMessages()
@@ -178,7 +180,7 @@ void OneSevenLiveYouTubeChatClient::scheduleNextPoll(int intervalMs)
     // Store the polling interval for potential rate limit handling
     m_currentPollingInterval = intervalMs;
     
-    qDebug() << "Scheduling next poll in" << intervalMs << "ms";
+    obs_log(LOG_INFO, "Scheduling next poll in %d ms", intervalMs);
     m_pollingTimer->start(intervalMs);
 }
 
@@ -187,7 +189,7 @@ void OneSevenLiveYouTubeChatClient::handleRateLimit(int retryAfterMs)
     m_isRateLimited = true;
     int actualDelay = qMax(retryAfterMs, m_exponentialBackoffDelay);
     
-    qWarning() << "Rate limit hit, scheduling retry in" << actualDelay << "ms";
+    obs_log(LOG_WARNING, "Rate limit hit, scheduling retry in %d ms", actualDelay);
     emit rateLimitHit(actualDelay);
     
     // Exponential backoff for next time
@@ -253,7 +255,7 @@ QString OneSevenLiveYouTubeChatClient::buildChatMessagesUrl(const QString& liveC
 
 void OneSevenLiveYouTubeChatClient::makeChatRequest(const QString& endpoint)
 {
-    qDebug() << "YouTube Chat API Request:" << endpoint;
+    obs_log(LOG_INFO, "YouTube Chat API Request: %s", endpoint.toUtf8().constData());
     
     // Build headers
     std::vector<std::string> headers;
@@ -284,7 +286,7 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
     }
     
     if (!error.isEmpty()) {
-        qWarning() << "YouTube Chat API Error:" << error;
+        obs_log(LOG_WARNING, "YouTube Chat API Error: %s", error.toUtf8().constData());
         
         // Extract HTTP status code from error if possible
         int httpStatus = -1;
@@ -325,7 +327,7 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
                         };
                         ws->broadcastMessage(payload.dump());
                     } catch (const std::exception& e) {
-                        qWarning() << "Failed to serialize/broadcast YouTube chat message:" << e.what();
+                        obs_log(LOG_WARNING, "Failed to serialize/broadcast YouTube chat message: %s", e.what());
                     }
                 }
             }

@@ -53,6 +53,9 @@ public:
     // Channel information API
     void getChannelInformation(const QString& broadcasterId);
 
+    // Stream key API
+    void getStreamKey(const QString& broadcasterId);
+
     // Get cached user info
     TwitchUserInfo getCachedUserInfo() const { return m_cachedUserInfo; }
     TwitchChannelInfo getCachedChannelInfo() const { return m_cachedChannelInfo; }
@@ -61,10 +64,12 @@ signals:
     void userInfoReceived(const TwitchUserInfo& userInfo);
     void channelInfoReceived(const TwitchChannelInfo& channelInfo);
     void errorOccurred(const QString& errorMessage);
+    void streamKeyReceived(const QString& streamKey);
 
 private slots:
     void onUserInfoResult(const QString& text, const QString& error);
     void onChannelInfoResult(const QString& text, const QString& error);
+    void onStreamKeyResult(const QString& text, const QString& error);
 
 private:
     void makeApiRequest(const QString& endpoint, const QString& query = QString());
@@ -84,4 +89,5 @@ private:
     static const QString TWITCH_HELIX_API_BASE;
     static const QString TWITCH_USERS_ENDPOINT;
     static const QString TWITCH_CHANNELS_ENDPOINT;
+    static const QString TWITCH_STREAM_KEY_ENDPOINT;
 };

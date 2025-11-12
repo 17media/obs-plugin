@@ -11,6 +11,7 @@
 const QString OneSevenLiveTwitchClient::TWITCH_HELIX_API_BASE = "https://api.twitch.tv/helix";
 const QString OneSevenLiveTwitchClient::TWITCH_USERS_ENDPOINT = "/users";
 const QString OneSevenLiveTwitchClient::TWITCH_CHANNELS_ENDPOINT = "/channels";
+const QString OneSevenLiveTwitchClient::TWITCH_STREAM_KEY_ENDPOINT = "/streams/key";
 
 OneSevenLiveTwitchClient::OneSevenLiveTwitchClient(QObject* parent)
     : QObject(parent)
@@ -109,6 +110,40 @@ void OneSevenLiveTwitchClient::getChannelInformation(const QString& broadcasterI
         /*isImageRequest=*/false);
 
     connect(thread, &RemoteTextThread::Result, this, &OneSevenLiveTwitchClient::onChannelInfoResult);
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
+}
+
+void OneSevenLiveTwitchClient::getStreamKey(const QString& broadcasterId)
+{
+    if (!hasValidAuth()) {
+        emit errorOccurred("Missing authentication data");
+        return;
+    }
+
+    if (broadcasterId.isEmpty()) {
+        emit errorOccurred("Broadcaster ID cannot be empty");
+        return;
+    }
+
+    obs_log(LOG_INFO, "Fetching Twitch stream key for broadcaster: %s", broadcasterId.toUtf8().constData());
+
+    QString url = TWITCH_HELIX_API_BASE + TWITCH_STREAM_KEY_ENDPOINT;
+    QString fullUrl = QString("%1?broadcaster_id=%2").arg(url, broadcasterId);
+
+    std::vector<std::string> headers;
+    headers.push_back(std::string("Authorization: ") + QString("Bearer %1").arg(m_accessToken).toStdString());
+    headers.push_back(std::string("Client-Id: ") + m_clientId.toStdString());
+
+    RemoteTextThread* thread = new RemoteTextThread(
+        fullUrl.toStdString(),
+        std::move(headers),
+        "application/json",
+        "",
+        /*timeoutSec=*/15,
+        /*isImageRequest=*/false);
+
+    connect(thread, &RemoteTextThread::Result, this, &OneSevenLiveTwitchClient::onStreamKeyResult);
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     thread->start();
 }
@@ -237,6 +272,62 @@ void OneSevenLiveTwitchClient::onChannelInfoResult(const QString& text, const QS
     } catch (const nlohmann::json::exception& e) {
         QString errorMsg = QString("Failed to parse Twitch API response: %1").arg(QString::fromStdString(e.what()));
         obs_log(LOG_ERROR, "Twitch channel info parse error: %s", errorMsg.toUtf8().constData());
+        emit errorOccurred(errorMsg);
+        return;
+    }
+}
+
+void OneSevenLiveTwitchClient::onStreamKeyResult(const QString& text, const QString& error)
+{
+    if (!error.isEmpty()) {
+        QString errorMsg = QString("Twitch stream key request failed: %1").arg(error);
+        obs_log(LOG_ERROR, "Twitch stream key request error: %s", errorMsg.toUtf8().constData());
+        emit errorOccurred(errorMsg);
+        return;
+    }
+
+    try {
+        nlohmann::json json = nlohmann::json::parse(text.toStdString());
+
+        if (json.contains("error")) {
+            std::string err = json["error"].get<std::string>();
+            std::string errorDescription = json.value("message", "");
+            QString errorMsg = QString("Twitch API error: %1 - %2").arg(QString::fromStdString(err), QString::fromStdString(errorDescription));
+            obs_log(LOG_ERROR, "Twitch API error: %s", errorMsg.toUtf8().constData());
+            emit errorOccurred(errorMsg);
+            return;
+        }
+
+        if (!json.contains("data") || !json["data"].is_array()) {
+            QString errorMsg = "Invalid Twitch API response format";
+            obs_log(LOG_ERROR, "Twitch API response missing data array for stream key");
+            emit errorOccurred(errorMsg);
+            return;
+        }
+
+        auto& dataArray = json["data"];
+        if (dataArray.empty()) {
+            QString errorMsg = "No stream key data found";
+            obs_log(LOG_WARNING, "Twitch API returned empty stream key data");
+            emit errorOccurred(errorMsg);
+            return;
+        }
+
+        auto& obj = dataArray[0];
+        const std::string key = obj.value("stream_key", std::string());
+        if (key.empty()) {
+            QString errorMsg = "Stream key missing in Twitch response";
+            obs_log(LOG_ERROR, "Twitch stream key missing in response object");
+            emit errorOccurred(errorMsg);
+            return;
+        }
+
+        QString streamKey = QString::fromStdString(key);
+        obs_log(LOG_INFO, "Twitch stream key retrieved successfully");
+        emit streamKeyReceived(streamKey);
+    } catch (const nlohmann::json::exception& e) {
+        QString errorMsg = QString("Failed to parse Twitch API response: %1").arg(QString::fromStdString(e.what()));
+        obs_log(LOG_ERROR, "Twitch stream key parse error: %s", errorMsg.toUtf8().constData());
         emit errorOccurred(errorMsg);
         return;
     }

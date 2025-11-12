@@ -10,6 +10,16 @@
 #include "plugin-support.h"
 #include "utility/Common.hpp"
 
+#include "OneSevenLiveCoreManager.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
+#include "youtube/OneSevenLiveYouTubeClient.hpp"
+#include "twitch/OneSevenLiveTwitchAuth.hpp"
+#include "twitch/OneSevenLiveTwitchClient.hpp"
+
+#include <QEventLoop>
+#include <QTimer>
+#include <QString>
+
 OneSevenLiveMultiRtmpStreamController::OneSevenLiveMultiRtmpStreamController() {
     MULTI_RTMP_STREAM_LOG_INFO("Creating MultiRTMP Stream Controller");
 }
@@ -791,8 +801,134 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
     const OneSevenLiveMultiRtmpConfig& config) const {
     obs_log(LOG_INFO, "createServiceSettings");
     obs_data_t* settings = ObsDataFromJson(config.serviceSettings);
-    // TODO: Add any additional service settings here
-    // TODO: Maybe get service settings from API
+    const char* server = obs_data_get_string(settings, "server");
+    const char* key = obs_data_get_string(settings, "key");
+
+    const bool hasServer = server && *server;
+    const bool hasKey = key && *key;
+
+    if (!hasServer || !hasKey) {
+        const std::string platform = config.streamName;
+        obs_log(LOG_INFO, "Service settings missing server/key; resolving via platform: %s", platform.c_str());
+
+        if (platform == "YouTube") {
+            auto* ytAuth = OneSevenLiveCoreManager::getInstance().getYouTubeAuth();
+            if (ytAuth && ytAuth->hasValidToken()) {
+                OneSevenLiveYouTubeClient client;
+                client.setAccessToken(ytAuth->getAccessToken());
+
+                QString resolvedServer;
+                QString resolvedKey;
+
+                QEventLoop loop;
+                QTimer timeout;
+                timeout.setSingleShot(true);
+                QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+                QObject::connect(&client, &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
+                                 [&resolvedServer, &resolvedKey, &loop](const YouTubeLiveStreamListResponse& resp) {
+                                     for (const auto& s : resp.items) {
+                                         const auto& info = s.cdn.ingestionInfo;
+                                         const QString serverCandidate = !info.rtmpsIngestionAddress.isEmpty() ? info.rtmpsIngestionAddress : info.ingestionAddress;
+                                         const QString keyCandidate = info.streamName;
+                                         if (!serverCandidate.isEmpty() && !keyCandidate.isEmpty()) {
+                                             resolvedServer = serverCandidate;
+                                             resolvedKey = keyCandidate;
+                                             break;
+                                         }
+                                     }
+                                     loop.quit();
+                                 });
+                QObject::connect(&client, &OneSevenLiveYouTubeClient::errorOccurred,
+                                 [&loop](const QString&, const QString&) {
+                                     loop.quit();
+                                 });
+
+                client.getMyLiveStreams();
+                timeout.start(5000);
+                loop.exec();
+
+                if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
+                    obs_log(LOG_INFO, "Resolved YouTube server/key from API");
+                    obs_data_set_string(settings, "server", resolvedServer.toUtf8().constData());
+                    obs_data_set_string(settings, "key", resolvedKey.toUtf8().constData());
+                } else {
+                    obs_log(LOG_WARNING, "Failed to resolve YouTube server/key");
+                }
+            } else {
+                obs_log(LOG_WARNING, "YouTube auth not available or token invalid");
+            }
+        } else if (platform == "Twitch") {
+            auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
+            QString streamKeyStr;
+            QString broadcasterId;
+
+            OneSevenLiveTwitchClient* client = nullptr;
+            if (twAuth) {
+                client = twAuth->getTwitchClient();
+            }
+
+            std::unique_ptr<OneSevenLiveTwitchClient> localClient;
+            if (!client) {
+                localClient = std::make_unique<OneSevenLiveTwitchClient>();
+                client = localClient.get();
+            }
+
+            if (twAuth && twAuth->hasValidToken()) {
+                if (!client->hasValidAuth()) {
+                    client->setAuthData(twAuth->getAccessToken(), QString(TWITCH_API_CLIENT_ID));
+                }
+
+                if (client->getCachedUserInfo().id.isEmpty()) {
+                    QEventLoop userLoop;
+                    QTimer timeout;
+                    timeout.setSingleShot(true);
+                    QObject::connect(&timeout, &QTimer::timeout, &userLoop, &QEventLoop::quit);
+                    QObject::connect(client, &OneSevenLiveTwitchClient::userInfoReceived,
+                                     [&broadcasterId, &userLoop](const TwitchUserInfo& user) {
+                                         broadcasterId = user.id;
+                                         userLoop.quit();
+                                     });
+                    QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
+                                     [&userLoop](const QString&) { userLoop.quit(); });
+                    client->getCurrentUser();
+                    timeout.start(5000);
+                    userLoop.exec();
+                } else {
+                    broadcasterId = client->getCachedUserInfo().id;
+                }
+
+                if (!broadcasterId.isEmpty()) {
+                    QEventLoop keyLoop;
+                    QTimer timeout;
+                    timeout.setSingleShot(true);
+                    QObject::connect(&timeout, &QTimer::timeout, &keyLoop, &QEventLoop::quit);
+                    QObject::connect(client, &OneSevenLiveTwitchClient::streamKeyReceived,
+                                     [&streamKeyStr, &keyLoop](const QString& keyVal) {
+                                         streamKeyStr = keyVal;
+                                         keyLoop.quit();
+                                     });
+                    QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
+                                     [&keyLoop](const QString&) { keyLoop.quit(); });
+                    client->getStreamKey(broadcasterId);
+                    timeout.start(5000);
+                    keyLoop.exec();
+                }
+
+                if (!streamKeyStr.isEmpty()) {
+                    const QString serverUrl = QString("rtmp://live.twitch.tv/app");
+                    obs_log(LOG_INFO, "Resolved Twitch server/key from API");
+                    obs_data_set_string(settings, "server", serverUrl.toUtf8().constData());
+                    obs_data_set_string(settings, "key", streamKeyStr.toUtf8().constData());
+                } else {
+                    obs_log(LOG_WARNING, "Failed to resolve Twitch stream key");
+                }
+            } else {
+                obs_log(LOG_WARNING, "Twitch auth not available or token invalid");
+            }
+        } else {
+            obs_log(LOG_WARNING, "Unknown platform for streamName: %s", platform.c_str());
+        }
+    }
 
     return settings;
 }
