@@ -162,6 +162,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/twitch/OneSevenLiveTwitchChatClient.cpp
   src/17live/twitch/OneSevenLiveTwitchClient.cpp
   src/17live/ui/OneSevenLiveAuthDialog.cpp
+  src/17live/ui/OneSevenLiveLineEditWithEye.cpp
   src/17live/ui/OneSevenLivePreviewDock.cpp
   src/17live/ui/OneSevenLivePreviewScreen.cpp
   src/17live/ui/OneSevenLivePreviewWidget.cpp

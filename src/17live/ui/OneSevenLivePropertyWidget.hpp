@@ -35,5 +35,6 @@ class OneSevenLivePropertyWidget : public QWidget {
     OneSevenLivePropertyRefreshHandler *m_refreshHandler = nullptr;
     obs_property *m_property = nullptr;
     obs_property_type m_propertyType;
+    bool m_isPassword = false;
     obs_combo_format m_comboFormat;
 };

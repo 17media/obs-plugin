@@ -11,6 +11,7 @@
 #include <QTimer>
 
 #include "OneSevenLivePropertyRefreshHandler.hpp"
+#include "OneSevenLiveLineEditWithEye.hpp"
 #include "plugin-support.h"
 
 OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
@@ -64,10 +65,14 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         break;
     }
     case OBS_PROPERTY_TEXT: {
-        auto le = new QLineEdit(parent);
-        if (obs_property_text_type(property) == OBS_TEXT_PASSWORD)
-            le->setEchoMode(QLineEdit::Password);
-        ctrl = le;
+        if (obs_property_text_type(property) == OBS_TEXT_PASSWORD) {
+            auto le = new OneSevenLiveLineEditWithEye(parent);
+            ctrl = (QWidget*)le;
+            m_isPassword = true;
+        } else {
+            auto le = new QLineEdit(parent);
+            ctrl = le;
+        }
         break;
     }
     case OBS_PROPERTY_LIST: {
@@ -160,9 +165,15 @@ void OneSevenLivePropertyWidget::LoadData(obs_data_t *settings) {
         break;
     }
     case OBS_PROPERTY_TEXT: {
-        auto le = static_cast<QLineEdit *>(ctrl);
-        const char *str = obs_data_get_string(settings, name.c_str());
-        le->setText(QString(str ? str : ""));
+        if (m_isPassword) {
+            auto le = static_cast<OneSevenLiveLineEditWithEye *>(ctrl);
+            const char *str = obs_data_get_string(settings, name.c_str());
+            le->setText(QString(str ? str : ""));
+        } else {
+            auto le = static_cast<QLineEdit *>(ctrl);
+            const char *str = obs_data_get_string(settings, name.c_str());
+            le->setText(QString(str ? str : ""));
+        }
         break;
     }
     case OBS_PROPERTY_LIST: {
