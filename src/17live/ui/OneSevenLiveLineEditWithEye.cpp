@@ -7,14 +7,13 @@
 OneSevenLiveLineEditWithEye::OneSevenLiveLineEditWithEye(QWidget* parent)
     : QWidget(parent)
 {
-  // Password input field container
-  QWidget* passwordContainer = new QWidget(this);
-  QHBoxLayout* passwordLayout = new QHBoxLayout(passwordContainer);
-  passwordLayout->setContentsMargins(0, 0, 0, 0);
-  passwordLayout->setSpacing(0);
+  QHBoxLayout* rootLayout = new QHBoxLayout(this);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
+  rootLayout->setSpacing(0);
+  setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
   // Password input field
-  m_lineEdit = new QLineEdit(passwordContainer);
+  m_lineEdit = new QLineEdit(this);
   m_lineEdit->setEchoMode(QLineEdit::Password);
   m_lineEdit->setFixedHeight(40);
   m_lineEdit->setStyleSheet(
@@ -25,7 +24,7 @@ OneSevenLiveLineEditWithEye::OneSevenLiveLineEditWithEye(QWidget* parent)
       "}");
 
   // Show/hide password button
-  m_eyeButton = new QPushButton(passwordContainer);
+  m_eyeButton = new QPushButton(this);
 
   // Set initial icon to show password icon
   QIcon showIcon(":/resources/show-password.svg");
@@ -40,10 +39,10 @@ OneSevenLiveLineEditWithEye::OneSevenLiveLineEditWithEye(QWidget* parent)
       "    padding: 0;"
       "}");
 
-  passwordLayout->addWidget(m_lineEdit);
-  passwordLayout->addWidget(m_eyeButton);
-  passwordLayout->setAlignment(m_lineEdit, Qt::AlignVCenter);
-  passwordLayout->setAlignment(m_eyeButton, Qt::AlignVCenter);
+  rootLayout->addWidget(m_lineEdit);
+  rootLayout->addWidget(m_eyeButton);
+  rootLayout->setAlignment(m_lineEdit, Qt::AlignVCenter);
+  rootLayout->setAlignment(m_eyeButton, Qt::AlignVCenter);
 
   // Connect button click event
   connect(m_eyeButton, &QPushButton::clicked, this, [this]() {

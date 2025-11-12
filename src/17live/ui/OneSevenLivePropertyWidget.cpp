@@ -67,7 +67,7 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
     case OBS_PROPERTY_TEXT: {
         if (obs_property_text_type(property) == OBS_TEXT_PASSWORD) {
             auto le = new OneSevenLiveLineEditWithEye(parent);
-            ctrl = (QWidget*)le;
+            ctrl = static_cast<QWidget *>(le);
             m_isPassword = true;
         } else {
             auto le = new QLineEdit(parent);
@@ -244,8 +244,13 @@ void OneSevenLivePropertyWidget::SaveData(obs_data_t *settings) {
     }
     case OBS_PROPERTY_TEXT: {
         obs_log(LOG_DEBUG, "Saving property %s as string", name.c_str());
-        auto le = static_cast<QLineEdit *>(ctrl);
-        obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
+        if (m_isPassword) {
+            auto le = static_cast<OneSevenLiveLineEditWithEye *>(ctrl);
+            obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
+        } else {
+            auto le = static_cast<QLineEdit *>(ctrl);
+            obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
+        }
         break;
     }
     case OBS_PROPERTY_LIST: {
