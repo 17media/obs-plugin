@@ -334,8 +334,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupButtonBox() {
 
     // Cancel button with blue background and white text
     m_cancelButton = new QPushButton(obs_module_text("MultiRtmp.Config.Cancel"));
-    m_cancelButton->setMinimumHeight(40);
-    m_cancelButton->setMinimumWidth(100);
+    m_cancelButton->setFixedHeight(40);
+    m_cancelButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     m_cancelButton->setStyleSheet(
         "QPushButton { "
         "  background-color: #007AFF; "
@@ -355,8 +355,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupButtonBox() {
 
     // Confirm button with red background and white text
     m_okButton = new QPushButton(obs_module_text("MultiRtmp.Config.Confirm"));
-    m_okButton->setMinimumHeight(40);
-    m_okButton->setMinimumWidth(100);
+    m_okButton->setFixedHeight(40);
+    m_okButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     m_okButton->setStyleSheet(
         "QPushButton { "
         "  background-color: #FF0001; "
@@ -374,6 +374,9 @@ void OneSevenLiveMultiRtmpConfigDialog::setupButtonBox() {
         "  background-color: #990001; "
         "}");
     m_okButton->setDefault(true);
+
+    int cancelWidth = m_cancelButton->sizeHint().width();
+    m_okButton->setMinimumWidth(cancelWidth * 2);
 
     // Center the buttons
     m_buttonLayout->addStretch();
