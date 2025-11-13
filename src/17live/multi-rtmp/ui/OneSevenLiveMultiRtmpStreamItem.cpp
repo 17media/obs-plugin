@@ -166,7 +166,7 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
         "background-color: rgba(255,255,255,0.1); border-radius: 12px; }");
     m_menuButton->setToolTip(obs_module_text("MultiRTMP.Delete"));
     connect(m_menuButton, &QPushButton::clicked, this,
-            &OneSevenLiveMultiRtmpStreamItem::onDeleteClicked);
+            &OneSevenLiveMultiRtmpStreamItem::onDeleteAction);
 
     m_controlLayout->addWidget(m_startStopButton);
     m_controlLayout->addWidget(m_editButton);
@@ -264,10 +264,6 @@ void OneSevenLiveMultiRtmpStreamItem::onMenuRequested() {
 }
 
 void OneSevenLiveMultiRtmpStreamItem::onDeleteAction() {
-    emit deleteRequested(m_config.id);
-}
-
-void OneSevenLiveMultiRtmpStreamItem::onDeleteClicked() {
     emit deleteRequested(m_config.id);
 }
 

@@ -69,12 +69,11 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     void deleteRequested(const std::string& streamId);
 
    private slots:
-    void onStartStopClicked();
-    void onEditClicked();
-    void onDeleteClicked();
-    void onMenuRequested();
-    void onDeleteAction();
-    void onStatsUpdateTimer();
+   void onStartStopClicked();
+   void onEditClicked();
+   void onMenuRequested();
+   void onDeleteAction();
+   void onStatsUpdateTimer();
 
    private:
     void setupUI();
