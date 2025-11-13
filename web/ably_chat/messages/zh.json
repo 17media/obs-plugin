@@ -19,7 +19,7 @@
     "status": {
       "connected": "已連線",
       "disconnected": "未連線",
-      "format": "（{status}）"
+      "format": "{status}"
     }
   }
 }

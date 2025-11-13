@@ -22,7 +22,7 @@ declare const messages: {
     "status": {
       "connected": "Connected",
       "disconnected": "Disconnected",
-      "format": "({status})"
+      "format": "{status}"
     }
   }
 };

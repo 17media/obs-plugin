@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import {useTranslations} from 'next-intl';
+import { useTranslations } from 'next-intl';
 
 const Wrapper = styled.div`
   position: relative;
@@ -15,6 +15,7 @@ const Trigger = styled.button`
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: space-between;
   gap: 4px;
   isolation: isolate;
   width: 100%;
@@ -93,6 +94,43 @@ const Item = styled.button`
   text-overflow: ellipsis;
   cursor: pointer;
   &:hover { background: #4A4F5D; }
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+`;
+
+const StatusDot = styled.span`
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 0 6px 0 6px;
+  background: ${(p) => (p.$connected ? '#00D22E' : '#A1A9B6')};
+`;
+
+const NameLabel = styled.span`
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const StatusWrap = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: #A1A9B6;
+`;
+
+const SelectedStatusWrap = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #A1A9B6;
+  margin-left: auto;
+  padding-right: 24px;
 `;
 
 export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
@@ -114,15 +152,8 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
     if (platformId === 'all') return '';
     const isConnected = platformsStatus[platformId]?.status === 'connected';
     const status = isConnected ? t('status.connected') : t('status.disconnected');
-    return t('status.format', {status});
+    return t('status.format', { status });
   };
-
-  const selectedLabel = (() => {
-    const def = platformDefs.find(d => d.id === selected);
-    if (!def) return t('platforms.all');
-    if (def.id === 'all') return def.name;
-    return `${def.name} ${statusText(def.id)}`;
-  })();
 
   const updateSelection = (value) => {
     setSelected(value);
@@ -172,7 +203,7 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
         if (!statusMap || !statusMap['17live']) {
           await messageAggregator.addPlatform('17live', {});
         }
-      } catch {}
+      } catch { }
 
       // Connect 17live only; youtube and twitch remain disconnected but instances exist.
       await connectPlatform('17live', {});
@@ -220,7 +251,13 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
         onClick={() => setOpen((prev) => !prev)}
         ref={triggerRef}
       >
-        <LabelText>{selectedLabel}</LabelText>
+        <LabelText>{platformDefs.find(d => d.id === selected)?.name || t('platforms.all')}</LabelText>
+        {selected !== 'all' && (
+          <SelectedStatusWrap>
+            <StatusDot $connected={platformsStatus[selected]?.status === 'connected'} />
+            <span>{statusText(selected)}</span>
+          </SelectedStatusWrap>
+        )}
         <RightChevron aria-hidden="true" $open={open} />
       </Trigger>
       {open && (
@@ -228,7 +265,13 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
           <List>
             {platformDefs.map((p) => (
               <Item key={p.id} onClick={() => updateSelection(p.id)}>
-                {p.name} {statusText(p.id)}
+                <NameLabel>{p.name}</NameLabel>
+                {p.id !== 'all' && (
+                  <StatusWrap>
+                    <StatusDot $connected={platformsStatus[p.id]?.status === 'connected'} />
+                    <span>{statusText(p.id)}</span>
+                  </StatusWrap>
+                )}
               </Item>
             ))}
           </List>
