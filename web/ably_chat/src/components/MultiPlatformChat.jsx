@@ -35,6 +35,7 @@ const MessageList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative;
   /* Remove default bullets and padding inside nested lists */
   & ul,
   & ol {
@@ -45,18 +46,24 @@ const MessageList = styled.div`
 `;
 
 const EmptyState = styled.div`
+  position: absolute;
+  top: 33%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  text-align: center;
+  padding: 0;
   color: #A1A9B6;
   font-size: 14px;
 `;
 
 const EmptyIcon = styled.img`
-  width: 20px;
-  height: 20px;
-  margin-right: 8px;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 12px;
 `;
 
 const MessageItem = styled.div`
@@ -165,7 +172,7 @@ export const MultiPlatformChat = () => {
       <MessageList>
         {filteredMessages.length === 0 ? (
           <EmptyState>
-            <EmptyIcon src="/images/exclaimark.svg" alt="" />
+            <EmptyIcon src="/images/chat.svg" alt="" />
             <span>{t('EMPTY_CHAT_MESSAGE')}</span>
           </EmptyState>
         ) : (
