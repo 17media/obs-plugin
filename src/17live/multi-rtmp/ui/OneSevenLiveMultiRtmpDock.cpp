@@ -366,6 +366,17 @@ void OneSevenLiveMultiRtmpDock::onStopAllClicked() {
     if (ensureManagerInitialized()) {
         m_stopAllButton->setEnabled(false);
 
+        QMessageBox::StandardButton ret = QMessageBox::question(
+            this,
+            QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StopAll")),
+            QString::fromUtf8(obs_module_text("MultiRTMP.StopAllConfirm")),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (ret != QMessageBox::Yes) {
+            m_stopAllButton->setEnabled(true);
+            return;
+        }
+
         m_manager->stopAllStreams();
 
         // Button states will be updated automatically through status callbacks
