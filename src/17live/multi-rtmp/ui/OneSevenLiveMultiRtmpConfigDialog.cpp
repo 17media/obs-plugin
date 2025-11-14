@@ -188,16 +188,6 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
 
     m_protocolCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_basicInfoLayout->addRow(protocolLabel, m_protocolCombo);
-
-    m_serviceWidget = new OneSevenLivePropertiesWidget(m_basicInfoWidget);
-    m_serviceWidget->setSizePolicy(
-        QSizePolicy::Expanding, QSizePolicy::Preferred);  // Ensure service widget expands properly
-    m_basicInfoLayout->addRow("", m_serviceWidget);
-
-    m_syncStartCheckbox = new QCheckBox();
-    m_syncStartCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStart"));
-    m_syncStopCheckbox = new QCheckBox();
-    m_syncStopCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStop"));
 }
 
 void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsButton() {
@@ -228,7 +218,21 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
 
     QVBoxLayout* advancedLayout = new QVBoxLayout(m_advancedWidget);
     advancedLayout->setContentsMargins(0, 0, 0, 0);
-    advancedLayout->setSpacing(0);
+    advancedLayout->setSpacing(5);
+
+    m_serviceWidget = new OneSevenLivePropertiesWidget(m_advancedWidget);
+    m_serviceWidget->setSizePolicy(
+        QSizePolicy::Expanding, QSizePolicy::Preferred);  // Ensure service widget expands properly
+    
+    advancedLayout->addWidget(m_serviceWidget);
+
+    m_syncStartCheckbox = new QCheckBox(m_advancedWidget);
+    m_syncStartCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStart"));
+    m_syncStopCheckbox = new QCheckBox(m_advancedWidget);
+    m_syncStopCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStop"));
+
+    advancedLayout->addWidget(m_syncStartCheckbox);
+    advancedLayout->addWidget(m_syncStopCheckbox);
 
     // Create tab widget for advanced settings
     m_tabWidget = new QTabWidget(m_advancedWidget);
