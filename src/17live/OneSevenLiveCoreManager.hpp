@@ -231,7 +231,7 @@ class OneSevenLiveCoreManager : public QObject {
     void createRockZoneDock();
 
     bool multiRtmpDockFirstLoad = true;
-QPointer<OneSevenLiveMultiRtmpDock> multiRtmpDock;
+    QPointer<OneSevenLiveMultiRtmpDock> multiRtmpDock;
     void handleMultiRtmpClicked();
     void createMultiRtmpDock();
 

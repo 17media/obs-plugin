@@ -7,6 +7,9 @@
 #include "OneSevenLiveMultiRtmpConfigDialog.hpp"
 #include "OneSevenLiveMultiRtmpListWidget.hpp"
 
+#include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveStreamManager.hpp"
+
 OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
     : QDockWidget(parent),
       m_manager(OneSevenLiveMultiRtmpManager::getInstance()),
@@ -347,6 +350,52 @@ void OneSevenLiveMultiRtmpDock::onAddStreamClicked() {
 }
 
 void OneSevenLiveMultiRtmpDock::onStartAllClicked() {
+    // Pre-check 17LIVE streaming status before starting MultiRTMP
+    {
+        auto& core = OneSevenLiveCoreManager::getInstance();
+        OneSevenLiveStreamManager* streamMgr = core.getStreamManager();
+        if (!streamMgr) {
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] 17LIVE StreamManager not available");
+            QMessageBox::warning(nullptr, obs_module_text("Live.Common.Notice"),
+                                obs_module_text("MultiRTMP.Precheck.StreamManagerUnavailable"));
+            return;
+        }
+
+        // 1) If 17live live NOT started
+        if (!streamMgr->hasActiveLiveStream() ||
+            streamMgr->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::NotStarted) {
+            obs_log(LOG_WARNING, "[MultiRTMP-Manager] 17LIVE live not started; blocking MultiRTMP");
+            QMessageBox::information(nullptr, obs_module_text("Live.Common.Notice"),
+                                    obs_module_text("MultiRTMP.Precheck.LiveNotStarted"));
+            return;
+        }
+
+        // Fetch current info to inspect group call flag
+        const OneSevenLiveStreamInfo& liveInfo = streamMgr->getCurrentLiveStreamInfo();
+        const OneSevenLiveRtmpRequest& liveReq = streamMgr->getCurrentStreamRequest();
+        const bool isGroupCall = liveReq.enableOBSGroupCall || liveInfo.request.enableOBSGroupCall;
+
+        // 2) If live is groupcall (party live), block
+        if (isGroupCall) {
+            obs_log(LOG_WARNING,
+                    "[MultiRTMP-Manager] 17LIVE live is GroupCall; MultiRTMP unsupported");
+            QMessageBox::warning(nullptr, obs_module_text("Live.Common.Notice"),
+                                obs_module_text("MultiRTMP.Precheck.GroupCallNotSupported"));
+            return;
+        }
+
+        // 3) If live started but not streaming, prompt user to start streaming first
+        if (streamMgr->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::Live &&
+            !streamMgr->isOBSStreaming()) {
+            obs_log(LOG_INFO,
+                    "[MultiRTMP-Manager] 17LIVE live started but OBS not streaming; prompt user");
+            QMessageBox::information(nullptr, obs_module_text("Live.Common.Notice"),
+                                    obs_module_text("MultiRTMP.Precheck.StartObsStreamingFirst"));
+            // Do not return here per requirement 3: prompt then continue starting MultiRTMP
+        }
+        // 4) If already streaming, proceed directly (no-op)
+    }
+
     if (ensureManagerInitialized()) {
         m_startAllButton->setEnabled(false);
 
