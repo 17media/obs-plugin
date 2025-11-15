@@ -17,47 +17,46 @@
 #include <QVBoxLayout>
 
 #include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveCustomEventDialog.hpp"
 #include "OneSevenLiveLoadRoomInfoWorker.hpp"
+#include "OneSevenLiveStreamingDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "moc_OneSevenLiveStreamingDock.cpp"
 #include "plugin-support.h"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
 
-#include "OneSevenLiveCoreManager.hpp"
-
-OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent)
-    : QDockWidget(obs_module_text("Live.Settings"), parent) {
-    // Get stream manager from core manager
-    streamManager = OneSevenLiveCoreManager::getInstance().getStreamManager();
-    
+OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
+                                                     OneSevenLiveStreamManager *streamManager_,
+                                                     OneSevenLiveApiWrappers *apiWrappers_)
+    : QDockWidget(obs_module_text("Live.Settings"), parent),
+      streamManager(streamManager_),
+      apiWrapper(apiWrappers_),
+      eventCooldownTimer(new QTimer(this)),
+      eventCooldownRemaining(0) {
     // Initialize category cooldown timer
-    eventCooldownTimer = new QTimer(this);
     eventCooldownTimer->setSingleShot(false);
     eventCooldownTimer->setInterval(1000);  // 1 second interval
     connect(eventCooldownTimer, &QTimer::timeout, this,
             &OneSevenLiveStreamingDock::onEventCooldownTimeout);
 
+    connect(streamManager, &OneSevenLiveStreamManager::streamStatusChanged, this,
+            &OneSevenLiveStreamingDock::updateLiveStatus);
+
     setupUi();
     createConnections();
+
+    QTimer::singleShot(0, this, [this]() { loadRoomInfo(); });
 }
 
-OneSevenLiveStreamingDock::~OneSevenLiveStreamingDock() = default;
+OneSevenLiveStreamingDock::~OneSevenLiveStreamingDock() {
+    disconnect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this, nullptr);
+    disconnect(streamManager, &OneSevenLiveStreamManager::streamStatusChanged, this, nullptr);
 
-// LoadingStateGuard implementation
-OneSevenLiveStreamingDock::LoadingStateGuard::LoadingStateGuard(std::atomic<bool> &flag,
-                                                                QMutex &mutex)
-    : flag_(flag), mutex_(mutex), valid_(false) {
-    QMutexLocker locker(&mutex_);
-    if (!flag_.exchange(true)) {
-        valid_ = true;
-    }
-}
-
-OneSevenLiveStreamingDock::LoadingStateGuard::~LoadingStateGuard() {
-    if (valid_) {
-        flag_.store(false);
+    if (eventCooldownTimer->isActive()) {
+        eventCooldownTimer->stop();
     }
 }
 
@@ -463,73 +462,51 @@ void OneSevenLiveStreamingDock::setupUi() {
 }
 
 // Add new method for loading room information
-void OneSevenLiveStreamingDock::loadRoomInfo(qint64 roomID) {
-    // Use RAII guard to manage loading state thread-safely
-    LoadingStateGuard guard(isLoading, loadingMutex);
-    if (!guard.isValid()) {
-        obs_log(LOG_WARNING,
-                "OneSevenLiveStreamingDock: Loading already in progress, ignoring new request");
-        return;
+void OneSevenLiveStreamingDock::loadRoomInfo() {
+    if (streamManager) {
+        streamManager->loadRoomInfo();
     }
 
-    // Show loading state
-    loadingOverlay->setVisible(true);
-    loadingOverlay->raise();  // Ensure overlay is on top
-    loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
+    if (streamManager->isRoomInfoLoading()) {
+        loadingOverlay->setVisible(true);
+        loadingOverlay->raise();
+        loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
+        QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());
+        if (scrollArea && scrollArea->widget()) {
+            scrollArea->widget()->setEnabled(false);
+        }
 
-    // Disable all controls
-    QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());
-    if (scrollArea && scrollArea->widget()) {
-        scrollArea->widget()->setEnabled(false);
-    }
-
-    // Create worker thread for background loading
-    QThread *workerThread = new QThread(this);
-
-    // Create local copies of data structures for thread-safe access
-    OneSevenLiveRoomInfo localRoomInfo;
-    OneSevenLiveConfigStreamer localConfigStreamer;
-    OneSevenLiveUserInfo localUserInfo;
-    OneSevenLiveArmySubscriptionLevels localLevels;
-
-    // Connect thread lifecycle and start background work
-    connect(
-        workerThread, &QThread::started, this,
-        [this, roomID, workerThread, localRoomInfo, localConfigStreamer, localUserInfo,
-         localLevels]() mutable {
-            // Create worker in the thread context
-            auto* apiWrapper = OneSevenLiveCoreManager::getInstance().getApiWrapper();
-    auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
-    OneSevenLiveLoadRoomInfoWorker worker(apiWrapper, configManager);
-            worker.setDataStructures(&localRoomInfo, &localConfigStreamer, &localUserInfo,
-                                     &localLevels);
-
-            // Perform loading operation (convert qint64 to std::int64_t)
-            OneSevenLiveLoadRoomInfoWorker::LoadResult result =
-                worker.loadRoomInfo(static_cast<std::int64_t>(roomID));
-
-            // Use QMetaObject::invokeMethod to safely call back to main thread
-            QMetaObject::invokeMethod(
-                this,
-                [this, result, localRoomInfo, localConfigStreamer, localUserInfo, localLevels]() {
-                    // Copy the loaded data back to member variables in main thread
-                    roomInfo = localRoomInfo;
-                    configStreamer = localConfigStreamer;
-                    userInfo = localUserInfo;
-                    levels = localLevels;
+        // connect streamManager's roomInfoLoaded signal to updateUIWithRoomInfo slot
+        disconnect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this, nullptr);
+        connect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this,
+                [this](const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
+                    roomInfo = streamManager->getRoomInfo();
+                    configStreamer = streamManager->getConfigStreamer();
+                    userInfo = streamManager->getUserInfo();
+                    levels = streamManager->getArmyLevels();
 
                     handleLoadingCompleted(result);
-                },
-                Qt::QueuedConnection);
+                });
+    }
+}
 
-            // Signal thread completion
-            workerThread->quit();
-        });
-
-    connect(workerThread, &QThread::finished, workerThread, &QObject::deleteLater);
-
-    // Start the worker thread
-    workerThread->start();
+void OneSevenLiveStreamingDock::showEvent(QShowEvent *event) {
+    QDockWidget::showEvent(event);
+    if (streamManager && streamManager->isRoomInfoLoading()) {
+        loadingOverlay->setVisible(true);
+        loadingOverlay->raise();
+        loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
+        QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());
+        if (scrollArea && scrollArea->widget()) {
+            scrollArea->widget()->setEnabled(false);
+        }
+    } else {
+        loadingOverlay->setVisible(false);
+        QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());
+        if (scrollArea && scrollArea->widget()) {
+            scrollArea->widget()->setEnabled(true);
+        }
+    }
 }
 
 // Add new method to update UI based on roomInfo
@@ -599,21 +576,18 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
         msgBox.exec();
 
         if (msgBox.clickedButton() == startLiveOnlyButton) {
-            syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
+            streamManager->syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
         } else if (msgBox.clickedButton() == closeLiveButton) {
-            closeLive(roomInfo.userInfo.userID.toStdString(),
-                      QString::number(roomInfo.liveStreamID).toStdString());
+            streamManager->stopStream(false);
         }
     } else if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
-        syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
+        streamManager->syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
     }
 }
 
 // Handle loading completion with comprehensive error handling
 void OneSevenLiveStreamingDock::handleLoadingCompleted(
     const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
-    // Ensure loading state is properly reset using atomic operation
-    isLoading.store(false);
     loadingOverlay->setVisible(false);
 
     // Enable all controls
@@ -653,7 +627,7 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(
                 qint64 currentRoomID = streamManager->getRoomID();
 
                 if (currentRoomID > 0) {
-                    loadRoomInfo(currentRoomID);
+                    loadRoomInfo();
                 }
             }
         });
@@ -717,7 +691,7 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(
                 if (currentRoomID > 0) {
                     obs_log(LOG_INFO, "[17Live] User requested retry for room ID: %lld",
                             currentRoomID);
-                    loadRoomInfo(currentRoomID);
+                    loadRoomInfo();
                 }
             }
         });
@@ -738,60 +712,11 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(
     updateUIWithRoomInfo();
 }
 
-// Handle critical errors that prevent loading
-void OneSevenLiveStreamingDock::handleCriticalError(const QString &errorMessage) {
-    // Hide loading state using atomic operation
-    isLoading.store(false);
-    loadingOverlay->setVisible(false);
-
-    // Enable all controls
-    QScrollArea *scrollArea = qobject_cast<QScrollArea *>(widget());
-    if (scrollArea && scrollArea->widget()) {
-        scrollArea->widget()->setEnabled(true);
-    }
-
-    // Log the error
-    obs_log(LOG_ERROR, "Critical error in loadRoomInfo: %s", errorMessage.toStdString().c_str());
-
-    // Show error message to user
-    QMessageBox::critical(
-        this, obs_module_text("Live.Settings.Error"),
-        QString("%1\n\n%2").arg(obs_module_text("Live.Settings.CriticalError")).arg(errorMessage));
-}
-
-void OneSevenLiveStreamingDock::syncWithWeb(OneSevenLiveStreamingStatus status) {
-    if (roomInfo.rtmpUrls.size() > 0) {
-        QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
-        OneSevenLiveRtmpResponse rtmpResponse;
-        
-        // Get API wrapper from core manager
-        auto* apiWrapper = OneSevenLiveCoreManager::getInstance().getApiWrapper();
-        if (apiWrapper && apiWrapper->GetRtmpByProvider(provider.toStdString(), rtmpResponse)) {
-            rtmpResponse.liveStreamID = QString::number(roomInfo.liveStreamID);
-            startLive(roomInfo.userInfo.userID.toStdString(), rtmpResponse,
-                      roomInfo.archiveConfig.autoRecording,
-                      status == OneSevenLiveStreamingStatus::Streaming);
-        } else {
-            QString errorMsg = apiWrapper ? apiWrapper->getLastErrorMessage() : "Unknown error";
-            QMessageBox::warning(
-                this, obs_module_text("Live.Settings.Error"),
-                QString(obs_module_text("Live.Settings.GetRtmpError")).arg(errorMsg));
-        }
-    } else {
-        // Get API wrapper from core manager
-        auto* apiWrapper = OneSevenLiveCoreManager::getInstance().getApiWrapper();
-        QString errorMsg = apiWrapper ? apiWrapper->getLastErrorMessage() : "Unknown error";
-        QMessageBox::warning(
-            this, obs_module_text("Live.Settings.Error"),
-            QString(obs_module_text("Live.Settings.GetRoomInfoError")).arg(errorMsg));
-    }
-}
-
 void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections() {
     // obs_log(LOG_INFO, "updateRequiredArmyRankSelections");
 
     OneSevenLiveConfig config;
-    auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
+    auto *configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
     if (!configManager->getConfig(config)) {
         return;
     }
@@ -940,8 +865,7 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
         customEventDialog = nullptr;
     } else {
         // Open dialog first; dialog will fetch custom event asynchronously
-        auto* apiWrapper = OneSevenLiveCoreManager::getInstance().getApiWrapper();
-        auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        auto *configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
         customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
 
         // Connect dialog close signal to reset button state
@@ -1106,40 +1030,30 @@ void OneSevenLiveStreamingDock::onCreateLiveClicked() {
 void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "createLiveWithRequest");
 
-    if (isLoading.load()) {
+    if (streamManager && streamManager->isRoomInfoLoading()) {
         // loading roomInfo is in progress, waiting for it to finish
         obs_log(LOG_INFO, "Waiting for loading to complete before creating live");
 
-        // Create a timer to periodically check if loading is complete
-        QTimer *waitTimer = new QTimer(this);
-        waitTimer->setSingleShot(false);
-        waitTimer->setInterval(100);  // Check every 100ms
+        // connect streamManager's roomInfoLoaded signal to updateUIWithRoomInfo slot
+        disconnect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this, nullptr);
+        connect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this,
+                [this, request](const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
+                    roomInfo = streamManager->getRoomInfo();
+                    configStreamer = streamManager->getConfigStreamer();
+                    userInfo = streamManager->getUserInfo();
+                    levels = streamManager->getArmyLevels();
 
-        connect(waitTimer, &QTimer::timeout, this, [this, request, waitTimer]() {
-            if (!isLoading.load()) {
-                // Loading is complete, stop timer and proceed with creation
-                waitTimer->stop();
-                waitTimer->deleteLater();
+                    handleLoadingCompleted(result);
 
-                obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
+                    populateRtmpRequest(request);
 
-                if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::NotStarted)) {
-                    obs_log(LOG_INFO,
-                            "Room is starting live stream, don't proceed with live creation");
-                    return;
-                }
+                    if (request.caption.isEmpty() || request.subtabID.isEmpty()) {
+                        return;
+                    }
 
-                populateRtmpRequest(request);
+                    createLive(request);
+                });
 
-                if (request.caption.isEmpty() || request.subtabID.isEmpty()) {
-                    return;
-                }
-
-                createLive(request);
-            }
-        });
-
-        waitTimer->start();
         return;
     }
 
@@ -1155,35 +1069,25 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
 void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &info) {
     obs_log(LOG_INFO, "editLiveWithInfo");
 
-    if (isLoading.load()) {
+    if (streamManager && streamManager->isRoomInfoLoading()) {
         // loading roomInfo is in progress, waiting for it to finish
         obs_log(LOG_INFO, "Waiting for loading to complete before editing live info");
 
-        // Create a timer to periodically check if loading is complete
-        QTimer *waitTimer = new QTimer(this);
-        waitTimer->setSingleShot(false);
-        waitTimer->setInterval(100);  // Check every 100ms
+        // connect streamManager's roomInfoLoaded signal to updateUIWithRoomInfo slot
+        disconnect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this, nullptr);
+        connect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this,
+                [this, info](const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
+                    roomInfo = streamManager->getRoomInfo();
+                    configStreamer = streamManager->getConfigStreamer();
+                    userInfo = streamManager->getUserInfo();
+                    levels = streamManager->getArmyLevels();
 
-        connect(waitTimer, &QTimer::timeout, this, [this, info, waitTimer]() {
-            if (!isLoading.load()) {
-                // Loading is complete, stop timer and proceed with creation
-                waitTimer->stop();
-                waitTimer->deleteLater();
+                    handleLoadingCompleted(result);
 
-                obs_log(LOG_INFO, "Loading completed, proceeding with live creation");
+                    populateRtmpRequest(info.request);
+                    currentInfoUuid = info.streamUuid;
+                });
 
-                if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::NotStarted)) {
-                    obs_log(LOG_INFO,
-                            "Room is starting live stream, don't proceed with live creation");
-                    return;
-                }
-
-                populateRtmpRequest(info.request);
-                currentInfoUuid = info.streamUuid;
-            }
-        });
-
-        waitTimer->start();
         return;
     }
 
@@ -1204,47 +1108,19 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         return;
     }
 
-    // Add current userID and streamerType to request
-    request.userID = QString::fromStdString(streamManager->getCurrentUserID());
-    request.streamerType = roomInfo.streamerType;
-
     // Use stream manager to create live stream
-    if (!streamManager->createLiveStream(request)) {
+    if (!streamManager->createRtmp(request)) {
         QString errorMsg = "Failed to create stream";
         obs_log(LOG_ERROR, "Failed to create stream. UserID: %s, Error: %s, Timestamp: %lld",
-                request.userID.toStdString().c_str(),
-                errorMsg.toStdString().c_str(),
+                request.userID.toStdString().c_str(), errorMsg.toStdString().c_str(),
                 QDateTime::currentMSecsSinceEpoch());
         return;
     }
 
-    emit streamStatusUpdated(OneSevenLiveStreamingStatus::Live);
+    // Start streaming (server-side)
+    streamManager->startStream();
 
-    // Start streaming with the response from stream manager
-    startLive(request.userID.toStdString(), streamManager->getCurrentStreamResponse(), request.archiveConfig.autoRecording);
-}
-
-void OneSevenLiveStreamingDock::startLive(const std::string userID,
-                                          const OneSevenLiveRtmpResponse &response,
-                                          bool autoRecording, bool skip) {
-    // Use stream manager to start live streaming
-    if (!skip && !streamManager->startLiveStream(response.liveStreamID.toStdString(), userID, autoRecording)) {
-        QString errorMsg = "Failed to start stream";
-        obs_log(LOG_ERROR,
-                "Failed to start stream. LiveStreamID: %s, UserID: %s, Error: %s, Timestamp: %lld",
-                response.liveStreamID.toStdString().c_str(), userID.c_str(),
-                errorMsg.toStdString().c_str(),
-                QDateTime::currentMSecsSinceEpoch());
-        return;
-    }
-
-    // Handle streaming settings (WHIP or RTMP)
-    streamManager->configureStreamingSettings(response);
-
-    updateLiveStatus(OneSevenLiveStreamingStatus::Streaming);
-    emit streamStatusUpdated(OneSevenLiveStreamingStatus::Streaming);
-
-    // Start event cooldown after successful live creation
+    // Start event cooldown
     startEventCooldown();
 
     // Ask whether to start streaming simultaneously
@@ -1262,7 +1138,7 @@ void OneSevenLiveStreamingDock::startLive(const std::string userID,
     msgBox.exec();
     if (msgBox.clickedButton() == yesButton) {
         // Start OBS streaming
-        obs_frontend_streaming_start();
+        streamManager->startOBSStreaming();
     }
 }
 
@@ -1287,112 +1163,8 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
         return;
     }
 
-    std::string currUserID = streamManager->getCurrentUserID();
-    std::string currLiveStreamID = streamManager->getCurrentLiveStreamID();
-
-    closeLive(currUserID, currLiveStreamID);
-}
-
-void OneSevenLiveStreamingDock::closeLive(const std::string &currUserID,
-                                          const std::string &currLiveStreamID, bool isAutoClose) {
-    // Handle stop streaming logic
-    stopStreaming();
-
-    QString endReason = isAutoClose ? "autoClose" : "normalEnd";
-
-    // Use stream manager to stop live stream
-    OneSevenLiveCloseLiveRequest request;
-    request.reason = "normalEnd";
-    request.userID = QString::fromStdString(currUserID);
-
-    if (!streamManager->stopLiveStream(currLiveStreamID, request)) {
-        obs_log(LOG_ERROR, "Failed to stop stream. LiveStreamID: %s, Reason: %s",
-                currLiveStreamID.c_str(), endReason.toStdString().c_str());
-    } else {
-        obs_log(LOG_INFO,
-                "Successfully stopped stream. LiveStreamID: %s, Reason: %s, IsAutoClose: %s",
-                currLiveStreamID.c_str(), endReason.toStdString().c_str(),
-                isAutoClose ? "true" : "false");
-    }
-
-    // Clear streaming configuration based on current mode
-    streamManager->clearStreamingConfiguration();
-
-    updateLiveStatus(OneSevenLiveStreamingStatus::NotStarted);
-    emit streamStatusUpdated(OneSevenLiveStreamingStatus::NotStarted);
-}
-
-void OneSevenLiveStreamingDock::saveStreamingSettings(const std::string &liveStreamID,
-                                                      const std::string &streamUrl,
-                                                      const std::string &streamKey) {
-    // Handle start streaming logic
-    obs_log(LOG_INFO, "saveStreamingSettings %s", liveStreamID.c_str());
-
-    // Get OBS service
-    obs_service_t *service = obs_service_create("rtmp_custom", "default_service", NULL, NULL);
-
-    // Set streaming URL and key
-    obs_data_t *settings = obs_service_get_settings(service);
-    obs_log(LOG_INFO, "streamUrl: %s", streamUrl.c_str());
-    obs_log(LOG_INFO, "streamKey: %s", streamKey.c_str());
-    obs_data_set_string(settings, "server", streamUrl.c_str());
-    obs_data_set_string(settings, "key", streamKey.c_str());
-
-    // Apply settings
-    obs_service_update(service, settings);
-    obs_data_release(settings);
-
-    obs_frontend_set_streaming_service(service);
-
-    obs_frontend_save_streaming_service();
-
-    // Release resources
-    obs_service_release(service);
-}
-
-void OneSevenLiveStreamingDock::saveWhipStreamingSettings(const std::string &liveStreamID,
-                                                          const std::string &whipServer,
-                                                          const std::string &whipToken) {
-    // Handle WHIP streaming settings
-    obs_log(LOG_INFO, "saveWhipStreamingSettings %s", liveStreamID.c_str());
-    obs_log(LOG_INFO, "whipServer: %s", whipServer.c_str());
-    obs_log(LOG_INFO, "whipToken: %s", whipToken.c_str());
-
-    // Set WHIP server and token
-    obs_data_t *settings = obs_data_create();
-    obs_data_set_string(settings, "type", "whip_custom");
-    obs_data_set_string(settings, "service", "WHIP");
-    obs_data_set_string(settings, "server", whipServer.c_str());
-    obs_data_set_string(settings, "bearer_token", whipToken.c_str());
-
-    // Get or create WHIP service
-    obs_service_t *service = obs_service_create("whip_custom", "whip_service", settings, NULL);
-    if (!service) {
-        obs_log(LOG_ERROR, "Failed to create WHIP service");
-        return;
-    }
-
-    // Set as current streaming service
-    obs_frontend_set_streaming_service(service);
-
-    obs_service_release(service);
-    obs_data_release(settings);
-
-    obs_frontend_save_streaming_service();
-
-    obs_log(LOG_INFO, "WHIP service configured successfully");
-}
-
-void OneSevenLiveStreamingDock::stopStreaming() {
-    // Handle stop streaming logic
-    obs_log(LOG_INFO, "stopStreaming");
-
-    if (!obs_frontend_streaming_active()) {
-        obs_log(LOG_INFO, "Streaming is not active");
-        return;
-    }
-
-    obs_frontend_streaming_stop();
+    // Stop streaming
+    streamManager->stopStream(false);
 }
 
 void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpRequest &request) {
@@ -1706,7 +1478,7 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
     OneSevenLiveChangeEventRequest request;
     request.eventID = eventID;
 
-    bool success = streamManager->changeEvent(eventID);
+    bool success = changeEvent(eventID);
     if (success) {
         obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
 
@@ -1719,17 +1491,51 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
     }
 }
 
-void OneSevenLiveStreamingDock::startEventCooldown() {
-    // Start cooldown timer (5 minutes = 300 seconds)
-    eventCooldownRemaining = 300;
-    originalCategoryText = eventCombo->currentText();
+bool OneSevenLiveStreamingDock::changeEvent(qint64 eventID) {
+    obs_log(LOG_INFO, "Changing event to: %lld", eventID);
+
+    // Check if we're in cooldown
+    if (isEventInCooldown()) {
+        obs_log(LOG_INFO, "Event change ignored due to cooldown");
+        return false;
+    }
+
+    // Call ChangeEvent API
+    OneSevenLiveChangeEventRequest request;
+    request.eventID = eventID;
+
+    bool success = apiWrapper->ChangeEvent(request);
+    if (success) {
+        obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
+
+        // Start event cooldown
+        startEventCooldown();
+    } else {
+        QString errorMsg = apiWrapper->getLastErrorMessage();
+        obs_log(LOG_ERROR, "Failed to change event to: %lld, error: %s", eventID,
+                errorMsg.toStdString().c_str());
+        return false;
+    }
+
+    return success;
+}
+
+void OneSevenLiveStreamingDock::startEventCooldown(int duration) {
+    eventCooldownRemaining = duration;
     eventCooldownTimer->start();
 
-    // Disable event combo during cooldown
+    emit eventCooldownUpdated(eventCooldownRemaining);
+    obs_log(LOG_INFO, "Event cooldown started for %d seconds", duration);
+    originalCategoryText = eventCombo->currentText();
     eventCombo->setEnabled(false);
+}
 
-    // Update hint label to show cooldown
-    onEventCooldownTimeout();  // Update display immediately
+bool OneSevenLiveStreamingDock::isEventInCooldown() const {
+    return eventCooldownTimer->isActive();
+}
+
+int OneSevenLiveStreamingDock::getEventCooldownRemaining() const {
+    return eventCooldownRemaining;
 }
 
 void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
@@ -1745,6 +1551,8 @@ void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
 
         hintLabel->setText(cooldownText);
         hintLabel->setStyleSheet("color: orange; font-size: 12px;");
+
+        emit eventCooldownUpdated(eventCooldownRemaining);
     } else {
         // Cooldown finished
         eventCooldownTimer->stop();
@@ -1757,6 +1565,7 @@ void OneSevenLiveStreamingDock::onEventCooldownTimeout() {
         // Call updateLiveStatus to ensure consistent state handling across all UI elements
         updateLiveStatus(currentLiveStatus);
 
-        obs_log(LOG_INFO, "Event change cooldown finished");
+        emit eventCooldownUpdated(0);
+        obs_log(LOG_INFO, "Event cooldown finished");
     }
 }

@@ -28,8 +28,8 @@
 #include "OneSevenLiveMenuManager.hpp"
 #include "OneSevenLiveRockZoneDock.hpp"
 #include "OneSevenLiveStreamListDock.hpp"
-#include "OneSevenLiveStreamingDock.hpp"
-#include "OneSevenLiveStreamManager.hpp"
+#include "streaming/OneSevenLiveStreamingDock.hpp"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
@@ -218,13 +218,6 @@ bool OneSevenLiveCoreManager::initialize() {
     // if not login, initialize apiWrapper without token
     if (!isLogin) {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
-    }
-
-    // Initialize stream manager (after apiWrapper is ready)
-    streamManager = std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
-    if (!streamManager) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
-        return false;
     }
 
     // Instantiate auth handlers
@@ -686,6 +679,13 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     // Create chat clients on login
     createYouTubeChatClient();
     createTwitchChatClient();
+
+    // Initialize stream manager (after apiWrapper is ready)
+    streamManager = std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
+    if (!streamManager) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
+        return;
+    }
 }
 
 void OneSevenLiveCoreManager::performLogoutOperations() {
@@ -863,7 +863,7 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
 }
 
 void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
-    if (streamingDock) {
+    if (streamManager) {
         std::string currUserID;
         std::string currLiveStreamID;
         configManager->getConfigValue("UserID", currUserID);
@@ -880,7 +880,7 @@ void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
                     currUserID.c_str(), currLiveStreamID.c_str());
         }
 
-        streamingDock->closeLive(currUserID, currLiveStreamID, isAutoClose);
+        streamManager->stopStream(isAutoClose);
     }
 }
 
@@ -914,7 +914,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
     }
 
     // Create and show streaming window
-    streamingDock = new OneSevenLiveStreamingDock(mainWindow);
+    streamingDock = new OneSevenLiveStreamingDock(mainWindow, streamManager.get());
     streamingDock->setObjectName("OneSevenLiveStreamingDock");
 
     streamingDock->setMaximumWidth(600);
@@ -939,8 +939,6 @@ void OneSevenLiveCoreManager::createStreamingDock() {
             mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
         streamingDock->move(x, y);
     }
-
-    streamingDock->loadRoomInfo(loginData.userInfo.roomID);
 
     if (streamingDockFirstLoad) {
         connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this]() {

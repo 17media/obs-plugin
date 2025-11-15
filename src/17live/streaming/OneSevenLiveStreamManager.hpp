@@ -1,10 +1,11 @@
 #pragma once
 
 #include <QObject>
+#include <QTimer>
 #include <memory>
 #include <string>
-#include <QTimer>
 
+#include "OneSevenLiveLoadRoomInfoWorker.hpp"
 #include "api/OneSevenLiveModels.hpp"
 
 // Forward declarations
@@ -19,12 +20,11 @@ class OneSevenLiveConfigManager;
  * - Stream creation and management
  * - Playback control (start/stop)
  * - Integration with OBS streaming service
- * - Event management during streaming
  */
 class OneSevenLiveStreamManager : public QObject {
     Q_OBJECT
 
-public:
+   public:
     /**
      * @brief Constructor
      * @param apiWrapper API wrapper instance for making HTTP requests
@@ -41,31 +41,20 @@ public:
      * @param request RTMP request containing stream configuration
      * @return bool True if stream creation was successful
      */
-    bool createLiveStream(const OneSevenLiveRtmpRequest& request);
+    bool createRtmp(const OneSevenLiveRtmpRequest& request);
 
     /**
      * @brief Start streaming with the given configuration
-     * @param userID User ID for the stream
-     * @param response RTMP response containing stream credentials
-     * @param autoRecording Whether to enable automatic recording
-     * @param skip Skip OBS streaming start (for testing purposes)
      * @return bool True if streaming started successfully
      */
-    bool startStreaming(const std::string& userID,
-                       const OneSevenLiveRtmpResponse& response,
-                       bool autoRecording,
-                       bool skip = false);
+    bool startStream();
 
     /**
      * @brief Stop the current stream
-     * @param userID User ID for the stream
-     * @param liveStreamID Live stream ID to stop
      * @param isAutoClose Whether this is an automatic close
      * @return bool True if stream was stopped successfully
      */
-    bool stopStreaming(const std::string& userID,
-                        const std::string& liveStreamID,
-                        bool isAutoClose = false);
+    bool stopStream(bool isAutoClose = false);
 
     /**
      * @brief Start live stream with the given response
@@ -74,18 +63,6 @@ public:
      * @param autoRecording Whether to enable automatic recording
      * @return bool True if stream was started successfully
      */
-    bool startLiveStream(const std::string& liveStreamID,
-                        const std::string& userID,
-                        bool autoRecording = false);
-
-    /**
-     * @brief Stop live stream with the given request
-     * @param liveStreamID Live stream ID to stop
-     * @param request Close live request
-     * @return bool True if stream was stopped successfully
-     */
-    bool stopLiveStream(const std::string& liveStreamID,
-                       const OneSevenLiveCloseLiveRequest& request);
 
     /**
      * @brief Configure streaming settings based on response (WHIP or RTMP)
@@ -117,6 +94,8 @@ public:
      */
     bool hasActiveLiveStream() const;
 
+    void startOBSStreaming();
+
     /**
      * @brief Stop OBS streaming (frontend control)
      */
@@ -135,12 +114,31 @@ public:
      */
     bool saveStreamConfiguration(const OneSevenLiveStreamInfo& streamInfo);
 
-    /**
-     * @brief Change event during streaming
-     * @param eventID New event ID
-     * @return bool True if event change was successful
-     */
-    bool changeEvent(qint64 eventID);
+    void loadRoomInfo();
+
+    const OneSevenLiveRoomInfo& getRoomInfo() const {
+        return roomInfo;
+    }
+
+    const OneSevenLiveConfigStreamer& getConfigStreamer() const {
+        return configStreamer;
+    }
+
+    const OneSevenLiveUserInfo& getUserInfo() const {
+        return userInfo;
+    }
+
+    const OneSevenLiveArmySubscriptionLevels& getArmyLevels() const {
+        return levels;
+    }
+
+    bool isRoomInfoLoading() const {
+        return roomInfoLoading;
+    }
+
+    bool fetchRtmpByProvider(const std::string& provider, OneSevenLiveRtmpResponse& response);
+    QString getLastErrorMessage() const;
+    bool syncWithWeb(OneSevenLiveStreamingStatus status);
 
     /**
      * @brief Get current streaming status
@@ -173,32 +171,13 @@ public:
     qint64 getRoomID() const;
 
     /**
-     * @brief Start event cooldown timer
-     * @param duration Cooldown duration in seconds (default 300 = 5 minutes)
-     */
-    void startEventCooldown(int duration = 300);
-
-    /**
-     * @brief Check if event change is in cooldown
-     * @return bool True if cooldown is active
-     */
-    bool isEventInCooldown() const;
-
-    /**
-     * @brief Get remaining cooldown time
-     * @return int Remaining cooldown time in seconds
-     */
-    int getEventCooldownRemaining() const;
-
-    /**
      * @brief Save RTMP streaming settings to OBS
      * @param liveStreamID Live stream ID
      * @param streamUrl RTMP server URL
      * @param streamKey Stream key
      */
-    void saveStreamingSettings(const std::string& liveStreamID,
-                              const std::string& streamUrl,
-                              const std::string& streamKey);
+    void saveStreamingSettings(const std::string& liveStreamID, const std::string& streamUrl,
+                               const std::string& streamKey);
 
     /**
      * @brief Save WHIP streaming settings to OBS
@@ -206,17 +185,16 @@ public:
      * @param whipServer WHIP server URL
      * @param whipToken WHIP authentication token
      */
-    void saveWhipStreamingSettings(const std::string& liveStreamID,
-                                  const std::string& whipServer,
-                                  const std::string& whipToken);
+    void saveWhipStreamingSettings(const std::string& liveStreamID, const std::string& whipServer,
+                                   const std::string& whipToken);
 
     /**
      * @brief Clear streaming configuration from OBS
      */
-public:
+   public:
     void clearStreamingConfiguration();
 
-signals:
+   signals:
     /**
      * @brief Emitted when stream status changes
      * @param status New streaming status
@@ -229,32 +207,20 @@ signals:
     void streamConfigurationSaved();
 
     /**
-     * @brief Emitted when event cooldown starts or updates
-     * @param remainingTime Remaining cooldown time in seconds
-     */
-    void eventCooldownUpdated(int remainingTime);
-
-    /**
      * @brief Emitted when an error occurs
      * @param errorMessage Error message
      * @param operation Operation that failed
      */
     void errorOccurred(const QString& errorMessage, const QString& operation);
 
-private slots:
-    /**
-     * @brief Handle event cooldown timer timeout
-     */
-    void onEventCooldownTimeout();
+    void roomInfoLoaded(const OneSevenLiveLoadRoomInfoWorker::LoadResult& result);
 
-private:
+   private:
     /**
      * @brief Configure OBS streaming service
-     * @param liveStreamID Live stream ID
      * @param response RTMP response containing credentials
      */
-    void configureStreamingService(const std::string& liveStreamID,
-                                  const OneSevenLiveRtmpResponse& response);
+    void configureStreamingService(const OneSevenLiveRtmpResponse& response);
 
     /**
      * @brief Enable stream archive
@@ -267,17 +233,21 @@ private:
     // Member variables
     OneSevenLiveApiWrappers* apiWrapper;
     OneSevenLiveConfigManager* configManager;
-    
+
     OneSevenLiveStreamingStatus currentStreamingStatus;
+
     std::string currentLiveStreamID;
     std::string currentUserID;
-    
+    qint64 currentRoomID;
+
     OneSevenLiveRtmpResponse currentStreamResponse;  // Store current stream response
     OneSevenLiveRtmpRequest currentStreamRequest;    // Store current stream request
     OneSevenLiveStreamInfo currentLiveStreamInfo;    // Snapshot info for current live
-    
-    // Event cooldown management
-    QTimer* eventCooldownTimer;
-    int eventCooldownRemaining;
-    static constexpr int DEFAULT_COOLDOWN_DURATION = 300; // 5 minutes
+
+    // Loaded data for room info
+    OneSevenLiveRoomInfo roomInfo;
+    OneSevenLiveConfigStreamer configStreamer;
+    OneSevenLiveUserInfo userInfo;
+    OneSevenLiveArmySubscriptionLevels levels;
+    bool roomInfoLoading = false;
 };

@@ -5,7 +5,7 @@
 #include <QMessageBox>
 
 #include "OneSevenLiveCoreManager.hpp"
-#include "OneSevenLiveStreamManager.hpp"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 
 // Static member initialization
 OneSevenLiveMultiRtmpManager* OneSevenLiveMultiRtmpManager::s_instance = nullptr;

@@ -8,7 +8,7 @@
 #include "OneSevenLiveMultiRtmpListWidget.hpp"
 
 #include "OneSevenLiveCoreManager.hpp"
-#include "OneSevenLiveStreamManager.hpp"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 
 OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
     : QDockWidget(parent),

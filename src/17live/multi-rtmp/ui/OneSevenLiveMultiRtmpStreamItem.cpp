@@ -11,7 +11,7 @@
 #include "../OneSevenLiveMultiRtmpManager.hpp"
 
 #include "OneSevenLiveCoreManager.hpp"
-#include "OneSevenLiveStreamManager.hpp"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 
 // Static style class constants
 const QString OneSevenLiveMultiRtmpStreamItem::STATUS_IDLE_CLASS = "status-idle";
