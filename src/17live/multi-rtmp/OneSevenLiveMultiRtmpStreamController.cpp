@@ -884,11 +884,13 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
                     timeout.setSingleShot(true);
                     QObject::connect(&timeout, &QTimer::timeout, &userLoop, &QEventLoop::quit);
                     QObject::connect(client, &OneSevenLiveTwitchClient::userInfoReceived,
+                                     &userLoop,
                                      [&broadcasterId, &userLoop](const TwitchUserInfo& user) {
                                          broadcasterId = user.id;
                                          userLoop.quit();
                                      });
                     QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
+                                     &userLoop,
                                      [&userLoop](const QString&) { userLoop.quit(); });
                     client->getCurrentUser();
                     timeout.start(5000);
@@ -903,11 +905,13 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
                     timeout.setSingleShot(true);
                     QObject::connect(&timeout, &QTimer::timeout, &keyLoop, &QEventLoop::quit);
                     QObject::connect(client, &OneSevenLiveTwitchClient::streamKeyReceived,
+                                     &keyLoop,
                                      [&streamKeyStr, &keyLoop](const QString& keyVal) {
                                          streamKeyStr = keyVal;
                                          keyLoop.quit();
                                      });
                     QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
+                                     &keyLoop,
                                      [&keyLoop](const QString&) { keyLoop.quit(); });
                     client->getStreamKey(broadcasterId);
                     timeout.start(5000);
