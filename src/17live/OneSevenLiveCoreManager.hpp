@@ -188,7 +188,7 @@ class OneSevenLiveCoreManager : public QObject {
 
     std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
 
-    std::unique_ptr<OneSevenLiveWebsocketServer> websocketServer_;
+    std::shared_ptr<OneSevenLiveWebsocketServer> websocketServer_;
 
     /**
      * @brief Slot function to handle successful login

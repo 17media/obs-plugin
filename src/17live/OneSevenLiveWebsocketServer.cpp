@@ -68,7 +68,7 @@ bool OneSevenLiveWebsocketServer::start() {
         
         // Set connection handler
         server_->setOnConnectionCallback(
-            [this](std::weak_ptr<ix::WebSocket> webSocket, 
+            [this](std::weak_ptr<ix::WebSocket> webSocket,
                    std::shared_ptr<ix::ConnectionState> connectionState) {
                 onConnection(webSocket, connectionState);
             });
@@ -128,9 +128,20 @@ void OneSevenLiveWebsocketServer::stop() {
     
     // Stop the server
     if (server_) {
+        server_->setOnConnectionCallback(nullptr);
         server_->stop();
     }
     
+    {
+        std::lock_guard<std::mutex> lock(clients_mutex_);
+        for (auto& it : clients_) {
+            if (auto ws = it.second.lock()) {
+                ws->setOnMessageCallback(nullptr);
+                ws->close();
+            }
+        }
+    }
+
     // Wait for server thread to finish
     if (server_thread_ && server_thread_->joinable()) {
         server_thread_->join();
@@ -364,6 +375,9 @@ int OneSevenLiveWebsocketServer::getAvailablePort() const {
 
 void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webSocket, 
                                               std::shared_ptr<ix::ConnectionState> connectionState) {
+    if (!running_) {
+        return;
+    }
     auto ws = webSocket.lock();
     if (!ws) {
         return;
@@ -409,6 +423,9 @@ void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webS
 void OneSevenLiveWebsocketServer::onMessage(std::shared_ptr<ix::ConnectionState> connectionState,
                                            ix::WebSocket& webSocket,
                                            const ix::WebSocketMessagePtr& msg) {
+    if (!running_) {
+        return;
+    }
     UNUSED_PARAMETER(connectionState);
     
     if (!msg) {

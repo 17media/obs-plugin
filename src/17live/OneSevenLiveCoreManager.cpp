@@ -162,7 +162,9 @@ bool OneSevenLiveCoreManager::initialize() {
                     if (payload->contains("type") && payload->at("type").is_string() &&
                         payload->at("type").get<std::string>() == "refresh_rockzone") {
                         // rockzoneDock refreshUserList
-                        rockZoneDock->refreshUserList();
+                        if (rockZoneDock) {
+                            rockZoneDock->refreshUserList();
+                        }
                     }
                 }
                 return;
