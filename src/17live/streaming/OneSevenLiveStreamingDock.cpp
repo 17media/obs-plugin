@@ -1136,6 +1136,9 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
     if (startStream) {
         // Start streaming (server-side)
         streamManager->startStream();
+    } else {
+        // update streaming status
+        streamManager->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
     }
     
     // Ask whether to start streaming simultaneously
