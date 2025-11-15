@@ -848,7 +848,7 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
                 loop.exec();
 
                 if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
-                    obs_log(LOG_INFO, "Resolved YouTube server/key from API");
+                    obs_log(LOG_INFO, "Resolved YouTube server/key from API: %s / %s", resolvedServer.toUtf8().constData(), resolvedKey.toUtf8().constData());
                     obs_data_set_string(settings, "server", resolvedServer.toUtf8().constData());
                     obs_data_set_string(settings, "key", resolvedKey.toUtf8().constData());
                 } else {
@@ -915,8 +915,8 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
                 }
 
                 if (!streamKeyStr.isEmpty()) {
-                    const QString serverUrl = QString("rtmp://live.twitch.tv/app");
-                    obs_log(LOG_INFO, "Resolved Twitch server/key from API");
+                    const QString serverUrl = OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
+                    obs_log(LOG_INFO, "Resolved Twitch server/key from API: %s / %s", serverUrl.toUtf8().constData(), streamKeyStr.toUtf8().constData());
                     obs_data_set_string(settings, "server", serverUrl.toUtf8().constData());
                     obs_data_set_string(settings, "key", streamKeyStr.toUtf8().constData());
                 } else {

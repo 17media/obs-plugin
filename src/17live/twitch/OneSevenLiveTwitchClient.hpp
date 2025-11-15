@@ -90,4 +90,7 @@ private:
     static const QString TWITCH_USERS_ENDPOINT;
     static const QString TWITCH_CHANNELS_ENDPOINT;
     static const QString TWITCH_STREAM_KEY_ENDPOINT;
+
+public:
+    static const QString TWITCH_RTMP_SERVER;
 };

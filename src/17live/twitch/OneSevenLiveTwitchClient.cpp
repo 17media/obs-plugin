@@ -12,6 +12,7 @@ const QString OneSevenLiveTwitchClient::TWITCH_HELIX_API_BASE = "https://api.twi
 const QString OneSevenLiveTwitchClient::TWITCH_USERS_ENDPOINT = "/users";
 const QString OneSevenLiveTwitchClient::TWITCH_CHANNELS_ENDPOINT = "/channels";
 const QString OneSevenLiveTwitchClient::TWITCH_STREAM_KEY_ENDPOINT = "/streams/key";
+const QString OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER = "rtmp://ingest.global-contribute.live-video.net/app/{stream_key}";
 
 OneSevenLiveTwitchClient::OneSevenLiveTwitchClient(QObject* parent)
     : QObject(parent)
@@ -323,7 +324,7 @@ void OneSevenLiveTwitchClient::onStreamKeyResult(const QString& text, const QStr
         }
 
         QString streamKey = QString::fromStdString(key);
-        obs_log(LOG_INFO, "Twitch stream key retrieved successfully");
+        obs_log(LOG_INFO, "Twitch stream key retrieved successfully: %s", streamKey.toUtf8().constData());
         emit streamKeyReceived(streamKey);
     } catch (const nlohmann::json::exception& e) {
         QString errorMsg = QString("Failed to parse Twitch API response: %1").arg(QString::fromStdString(e.what()));
