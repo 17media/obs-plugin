@@ -102,7 +102,7 @@ bool OneSevenLiveCoreManager::initialize() {
     }
 
     // Initialize and start WebSocket server
-    websocketServer_ = std::make_unique<OneSevenLiveWebsocketServer>("localhost", 0);
+    websocketServer_ = std::make_shared<OneSevenLiveWebsocketServer>("localhost", 0);
     if (!websocketServer_) {
         obs_log(LOG_ERROR, "[17Live Core] Failed to create WebSocket server instance");
         return false;
@@ -658,6 +658,13 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
         apiWrapper->setToken(loginData.jwtAccessToken.toStdString());
     }
 
+    // Initialize stream manager (after apiWrapper is ready)
+    streamManager = std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
+    if (!streamManager) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
+        return;
+    }
+
     loadGifts();
 
     // Update menu with user info
@@ -679,13 +686,6 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     // Create chat clients on login
     createYouTubeChatClient();
     createTwitchChatClient();
-
-    // Initialize stream manager (after apiWrapper is ready)
-    streamManager = std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
-    if (!streamManager) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
-        return;
-    }
 }
 
 void OneSevenLiveCoreManager::performLogoutOperations() {

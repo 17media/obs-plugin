@@ -463,11 +463,13 @@ void OneSevenLiveStreamingDock::setupUi() {
 
 // Add new method for loading room information
 void OneSevenLiveStreamingDock::loadRoomInfo() {
-    if (streamManager) {
-        streamManager->loadRoomInfo();
+    if (!streamManager) {
+        return;
     }
 
-    if (streamManager->isRoomInfoLoading()) {
+    streamManager->loadRoomInfo();
+
+    if (streamManager && streamManager->isRoomInfoLoading()) {
         loadingOverlay->setVisible(true);
         loadingOverlay->raise();
         loadingLabel->setText(obs_module_text("Live.Settings.Loading"));
@@ -477,16 +479,16 @@ void OneSevenLiveStreamingDock::loadRoomInfo() {
         }
 
         // connect streamManager's roomInfoLoaded signal to updateUIWithRoomInfo slot
-        disconnect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this, nullptr);
+        
         connect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this,
-                [this](const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
-                    roomInfo = streamManager->getRoomInfo();
-                    configStreamer = streamManager->getConfigStreamer();
-                    userInfo = streamManager->getUserInfo();
-                    levels = streamManager->getArmyLevels();
+            [this](const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
+                roomInfo = streamManager->getRoomInfo();
+                configStreamer = streamManager->getConfigStreamer();
+                userInfo = streamManager->getUserInfo();
+                levels = streamManager->getArmyLevels();
 
-                    handleLoadingCompleted(result);
-                });
+                handleLoadingCompleted(result);
+        });
     }
 }
 
