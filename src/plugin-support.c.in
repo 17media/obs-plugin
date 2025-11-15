@@ -18,6 +18,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <util/base.h>
 #include <plugin-support.h>
+#include <stdarg.h>
 
 const char *PLUGIN_NAME = "@CMAKE_PROJECT_NAME@";
 const char *PLUGIN_VERSION = "@CMAKE_PROJECT_VERSION@";
@@ -32,26 +33,13 @@ void obs_log(int log_level, const char *format, ...)
 
     char *template = malloc(length + 1);
 
-    snprintf(template, length, "[%s] %s", PLUGIN_NAME, format);
+    snprintf(template, length + 1, "[%s] %s", PLUGIN_NAME, format);
 
-    va_list(args);
+    va_list args;
 
     va_start(args, format);
     blogva(log_level, template, args);
     va_end(args);
 
     free(template);
-}
-
-/*
- * Provide a default implementation of blogva for production builds.
- * This writes formatted log output to stdout. The log_level is currently
- * not used here but kept for API compatibility.
- */
-void blogva(int log_level, const char *format, va_list args)
-{
-    (void)log_level;
-    vfprintf(stdout, format, args);
-    fputc('\n', stdout);
-    fflush(stdout);
 }
