@@ -11,7 +11,7 @@
 #include <nlohmann/json.hpp>
 
 const QString OneSevenLiveTwitchChatClient::TWITCH_IRC_SERVER = "wss://irc-ws.chat.twitch.tv:443";
-const int OneSevenLiveTwitchChatClient::DEFAULT_PING_INTERVAL = 300; // 5 minutes
+const int OneSevenLiveTwitchChatClient::DEFAULT_PING_INTERVAL = 60; // 1 minute
 const int OneSevenLiveTwitchChatClient::DEFAULT_RECONNECT_DELAY = 5; // 5 seconds
 const int OneSevenLiveTwitchChatClient::MAX_RECONNECT_ATTEMPTS = 5;
 
@@ -85,10 +85,15 @@ OneSevenLiveTwitchChatClient::OneSevenLiveTwitchChatClient(QObject* parent)
                     onWebSocketOpen();
                 });
                 break;
-            case ix::WebSocketMessageType::Close:
-                QMetaObject::invokeMethod(this, [this]() {
+            case ix::WebSocketMessageType::Close: {
+                const auto code = msg->closeInfo.code;
+                const auto reason = msg->closeInfo.reason;
+                QMetaObject::invokeMethod(this, [this, code, reason]() {
+                    obs_log(LOG_WARNING, "Twitch chat closed. code=%d reason=%s", code, reason.c_str());
                     onWebSocketClose();
                 });
+                break;
+            }
                 break;
             case ix::WebSocketMessageType::Error: {
                 const std::string reason = msg->errorInfo.reason;
@@ -358,7 +363,11 @@ void OneSevenLiveTwitchChatClient::authenticate()
 {
     if (!m_oauthToken.isEmpty() && !m_username.isEmpty()) {
         // Send OAuth authentication
-        sendRawMessage("PASS oauth:" + m_oauthToken);
+        if (m_oauthToken.startsWith("oauth:")) {
+            sendRawMessage("PASS " + m_oauthToken);
+        } else {
+            sendRawMessage("PASS oauth:" + m_oauthToken);
+        }
         sendRawMessage("NICK " + m_username);
         obs_log(LOG_INFO, "Authenticating as %s", m_username.toUtf8().constData());
     }
