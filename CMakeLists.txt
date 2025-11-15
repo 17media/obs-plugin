@@ -87,19 +87,33 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
-# Add IXWebSocket as subdirectory
-add_subdirectory(deps/IXWebSocket)
+# # Add IXWebSocket as subdirectory
+# Add cpp-httplib include directory (though it might already be covered by 'deps')
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/cpp-httplib
+  ${CMAKE_CURRENT_SOURCE_DIR}/deps/IXWebSocket
+)
+
+# Build IXWebSocket as subproject with TLS enabled
+set(USE_TLS ON CACHE BOOL "Enable TLS support" FORCE)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/IXWebSocket ${CMAKE_BINARY_DIR}/third_party/IXWebSocket)
 
 if(TARGET ixwebsocket)
-  # MSVC: suppress common conversion warnings (add/remove based on compiler diagnostics)
-  target_compile_options(ixwebsocket PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267 /wd4305 /WX-> # /WX- attempt to disable warnings-as-errors
-  )
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ixwebsocket)
+else()
+  message(WARNING "Target 'ixwebsocket' not found. Check deps/IXWebSocket CMakeLists or actual target name.")
+endif()
 
-  # GCC/Clang: suppress conversion/sign-conversion warnings and prevent -Werror from promoting them to errors
+if(APPLE)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "-framework Foundation" "-framework Security")
+endif()
+
+if(TARGET ixwebsocket)
   target_compile_options(ixwebsocket PRIVATE
-    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:
-    -Wno-conversion -Wno-sign-conversion -Wno-error=conversion -Wno-error=sign-conversion>
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267 /wd4305 /WX->
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wno-conversion -Wno-sign-conversion -Wno-error=conversion -Wno-error=sign-conversion>
+    $<$<AND:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<PLATFORM_ID:Darwin>>:-Wno-deprecated-declarations>
+    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wno-newline-eof -Wno-error=newline-eof>
   )
 
 # If ixwebsocket globally sets -Werror on its target, the -Wno-error=... flags above try to override it.
@@ -117,10 +131,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
   ixwebsocket # For WebSocket functionality
 )
 
-# Add cpp-httplib include directory (though it might already be covered by 'deps')
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/deps/cpp-httplib
-  ${CMAKE_CURRENT_SOURCE_DIR}/deps/IXWebSocket
+# Suppress newline-at-EOF warning on headers included by this target
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
+  $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wno-newline-eof -Wno-error=newline-eof>
+  $<$<CXX_COMPILER_ID:GNU>:-Wno-eof-newline -Wno-error=eof-newline>
 )
 
 # Configure plugin-support.c file
