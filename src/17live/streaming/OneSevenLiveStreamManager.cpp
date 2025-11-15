@@ -46,15 +46,65 @@ QString OneSevenLiveStreamManager::getLastErrorMessage() const {
     return apiWrapper ? apiWrapper->getLastErrorMessage() : QString("Unknown error");
 }
 
-bool OneSevenLiveStreamManager::saveWebStreamSettings() {
+bool OneSevenLiveStreamManager::startStreamWithWeb() {
     obs_log(LOG_INFO, "Saving web stream settings");
-    
+
     if (!roomInfo.rtmpUrls.isEmpty()) {
         QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
         OneSevenLiveRtmpResponse rtmpResponse;
         if (fetchRtmpByProvider(provider.toStdString(), rtmpResponse)) {
             rtmpResponse.liveStreamID = QString::number(roomInfo.liveStreamID);
             configureStreamingService(rtmpResponse);
+
+            currentLiveStreamID = rtmpResponse.liveStreamID.toStdString();
+
+            OneSevenLiveRtmpRequest request;
+            request.userID = QString::fromStdString(currentUserID);
+            request.caption = roomInfo.caption;
+            request.device = "OBS";
+
+            qint64 selectedEventId = 0;
+            for (const auto &evt : roomInfo.eventList) {
+                if (evt.type == 2) {
+                    selectedEventId = evt.ID;
+                    break;
+                }
+            }
+            request.eventID = selectedEventId;
+
+            QStringList tags;
+            for (const auto &t : roomInfo.lastUsedHashtags) {
+                tags << t.text;
+            }
+            request.hashtags = tags;
+
+            request.landscape = roomInfo.landscape;
+            request.streamerType = roomInfo.streamerType;
+            request.subtabID = (roomInfo.subtabs.size() > 0) ? roomInfo.subtabs[0] : QString();
+            request.archiveConfig = roomInfo.archiveConfig;
+
+            OneSevenLiveVliverInfo vl;
+            vl.vliverModel = configStreamer.lastStreamState.vliverInfo.vliverModel;
+            request.vliverInfo = vl;
+
+            OneSevenLiveArmy army{};
+            army.enable = false;
+            army.requiredArmyRank = 0;
+            army.showOnHotPage = false;
+            army.armyOnlyPN = false;
+            request.armyOnly = army;
+
+            request.enableOBSGroupCall = roomInfo.enableOBSGroupCall;
+
+            currentStreamRequest = request;
+            currentStreamResponse = rtmpResponse;
+            OneSevenLiveStreamInfo info;
+            info.request = request;
+            info.categoryName = QString();
+            info.createdAt = QDateTime::currentDateTime();
+            info.streamUuid = rtmpResponse.streamID;
+            currentLiveStreamInfo = info;
+
         } else {
             obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s", provider.toStdString().c_str());
             return false;
@@ -212,6 +262,8 @@ bool OneSevenLiveStreamManager::saveStreamConfiguration(const OneSevenLiveStream
         emit errorOccurred("Failed to save stream configuration", "saveStreamConfiguration");
         return false;
     }
+
+    
 
     emit streamConfigurationSaved();
     obs_log(LOG_INFO, "Stream configuration saved successfully");

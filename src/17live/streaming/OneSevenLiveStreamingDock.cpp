@@ -583,7 +583,7 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
         }
     }
 
-    streamManager->saveWebStreamSettings();
+    streamManager->startStreamWithWeb();
 
     startEventCooldown();
 
