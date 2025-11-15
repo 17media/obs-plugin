@@ -167,11 +167,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void populateRtmpRequest(const OneSevenLiveRtmpRequest &request);
     void updateLiveButton(bool isLive);
 
-    
-
     void createLive(const OneSevenLiveRtmpRequest &request);
-
-    
+    void startLive(bool startStream = true);
 
     // Tag-related functions
     void addTag(const QString &tag);

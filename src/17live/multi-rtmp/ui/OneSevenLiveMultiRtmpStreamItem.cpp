@@ -260,7 +260,7 @@ void OneSevenLiveMultiRtmpStreamItem::onStartStopClicked() {
             // 1) If 17live live NOT started
             if (!streamMgr->hasActiveLiveStream() ||
                 streamMgr->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::NotStarted) {
-                obs_log(LOG_WARNING, "[MultiRTMP-Manager] 17LIVE live not started; blocking MultiRTMP");
+                obs_log(LOG_WARNING, "[MultiRTMP-Manager] 17LIVE live not started; blocking MultiRTMP %d", streamMgr->getCurrentStreamingStatus());
                 QMessageBox::information(nullptr, obs_module_text("Live.Common.Notice"),
                                         obs_module_text("MultiRTMP.Precheck.LiveNotStarted"));
                 return;

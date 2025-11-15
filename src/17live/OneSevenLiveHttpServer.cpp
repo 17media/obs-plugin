@@ -68,7 +68,7 @@ OneSevenLiveHttpServer::OneSevenLiveHttpServer(const std::string& host, int port
     : host_(host), port_(port), running_(false) {
     std::string module_data_path = get_obs_module_data_path_str();
     if (module_data_path.empty()) {
-        blog(LOG_ERROR, "[17Live HTTP Server] Failed to get OBS module data path.");
+        obs_log(LOG_ERROR, "[17Live HTTP Server] Failed to get OBS module data path.");
         // Can choose to set a default base_dir_ or let server startup fail
         base_dir_ = base_dir_relative_to_module_data;  // Fallback or error state
     } else {
@@ -77,38 +77,38 @@ OneSevenLiveHttpServer::OneSevenLiveHttpServer(const std::string& host, int port
         base_dir_ = full_base_path.string();
     }
 
-    blog(LOG_INFO, "[17Live HTTP Server] Base directory set to: %s", base_dir_.c_str());
+    obs_log(LOG_INFO, "[17Live HTTP Server] Base directory set to: %s", base_dir_.c_str());
 
     // Initialize CSRF token
     csrf_token_ = generate_csrf_token();
 }
 
 OneSevenLiveHttpServer::~OneSevenLiveHttpServer() {
-    blog(LOG_INFO, "[17Live HTTP Server] Starting HTTP server destruction");
+    obs_log(LOG_INFO, "[17Live HTTP Server] Starting HTTP server destruction");
 
     // Ensure server is completely stopped and thread properly terminated
     stop();
 
     // Additional safety check: ensure thread has completely finished
     if (server_thread_ && server_thread_->joinable()) {
-        blog(LOG_WARNING,
+        obs_log(LOG_WARNING,
              "[17Live HTTP Server] Thread still joinable in destructor, forcing thread termination "
              "wait");
         server_thread_->join();
     }
 
-    blog(LOG_INFO, "[17Live HTTP Server] HTTP server successfully destroyed");
+    obs_log(LOG_INFO, "[17Live HTTP Server] HTTP server successfully destroyed");
 }
 
 bool OneSevenLiveHttpServer::start() {
     if (running_) {
-        blog(LOG_WARNING, "[17Live HTTP Server] Server already running.");
+        obs_log(LOG_WARNING, "[17Live HTTP Server] Server already running.");
         return true;
     }
 
     // Ensure base_dir_ exists
     if (!std::filesystem::exists(base_dir_) || !std::filesystem::is_directory(base_dir_)) {
-        blog(LOG_ERROR,
+        obs_log(LOG_ERROR,
              "[17Live HTTP Server] Base directory '%s' does not exist or is not a directory.",
              base_dir_.c_str());
         return false;
@@ -118,11 +118,11 @@ bool OneSevenLiveHttpServer::start() {
     // The second parameter of httplib's set_mount_point should be a path relative to current
     // working directory, or absolute path. We have already calculated base_dir_ as absolute path.
     if (!svr_.set_mount_point("/", base_dir_.c_str())) {
-        blog(LOG_ERROR, "[17Live HTTP Server] Failed to set mount point '/' to '%s'",
+        obs_log(LOG_ERROR, "[17Live HTTP Server] Failed to set mount point '/' to '%s'",
              base_dir_.c_str());
         return false;
     }
-    blog(LOG_INFO, "[17Live HTTP Server] Mounting '/' to serve files from '%s'", base_dir_.c_str());
+    obs_log(LOG_INFO, "[17Live HTTP Server] Mounting '/' to serve files from '%s'", base_dir_.c_str());
 
     // Override the default handler for static files to add security checks
     svr_.Get("/.*", [this](const httplib::Request& req, httplib::Response& res) {
@@ -165,7 +165,7 @@ bool OneSevenLiveHttpServer::start() {
                     std::string content((std::istreambuf_iterator<char>(ifs)),
                                         (std::istreambuf_iterator<char>()));
                     if (ifs.bad()) {
-                        blog(LOG_ERROR, "[17Live HTTP Server] Error reading file: %s",
+                        obs_log(LOG_ERROR, "[17Live HTTP Server] Error reading file: %s",
                              file_path_str.c_str());
                         res.status = 500;
                         res.set_content("Internal Server Error", "text/plain");
@@ -173,7 +173,7 @@ bool OneSevenLiveHttpServer::start() {
                         res.set_content(content, get_mime_type(file_path_str).c_str());
                     }
                 } else {
-                    blog(LOG_ERROR, "[17Live HTTP Server] Failed to open file: %s",
+                    obs_log(LOG_ERROR, "[17Live HTTP Server] Failed to open file: %s",
                          file_path_str.c_str());
                     res.status = 500;
                     res.set_content("Internal Server Error", "text/plain");
@@ -183,12 +183,12 @@ bool OneSevenLiveHttpServer::start() {
                 res.set_content("Not Found", "text/plain");
             }
         } catch (const std::filesystem::filesystem_error& e) {
-            blog(LOG_ERROR, "[17Live HTTP Server] Filesystem error for %s: %s",
+            obs_log(LOG_ERROR, "[17Live HTTP Server] Filesystem error for %s: %s",
                  file_path_str.c_str(), e.what());
             res.status = 500;
             res.set_content("Internal Server Error", "text/plain");
         } catch (const std::exception& e) {
-            blog(LOG_ERROR, "[17Live HTTP Server] Exception serving file %s: %s",
+            obs_log(LOG_ERROR, "[17Live HTTP Server] Exception serving file %s: %s",
                  file_path_str.c_str(), e.what());
             res.status = 500;
             res.set_content("Internal Server Error", "text/plain");
@@ -217,7 +217,7 @@ bool OneSevenLiveHttpServer::start() {
 
         // Security check: path validation
         if (!is_safe_path(req.path)) {
-            blog(LOG_WARNING, "[17Live HTTP Server] Unsafe path detected: %s", req.path.c_str());
+            obs_log(LOG_WARNING, "[17Live HTTP Server] Unsafe path detected: %s", req.path.c_str());
             res.status = 403;
             res.set_content("Forbidden", "text/plain");
             return;
@@ -237,7 +237,7 @@ bool OneSevenLiveHttpServer::start() {
                 std::string content((std::istreambuf_iterator<char>(ifs)),
                                     (std::istreambuf_iterator<char>()));
                 if (ifs.bad()) {
-                    blog(LOG_ERROR, "[17Live HTTP Server] Error reading index.html: %s",
+                    obs_log(LOG_ERROR, "[17Live HTTP Server] Error reading index.html: %s",
                          path_str.c_str());
                     res.status = 500;
                     res.set_content("Internal Server Error", "text/plain");
@@ -245,18 +245,18 @@ bool OneSevenLiveHttpServer::start() {
                     res.set_content(content, get_mime_type(path_str).c_str());
                 }
             } else {
-                blog(LOG_WARNING, "[17Live HTTP Server] File not found for /: %s",
+                obs_log(LOG_WARNING, "[17Live HTTP Server] File not found for /: %s",
                      path_str.c_str());
                 res.status = 404;
                 res.set_content("File not found", "text/plain");  // Don't expose internal paths
             }
         } catch (const std::filesystem::filesystem_error& e) {
-            blog(LOG_ERROR, "[17Live HTTP Server] Filesystem error for index.html %s: %s",
+            obs_log(LOG_ERROR, "[17Live HTTP Server] Filesystem error for index.html %s: %s",
                  path_str.c_str(), e.what());
             res.status = 500;
             res.set_content("Internal Server Error", "text/plain");
         } catch (const std::exception& e) {
-            blog(LOG_ERROR, "[17Live HTTP Server] Exception serving index.html %s: %s",
+            obs_log(LOG_ERROR, "[17Live HTTP Server] Exception serving index.html %s: %s",
                  path_str.c_str(), e.what());
             res.status = 500;
             res.set_content("Internal Server Error", "text/plain");
@@ -458,32 +458,32 @@ bool OneSevenLiveHttpServer::start() {
                 // Bind to any available port if port_ is 0
                 port_ = svr_.bind_to_any_port(host_.c_str());
                 if (port_ < 0) {  // bind_to_any_port returns -1 on failure
-                    blog(LOG_ERROR, "[17Live HTTP Server] Failed to bind to any port on %s: %s",
+                    obs_log(LOG_ERROR, "[17Live HTTP Server] Failed to bind to any port on %s: %s",
                          host_.c_str(), std::strerror(errno));
                     running_ = false;
                     return;
                 }
-                blog(LOG_INFO, "[17Live HTTP Server] Bound to %s:%d", host_.c_str(), port_);
+                obs_log(LOG_INFO, "[17Live HTTP Server] Bound to %s:%d", host_.c_str(), port_);
                 if (!svr_.listen_after_bind()) {
-                    blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d after bind: %s",
+                    obs_log(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d after bind: %s",
                          host_.c_str(), port_, std::strerror(errno));
                     running_ = false;
                 }
             } else {
                 // Listen on the specified port
-                blog(LOG_INFO, "[17Live HTTP Server] Starting server on %s:%d", host_.c_str(),
+                obs_log(LOG_INFO, "[17Live HTTP Server] Starting server on %s:%d", host_.c_str(),
                      port_);
                 if (!svr_.listen(host_.c_str(), port_)) {
-                    blog(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d: %s",
+                    obs_log(LOG_ERROR, "[17Live HTTP Server] Failed to listen on %s:%d: %s",
                          host_.c_str(), port_, std::strerror(errno));
                     running_ = false;  // Ensure correct state
                 }
             }
         } catch (const std::exception& e) {
-            blog(LOG_ERROR, "[17Live HTTP Server] Exception during server startup: %s", e.what());
+            obs_log(LOG_ERROR, "[17Live HTTP Server] Exception during server startup: %s", e.what());
             running_ = false;
         } catch (...) {
-            blog(LOG_ERROR, "[17Live HTTP Server] Unknown exception during server startup");
+            obs_log(LOG_ERROR, "[17Live HTTP Server] Unknown exception during server startup");
             running_ = false;
         }
     });
@@ -506,7 +506,7 @@ bool OneSevenLiveHttpServer::start() {
         // called, running_ will be false But if listen is trying, it will block, is_running() may
         // still be false This is a simplified handling, actual projects may need more complex
         // startup confirmation mechanism
-        blog(LOG_INFO, "[17Live HTTP Server] Server thread started. Checking status shortly.");
+        obs_log(LOG_INFO, "[17Live HTTP Server] Server thread started. Checking status shortly.");
         // Temporarily assume startup success, let stop and destructor handle cleanup
         running_ = true;
     }
@@ -516,16 +516,16 @@ bool OneSevenLiveHttpServer::start() {
 
 void OneSevenLiveHttpServer::stop() {
     if (running_) {
-        blog(LOG_INFO, "[17Live HTTP Server] Stopping server...");
+        obs_log(LOG_INFO, "[17Live HTTP Server] Stopping server...");
         svr_.stop();  // Stop server listening
         if (server_thread_ && server_thread_->joinable()) {
             server_thread_->join();  // Wait for server thread to end
         }
         server_thread_.reset();
         running_ = false;
-        blog(LOG_INFO, "[17Live HTTP Server] Server stopped.");
+        obs_log(LOG_INFO, "[17Live HTTP Server] Server stopped.");
     } else {
-        // blog(LOG_INFO, "[17Live HTTP Server] Server not running or already stopped.");
+        // obs_log(LOG_INFO, "[17Live HTTP Server] Server not running or already stopped.");
     }
 }
 
@@ -590,7 +590,7 @@ bool OneSevenLiveHttpServer::check_rate_limit(const std::string& client_ip) {
 
     // Check if rate limit is exceeded
     if (requests.size() >= RATE_LIMIT_REQUESTS) {
-        blog(LOG_WARNING, "[17Live HTTP Server] Rate limit exceeded for IP: %s", client_ip.c_str());
+        obs_log(LOG_WARNING, "[17Live HTTP Server] Rate limit exceeded for IP: %s", client_ip.c_str());
         return false;
     }
 
@@ -601,7 +601,7 @@ bool OneSevenLiveHttpServer::check_rate_limit(const std::string& client_ip) {
 
 bool OneSevenLiveHttpServer::validate_request_size(const httplib::Request& req) const {
     if (req.body.size() > MAX_REQUEST_SIZE) {
-        blog(LOG_WARNING, "[17Live HTTP Server] Request size too large: %zu bytes",
+        obs_log(LOG_WARNING, "[17Live HTTP Server] Request size too large: %zu bytes",
              req.body.size());
         return false;
     }

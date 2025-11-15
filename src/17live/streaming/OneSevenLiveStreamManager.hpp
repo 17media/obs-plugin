@@ -138,7 +138,7 @@ class OneSevenLiveStreamManager : public QObject {
 
     bool fetchRtmpByProvider(const std::string& provider, OneSevenLiveRtmpResponse& response);
     QString getLastErrorMessage() const;
-    bool syncWithWeb(OneSevenLiveStreamingStatus status);
+    bool saveWebStreamSettings();
 
     /**
      * @brief Get current streaming status

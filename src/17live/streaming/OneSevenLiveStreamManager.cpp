@@ -46,26 +46,21 @@ QString OneSevenLiveStreamManager::getLastErrorMessage() const {
     return apiWrapper ? apiWrapper->getLastErrorMessage() : QString("Unknown error");
 }
 
-bool OneSevenLiveStreamManager::syncWithWeb(OneSevenLiveStreamingStatus status) {
+bool OneSevenLiveStreamManager::saveWebStreamSettings() {
+    obs_log(LOG_INFO, "Saving web stream settings");
+    
     if (!roomInfo.rtmpUrls.isEmpty()) {
         QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
         OneSevenLiveRtmpResponse rtmpResponse;
         if (fetchRtmpByProvider(provider.toStdString(), rtmpResponse)) {
             rtmpResponse.liveStreamID = QString::number(roomInfo.liveStreamID);
             configureStreamingService(rtmpResponse);
-
-            if (status != OneSevenLiveStreamingStatus::Streaming) {
-                startStream();
-            }
-
-            setCurrentStreamingStatus(status);
-
         } else {
-            emit errorOccurred(getLastErrorMessage(), "syncWithWeb");
+            obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s", provider.toStdString().c_str());
             return false;
         }
     } else {
-        emit errorOccurred(getLastErrorMessage(), "syncWithWeb");
+        obs_log(LOG_ERROR, "Empty rtmpUrl in roomInfo");
         return false;
     }
     

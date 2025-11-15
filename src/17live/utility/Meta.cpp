@@ -9,7 +9,8 @@
 #include <nlohmann/json.hpp>
 
 #include "Common.hpp"
-#include "obs-module.h"
+#include <obs-module.h>
+#include "plugin-support.h"
 
 using Json = nlohmann::json;
 
@@ -92,10 +93,10 @@ bool JsonToOneSevenLiveMetaData(const Json& json, OneSevenLiveMetaData& metaData
 
         return true;
     } catch (const std::exception& e) {
-        blog(LOG_ERROR, "Exception in JsonToOneSevenLiveMetaData: %s", e.what());
+        obs_log(LOG_ERROR, "Exception in JsonToOneSevenLiveMetaData: %s", e.what());
         return false;
     } catch (...) {
-        blog(LOG_ERROR, "Unknown exception in JsonToOneSevenLiveMetaData");
+        obs_log(LOG_ERROR, "Unknown exception in JsonToOneSevenLiveMetaData");
         return false;
     }
 }
@@ -163,10 +164,10 @@ Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData& metaData) {
 
         return json;
     } catch (const std::exception& e) {
-        blog(LOG_ERROR, "Exception in OneSevenLiveMetaDataToJson: %s", e.what());
+        obs_log(LOG_ERROR, "Exception in OneSevenLiveMetaDataToJson: %s", e.what());
         return Json();
     } catch (...) {
-        blog(LOG_ERROR, "Unknown exception in OneSevenLiveMetaDataToJson");
+        obs_log(LOG_ERROR, "Unknown exception in OneSevenLiveMetaDataToJson");
         return Json();
     }
 }
@@ -190,7 +191,7 @@ bool LoadMetaData() {
         }
         return true;
     } catch (const Json::parse_error& e) {
-        blog(LOG_ERROR, "JSON parse error in LoadMetaData: %s", e.what());
+        obs_log(LOG_ERROR, "JSON parse error in LoadMetaData: %s", e.what());
         return false;
     }
 }

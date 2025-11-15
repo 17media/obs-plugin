@@ -18,7 +18,7 @@ static obs_source_t *dummy_source = nullptr;
 
 static bool create_dummy_browser_source(void) {
     if (dummy_source) {
-        blog(LOG_WARNING, "[obs-17live] Dummy browser source already exists.");
+        obs_log(LOG_WARNING, "Dummy browser source already exists.");
         return true;
     }
 
@@ -30,12 +30,12 @@ static bool create_dummy_browser_source(void) {
     // Create source
     dummy_source = obs_source_create(source_id, "DummyBrowser", settings, nullptr);
     if (!dummy_source) {
-        blog(LOG_ERROR, "[obs-17live] Failed to create browser source");
+        obs_log(LOG_ERROR, "Failed to create browser source");
         obs_data_release(settings);
         return false;
     }
 
-    blog(LOG_INFO, "[obs-17live] Browser source created successfully");
+    obs_log(LOG_INFO, "Browser source created successfully");
 
     obs_data_release(settings);
     return true;

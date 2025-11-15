@@ -513,7 +513,7 @@ void OneSevenLiveStreamingDock::showEvent(QShowEvent *event) {
 
 // Add new method to update UI based on roomInfo
 void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
-    // obs_log(LOG_INFO, "Updating UI with room info");
+    obs_log(LOG_INFO, "Updating UI with room info");
 
     hashtagSelectLimit = configStreamer.hashtagSelectLimit;
 
@@ -577,19 +577,24 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
         msgBox.setDefaultButton(startLiveOnlyButton);
         msgBox.exec();
 
-        if (msgBox.clickedButton() == startLiveOnlyButton) {
-            streamManager->syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
-        } else if (msgBox.clickedButton() == closeLiveButton) {
+        if (msgBox.clickedButton() == closeLiveButton) {
             streamManager->stopStream(false);
+            return;
         }
-    } else if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
-        streamManager->syncWithWeb(static_cast<OneSevenLiveStreamingStatus>(roomInfo.status));
     }
+
+    streamManager->saveWebStreamSettings();
+
+    startEventCooldown();
+
+    // already start stream, then skip it
+    startLive(!(roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)));
 }
 
 // Handle loading completion with comprehensive error handling
-void OneSevenLiveStreamingDock::handleLoadingCompleted(
-    const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
+void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
+    obs_log(LOG_INFO, "OneSevenLiveStreamingDock::handleLoadingCompleted");
+
     loadingOverlay->setVisible(false);
 
     // Enable all controls
@@ -1119,12 +1124,20 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         return;
     }
 
-    // Start streaming (server-side)
-    streamManager->startStream();
-
     // Start event cooldown
     startEventCooldown();
 
+    startLive();
+}
+
+void OneSevenLiveStreamingDock::startLive(bool startStream) {
+    obs_log(LOG_INFO, "Starting live stream");
+
+    if (startStream) {
+        // Start streaming (server-side)
+        streamManager->startStream();
+    }
+    
     // Ask whether to start streaming simultaneously
     QMessageBox msgBox;
     msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
@@ -1277,6 +1290,8 @@ void OneSevenLiveStreamingDock::updateLiveButton(bool isLive) {
 }
 
 void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus status) {
+    obs_log(LOG_INFO, "Updating live status to %d", status);
+    
     currentLiveStatus = status;
 
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
