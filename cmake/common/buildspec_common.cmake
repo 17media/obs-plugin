@@ -250,6 +250,7 @@ function(_check_dependencies)
 
     if(dependency STREQUAL prebuilt)
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}/${destination}")
+      set(OBS_DEPS_DIR "${dependencies_dir}/${destination}" CACHE PATH "OBS pre-built dependencies directory" FORCE)
     elseif(dependency STREQUAL qt6)
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}/${destination}")
     elseif(dependency STREQUAL obs-studio)

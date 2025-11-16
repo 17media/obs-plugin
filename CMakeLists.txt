@@ -63,6 +63,8 @@ endif()
 
 find_package(CEF REQUIRED)
 
+find_package(MbedTLS REQUIRED)
+
 # Add nlohmann json include path from obs-deps
 find_path(NLOHMANN_JSON_INCLUDE_DIR
   NAMES nlohmann/json.hpp
@@ -98,6 +100,9 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
   CEF::Library
   CEF::Wrapper
   Threads::Threads # For cpp-httplib and websocketpp
+  MbedTLS::mbedcrypto
+  MbedTLS::mbedtls
+  MbedTLS::mbedx509
 )
 
 # Suppress newline-at-EOF warning on headers included by this target
