@@ -8,6 +8,16 @@
 #include <memory>
 #include <functional>
 #include <string>
+#include <thread>
+#include <atomic>
+
+// Forward declarations for mbedtls
+struct mbedtls_ssl_context;
+struct mbedtls_net_context;
+struct mbedtls_ssl_config;
+struct mbedtls_ctr_drbg_context;
+struct mbedtls_entropy_context;
+struct mbedtls_x509_crt;
 
 enum class TwitchMessageType {
     Chat,
@@ -137,11 +147,26 @@ private:
 
     // WebSocket connection state
     bool m_webSocketConnected;
+    std::atomic<bool> m_webSocketThreadRunning;
+    std::thread m_webSocketThread;
     
-    // WebSocket client implementation using websocketpp
+    // mbedtls TLS context
+    std::unique_ptr<mbedtls_ssl_context> m_ssl;
+    std::unique_ptr<mbedtls_net_context> m_server_fd;
+    std::unique_ptr<mbedtls_ssl_config> m_conf;
+    std::unique_ptr<mbedtls_ctr_drbg_context> m_ctr_drbg;
+    std::unique_ptr<mbedtls_entropy_context> m_entropy;
+    std::unique_ptr<mbedtls_x509_crt> m_cacert;
+    
+    // WebSocket client implementation
     void connectWebSocket();
     void disconnectWebSocket();
     void sendWebSocketMessage(const std::string& message);
+    void webSocketThreadFunc();
+    bool performTLSHandshake();
+    bool sendTLSData(const std::string& data);
+    std::string receiveTLSData();
+    void cleanupTLSContext();
     
     // Connection state
     bool m_connected;
