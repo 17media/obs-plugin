@@ -214,95 +214,6 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
     }
 }
 
-static void mergeMockUsers(Json& originUsers, Json& mockUsers) {
-    // Read mock users from local json file and merge with original users
-    do {
-        QFile file("/Users/zhuyu/workspace/mk/17live/dev/17live_dev/mock/test_viewers.json");
-        if (!file.exists()) {
-            mockUsers = originUsers;  // no mock data, return original
-            break;
-        }
-        if (!file.open(QIODevice::ReadOnly)) {
-            obs_log(LOG_WARNING, "mergeMockUsers: cannot open test viewers file");
-            mockUsers = originUsers;  // fallback to original
-            break;
-        }
-        QByteArray content = file.readAll();
-        file.close();
-
-        Json test_json;
-        try {
-            test_json = Json::parse(content.toStdString());
-        } catch (const nlohmann::json::parse_error& e) {
-            obs_log(LOG_WARNING, "mergeMockUsers: parse test viewers failed: %s", e.what());
-            mockUsers = originUsers;  // fallback to original
-            break;
-        }
-
-        // Extract mock users array from json
-        Json mock_array_json;
-        if (test_json.is_array()) {
-            mock_array_json = test_json;
-        } else if (test_json.is_object() && test_json["viewers"].is_array()) {
-            mock_array_json = test_json["viewers"];
-        } else {
-            obs_log(LOG_WARNING,
-                    "mergeMockUsers: mock json is neither array nor object with 'viewers'");
-            mockUsers = originUsers;  // fallback to original
-            break;
-        }
-
-        // Extract original users array
-        Json merged = Json::array();
-        bool original_is_array = false;
-        if (originUsers.is_array()) {
-            original_is_array = true;
-            for (const auto& item : originUsers) {
-                merged.push_back(item);
-            }
-        } else if (originUsers.is_object() && originUsers.contains("viewers") &&
-                   originUsers["viewers"].is_array()) {
-            for (const auto& item : originUsers["viewers"]) {
-                merged.push_back(item);
-            }
-        } else if (originUsers.is_null()) {
-            // no original data, start with empty
-        } else {
-            // unexpected type, try best effort
-            obs_log(LOG_WARNING, "mergeMockUsers: unexpected originUsers format");
-        }
-
-        // Merge mock users into the array
-        if (mock_array_json.is_array()) {
-            for (const auto& item : mock_array_json) {
-                merged.push_back(item);
-            }
-        }
-
-        // Construct the result based on original format
-        if (original_is_array) {
-            mockUsers = merged;
-        } else if (originUsers.is_object()) {
-            Json obj = originUsers;
-            obj["viewers"] = merged;
-            mockUsers = obj;
-        } else {
-            mockUsers = merged;
-        }
-
-        size_t mock_count = mock_array_json.is_array() ? mock_array_json.size() : 0;
-        size_t original_count = 0;
-        if (original_is_array) {
-            original_count = originUsers.is_array() ? originUsers.size() : 0;
-        } else if (originUsers.is_object() && originUsers.contains("viewers") &&
-                   originUsers["viewers"].is_array()) {
-            original_count = originUsers["viewers"].size();
-        }
-        obs_log(LOG_INFO, "mergeMockUsers: merged %zu mock viewers with %zu original users",
-                mock_count, original_count);
-    } while (false);
-}
-
 void OneSevenLiveRockZoneDock::refreshUserList() {
     std::string roomID;
     configManager->getConfigValue("RoomID", roomID);
@@ -321,9 +232,6 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         bool success = apiWrapper->GetRockViewers(roomID, jsonResponse);
 
         Json response = jsonResponse;
-        if (success) {
-            mergeMockUsers(jsonResponse, response);
-        }
 
         OneSevenLiveArmyNameResponse armyNameResponse;
 
