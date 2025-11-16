@@ -87,54 +87,28 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/src # For finding the generated plugin-support.c
 )
 
-# # Add IXWebSocket as subdirectory
-# Add cpp-httplib include directory (though it might already be covered by 'deps')
+# Add websocketpp include directory from obs-deps
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/deps/cpp-httplib
-  ${CMAKE_CURRENT_SOURCE_DIR}/deps/IXWebSocket
+  ${CMAKE_PREFIX_PATH}/include  # For websocketpp from obs-deps
 )
-
-# Build IXWebSocket as subproject with TLS enabled
-set(USE_TLS ON CACHE BOOL "Enable TLS support" FORCE)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/IXWebSocket ${CMAKE_BINARY_DIR}/third_party/IXWebSocket)
-
-if(TARGET ixwebsocket)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ixwebsocket)
-else()
-  message(WARNING "Target 'ixwebsocket' not found. Check deps/IXWebSocket CMakeLists or actual target name.")
-endif()
-
-if(APPLE)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "-framework Foundation" "-framework Security")
-endif()
-
-if(TARGET ixwebsocket)
-  target_compile_options(ixwebsocket PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267 /wd4305 /WX->
-    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wno-conversion -Wno-sign-conversion -Wno-error=conversion -Wno-error=sign-conversion>
-    $<$<AND:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<PLATFORM_ID:Darwin>>:-Wno-deprecated-declarations>
-    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wno-newline-eof -Wno-error=newline-eof>
-  )
-
-# If ixwebsocket globally sets -Werror on its target, the -Wno-error=... flags above try to override it.
-# If that is insufficient, you can further remove all -Werror (use with caution):
-# target_compile_options(ixwebsocket PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wno-error>)
-else()
-  message(WARNING "Target 'ixwebsocket' not found. Check deps/IXWebSocket CMakeLists or actual target name.")
-endif()
 
 # Link CEF libraries (nlohmann json is header-only)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
   CEF::Library
   CEF::Wrapper
-  Threads::Threads # For cpp-httplib
-  ixwebsocket # For WebSocket functionality
+  Threads::Threads # For cpp-httplib and websocketpp
 )
 
 # Suppress newline-at-EOF warning on headers included by this target
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wno-newline-eof -Wno-error=newline-eof>
   $<$<CXX_COMPILER_ID:GNU>:-Wno-eof-newline -Wno-error=eof-newline>
+)
+
+# Define websocketpp to use C++11 STL features
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+  _WEBSOCKETPP_CPP11_STL_
 )
 
 # Configure plugin-support.c file

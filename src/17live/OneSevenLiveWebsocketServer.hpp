@@ -9,9 +9,17 @@
 #include <unordered_set>
 #include <vector>
 #include <functional>
+#include <atomic>
+#include <random>
 
-#include "IXWebSocket/ixwebsocket/IXWebSocketServer.h"
-#include "IXWebSocket/ixwebsocket/IXWebSocket.h"
+// Include ASIO first to ensure ASIO_STANDALONE is properly defined
+#include <asio.hpp>
+
+// Now include websocketpp - ASIO_STANDALONE should be defined
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+
+typedef websocketpp::server<websocketpp::config::asio> websocketpp_server;
 
 class OneSevenLiveWebsocketServer {
    public:
@@ -43,29 +51,30 @@ class OneSevenLiveWebsocketServer {
     bool check_rate_limit(const std::string& client_ip);
     bool validate_message_size(const std::string& message) const;
     std::string generate_client_id();
-    std::string get_client_ip(std::shared_ptr<ix::ConnectionState> connectionState);
+    std::string get_client_ip(websocketpp::connection_hdl hdl);
+    std::string hdl_to_string(websocketpp::connection_hdl hdl);
     
     // Port management helper
     int getAvailablePort() const;
 
     // WebSocket event handlers
-    void onConnection(std::weak_ptr<ix::WebSocket> webSocket, 
-                     std::shared_ptr<ix::ConnectionState> connectionState);
-    void onMessage(std::shared_ptr<ix::ConnectionState> connectionState,
-                   ix::WebSocket& webSocket,
-                   const ix::WebSocketMessagePtr& msg);
+    void onConnection(websocketpp::connection_hdl hdl);
+    void onClose(websocketpp::connection_hdl hdl);
+    void onMessage(websocketpp::connection_hdl hdl, websocketpp_server::message_ptr msg);
+    void onFail(websocketpp::connection_hdl hdl);
 
     // Server instance
-    std::unique_ptr<ix::WebSocketServer> server_;
+    std::unique_ptr<websocketpp_server> server_;
     std::string host_;
     int port_;
     std::unique_ptr<std::thread> server_thread_;
-    bool running_;
+    std::atomic<bool> running_;
 
     // Client management
     mutable std::mutex clients_mutex_;
-    std::unordered_map<std::string, std::weak_ptr<ix::WebSocket>> clients_;
+    std::unordered_map<std::string, websocketpp::connection_hdl> clients_;
     std::unordered_map<std::string, std::string> client_ips_;
+    std::unordered_map<std::string, std::string> hdl_to_client_id_;
 
     // Security-related member variables
     static constexpr size_t MAX_MESSAGE_SIZE = 64 * 1024;    // 64KB

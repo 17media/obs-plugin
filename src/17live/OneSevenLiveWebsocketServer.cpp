@@ -24,8 +24,6 @@
 
 OneSevenLiveWebsocketServer::OneSevenLiveWebsocketServer(const std::string& host, int port)
     : host_(host == "localhost" ? "127.0.0.1" : host), port_(port), running_(false) {
-    // obs_log(LOG_INFO, "[17Live WebSocket Server] Initializing WebSocket server on %s:%d", 
-//         host_.c_str(), port_);
 }
 
 OneSevenLiveWebsocketServer::~OneSevenLiveWebsocketServer() {
@@ -63,15 +61,34 @@ bool OneSevenLiveWebsocketServer::start() {
             obs_log(LOG_INFO, "[17Live WebSocket Server] Using auto-assigned port: %d", actual_port);
         }
 
-        // Create WebSocket server instance with the determined port
-        server_ = std::make_unique<ix::WebSocketServer>(actual_port, host_);
+        // Create WebSocket server instance
+        server_ = std::make_unique<websocketpp_server>();
         
-        // Set connection handler
-        server_->setOnConnectionCallback(
-            [this](std::weak_ptr<ix::WebSocket> webSocket,
-                   std::shared_ptr<ix::ConnectionState> connectionState) {
-                onConnection(webSocket, connectionState);
-            });
+        // Initialize ASIO
+        server_->init_asio();
+        server_->set_reuse_addr(true);
+        
+        // Set up logging
+        server_->set_access_channels(websocketpp::log::alevel::none);
+        server_->clear_access_channels(websocketpp::log::alevel::all);
+        server_->clear_error_channels(websocketpp::log::elevel::all);
+        
+        // Register handlers
+        server_->set_open_handler([this](websocketpp::connection_hdl hdl) {
+            onConnection(hdl);
+        });
+        
+        server_->set_close_handler([this](websocketpp::connection_hdl hdl) {
+            onClose(hdl);
+        });
+        
+        server_->set_message_handler([this](websocketpp::connection_hdl hdl, websocketpp_server::message_ptr msg) {
+            onMessage(hdl, msg);
+        });
+        
+        server_->set_fail_handler([this](websocketpp::connection_hdl hdl) {
+            onFail(hdl);
+        });
 
         // Start server in new thread to avoid blocking main thread
         server_thread_ = std::make_unique<std::thread>([this, actual_port]() {
@@ -79,19 +96,15 @@ bool OneSevenLiveWebsocketServer::start() {
                 obs_log(LOG_INFO, "[17Live WebSocket Server] Starting server on %s:%d", 
                      host_.c_str(), actual_port);
                 
-                auto result = server_->listen();
-                if (!result.first) {
-                    obs_log(LOG_ERROR, "[17Live WebSocket Server] Failed to start server: %s", 
-                         result.second.c_str());
-                    running_ = false;
-                    return;
-                }
+                // Listen on specified port
+                server_->listen(actual_port);
+                server_->start_accept();
                 
                 obs_log(LOG_INFO, "[17Live WebSocket Server] Server started successfully on %s:%d", 
                      host_.c_str(), actual_port);
                 
-                // Start the server
-                server_->start();
+                // Run the IO service
+                server_->run();
                 
             } catch (const std::exception& e) {
                 obs_log(LOG_ERROR, "[17Live WebSocket Server] Exception during server startup: %s", 
@@ -128,30 +141,27 @@ void OneSevenLiveWebsocketServer::stop() {
     
     // Stop the server
     if (server_) {
-        server_->setOnConnectionCallback(nullptr);
         server_->stop();
     }
     
+    // Close all client connections
     {
         std::lock_guard<std::mutex> lock(clients_mutex_);
-        for (auto& it : clients_) {
-            if (auto ws = it.second.lock()) {
-                ws->setOnMessageCallback(nullptr);
-                ws->close();
+        for (auto& pair : clients_) {
+            try {
+                server_->close(pair.second, websocketpp::close::status::going_away, "Server shutting down");
+            } catch (...) {
+                // Ignore errors during shutdown
             }
         }
+        clients_.clear();
+        client_ips_.clear();
+        hdl_to_client_id_.clear();
     }
 
     // Wait for server thread to finish
     if (server_thread_ && server_thread_->joinable()) {
         server_thread_->join();
-    }
-    
-    // Clear client connections
-    {
-        std::lock_guard<std::mutex> lock(clients_mutex_);
-        clients_.clear();
-        client_ips_.clear();
     }
     
     obs_log(LOG_INFO, "[17Live WebSocket Server] WebSocket server stopped");
@@ -175,17 +185,17 @@ void OneSevenLiveWebsocketServer::broadcastMessage(const std::string& message) {
     std::lock_guard<std::mutex> lock(clients_mutex_);
     
     for (auto it = clients_.begin(); it != clients_.end();) {
-        if (auto webSocket = it->second.lock()) {
-            try {
-                webSocket->send(message);
-                ++it;
-            } catch (const std::exception& e) {
-                obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to send message to client %s: %s", 
-                     it->first.c_str(), e.what());
-                it = clients_.erase(it);
-            }
-        } else {
-            // WebSocket is no longer valid, remove from clients
+        try {
+            server_->send(it->second, message, websocketpp::frame::opcode::text);
+            ++it;
+        } catch (const std::exception& e) {
+            obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to send message to client %s: %s", 
+                 it->first.c_str(), e.what());
+            
+            // Remove failed client
+            std::string hdl_str = hdl_to_string(it->second);
+            hdl_to_client_id_.erase(hdl_str);
+            client_ips_.erase(it->first);
             it = clients_.erase(it);
         }
     }
@@ -203,16 +213,16 @@ void OneSevenLiveWebsocketServer::sendMessageToClient(const std::string& clientI
     
     auto it = clients_.find(clientId);
     if (it != clients_.end()) {
-        if (auto webSocket = it->second.lock()) {
-            try {
-                webSocket->send(message);
-            } catch (const std::exception& e) {
-                obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to send message to client %s: %s", 
-                     clientId.c_str(), e.what());
-                clients_.erase(it);
-            }
-        } else {
-            // WebSocket is no longer valid, remove from clients
+        try {
+            server_->send(it->second, message, websocketpp::frame::opcode::text);
+        } catch (const std::exception& e) {
+            obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to send message to client %s: %s", 
+                 clientId.c_str(), e.what());
+            
+            // Remove failed client
+            std::string hdl_str = hdl_to_string(it->second);
+            hdl_to_client_id_.erase(hdl_str);
+            client_ips_.erase(it->first);
             clients_.erase(it);
         }
     } else {
@@ -291,11 +301,30 @@ std::string OneSevenLiveWebsocketServer::generate_client_id() {
     return ss.str();
 }
 
-std::string OneSevenLiveWebsocketServer::get_client_ip(std::shared_ptr<ix::ConnectionState> connectionState) {
-    if (connectionState) {
-        return connectionState->getRemoteIp();
+std::string OneSevenLiveWebsocketServer::get_client_ip(websocketpp::connection_hdl hdl) {
+    try {
+        auto con = server_->get_con_from_hdl(hdl);
+        return con->get_remote_endpoint();
+    } catch (const std::exception& e) {
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to get client IP: %s", e.what());
+        return "unknown";
     }
-    return "unknown";
+}
+
+std::string OneSevenLiveWebsocketServer::hdl_to_string(websocketpp::connection_hdl hdl) {
+    // Convert connection_hdl to a unique string identifier
+    // Since connection_hdl is std::weak_ptr<void>, we can use the pointer address
+    try {
+        if (auto locked = hdl.lock()) {
+            // Use the raw pointer address as a unique identifier
+            std::stringstream ss;
+            ss << "hdl_" << locked.get();
+            return ss.str();
+        }
+    } catch (const std::exception& e) {
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to convert hdl to string: %s", e.what());
+    }
+    return "hdl_unknown";
 }
 
 int OneSevenLiveWebsocketServer::getAvailablePort() const {
@@ -373,18 +402,13 @@ int OneSevenLiveWebsocketServer::getAvailablePort() const {
     return available_port;
 }
 
-void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webSocket, 
-                                              std::shared_ptr<ix::ConnectionState> connectionState) {
+void OneSevenLiveWebsocketServer::onConnection(websocketpp::connection_hdl hdl) {
     if (!running_) {
-        return;
-    }
-    auto ws = webSocket.lock();
-    if (!ws) {
         return;
     }
     
     std::string clientId = generate_client_id();
-    std::string clientIp = get_client_ip(connectionState);
+    std::string clientIp = get_client_ip(hdl);
     
     obs_log(LOG_INFO, "[17Live WebSocket Server] New connection: %s from %s", 
          clientId.c_str(), clientIp.c_str());
@@ -392,20 +416,16 @@ void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webS
     // Store client connection
     {
         std::lock_guard<std::mutex> lock(clients_mutex_);
-        clients_[clientId] = webSocket;
+        clients_[clientId] = hdl;
         client_ips_[clientId] = clientIp;
+        std::string hdl_str = hdl_to_string(hdl);
+        hdl_to_client_id_[hdl_str] = clientId;
     }
-    
-    // Set message handler for this connection
-    ws->setOnMessageCallback([this, clientId, clientIp, ws](const ix::WebSocketMessagePtr& msg) {
-        onMessage(nullptr, *ws, msg);
-    });
     
     // Send welcome message to newly connected client
     try {
         std::string welcomeMessage = "Hello! Welcome to 17Live WebSocket Server. Connection established successfully.";
-        ws->send(welcomeMessage);
-        // obs_log(LOG_INFO, "[17Live WebSocket Server] Sent welcome message to client %s", clientId.c_str());
+        server_->send(hdl, welcomeMessage, websocketpp::frame::opcode::text);
     } catch (const std::exception& e) {
         obs_log(LOG_WARNING, "[17Live WebSocket Server] Failed to send welcome message to client %s: %s", 
              clientId.c_str(), e.what());
@@ -420,33 +440,52 @@ void OneSevenLiveWebsocketServer::onConnection(std::weak_ptr<ix::WebSocket> webS
     }
 }
 
-void OneSevenLiveWebsocketServer::onMessage(std::shared_ptr<ix::ConnectionState> connectionState,
-                                           ix::WebSocket& webSocket,
-                                           const ix::WebSocketMessagePtr& msg) {
+void OneSevenLiveWebsocketServer::onClose(websocketpp::connection_hdl hdl) {
+    std::string clientId;
+    
+    // Find client ID
+    {
+        std::lock_guard<std::mutex> lock(clients_mutex_);
+        std::string hdl_str = hdl_to_string(hdl);
+        auto it = hdl_to_client_id_.find(hdl_str);
+        if (it != hdl_to_client_id_.end()) {
+            clientId = it->second;
+            
+            obs_log(LOG_INFO, "[17Live WebSocket Server] Client %s disconnected", clientId.c_str());
+            
+            // Remove client from connections
+            clients_.erase(clientId);
+            client_ips_.erase(clientId);
+            hdl_to_client_id_.erase(it);
+        }
+    }
+    
+    // Notify connection callback
+    if (!clientId.empty()) {
+        std::lock_guard<std::mutex> lock(callback_mutex_);
+        if (connection_callback_) {
+            connection_callback_(clientId, false);
+        }
+    }
+}
+
+void OneSevenLiveWebsocketServer::onMessage(websocketpp::connection_hdl hdl, websocketpp_server::message_ptr msg) {
     if (!running_) {
         return;
     }
-    UNUSED_PARAMETER(connectionState);
     
-    if (!msg) {
-        return;
-    }
-    
-    // Find client ID for this WebSocket
+    // Find client ID for this connection
     std::string clientId;
     std::string clientIp;
     {
         std::lock_guard<std::mutex> lock(clients_mutex_);
-        for (const auto& pair : clients_) {
-            if (auto ws = pair.second.lock()) {
-                if (ws.get() == &webSocket) {
-                    clientId = pair.first;
-                    auto ip_it = client_ips_.find(clientId);
-                    if (ip_it != client_ips_.end()) {
-                        clientIp = ip_it->second;
-                    }
-                    break;
-                }
+        std::string hdl_str = hdl_to_string(hdl);
+        auto it = hdl_to_client_id_.find(hdl_str);
+        if (it != hdl_to_client_id_.end()) {
+            clientId = it->second;
+            auto ip_it = client_ips_.find(clientId);
+            if (ip_it != client_ips_.end()) {
+                clientIp = ip_it->second;
             }
         }
     }
@@ -456,81 +495,60 @@ void OneSevenLiveWebsocketServer::onMessage(std::shared_ptr<ix::ConnectionState>
         return;
     }
     
-    switch (msg->type) {
-        case ix::WebSocketMessageType::Message:
-            {
-                // Rate limiting check
-                if (!check_rate_limit(clientIp)) {
-                    obs_log(LOG_WARNING, "[17Live WebSocket Server] Rate limit exceeded for client %s", 
-                         clientId.c_str());
-                    webSocket.close();
-                    return;
-                }
-                
-                // Message size validation
-                if (!validate_message_size(msg->str)) {
-                    obs_log(LOG_WARNING, "[17Live WebSocket Server] Message too large from client %s: %zu bytes", 
-                         clientId.c_str(), msg->str.size());
-                    return;
-                }
-                
-                // obs_log(LOG_INFO, "[17Live WebSocket Server] Received message from %s: %s", 
-                //      clientId.c_str(), msg->str.c_str());
-                
-                // Notify message callback
-                {
-                    std::lock_guard<std::mutex> lock(callback_mutex_);
-                    if (message_callback_) {
-                        message_callback_(clientId, msg->str);
-                    }
-                }
-            }
-            break;
+    // Rate limiting check
+    if (!check_rate_limit(clientIp)) {
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Rate limit exceeded for client %s", 
+             clientId.c_str());
+        
+        try {
+            server_->close(hdl, websocketpp::close::status::policy_violation, "Rate limit exceeded");
+        } catch (...) {
+            // Ignore errors during forced close
+        }
+        return;
+    }
+    
+    // Message size validation
+    if (!validate_message_size(msg->get_payload())) {
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Message too large from client %s: %zu bytes", 
+             clientId.c_str(), msg->get_payload().size());
+        return;
+    }
+    
+    // Notify message callback
+    {
+        std::lock_guard<std::mutex> lock(callback_mutex_);
+        if (message_callback_) {
+            message_callback_(clientId, msg->get_payload());
+        }
+    }
+}
+
+void OneSevenLiveWebsocketServer::onFail(websocketpp::connection_hdl hdl) {
+    std::string clientId;
+    
+    // Find client ID
+    {
+        std::lock_guard<std::mutex> lock(clients_mutex_);
+        std::string hdl_str = hdl_to_string(hdl);
+        auto it = hdl_to_client_id_.find(hdl_str);
+        if (it != hdl_to_client_id_.end()) {
+            clientId = it->second;
             
-        case ix::WebSocketMessageType::Close:
-            {
-                obs_log(LOG_INFO, "[17Live WebSocket Server] Client %s disconnected", clientId.c_str());
-                
-                // Remove client from connections
-                {
-                    std::lock_guard<std::mutex> lock(clients_mutex_);
-                    clients_.erase(clientId);
-                    client_ips_.erase(clientId);
-                }
-                
-                // Notify connection callback
-                {
-                    std::lock_guard<std::mutex> lock(callback_mutex_);
-                    if (connection_callback_) {
-                        connection_callback_(clientId, false);
-                    }
-                }
-            }
-            break;
+            obs_log(LOG_ERROR, "[17Live WebSocket Server] Connection failed for client %s", clientId.c_str());
             
-        case ix::WebSocketMessageType::Error:
-            {
-                obs_log(LOG_ERROR, "[17Live WebSocket Server] Error from client %s: %s", 
-                     clientId.c_str(), msg->errorInfo.reason.c_str());
-            }
-            break;
-            
-        case ix::WebSocketMessageType::Ping:
-            {
-                obs_log(LOG_DEBUG, "[17Live WebSocket Server] Ping from client %s", clientId.c_str());
-                // IXWebSocket automatically handles pong responses
-            }
-            break;
-            
-        case ix::WebSocketMessageType::Pong:
-            {
-                obs_log(LOG_DEBUG, "[17Live WebSocket Server] Pong from client %s", clientId.c_str());
-            }
-            break;
-            
-        default:
-            obs_log(LOG_DEBUG, "[17Live WebSocket Server] Unknown message type from client %s", 
-                 clientId.c_str());
-            break;
+            // Remove client from connections
+            clients_.erase(clientId);
+            client_ips_.erase(clientId);
+            hdl_to_client_id_.erase(it);
+        }
+    }
+    
+    // Notify connection callback
+    if (!clientId.empty()) {
+        std::lock_guard<std::mutex> lock(callback_mutex_);
+        if (connection_callback_) {
+            connection_callback_(clientId, false);
+        }
     }
 }

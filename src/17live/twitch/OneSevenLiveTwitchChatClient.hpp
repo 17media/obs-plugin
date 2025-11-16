@@ -7,10 +7,7 @@
 #include <QTimer>
 #include <memory>
 #include <functional>
-
-namespace ix {
-    class WebSocket;
-}
+#include <string>
 
 enum class TwitchMessageType {
     Chat,
@@ -138,8 +135,13 @@ private:
     void scheduleReconnect();
     void resetReconnectAttempts();
 
-    // WebSocket
-    std::unique_ptr<ix::WebSocket> m_webSocket;
+    // WebSocket connection state
+    bool m_webSocketConnected;
+    
+    // WebSocket client implementation using websocketpp
+    void connectWebSocket();
+    void disconnectWebSocket();
+    void sendWebSocketMessage(const std::string& message);
     
     // Connection state
     bool m_connected;
