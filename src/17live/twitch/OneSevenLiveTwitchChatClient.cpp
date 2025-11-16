@@ -650,7 +650,7 @@ void OneSevenLiveTwitchChatClient::sendWebSocketMessage(const std::string& messa
         
         // Construct WebSocket frame (client to server must be masked)
         std::string wsFrame;
-        wsFrame.push_back(0x81); // FIN = 1, opcode = 1 (text)
+        wsFrame.push_back(static_cast<char>(0x81)); // FIN = 1, opcode = 1 (text)
         
         // Generate random masking key
         unsigned char maskingKey[4];
@@ -917,7 +917,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
                         } else if (opcode == 0x9) { // Ping frame
                             // Send pong
                             std::string pongFrame;
-                            pongFrame.push_back(0x8A); // FIN = 1, opcode = 10 (pong)
+                            pongFrame.push_back(static_cast<char>(0x8A)); // FIN = 1, opcode = 10 (pong)
                             pongFrame.push_back(static_cast<char>(payloadLen));
                             pongFrame.append(payload.begin(), payload.end());
                             sendTLSData(pongFrame);
