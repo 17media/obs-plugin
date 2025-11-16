@@ -174,10 +174,10 @@ find_library(
 )
 
 if(Mbedtls_LIBRARY AND NOT Mbedcrypto_LIBRARY AND NOT Mbedx509_LIBRARY)
-  set(CMAKE_REQUIRED_LIBRARIES "${MbedTLS_LIBRARY}")
+  set(CMAKE_REQUIRED_LIBRARIES "${Mbedtls_LIBRARY}")
   set(CMAKE_REQUIRED_INCLUDES "${MbedTLS_INCLUDE_DIR}")
 
-  check_symbol_exists(mbedtls_x509_crt_init "mbedtls/x590_crt.h" MbedTLS_INCLUDES_X509)
+  check_symbol_exists(mbedtls_x509_crt_init "mbedtls/x509_crt.h" MbedTLS_INCLUDES_X509)
   check_symbol_exists(mbedtls_sha256_init "mbedtls/sha256.h" MbedTLS_INCLUDES_CRYPTO)
   unset(CMAKE_REQUIRED_LIBRARIES)
   unset(CMAKE_REQUIRED_INCLUDES)
@@ -221,22 +221,27 @@ if(MbedTLS_FOUND)
         set_property(TARGET MbedTLS::mbed${component} PROPERTY IMPORTED_LIBNAME "${Mbed${component}_LIBRARY}")
       endif()
 
-      mbedtls_set_soname(${component})
+      MbedTLS_set_soname(${component})
       set_target_properties(
-        MbedTLS::mbedtls
+        MbedTLS::mbed${component}
         PROPERTIES
           INTERFACE_COMPILE_OPTIONS "${PC_MbedTLS_CFLAGS_OTHER}"
           INTERFACE_INCLUDE_DIRECTORIES "${MbedTLS_INCLUDE_DIR}"
-          INTERFACE_LINK_OPTIONS "$<$<AND:$<PLATFORM_ID:Windows>,$<CONFIG:DEBUG>>:/NODEFAULTLIB:MSVCRT>"
           VERSION ${MbedTLS_VERSION}
       )
+      
+      # Windows-specific: do not force runtime library settings, let actual compilation target decide
+      if(OS_WINDOWS)
+        # When MbedTLS is linked as dynamic library, no need to force runtime library settings
+        # Runtime library compatibility is handled by main target through legacy_stdio_definitions.lib
+      endif()
     endif()
   endforeach()
 
   if(MbedTLS_INCLUDES_X509 AND MbedTLS_INCLUDES_CRYPTO)
-    set(MbedTLS_LIBRARIES ${MbedTLS_LIBRARY})
+    set(MbedTLS_LIBRARIES ${Mbedtls_LIBRARY})
   else()
-    set(MbedTLS_LIBRARIES ${MbedTLS_LIBRARY} ${MbedCrypto_LIBRARY} ${MbedX509_LIBRARY})
+    set(MbedTLS_LIBRARIES ${Mbedtls_LIBRARY} ${Mbedcrypto_LIBRARY} ${Mbedx509_LIBRARY})
     set_property(TARGET MbedTLS::mbedtls PROPERTY INTERFACE_LINK_LIBRARIES MbedTLS::mbedcrypto MbedTLS::mbedx509)
   endif()
 endif()
