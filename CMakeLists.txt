@@ -269,6 +269,8 @@ if(OS_WINDOWS)
   # Disable treat warnings as errors to allow LNK4098 warnings
   target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
     /WX:NO  # Don't treat linker warnings as errors
+    /ignore:4098  # Ignore default library conflicts (mixed runtime libraries)
+    /ignore:4286  # Ignore symbol already defined warnings
   )
   
   # obs-studio strategy: use static runtime to ensure CEF compatibility
