@@ -137,6 +137,7 @@ if(OS_WINDOWS)
   # Windows-specific definitions for stdio compatibility
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     _CRT_DECLARE_NONSTDC_NAMES=1  # For stdio functions like setbuf
+    _WIN32_WINNT=0x0A00  # Windows 10 and later
   )
   
   # obs-studio strategy: use static runtime, provide stdio compatibility through legacy libraries
