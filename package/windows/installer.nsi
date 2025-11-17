@@ -2,7 +2,7 @@
 ; Based on the configuration from GitHub Actions workflow
 
 !define PRODUCT_NAME "17Live OBS Plugin"
-!define PRODUCT_VERSION "1.0.0"  ; This will be replaced by build script
+!define PRODUCT_VERSION "1.0.0"  ; This will be replaced by build script (supports four-part version e.g. 1.1.4.4)
 !define PRODUCT_PUBLISHER "17Live Limited"
 !define PRODUCT_WEB_SITE "https://17.live"
 !define PACKAGE_ID "OneSevenLive.ObsPlugin"
@@ -27,6 +27,7 @@ InstallDirRegKey HKLM "Software\OBS Studio" ""
 ShowInstDetails show
 ShowUnInstDetails show
 RequestExecutionLevel admin
+
 
 ; Interface Settings
 !define MUI_ABORTWARNING
@@ -62,7 +63,7 @@ RequestExecutionLevel admin
 !insertmacro MUI_LANGUAGE "TradChinese"
 
 ; Version Information
-VIProductVersion "${PRODUCT_VERSION}.0"
+VIProductVersion "${PRODUCT_VERSION}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "Comments" "17Live OBS Plugin for streaming integration"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "CompanyName" "${PRODUCT_PUBLISHER}"

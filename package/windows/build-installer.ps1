@@ -67,19 +67,26 @@ if (!(Test-Path $OutputDir)) {
 # Create temporary NSI file with version substitution
 $NSITemplate = Get-Content "installer.nsi" -Raw
 
-# Extract numeric version for NSIS (remove any suffix like -stage, -beta, etc.)
-$NumericVersion = $Version -replace '-.*$', ''
-# Ensure we have at least 3 parts for the version (X.X.X format)
+# Extract numeric version for NSIS
+# - remove any leading 'v'
+# - remove any suffix like -stage, -beta, etc.
+$NumericVersion = $Version -replace '^v', '' -replace '-.*$', ''
+# Ensure we have exactly 4 numeric parts for VIProductVersion
 $VersionParts = $NumericVersion.Split('.')
-while ($VersionParts.Length -lt 3) {
+while ($VersionParts.Length -lt 4) {
     $VersionParts += "0"
 }
-$CleanVersion = $VersionParts[0..2] -join '.'
+if ($VersionParts.Length -gt 4) {
+    $VersionParts = $VersionParts[0..3]
+}
+$CleanVersion = $VersionParts -join '.'
 
-# Replace PRODUCT_VERSION for NSIS version info (must be X.X.X format)
+# Replace PRODUCT_VERSION with 4-part numeric version for NSIS version info
 $NSIContent = $NSITemplate -replace '!define PRODUCT_VERSION "1\.0\.0"', "!define PRODUCT_VERSION `"$CleanVersion`""
-# Replace the OutFile to use the full version (including suffix) for the installer filename
-$NSIContent = $NSIContent -replace 'OutFile "17liveOBSPlugin-windows-v\$\{PRODUCT_VERSION\}\.exe"', "OutFile `"17liveOBSPlugin-windows-v$Version.exe`""
+# Replace the OutFile to use the full version tag for the installer filename
+# Normalize to ensure single leading 'v'
+$VersionTag = if ($Version -match '^v') { $Version } else { "v$Version" }
+$NSIContent = $NSIContent -replace 'OutFile "17liveOBSPlugin-windows-v\$\{PRODUCT_VERSION\}\.exe"', "OutFile `"17liveOBSPlugin-windows-$VersionTag.exe`""
 
 $TempNSI = "installer_temp.nsi"
 $NSIContent | Out-File -FilePath $TempNSI -Encoding UTF8
@@ -124,7 +131,7 @@ Write-Host "Build completed successfully!" -ForegroundColor Green
 Write-Host "Installer location: $(Join-Path $OutputDir "17liveOBSPlugin-windows-v$Version.exe")" -ForegroundColor Cyan
 
 # Display file information
-$InstallerPath = Join-Path $OutputDir "17liveOBSPlugin-windows-v$Version.exe"
+$InstallerPath = Join-Path $OutputDir "17liveOBSPlugin-windows-$Version.exe"
 if (Test-Path $InstallerPath) {
     $FileInfo = Get-Item $InstallerPath
     Write-Host ""
