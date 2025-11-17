@@ -55,6 +55,20 @@ OneSevenLiveStreamingDock::~OneSevenLiveStreamingDock() {
     disconnect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this, nullptr);
     disconnect(streamManager, &OneSevenLiveStreamManager::streamStatusChanged, this, nullptr);
 
+    // Disconnect all QComboBox signals to prevent crashes during destruction
+    if (eventCombo) {
+        disconnect(eventCombo, nullptr, this, nullptr);
+    }
+    if (categoryCombo) {
+        disconnect(categoryCombo, nullptr, this, nullptr);
+    }
+    if (requiredArmyRankCombo) {
+        disconnect(requiredArmyRankCombo, nullptr, this, nullptr);
+    }
+    if (clipIdentityCombo) {
+        disconnect(clipIdentityCombo, nullptr, this, nullptr);
+    }
+
     if (eventCooldownTimer->isActive()) {
         eventCooldownTimer->stop();
     }
@@ -135,7 +149,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     formLayout->addRow(titleLabel, titleEdit);
 
     // Category selection
-    categoryCombo = new QComboBox();
+    categoryCombo = new QComboBox(this); // Set parent to ensure proper cleanup
     QLabel *categoryLabel = new QLabel();
     categoryLabel->setText(
         QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
@@ -188,7 +202,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     eventContainer->addWidget(eventLabel);
 
     // Dropdown box
-    eventCombo = new QComboBox();
+    eventCombo = new QComboBox(this); // Set parent to ensure proper cleanup
     eventContainer->addWidget(eventCombo);
 
     // Create hint label and align right
@@ -264,7 +278,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     QLabel *userConditionLabel = new QLabel(obs_module_text("Live.Settings.UserCondition"));
     userConditionLayout->addWidget(userConditionLabel);
 
-    requiredArmyRankCombo = new QComboBox();
+    requiredArmyRankCombo = new QComboBox(this); // Set parent to ensure proper cleanup
     requiredArmyRankCombo->setEditable(false);
     userConditionLayout->addWidget(requiredArmyRankCombo);
 
@@ -400,7 +414,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     clipLayout->addWidget(clipTip);
 
     // Clip identity
-    clipIdentityCombo = new QComboBox();
+    clipIdentityCombo = new QComboBox(this); // Set parent to ensure proper cleanup
     QList<OneSevenLiveMetaValueLabel> clipIdentityList;
     getMetaValueLabelList("ClipPermissions", clipIdentityList);
     for (const auto &item : clipIdentityList) {

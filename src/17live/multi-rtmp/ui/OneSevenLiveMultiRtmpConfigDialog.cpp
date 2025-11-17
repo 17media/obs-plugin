@@ -66,7 +66,24 @@ OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
     setupConnections();
 }
 
-OneSevenLiveMultiRtmpConfigDialog::~OneSevenLiveMultiRtmpConfigDialog() {}
+OneSevenLiveMultiRtmpConfigDialog::~OneSevenLiveMultiRtmpConfigDialog() {
+    // Disconnect all QComboBox signals to prevent crashes during destruction
+    if (m_streamNameCombo) {
+        disconnect(m_streamNameCombo, nullptr, this, nullptr);
+    }
+    if (m_protocolCombo) {
+        disconnect(m_protocolCombo, nullptr, this, nullptr);
+    }
+    if (m_outputSceneCombo) {
+        disconnect(m_outputSceneCombo, nullptr, this, nullptr);
+    }
+    if (m_videoEncoderCombo) {
+        disconnect(m_videoEncoderCombo, nullptr, this, nullptr);
+    }
+    if (m_audioEncoderCombo) {
+        disconnect(m_audioEncoderCombo, nullptr, this, nullptr);
+    }
+}
 
 void OneSevenLiveMultiRtmpConfigDialog::setupUI() {
     // Create main layout for the dialog

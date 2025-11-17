@@ -101,8 +101,21 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
 }
 
 OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget() {
-    // No need to manually delete label and ctrl, as they have a parent and Qt will manage them
-    // automatically. Manual deletion could lead to double-free crashes.
+    // Disconnect all signals to prevent crashes during destruction
+    if (label) {
+        disconnect(label, nullptr, this, nullptr);
+    }
+    if (ctrl) {
+        disconnect(ctrl, nullptr, this, nullptr);
+        // For QComboBox, also disconnect from any external connections
+        if (m_propertyType == OBS_PROPERTY_LIST) {
+            auto cb = static_cast<QComboBox *>(ctrl);
+            if (cb) {
+                disconnect(cb, nullptr, nullptr, nullptr);
+            }
+        }
+    }
+    
     obs_log(LOG_DEBUG, "[~OneSevenLivePropertyWidget] Destructor called for property: %s",
             name.c_str());
 }
