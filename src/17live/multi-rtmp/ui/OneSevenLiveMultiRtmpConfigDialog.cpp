@@ -422,6 +422,16 @@ void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
     connect(m_streamNameCombo, &QComboBox::currentTextChanged, this, [this](const QString&) {
         updateAuthorizeButtonState();
     });
+
+    // Authorization failure handling
+    if (m_twitchAuth) {
+        connect(m_twitchAuth, &OneSevenLiveTwitchAuth::authorizationFailed, this, 
+                &OneSevenLiveMultiRtmpConfigDialog::onAuthorizationFailed);
+    }
+    if (m_youtubeAuth) {
+        connect(m_youtubeAuth, &OneSevenLiveYouTubeAuth::authorizationFailed, this,
+                &OneSevenLiveMultiRtmpConfigDialog::onAuthorizationFailed);
+    }
 }
 
 void OneSevenLiveMultiRtmpConfigDialog::setEditMode(bool isEdit) {
@@ -524,6 +534,27 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked() {
 
     m_authDialog->exec();
     m_isAuthorizing = false;
+}
+
+void OneSevenLiveMultiRtmpConfigDialog::onAuthorizationFailed(const QString& error) {
+    obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] Authorization failed: %s", error.toUtf8().constData());
+    
+    // Close auth dialog if it's open
+    if (m_authDialog) {
+        m_authDialog->close();
+        m_authDialog->deleteLater();
+        m_authDialog = nullptr;
+    }
+    
+    // Show error message to user
+    QMessageBox::warning(this, 
+                          QString::fromUtf8(obs_module_text("MultiRTMP.AuthorizationFailed.Title")),
+                          QString::fromUtf8(obs_module_text("MultiRTMP.AuthorizationFailed.Text"))
+                              .arg(error),
+                          QMessageBox::Ok);
+    
+    m_isAuthorizing = false;
+    updateAuthorizeButtonState();
 }
 
 void OneSevenLiveMultiRtmpConfigDialog::onAuthUrlChanged(const QString& url)

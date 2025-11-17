@@ -59,6 +59,7 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
    private slots:
     void onAdvancedSettingsToggled();
     void onAuthorizeClicked();
+    void onAuthorizationFailed(const QString& error);
 
    private:
     void setupUI();
