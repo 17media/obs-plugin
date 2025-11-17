@@ -313,15 +313,6 @@ void OneSevenLiveMultiRtmpStreamItem::onMenuRequested() {
 }
 
 void OneSevenLiveMultiRtmpStreamItem::onDeleteAction() {
-    QMessageBox::StandardButton ret = QMessageBox::question(
-        this,
-        obs_module_text("MultiRTMP.Delete"),
-        obs_module_text("MultiRTMP.DeleteConfirm"),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-    if (ret != QMessageBox::Yes) {
-        return;
-    }
     emit deleteRequested(m_config.id);
 }
 
