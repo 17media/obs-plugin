@@ -11,7 +11,7 @@
 #include "streaming/OneSevenLiveStreamManager.hpp"
 
 OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
-    : QDockWidget(parent),
+    : QDockWidget(obs_module_text("MultiRTMP.Dock.Title"), parent),
       m_manager(OneSevenLiveMultiRtmpManager::getInstance()),
       m_streamListWidget(nullptr),
       m_configDialog(nullptr),
