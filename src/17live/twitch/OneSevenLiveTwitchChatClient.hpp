@@ -151,12 +151,12 @@ private:
     std::thread m_webSocketThread;
     
     // mbedtls TLS context
-    std::unique_ptr<mbedtls_ssl_context> m_ssl;
-    std::unique_ptr<mbedtls_net_context> m_server_fd;
-    std::unique_ptr<mbedtls_ssl_config> m_conf;
-    std::unique_ptr<mbedtls_ctr_drbg_context> m_ctr_drbg;
-    std::unique_ptr<mbedtls_entropy_context> m_entropy;
-    std::unique_ptr<mbedtls_x509_crt> m_cacert;
+    mbedtls_ssl_context* m_ssl;
+    mbedtls_net_context* m_server_fd;
+    mbedtls_ssl_config* m_conf;
+    mbedtls_ctr_drbg_context* m_ctr_drbg;
+    mbedtls_entropy_context* m_entropy;
+    mbedtls_x509_crt* m_cacert;
     
     // WebSocket client implementation
     void connectWebSocket();

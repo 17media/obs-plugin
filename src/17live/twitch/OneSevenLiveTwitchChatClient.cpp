@@ -80,19 +80,19 @@ OneSevenLiveTwitchChatClient::OneSevenLiveTwitchChatClient(QObject* parent)
     , m_reconnectTimer(nullptr)
 {
     // Initialize mbedtls contexts
-    m_ssl = std::make_unique<mbedtls_ssl_context>();
-    m_server_fd = std::make_unique<mbedtls_net_context>();
-    m_conf = std::make_unique<mbedtls_ssl_config>();
-    m_ctr_drbg = std::make_unique<mbedtls_ctr_drbg_context>();
-    m_entropy = std::make_unique<mbedtls_entropy_context>();
-    m_cacert = std::make_unique<mbedtls_x509_crt>();
+    m_ssl = new mbedtls_ssl_context;
+    m_server_fd = new mbedtls_net_context;
+    m_conf = new mbedtls_ssl_config;
+    m_ctr_drbg = new mbedtls_ctr_drbg_context;
+    m_entropy = new mbedtls_entropy_context;
+    m_cacert = new mbedtls_x509_crt;
     
-    mbedtls_ssl_init(m_ssl.get());
-    mbedtls_net_init(m_server_fd.get());
-    mbedtls_ssl_config_init(m_conf.get());
-    mbedtls_ctr_drbg_init(m_ctr_drbg.get());
-    mbedtls_entropy_init(m_entropy.get());
-    mbedtls_x509_crt_init(m_cacert.get());
+    mbedtls_ssl_init(m_ssl);
+    mbedtls_net_init(m_server_fd);
+    mbedtls_ssl_config_init(m_conf);
+    mbedtls_ctr_drbg_init(m_ctr_drbg);
+    mbedtls_entropy_init(m_entropy);
+    mbedtls_x509_crt_init(m_cacert);
     
     // Set up ping timer
     m_pingTimer = new QTimer(this);
@@ -654,7 +654,7 @@ void OneSevenLiveTwitchChatClient::sendWebSocketMessage(const std::string& messa
         
         // Generate random masking key
         unsigned char maskingKey[4];
-        mbedtls_ctr_drbg_random(m_ctr_drbg.get(), maskingKey, 4);
+        mbedtls_ctr_drbg_random(m_ctr_drbg, maskingKey, 4);
         
         if (message.length() <= 125) {
             wsFrame.push_back(static_cast<char>(0x80 | static_cast<unsigned char>(message.length()))); // MASK = 1, length
@@ -720,7 +720,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
     try {
         // Initialize TLS context
         const char* pers = "twitch_chat_client";
-        int ret = mbedtls_ctr_drbg_seed(m_ctr_drbg.get(), mbedtls_entropy_func, m_entropy.get(),
+        int ret = mbedtls_ctr_drbg_seed(m_ctr_drbg, mbedtls_entropy_func, m_entropy,
                                        (const unsigned char*)pers, strlen(pers));
         if (ret != 0) {
             obs_log(LOG_ERROR, "Failed to seed RNG: %d", ret);
@@ -733,7 +733,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
         obs_log(LOG_INFO, "Using system CA certificates for TLS verification");
         
         // Setup SSL configuration
-        ret = mbedtls_ssl_config_defaults(m_conf.get(), MBEDTLS_SSL_IS_CLIENT,
+        ret = mbedtls_ssl_config_defaults(m_conf, MBEDTLS_SSL_IS_CLIENT,
                                          MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
         if (ret != 0) {
             obs_log(LOG_ERROR, "Failed to set SSL config defaults: %d", ret);
@@ -742,13 +742,13 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
             return;
         }
         
-        mbedtls_ssl_conf_authmode(m_conf.get(), MBEDTLS_SSL_VERIFY_NONE); // Allow connections without strict cert verification for now
-        mbedtls_ssl_conf_ca_chain(m_conf.get(), nullptr, nullptr); // Skip CA chain for now
-        mbedtls_ssl_conf_rng(m_conf.get(), mbedtls_ctr_drbg_random, m_ctr_drbg.get());
+        mbedtls_ssl_conf_authmode(m_conf, MBEDTLS_SSL_VERIFY_NONE); // Allow connections without strict cert verification for now
+        mbedtls_ssl_conf_ca_chain(m_conf, nullptr, nullptr); // Skip CA chain for now
+        mbedtls_ssl_conf_rng(m_conf, mbedtls_ctr_drbg_random, m_ctr_drbg);
         
         // Connect to server
         obs_log(LOG_INFO, "Connecting to %s:%s", host.toUtf8().constData(), port.toUtf8().constData());
-        ret = mbedtls_net_connect(m_server_fd.get(), host.toUtf8().constData(),
+        ret = mbedtls_net_connect(m_server_fd, host.toUtf8().constData(),
                                  port.toUtf8().constData(), MBEDTLS_NET_PROTO_TCP);
         if (ret != 0) {
             obs_log(LOG_ERROR, "Failed to connect to server: %d", ret);
@@ -758,7 +758,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
         }
         
         // Setup SSL context
-        ret = mbedtls_ssl_setup(m_ssl.get(), m_conf.get());
+        ret = mbedtls_ssl_setup(m_ssl, m_conf);
         if (ret != 0) {
             obs_log(LOG_ERROR, "Failed to setup SSL: %d", ret);
             QMetaObject::invokeMethod(this, "onWebSocketError", Qt::QueuedConnection,
@@ -766,11 +766,11 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
             return;
         }
         
-        mbedtls_ssl_set_bio(m_ssl.get(), m_server_fd.get(), mbedtls_net_send, mbedtls_net_recv, nullptr);
+        mbedtls_ssl_set_bio(m_ssl, m_server_fd, mbedtls_net_send, mbedtls_net_recv, nullptr);
         
         // Perform handshake
         obs_log(LOG_INFO, "Performing TLS handshake...");
-        while ((ret = mbedtls_ssl_handshake(m_ssl.get())) != 0) {
+        while ((ret = mbedtls_ssl_handshake(m_ssl)) != 0) {
             if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
                 obs_log(LOG_ERROR, "TLS handshake failed: %d", ret);
                 QMetaObject::invokeMethod(this, "onWebSocketError", Qt::QueuedConnection,
@@ -805,7 +805,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
         
         // Read HTTP response headers
         while (totalRead < maxResponseSize) {
-            int ret = mbedtls_ssl_read(m_ssl.get(), (unsigned char*)buffer, sizeof(buffer) - 1);
+            int ret = mbedtls_ssl_read(m_ssl, (unsigned char*)buffer, sizeof(buffer) - 1);
             if (ret > 0) {
                 buffer[ret] = '\0';
                 response.append(buffer, ret);
@@ -842,7 +842,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
         while (m_webSocketThreadRunning) {
             // Read WebSocket frame header (2 bytes minimum)
             unsigned char frameHeader[2];
-            int ret = mbedtls_ssl_read(m_ssl.get(), frameHeader, 2);
+            int ret = mbedtls_ssl_read(m_ssl, frameHeader, 2);
             
             if (ret == 2) {
                 unsigned char opcode = frameHeader[0] & 0x0F;
@@ -852,7 +852,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
                 // Handle extended payload length
                 if (payloadLen == 126) {
                     unsigned char extLen[2];
-                    ret = mbedtls_ssl_read(m_ssl.get(), extLen, 2);
+                    ret = mbedtls_ssl_read(m_ssl, extLen, 2);
                     if (ret != 2) {
                         obs_log(LOG_ERROR, "Failed to read extended payload length");
                         break;
@@ -860,7 +860,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
                     payloadLen = (extLen[0] << 8) | extLen[1];
                 } else if (payloadLen == 127) {
                     unsigned char extLen[8];
-                    ret = mbedtls_ssl_read(m_ssl.get(), extLen, 8);
+                    ret = mbedtls_ssl_read(m_ssl, extLen, 8);
                     if (ret != 8) {
                         obs_log(LOG_ERROR, "Failed to read extended payload length");
                         break;
@@ -874,7 +874,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
                 // Read masking key if present
                 unsigned char maskingKey[4] = {0};
                 if (masked) {
-                    ret = mbedtls_ssl_read(m_ssl.get(), maskingKey, 4);
+                    ret = mbedtls_ssl_read(m_ssl, maskingKey, 4);
                     if (ret != 4) {
                         obs_log(LOG_ERROR, "Failed to read masking key");
                         break;
@@ -887,7 +887,7 @@ void OneSevenLiveTwitchChatClient::webSocketThreadFunc()
                     size_t bytesRead = 0;
                     
                     while (bytesRead < payloadLen) {
-                        ret = mbedtls_ssl_read(m_ssl.get(), payload.data() + bytesRead, payloadLen - bytesRead);
+                        ret = mbedtls_ssl_read(m_ssl, payload.data() + bytesRead, payloadLen - bytesRead);
                         if (ret > 0) {
                             bytesRead += ret;
                         } else if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
@@ -958,7 +958,7 @@ bool OneSevenLiveTwitchChatClient::performTLSHandshake()
     obs_log(LOG_INFO, "Performing TLS handshake...");
     
     int ret;
-    while ((ret = mbedtls_ssl_handshake(m_ssl.get())) != 0) {
+    while ((ret = mbedtls_ssl_handshake(m_ssl)) != 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
             obs_log(LOG_ERROR, "TLS handshake failed: %d", ret);
             return false;
@@ -971,7 +971,7 @@ bool OneSevenLiveTwitchChatClient::performTLSHandshake()
 
 bool OneSevenLiveTwitchChatClient::sendTLSData(const std::string& data)
 {
-    int ret = mbedtls_ssl_write(m_ssl.get(), (const unsigned char*)data.c_str(), data.length());
+    int ret = mbedtls_ssl_write(m_ssl, (const unsigned char*)data.c_str(), data.length());
     if (ret < 0) {
         obs_log(LOG_ERROR, "TLS write failed: %d", ret);
         return false;
@@ -982,7 +982,7 @@ bool OneSevenLiveTwitchChatClient::sendTLSData(const std::string& data)
 std::string OneSevenLiveTwitchChatClient::receiveTLSData()
 {
     unsigned char buffer[4096];
-    int ret = mbedtls_ssl_read(m_ssl.get(), buffer, sizeof(buffer) - 1);
+    int ret = mbedtls_ssl_read(m_ssl, buffer, sizeof(buffer) - 1);
     
     if (ret > 0) {
         buffer[ret] = '\0';
@@ -1006,28 +1006,34 @@ std::string OneSevenLiveTwitchChatClient::receiveTLSData()
 void OneSevenLiveTwitchChatClient::cleanupTLSContext()
 {
     if (m_ssl) {
-        mbedtls_ssl_close_notify(m_ssl.get());
-        mbedtls_ssl_free(m_ssl.get());
-        m_ssl.reset();
+        mbedtls_ssl_close_notify(m_ssl);
+        mbedtls_ssl_free(m_ssl);
+        delete m_ssl;
+        m_ssl = nullptr;
     }
     if (m_server_fd) {
-        mbedtls_net_free(m_server_fd.get());
-        m_server_fd.reset();
+        mbedtls_net_free(m_server_fd);
+        delete m_server_fd;
+        m_server_fd = nullptr;
     }
     if (m_conf) {
-        mbedtls_ssl_config_free(m_conf.get());
-        m_conf.reset();
+        mbedtls_ssl_config_free(m_conf);
+        delete m_conf;
+        m_conf = nullptr;
     }
     if (m_ctr_drbg) {
-        mbedtls_ctr_drbg_free(m_ctr_drbg.get());
-        m_ctr_drbg.reset();
+        mbedtls_ctr_drbg_free(m_ctr_drbg);
+        delete m_ctr_drbg;
+        m_ctr_drbg = nullptr;
     }
     if (m_entropy) {
-        mbedtls_entropy_free(m_entropy.get());
-        m_entropy.reset();
+        mbedtls_entropy_free(m_entropy);
+        delete m_entropy;
+        m_entropy = nullptr;
     }
     if (m_cacert) {
-        mbedtls_x509_crt_free(m_cacert.get());
-        m_cacert.reset();
+        mbedtls_x509_crt_free(m_cacert);
+        delete m_cacert;
+        m_cacert = nullptr;
     }
 }
