@@ -360,57 +360,19 @@ void OneSevenLiveMultiRtmpConfigDialog::setupButtonBox() {
     m_buttonLayout->setSpacing(12);
     m_buttonLayout->setContentsMargins(16, 16, 16, 16);
 
-    // Cancel button with blue background and white text
     m_cancelButton = new QPushButton(obs_module_text("MultiRtmp.Config.Cancel"));
-    m_cancelButton->setFixedHeight(40);
-    m_cancelButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    m_cancelButton->setStyleSheet(
-        "QPushButton { "
-        "  background-color: #007AFF; "
-        "  color: white; "
-        "  border: none; "
-        "  padding: 10px 20px; "
-        "  border-radius: 6px; "
-        "  font-weight: bold; "
-        "  font-size: 14px; "
-        "} "
-        "QPushButton:hover { "
-        "  background-color: #0056CC; "
-        "} "
-        "QPushButton:pressed { "
-        "  background-color: #004499; "
-        "}");
+    m_cancelButton->setFixedHeight(32);
+    m_cancelButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_cancelButton->setStyleSheet("background-color: #666666; color: white;");
 
-    // Confirm button with red background and white text
     m_okButton = new QPushButton(obs_module_text("MultiRtmp.Config.Confirm"));
-    m_okButton->setFixedHeight(40);
-    m_okButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    m_okButton->setStyleSheet(
-        "QPushButton { "
-        "  background-color: #FF0001; "
-        "  color: white; "
-        "  border: none; "
-        "  padding: 10px 20px; "
-        "  border-radius: 6px; "
-        "  font-weight: bold; "
-        "  font-size: 14px; "
-        "} "
-        "QPushButton:hover { "
-        "  background-color: #CC0001; "
-        "} "
-        "QPushButton:pressed { "
-        "  background-color: #990001; "
-        "}");
+    m_okButton->setFixedHeight(32);
+    m_okButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_okButton->setStyleSheet("background-color: #FF0001; color: white;");
     m_okButton->setDefault(true);
 
-    int cancelWidth = m_cancelButton->sizeHint().width();
-    m_okButton->setMinimumWidth(cancelWidth * 2);
-
-    // Center the buttons
-    m_buttonLayout->addStretch();
-    m_buttonLayout->addWidget(m_cancelButton);
-    m_buttonLayout->addWidget(m_okButton);
-    m_buttonLayout->addStretch();
+    m_buttonLayout->addWidget(m_cancelButton, 1);
+    m_buttonLayout->addWidget(m_okButton, 2);
 }
 
 void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
