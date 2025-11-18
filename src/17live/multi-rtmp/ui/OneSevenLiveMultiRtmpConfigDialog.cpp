@@ -43,6 +43,10 @@ OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
     setMaximumSize(600, 900);  // Increased maximum width for better content display
     resize(400, 450);          // Set initial size to ensure content fits properly
 
+    // Default supported encoders for RTMP services
+    m_supportedVideoEncoders = "h264";
+    m_supportedAudioEncoders = "aac";
+
     setupUI();
 
     // Use CoreManager-owned authorization handlers to keep unified state
@@ -1150,7 +1154,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadEncoders() {
     if (m_audioEncoderCombo) {
         QVariant old = m_audioEncoderCombo->currentData();
         m_audioEncoderCombo->clear();
-        m_audioEncoderCombo->addItem(obs_module_text("MultiRtmp.Config.Video.UseOBS"),
+        m_audioEncoderCombo->addItem(obs_module_text("MultiRtmp.Config.Audio.UseOBS"),
                                      streamingAudioId ? streamingAudioId : "");
 
         // Parse supported audio encoders using the generic function
