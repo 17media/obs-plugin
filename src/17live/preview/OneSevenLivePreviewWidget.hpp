@@ -10,7 +10,7 @@
 #include <QWidget>
 #include <QString>
 
-#include "../utility/OneSevenLivePreviewConfigLoader.hpp"
+#include "OneSevenLivePreviewConfigLoader.hpp"
 
 class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
