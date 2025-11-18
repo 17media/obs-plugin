@@ -153,7 +153,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
         }
 
         std::string name(name_cstr);
-        if (name == "service") {
+        if (name == "service" || name == "show_all") {
             if (!obs_property_next(&prop))
                 break;
             continue;

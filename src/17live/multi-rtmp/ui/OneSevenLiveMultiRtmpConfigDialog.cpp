@@ -240,8 +240,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
     m_advancedWidget->setVisible(false);  // Initially collapsed
 
     QVBoxLayout* advancedLayout = new QVBoxLayout(m_advancedWidget);
-    advancedLayout->setContentsMargins(0, 0, 0, 0);
-    advancedLayout->setSpacing(5);
+    advancedLayout->setContentsMargins(0, 10, 0, 0);
+    advancedLayout->setSpacing(10);
 
     m_serviceWidget = new OneSevenLivePropertiesWidget(m_advancedWidget);
     m_serviceWidget->setSizePolicy(
@@ -249,13 +249,13 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
     
     advancedLayout->addWidget(m_serviceWidget);
 
-    m_syncStartCheckbox = new QCheckBox(m_advancedWidget);
-    m_syncStartCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStart"));
-    m_syncStopCheckbox = new QCheckBox(m_advancedWidget);
-    m_syncStopCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStop"));
+    // m_syncStartCheckbox = new QCheckBox(m_advancedWidget);
+    // m_syncStartCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStart"));
+    // m_syncStopCheckbox = new QCheckBox(m_advancedWidget);
+    // m_syncStopCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStop"));
 
-    advancedLayout->addWidget(m_syncStartCheckbox);
-    advancedLayout->addWidget(m_syncStopCheckbox);
+    // advancedLayout->addWidget(m_syncStartCheckbox);
+    // advancedLayout->addWidget(m_syncStopCheckbox);
 
     // Create tab widget for advanced settings
     m_tabWidget = new QTabWidget(m_advancedWidget);
