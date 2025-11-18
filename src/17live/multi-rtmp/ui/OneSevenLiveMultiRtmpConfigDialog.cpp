@@ -731,104 +731,167 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
         obs_data_release(output_settings);
     }
 
-    // Load video encoder settings
-    if (m_config->videoConfig.has_value() && !m_config->videoConfig->encoderSettings.empty()) {
-        obs_data_t* encoder_settings =
-            obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str());
-
-        obs_encoder_t* encoder =
-            obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(), "temp_video_encoder",
-                                     encoder_settings, nullptr);
-        if (!encoder) {
-            obs_log(LOG_ERROR, "[loadConfig] Failed to create video encoder with ID: %s",
-                    m_config->videoConfig->encoderId.c_str());
-            obs_data_release(encoder_settings);
-            return;
+    // Load video encoder selection and settings
+    if (m_config->videoConfig.has_value()) {
+        // Select encoder in combo (non-empty means custom encoder; empty means Use OBS)
+        if (m_videoEncoderCombo) {
+            const QString encId = QString::fromStdString(m_config->videoConfig->encoderId);
+            if (!encId.isEmpty()) {
+                int idx = m_videoEncoderCombo->findData(encId);
+                if (idx >= 0)
+                    m_videoEncoderCombo->setCurrentIndex(idx);
+            } else {
+                m_videoEncoderCombo->setCurrentIndex(0);
+            }
         }
 
-        obs_data_t* settings = obs_encoder_get_settings(encoder);
-        obs_properties_t* props = obs_encoder_properties(encoder);
+        if (!m_config->videoConfig->encoderSettings.empty()) {
+            obs_data_t* encoder_settings =
+                obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str());
 
-        if (!settings || !props) {
-            obs_log(LOG_ERROR,
-                    "[loadConfig] Failed to get video encoder settings or properties (settings: "
-                    "%p, props: %p)",
-                    (void*) settings, (void*) props);
-            obs_encoder_release(encoder);
-            obs_data_release(encoder_settings);
-            return;
+            obs_encoder_t* encoder =
+                obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(), "temp_video_encoder",
+                                         encoder_settings, nullptr);
+            if (!encoder) {
+                obs_log(LOG_ERROR, "[loadConfig] Failed to create video encoder with ID: %s",
+                        m_config->videoConfig->encoderId.c_str());
+                obs_data_release(encoder_settings);
+                // Fall back to refreshing default properties if encoder cannot be created
+                refreshVideoEncoderProperties();
+            } else {
+
+            obs_data_t* settings = obs_encoder_get_settings(encoder);
+            obs_properties_t* props = obs_encoder_properties(encoder);
+
+                if (!settings || !props) {
+                    obs_log(LOG_ERROR,
+                            "[loadConfig] Failed to get video encoder settings or properties (settings: "
+                            "%p, props: %p)",
+                            (void*) settings, (void*) props);
+                    obs_encoder_release(encoder);
+                    obs_data_release(encoder_settings);
+                    refreshVideoEncoderProperties();
+                } else {
+
+                    if (!m_videoWidget) {
+                        obs_log(LOG_ERROR,
+                                "[loadConfig] m_videoWidget is null, cannot update video properties");
+                        // Ownership of 'settings' and 'props' is transferred to m_videoWidget
+                        obs_encoder_release(encoder);
+                        obs_data_release(encoder_settings);
+                        refreshVideoEncoderProperties();
+                    } else {
+
+                        try {
+                            m_videoWidget->UpdateProperties(settings, props);
+                            m_videoWidget->setVisible(true);
+                        } catch (const std::exception& e) {
+                            obs_log(LOG_ERROR, "[loadConfig] Exception in video UpdateProperties: %s", e.what());
+                        } catch (...) {
+                            obs_log(LOG_ERROR, "[loadConfig] Unknown exception in video UpdateProperties");
+                        }
+
+                        // Ownership of 'settings' and 'props' is transferred to m_videoWidget
+                        obs_encoder_release(encoder);
+                        obs_data_release(encoder_settings);
+                    }
+                }
+            }
+        } else {
+            // No saved settings; just refresh properties for selected encoder
+            refreshVideoEncoderProperties();
         }
-
-        if (!m_videoWidget) {
-            obs_log(LOG_ERROR,
-                    "[loadConfig] m_videoWidget is null, cannot update video properties");
-            // Ownership of 'settings' and 'props' is transferred to m_videoWidget
-            obs_encoder_release(encoder);
-            obs_data_release(encoder_settings);
-            return;
+        // Ensure properties reflect the selected encoder state
+        if (m_videoEncoderCombo && m_videoEncoderCombo->currentData().toString().isEmpty()) {
+            if (m_videoWidget) m_videoWidget->setVisible(false);
+        } else {
+            if (m_videoWidget) m_videoWidget->setVisible(true);
         }
-
-        try {
-            m_videoWidget->UpdateProperties(settings, props);
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "[loadConfig] Exception in video UpdateProperties: %s", e.what());
-        } catch (...) {
-            obs_log(LOG_ERROR, "[loadConfig] Unknown exception in video UpdateProperties");
-        }
-
-        // Ownership of 'settings' and 'props' is transferred to m_videoWidget
-        obs_encoder_release(encoder);
-        obs_data_release(encoder_settings);
+    } else {
+        // No videoConfig present → Use OBS
+        if (m_videoEncoderCombo)
+            m_videoEncoderCombo->setCurrentIndex(0);
+        if (m_videoWidget)
+            m_videoWidget->setVisible(false);
     }
 
-    // Load audio encoder settings
-    if (m_config->audioConfig.has_value() && !m_config->audioConfig->encoderSettings.empty()) {
-        obs_data_t* encoder_settings =
-            obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str());
-
-        obs_encoder_t* encoder =
-            obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(), "temp_audio_encoder",
-                                     encoder_settings, 0, nullptr);
-        if (!encoder) {
-            obs_log(LOG_ERROR, "[loadConfig] Failed to create audio encoder with ID: %s",
-                    m_config->audioConfig->encoderId.c_str());
-            obs_data_release(encoder_settings);
-            return;
+    // Load audio encoder selection and settings
+    if (m_config->audioConfig.has_value()) {
+        if (m_audioEncoderCombo) {
+            const QString encId = QString::fromStdString(m_config->audioConfig->encoderId);
+            if (!encId.isEmpty()) {
+                int idx = m_audioEncoderCombo->findData(encId);
+                if (idx >= 0)
+                    m_audioEncoderCombo->setCurrentIndex(idx);
+            } else {
+                m_audioEncoderCombo->setCurrentIndex(0);
+            }
         }
 
-        obs_data_t* settings = obs_encoder_get_settings(encoder);
-        obs_properties_t* props = obs_encoder_properties(encoder);
+        if (!m_config->audioConfig->encoderSettings.empty()) {
+            obs_data_t* encoder_settings =
+                obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str());
 
-        if (!settings || !props) {
-            obs_log(LOG_ERROR,
-                    "[loadConfig] Failed to get audio encoder settings or properties (settings: "
-                    "%p, props: %p)",
-                    (void*) settings, (void*) props);
-            obs_encoder_release(encoder);
-            obs_data_release(encoder_settings);
-            return;
+            obs_encoder_t* encoder =
+                obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(), "temp_audio_encoder",
+                                         encoder_settings, 0, nullptr);
+            if (!encoder) {
+                obs_log(LOG_ERROR, "[loadConfig] Failed to create audio encoder with ID: %s",
+                        m_config->audioConfig->encoderId.c_str());
+                obs_data_release(encoder_settings);
+                refreshAudioEncoderProperties();
+            } else {
+
+            obs_data_t* settings = obs_encoder_get_settings(encoder);
+            obs_properties_t* props = obs_encoder_properties(encoder);
+
+                if (!settings || !props) {
+                    obs_log(LOG_ERROR,
+                            "[loadConfig] Failed to get audio encoder settings or properties (settings: "
+                            "%p, props: %p)",
+                            (void*) settings, (void*) props);
+                    obs_encoder_release(encoder);
+                    obs_data_release(encoder_settings);
+                    refreshAudioEncoderProperties();
+                } else {
+
+                    if (!m_audioWidget) {
+                        obs_log(LOG_ERROR,
+                                "[loadConfig] m_audioWidget is null, cannot update audio properties");
+                        // Ownership of 'settings' and 'props' is transferred to m_audioWidget
+                        obs_encoder_release(encoder);
+                        obs_data_release(encoder_settings);
+                        refreshAudioEncoderProperties();
+                    } else {
+
+                        try {
+                            m_audioWidget->UpdateProperties(settings, props);
+                            m_audioWidget->setVisible(true);
+                        } catch (const std::exception& e) {
+                            obs_log(LOG_ERROR, "[loadConfig] Exception in audio UpdateProperties: %s", e.what());
+                        } catch (...) {
+                            obs_log(LOG_ERROR, "[loadConfig] Unknown exception in audio UpdateProperties");
+                        }
+
+                        // Ownership of 'settings' and 'props' is transferred to m_audioWidget
+                        obs_encoder_release(encoder);
+                        obs_data_release(encoder_settings);
+                    }
+                }
+            }
+        } else {
+            refreshAudioEncoderProperties();
         }
-
-        if (!m_audioWidget) {
-            obs_log(LOG_ERROR,
-                    "[loadConfig] m_audioWidget is null, cannot update audio properties");
-            // Ownership of 'settings' and 'props' is transferred to m_audioWidget
-            obs_encoder_release(encoder);
-            obs_data_release(encoder_settings);
-            return;
+        if (m_audioEncoderCombo && m_audioEncoderCombo->currentData().toString().isEmpty()) {
+            if (m_audioWidget) m_audioWidget->setVisible(false);
+        } else {
+            if (m_audioWidget) m_audioWidget->setVisible(true);
         }
-
-        try {
-            m_audioWidget->UpdateProperties(settings, props);
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "[loadConfig] Exception in audio UpdateProperties: %s", e.what());
-        } catch (...) {
-            obs_log(LOG_ERROR, "[loadConfig] Unknown exception in audio UpdateProperties");
-        }
-
-        // Ownership of 'settings' and 'props' is transferred to m_audioWidget
-        obs_encoder_release(encoder);
-        obs_data_release(encoder_settings);
+    } else {
+        if (m_audioEncoderCombo)
+            m_audioEncoderCombo->setCurrentIndex(0);
+        if (m_audioWidget)
+            m_audioWidget->setVisible(false);
     }
 }
 
