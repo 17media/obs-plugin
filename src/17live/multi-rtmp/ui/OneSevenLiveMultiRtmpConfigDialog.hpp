@@ -71,9 +71,11 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     void setupAudioTab();
     void setupButtonBox();
 
-    void setupConnections();
+   void setupConnections();
 
     void loadEncoders();
+    void refreshVideoEncoderProperties();
+    void refreshAudioEncoderProperties();
     void loadScenes();
     void loadConfig();
 

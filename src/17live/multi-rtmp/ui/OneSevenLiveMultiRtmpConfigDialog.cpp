@@ -13,6 +13,7 @@
 #include <QUuid>
 #include <QUrl>
 #include <QUrlQuery>
+#include <set>
 
 #include "ui/OneSevenLivePropertiesWidget.hpp"
 #include "ui/OneSevenLiveAuthDialog.hpp"
@@ -42,10 +43,6 @@ OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
     setMinimumSize(350, 525);  // Increased minimum width to accommodate content
     setMaximumSize(600, 900);  // Increased maximum width for better content display
     resize(400, 450);          // Set initial size to ensure content fits properly
-
-    // Default supported encoders for RTMP services
-    m_supportedVideoEncoders = "h264";
-    m_supportedAudioEncoders = "aac";
 
     setupUI();
 
@@ -467,6 +464,17 @@ void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
     if (m_youtubeAuth) {
         connect(m_youtubeAuth, &OneSevenLiveYouTubeAuth::authorizationFailed, this,
                 &OneSevenLiveMultiRtmpConfigDialog::onAuthorizationFailed);
+    }
+
+    if (m_videoEncoderCombo) {
+        connect(m_videoEncoderCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int){
+            refreshVideoEncoderProperties();
+        });
+    }
+    if (m_audioEncoderCombo) {
+        connect(m_audioEncoderCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int){
+            refreshAudioEncoderProperties();
+        });
     }
 }
 
@@ -1138,16 +1146,41 @@ void OneSevenLiveMultiRtmpConfigDialog::loadEncoders() {
         m_videoEncoderCombo->addItem(obs_module_text("MultiRtmp.Config.Video.UseOBS"),
                                      streamingVideoId ? streamingVideoId : "");
 
-        // Parse supported video encoders using the generic function
-        std::vector<std::string> videoIds = parseAndLoadEncoders(m_supportedVideoEncoders, true);
-
-        // Add the found video encoders to the combo box
-        for (const std::string& id : videoIds) {
-            m_videoEncoderCombo->addItem(ui_text(id).c_str(), QString::fromStdString(id));
+        QString channelSel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
+        const char* svcName = (channelSel == "YouTube") ? "YouTube - RTMPS" : "Twitch";
+        obs_data_t* s = obs_data_create();
+        obs_data_set_string(s, "service", svcName);
+        obs_service_t* tmp = obs_service_create("rtmp_common", "temp_codec_service_v", s, nullptr);
+        obs_data_release(s);
+        std::set<std::string> vset;
+        const char** vcodecs = nullptr;
+        if (tmp) vcodecs = obs_service_get_supported_video_codecs(tmp);
+        if (vcodecs) {
+            for (size_t i = 0; vcodecs[i]; ++i) vset.insert(vcodecs[i]);
+        } else {
+            const char* list = obs_get_output_supported_video_codecs("rtmp_output");
+            if (list && *list) {
+                std::string l(list);
+                size_t pos;
+                while ((pos = l.find(';')) != std::string::npos) { std::string tok = l.substr(0, pos); if (!tok.empty()) vset.insert(tok); l.erase(0, pos + 1); }
+                if (!l.empty()) vset.insert(l);
+            }
         }
+
+        size_t i = 0; const char* encId = nullptr;
+        while (obs_enum_encoder_types(i++, &encId)) {
+            if (!encId) continue;
+            if (obs_get_encoder_type(encId) != OBS_ENCODER_VIDEO) continue;
+            uint32_t caps = obs_get_encoder_caps(encId);
+            if (caps & OBS_ENCODER_CAP_DEPRECATED) continue;
+            const char* codec = obs_get_encoder_codec(encId);
+            if (!codec || vset.find(codec) == vset.end()) continue;
+            m_videoEncoderCombo->addItem(ui_text(encId).c_str(), QString::fromUtf8(encId));
+        }
+        if (tmp) obs_service_release(tmp);
         int idx = m_videoEncoderCombo->findData(old);
-        if (idx >= 0)
-            m_videoEncoderCombo->setCurrentIndex(idx);
+        if (idx >= 0) m_videoEncoderCombo->setCurrentIndex(idx);
+        refreshVideoEncoderProperties();
     }
 
     // Audio encoders
@@ -1157,15 +1190,80 @@ void OneSevenLiveMultiRtmpConfigDialog::loadEncoders() {
         m_audioEncoderCombo->addItem(obs_module_text("MultiRtmp.Config.Audio.UseOBS"),
                                      streamingAudioId ? streamingAudioId : "");
 
-        // Parse supported audio encoders using the generic function
-        std::vector<std::string> audioIds = parseAndLoadEncoders(m_supportedAudioEncoders, false);
-
-        // Add the found audio encoders to the combo box
-        for (const std::string& id : audioIds) {
-            m_audioEncoderCombo->addItem(ui_text(id).c_str(), QString::fromStdString(id));
+        QString channelSelA = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
+        const char* svcNameA = (channelSelA == "YouTube") ? "YouTube - RTMPS" : "Twitch";
+        obs_data_t* sa = obs_data_create();
+        obs_data_set_string(sa, "service", svcNameA);
+        obs_service_t* tmpa = obs_service_create("rtmp_common", "temp_codec_service_a", sa, nullptr);
+        obs_data_release(sa);
+        std::set<std::string> aset;
+        const char** acodecs = nullptr;
+        if (tmpa) acodecs = obs_service_get_supported_audio_codecs(tmpa);
+        if (acodecs) {
+            for (size_t i2 = 0; acodecs[i2]; ++i2) aset.insert(acodecs[i2]);
+        } else {
+            const char* list = obs_get_output_supported_audio_codecs("rtmp_output");
+            if (list && *list) {
+                std::string l(list);
+                size_t pos;
+                while ((pos = l.find(';')) != std::string::npos) { std::string tok = l.substr(0, pos); if (!tok.empty()) aset.insert(tok); l.erase(0, pos + 1); }
+                if (!l.empty()) aset.insert(l);
+            }
         }
+
+        size_t j = 0; const char* aeId = nullptr;
+        while (obs_enum_encoder_types(j++, &aeId)) {
+            if (!aeId) continue;
+            if (obs_get_encoder_type(aeId) != OBS_ENCODER_AUDIO) continue;
+            uint32_t caps = obs_get_encoder_caps(aeId);
+            if (caps & OBS_ENCODER_CAP_DEPRECATED) continue;
+            const char* codec = obs_get_encoder_codec(aeId);
+            if (!codec || aset.find(codec) == aset.end()) continue;
+            m_audioEncoderCombo->addItem(ui_text(aeId).c_str(), QString::fromUtf8(aeId));
+        }
+        if (tmpa) obs_service_release(tmpa);
         int idx = m_audioEncoderCombo->findData(old);
-        if (idx >= 0)
-            m_audioEncoderCombo->setCurrentIndex(idx);
+        if (idx >= 0) m_audioEncoderCombo->setCurrentIndex(idx);
+        refreshAudioEncoderProperties();
     }
+}
+
+void OneSevenLiveMultiRtmpConfigDialog::refreshVideoEncoderProperties() {
+    if (!m_videoWidget || !m_videoEncoderCombo) return;
+    QString id = m_videoEncoderCombo->currentData().toString();
+    if (id.isEmpty()) {
+        m_videoWidget->setVisible(false);
+        return;
+    }
+    m_videoWidget->setVisible(true);
+    obs_data_t* initSettings = obs_data_create();
+    obs_encoder_t* enc = obs_video_encoder_create(id.toUtf8().constData(), "temp_video_encoder_props", initSettings, nullptr);
+    obs_data_release(initSettings);
+    if (!enc) return;
+    obs_data_t* settings = obs_encoder_get_settings(enc);
+    obs_properties_t* props = obs_encoder_properties(enc);
+    if (settings && props) {
+        m_videoWidget->UpdateProperties(settings, props);
+    }
+    obs_encoder_release(enc);
+}
+
+void OneSevenLiveMultiRtmpConfigDialog::refreshAudioEncoderProperties() {
+    if (!m_audioWidget || !m_audioEncoderCombo) return;
+    QString id = m_audioEncoderCombo->currentData().toString();
+    if (id.isEmpty()) {
+        m_audioWidget->setVisible(false);
+        return;
+    }
+    m_audioWidget->setVisible(true);
+    obs_data_t* initSettings = obs_data_create();
+    obs_encoder_t* enc = obs_audio_encoder_create(id.toUtf8().constData(), "temp_audio_encoder_props", initSettings, 0, nullptr);
+    obs_data_release(initSettings);
+    if (!enc) return;
+    obs_data_t* settings = obs_encoder_get_settings(enc);
+    obs_properties_t* props = obs_encoder_properties(enc);
+    if (settings && props) {
+        m_audioWidget->UpdateProperties(settings, props);
+    }
+    obs_encoder_release(enc);
 }
