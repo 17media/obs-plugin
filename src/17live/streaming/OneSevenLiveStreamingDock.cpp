@@ -571,11 +571,13 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
     clipIdentityCombo->setCurrentIndex(
         clipIdentityCombo->findData(configStreamer.archiveConfig.clipPermission));
 
-    if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live) ||
-        roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
-        updateUIValues();
+    if (roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::Live) &&
+        roomInfo.status != static_cast<int>(OneSevenLiveStreamingStatus::Streaming)) {
+        return;
     }
 
+    updateUIValues();
+    
     // How to handle when web has already started streaming
     if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)) {
         // Add user prompt dialog to ask for next operation
