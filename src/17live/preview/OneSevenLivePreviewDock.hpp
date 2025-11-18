@@ -3,9 +3,10 @@
 #include <QDockWidget>
 #include <QPointer>
 #include <QString>
+#include <QResizeEvent>
 
-#include "../utility/OneSevenLivePreviewConfigLoader.hpp"
-#include "OneSevenLivePreviewScreen.hpp"
+#include "../OneSevenLiveCoreManager.hpp"
+#include "OneSevenLivePreviewWidget.hpp"
 
 class OneSevenLivePreviewDock : public QDockWidget {
     Q_OBJECT
@@ -18,6 +19,7 @@ class OneSevenLivePreviewDock : public QDockWidget {
 
    protected:
     void showEvent(QShowEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
 
    signals:
@@ -25,10 +27,9 @@ class OneSevenLivePreviewDock : public QDockWidget {
 
    private:
     void setupUi();
-    void loadConfiguration();
+    void updatePreviewGeometry();
 
-    QPointer<OneSevenLivePreviewScreen> previewScreen;
-    QPointer<OneSevenLivePreviewConfigLoader> configLoader;
+    QPointer<OneSevenLivePreviewWidget> previewWidget;
 
     bool initialized;
     QString overlayUrl_;

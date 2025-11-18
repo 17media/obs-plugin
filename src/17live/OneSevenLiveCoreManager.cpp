@@ -34,7 +34,7 @@
 #include "QCefView.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
-#include "ui/OneSevenLivePreviewDock.hpp"
+#include "preview/OneSevenLivePreviewDock.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
