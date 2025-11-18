@@ -295,16 +295,6 @@ void OneSevenLiveMultiRtmpConfigDialog::setupVideoTab() {
     m_videoLayout->setLabelAlignment(Qt::AlignLeft);
     m_videoLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 
-    // Enable video
-    QHBoxLayout* useOBSVideoCheckLayout = new QHBoxLayout();
-    QLabel* useOBSVideoCheckLabel = new QLabel(obs_module_text("MultiRtmp.Config.Video.UseOBS"));
-    m_useOBSVideoCheck = new QCheckBox();
-    m_useOBSVideoCheck->setChecked(true);
-    useOBSVideoCheckLayout->addWidget(useOBSVideoCheckLabel);
-    useOBSVideoCheckLayout->addStretch();
-    useOBSVideoCheckLayout->addWidget(m_useOBSVideoCheck);
-    m_videoLayout->addRow("", useOBSVideoCheckLayout);
-
     m_outputSceneCombo = new QComboBox(m_videoTab);
     m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.OutputScene"),
                           m_outputSceneCombo);
@@ -335,16 +325,6 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAudioTab() {
     m_audioLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
     m_audioLayout->setLabelAlignment(Qt::AlignLeft);
     m_audioLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-
-    // Enable audio
-    QHBoxLayout* useOBSAudioCheckLayout = new QHBoxLayout();
-    QLabel* useOBSAudioCheckLabel = new QLabel(obs_module_text("MultiRtmp.Config.Audio.UseOBS"));
-    m_useOBSAudioCheck = new QCheckBox();
-    m_useOBSAudioCheck->setChecked(true);
-    useOBSAudioCheckLayout->addWidget(useOBSAudioCheckLabel);
-    useOBSAudioCheckLayout->addStretch();
-    useOBSAudioCheckLayout->addWidget(m_useOBSAudioCheck);
-    m_audioLayout->addRow(useOBSAudioCheckLayout);
 
     m_audioEncoderCombo = new QComboBox(m_audioTab);
     m_audioLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Audio"), m_audioEncoderCombo);
@@ -928,16 +908,14 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
         obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Output settings saved successfully");
 
         // Video configuration
-        bool useObsVideo = m_useOBSVideoCheck ? m_useOBSVideoCheck->isChecked() : true;
+        QString vidId = m_videoEncoderCombo ? m_videoEncoderCombo->currentData().toString() : QString();
+        bool useObsVideo = vidId.isEmpty();
         if (!useObsVideo) {
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving custom video configuration...");
             OneSevenLiveMultiRtmpVideoConfig vcfg;
 
-            if (m_videoEncoderCombo) {
-                vcfg.encoderId = m_videoEncoderCombo->currentData().toString().toStdString();
-                obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video encoder ID: '%s'",
-                        vcfg.encoderId.c_str());
-            }
+            vcfg.encoderId = vidId.toStdString();
+            obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video encoder ID: '%s'", vcfg.encoderId.c_str());
             if (m_videoResolutionCombo) {
                 vcfg.resolution = m_videoResolutionCombo->currentText().toStdString();
                 obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video resolution: '%s'",
@@ -972,16 +950,14 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
         }
 
         // Audio configuration
-        bool useObsAudio = m_useOBSAudioCheck ? m_useOBSAudioCheck->isChecked() : true;
+        QString audId = m_audioEncoderCombo ? m_audioEncoderCombo->currentData().toString() : QString();
+        bool useObsAudio = audId.isEmpty();
         if (!useObsAudio) {
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving custom audio configuration...");
             OneSevenLiveMultiRtmpAudioConfig acfg;
 
-            if (m_audioEncoderCombo) {
-                acfg.encoderId = m_audioEncoderCombo->currentData().toString().toStdString();
-                obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Audio encoder ID: '%s'",
-                        acfg.encoderId.c_str());
-            }
+            acfg.encoderId = audId.toStdString();
+            obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Audio encoder ID: '%s'", acfg.encoderId.c_str());
 
             if (!m_audioWidget) {
                 obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_audioWidget is null");

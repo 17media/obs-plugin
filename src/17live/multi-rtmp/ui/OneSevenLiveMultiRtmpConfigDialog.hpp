@@ -118,7 +118,6 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     // Video tab
     QWidget* m_videoTab;
     QFormLayout* m_videoLayout;
-    QCheckBox* m_useOBSVideoCheck;
     QComboBox* m_videoEncoderCombo;
     QComboBox* m_videoResolutionCombo;
     QComboBox* m_fpsDenominatorCombo;
@@ -128,7 +127,6 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     // Audio tab
     QWidget* m_audioTab;
     QFormLayout* m_audioLayout;
-    QCheckBox* m_useOBSAudioCheck;
     QComboBox* m_audioEncoderCombo;
     OneSevenLivePropertiesWidget* m_audioWidget;
 
