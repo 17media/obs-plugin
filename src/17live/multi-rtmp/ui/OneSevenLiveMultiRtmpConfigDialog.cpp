@@ -645,6 +645,13 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
         }
 
         obs_data_t* settings = obs_service_get_settings(service);
+        // Pre-select service based on current channel to ensure proper server list
+        if (settings && m_streamNameCombo) {
+            const QString channel = m_streamNameCombo->currentText();
+            const char* svcName = (channel == "YouTube") ? "YouTube - RTMPS" : "Twitch";
+            obs_data_set_string(settings, "service", svcName);
+            obs_service_update(service, settings);
+        }
         obs_properties_t* props = obs_service_properties(service);
 
         if (!settings || !props) {
