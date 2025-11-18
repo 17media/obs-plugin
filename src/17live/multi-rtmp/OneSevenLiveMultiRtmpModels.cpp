@@ -6,8 +6,7 @@
 #include <string>
 
 static OneSevenLiveProtocol s_protocolList[] = {
-    // protocol, label, output_id, service_id
-    {"rtmp", "RTMP", "rtmp_output", "rtmp_custom"}};
+    {"rtmp", "RTMP", "rtmp_output", "rtmp_common"}};
 
 // OneSevenLiveMultiRtmpVideoConfig implementation
 void OneSevenLiveMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
@@ -264,4 +263,42 @@ const OneSevenLiveProtocol* findProtocol(const std::string& protocol) {
     }
 
     return nullptr;  // Protocol not found
+}
+
+std::string get_protocol_from_settings(const nlohmann::json& j) {
+    if (j.is_null()) return "";
+    try {
+        if (j.contains("server") && j["server"].is_string()) {
+            std::string url = j["server"].get<std::string>();
+            if (url.rfind("rtmps://", 0) == 0) return "RTMPS";
+            return "RTMP";
+        }
+        if (j.contains("protocol") && j["protocol"].is_string()) {
+            return j["protocol"].get<std::string>();
+        }
+    } catch (...) {
+    }
+    return "";
+}
+
+std::string get_url_from_settings(const nlohmann::json& j) {
+    if (j.is_null()) return "";
+    try {
+        if (j.contains("server") && j["server"].is_string()) {
+            return j["server"].get<std::string>();
+        }
+    } catch (...) {
+    }
+    return "";
+}
+
+std::string get_key_from_settings(const nlohmann::json& j) {
+    if (j.is_null()) return "";
+    try {
+        if (j.contains("key") && j["key"].is_string()) {
+            return j["key"].get<std::string>();
+        }
+    } catch (...) {
+    }
+    return "";
 }

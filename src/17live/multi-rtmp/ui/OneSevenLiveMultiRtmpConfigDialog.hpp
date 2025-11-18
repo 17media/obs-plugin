@@ -150,4 +150,6 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     void onAuthUrlChanged(const QString& url);
 
     OneSevenLiveAuthDialog* m_authDialog{nullptr};
+
+    void* m_tmpServiceProps{nullptr};
 };

@@ -146,3 +146,7 @@ void from_json(const nlohmann::json& j, OneSevenLiveMultiRtmpGlobalConfig& confi
 const OneSevenLiveProtocol* getProtocolList();
 size_t getProtocolCount();
 const OneSevenLiveProtocol* findProtocol(const std::string& protocol);
+
+std::string get_protocol_from_settings(const nlohmann::json& j);
+std::string get_url_from_settings(const nlohmann::json& j);
+std::string get_key_from_settings(const nlohmann::json& j);

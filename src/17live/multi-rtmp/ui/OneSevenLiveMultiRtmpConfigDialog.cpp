@@ -83,6 +83,12 @@ OneSevenLiveMultiRtmpConfigDialog::~OneSevenLiveMultiRtmpConfigDialog() {
     if (m_audioEncoderCombo) {
         disconnect(m_audioEncoderCombo, nullptr, this, nullptr);
     }
+
+    if (m_tmpServiceProps) {
+        obs_service_t* svc = static_cast<obs_service_t*>(m_tmpServiceProps);
+        obs_service_release(svc);
+        m_tmpServiceProps = nullptr;
+    }
 }
 
 void OneSevenLiveMultiRtmpConfigDialog::setupUI() {
@@ -423,6 +429,32 @@ void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
         updateAuthorizeButtonState();
     });
 
+    connect(m_streamNameCombo, &QComboBox::currentTextChanged, this, [this](const QString& text) {
+        const char* svc = (text == "YouTube") ? "YouTube - RTMPS" : "Twitch";
+        obs_data_t* s = obs_data_create();
+        obs_data_set_string(s, "service", svc);
+        obs_service_t* tmp = obs_service_create("rtmp_common", "temp_service_refresh", s, nullptr);
+        obs_data_release(s);
+        if (tmp) {
+            obs_data_t* st = obs_service_get_settings(tmp);
+            obs_properties_t* pr = obs_service_properties(tmp);
+            if (st && pr && m_serviceWidget) {
+                m_serviceWidget->UpdateProperties(st, pr);
+            }
+            obs_properties_destroy(pr);
+            obs_data_release(st);
+            obs_service_release(tmp);
+        }
+        if (text == "Twitch") {
+            proc_handler_t* ph = obs_get_proc_handler();
+            calldata_t cd;
+            calldata_init(&cd);
+            calldata_set_int(&cd, "seconds", 10);
+            proc_handler_call(ph, "twitch_ingests_refresh", &cd);
+            calldata_free(&cd);
+        }
+    });
+
     // Authorization failure handling
     if (m_twitchAuth) {
         connect(m_twitchAuth, &OneSevenLiveTwitchAuth::authorizationFailed, this, 
@@ -652,8 +684,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
             m_serviceWidget->UpdateProperties(settings, props);
         }
 
-        obs_properties_destroy(props);
-        obs_data_release(settings);
+        // Ownership of 'settings' and 'props' is transferred to m_serviceWidget
         obs_service_release(service);
         obs_data_release(service_settings);
     }
@@ -689,8 +720,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
 
         if (!m_outputWidget) {
             obs_log(LOG_ERROR, "[loadConfig] m_outputWidget is null, cannot update properties");
-            obs_properties_destroy(props);
-            obs_data_release(settings);
+            // Ownership of 'settings' and 'props' is transferred to m_outputWidget
             obs_output_release(output);
             obs_data_release(output_settings);
             return;
@@ -704,8 +734,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
             obs_log(LOG_ERROR, "[loadConfig] Unknown exception in UpdateProperties");
         }
 
-        obs_properties_destroy(props);
-        obs_data_release(settings);
+        // Ownership of 'settings' and 'props' is transferred to m_outputWidget
         obs_output_release(output);
         obs_data_release(output_settings);
     }
@@ -741,8 +770,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
         if (!m_videoWidget) {
             obs_log(LOG_ERROR,
                     "[loadConfig] m_videoWidget is null, cannot update video properties");
-            obs_properties_destroy(props);
-            obs_data_release(settings);
+            // Ownership of 'settings' and 'props' is transferred to m_videoWidget
             obs_encoder_release(encoder);
             obs_data_release(encoder_settings);
             return;
@@ -756,8 +784,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
             obs_log(LOG_ERROR, "[loadConfig] Unknown exception in video UpdateProperties");
         }
 
-        obs_properties_destroy(props);
-        obs_data_release(settings);
+        // Ownership of 'settings' and 'props' is transferred to m_videoWidget
         obs_encoder_release(encoder);
         obs_data_release(encoder_settings);
     }
@@ -793,8 +820,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
         if (!m_audioWidget) {
             obs_log(LOG_ERROR,
                     "[loadConfig] m_audioWidget is null, cannot update audio properties");
-            obs_properties_destroy(props);
-            obs_data_release(settings);
+            // Ownership of 'settings' and 'props' is transferred to m_audioWidget
             obs_encoder_release(encoder);
             obs_data_release(encoder_settings);
             return;
@@ -808,8 +834,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
             obs_log(LOG_ERROR, "[loadConfig] Unknown exception in audio UpdateProperties");
         }
 
-        obs_properties_destroy(props);
-        obs_data_release(settings);
+        // Ownership of 'settings' and 'props' is transferred to m_audioWidget
         obs_encoder_release(encoder);
         obs_data_release(encoder_settings);
     }

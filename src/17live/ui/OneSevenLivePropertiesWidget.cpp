@@ -42,14 +42,17 @@ OneSevenLivePropertiesWidget::OneSevenLivePropertiesWidget(QWidget *parent, obs_
 }
 
 OneSevenLivePropertiesWidget::~OneSevenLivePropertiesWidget() {
-    // if (m_props)
-    //   obs_properties_destroy(m_props);
+    if (m_props)
+        obs_properties_destroy(m_props);
+    m_props = nullptr;
 
-    // if (m_settings)
-    //   obs_data_release(m_settings);
+    if (m_settings)
+        obs_data_release(m_settings);
+    m_settings = nullptr;
 
-    // if (m_origSettings)
-    //   obs_data_release(m_origSettings);
+    if (m_origSettings)
+        obs_data_release(m_origSettings);
+    m_origSettings = nullptr;
 }
 
 void OneSevenLivePropertiesWidget::RefreshUI() {
@@ -59,6 +62,36 @@ void OneSevenLivePropertiesWidget::RefreshUI() {
 
     for (auto &x : m_propertyWidgets) {
         x.second->SaveData(m_settings);
+    }
+
+    {
+        obs_log(LOG_INFO, "[RefreshUI] Dumping settings");
+        // iterate all m_settings and display property name, type and description
+        obs_data_item_t *item = obs_data_first(m_settings);
+        while (item) {
+            const char *name_cstr = obs_data_item_get_name(item);
+            if (name_cstr) {
+                std::string name(name_cstr);
+                obs_log(LOG_INFO, "[RefreshUI] Setting %s, type %d", name.c_str(),
+                        static_cast<int>(obs_data_item_gettype(item)));
+            }
+            obs_data_item_next(&item);
+        }
+    }
+
+    {
+        obs_log(LOG_INFO, "[RefreshUI] Dumping properties");
+        // iterate all m_props and display property name, type and description
+        obs_property_t *prop = obs_properties_first(m_props);
+        while (prop) {
+            const char *name_cstr = obs_property_name(prop);
+            if (name_cstr) {
+                std::string name(name_cstr);
+                obs_log(LOG_INFO, "[RefreshUI] Property %s, description %s", name.c_str(),
+                        obs_property_description(prop));
+            }
+            obs_property_next(&prop);
+        }
     }
 
     obs_properties_apply_settings(m_props, m_settings);
@@ -120,6 +153,11 @@ void OneSevenLivePropertiesWidget::loadProperties() {
         }
 
         std::string name(name_cstr);
+        if (name == "service") {
+            if (!obs_property_next(&prop))
+                break;
+            continue;
+        }
         obs_log(LOG_DEBUG, "[loadProperties] Processing property: %s", name.c_str());
 
         auto it = origPropWidgets.find(name);
