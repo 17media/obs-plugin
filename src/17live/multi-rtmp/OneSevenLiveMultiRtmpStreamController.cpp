@@ -801,14 +801,24 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
     const OneSevenLiveMultiRtmpConfig& config) const {
     obs_log(LOG_INFO, "createServiceSettings");
     obs_data_t* settings = ObsDataFromJson(config.serviceSettings);
+    if (!settings) {
+        settings = obs_data_create();
+    }
     const char* server = obs_data_get_string(settings, "server");
     const char* key = obs_data_get_string(settings, "key");
 
     const bool hasServer = server && *server;
     const bool hasKey = key && *key;
 
+    // Pre-set service name based on platform to help rtmp_common select server list
+    const std::string platform = config.streamName;
+    if (platform == "YouTube") {
+        obs_data_set_string(settings, "service", "YouTube - RTMPS");
+    } else if (platform == "Twitch") {
+        obs_data_set_string(settings, "service", "Twitch");
+    }
+
     if (!hasServer || !hasKey) {
-        const std::string platform = config.streamName;
         obs_log(LOG_INFO, "Service settings missing server/key; resolving via platform: %s", platform.c_str());
 
         if (platform == "YouTube") {
@@ -934,6 +944,14 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
         }
     }
 
+    // Final validation: ensure server/key present
+    const char* finalServer = obs_data_get_string(settings, "server");
+    const char* finalKey = obs_data_get_string(settings, "key");
+    if (!finalServer || !*finalServer || !finalKey || !*finalKey) {
+        obs_log(LOG_ERROR, "Service settings still missing server/key after resolution");
+        obs_data_release(settings);
+        return nullptr;
+    }
     return settings;
 }
 
