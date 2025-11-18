@@ -103,8 +103,6 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     QPushButton* m_authorizeButton;
     QComboBox* m_protocolCombo;
     OneSevenLivePropertiesWidget* m_serviceWidget;
-    QCheckBox* m_syncStartCheckbox;
-    QCheckBox* m_syncStopCheckbox;
 
     // Advanced settings section
     QPushButton* m_advancedButton;

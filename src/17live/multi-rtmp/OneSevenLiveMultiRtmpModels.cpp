@@ -73,8 +73,6 @@ void OneSevenLiveMultiRtmpConfig::to_json(nlohmann::json& j) const {
     j = nlohmann::json{{"id", id},
                        {"streamName", streamName},
                        {"protocol", protocol},
-                       {"syncStart", syncStart},
-                       {"syncStop", syncStop},
                        {"serviceSettings", serviceSettings},
                        {"outputSettings", outputSettings},
                        {"videoConfig", videoConfig.has_value() ? nlohmann::json(videoConfig.value())
@@ -90,12 +88,6 @@ void OneSevenLiveMultiRtmpConfig::from_json(const nlohmann::json& j) {
     }
     if (j.contains("protocol")) {
         j.at("protocol").get_to(protocol);
-    }
-    if (j.contains("syncStart")) {
-        j.at("syncStart").get_to(syncStart);
-    }
-    if (j.contains("syncStop")) {
-        j.at("syncStop").get_to(syncStop);
     }
     if (j.contains("serviceSettings")) {
         j.at("serviceSettings").get_to(serviceSettings);

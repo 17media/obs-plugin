@@ -909,15 +909,6 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
         config.protocol = m_protocolCombo->currentData().toString().toStdString();
         obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Protocol: '%s'", config.protocol.c_str());
 
-        if (!m_syncStartCheckbox || !m_syncStopCheckbox) {
-            obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] Sync checkboxes are null");
-            throw std::runtime_error("Sync checkbox widgets are null");
-        }
-        config.syncStart = m_syncStartCheckbox->isChecked();
-        config.syncStop = m_syncStopCheckbox->isChecked();
-        obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Sync settings - Start: %s, Stop: %s",
-                config.syncStart ? "true" : "false", config.syncStop ? "true" : "false");
-
         // Service configuration
         if (!m_serviceWidget) {
             obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_serviceWidget is null");
@@ -937,12 +928,8 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
         obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Output settings saved successfully");
 
         // Video configuration
-        if (!m_useOBSVideoCheck) {
-            obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_useOBSVideoCheck is null");
-            throw std::runtime_error("Video checkbox widget is null");
-        }
-
-        if (!m_useOBSVideoCheck->isChecked()) {
+        bool useObsVideo = m_useOBSVideoCheck ? m_useOBSVideoCheck->isChecked() : true;
+        if (!useObsVideo) {
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving custom video configuration...");
             OneSevenLiveMultiRtmpVideoConfig vcfg;
 
@@ -971,10 +958,11 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
 
             if (!m_videoWidget) {
                 obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_videoWidget is null");
-                throw std::runtime_error("Video widget is null");
+                vcfg.encoderSettings = nlohmann::json::object();
+            } else {
+                vcfg.encoderSettings = m_videoWidget->SaveData();
             }
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving video encoder settings...");
-            vcfg.encoderSettings = m_videoWidget->SaveData();
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video encoder settings saved successfully");
 
             config.videoConfig = vcfg;
@@ -984,12 +972,8 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
         }
 
         // Audio configuration
-        if (!m_useOBSAudioCheck) {
-            obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_useOBSAudioCheck is null");
-            throw std::runtime_error("Audio checkbox widget is null");
-        }
-
-        if (!m_useOBSAudioCheck->isChecked()) {
+        bool useObsAudio = m_useOBSAudioCheck ? m_useOBSAudioCheck->isChecked() : true;
+        if (!useObsAudio) {
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving custom audio configuration...");
             OneSevenLiveMultiRtmpAudioConfig acfg;
 
@@ -1001,11 +985,12 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
 
             if (!m_audioWidget) {
                 obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_audioWidget is null");
-                throw std::runtime_error("Audio widget is null");
+                acfg.encoderSettings = nlohmann::json::object();
+            } else {
+                obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving audio encoder settings...");
+                acfg.encoderSettings = m_audioWidget->SaveData();
+                obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Audio encoder settings saved successfully");
             }
-            obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Saving audio encoder settings...");
-            acfg.encoderSettings = m_audioWidget->SaveData();
-            obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Audio encoder settings saved successfully");
 
             config.audioConfig = acfg;
         } else {

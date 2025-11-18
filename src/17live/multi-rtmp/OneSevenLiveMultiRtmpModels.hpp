@@ -63,8 +63,6 @@ struct OneSevenLiveMultiRtmpConfig {
     std::string id;
     std::string streamName;
     std::string protocol = "rtmp";
-    bool syncStart = true;
-    bool syncStop = true;
 
     nlohmann::json serviceSettings;
     nlohmann::json outputSettings;
