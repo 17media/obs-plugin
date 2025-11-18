@@ -19,6 +19,8 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QResizeEvent>
+#include <QScrollArea>
 
 #include <memory>
 
@@ -95,6 +97,8 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     // Main layout
     QVBoxLayout* m_mainLayout;
     QTabWidget* m_tabWidget;
+    QScrollArea* m_scrollArea{nullptr};
+    QWidget* m_container{nullptr};
 
     // Basic info section
     QWidget* m_basicInfoWidget;
@@ -150,4 +154,5 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     OneSevenLiveAuthDialog* m_authDialog{nullptr};
 
     void* m_tmpServiceProps{nullptr};
+    void resizeEvent(QResizeEvent* event) override;
 };

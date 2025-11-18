@@ -36,7 +36,7 @@ OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
       m_advancedExpanded(false),
       m_baseHeight(0),
       m_isAuthorizing(false) {
-    setWindowTitle(obs_module_text("MultiRTMP.Config.Title"));
+    setWindowTitle(QString::fromUtf8(obs_module_text("MultiRTMP.Config.Title")));
     setModal(true);
 
     // Set dialog size constraints to match reference style
@@ -99,7 +99,9 @@ void OneSevenLiveMultiRtmpConfigDialog::setupUI() {
     m_mainLayout->setSpacing(0);
 
     // Create scroll area
-    QScrollArea* scrollArea = new QScrollArea(this);
+    m_scrollArea = new QScrollArea(this);
+    QScrollArea* scrollArea = m_scrollArea;
+    scrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     scrollArea->setWidgetResizable(true);        // Allow content resizing
     scrollArea->setFrameShape(QFrame::NoFrame);  // Remove border
     scrollArea->setVerticalScrollBarPolicy(
@@ -108,7 +110,9 @@ void OneSevenLiveMultiRtmpConfigDialog::setupUI() {
         Qt::ScrollBarAlwaysOff);  // Disable horizontal scrollbar
 
     // Create container widget for scroll area content
-    QWidget* container = new QWidget(this);
+    m_container = new QWidget(this);
+    QWidget* container = m_container;
+    container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     container->setStyleSheet(
         "QWidget {"
         "    color: white;"
@@ -158,6 +162,22 @@ void OneSevenLiveMultiRtmpConfigDialog::setupUI() {
 
     loadEncoders();
     loadScenes();
+}
+
+void OneSevenLiveMultiRtmpConfigDialog::resizeEvent(QResizeEvent* event) {
+    QDialog::resizeEvent(event);
+    int avail = width();
+    if (m_scrollArea && m_scrollArea->viewport()) {
+        avail = m_scrollArea->viewport()->width();
+    }
+    if (m_advancedWidget) m_advancedWidget->setMaximumWidth(avail);
+    if (m_serviceWidget) m_serviceWidget->setMaximumWidth(avail);
+    if (m_tabWidget) m_tabWidget->setMaximumWidth(avail);
+    if (m_outputTab) m_outputTab->setMaximumWidth(avail);
+    if (m_videoTab) m_videoTab->setMaximumWidth(avail);
+    if (m_videoWidget) m_videoWidget->setMaximumWidth(avail);
+    if (m_audioTab) m_audioTab->setMaximumWidth(avail);
+    if (m_audioWidget) m_audioWidget->setMaximumWidth(avail);
 }
 
 void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
@@ -238,6 +258,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsButton() {
 
 void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
     m_advancedWidget = new QWidget(this);
+    m_advancedWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_advancedWidget->setMinimumWidth(0);
     m_advancedWidget->setVisible(false);  // Initially collapsed
 
     QVBoxLayout* advancedLayout = new QVBoxLayout(m_advancedWidget);
@@ -245,23 +267,15 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
     advancedLayout->setSpacing(10);
 
     m_serviceWidget = new OneSevenLivePropertiesWidget(m_advancedWidget);
-    m_serviceWidget->setSizePolicy(
-        QSizePolicy::Expanding, QSizePolicy::Preferred);  // Ensure service widget expands properly
+    m_serviceWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_serviceWidget->setMinimumWidth(0);
     
     advancedLayout->addWidget(m_serviceWidget);
 
-    // m_syncStartCheckbox = new QCheckBox(m_advancedWidget);
-    // m_syncStartCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStart"));
-    // m_syncStopCheckbox = new QCheckBox(m_advancedWidget);
-    // m_syncStopCheckbox->setText(obs_module_text("MultiRtmp.Config.SyncStop"));
-
-    // advancedLayout->addWidget(m_syncStartCheckbox);
-    // advancedLayout->addWidget(m_syncStopCheckbox);
-
     // Create tab widget for advanced settings
     m_tabWidget = new QTabWidget(m_advancedWidget);
-    m_tabWidget->setSizePolicy(QSizePolicy::Expanding,
-                               QSizePolicy::Expanding);  // Ensure TabWidget expands properly
+    m_tabWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
+    m_tabWidget->setMinimumWidth(0);
 
     setupOutputTab();
     setupVideoTab();
@@ -274,6 +288,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
 
 void OneSevenLiveMultiRtmpConfigDialog::setupOutputTab() {
     m_outputTab = new QWidget(m_tabWidget);
+    m_outputTab->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_outputTab->setMinimumWidth(0);
     m_outputLayout = new QFormLayout(m_outputTab);
     m_outputLayout->setSpacing(12);
     m_outputLayout->setContentsMargins(8, 12, 8, 12);
@@ -288,6 +304,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupOutputTab() {
 
 void OneSevenLiveMultiRtmpConfigDialog::setupVideoTab() {
     m_videoTab = new QWidget(m_tabWidget);
+    m_videoTab->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_videoTab->setMinimumWidth(0);
     m_videoLayout = new QFormLayout(m_videoTab);
     m_videoLayout->setSpacing(12);
     m_videoLayout->setContentsMargins(8, 12, 8, 12);
@@ -303,6 +321,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupVideoTab() {
     m_videoLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Video"), m_videoEncoderCombo);
 
     m_videoWidget = new OneSevenLivePropertiesWidget(m_videoTab);
+    m_videoWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_videoWidget->setMinimumWidth(0);
     m_videoLayout->addRow("", m_videoWidget);
 
     // TODO: if suitable for rtmp?
