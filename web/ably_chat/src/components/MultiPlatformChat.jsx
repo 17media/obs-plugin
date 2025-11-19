@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import styled from 'styled-components';
 import { messageAggregator } from '../services/MessageAggregator';
@@ -97,6 +97,8 @@ export const MultiPlatformChat = () => {
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const [filteredMessages, setFilteredMessages] = useState([]);
   const t = useTranslations('ChatPage');
+  const listRef = useRef(null);
+  const endRef = useRef(null);
 
   // Listen to message aggregator events (directly using unified format)
   useEffect(() => {
@@ -125,6 +127,18 @@ export const MultiPlatformChat = () => {
     const next = messages.filter(m => selectedPlatform === 'all' || m.platform === selectedPlatform);
     setFilteredMessages(next);
   }, [messages, selectedPlatform]);
+
+  // Scroll to the latest message when content exceeds the viewport
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const exceedsViewport = el.scrollHeight > el.clientHeight;
+    if (exceedsViewport) {
+      el.scrollTop = el.scrollHeight;
+      // Alternatively, ensure the sentinel is visible
+      endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+    }
+  }, [filteredMessages]);
 
   // Platform icon mapping
   const platformIcon = (platform) => {
@@ -169,7 +183,7 @@ export const MultiPlatformChat = () => {
       </Header>
 
       {/* Message list */}
-      <MessageList>
+      <MessageList ref={listRef}>
         {filteredMessages.length === 0 ? (
           <EmptyState>
             <EmptyIcon src="/images/chat.svg" alt="" />
@@ -178,6 +192,7 @@ export const MultiPlatformChat = () => {
         ) : (
           filteredMessages.map((m, i) => renderMessageItem(m, i))
         )}
+        <div ref={endRef} />
       </MessageList>
     </Container>
   );
