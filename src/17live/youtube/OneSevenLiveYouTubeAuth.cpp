@@ -244,9 +244,10 @@ bool OneSevenLiveYouTubeAuth::refreshAccessToken()
 
     // Build POST body per Google OAuth refresh flow
     const QByteArray clientIdEnc = QUrl::toPercentEncoding(getClientId());
+    const QByteArray clientSecretEnc = QUrl::toPercentEncoding(getClientSecret());
     const QByteArray refreshEnc = QUrl::toPercentEncoding(rt);
-    std::string postData = QString("client_id=%1&refresh_token=%2&grant_type=refresh_token")
-                               .arg(QString::fromUtf8(clientIdEnc), QString::fromUtf8(refreshEnc))
+    std::string postData = QString("client_id=%1&client_secret=%2&refresh_token=%3&grant_type=refresh_token")
+                               .arg(QString::fromUtf8(clientIdEnc), QString::fromUtf8(clientSecretEnc), QString::fromUtf8(refreshEnc))
                                .toStdString();
 
     std::string responseBody;
@@ -309,6 +310,11 @@ bool OneSevenLiveYouTubeAuth::refreshAccessToken()
     // Update in-memory token
     setAccessToken(newAccessToken);
     m_callbackScope = scope;
+    {
+        QString tok = newAccessToken;
+        QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+        obs_log(LOG_INFO, "YouTube access token updated in memory token(masked)=%s", masked.toUtf8().constData());
+    }
     obs_log(LOG_INFO, "YouTube token refreshed: token_type=%s expires_in=%d",
             tokenType.toUtf8().constData(), expiresIn);
     // Notify listeners using existing signal for simplicity
@@ -320,6 +326,8 @@ void OneSevenLiveYouTubeAuth::scheduleAutoRefresh(int accessExpiresInSec, qint64
                                                   int refreshExpiresInSec, qint64 refreshFetchedAtEpochSec)
 {
     OneSevenLiveConfigManager* cfg = OneSevenLiveCoreManager::getInstance().getConfigManager();
+    obs_log(LOG_INFO, "YouTube scheduleAutoRefresh inputs: access_expires_in=%d access_fetched_at=%lld refresh_expires_in=%d refresh_fetched_at=%lld",
+            accessExpiresInSec, (long long)accessFetchedAtEpochSec, refreshExpiresInSec, (long long)refreshFetchedAtEpochSec);
 
     // Load refresh token from config if missing
     if (m_refreshToken.isEmpty() && cfg && cfg->initialize()) {
@@ -330,20 +338,28 @@ void OneSevenLiveYouTubeAuth::scheduleAutoRefresh(int accessExpiresInSec, qint64
             m_refreshToken = rt;
             if (refreshExpiresInSec <= 0) refreshExpiresInSec = rtExp;
             if (refreshFetchedAtEpochSec <= 0) refreshFetchedAtEpochSec = rtFetched;
+            QString tok = m_refreshToken;
+            QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+            obs_log(LOG_INFO, "YouTube refresh token loaded from config present=%s exp_in=%d fetched_at=%lld token(masked)=%s",
+                    m_refreshToken.isEmpty() ? "false" : "true", refreshExpiresInSec, (long long)refreshFetchedAtEpochSec, masked.toUtf8().constData());
         }
     }
 
     const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
     const qint64 accessExpiresAt = accessFetchedAtEpochSec + accessExpiresInSec;
     const qint64 refreshExpiresAt = refreshFetchedAtEpochSec + refreshExpiresInSec;
+    obs_log(LOG_INFO, "YouTube token timing: now=%lld access_expires_at=%lld refresh_expires_at=%lld",
+            (long long)nowEpoch, (long long)accessExpiresAt, (long long)refreshExpiresAt);
 
     // Handle already-expired access token on startup
     if (accessExpiresInSec > 0 && nowEpoch >= accessExpiresAt) {
         if (!m_refreshToken.isEmpty()) {
             if (refreshExpiresInSec <= 0 || nowEpoch < refreshExpiresAt) {
-                obs_log(LOG_INFO, "YouTube access token expired; attempting immediate refresh");
+                obs_log(LOG_INFO, "YouTube access token expired; attempting immediate refresh (refresh_token_present=true refresh_expires_in=%d)", refreshExpiresInSec);
                 if (!refreshAccessToken()) {
                     obs_log(LOG_ERROR, "YouTube immediate refresh failed");
+                } else {
+                    obs_log(LOG_INFO, "YouTube immediate refresh succeeded");
                 }
             } else if (cfg && cfg->initialize()) {
                 obs_log(LOG_INFO, "YouTube refresh token expired; clearing stored tokens");
@@ -363,11 +379,13 @@ void OneSevenLiveYouTubeAuth::scheduleAutoRefresh(int accessExpiresInSec, qint64
         const qint64 refreshAt = accessExpiresAt - 60; // 1 minute before
         qint64 delaySec = refreshAt - nowEpoch;
         if (delaySec < 0) delaySec = 0;
+        obs_log(LOG_INFO, "YouTube auto-refresh plan: refresh_at=%lld delay_sec=%lld", (long long)refreshAt, (long long)delaySec);
 
         if (!m_refreshTimer) {
             m_refreshTimer = new QTimer(this);
             m_refreshTimer->setSingleShot(true);
             connect(m_refreshTimer, &QTimer::timeout, this, &OneSevenLiveYouTubeAuth::onRefreshTimerTimeout);
+            obs_log(LOG_INFO, "YouTube auto-refresh timer created");
         }
 
         if (!m_refreshToken.isEmpty()) {

@@ -6,9 +6,11 @@
 #include <QDateTime>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include "OneSevenLiveYouTubeClient.hpp"
 
 // Forward declarations
 class RemoteTextThread;
+class OneSevenLiveYouTubeClient;
 
 struct YouTubeChatMessageSnippet {
     QString type;
@@ -76,6 +78,9 @@ public:
     void setTimeout(int timeoutMs);
     void setMaxRetries(int maxRetries);
     void setRetryDelay(int baseDelayMs);
+    void setApiClient(OneSevenLiveYouTubeClient* apiClient);
+    void startDiscovery();
+    void stopDiscovery();
 
 signals:
     void chatMessagesReceived(const YouTubeChatMessageListResponse& response);
@@ -90,6 +95,7 @@ private slots:
     void onPollingTimeout();
     void onStatusTimer();
     void doReconnect();
+    void onBroadcastsReceived(const YouTubeLiveBroadcastListResponse& resp);
 
 private:
     void fetchChatMessages();
@@ -123,6 +129,7 @@ private:
     QString m_apiKey;
     QString m_liveChatId;
     QString m_nextPageToken;
+    OneSevenLiveYouTubeClient* m_apiClient{nullptr};
     int m_timeoutMs;
     int m_maxRetries;
     int m_retryDelayMs;
@@ -145,4 +152,5 @@ private:
     class QTimer* m_pollingTimer;
     class QTimer* m_statusTimer;
     class QTimer* m_reconnectTimer;
+    class QTimer* m_discoverTimer{nullptr};
 };

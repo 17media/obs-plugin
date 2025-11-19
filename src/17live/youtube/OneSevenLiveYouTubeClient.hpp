@@ -125,7 +125,7 @@ public:
     void getLiveStreamById(const QString& streamId);
     void createLiveStream(const QString& title, const QString& description = QString());
     void deleteLiveStream(const QString& streamId);
-    void getMyLiveBroadcasts(const QString& broadcastStatus = QString("active"));
+    void getMyLiveBroadcasts(const QString& broadcastStatus = QString());
 
     // Configuration
     void setApiKey(const QString& apiKey);

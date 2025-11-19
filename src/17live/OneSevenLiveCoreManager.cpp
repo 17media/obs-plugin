@@ -35,6 +35,7 @@
 #include "OneSevenLiveChatDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "preview/OneSevenLivePreviewDock.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
@@ -433,6 +434,12 @@ void OneSevenLiveCoreManager::shutdown() {
         menuManager->cleanup();
     }
 
+    if (ytChatDiscoverTimer) {
+        ytChatDiscoverTimer->stop();
+        ytChatDiscoverTimer->deleteLater();
+        ytChatDiscoverTimer = nullptr;
+    }
+
     initialized = false;
 }
 
@@ -503,17 +510,7 @@ void OneSevenLiveCoreManager::createYouTubeChatClient() {
                 youtubeApiClient->setAccessToken(accessToken);
             }
         }
-        connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::myLiveBroadcastsReceived, this, [this](const YouTubeLiveBroadcastListResponse& resp) {
-            for (const auto& b : resp.items) {
-                if (!b.snippet.liveChatId.isEmpty()) {
-                    obs_log(LOG_INFO, "Auto-start YouTube chat polling with liveChatId: %s", b.snippet.liveChatId.toUtf8().constData());
-                    startYouTubeChatPolling(b.snippet.liveChatId);
-                    return;
-                }
-            }
-            obs_log(LOG_WARNING, "No active YouTube broadcasts with liveChatId found");
-            if (youtubeApiClient) youtubeApiClient->getMyLiveStreams();
-        });
+        if (youtubeChatClient) youtubeChatClient->setApiClient(youtubeApiClient.get());
         connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived, this, [this](const YouTubeLiveStreamListResponse& resp) {
             for (const auto& s : resp.items) {
                 obs_log(LOG_INFO, "YouTube stream: id=%s status=%s", s.id.toUtf8().constData(), s.status.streamStatus.toUtf8().constData());
@@ -537,7 +534,7 @@ void OneSevenLiveCoreManager::createYouTubeChatClient() {
                     if (!accessToken.isEmpty()) {
                         youtubeApiClient->setAccessToken(accessToken);
                         if (op == "getMyLiveBroadcasts") {
-                            youtubeApiClient->getMyLiveBroadcasts("active");
+                            youtubeApiClient->getMyLiveBroadcasts();
                         }
                     }
                 }
@@ -548,15 +545,55 @@ void OneSevenLiveCoreManager::createYouTubeChatClient() {
                 obs_log(LOG_INFO, "YouTube authorizationCompleted: token refreshed");
                 if (youtubeApiClient && !accessToken.isEmpty()) {
                     youtubeApiClient->setAccessToken(accessToken);
-                    youtubeApiClient->getMyLiveBroadcasts("active");
+                    {
+                        QString tok = accessToken;
+                        QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+                        obs_log(LOG_INFO, "YouTube API client token set token(masked)=%s", masked.toUtf8().constData());
+                    }
+                    youtubeApiClient->getMyLiveBroadcasts();
                 }
                 if (youtubeChatClient && !accessToken.isEmpty()) {
                     youtubeChatClient->setAccessToken(accessToken);
+                    {
+                        QString tok = accessToken;
+                        QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+                        obs_log(LOG_INFO, "YouTube chat client token set token(masked)=%s", masked.toUtf8().constData());
+                    }
+                }
+            });
+        }
+
+        if (youtubeChatClient && youtubeAuth) {
+            connect(youtubeChatClient.get(), &OneSevenLiveYouTubeChatClient::errorOccurred, this, [this](const QString& err, const QString& op) {
+                int status = -1;
+                QRegularExpression r1(R"(HTTP\s+(\d{3}))");
+                QRegularExpressionMatch m1 = r1.match(err);
+                if (m1.hasMatch()) status = m1.captured(1).toInt();
+                obs_log(LOG_WARNING, "YouTube Chat error op=%s status=%d err=%s", op.toUtf8().constData(), status, err.toUtf8().constData());
+                if (status == 401 && youtubeAuth) {
+                    obs_log(LOG_INFO, "Refreshing YouTube token due to chat 401");
+                    if (youtubeAuth->refreshAccessToken()) {
+                        const QString accessToken = youtubeAuth->getAccessToken();
+                        if (!accessToken.isEmpty()) {
+                            if (youtubeApiClient) youtubeApiClient->setAccessToken(accessToken);
+                            if (youtubeChatClient) youtubeChatClient->setAccessToken(accessToken);
+                            {
+                                QString tok = accessToken;
+                                QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+                                obs_log(LOG_INFO, "YouTube tokens synchronized to clients token(masked)=%s", masked.toUtf8().constData());
+                            }
+                            if (youtubeApiClient) youtubeApiClient->getMyLiveBroadcasts();
+                        }
+                    }
+                }
+                if (err.contains("liveChatEnded", Qt::CaseInsensitive)) {
+                    obs_log(LOG_INFO, "Chat reported liveChatEnded; rediscovering liveChatId");
+                    if (youtubeApiClient) youtubeApiClient->getMyLiveBroadcasts();
                 }
             });
         }
     }
-    youtubeApiClient->getMyLiveBroadcasts("active");
+    if (youtubeChatClient) youtubeChatClient->startDiscovery();
 }
 
 void OneSevenLiveCoreManager::createTwitchChatClient() {
@@ -723,6 +760,8 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     // Create chat clients on login
     createYouTubeChatClient();
     createTwitchChatClient();
+
+    // discovery is managed by YouTubeChatClient
 }
 
 void OneSevenLiveCoreManager::performLogoutOperations() {

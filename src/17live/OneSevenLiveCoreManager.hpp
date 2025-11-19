@@ -253,6 +253,8 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Timer for checking stream status
     QPointer<QTimer> streamCheckTimer;
+    // Timer for periodic YouTube chat discovery
+    QPointer<QTimer> ytChatDiscoverTimer;
 
     // Consecutive failure detection related variables
     int consecutiveFailureCount{0};  // Consecutive failure counter

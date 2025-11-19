@@ -126,6 +126,9 @@ void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStat
     if (!broadcastStatus.isEmpty()) {
         params["broadcastStatus"] = broadcastStatus;
     }
+    if (m_hasValidAuth && !m_accessToken.isEmpty()) {
+        params["access_token"] = m_accessToken;
+    }
 
     QString endpoint = buildApiUrl("liveBroadcasts", params);
     m_currentOperation = "getMyLiveBroadcasts";
@@ -157,7 +160,8 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
     if (m_hasValidAuth) {
         const QString tok = m_accessToken;
         const QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
-        obs_log(LOG_DEBUG, "YouTube API token(masked)=%s auth_mode=QueryParam", masked.toUtf8().constData());
+        const char* mode = (m_currentOperation == "getMyLiveBroadcasts") ? "QueryParam+Bearer" : "Bearer";
+        obs_log(LOG_DEBUG, "YouTube API token(masked)=%s auth_mode=%s", masked.toUtf8().constData(), mode);
     }
     
     // Build headers
@@ -165,6 +169,10 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
     headers.push_back(std::string("Accept: application/json"));
     if (method != "GET") {
         headers.push_back(std::string("Content-Type: application/json"));
+    }
+    if (m_hasValidAuth && !m_accessToken.isEmpty()) {
+        std::string bearer = std::string("Authorization: Bearer ") + m_accessToken.toStdString();
+        headers.push_back(bearer);
     }
 
     RemoteTextThread* thread = new RemoteTextThread(
@@ -193,9 +201,6 @@ QString OneSevenLiveYouTubeClient::buildApiUrl(const QString& endpoint, const QM
     QUrlQuery query;
     for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
         query.addQueryItem(it.key(), it.value());
-    }
-    if (m_hasValidAuth && !m_accessToken.isEmpty()) {
-        query.addQueryItem("access_token", m_accessToken);
     }
     if (!query.isEmpty()) {
         url += "?" + query.toString();
