@@ -198,16 +198,16 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/OneSevenLiveHttpServer.cpp
   src/17live/OneSevenLiveLoginDialog.cpp
   src/17live/OneSevenLiveMenuManager.cpp
-  src/17live/OneSevenLiveRockViewerItem.cpp
-  src/17live/OneSevenLiveRockZoneDock.cpp
-  src/17live/OneSevenLiveStreamListDock.cpp
-  src/17live/OneSevenLiveStreamListItem.cpp
   src/17live/OneSevenLiveUpdateManager.cpp
-  src/17live/OneSevenLiveUserDialog.cpp
   src/17live/OneSevenLiveWebsocketServer.cpp
+  src/17live/rockzone/OneSevenLiveRockViewerItem.cpp
+  src/17live/rockzone/OneSevenLiveRockZoneDock.cpp
+  src/17live/rockzone/OneSevenLiveUserDialog.cpp
   src/17live/streaming/OneSevenLiveLoadRoomInfoWorker.cpp
   src/17live/streaming/OneSevenLiveStreamManager.cpp
   src/17live/streaming/OneSevenLiveStreamingDock.cpp
+  src/17live/streamlist/OneSevenLiveStreamListDock.cpp
+  src/17live/streamlist/OneSevenLiveStreamListItem.cpp
   src/17live/twitch/OneSevenLiveTwitchAuth.cpp
   src/17live/twitch/OneSevenLiveTwitchChatClient.cpp
   src/17live/twitch/OneSevenLiveTwitchClient.cpp
