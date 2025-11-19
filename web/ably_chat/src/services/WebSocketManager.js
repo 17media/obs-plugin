@@ -106,12 +106,6 @@ class WebSocketManager extends EventEmitter {
       const payload = msg?.payload;
       if (!type) return;
 
-      console.log('[WS] received', { type, payload });
-      if (type === 'twitch_chat_message') {
-        const rawStr = payload && payload.raw;
-        console.log('[WS] twitch_chat_message raw', rawStr);
-      }
-
       // 路由到平台处理：twitch-chat / youtube-chat
       try {
         import('./MessageAggregator')
@@ -147,7 +141,6 @@ class WebSocketManager extends EventEmitter {
             };
 
             if (type === 'twitch_chat_connected' || type === 'twitch_chat_message') {
-              console.log('[WS] route twitch', type);
               const ensure = () => {
                 const platform = messageAggregator.platforms?.get('twitch');
                 if (!platform) return messageAggregator.addPlatform('twitch', {}).then(() => messageAggregator.platforms.get('twitch'));
@@ -157,13 +150,11 @@ class WebSocketManager extends EventEmitter {
                 .then((platform) => {
                   if (!platform) return;
                   if (type === 'twitch_chat_connected') {
-                    console.log('[WS] twitch connected payload', payload);
                     if (typeof platform.handleWsMessage === 'function') {
                       platform.handleWsMessage({ type, payload });
                     }
                   } else if (type === 'twitch_chat_message') {
                     const parsed = parseTwitchPrivmsg(payload?.raw);
-                    console.log('[WS] twitch parsed', parsed);
                     if (parsed) {
                       routeTo('twitch', () => parsed);
                     }
