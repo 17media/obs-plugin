@@ -219,6 +219,7 @@ void OneSevenLiveYouTubeChatClient::fetchChatMessages()
     }
     
     QString endpoint = buildChatMessagesUrl(m_liveChatId, m_nextPageToken);
+    // obs_log(LOG_INFO, "YouTube chat fetch: liveChatId=%s pageToken=%s", m_liveChatId.toUtf8().constData(), m_nextPageToken.toUtf8().constData());
     makeChatRequest(endpoint);
 }
 
@@ -420,6 +421,8 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
         nlohmann::json json = nlohmann::json::parse(response.toStdString());
         
         YouTubeChatMessageListResponse chatResponse = parseChatMessageListResponse(json);
+        // obs_log(LOG_INFO, "YouTube chat API result: liveChatId=%s items=%d nextPageToken=%s pollIntervalMs=%d totalResults=%d",
+                // m_liveChatId.toUtf8().constData(), chatResponse.items.size(), chatResponse.nextPageToken.toUtf8().constData(), chatResponse.pollingIntervalMillis, chatResponse.totalResults);
         
         // Update next page token for pagination
         m_nextPageToken = chatResponse.nextPageToken;
