@@ -88,10 +88,13 @@ signals:
 private slots:
     void onChatRequestFinished(const QString& response, const QString& error);
     void onPollingTimeout();
+    void onStatusTimer();
+    void doReconnect();
 
 private:
     void fetchChatMessages();
     void scheduleNextPoll(int intervalMs);
+    void scheduleReconnect();
     void handleRateLimit(int retryAfterMs);
     void handleApiError(const QString& error, const QString& operation, int httpStatus);
     
@@ -110,6 +113,10 @@ private:
     static const QString YOUTUBE_API_VERSION;
     static const int DEFAULT_POLLING_INTERVAL;
     static const int MAX_EXPONENTIAL_BACKOFF_DELAY;
+    static const int STATUS_BROADCAST_INTERVAL;
+    static const int MAX_QUICK_RETRIES;
+    static const int LONG_RETRY_DELAY;
+    static const int MAX_NO_MESSAGE_QUICK_POLLS;
     
     // State
     QString m_accessToken;
@@ -120,6 +127,8 @@ private:
     int m_maxRetries;
     int m_retryDelayMs;
     int m_currentRetryCount;
+    int m_reconnectAttempts;
+    int m_noMessageStreak;
     bool m_hasValidAuth;
     bool m_isPolling;
     bool m_isRateLimited;
@@ -130,7 +139,10 @@ private:
     
     // Request context
     QString m_currentOperation;
+    QString m_lastEndpoint;
     
     // Timer for polling
     class QTimer* m_pollingTimer;
+    class QTimer* m_statusTimer;
+    class QTimer* m_reconnectTimer;
 };

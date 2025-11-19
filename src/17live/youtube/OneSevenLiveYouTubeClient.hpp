@@ -79,6 +79,36 @@ struct YouTubeLiveStreamListResponse {
     YouTubeLiveStreamListResponse() : kind("youtube#liveStreamListResponse"), pageInfo{0, 5} {}
 };
 
+struct YouTubeLiveBroadcastSnippet {
+    QString liveChatId;
+    QString title;
+    QString channelId;
+    QString scheduledStartTime;
+    QString actualStartTime;
+    YouTubeLiveBroadcastSnippet() {}
+};
+
+struct YouTubeLiveBroadcastStatus {
+    QString lifeCycleStatus;
+    YouTubeLiveBroadcastStatus() {}
+};
+
+struct YouTubeLiveBroadcast {
+    QString kind;
+    QString etag;
+    QString id;
+    YouTubeLiveBroadcastSnippet snippet;
+    YouTubeLiveBroadcastStatus status;
+    YouTubeLiveBroadcast() : kind("youtube#liveBroadcast") {}
+};
+
+struct YouTubeLiveBroadcastListResponse {
+    QString kind;
+    QString etag;
+    QVector<YouTubeLiveBroadcast> items;
+    YouTubeLiveBroadcastListResponse() : kind("youtube#liveBroadcastListResponse") {}
+};
+
 class OneSevenLiveYouTubeClient : public QObject {
     Q_OBJECT
 
@@ -95,6 +125,7 @@ public:
     void getLiveStreamById(const QString& streamId);
     void createLiveStream(const QString& title, const QString& description = QString());
     void deleteLiveStream(const QString& streamId);
+    void getMyLiveBroadcasts(const QString& broadcastStatus = QString("active"));
 
     // Configuration
     void setApiKey(const QString& apiKey);
@@ -105,6 +136,7 @@ signals:
     void liveStreamReceived(const YouTubeLiveStream& stream);
     void liveStreamCreated(const YouTubeLiveStream& stream);
     void liveStreamDeleted(const QString& streamId);
+    void myLiveBroadcastsReceived(const YouTubeLiveBroadcastListResponse& response);
     void errorOccurred(const QString& error, const QString& operation);
     void requestCompleted(const QString& operation);
 
@@ -125,6 +157,10 @@ private:
     YouTubeLiveStreamHealthStatus parseHealthStatus(const nlohmann::json& json) const;
     YouTubeLiveStreamContentDetails parseContentDetails(const nlohmann::json& json) const;
     YouTubeLiveStreamListResponse parseLiveStreamListResponse(const nlohmann::json& json) const;
+    YouTubeLiveBroadcastSnippet parseLiveBroadcastSnippet(const nlohmann::json& json) const;
+    YouTubeLiveBroadcastStatus parseLiveBroadcastStatus(const nlohmann::json& json) const;
+    YouTubeLiveBroadcast parseLiveBroadcast(const nlohmann::json& json) const;
+    YouTubeLiveBroadcastListResponse parseLiveBroadcastListResponse(const nlohmann::json& json) const;
     
     // Error handling
     void handleApiError(const QString& error, const QString& operation, int httpStatus);
@@ -141,4 +177,7 @@ private:
     
     // Request context
     QString m_currentOperation;
+    QString m_lastEndpoint;
+    QString m_lastMethod;
+    QString m_lastBody;
 };

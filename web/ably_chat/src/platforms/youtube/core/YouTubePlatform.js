@@ -63,6 +63,25 @@ export class YouTubePlatform extends BasePlatform {
 
   // Polling removed; messages arrive via WebSocket routing
 
+  handleWsMessage({ type, payload }) {
+    if (type === 'youtube_chat_connected') {
+      const status = payload?.status;
+      const connected = status === 'connected';
+      this.isConnected = connected;
+      if (connected) {
+        this.emit('connected', { platform: this.platformId, config: {} });
+      } else {
+        this.emit('disconnected', { platform: this.platformId });
+      }
+      return;
+    }
+    if (type === 'youtube_chat_message') {
+      const unified = this.processRawMessage(payload);
+      if (unified) this.enqueueMessage(unified);
+      return;
+    }
+  }
+
   // Build Immutable content compatible with Chat component
   prepareIndexedChat(rawData) {
     const { snippet, authorDetails } = rawData || {};

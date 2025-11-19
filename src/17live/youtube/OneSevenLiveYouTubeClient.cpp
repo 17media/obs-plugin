@@ -113,6 +113,25 @@ void OneSevenLiveYouTubeClient::deleteLiveStream(const QString& streamId)
     makeApiRequest(endpoint, "DELETE");
 }
 
+void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStatus)
+{
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "getMyLiveBroadcasts");
+        return;
+    }
+
+    QMap<QString, QString> params;
+    params["mine"] = "true";
+    params["part"] = "snippet";
+    if (!broadcastStatus.isEmpty()) {
+        params["broadcastStatus"] = broadcastStatus;
+    }
+
+    QString endpoint = buildApiUrl("liveBroadcasts", params);
+    m_currentOperation = "getMyLiveBroadcasts";
+    makeApiRequest(endpoint);
+}
+
 void OneSevenLiveYouTubeClient::setApiKey(const QString& apiKey)
 {
     m_apiKey = apiKey;
@@ -131,10 +150,18 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
     if (!body.isEmpty()) {
         obs_log(LOG_INFO, "Request body: %s", body.toUtf8().constData());
     }
+    m_lastEndpoint = endpoint;
+    m_lastMethod = method;
+    m_lastBody = body;
+    obs_log(LOG_DEBUG, "YouTube API auth present=%s token_len=%d", m_hasValidAuth ? "true" : "false", m_accessToken.size());
+    if (m_hasValidAuth) {
+        const QString tok = m_accessToken;
+        const QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+        obs_log(LOG_DEBUG, "YouTube API token(masked)=%s auth_mode=QueryParam", masked.toUtf8().constData());
+    }
     
     // Build headers
     std::vector<std::string> headers;
-    headers.push_back(std::string("Authorization: ") + QString("Bearer %1").arg(m_accessToken).toStdString());
     headers.push_back(std::string("Accept: application/json"));
     if (method != "GET") {
         headers.push_back(std::string("Content-Type: application/json"));
@@ -148,7 +175,11 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
         /*timeoutSec=*/m_timeoutMs / 1000,
         /*isImageRequest=*/false);
 
-    m_currentOperation = method == "GET" ? "getLiveStreams" : (method == "POST" ? "createLiveStream" : "API request");
+    if (m_currentOperation.isEmpty()) {
+    if (m_currentOperation.isEmpty()) {
+        m_currentOperation = method == "GET" ? "getLiveStreams" : (method == "POST" ? "createLiveStream" : "API request");
+    }
+    }
 
     connect(thread, &RemoteTextThread::Result, this, &OneSevenLiveYouTubeClient::onApiRequestFinished);
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
@@ -159,11 +190,14 @@ QString OneSevenLiveYouTubeClient::buildApiUrl(const QString& endpoint, const QM
 {
     QString url = YOUTUBE_API_BASE_URL + "/" + endpoint;
     
-    if (!params.isEmpty()) {
-        QUrlQuery query;
-        for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
-            query.addQueryItem(it.key(), it.value());
-        }
+    QUrlQuery query;
+    for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
+        query.addQueryItem(it.key(), it.value());
+    }
+    if (m_hasValidAuth && !m_accessToken.isEmpty()) {
+        query.addQueryItem("access_token", m_accessToken);
+    }
+    if (!query.isEmpty()) {
         url += "?" + query.toString();
     }
     
@@ -173,8 +207,39 @@ QString OneSevenLiveYouTubeClient::buildApiUrl(const QString& endpoint, const QM
 void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response, const QString& error)
 {
     if (!error.isEmpty()) {
-        obs_log(LOG_WARNING, "YouTube API Error: %s", error.toUtf8().constData());
-        handleApiError(error, m_currentOperation, -1);
+        int httpStatus = -1;
+        QRegularExpression statusRegex(R"(HTTP (\d{3}))");
+        QRegularExpressionMatch match = statusRegex.match(error);
+        if (match.hasMatch()) {
+            httpStatus = match.captured(1).toInt();
+        }
+        if (httpStatus == -1) {
+            QRegularExpression returnedRegex(R"(returned error:\s*(\d{3}))");
+            QRegularExpressionMatch m2 = returnedRegex.match(error);
+            if (m2.hasMatch()) httpStatus = m2.captured(1).toInt();
+        }
+        obs_log(LOG_WARNING, "YouTube API Error: status=%d op=%s method=%s endpoint=%s", httpStatus,
+                m_currentOperation.toUtf8().constData(), m_lastMethod.toUtf8().constData(), m_lastEndpoint.toUtf8().constData());
+        if (!response.isEmpty()) {
+            obs_log(LOG_WARNING, "YouTube API Error response: %s", response.toUtf8().constData());
+            try {
+                auto j = nlohmann::json::parse(response.toStdString());
+                auto ej = j.contains("error") ? j["error"] : nlohmann::json{};
+                std::string emsg = ej.value("message", std::string());
+                std::string estatus = ej.value("status", std::string());
+                int ecode = ej.value("code", 0);
+                std::string ereason;
+                if (ej.contains("errors") && ej["errors"].is_array() && !ej["errors"].empty()) {
+                    auto e0 = ej["errors"][0];
+                    ereason = e0.value("reason", std::string());
+                }
+                if (ecode || !emsg.empty() || !estatus.empty() || !ereason.empty()) {
+                    obs_log(LOG_WARNING, "YouTube API Error details: code=%d message=%s status=%s reason=%s", ecode, emsg.c_str(), estatus.c_str(), ereason.c_str());
+                }
+            } catch (...) {
+            }
+        }
+        handleApiError(error, m_currentOperation, httpStatus);
         return;
     }
 
@@ -201,6 +266,10 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response, co
                 emit liveStreamCreated(stream);
                 emit requestCompleted("createLiveStream");
             }
+        } else if (m_currentOperation == "getMyLiveBroadcasts") {
+            YouTubeLiveBroadcastListResponse broadcasts = parseLiveBroadcastListResponse(json);
+            emit myLiveBroadcastsReceived(broadcasts);
+            emit requestCompleted("getMyLiveBroadcasts");
         }
     }
 }
@@ -358,4 +427,52 @@ YouTubeLiveStreamListResponse OneSevenLiveYouTubeClient::parseLiveStreamListResp
     }
     
     return response;
+}
+
+YouTubeLiveBroadcastSnippet OneSevenLiveYouTubeClient::parseLiveBroadcastSnippet(const nlohmann::json& json) const
+{
+    YouTubeLiveBroadcastSnippet snippet;
+    snippet.title = QString::fromStdString(json.value("title", ""));
+    snippet.channelId = QString::fromStdString(json.value("channelId", ""));
+    snippet.scheduledStartTime = QString::fromStdString(json.value("scheduledStartTime", ""));
+    snippet.actualStartTime = QString::fromStdString(json.value("actualStartTime", ""));
+    snippet.liveChatId = QString::fromStdString(json.value("liveChatId", ""));
+    return snippet;
+}
+
+YouTubeLiveBroadcastStatus OneSevenLiveYouTubeClient::parseLiveBroadcastStatus(const nlohmann::json& json) const
+{
+    YouTubeLiveBroadcastStatus status;
+    status.lifeCycleStatus = QString::fromStdString(json.value("lifeCycleStatus", ""));
+    return status;
+}
+
+YouTubeLiveBroadcast OneSevenLiveYouTubeClient::parseLiveBroadcast(const nlohmann::json& json) const
+{
+    YouTubeLiveBroadcast b;
+    b.kind = QString::fromStdString(json.value("kind", ""));
+    b.etag = QString::fromStdString(json.value("etag", ""));
+    b.id = QString::fromStdString(json.value("id", ""));
+    if (json.contains("snippet") && json["snippet"].is_object()) {
+        b.snippet = parseLiveBroadcastSnippet(json["snippet"]);
+    }
+    if (json.contains("status") && json["status"].is_object()) {
+        b.status = parseLiveBroadcastStatus(json["status"]);
+    }
+    return b;
+}
+
+YouTubeLiveBroadcastListResponse OneSevenLiveYouTubeClient::parseLiveBroadcastListResponse(const nlohmann::json& json) const
+{
+    YouTubeLiveBroadcastListResponse resp;
+    resp.kind = QString::fromStdString(json.value("kind", ""));
+    resp.etag = QString::fromStdString(json.value("etag", ""));
+    if (json.contains("items") && json["items"].is_array()) {
+        for (const auto& item : json["items"]) {
+            if (item.is_object()) {
+                resp.items.append(parseLiveBroadcast(item));
+            }
+        }
+    }
+    return resp;
 }

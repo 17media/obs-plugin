@@ -339,13 +339,19 @@ void OneSevenLiveYouTubeAuth::scheduleAutoRefresh(int accessExpiresInSec, qint64
 
     // Handle already-expired access token on startup
     if (accessExpiresInSec > 0 && nowEpoch >= accessExpiresAt) {
-        if (!m_refreshToken.isEmpty() && refreshExpiresInSec > 0 && nowEpoch < refreshExpiresAt) {
-            obs_log(LOG_INFO, "YouTube access token expired; attempting immediate refresh");
-            if (!refreshAccessToken()) {
-                obs_log(LOG_ERROR, "YouTube immediate refresh failed");
+        if (!m_refreshToken.isEmpty()) {
+            if (refreshExpiresInSec <= 0 || nowEpoch < refreshExpiresAt) {
+                obs_log(LOG_INFO, "YouTube access token expired; attempting immediate refresh");
+                if (!refreshAccessToken()) {
+                    obs_log(LOG_ERROR, "YouTube immediate refresh failed");
+                }
+            } else if (cfg && cfg->initialize()) {
+                obs_log(LOG_INFO, "YouTube refresh token expired; clearing stored tokens");
+                cfg->clearYouTubeAccessToken();
+                cfg->clearYouTubeRefreshToken();
             }
         } else if (cfg && cfg->initialize()) {
-            obs_log(LOG_INFO, "YouTube refresh token expired or missing; clearing stored tokens");
+            obs_log(LOG_INFO, "YouTube refresh token missing; clearing stored tokens");
             cfg->clearYouTubeAccessToken();
             cfg->clearYouTubeRefreshToken();
         }

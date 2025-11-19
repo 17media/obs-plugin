@@ -817,7 +817,12 @@ bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken
         return false;
     }
 
-    obs_log(LOG_INFO, "YouTube access token saved successfully");
+    {
+        QString tok = QString::fromUtf8(accessTokenStr.c_str());
+        QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+        obs_log(LOG_INFO, "YouTube access token saved successfully at %s token(masked)=%s",
+                configPath.c_str(), masked.toUtf8().constData());
+    }
     return true;
 }
 

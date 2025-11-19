@@ -49,6 +49,7 @@ class OneSevenLiveChatDock;
 // Forward declarations for chat clients
 class OneSevenLiveYouTubeChatClient;
 class OneSevenLiveTwitchChatClient;
+class OneSevenLiveYouTubeClient;
 
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
@@ -274,6 +275,7 @@ class OneSevenLiveCoreManager : public QObject {
     // Chat clients
     std::unique_ptr<OneSevenLiveYouTubeChatClient> youtubeChatClient;
     std::unique_ptr<OneSevenLiveTwitchChatClient> twitchChatClient;
+    std::unique_ptr<OneSevenLiveYouTubeClient> youtubeApiClient;
 
     void handleWebsocketMessage(const std::string& clientId, const std::string& message);
     void handleWebsocketConnectionChanged(const std::string& clientId, bool connected);

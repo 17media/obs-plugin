@@ -9,11 +9,17 @@
 #include <QRegularExpression>
 #include "OneSevenLiveCoreManager.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
+#include "websocket/WebsocketUtils.hpp"
+#include "websocket/WsMessage.hpp"
 
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3";
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_VERSION = "v3";
 const int OneSevenLiveYouTubeChatClient::DEFAULT_POLLING_INTERVAL = 5000; // 5 seconds
 const int OneSevenLiveYouTubeChatClient::MAX_EXPONENTIAL_BACKOFF_DELAY = 32000; // 32 seconds max
+const int OneSevenLiveYouTubeChatClient::STATUS_BROADCAST_INTERVAL = 10;
+const int OneSevenLiveYouTubeChatClient::MAX_QUICK_RETRIES = 5;
+const int OneSevenLiveYouTubeChatClient::LONG_RETRY_DELAY = 600;
+const int OneSevenLiveYouTubeChatClient::MAX_NO_MESSAGE_QUICK_POLLS = 5;
 
 // Helper: convert YouTubeChatMessage to JSON for websocket payload
 static nlohmann::json toJson(const YouTubeChatMessage& msg) {
@@ -51,15 +57,23 @@ OneSevenLiveYouTubeChatClient::OneSevenLiveYouTubeChatClient(QObject* parent)
     , m_maxRetries(3)
     , m_retryDelayMs(1000) // 1 second base delay
     , m_currentRetryCount(0)
+    , m_reconnectAttempts(0)
+    , m_noMessageStreak(0)
     , m_hasValidAuth(false)
     , m_isPolling(false)
     , m_isRateLimited(false)
     , m_currentPollingInterval(DEFAULT_POLLING_INTERVAL)
     , m_exponentialBackoffDelay(m_retryDelayMs)
     , m_pollingTimer(new QTimer(this))
+    , m_statusTimer(new QTimer(this))
+    , m_reconnectTimer(new QTimer(this))
 {
     connect(m_pollingTimer, &QTimer::timeout, this, &OneSevenLiveYouTubeChatClient::onPollingTimeout);
     m_pollingTimer->setSingleShot(true); // Single shot timer for controlled polling
+    connect(m_statusTimer, &QTimer::timeout, this, &OneSevenLiveYouTubeChatClient::onStatusTimer);
+    m_statusTimer->setInterval(STATUS_BROADCAST_INTERVAL * 1000);
+    m_reconnectTimer->setSingleShot(true);
+    connect(m_reconnectTimer, &QTimer::timeout, this, &OneSevenLiveYouTubeChatClient::doReconnect);
 }
 
 OneSevenLiveYouTubeChatClient::~OneSevenLiveYouTubeChatClient()
@@ -105,7 +119,13 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId)
     obs_log(LOG_INFO, "Starting YouTube chat polling for liveChatId: %s", liveChatId.toUtf8().constData());
     
     m_isPolling = true;
+    m_reconnectAttempts = 0;
+    if (m_reconnectTimer->isActive()) m_reconnectTimer->stop();
     emit pollingStarted(liveChatId);
+
+    wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "connected"}});
+    if (!m_statusTimer->isActive()) m_statusTimer->start();
+    obs_log(LOG_INFO, "YouTube chat connected");
     
     // Start first request immediately
     fetchChatMessages();
@@ -127,8 +147,12 @@ void OneSevenLiveYouTubeChatClient::stopChatPolling()
     m_currentRetryCount = 0;
     m_exponentialBackoffDelay = m_retryDelayMs;
     m_isRateLimited = false;
+    m_noMessageStreak = 0;
     
     emit pollingStopped();
+    wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "break"}});
+    if (m_statusTimer->isActive()) m_statusTimer->stop();
+    if (m_reconnectTimer->isActive()) m_reconnectTimer->stop();
 }
 
 bool OneSevenLiveYouTubeChatClient::isPolling() const
@@ -249,6 +273,10 @@ QString OneSevenLiveYouTubeChatClient::buildChatMessagesUrl(const QString& liveC
     if (!m_apiKey.isEmpty()) {
         query.addQueryItem("key", m_apiKey);
     }
+
+    if (m_hasValidAuth && !m_accessToken.isEmpty()) {
+        query.addQueryItem("access_token", m_accessToken);
+    }
     
     return url + "?" + query.toString();
 }
@@ -256,12 +284,15 @@ QString OneSevenLiveYouTubeChatClient::buildChatMessagesUrl(const QString& liveC
 void OneSevenLiveYouTubeChatClient::makeChatRequest(const QString& endpoint)
 {
     obs_log(LOG_INFO, "YouTube Chat API Request: %s", endpoint.toUtf8().constData());
+    m_lastEndpoint = endpoint;
+    if (m_hasValidAuth) {
+        const QString tok = m_accessToken;
+        const QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+        obs_log(LOG_DEBUG, "YouTube Chat token(masked)=%s auth_mode=QueryParam", masked.toUtf8().constData());
+    }
     
     // Build headers
     std::vector<std::string> headers;
-    if (m_hasValidAuth) {
-        headers.push_back(std::string("Authorization: ") + QString("Bearer %1").arg(m_accessToken).toStdString());
-    }
     headers.push_back(std::string("Accept: application/json"));
 
     RemoteTextThread* thread = new RemoteTextThread(
@@ -296,7 +327,12 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
             httpStatus = match.captured(1).toInt();
         }
         
+        obs_log(LOG_WARNING, "YouTube Chat API Error context: op=%s endpoint=%s", m_currentOperation.toUtf8().constData(), m_lastEndpoint.toUtf8().constData());
+        if (!response.isEmpty()) {
+            obs_log(LOG_WARNING, "YouTube Chat API Error response: %s", response.toUtf8().constData());
+        }
         handleApiError(error, m_currentOperation, httpStatus);
+        scheduleReconnect();
         return;
     }
 
@@ -315,21 +351,14 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
         for (const auto& message : chatResponse.items) {
             emit newChatMessage(message);
 
-            // Broadcast to websocket clients: { type: "youtube-chat", payload: message }
-            OneSevenLiveCoreManager* core = qobject_cast<OneSevenLiveCoreManager*>(parent());
-            if (core) {
-                OneSevenLiveWebsocketServer* ws = core->getWebsocketServer();
-                if (ws && ws->is_running()) {
-                    try {
-                        nlohmann::json payload = {
-                            {"type", "youtube-chat"},
-                            {"payload", toJson(message)}
-                        };
-                        ws->broadcastMessage(payload.dump());
-                    } catch (const std::exception& e) {
-                        obs_log(LOG_WARNING, "Failed to serialize/broadcast YouTube chat message: %s", e.what());
-                    }
-                }
+            obs_log(LOG_INFO, "YouTube chat received: [%s] %s",
+                    message.authorDetails.displayName.toUtf8().constData(),
+                    message.snippet.displayMessage.toUtf8().constData());
+
+            try {
+                wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatMessage), toJson(message));
+            } catch (const std::exception& e) {
+                obs_log(LOG_WARNING, "Failed to serialize/broadcast YouTube chat message: %s", e.what());
             }
         }
         
@@ -338,16 +367,20 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
         m_exponentialBackoffDelay = m_retryDelayMs;
         m_isRateLimited = false;
         
-        // Schedule next poll based on server's recommended interval
-        scheduleNextPoll(chatResponse.pollingIntervalMillis);
+        if (chatResponse.items.isEmpty()) {
+            m_noMessageStreak++;
+            int interval = m_noMessageStreak <= MAX_NO_MESSAGE_QUICK_POLLS
+                ? qMin(chatResponse.pollingIntervalMillis, DEFAULT_POLLING_INTERVAL)
+                : chatResponse.pollingIntervalMillis;
+            scheduleNextPoll(interval);
+        } else {
+            m_noMessageStreak = 0;
+            scheduleNextPoll(chatResponse.pollingIntervalMillis);
+        }
         
     } catch (const std::exception& e) {
         emit errorOccurred(QString("Failed to parse chat JSON response: ") + e.what(), "parseChatResponse");
-        
-        // Continue polling with default interval on parse error
-        if (m_isPolling) {
-            scheduleNextPoll(m_currentPollingInterval);
-        }
+        scheduleReconnect();
     }
 }
 
@@ -358,6 +391,38 @@ void OneSevenLiveYouTubeChatClient::onPollingTimeout()
     }
     
     fetchChatMessages();
+}
+
+void OneSevenLiveYouTubeChatClient::onStatusTimer()
+{
+    const char* status = m_isPolling ? "connected" : "break";
+    wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", status}});
+}
+
+void OneSevenLiveYouTubeChatClient::scheduleReconnect()
+{
+    if (!m_liveChatId.isEmpty()) {
+        if (m_reconnectAttempts < MAX_QUICK_RETRIES) {
+            int delayMs = qMin(m_exponentialBackoffDelay, 5000);
+            m_reconnectAttempts++;
+            if (m_isPolling) {
+                m_pollingTimer->start(delayMs);
+            } else {
+                m_reconnectTimer->start(delayMs);
+            }
+        } else {
+            m_reconnectAttempts = 0;
+            m_isPolling = false;
+            wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "break"}});
+            m_reconnectTimer->start(LONG_RETRY_DELAY * 1000);
+        }
+    }
+}
+
+void OneSevenLiveYouTubeChatClient::doReconnect()
+{
+    if (m_liveChatId.isEmpty()) return;
+    startChatPolling(m_liveChatId);
 }
 
 YouTubeChatMessage OneSevenLiveYouTubeChatClient::parseChatMessage(const nlohmann::json& json) const
