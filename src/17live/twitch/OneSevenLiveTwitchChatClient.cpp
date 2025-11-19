@@ -1,9 +1,10 @@
 #include "OneSevenLiveTwitchChatClient.hpp"
-#include "../OneSevenLiveCoreManager.hpp"
-#include "../OneSevenLiveWebsocketServer.hpp"
+#include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveWebsocketServer.hpp"
 #include <QTimer>
 #include <QDebug>
 #include "plugin-support.h"
+#include "OneSevenLiveWebsocketClient.hpp"
 #include <obs-module.h>
 #include <QRegularExpression>
 #include <QDateTime>
@@ -28,48 +29,24 @@ const int OneSevenLiveTwitchChatClient::MAX_RECONNECT_ATTEMPTS = 5;
 static const char* toString(TwitchMessageType type) {
     switch (type) {
         case TwitchMessageType::Chat: return "chat";
-        case TwitchMessageType::Subscription: return "subscription";
-        case TwitchMessageType::Resubscription: return "resubscription";
-        case TwitchMessageType::GiftSubscription: return "gift_subscription";
-        case TwitchMessageType::Raid: return "raid";
-        case TwitchMessageType::Host: return "host";
-        case TwitchMessageType::Whisper: return "whisper";
         case TwitchMessageType::Notice: return "notice";
-        case TwitchMessageType::UserNotice: return "user_notice";
-        case TwitchMessageType::RoomState: return "room_state";
-        case TwitchMessageType::UserState: return "user_state";
-        case TwitchMessageType::GlobalUserState: return "global_user_state";
-        case TwitchMessageType::Unknown: default: return "unknown";
+        default: return "chat";
     }
 }
 
 // Helper to convert TwitchChatMessage to JSON
 static nlohmann::json toJson(const TwitchChatMessage& msg) {
     return {
-        {"id", msg.id.toStdString()},
         {"channel", msg.channel.toStdString()},
         {"username", msg.username.toStdString()},
-        {"displayName", msg.displayName.toStdString()},
         {"message", msg.message.toStdString()},
-        {"userId", msg.userId.toStdString()},
-        {"color", msg.color.toStdString()},
         {"timestamp", msg.timestamp.toString(Qt::ISODate).toStdString()},
-        {"isModerator", msg.isModerator},
-        {"isSubscriber", msg.isSubscriber},
-        {"isTurbo", msg.isTurbo},
-        {"isFirstMessage", msg.isFirstMessage},
-        {"isReturningChatter", msg.isReturningChatter},
-        {"bits", msg.bits},
-        {"emotes", msg.emotes.toStdString()},
-        {"badges", msg.badges.toStdString()},
         {"type", toString(msg.type)}
     };
 }
 
 OneSevenLiveTwitchChatClient::OneSevenLiveTwitchChatClient(QObject* parent)
     : QObject(parent)
-    , m_webSocketConnected(false)
-    , m_webSocketThreadRunning(false)
     , m_connected(false)
     , m_autoReconnect(true)
     , m_reconnectDelay(DEFAULT_RECONNECT_DELAY)
@@ -79,21 +56,6 @@ OneSevenLiveTwitchChatClient::OneSevenLiveTwitchChatClient(QObject* parent)
     , m_pingTimer(nullptr)
     , m_reconnectTimer(nullptr)
 {
-    // Initialize mbedtls contexts
-    m_ssl = new mbedtls_ssl_context;
-    m_server_fd = new mbedtls_net_context;
-    m_conf = new mbedtls_ssl_config;
-    m_ctr_drbg = new mbedtls_ctr_drbg_context;
-    m_entropy = new mbedtls_entropy_context;
-    m_cacert = new mbedtls_x509_crt;
-    
-    mbedtls_ssl_init(m_ssl);
-    mbedtls_net_init(m_server_fd);
-    mbedtls_ssl_config_init(m_conf);
-    mbedtls_ctr_drbg_init(m_ctr_drbg);
-    mbedtls_entropy_init(m_entropy);
-    mbedtls_x509_crt_init(m_cacert);
-    
     // Set up ping timer
     m_pingTimer = new QTimer(this);
     m_pingTimer->setSingleShot(false);
@@ -115,8 +77,6 @@ OneSevenLiveTwitchChatClient::~OneSevenLiveTwitchChatClient()
         m_reconnectTimer->deleteLater();
     }
     
-    // Cleanup mbedtls contexts
-    cleanupTLSContext();
 }
 
 void OneSevenLiveTwitchChatClient::connectToChat(const QString& username, const QString& oauthToken)
@@ -254,6 +214,8 @@ void OneSevenLiveTwitchChatClient::onWebSocketMessage(const std::string& message
 {
     QString qMessage = QString::fromStdString(message);
     parseIRCMessage(qMessage);
+
+    obs_log(LOG_INFO, "Received message from Twitch chat: %s", qMessage.toUtf8().constData());
 }
 
 void OneSevenLiveTwitchChatClient::onWebSocketOpen()
@@ -327,7 +289,7 @@ void OneSevenLiveTwitchChatClient::attemptReconnect()
 // IRC protocol implementation
 void OneSevenLiveTwitchChatClient::sendRawMessage(const QString& message)
 {
-    if (m_connected && m_webSocketConnected) {
+    if (m_connected && m_client && m_client->isConnected()) {
         sendWebSocketMessage(message.toStdString());
         obs_log(LOG_INFO, "IRC ->: %s", message.toUtf8().constData());
     }
@@ -377,25 +339,20 @@ void OneSevenLiveTwitchChatClient::stopPingTimer()
 
 void OneSevenLiveTwitchChatClient::parseIRCMessage(const QString& rawMessage)
 {
-    obs_log(LOG_INFO, "IRC <-: %s", rawMessage.toUtf8().constData());
-    
-    // IRC message format: [:prefix] command [params...]
+    obs_log(LOG_DEBUG, "IRC <-: %s", rawMessage.toUtf8().constData());
+
     QString message = rawMessage;
     QString prefix;
     QString command;
     QString parameters;
-    QString tags;
-    
-    // Parse tags (if present)
+
     if (message.startsWith('@')) {
         int tagEnd = message.indexOf(' ');
         if (tagEnd != -1) {
-            tags = message.mid(1, tagEnd - 1);
             message = message.mid(tagEnd + 1);
         }
     }
-    
-    // Parse prefix (if present)
+
     if (message.startsWith(':')) {
         int prefixEnd = message.indexOf(' ');
         if (prefixEnd != -1) {
@@ -403,8 +360,7 @@ void OneSevenLiveTwitchChatClient::parseIRCMessage(const QString& rawMessage)
             message = message.mid(prefixEnd + 1);
         }
     }
-    
-    // Parse command and parameters
+
     int commandEnd = message.indexOf(' ');
     if (commandEnd != -1) {
         command = message.left(commandEnd);
@@ -412,18 +368,17 @@ void OneSevenLiveTwitchChatClient::parseIRCMessage(const QString& rawMessage)
     } else {
         command = message;
     }
-    
-    // Handle different IRC commands
+
     if (command == "PING") {
         sendRawMessage("PONG " + parameters);
-    } else if (command == "PONG") {
-        // PONG received, connection is alive
-    } else if (command == "001") {
-        // Welcome message, connection successful
-        obs_log(LOG_INFO, "Successfully connected to Twitch IRC");
+        return;
+    }
+    if (command == "001") {
         emit reconnected();
-    } else if (command == "JOIN") {
-        QString channel = parameters.mid(1); // Remove #
+        return;
+    }
+    if (command == "JOIN") {
+        QString channel = parameters.mid(1);
         QString username = extractUsernameFromPrefix(prefix);
         if (username == m_username) {
             emit channelJoined(channel);
@@ -432,8 +387,10 @@ void OneSevenLiveTwitchChatClient::parseIRCMessage(const QString& rawMessage)
             user.username = username;
             emit userJoined(channel, user);
         }
-    } else if (command == "PART") {
-        QString channel = parameters.mid(1); // Remove #
+        return;
+    }
+    if (command == "PART") {
+        QString channel = parameters.mid(1);
         QString username = extractUsernameFromPrefix(prefix);
         if (username == m_username) {
             m_joinedChannels.removeOne(channel);
@@ -441,131 +398,67 @@ void OneSevenLiveTwitchChatClient::parseIRCMessage(const QString& rawMessage)
         } else {
             emit userLeft(channel, username);
         }
-    } else if (command == "PRIVMSG") {
-        TwitchChatMessage chatMessage = parseChatMessage(rawMessage, command, tags, prefix);
+        return;
+    }
+    if (command == "PRIVMSG") {
+        TwitchChatMessage chatMessage = parseChatMessage(rawMessage, command, QString(), prefix);
+        chatMessage.type = TwitchMessageType::Chat;
         emit messageReceived(chatMessage);
 
-        // Broadcast to websocket clients: { type: "twitch-chat", payload: message }
         OneSevenLiveCoreManager* core = qobject_cast<OneSevenLiveCoreManager*>(parent());
         if (core) {
             OneSevenLiveWebsocketServer* ws = core->getWebsocketServer();
             if (ws && ws->is_running()) {
                 try {
-                    nlohmann::json payload = {
-                        {"type", "twitch-chat"},
-                        {"payload", toJson(chatMessage)}
-                    };
+                    nlohmann::json payload = {{"type", "twitch-chat"}, {"payload", toJson(chatMessage)}};
                     ws->broadcastMessage(payload.dump());
                 } catch (const std::exception& e) {
                     obs_log(LOG_WARNING, "Failed to serialize/broadcast Twitch chat message: %s", e.what());
                 }
             }
         }
-        
-        if (chatMessage.type == TwitchMessageType::Subscription) {
-            emit subscriptionReceived(chatMessage);
-        }
-    } else if (command == "USERNOTICE") {
-        // Handle subscription notices, raids, etc.
-        QMap<QString, QString> tagMap = parseTags(tags);
-        QString msgId = tagMap["msg-id"];
-        
-        if (msgId == "raid") {
-            QString channel = parameters.section(' ', 0, 0).mid(1); // Remove #
-            QString raider = tagMap["login"];
-            int viewerCount = tagMap["msg-param-viewerCount"].toInt();
-            emit raidReceived(channel, raider, viewerCount);
-        }
-    } else if (command == "ROOMSTATE") {
-        // Room state changes
-    } else if (command == "NOTICE") {
-        QString channel = parameters.section(' ', 0, 0).mid(1); // Remove #
+        return;
+    }
+    if (command == "NOTICE") {
+        QString channel = parameters.section(' ', 0, 0).mid(1);
         QString noticeMsg = parameters.section(' ', 1);
         if (noticeMsg.startsWith(':')) {
             noticeMsg = noticeMsg.mid(1);
         }
         emit noticeReceived(channel, noticeMsg);
-    } else if (command == "CAP") {
-        // Capability acknowledgment
-    obs_log(LOG_INFO, "Capability acknowledged: %s", parameters.toUtf8().constData());
+        return;
     }
 }
 
-TwitchChatMessage OneSevenLiveTwitchChatClient::parseChatMessage(const QString& rawMessage, const QString& command, const QString& tags, const QString& prefix)
+TwitchChatMessage OneSevenLiveTwitchChatClient::parseChatMessage(const QString& rawMessage, const QString& /*command*/, const QString& /*tags*/, const QString& prefix)
 {
     TwitchChatMessage message;
     message.timestamp = QDateTime::currentDateTime();
-    message.type = determineMessageType(command, tags);
-    
-    // Parse tags
-    QMap<QString, QString> tagMap = parseTags(tags);
-    
-    message.id = tagMap["id"];
-    message.userId = tagMap["user-id"];
-    message.color = tagMap["color"];
-    message.displayName = tagMap["display-name"];
-    message.emotes = tagMap["emotes"];
-    message.badges = tagMap["badges"];
-    message.bits = tagMap["bits"].toInt();
-    message.isModerator = (tagMap["mod"] == "1");
-    message.isSubscriber = (tagMap["subscriber"] == "1");
-    message.isTurbo = (tagMap["turbo"] == "1");
-    message.isFirstMessage = (tagMap["first-msg"] == "1");
-    message.isReturningChatter = (tagMap["returning-chatter"] == "1");
-    
-    // Parse prefix for username
+
     message.username = extractUsernameFromPrefix(prefix);
-    if (message.displayName.isEmpty()) {
-        message.displayName = message.username;
-    }
-    
-    // Parse channel and message content
+    message.displayName = message.username;
+
     QString params = rawMessage;
+    int channelStart = params.indexOf('#');
     int channelEnd = params.indexOf(" :");
-    if (channelEnd != -1) {
-        message.channel = params.mid(params.indexOf('#'), channelEnd - params.indexOf('#')).mid(1);
+    if (channelStart != -1 && channelEnd != -1 && channelEnd > channelStart) {
+        message.channel = params.mid(channelStart + 1, channelEnd - channelStart - 1);
         message.message = params.mid(channelEnd + 2);
     }
-    
+
     return message;
 }
 
-TwitchMessageType OneSevenLiveTwitchChatClient::determineMessageType(const QString& command, const QString& tags)
+TwitchMessageType OneSevenLiveTwitchChatClient::determineMessageType(const QString& command, const QString& /*tags*/)
 {
-    if (command == "USERNOTICE") {
-        QMap<QString, QString> tagMap = parseTags(tags);
-        QString msgId = tagMap["msg-id"];
-        
-        if (msgId == "sub") return TwitchMessageType::Subscription;
-        if (msgId == "resub") return TwitchMessageType::Resubscription;
-        if (msgId == "subgift") return TwitchMessageType::GiftSubscription;
-        if (msgId == "raid") return TwitchMessageType::Raid;
-    }
-    
     if (command == "NOTICE") return TwitchMessageType::Notice;
-    if (command == "WHISPER") return TwitchMessageType::Whisper;
-    
     return TwitchMessageType::Chat;
 }
 
 QMap<QString, QString> OneSevenLiveTwitchChatClient::parseTags(const QString& tags)
 {
     QMap<QString, QString> result;
-    
-    if (tags.isEmpty()) {
-        return result;
-    }
-    
-    QStringList tagPairs = tags.split(';');
-    for (const QString& pair : tagPairs) {
-        int separator = pair.indexOf('=');
-        if (separator != -1) {
-            QString key = pair.left(separator);
-            QString value = pair.mid(separator + 1);
-            result[key] = value;
-        }
-    }
-    
+    Q_UNUSED(tags);
     return result;
 }
 
@@ -613,77 +506,34 @@ void OneSevenLiveTwitchChatClient::resetReconnectAttempts()
 
 void OneSevenLiveTwitchChatClient::connectWebSocket()
 {
-    if (m_webSocketThreadRunning) {
-        obs_log(LOG_WARNING, "WebSocket thread already running");
-        return;
-    }
-    
     obs_log(LOG_INFO, "Connecting to Twitch chat server: %s", TWITCH_IRC_SERVER.toUtf8().constData());
-    
-    // Start WebSocket thread
-    m_webSocketThreadRunning = true;
-    m_webSocketThread = std::thread(&OneSevenLiveTwitchChatClient::webSocketThreadFunc, this);
+    m_client = std::make_unique<OneSevenLiveWebsocketClient>(this);
+    m_client->setOpenCallback([this]() { onWebSocketOpen(); });
+    m_client->setMessageCallback([this](const std::string& m) { onWebSocketMessage(m); });
+    m_client->setCloseCallback([this]() { onWebSocketClose(); });
+    m_client->setErrorCallback([this](const std::string& e) { onWebSocketError(e); });
+    m_client->connectUrl(TWITCH_IRC_SERVER);
 }
 
 void OneSevenLiveTwitchChatClient::disconnectWebSocket()
 {
     obs_log(LOG_INFO, "Disconnecting WebSocket client from Twitch");
-    
-    m_webSocketThreadRunning = false;
-    
-    if (m_webSocketThread.joinable()) {
-        m_webSocketThread.join();
-    }
-    
-    cleanupTLSContext();
-    
-    if (m_webSocketConnected) {
-        m_webSocketConnected = false;
-        onWebSocketClose();
+    if (m_client) {
+        m_client->disconnect();
     }
 }
 
 void OneSevenLiveTwitchChatClient::sendWebSocketMessage(const std::string& message)
 {
-    if (m_webSocketConnected) {
-        obs_log(LOG_DEBUG, "Sending WebSocket message: %s", message.c_str());
-        
-        // Construct WebSocket frame (client to server must be masked)
-        std::string wsFrame;
-        wsFrame.push_back(static_cast<char>(0x81)); // FIN = 1, opcode = 1 (text)
-        
-        // Generate random masking key
-        unsigned char maskingKey[4];
-        mbedtls_ctr_drbg_random(m_ctr_drbg, maskingKey, 4);
-        
-        if (message.length() <= 125) {
-            wsFrame.push_back(static_cast<char>(0x80 | static_cast<unsigned char>(message.length()))); // MASK = 1, length
-        } else if (message.length() <= 65535) {
-            wsFrame.push_back(static_cast<char>(0x80 | 126)); // MASK = 1, 16-bit length
-            wsFrame.push_back(static_cast<char>((message.length() >> 8) & 0xFF));
-            wsFrame.push_back(static_cast<char>(message.length() & 0xFF));
-        } else {
-            obs_log(LOG_ERROR, "Message too long for WebSocket frame");
-            return;
-        }
-        
-        // Add masking key
-        wsFrame.append((char*)maskingKey, 4);
-        
-        // Add masked payload
-        for (size_t i = 0; i < message.length(); i++) {
-            wsFrame.push_back(message[i] ^ maskingKey[i % 4]);
-        }
-        
-        if (!sendTLSData(wsFrame)) {
-            obs_log(LOG_ERROR, "Failed to send WebSocket message");
-        }
+    if (m_client && m_client->isConnected()) {
+        m_client->sendText(QString::fromStdString(message));
     } else {
         obs_log(LOG_WARNING, "Cannot send WebSocket message: not connected");
     }
 }
 
 // Helper function to generate WebSocket key
+#if 0
 static std::string generateWebSocketKey() {
     unsigned char randomBytes[16];
     // For now, use a fixed key - in production, this should be truly random
@@ -1037,3 +887,4 @@ void OneSevenLiveTwitchChatClient::cleanupTLSContext()
         m_cacert = nullptr;
     }
 }
+#endif

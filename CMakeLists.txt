@@ -199,6 +199,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/OneSevenLiveLoginDialog.cpp
   src/17live/OneSevenLiveMenuManager.cpp
   src/17live/OneSevenLiveUpdateManager.cpp
+  src/17live/OneSevenLiveWebsocketClient.cpp
   src/17live/OneSevenLiveWebsocketServer.cpp
   src/17live/rockzone/OneSevenLiveRockViewerItem.cpp
   src/17live/rockzone/OneSevenLiveRockZoneDock.cpp

@@ -11,13 +11,7 @@
 #include <thread>
 #include <atomic>
 
-// Forward declarations for mbedtls
-struct mbedtls_ssl_context;
-struct mbedtls_net_context;
-struct mbedtls_ssl_config;
-struct mbedtls_ctr_drbg_context;
-struct mbedtls_entropy_context;
-struct mbedtls_x509_crt;
+class OneSevenLiveWebsocketClient;
 
 enum class TwitchMessageType {
     Chat,
@@ -145,34 +139,16 @@ private:
     void scheduleReconnect();
     void resetReconnectAttempts();
 
-    // WebSocket connection state
-    bool m_webSocketConnected;
-    std::atomic<bool> m_webSocketThreadRunning;
-    std::thread m_webSocketThread;
-    
-    // mbedtls TLS context
-    mbedtls_ssl_context* m_ssl;
-    mbedtls_net_context* m_server_fd;
-    mbedtls_ssl_config* m_conf;
-    mbedtls_ctr_drbg_context* m_ctr_drbg;
-    mbedtls_entropy_context* m_entropy;
-    mbedtls_x509_crt* m_cacert;
-    
-    // WebSocket client implementation
     void connectWebSocket();
     void disconnectWebSocket();
     void sendWebSocketMessage(const std::string& message);
-    void webSocketThreadFunc();
-    bool performTLSHandshake();
-    bool sendTLSData(const std::string& data);
-    std::string receiveTLSData();
-    void cleanupTLSContext();
     
     // Connection state
     bool m_connected;
     QString m_username;
     QString m_oauthToken;
     QVector<QString> m_joinedChannels;
+    std::unique_ptr<OneSevenLiveWebsocketClient> m_client;
     
     // Configuration
     bool m_autoReconnect;
