@@ -23,7 +23,7 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
     if (!desc)
         desc = obs_property_name(m_property);
 
-    obs_log(LOG_INFO, "[OneSevenLivePropertyWidget] Constructor called for property: %s [%s]",
+    obs_log(LOG_DEBUG, "[OneSevenLivePropertyWidget] Constructor called for property: %s [%s]",
             name.c_str(), desc);
 
     label = new QLabel(desc);
@@ -116,7 +116,7 @@ OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget() {
         }
     }
     
-    obs_log(LOG_INFO, "[~OneSevenLivePropertyWidget] Destructor called for property: %s",
+    obs_log(LOG_DEBUG, "[~OneSevenLivePropertyWidget] Destructor called for property: %s",
             name.c_str());
 }
 
@@ -229,10 +229,10 @@ void OneSevenLivePropertyWidget::LoadData(obs_data_t *settings) {
 }
 
 void OneSevenLivePropertyWidget::SaveData(obs_data_t *settings) {
-    obs_log(LOG_INFO, "Saving property %s", name.c_str());
+    obs_log(LOG_DEBUG, "Saving property %s", name.c_str());
     if (!settings || !ctrl)
         return;
-    obs_log(LOG_INFO, "Saving property %s as %d", name.c_str(), (int) m_propertyType);
+    obs_log(LOG_DEBUG, "Saving property %s as %d", name.c_str(), (int) m_propertyType);
     switch (m_propertyType) {
     case OBS_PROPERTY_BOOL: {
         auto cb = static_cast<QCheckBox *>(ctrl);
@@ -256,7 +256,7 @@ void OneSevenLivePropertyWidget::SaveData(obs_data_t *settings) {
         break;
     }
     case OBS_PROPERTY_TEXT: {
-        obs_log(LOG_INFO, "Saving property %s as string", name.c_str());
+        obs_log(LOG_DEBUG, "Saving property %s as string", name.c_str());
         if (m_isPassword) {
             auto le = static_cast<OneSevenLiveLineEditWithEye *>(ctrl);
             obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
