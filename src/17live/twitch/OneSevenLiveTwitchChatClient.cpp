@@ -17,6 +17,8 @@ const QString OneSevenLiveTwitchChatClient::TWITCH_IRC_SERVER = "wss://irc-ws.ch
 const int OneSevenLiveTwitchChatClient::DEFAULT_PING_INTERVAL = 60; // 1 minute
 const int OneSevenLiveTwitchChatClient::DEFAULT_RECONNECT_DELAY = 5; // 5 seconds
 const int OneSevenLiveTwitchChatClient::MAX_RECONNECT_ATTEMPTS = 5;
+const int OneSevenLiveTwitchChatClient::STATUS_BROADCAST_INTERVAL = 10;
+const int OneSevenLiveTwitchChatClient::LONG_RETRY_DELAY = 600;
 
 // Helper to convert TwitchMessageType to string
 static const char* toString(TwitchMessageType type) {
@@ -58,6 +60,12 @@ OneSevenLiveTwitchChatClient::OneSevenLiveTwitchChatClient(QObject* parent)
     m_reconnectTimer = new QTimer(this);
     m_reconnectTimer->setSingleShot(true);
     connect(m_reconnectTimer, &QTimer::timeout, this, &OneSevenLiveTwitchChatClient::attemptReconnect);
+
+    m_statusTimer = new QTimer(this);
+    m_statusTimer->setSingleShot(false);
+    m_statusTimer->setInterval(STATUS_BROADCAST_INTERVAL * 1000);
+    connect(m_statusTimer, &QTimer::timeout, this, &OneSevenLiveTwitchChatClient::onStatusTimer);
+    m_statusTimer->start();
 }
 
 OneSevenLiveTwitchChatClient::~OneSevenLiveTwitchChatClient()
@@ -208,7 +216,12 @@ void OneSevenLiveTwitchChatClient::onWebSocketMessage(const std::string& message
     QString qMessage = QString::fromStdString(message);
     parseIRCMessage(qMessage);
 
-    obs_log(LOG_INFO, "Received message from Twitch chat: %s", qMessage.toUtf8().constData());
+    if (qMessage.contains(" PONG ") || qMessage.startsWith(":tmi.twitch.tv PONG")) {
+        obs_log(LOG_DEBUG, "Received PONG from Twitch chat");
+    } else {
+        obs_log(LOG_INFO, "Received message from Twitch chat: %s", qMessage.toUtf8().constData());
+    }
+    wsBroadcast(QString::fromUtf8(ws::EventTwitchChatMessage), nlohmann::json{{"raw", qMessage.toStdString()}});
 }
 
 void OneSevenLiveTwitchChatClient::onWebSocketOpen()
@@ -216,6 +229,7 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen()
     obs_log(LOG_INFO, "Connected to Twitch chat server");
     m_connected = true;
     m_reconnectAttempts = 0;
+    m_lastPongTs = QDateTime::currentDateTime();
     
     // Request capabilities
     requestCapabilities();
@@ -227,6 +241,13 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen()
     startPingTimer();
     
     emit connected();
+    wsBroadcast(QString::fromUtf8(ws::EventTwitchChatConnected),
+                nlohmann::json{{"username", m_username.toStdString()}, {"status", m_connected ? "connected" : "break"}});
+
+    QString channelToJoin = m_targetChannel.isEmpty() ? m_username : m_targetChannel;
+    if (!channelToJoin.isEmpty()) {
+        joinChannel(channelToJoin);
+    }
 }
 
 void OneSevenLiveTwitchChatClient::onWebSocketClose()
@@ -236,9 +257,10 @@ void OneSevenLiveTwitchChatClient::onWebSocketClose()
     stopPingTimer();
     
     emit disconnected();
+    wsBroadcast(QString::fromUtf8(ws::EventTwitchChatConnected),
+                nlohmann::json{{"username", m_username.toStdString()}, {"status", "break"}});
     
-    // Schedule reconnection if auto-reconnect is enabled
-    if (m_autoReconnect && m_reconnectAttempts < m_maxReconnectAttempts) {
+    if (m_autoReconnect) {
         scheduleReconnect();
     }
 }
@@ -249,8 +271,7 @@ void OneSevenLiveTwitchChatClient::onWebSocketError(const std::string& error)
     obs_log(LOG_WARNING, "WebSocket error: %s", errorMsg.toUtf8().constData());
     emit connectionError(errorMsg);
     
-    // Schedule reconnection if auto-reconnect is enabled
-    if (m_autoReconnect && m_reconnectAttempts < m_maxReconnectAttempts) {
+    if (m_autoReconnect) {
         scheduleReconnect();
     }
 }
@@ -284,7 +305,8 @@ void OneSevenLiveTwitchChatClient::sendRawMessage(const QString& message)
 {
     if (m_connected && m_client && m_client->isConnected()) {
         sendWebSocketMessage(message.toStdString());
-        obs_log(LOG_INFO, "IRC ->: %s", message.toUtf8().constData());
+        int level = message.startsWith("PING ") ? LOG_DEBUG : LOG_INFO;
+        obs_log(level, "IRC ->: %s", message.toUtf8().constData());
     }
 }
 
@@ -366,6 +388,11 @@ void OneSevenLiveTwitchChatClient::parseIRCMessage(const QString& rawMessage)
         sendRawMessage("PONG " + parameters);
         return;
     }
+    if (command == "PONG") {
+        m_lastPongTs = QDateTime::currentDateTime();
+        obs_log(LOG_DEBUG, "IRC PONG acknowledged");
+        return;
+    }
     if (command == "001") {
         emit reconnected();
         return;
@@ -397,8 +424,6 @@ void OneSevenLiveTwitchChatClient::parseIRCMessage(const QString& rawMessage)
         TwitchChatMessage chatMessage = parseChatMessage(rawMessage, prefix);
         chatMessage.type = TwitchMessageType::Chat;
         emit messageReceived(chatMessage);
-
-        wsBroadcast(QString::fromUtf8(ws::EventTwitchChat), toJson(chatMessage));
         return;
     }
     if (command == "NOTICE") {
@@ -465,14 +490,39 @@ QString OneSevenLiveTwitchChatClient::normalizeChannelName(const QString& channe
 void OneSevenLiveTwitchChatClient::scheduleReconnect()
 {
     if (m_reconnectTimer && !m_reconnectTimer->isActive()) {
-    obs_log(LOG_INFO, "Scheduling reconnection in %d seconds", m_reconnectDelay);
-        m_reconnectTimer->start(m_reconnectDelay * 1000);
+        int delay = m_reconnectDelay;
+        if (m_reconnectAttempts >= m_maxReconnectAttempts) {
+            delay = LONG_RETRY_DELAY;
+            m_reconnectAttempts = 0;
+        }
+        obs_log(LOG_INFO, "Scheduling reconnection in %d seconds", delay);
+        m_reconnectTimer->start(delay * 1000);
     }
 }
 
 void OneSevenLiveTwitchChatClient::resetReconnectAttempts()
 {
     m_reconnectAttempts = 0;
+}
+
+void OneSevenLiveTwitchChatClient::onStatusTimer()
+{
+    wsBroadcast(QString::fromUtf8(ws::EventTwitchChatConnected),
+                 nlohmann::json{{"username", m_username.toStdString()}, {"status", m_connected ? "connected" : "break"}});
+
+    if (m_connected) {
+        QDateTime now = QDateTime::currentDateTime();
+        if (m_lastPongTs.isValid()) {
+            int seconds = m_lastPongTs.secsTo(now);
+            if (seconds > 2 * m_pingInterval) {
+                obs_log(LOG_INFO, "No PONG within %d seconds, reconnecting", seconds);
+                disconnectWebSocket();
+                if (m_autoReconnect) {
+                    scheduleReconnect();
+                }
+            }
+        }
+    }
 }
 
 void OneSevenLiveTwitchChatClient::connectWebSocket()

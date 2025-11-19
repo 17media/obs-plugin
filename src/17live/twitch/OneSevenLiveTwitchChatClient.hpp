@@ -90,6 +90,7 @@ public:
     void setAutoReconnect(bool enabled);
     void setReconnectDelay(int seconds);
     void setPingInterval(int seconds);
+    void setTargetChannel(const QString& channel);
 
 signals:
     void connected();
@@ -113,6 +114,7 @@ private slots:
     void onWebSocketError(const std::string& error);
     void onPingTimeout();
     void attemptReconnect();
+    void onStatusTimer();
 
 private:
     void sendRawMessage(const QString& message);
@@ -143,6 +145,7 @@ private:
     bool m_connected;
     QString m_username;
     QString m_oauthToken;
+    QString m_targetChannel;
     QVector<QString> m_joinedChannels;
     std::unique_ptr<OneSevenLiveWebsocketClient> m_client;
     
@@ -156,10 +159,14 @@ private:
     // Timers
     QTimer* m_pingTimer;
     QTimer* m_reconnectTimer;
+    QTimer* m_statusTimer;
+    QDateTime m_lastPongTs;
     
     // Constants
     static const QString TWITCH_IRC_SERVER;
     static const int DEFAULT_PING_INTERVAL;
     static const int DEFAULT_RECONNECT_DELAY;
     static const int MAX_RECONNECT_ATTEMPTS;
+    static const int STATUS_BROADCAST_INTERVAL;
+    static const int LONG_RETRY_DELAY;
 };
