@@ -219,7 +219,7 @@ void OneSevenLiveTwitchChatClient::onWebSocketMessage(const std::string& message
     if (qMessage.contains(" PONG ") || qMessage.startsWith(":tmi.twitch.tv PONG")) {
         obs_log(LOG_DEBUG, "Received PONG from Twitch chat");
     } else {
-        obs_log(LOG_INFO, "Received message from Twitch chat: %s", qMessage.toUtf8().constData());
+        obs_log(LOG_DEBUG, "Received message from Twitch chat: %s", qMessage.toUtf8().constData());
     }
     wsBroadcast(QString::fromUtf8(ws::EventTwitchChatMessage), nlohmann::json{{"raw", qMessage.toStdString()}});
 }

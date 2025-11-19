@@ -232,7 +232,7 @@ void OneSevenLiveYouTubeChatClient::scheduleNextPoll(int intervalMs)
     // Store the polling interval for potential rate limit handling
     m_currentPollingInterval = intervalMs;
     
-    obs_log(LOG_INFO, "Scheduling next poll in %d ms", intervalMs);
+    obs_log(LOG_DEBUG, "Scheduling next poll in %d ms", intervalMs);
     m_pollingTimer->start(intervalMs);
 }
 
@@ -307,7 +307,7 @@ QString OneSevenLiveYouTubeChatClient::buildChatMessagesUrl(const QString& liveC
 
 void OneSevenLiveYouTubeChatClient::makeChatRequest(const QString& endpoint)
 {
-    obs_log(LOG_INFO, "YouTube Chat API Request: %s", endpoint.toUtf8().constData());
+    obs_log(LOG_DEBUG, "YouTube Chat API Request: %s", endpoint.toUtf8().constData());
     m_lastEndpoint = endpoint;
     if (m_hasValidAuth) {
         const QString tok = m_accessToken;
@@ -434,7 +434,7 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
         for (const auto& message : chatResponse.items) {
             emit newChatMessage(message);
 
-            obs_log(LOG_INFO, "YouTube chat received: [%s] %s",
+            obs_log(LOG_DEBUG, "YouTube chat received: [%s] %s",
                     message.authorDetails.displayName.toUtf8().constData(),
                     message.snippet.displayMessage.toUtf8().constData());
 
