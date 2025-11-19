@@ -830,6 +830,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
     if (chatDock) {
         chatRoomVisible = chatDock->isVisible();
         chatDock->disconnect(this);
+        chatDock->setSuppressClosePrompt(true);
         chatDock->close();
         chatDock->deleteLater();
         chatDock = nullptr;

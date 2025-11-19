@@ -4,6 +4,7 @@
 
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QApplication>
 
 #include "utility/QCefView.hpp"
 #include "moc_OneSevenLiveChatDock.cpp"
@@ -35,7 +36,15 @@ void OneSevenLiveChatDock::reload() {
     }
 }
 
+void OneSevenLiveChatDock::setSuppressClosePrompt(bool suppress) {
+    suppressClosePrompt_ = suppress;
+}
+
 void OneSevenLiveChatDock::closeEvent(QCloseEvent* event) {
+    if (suppressClosePrompt_ || QApplication::closingDown()) {
+        QDockWidget::closeEvent(event);
+        return;
+    }
     QMessageBox msgBox(this);
     msgBox.setWindowTitle(obs_module_text("Live.Common.Notice"));
     msgBox.setText(obs_module_text("ChatDock.Close.Warning"));
