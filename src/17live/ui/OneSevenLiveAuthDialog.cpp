@@ -6,7 +6,7 @@
 #include <QDialog>
 #include <QString>
 
-#include "../QCefView.hpp"
+#include "../utility/QCefView.hpp"
 #include "moc_OneSevenLiveAuthDialog.cpp"
 #include <obs-module.h>
 

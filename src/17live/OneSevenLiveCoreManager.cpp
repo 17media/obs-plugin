@@ -31,7 +31,7 @@
 #include "streaming/OneSevenLiveStreamingDock.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
-#include "QCefView.hpp"
+#include "OneSevenLiveChatDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "preview/OneSevenLivePreviewDock.hpp"
@@ -318,6 +318,7 @@ bool OneSevenLiveCoreManager::initialize() {
     QObject::connect(
         updateManager, &OneSevenLiveUpdateManager::updateAvailable, this,
         [this](const QString& latestVersion, const QJsonArray& assets) {
+            UNUSED_PARAMETER(assets);
             QMessageBox msgBox(mainWindow);
             msgBox.setWindowTitle(obs_module_text("Update.NewVersionFound"));
             msgBox.setText(
@@ -748,7 +749,7 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
 
         // Update menu visibility status after restoration
         if (menuManager) {
-            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(),
                                               liveListDock && liveListDock->isVisible(),
                                               rockZoneDock && rockZoneDock->isVisible(),
@@ -792,20 +793,12 @@ void OneSevenLiveCoreManager::closeAllDocks() {
     configManager->setDockVisibility("rockZone", rockZoneVisible);
 
     bool chatRoomVisible = false;
-    if (chatRoomDock) {
-        chatRoomVisible = chatRoomDock->isVisible();
-        chatRoomDock->disconnect(this);
-
-        obs_log(LOG_INFO, "Closing chat room dock");
-
-        if (cefView) {
-            delete cefView;
-            cefView = nullptr;
-        }
-
-        chatRoomDock->close();
-        chatRoomDock->deleteLater();
-        chatRoomDock = nullptr;
+    if (chatDock) {
+        chatRoomVisible = chatDock->isVisible();
+        chatDock->disconnect(this);
+        chatDock->close();
+        chatDock->deleteLater();
+        chatDock = nullptr;
     }
     configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
@@ -898,7 +891,7 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatRoomDock && chatRoomDock->isVisible(), streamingDock && streamingDock->isVisible(),
+            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
             liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
             multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
     }
@@ -1029,7 +1022,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
             });
 
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(), visible,
+            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(), visible,
                                               liveListDock && liveListDock->isVisible(),
                                               rockZoneDock && rockZoneDock->isVisible(),
                                               multiRtmpDock && multiRtmpDock->isVisible(),
@@ -1052,7 +1045,7 @@ void OneSevenLiveCoreManager::handleRockZoneClicked() {
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatRoomDock && chatRoomDock->isVisible(), streamingDock && streamingDock->isVisible(),
+            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
             liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
             multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
     }
@@ -1100,7 +1093,7 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
     if (rockZoneDockFirstLoad) {
         // When dock is closed, uncheck menu item status
         connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(),
                                               liveListDock && liveListDock->isVisible(), visible,
                                               multiRtmpDock && multiRtmpDock->isVisible(),
@@ -1207,7 +1200,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
         // When dock is closed, uncheck menu item status
         connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
                                               streamingDock && streamingDock->isVisible(), visible,
                                               rockZoneDock && rockZoneDock->isVisible(),
                                               multiRtmpDock && multiRtmpDock->isVisible(),
@@ -1219,7 +1212,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+        menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
                                           streamingDock && streamingDock->isVisible(),
                                           liveListDock && liveListDock->isVisible(),
                                           rockZoneDock && rockZoneDock->isVisible(),
@@ -1255,42 +1248,6 @@ void OneSevenLiveCoreManager::saveDockState() {
 void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
-    if (!chatRoomDock) {
-        chatRoomDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
-        chatRoomDock->setObjectName("OneSevenLiveChatRoomDock");
-        chatRoomDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        chatRoomDock->setFeatures(QDockWidget::DockWidgetMovable |
-                                  QDockWidget::DockWidgetFloatable |
-                                  QDockWidget::DockWidgetClosable);
-
-        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatRoomDock);
-
-        connect(chatRoomDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(visible,
-                                              streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
-        });
-    } else if (chatRoomDock->isVisible()) {
-        // cefView will be destroyed when dock is hidden
-        if (cefView) {
-            cefView->deleteLater();
-            cefView = nullptr;
-        }
-        chatRoomDock->hide();
-        return;
-    }
-
-    if (cefView) {
-        cefView->deleteLater();
-        cefView = nullptr;
-    }
-
-    cefView = new QCefView(chatRoomDock);
-    chatRoomDock->setWidget(cefView);
-
     OneSevenLiveLoginData loginData;
     if (!configManager->getLoginData(loginData)) {
         obs_log(LOG_ERROR, "Failed to get login data");
@@ -1298,35 +1255,45 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     }
 
     std::string locale = GetCurrentLocale();
-
     QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
-
     QString chatUrl =
         QString("http://localhost:%1/%2.html?roomID=%3&userID=%4&ws=%5")
             .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
                  QString::number(loginData.userInfo.roomID), loginData.userInfo.userID, wsUrl);
-    obs_log(LOG_INFO, "chatUrl: %s", chatUrl.toStdString().c_str());
 
-    chatRoomDock->resize(378, 600);
-    cefView->loadUrl(chatUrl);
+    if (!chatDock) {
+        chatDock = new OneSevenLiveChatDock(mainWindow, chatUrl);
+        chatDock->setObjectName("OneSevenLiveChatDock");
+        chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
 
-    // Only restore state during startup, otherwise set floating and center
-    if (isStartupRestore) {
-        // During startup restoration, the state will be restored by initialize() method
-        chatRoomDock->setVisible(true);
+        connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            menuManager->updateDockVisibility(visible,
+                                              streamingDock && streamingDock->isVisible(),
+                                              liveListDock && liveListDock->isVisible(),
+                                              rockZoneDock && rockZoneDock->isVisible(),
+                                              multiRtmpDock && multiRtmpDock->isVisible(),
+                                              previewDock && previewDock->isVisible());
+        });
     } else {
-        // First time creation or manual creation - set floating and center
-        chatRoomDock->setFloating(true);
-        chatRoomDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatRoomDock->width()) / 2;
-        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatRoomDock->height()) / 2;
-        chatRoomDock->move(x, y);
+        chatDock->setUrl(chatUrl);
+        chatDock->setVisible(!chatDock->isVisible());
     }
 
-    // Update chat room visibility status (considered visible when CEF view is open)
+    chatDock->resize(378, 600);
+
+    if (isStartupRestore) {
+        chatDock->setVisible(true);
+    } else {
+        chatDock->setFloating(true);
+        chatDock->setVisible(true);
+
+        QRect mainWindowGeometry = mainWindow->geometry();
+        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatDock->width()) / 2;
+        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatDock->height()) / 2;
+        chatDock->move(x, y);
+    }
+
     if (menuManager) {
         menuManager->updateDockVisibility(true, streamingDock && streamingDock->isVisible(),
                                           liveListDock && liveListDock->isVisible(),
@@ -1352,10 +1319,9 @@ void OneSevenLiveCoreManager::loadGifts() {
                 obs_log(LOG_INFO, "Gifts loaded and saved successfully");
 
                 // Reload chat room dock to support new gifts
-                if (chatRoomDock && chatRoomDock->isVisible() && cefView) {
-                    obs_log(LOG_INFO, "Reloading chat room to support new gifts");
-                    cefView->reload();
-                    obs_log(LOG_INFO, "Chat room reloaded with new gifts support");
+                if (chatDock && chatDock->isVisible()) {
+                    obs_log(LOG_INFO, "Reloading chat dock to support new gifts");
+                    chatDock->reload();
                 }
             } else {
                 obs_log(LOG_WARNING, "Failed to load gifts from API");
@@ -1423,7 +1389,7 @@ void OneSevenLiveCoreManager::handleMultiRtmpClicked() {
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatRoomDock && chatRoomDock->isVisible(), streamingDock && streamingDock->isVisible(),
+            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
             liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
             multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
     }
@@ -1471,7 +1437,7 @@ multiRtmpDock->setObjectName("OneSevenLiveMultiRtmpDock");
         // Connect visibility change signal to update menu status
         connect(multiRtmpDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (menuManager) {
-                menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+                menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
                                                   streamingDock && streamingDock->isVisible(),
                                                   liveListDock && liveListDock->isVisible(),
                                                   rockZoneDock && rockZoneDock->isVisible(),
@@ -1496,7 +1462,7 @@ void OneSevenLiveCoreManager::handlePreviewDockClicked() {
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatRoomDock && chatRoomDock->isVisible(), streamingDock && streamingDock->isVisible(),
+            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
             liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
             multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
     }
@@ -1544,7 +1510,7 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         // Connect visibility change signal to update menu status
         connect(previewDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (menuManager) {
-                menuManager->updateDockVisibility(chatRoomDock && chatRoomDock->isVisible(),
+                menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
                                                   streamingDock && streamingDock->isVisible(),
                                                   liveListDock && liveListDock->isVisible(),
                                                   rockZoneDock && rockZoneDock->isVisible(),

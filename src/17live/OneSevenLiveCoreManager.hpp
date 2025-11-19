@@ -45,7 +45,7 @@ class OneSevenLiveWebsocketServer;
 
 class OneSevenLiveStreamManager;
 
-class QCefView;
+class OneSevenLiveChatDock;
 // Forward declarations for chat clients
 class OneSevenLiveYouTubeChatClient;
 class OneSevenLiveTwitchChatClient;
@@ -217,8 +217,7 @@ class OneSevenLiveCoreManager : public QObject {
     void createStreamingDock();
 
     bool chatRoomDockFirstLoad = true;
-    QPointer<QDockWidget> chatRoomDock;
-    QPointer<QCefView> cefView;
+    QPointer<OneSevenLiveChatDock> chatDock;
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;
