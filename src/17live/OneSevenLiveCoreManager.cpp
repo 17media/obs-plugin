@@ -1039,7 +1039,11 @@ void OneSevenLiveCoreManager::handleRockZoneClicked() {
     if (!rockZoneDock) {
         createRockZoneDock();
     } else {
-        rockZoneDock->setVisible(!rockZoneDock->isVisible());
+        const bool newVisible = !rockZoneDock->isVisible();
+        if (newVisible) {
+            ensureChatDockOpen();
+        }
+        rockZoneDock->setVisible(newVisible);
     }
 
     // Update menu item checked status
@@ -1061,6 +1065,8 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         obs_log(LOG_ERROR, "Failed to get login data");
         return;
     }
+
+    ensureChatDockOpen();
 
     // Create and show rock zone window
     rockZoneDock = new OneSevenLiveRockZoneDock(mainWindow, apiWrapper.get(), configManager.get());
@@ -1276,8 +1282,11 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
                                               previewDock && previewDock->isVisible());
         });
     } else {
+        if (chatDock->isVisible()) {
+            chatDock->close();
+            return;
+        }
         chatDock->setUrl(chatUrl);
-        chatDock->setVisible(!chatDock->isVisible());
     }
 
     chatDock->resize(378, 600);
@@ -1456,7 +1465,11 @@ void OneSevenLiveCoreManager::handlePreviewDockClicked() {
     if (!previewDock) {
         createPreviewDock();
     } else {
-        previewDock->setVisible(!previewDock->isVisible());
+        const bool newVisible = !previewDock->isVisible();
+        if (newVisible) {
+            ensureChatDockOpen();
+        }
+        previewDock->setVisible(newVisible);
     }
 
     // Update menu item checked status
@@ -1473,6 +1486,7 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         return;
     }
 
+    ensureChatDockOpen();
     
     QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
 
@@ -1520,5 +1534,11 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         });
 
         previewDockFirstLoad = false;
+    }
+}
+
+void OneSevenLiveCoreManager::ensureChatDockOpen() {
+    if (!chatDock || !chatDock->isVisible()) {
+        handleChatRoomClicked();
     }
 }

@@ -2,6 +2,7 @@
 
 #include <QDockWidget>
 #include <QString>
+#include <QCloseEvent>
 
 class QCefView;
 
@@ -18,4 +19,7 @@ class OneSevenLiveChatDock : public QDockWidget {
    private:
     QCefView* cefView_ = nullptr;
     QString chatUrl_;
+
+   protected:
+    void closeEvent(QCloseEvent* event) override;
 };

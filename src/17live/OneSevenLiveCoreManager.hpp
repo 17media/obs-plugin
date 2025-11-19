@@ -219,6 +219,7 @@ class OneSevenLiveCoreManager : public QObject {
     bool chatRoomDockFirstLoad = true;
     QPointer<OneSevenLiveChatDock> chatDock;
     void handleChatRoomClicked();
+    void ensureChatDockOpen();
 
     bool liveListDockFirstLoad = true;
     QPointer<OneSevenLiveStreamListDock> liveListDock;
