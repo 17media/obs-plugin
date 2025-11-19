@@ -199,8 +199,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/OneSevenLiveLoginDialog.cpp
   src/17live/OneSevenLiveMenuManager.cpp
   src/17live/OneSevenLiveUpdateManager.cpp
-  src/17live/OneSevenLiveWebsocketClient.cpp
-  src/17live/OneSevenLiveWebsocketServer.cpp
   src/17live/rockzone/OneSevenLiveRockViewerItem.cpp
   src/17live/rockzone/OneSevenLiveRockZoneDock.cpp
   src/17live/rockzone/OneSevenLiveUserDialog.cpp
@@ -212,11 +210,11 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/twitch/OneSevenLiveTwitchAuth.cpp
   src/17live/twitch/OneSevenLiveTwitchChatClient.cpp
   src/17live/twitch/OneSevenLiveTwitchClient.cpp
-  src/17live/ui/OneSevenLiveAuthDialog.cpp
-  src/17live/ui/OneSevenLiveLineEditWithEye.cpp
   src/17live/preview/OneSevenLivePreviewConfigLoader.cpp
   src/17live/preview/OneSevenLivePreviewDock.cpp
   src/17live/preview/OneSevenLivePreviewWidget.cpp
+  src/17live/ui/OneSevenLiveAuthDialog.cpp
+  src/17live/ui/OneSevenLiveLineEditWithEye.cpp
   src/17live/ui/OneSevenLivePropertiesWidget.cpp
   src/17live/ui/OneSevenLivePropertyWidget.cpp
   src/17live/utility/CefDummy.cpp
@@ -228,6 +226,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/utility/QCefView.cpp
   src/17live/utility/RemoteTextThread.cpp
   src/17live/utility/SimpleCefClient.cpp
+  src/17live/websocket/OneSevenLiveWebsocketClient.cpp
+  src/17live/websocket/OneSevenLiveWebsocketServer.cpp
+  src/17live/websocket/WebsocketUtils.cpp
   src/17live/youtube/OneSevenLiveYouTubeAuth.cpp
   src/17live/youtube/OneSevenLiveYouTubeChatClient.cpp
   src/17live/youtube/OneSevenLiveYouTubeClient.cpp

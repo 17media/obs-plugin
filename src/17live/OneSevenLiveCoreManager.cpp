@@ -23,7 +23,8 @@
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
-#include "OneSevenLiveWebsocketServer.hpp"
+#include "websocket/OneSevenLiveWebsocketServer.hpp"
+#include "websocket/WsMessage.hpp"
 #include "OneSevenLiveLoginDialog.hpp"
 #include "OneSevenLiveMenuManager.hpp"
 #include "rockzone/OneSevenLiveRockZoneDock.hpp"
@@ -117,80 +118,11 @@ bool OneSevenLiveCoreManager::initialize() {
     }
 
     // Set up WebSocket server callbacks
-    websocketServer_->setMessageCallback([this](const std::string& clientId, const std::string& message) {
-        try {
-            const Json msg = Json::parse(message);
+    websocketServer_->setMessageCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketMessage, this,
+                                                  std::placeholders::_1, std::placeholders::_2));
 
-            std::string typeStr;
-            if (msg.contains("type")) {
-                if (msg["type"].is_string()) {
-                    typeStr = msg["type"].get<std::string>();
-                }
-            }
-
-            const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
-            if (typeStr.empty()) {
-                obs_log(LOG_WARNING,
-                        "[17Live WebSocket] Missing 'type' in message from %s",
-                        clientId.c_str());
-                return;
-            }
-            if (!hasServer) {
-                obs_log(LOG_WARNING,
-                        "[17Live WebSocket] Server not running; cannot handle message from %s",
-                        clientId.c_str());
-                return;
-            }
-
-            const Json* payload = nullptr;
-            if (msg.contains("payload") && msg["payload"].is_object()) {
-                payload = &msg["payload"];
-            }
-
-            if (typeStr == "transmit") {
-                if (payload) {
-                    this->websocketServer_->broadcastMessage(payload->dump());
-                } else {
-                    obs_log(LOG_WARNING,
-                            "[17Live WebSocket] 'transmit' missing object payload from %s",
-                            clientId.c_str());
-                }
-                return;
-            } else if (typeStr == "action") {
-                if (payload && payload->is_object()) { 
-                    // payload.type == "refresh_rockzone"
-                    if (payload->contains("type") && payload->at("type").is_string() &&
-                        payload->at("type").get<std::string>() == "refresh_rockzone") {
-                        // rockzoneDock refreshUserList
-                        if (rockZoneDock) {
-                            rockZoneDock->refreshUserList();
-                        }
-                    }
-                }
-                return;
-            }
-
-            obs_log(LOG_INFO,
-                    "[17Live WebSocket] Unhandled message type '%s' from %s",
-                    typeStr.c_str(), clientId.c_str());
-        } catch (const Json::parse_error& e) {
-            obs_log(LOG_WARNING,
-                    "[17Live WebSocket] JSON parse error in message from %s: %s",
-                    clientId.c_str(), e.what());
-        } catch (const std::exception& e) {
-            obs_log(LOG_WARNING,
-                    "[17Live WebSocket] Exception processing message from %s: %s",
-                    clientId.c_str(), e.what());
-        }
-    });
-
-    websocketServer_->setConnectionCallback([](const std::string& clientId, bool connected) {
-        if (connected) {
-            obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
-        } else {
-            obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
-        }
-    });
+    websocketServer_->setConnectionCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketConnectionChanged, this,
+                                                      std::placeholders::_1, std::placeholders::_2));
 
     // Initialize configuration manager
     configManager = std::make_unique<OneSevenLiveConfigManager>();
@@ -414,6 +346,44 @@ void OneSevenLiveCoreManager::handleDiagnosticsClicked() {
     // Create and show the diagnostics dialog
     seventeen::diag::ui::DiagnosticsDialog dialog(mainWindow);
     dialog.exec();
+}
+
+void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId, const std::string& message) {
+    WsMessage m;
+    if (!WsMessage::parse(message, m)) {
+        obs_log(LOG_WARNING, "[17Live WebSocket] JSON parse error in message from %s", clientId.c_str());
+        return;
+    }
+    const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
+    if (m.type.empty()) {
+        obs_log(LOG_WARNING, "[17Live WebSocket] Missing 'type' in message from %s", clientId.c_str());
+        return;
+    }
+    if (!hasServer) {
+        obs_log(LOG_WARNING, "[17Live WebSocket] Server not running; cannot handle message from %s", clientId.c_str());
+        return;
+    }
+    if (m.is(ws::TypeTransmit)) {
+        this->websocketServer_->broadcastMessage(m.payload.dump());
+        return;
+    }
+    if (m.is(ws::TypeAction)) {
+        if (m.payloadString("type") == ws::ActionRefreshRockzone) {
+            if (rockZoneDock) {
+                rockZoneDock->refreshUserList();
+            }
+        }
+        return;
+    }
+    obs_log(LOG_INFO, "[17Live WebSocket] Unhandled message type '%s' from %s", m.type.c_str(), clientId.c_str());
+}
+
+void OneSevenLiveCoreManager::handleWebsocketConnectionChanged(const std::string& clientId, bool connected) {
+    if (connected) {
+        obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
+    } else {
+        obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
+    }
 }
 
 void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& loginData) {

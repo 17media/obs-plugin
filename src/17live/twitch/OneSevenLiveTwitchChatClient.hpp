@@ -8,8 +8,6 @@
 #include <memory>
 #include <functional>
 #include <string>
-#include <thread>
-#include <atomic>
 
 class OneSevenLiveWebsocketClient;
 
@@ -126,9 +124,7 @@ private:
     
     // Message parsing
     void parseIRCMessage(const QString& rawMessage);
-    TwitchChatMessage parseChatMessage(const QString& rawMessage, const QString& command, const QString& tags, const QString& prefix);
-    TwitchMessageType determineMessageType(const QString& command, const QString& tags);
-    QMap<QString, QString> parseTags(const QString& tags);
+    TwitchChatMessage parseChatMessage(const QString& rawMessage, const QString& prefix);
     QString extractUsernameFromPrefix(const QString& prefix);
     
     // Channel management

@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <obs-module.h>
 #include "plugin-support.h"
+#include "WebsocketUtils.hpp"
 #include <mbedtls/ssl.h>
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/entropy.h>
@@ -58,20 +59,6 @@ void OneSevenLiveWebsocketClient::stopThread() {
     connected.store(false);
 }
 
-static std::string genWsKey() {
-    unsigned char r[16];
-    for (int i = 0; i < 16; i++) r[i] = static_cast<unsigned char>(rand() & 0xFF);
-    static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string e;
-    for (int i = 0; i < 16; i += 3) {
-        int v = (r[i] << 16) | ((i+1 < 16 ? r[i+1] : 0) << 8) | (i+2 < 16 ? r[i+2] : 0);
-        e.push_back(b64[(v >> 18) & 0x3F]);
-        e.push_back(b64[(v >> 12) & 0x3F]);
-        e.push_back(i+1 < 16 ? b64[(v >> 6) & 0x3F] : '=');
-        e.push_back(i+2 < 16 ? b64[v & 0x3F] : '=');
-    }
-    return e;
-}
 
 void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString& port, const QString& path) {
     ssl = new mbedtls_ssl_context;
@@ -109,7 +96,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) { if (onError) QMetaObject::invokeMethod(this, [this]() { onError("tls_handshake"); }, Qt::QueuedConnection); stopThread(); return; }
     }
 
-    std::string wsKey = genWsKey();
+    std::string wsKey = generateWebSocketKey();
     std::string req = "GET " + path.toStdString() + " HTTP/1.1\r\n" "Host: " + host.toStdString() + "\r\n" "Upgrade: websocket\r\n" "Connection: Upgrade\r\n" "Sec-WebSocket-Key: " + wsKey + "\r\n" "Sec-WebSocket-Version: 13\r\n" "User-Agent: obs-17live/1.0\r\n\r\n";
     if (!sendTLS(req)) { if (onError) QMetaObject::invokeMethod(this, [this]() { onError("ws_req"); }, Qt::QueuedConnection); stopThread(); return; }
 

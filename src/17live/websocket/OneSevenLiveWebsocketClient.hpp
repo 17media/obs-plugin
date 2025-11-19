@@ -53,4 +53,3 @@ private:
     std::function<void()> onClose;
     std::function<void(const std::string&)> onError;
 };
-

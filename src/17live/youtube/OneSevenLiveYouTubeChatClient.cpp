@@ -7,8 +7,8 @@
 #include <QUrlQuery>
 #include <QTimer>
 #include <QRegularExpression>
-#include "../OneSevenLiveCoreManager.hpp"
-#include "../OneSevenLiveWebsocketServer.hpp"
+#include "OneSevenLiveCoreManager.hpp"
+#include "websocket/OneSevenLiveWebsocketServer.hpp"
 
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3";
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_VERSION = "v3";

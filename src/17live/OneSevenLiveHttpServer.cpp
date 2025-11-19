@@ -13,7 +13,7 @@
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
-#include "OneSevenLiveWebsocketServer.hpp"
+#include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
 
