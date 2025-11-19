@@ -48,6 +48,55 @@ export class TwitchPlatform extends BasePlatform {
 
   // No external event listeners; messages arrive via WebSocket routing
 
+  handleWsMessage({ type, payload }) {
+    if (type === 'twitch_chat_connected') {
+      const status = payload?.status;
+      const connected = status === 'connected';
+      this.isConnected = connected;
+      if (connected) {
+        this.emit('connected', { platform: this.platformId, config: {} });
+      } else {
+        this.emit('disconnected', { platform: this.platformId });
+      }
+      return;
+    }
+    if (type === 'twitch_chat_message') {
+      const raw = payload?.raw || '';
+      const parsed = this.parseWsRaw(raw);
+      if (parsed) {
+        const unified = this.processRawMessage({ type: 'chat', ...parsed, timestamp: Date.now() });
+        if (unified) this.enqueueMessage(unified);
+      }
+      return;
+    }
+  }
+
+  parseWsRaw(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    const msgMatch = raw.match(/PRIVMSG\s+#([^\s]+)\s+:(.*)$/);
+    if (!msgMatch) return null;
+    const channel = msgMatch[1];
+    const message = msgMatch[2];
+    let username = '';
+    const userMatch = raw.match(/:([^!\s]+)!/);
+    if (userMatch) username = userMatch[1];
+    const tagPartEnd = raw.indexOf(' :');
+    const tagStr = tagPartEnd > 0 ? raw.substring(0, tagPartEnd) : '';
+    const tags = {};
+    if (tagStr.includes('=')) {
+      tagStr.split(';').forEach(kv => {
+        const i = kv.indexOf('=');
+        if (i > 0) {
+          const k = kv.substring(0, i);
+          const v = kv.substring(i + 1);
+          tags[k] = v;
+        }
+      });
+    }
+    if (!tags['display-name'] && username) tags['display-name'] = username;
+    return { channel, tags, message, username };
+  }
+
   handleChatMessage(channel, tags, message, self) {
     try {
       // Ignore self messages

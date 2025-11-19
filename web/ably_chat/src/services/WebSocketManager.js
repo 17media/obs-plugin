@@ -106,6 +106,12 @@ class WebSocketManager extends EventEmitter {
       const payload = msg?.payload;
       if (!type) return;
 
+      console.log('[WS] received', { type, payload });
+      if (type === 'twitch_chat_message') {
+        const rawStr = payload && payload.raw;
+        console.log('[WS] twitch_chat_message raw', rawStr);
+      }
+
       // 路由到平台处理：twitch-chat / youtube-chat
       try {
         import('./MessageAggregator')
@@ -121,15 +127,49 @@ class WebSocketManager extends EventEmitter {
               }
             };
 
-            if (type === 'twitch-chat') {
-              if (!messageAggregator.platforms?.get('twitch')) {
-                // 确保实例存在，但不触发连接
-                messageAggregator.addPlatform('twitch', {})
-                  .then(() => routeTo('twitch', (p) => ({ ...p, type: 'chat' })))
-                  .catch(() => {});
-              } else {
-                routeTo('twitch', (p) => ({ ...p, type: 'chat' }));
-              }
+            const parseTwitchPrivmsg = (rawStr) => {
+              if (!rawStr || typeof rawStr !== 'string') return null;
+              const s = rawStr.replace(/\r\n?$/, '');
+              const idxPriv = s.indexOf('PRIVMSG ');
+              if (idxPriv < 0) return null;
+              const idxHash = s.indexOf('#', idxPriv);
+              if (idxHash < 0) return null;
+              const idxSpaceAfterChan = s.indexOf(' ', idxHash);
+              if (idxSpaceAfterChan < 0) return null;
+              const idxMsg = s.indexOf(' :', idxSpaceAfterChan);
+              if (idxMsg < 0) return null;
+              const channel = s.substring(idxHash + 1, idxSpaceAfterChan);
+              const message = s.substring(idxMsg + 2).trim();
+              let username = '';
+              const u = s.match(/:([^!\s]+)!/);
+              if (u) username = u[1];
+              return { type: 'chat', channel, username, tags: { 'display-name': username }, message };
+            };
+
+            if (type === 'twitch_chat_connected' || type === 'twitch_chat_message') {
+              console.log('[WS] route twitch', type);
+              const ensure = () => {
+                const platform = messageAggregator.platforms?.get('twitch');
+                if (!platform) return messageAggregator.addPlatform('twitch', {}).then(() => messageAggregator.platforms.get('twitch'));
+                return Promise.resolve(platform);
+              };
+              ensure()
+                .then((platform) => {
+                  if (!platform) return;
+                  if (type === 'twitch_chat_connected') {
+                    console.log('[WS] twitch connected payload', payload);
+                    if (typeof platform.handleWsMessage === 'function') {
+                      platform.handleWsMessage({ type, payload });
+                    }
+                  } else if (type === 'twitch_chat_message') {
+                    const parsed = parseTwitchPrivmsg(payload?.raw);
+                    console.log('[WS] twitch parsed', parsed);
+                    if (parsed) {
+                      routeTo('twitch', () => parsed);
+                    }
+                  }
+                })
+                .catch(() => {});
             } else if (type === 'youtube-chat') {
               if (!messageAggregator.platforms?.get('youtube')) {
                 // 确保实例存在，但不触发连接
