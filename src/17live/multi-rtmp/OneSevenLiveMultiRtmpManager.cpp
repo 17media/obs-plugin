@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <exception>
 #include <QMessageBox>
+#include <QTimer>
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
@@ -260,14 +261,19 @@ bool OneSevenLiveMultiRtmpManager::startStream(const std::string& streamId) {
         return false;
     }
 
-    // Ensure output exists
-    if (!ensureStreamOutput(streamId)) {
-        obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to create stream output: %s",
-                streamId.c_str());
-        return false;
-    }
+    QTimer::singleShot(0, [this, streamId]() {
+        if (!ensureStreamOutput(streamId)) {
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to create stream output: %s",
+                    streamId.c_str());
+            return;
+        }
+        if (!m_streamController->startOutput(streamId)) {
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to start stream: %s",
+                    streamId.c_str());
+        }
+    });
 
-    return m_streamController->startOutput(streamId);
+    return true;
 }
 
 bool OneSevenLiveMultiRtmpManager::stopStream(const std::string& streamId) {
@@ -286,16 +292,11 @@ bool OneSevenLiveMultiRtmpManager::startAllStreams() {
     }
 
     auto configs = getAllStreamConfigs();
-    bool allSuccess = true;
-
     for (const auto& config : configs) {
-        if (!startStream(config.id)) {
-            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to start stream: %s", config.id.c_str());
-            allSuccess = false;
-        }
+        (void)startStream(config.id);
     }
 
-    return allSuccess;
+    return true;
 }
 
 bool OneSevenLiveMultiRtmpManager::stopAllStreams() {

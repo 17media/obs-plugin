@@ -49,9 +49,6 @@ OneSevenLiveMultiRtmpStreamController::~OneSevenLiveMultiRtmpStreamController() 
 
 bool OneSevenLiveMultiRtmpStreamController::createOutput(const std::string& streamId,
                                                      const OneSevenLiveMultiRtmpConfig& config) {
-    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
-    // std::lock_guard<std::mutex> lock(m_outputsMutex);
-
     MULTI_RTMP_STREAM_LOG_INFO("Creating output for stream: %s", streamId.c_str());
 
     // Check if output already exists
@@ -67,26 +64,32 @@ bool OneSevenLiveMultiRtmpStreamController::createOutput(const std::string& stre
     streamOutput->status.state = OneSevenLiveMultiRtmpStreamStatus::STOPPED;
     streamOutput->stats.id = streamId;
 
+    // Store early to allow async resolution to populate
+    m_streamOutputs[streamId] = std::move(streamOutput);
+    auto* storedOutput = m_streamOutputs[streamId].get();
+
     // Create service
-    if (!createService(streamId, config, streamOutput.get())) {
+    if (!createService(streamId, config, storedOutput)) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service for stream: %s", streamId.c_str());
         return false;
     }
 
     // Create encoders
-    if (!createEncoders(streamId, config, streamOutput.get())) {
+    if (!createEncoders(streamId, config, storedOutput)) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create encoders for stream: %s", streamId.c_str());
         return false;
     }
 
     // Setup output
-    if (!setupOutput(streamId, config, streamOutput.get())) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Failed to setup output for stream: %s", streamId.c_str());
-        return false;
+    if (storedOutput->service) {
+        if (!setupOutput(streamId, config, storedOutput)) {
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to setup output for stream: %s", streamId.c_str());
+            return false;
+        }
+    } else {
+        MULTI_RTMP_STREAM_LOG_INFO("Service not yet available for stream: %s; awaiting async resolution",
+                                   streamId.c_str());
     }
-
-    // Store the stream output
-    m_streamOutputs[streamId] = std::move(streamOutput);
 
     return true;
 }
@@ -94,13 +97,18 @@ bool OneSevenLiveMultiRtmpStreamController::createOutput(const std::string& stre
 bool OneSevenLiveMultiRtmpStreamController::startOutput(const std::string& streamId) {
     MULTI_RTMP_STREAM_LOG_INFO("=== STARTING OUTPUT FOR STREAM: %s ===", streamId.c_str());
 
-    // TEMPORARILY REMOVED LOCK FOR DEBUGGING - DEADLOCK PREVENTION
-    // std::lock_guard<std::mutex> lock(m_outputsMutex);
-
     auto it = m_streamOutputs.find(streamId);
     if (it == m_streamOutputs.end()) {
         MULTI_RTMP_STREAM_LOG_ERROR("Stream output not found: %s", streamId.c_str());
         return false;
+    }
+
+    if (!it->second->output) {
+        MULTI_RTMP_STREAM_LOG_INFO(
+            "Output not ready for stream: %s; waiting for async service/key resolution",
+            streamId.c_str());
+        updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::CONNECTING);
+        return true;
     }
 
     return startOutputInternal(streamId, it->second.get());
@@ -432,23 +440,34 @@ bool OneSevenLiveMultiRtmpStreamController::createService(const std::string& str
         MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput is null for stream: %s", streamId.c_str());
         return false;
     }
-
     obs_data_t* serviceSettings = createServiceSettings(config);
     if (!serviceSettings) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service settings for stream: %s",
+        MULTI_RTMP_STREAM_LOG_ERROR("Failed to create base service settings for stream: %s",
                                     streamId.c_str());
         return false;
     }
 
-    streamOutput->service =
-        obs_service_create(SERVICE_ID, getServiceName(streamId).c_str(), serviceSettings, nullptr);
-    obs_data_release(serviceSettings);
+    const char* server = obs_data_get_string(serviceSettings, "server");
+    const char* key = obs_data_get_string(serviceSettings, "key");
+    const bool hasServer = server && *server;
+    const bool hasKey = key && *key;
 
-    if (!streamOutput->service) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service for stream: %s", streamId.c_str());
-        return false;
+    if (hasServer && hasKey) {
+        streamOutput->service = obs_service_create(SERVICE_ID, getServiceName(streamId).c_str(),
+                                                   serviceSettings, nullptr);
+        obs_data_release(serviceSettings);
+        if (!streamOutput->service) {
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service for stream: %s",
+                                        streamId.c_str());
+            return false;
+        }
+        return true;
     }
 
+    obs_data_release(serviceSettings);
+    MULTI_RTMP_STREAM_LOG_INFO("Server/key missing for stream: %s; resolving asynchronously",
+                               streamId.c_str());
+    resolvePlatformServerKeyAsync(streamId, config);
     return true;
 }
 
@@ -799,18 +818,12 @@ std::string OneSevenLiveMultiRtmpStreamController::getAudioEncoderName(
 
 obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
     const OneSevenLiveMultiRtmpConfig& config) const {
-    obs_log(LOG_INFO, "createServiceSettings");
+    obs_log(LOG_INFO, "createServiceSettings (non-blocking)");
     obs_data_t* settings = ObsDataFromJson(config.serviceSettings);
     if (!settings) {
         settings = obs_data_create();
     }
-    const char* server = obs_data_get_string(settings, "server");
-    const char* key = obs_data_get_string(settings, "key");
 
-    const bool hasServer = server && *server;
-    const bool hasKey = key && *key;
-
-    // Pre-set service name based on platform to help rtmp_common select server list
     const std::string platform = config.streamName;
     if (platform == "YouTube") {
         obs_data_set_string(settings, "service", "YouTube - RTMPS");
@@ -818,140 +831,7 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
         obs_data_set_string(settings, "service", "Twitch");
     }
 
-    if (!hasServer || !hasKey) {
-        obs_log(LOG_INFO, "Service settings missing server/key; resolving via platform: %s", platform.c_str());
-
-        if (platform == "YouTube") {
-            auto* ytAuth = OneSevenLiveCoreManager::getInstance().getYouTubeAuth();
-            if (ytAuth && ytAuth->hasValidToken()) {
-                OneSevenLiveYouTubeClient client;
-                client.setAccessToken(ytAuth->getAccessToken());
-
-                QString resolvedServer;
-                QString resolvedKey;
-
-                QEventLoop loop;
-                QTimer timeout;
-                timeout.setSingleShot(true);
-                QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
-                QObject::connect(&client, &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
-                                 [&resolvedServer, &resolvedKey, &loop](const YouTubeLiveStreamListResponse& resp) {
-                                     for (const auto& s : resp.items) {
-                                         const auto& info = s.cdn.ingestionInfo;
-                                         const QString serverCandidate = !info.rtmpsIngestionAddress.isEmpty() ? info.rtmpsIngestionAddress : info.ingestionAddress;
-                                         const QString keyCandidate = info.streamName;
-                                         if (!serverCandidate.isEmpty() && !keyCandidate.isEmpty()) {
-                                             resolvedServer = serverCandidate;
-                                             resolvedKey = keyCandidate;
-                                             break;
-                                         }
-                                     }
-                                     loop.quit();
-                                 });
-                QObject::connect(&client, &OneSevenLiveYouTubeClient::errorOccurred,
-                                 [&loop](const QString&, const QString&) {
-                                     loop.quit();
-                                 });
-
-                client.getMyLiveStreams();
-                timeout.start(5000);
-                loop.exec();
-
-                if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
-                    obs_log(LOG_INFO, "Resolved YouTube server/key from API: %s / %s", resolvedServer.toUtf8().constData(), resolvedKey.toUtf8().constData());
-                    obs_data_set_string(settings, "server", resolvedServer.toUtf8().constData());
-                    obs_data_set_string(settings, "key", resolvedKey.toUtf8().constData());
-                } else {
-                    obs_log(LOG_WARNING, "Failed to resolve YouTube server/key");
-                }
-            } else {
-                obs_log(LOG_WARNING, "YouTube auth not available or token invalid");
-            }
-        } else if (platform == "Twitch") {
-            auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
-            QString streamKeyStr;
-            QString broadcasterId;
-
-            OneSevenLiveTwitchClient* client = nullptr;
-            if (twAuth) {
-                client = twAuth->getTwitchClient();
-            }
-
-            std::unique_ptr<OneSevenLiveTwitchClient> localClient;
-            if (!client) {
-                localClient = std::make_unique<OneSevenLiveTwitchClient>();
-                client = localClient.get();
-            }
-
-            if (twAuth && twAuth->hasValidToken()) {
-                if (!client->hasValidAuth()) {
-                    client->setAuthData(twAuth->getAccessToken(), QString(TWITCH_API_CLIENT_ID));
-                }
-
-                if (client->getCachedUserInfo().id.isEmpty()) {
-                    QEventLoop userLoop;
-                    QTimer timeout;
-                    timeout.setSingleShot(true);
-                    QObject::connect(&timeout, &QTimer::timeout, &userLoop, &QEventLoop::quit);
-                    QObject::connect(client, &OneSevenLiveTwitchClient::userInfoReceived,
-                                     &userLoop,
-                                     [&broadcasterId, &userLoop](const TwitchUserInfo& user) {
-                                         broadcasterId = user.id;
-                                         userLoop.quit();
-                                     });
-                    QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
-                                     &userLoop,
-                                     [&userLoop](const QString&) { userLoop.quit(); });
-                    client->getCurrentUser();
-                    timeout.start(5000);
-                    userLoop.exec();
-                } else {
-                    broadcasterId = client->getCachedUserInfo().id;
-                }
-
-                if (!broadcasterId.isEmpty()) {
-                    QEventLoop keyLoop;
-                    QTimer timeout;
-                    timeout.setSingleShot(true);
-                    QObject::connect(&timeout, &QTimer::timeout, &keyLoop, &QEventLoop::quit);
-                    QObject::connect(client, &OneSevenLiveTwitchClient::streamKeyReceived,
-                                     &keyLoop,
-                                     [&streamKeyStr, &keyLoop](const QString& keyVal) {
-                                         streamKeyStr = keyVal;
-                                         keyLoop.quit();
-                                     });
-                    QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
-                                     &keyLoop,
-                                     [&keyLoop](const QString&) { keyLoop.quit(); });
-                    client->getStreamKey(broadcasterId);
-                    timeout.start(5000);
-                    keyLoop.exec();
-                }
-
-                if (!streamKeyStr.isEmpty()) {
-                    const QString serverUrl = OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
-                    obs_log(LOG_INFO, "Resolved Twitch server/key from API: %s / %s", serverUrl.toUtf8().constData(), streamKeyStr.toUtf8().constData());
-                    obs_data_set_string(settings, "server", serverUrl.toUtf8().constData());
-                    obs_data_set_string(settings, "key", streamKeyStr.toUtf8().constData());
-                } else {
-                    obs_log(LOG_WARNING, "Failed to resolve Twitch stream key");
-                }
-            } else {
-                obs_log(LOG_WARNING, "Twitch auth not available or token invalid");
-            }
-        } else {
-            obs_log(LOG_WARNING, "Unknown platform for streamName: %s", platform.c_str());
-        }
-    }
-
-    // Final validation: ensure server/key present
-    const char* finalServer = obs_data_get_string(settings, "server");
-    const char* finalKey = obs_data_get_string(settings, "key");
-    if (!finalServer || !*finalServer || !finalKey || !*finalKey) {
-        obs_log(LOG_ERROR, "Service settings still missing server/key after resolution");
-        obs_data_release(settings);
-        return nullptr;
-    }
+    // Return settings as-is; async resolution will fill server/key if missing
     return settings;
 }
 
@@ -1008,6 +888,187 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createAudioEncoderSettings(
     MULTI_RTMP_STREAM_LOG_DEBUG(
         "No custom audio config provided, using OBS default audio encoder settings");
     return getObsDefaultAudioEncoderSettings();
+}
+
+void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
+    const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
+    QTimer::singleShot(0, [this, streamId, config]() {
+        std::string platform;
+        try {
+            if (config.serviceSettings.contains("service") &&
+                config.serviceSettings["service"].is_string()) {
+                platform = config.serviceSettings["service"].get<std::string>();
+            }
+        } catch (...) {
+        }
+        if (platform.empty()) {
+            platform = config.streamName;
+        }
+
+        auto contains_ci = [](const std::string& s, const std::string& needle) {
+            std::string hs = s, hn = needle;
+            std::transform(hs.begin(), hs.end(), hs.begin(), ::tolower);
+            std::transform(hn.begin(), hn.end(), hn.begin(), ::tolower);
+            return hs.find(hn) != std::string::npos;
+        };
+
+        if (contains_ci(platform, "youtube")) {
+            auto* ytAuth = OneSevenLiveCoreManager::getInstance().getYouTubeAuth();
+            if (!ytAuth || !ytAuth->hasValidToken()) {
+                MULTI_RTMP_STREAM_LOG_WARNING("YouTube auth not available; cannot resolve for %s",
+                                              streamId.c_str());
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "YouTube auth invalid; missing server/key");
+                return;
+            }
+
+            auto client = std::make_unique<OneSevenLiveYouTubeClient>();
+            client->setAccessToken(ytAuth->getAccessToken());
+
+            QObject::connect(client.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
+                             [this, streamId](const YouTubeLiveStreamListResponse& resp) {
+                                 QString resolvedServer;
+                                 QString resolvedKey;
+                                 for (const auto& s : resp.items) {
+                                     const auto& info = s.cdn.ingestionInfo;
+                                     const QString serverCandidate = !info.rtmpsIngestionAddress.isEmpty()
+                                                                         ? info.rtmpsIngestionAddress
+                                                                         : info.ingestionAddress;
+                                     const QString keyCandidate = info.streamName;
+                                     if (!serverCandidate.isEmpty() && !keyCandidate.isEmpty()) {
+                                         resolvedServer = serverCandidate;
+                                         resolvedKey = keyCandidate;
+                                         break;
+                                     }
+                                 }
+                                 if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
+                                     finalizeServiceSetupAfterResolve(streamId,
+                                                                      resolvedServer.toUtf8().constData(),
+                                                                      resolvedKey.toUtf8().constData());
+                                 } else {
+                                     MULTI_RTMP_STREAM_LOG_WARNING(
+                                         "YouTube resolve returned empty server/key for %s",
+                                         streamId.c_str());
+                                     updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                                        "YouTube resolve empty server/key");
+                                 }
+                             });
+
+            QObject::connect(client.get(), &OneSevenLiveYouTubeClient::errorOccurred,
+                             [this, streamId](const QString&, const QString&) {
+                                 MULTI_RTMP_STREAM_LOG_WARNING(
+                                     "YouTube resolve error for stream: %s", streamId.c_str());
+                                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                                    "YouTube API error; missing server/key");
+                             });
+
+            m_pendingYouTubeClients[streamId] = std::move(client);
+            m_pendingYouTubeClients[streamId]->getMyLiveStreams();
+        } else if (contains_ci(platform, "twitch")) {
+            auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
+            OneSevenLiveTwitchClient* client = nullptr;
+            if (twAuth) {
+                client = twAuth->getTwitchClient();
+            }
+            if (!client) {
+                m_pendingTwitchClients[streamId] = std::make_unique<OneSevenLiveTwitchClient>();
+                client = m_pendingTwitchClients[streamId].get();
+            }
+
+            if (!twAuth || !twAuth->hasValidToken()) {
+                MULTI_RTMP_STREAM_LOG_WARNING("Twitch auth not available; cannot resolve for %s",
+                                              streamId.c_str());
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "Twitch auth invalid; missing server/key");
+                return;
+            }
+
+            if (!client->hasValidAuth()) {
+                client->setAuthData(twAuth->getAccessToken(), QString(TWITCH_API_CLIENT_ID));
+            }
+
+            QObject::connect(client, &OneSevenLiveTwitchClient::userInfoReceived,
+                             [this, streamId, client](const TwitchUserInfo& user) {
+                                 QObject::connect(client, &OneSevenLiveTwitchClient::streamKeyReceived,
+                                                  [this, streamId](const QString& keyVal) {
+                                                      const QString serverUrl =
+                                                          OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
+                                                      finalizeServiceSetupAfterResolve(
+                                                          streamId, serverUrl.toUtf8().constData(),
+                                                          keyVal.toUtf8().constData());
+                                                  });
+                                 client->getStreamKey(user.id);
+                             });
+
+            QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
+                             [this, streamId](const QString&) {
+                                 MULTI_RTMP_STREAM_LOG_WARNING(
+                                     "Twitch resolve error for stream: %s", streamId.c_str());
+                                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                                    "Twitch API error; missing server/key");
+                             });
+
+            client->getCurrentUser();
+        } else {
+            MULTI_RTMP_STREAM_LOG_WARNING("Unknown platform for stream: %s", streamId.c_str());
+            updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                               "Unknown platform; missing server/key");
+        }
+    });
+}
+
+void OneSevenLiveMultiRtmpStreamController::finalizeServiceSetupAfterResolve(
+    const std::string& streamId, const std::string& server, const std::string& key) {
+    auto it = m_streamOutputs.find(streamId);
+    if (it == m_streamOutputs.end()) {
+        MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput missing during finalize for: %s",
+                                    streamId.c_str());
+        return;
+    }
+
+    auto* streamOutput = it->second.get();
+    const std::string platform = streamOutput->config.streamName;
+
+    obs_data_t* settings = ObsDataFromJson(streamOutput->config.serviceSettings);
+    if (!settings) settings = obs_data_create();
+    if (platform == "YouTube") {
+        obs_data_set_string(settings, "service", "YouTube - RTMPS");
+    } else if (platform == "Twitch") {
+        obs_data_set_string(settings, "service", "Twitch");
+    }
+    obs_data_set_string(settings, "server", server.c_str());
+    obs_data_set_string(settings, "key", key.c_str());
+
+    streamOutput->service =
+        obs_service_create(SERVICE_ID, getServiceName(streamId).c_str(), settings, nullptr);
+    obs_data_release(settings);
+    if (!streamOutput->service) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service after resolve for: %s",
+                                    streamId.c_str());
+        return;
+    }
+
+    if (!streamOutput->videoEncoder || !streamOutput->audioEncoder) {
+        if (!createEncoders(streamId, streamOutput->config, streamOutput)) {
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create encoders after resolve for: %s",
+                                        streamId.c_str());
+            return;
+        }
+    }
+
+    if (!streamOutput->output) {
+        if (!setupOutput(streamId, streamOutput->config, streamOutput)) {
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to setup output after resolve for: %s",
+                                        streamId.c_str());
+            return;
+        }
+    }
+
+    // Cleanup pending clients if any
+    m_pendingYouTubeClients.erase(streamId);
+    m_pendingTwitchClients.erase(streamId);
+
+    (void)startOutputInternal(streamId, streamOutput);
 }
 
 void OneSevenLiveMultiRtmpStreamController::destroyService(const std::string& streamId) {
