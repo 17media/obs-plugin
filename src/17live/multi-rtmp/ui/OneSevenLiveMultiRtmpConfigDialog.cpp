@@ -901,8 +901,8 @@ void OneSevenLiveMultiRtmpConfigDialog::updateAuthorizeButtonState()
     }
 
     if (isAuthorized) {
-        m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Authorized"));
-        m_authorizeButton->setEnabled(false);
+        m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Reauthorize"));
+        m_authorizeButton->setEnabled(true);
     } else {
         m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Authorize"));
         m_authorizeButton->setEnabled(true);
