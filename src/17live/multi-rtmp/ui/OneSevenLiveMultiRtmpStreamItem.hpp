@@ -75,7 +75,7 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
    void onDeleteAction();
    void onStatsUpdateTimer();
 
-   private:
+ private:
     void setupUI();
     void setupContextMenu();
     void updateUI();
@@ -147,4 +147,12 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     static const QString STATUS_ACTIVE_CLASS;
     static const QString STATUS_ERROR_CLASS;
     static const QString STATUS_STOPPING_CLASS;
+    QHBoxLayout* m_errorHintLayout;
+    QLabel* m_errorIconLabel;
+    QLabel* m_errorTextLabel;
+
+    void updateErrorHint();
+    QString composeErrorTooltip(const QString& brief, const QString& detail, const QString& solution) const;
+    struct ErrorMapping { QString titleKey; QString descKey; QString solutionKey; };
+    ErrorMapping mapErrorCode(const QString& code) const;
 };

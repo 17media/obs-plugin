@@ -133,6 +133,7 @@ bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::strin
     // Start the output
     if (!obs_output_start(streamOutput->output)) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to start output for stream: %s", streamId.c_str());
+        updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE, "StartFailed");
         return false;
     }
 
@@ -712,7 +713,32 @@ void OneSevenLiveMultiRtmpStreamController::outputStopCallback(void* data, calld
     // std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
     for (const auto& [streamId, streamOutput] : controller->m_streamOutputs) {
         if (streamOutput->output == output) {
-            controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STOPPED);
+            if (streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::CONNECTING ||
+                streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::RECONNECTING) {
+                std::string detail;
+                const char* lastErr = nullptr;
+                const char* reason = nullptr;
+                int code = 0;
+                // Attempt to read error fields from calldata if present
+                lastErr = calldata_string(cd, "last_error");
+                if (!lastErr) lastErr = calldata_string(cd, "error");
+                reason = calldata_string(cd, "reason");
+                code = calldata_int(cd, "code");
+                if (lastErr && *lastErr) {
+                    detail = lastErr;
+                } else if (reason && *reason) {
+                    detail = reason;
+                } else if (code != 0) {
+                    detail = std::string("code=") + std::to_string(code);
+                }
+                std::string errMsg = "ConnectFailed";
+                if (!detail.empty()) {
+                    errMsg += ":" + detail;
+                }
+                controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE, errMsg);
+            } else {
+                controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STOPPED);
+            }
             MULTI_RTMP_STREAM_LOG_INFO("Stream stopped: %s", streamId.c_str());
             break;
         }
@@ -918,15 +944,27 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 MULTI_RTMP_STREAM_LOG_WARNING("YouTube auth not available; cannot resolve for %s",
                                               streamId.c_str());
                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                   "YouTube auth invalid; missing server/key");
+                                   "AuthInvalid:YouTube");
                 return;
             }
 
             auto client = std::make_unique<OneSevenLiveYouTubeClient>();
             client->setAccessToken(ytAuth->getAccessToken());
 
+            QTimer* timeout = new QTimer(client.get());
+            timeout->setSingleShot(true);
+            QObject::connect(timeout, &QTimer::timeout, [this, streamId, timeout]() {
+                MULTI_RTMP_STREAM_LOG_WARNING("YouTube resolve timeout for stream: %s",
+                                              streamId.c_str());
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "APIError:YouTube:Timeout");
+                m_pendingYouTubeClients.erase(streamId);
+                timeout->deleteLater();
+            });
+
             QObject::connect(client.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
-                             [this, streamId](const YouTubeLiveStreamListResponse& resp) {
+                             [this, streamId, timeout](const YouTubeLiveStreamListResponse& resp) {
+                                 if (timeout) timeout->stop();
                                  QString resolvedServer;
                                  QString resolvedKey;
                                  for (const auto& s : resp.items) {
@@ -950,19 +988,21 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                                          "YouTube resolve returned empty server/key for %s",
                                          streamId.c_str());
                                      updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                        "YouTube resolve empty server/key");
+                                                        "MissingServerKey:YouTube");
                                  }
                              });
 
             QObject::connect(client.get(), &OneSevenLiveYouTubeClient::errorOccurred,
-                             [this, streamId](const QString&, const QString&) {
+                             [this, streamId, timeout](const QString&, const QString&) {
+                                 if (timeout) timeout->stop();
                                  MULTI_RTMP_STREAM_LOG_WARNING(
                                      "YouTube resolve error for stream: %s", streamId.c_str());
                                  updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                    "YouTube API error; missing server/key");
+                                                    "APIError:YouTube");
                              });
 
             m_pendingYouTubeClients[streamId] = std::move(client);
+            timeout->start(5000);
             m_pendingYouTubeClients[streamId]->getMyLiveStreams();
         } else if (contains_ci(platform, "twitch")) {
             auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
@@ -979,7 +1019,7 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 MULTI_RTMP_STREAM_LOG_WARNING("Twitch auth not available; cannot resolve for %s",
                                               streamId.c_str());
                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                   "Twitch auth invalid; missing server/key");
+                                   "AuthInvalid:Twitch");
                 return;
             }
 
@@ -987,10 +1027,22 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 client->setAuthData(twAuth->getAccessToken(), QString(TWITCH_API_CLIENT_ID));
             }
 
+            QTimer* timeout = new QTimer(client);
+            timeout->setSingleShot(true);
+            QObject::connect(timeout, &QTimer::timeout, [this, streamId, timeout]() {
+                MULTI_RTMP_STREAM_LOG_WARNING("Twitch resolve timeout for stream: %s",
+                                              streamId.c_str());
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "APIError:Twitch:Timeout");
+                m_pendingTwitchClients.erase(streamId);
+                timeout->deleteLater();
+            });
+
             QObject::connect(client, &OneSevenLiveTwitchClient::userInfoReceived,
-                             [this, streamId, client](const TwitchUserInfo& user) {
+                             [this, streamId, client, timeout](const TwitchUserInfo& user) {
                                  QObject::connect(client, &OneSevenLiveTwitchClient::streamKeyReceived,
-                                                  [this, streamId](const QString& keyVal) {
+                                                  [this, streamId, timeout](const QString& keyVal) {
+                                                      if (timeout) timeout->stop();
                                                       const QString serverUrl =
                                                           OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
                                                       finalizeServiceSetupAfterResolve(
@@ -1001,18 +1053,20 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                              });
 
             QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
-                             [this, streamId](const QString&) {
+                             [this, streamId, timeout](const QString&) {
+                                 if (timeout) timeout->stop();
                                  MULTI_RTMP_STREAM_LOG_WARNING(
                                      "Twitch resolve error for stream: %s", streamId.c_str());
                                  updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                    "Twitch API error; missing server/key");
+                                                    "APIError:Twitch");
                              });
 
+            timeout->start(5000);
             client->getCurrentUser();
         } else {
             MULTI_RTMP_STREAM_LOG_WARNING("Unknown platform for stream: %s", streamId.c_str());
             updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                               "Unknown platform; missing server/key");
+                               "UnknownPlatform");
         }
     });
 }

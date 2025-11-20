@@ -5,6 +5,11 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QStyle>
+#include <QPixmap>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <chrono>
 #include <cmath>
 
@@ -133,6 +138,17 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
     m_controlLayout->setSpacing(8);
     m_controlLayout->setAlignment(Qt::AlignRight);
 
+    m_errorHintLayout = new QHBoxLayout();
+    m_errorHintLayout->setSpacing(6);
+    m_errorHintLayout->setAlignment(Qt::AlignLeft);
+    m_errorIconLabel = new QLabel();
+    m_errorIconLabel->setFixedSize(16, 16);
+    m_errorIconLabel->setPixmap(QPixmap(":/resources/alert.svg").scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_errorTextLabel = new QLabel();
+    m_errorTextLabel->setStyleSheet("font-size: 12px; color: #FF873D;");
+    m_errorHintLayout->addWidget(m_errorIconLabel);
+    m_errorHintLayout->addWidget(m_errorTextLabel);
+
     // Play/Stop button
     m_startStopButton = new QPushButton();
     m_startStopButton->setMinimumSize(24, 24);
@@ -178,7 +194,11 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
     // Add all layers to main layout
     m_mainLayout->addLayout(m_topLayout);
     m_mainLayout->addLayout(m_statsLayout);
-    m_mainLayout->addLayout(m_controlLayout);
+    QHBoxLayout* bottomRow = new QHBoxLayout();
+    bottomRow->setSpacing(8);
+    bottomRow->addLayout(m_errorHintLayout, 1);
+    bottomRow->addLayout(m_controlLayout, 0);
+    m_mainLayout->addLayout(bottomRow);
 
     // Set minimum height and dark background
     setMinimumHeight(170);
@@ -217,12 +237,14 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatus(const OneSevenLiveMultiRtmpSt
 
     m_status = status;
     updateStatusDisplay();
+    updateErrorHint();
     updateButtonStates();  // Ensure button states are updated when status changes
 }
 
 void OneSevenLiveMultiRtmpStreamItem::updateStats(const OneSevenLiveMultiRtmpStreamStats& stats) {
     m_stats = stats;
     updateStatsDisplay();
+    updateErrorHint();
 }
 
 void OneSevenLiveMultiRtmpStreamItem::setManager(OneSevenLiveMultiRtmpManager* manager) {
@@ -334,6 +356,7 @@ void OneSevenLiveMultiRtmpStreamItem::updateUI() {
     updateStatusDot();
     updateStatsDisplay();
     updateButtonStates();
+    updateErrorHint();
 }
 
 void OneSevenLiveMultiRtmpStreamItem::updateStatusDisplay() {
@@ -376,10 +399,60 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatsDisplay() {
         if (m_bitrateLabel)
             m_bitrateLabel->setText(
                 QString("%1: -- Kbps").arg(obs_module_text("MultiRTMP.Stats.UploadRate")));
-        if (m_framesLabel)
-            m_framesLabel->setText(
-                QString("%1: -- FPS").arg(obs_module_text("MultiRTMP.Stats.FrameRate")));
+    if (m_framesLabel)
+        m_framesLabel->setText(
+            QString("%1: -- FPS").arg(obs_module_text("MultiRTMP.Stats.FrameRate")));
+}
+}
+
+
+void OneSevenLiveMultiRtmpStreamItem::updateErrorHint() {
+    const bool show = isError();
+    if (m_errorIconLabel) m_errorIconLabel->setVisible(show);
+    if (m_errorTextLabel) m_errorTextLabel->setVisible(show);
+    if (!show) return;
+
+    QString code = QString::fromStdString(m_status.errorMessage);
+    QString detail;
+    if (code.contains(":")) {
+        detail = code.section(":", 1, 1);
+        code = code.section(":", 0, 0);
     }
+    ErrorMapping map = mapErrorCode(code);
+    QString brief = obs_module_text(map.titleKey.toUtf8().constData());
+    QString desc = obs_module_text(map.descKey.toUtf8().constData());
+    QString solution = obs_module_text(map.solutionKey.toUtf8().constData());
+    if (!detail.isEmpty()) {
+        desc = desc + "\n" + detail;
+    }
+    m_errorTextLabel->setText(brief);
+    m_errorTextLabel->setToolTip(composeErrorTooltip(brief, desc, solution));
+}
+
+QString OneSevenLiveMultiRtmpStreamItem::composeErrorTooltip(const QString& brief, const QString& detail, const QString& solution) const {
+    QString tip;
+    tip += brief + "\n\n";
+    tip += detail + "\n\n";
+    tip += solution;
+    return tip;
+}
+
+OneSevenLiveMultiRtmpStreamItem::ErrorMapping OneSevenLiveMultiRtmpStreamItem::mapErrorCode(const QString& code) const {
+    static QJsonObject cache;
+    if (cache.isEmpty()) {
+        QFile f("data/multi-rtmp-errors.json");
+        if (f.open(QIODevice::ReadOnly)) {
+            auto doc = QJsonDocument::fromJson(f.readAll());
+            if (doc.isObject()) cache = doc.object();
+            f.close();
+        }
+    }
+    QJsonObject obj = cache.value(code).toObject();
+    ErrorMapping m;
+    m.titleKey = obj.value("title_key").toString("MultiRTMP.ErrTitle.Generic");
+    m.descKey = obj.value("desc_key").toString("MultiRTMP.ErrDesc.Generic");
+    m.solutionKey = obj.value("solution_key").toString("MultiRTMP.ErrSolution.Generic");
+    return m;
 }
 
 void OneSevenLiveMultiRtmpStreamItem::updateButtonStates() {
