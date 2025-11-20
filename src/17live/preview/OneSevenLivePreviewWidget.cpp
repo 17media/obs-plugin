@@ -311,8 +311,8 @@ void OneSevenLivePreviewWidget::updateVideoInfo() {
         int phys_cy = static_cast<int>(std::lround(static_cast<double>(display_height) *
                                                    static_cast<double>(device_pixel_ratio)));
 
-        obs_log(LOG_INFO, "Resizing display: logical=%dx%d, physical=%dx%d, dpr=%.2f",
-                display_width, display_height, phys_cx, phys_cy, device_pixel_ratio);
+        // obs_log(LOG_INFO, "Resizing display: logical=%dx%d, physical=%dx%d, dpr=%.2f",
+        //         display_width, display_height, phys_cx, phys_cy, device_pixel_ratio);
 
         obs_display_resize(previewDisplay, phys_cx, phys_cy);
     }
@@ -354,7 +354,7 @@ void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
 
 void OneSevenLivePreviewWidget::paintEvent(QPaintEvent* event) {
     // Only draw placeholder when display isn't ready
-    if (!display_created && paintEngine()) {
+    if (!display_created) {
         QPainter painter(this);
         painter.fillRect(event->rect(), Qt::black);
         painter.setPen(Qt::white);
