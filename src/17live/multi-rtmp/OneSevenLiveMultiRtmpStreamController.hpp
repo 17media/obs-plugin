@@ -10,6 +10,9 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <QTimer>
+
+#include <QTimer>
 
 #include "OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
@@ -83,6 +86,7 @@ class OneSevenLiveMultiRtmpStreamController {
         OneSevenLiveMultiRtmpStreamStatus status;
         OneSevenLiveMultiRtmpStreamStats stats;
         std::chrono::steady_clock::time_point startTime;
+        QTimer* connectTimeoutTimer = nullptr;
     };
 
     // Internal implementation methods
@@ -158,6 +162,7 @@ class OneSevenLiveMultiRtmpStreamController {
 
     // Constants
     static constexpr int STATS_UPDATE_INTERVAL_MS = 1000;
+    static constexpr int CONNECT_TIMEOUT_MS = 60000;
     static constexpr const char* OUTPUT_ID = "rtmp_output";
     static constexpr const char* SERVICE_ID = "rtmp_common";
     static constexpr const char* VIDEO_ENCODER_ID = "obs_x264";
@@ -179,3 +184,4 @@ class OneSevenLiveMultiRtmpStreamController {
 
 #define MULTI_RTMP_STREAM_LOG_DEBUG(format, ...) \
     MULTI_RTMP_STREAM_LOG(LOG_DEBUG, format, ##__VA_ARGS__)
+class QTimer;

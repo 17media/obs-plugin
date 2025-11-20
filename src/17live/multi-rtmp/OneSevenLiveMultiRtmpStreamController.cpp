@@ -142,6 +142,31 @@ bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::strin
     // Update status
     updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::CONNECTING);
 
+    // Setup connect timeout timer
+    if (streamOutput->connectTimeoutTimer) {
+        streamOutput->connectTimeoutTimer->stop();
+        streamOutput->connectTimeoutTimer->deleteLater();
+        streamOutput->connectTimeoutTimer = nullptr;
+    }
+    streamOutput->connectTimeoutTimer = new QTimer();
+    streamOutput->connectTimeoutTimer->setSingleShot(true);
+    QObject::connect(streamOutput->connectTimeoutTimer, &QTimer::timeout, [this, streamId]() {
+        auto it = m_streamOutputs.find(streamId);
+        if (it != m_streamOutputs.end()) {
+            StreamOutput* so = it->second.get();
+            if (so && (so->status.state == OneSevenLiveMultiRtmpStreamStatus::CONNECTING ||
+                       so->status.state == OneSevenLiveMultiRtmpStreamStatus::RECONNECTING)) {
+                MULTI_RTMP_STREAM_LOG_WARNING("Connect timeout for stream: %s", streamId.c_str());
+                if (so->output) {
+                    obs_output_stop(so->output);
+                }
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "NetworkError:RTMP:Timeout");
+            }
+        }
+    });
+    streamOutput->connectTimeoutTimer->start(CONNECT_TIMEOUT_MS);
+
     MULTI_RTMP_STREAM_LOG_INFO("startOutputInternal completed for stream: %s", streamId.c_str());
     return true;
 }
@@ -167,6 +192,7 @@ bool OneSevenLiveMultiRtmpStreamController::stopOutputInternal(const std::string
     }
 
     if (!obs_output_active(streamOutput->output)) {
+        updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STOPPED);
         return true;
     }
 
@@ -186,6 +212,12 @@ bool OneSevenLiveMultiRtmpStreamController::destroyOutput(const std::string& str
     }
 
     auto& streamOutput = it->second;
+
+    if (streamOutput->connectTimeoutTimer) {
+        streamOutput->connectTimeoutTimer->stop();
+        streamOutput->connectTimeoutTimer->deleteLater();
+        streamOutput->connectTimeoutTimer = nullptr;
+    }
 
     // Stop output if active
     if (streamOutput->output && obs_output_active(streamOutput->output)) {
@@ -698,6 +730,11 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
     for (const auto& [streamId, streamOutput] : controller->m_streamOutputs) {
         if (streamOutput->output == output) {
             MULTI_RTMP_STREAM_LOG_INFO("Found matching stream in callback: %s", streamId.c_str());
+            if (streamOutput->connectTimeoutTimer) {
+                streamOutput->connectTimeoutTimer->stop();
+                streamOutput->connectTimeoutTimer->deleteLater();
+                streamOutput->connectTimeoutTimer = nullptr;
+            }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STREAMING);
             MULTI_RTMP_STREAM_LOG_INFO("Stream started: %s", streamId.c_str());
             break;
@@ -755,6 +792,11 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectCallback(void* data, 
     // std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
     for (const auto& [streamId, streamOutput] : controller->m_streamOutputs) {
         if (streamOutput->output == output) {
+            if (streamOutput->connectTimeoutTimer) {
+                streamOutput->connectTimeoutTimer->stop();
+                streamOutput->connectTimeoutTimer->deleteLater();
+                streamOutput->connectTimeoutTimer = nullptr;
+            }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::RECONNECTING);
             MULTI_RTMP_STREAM_LOG_INFO("Stream reconnecting: %s", streamId.c_str());
             break;
@@ -770,6 +812,11 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectSuccessCallback(void*
     // std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
     for (const auto& [streamId, streamOutput] : controller->m_streamOutputs) {
         if (streamOutput->output == output) {
+            if (streamOutput->connectTimeoutTimer) {
+                streamOutput->connectTimeoutTimer->stop();
+                streamOutput->connectTimeoutTimer->deleteLater();
+                streamOutput->connectTimeoutTimer = nullptr;
+            }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STREAMING);
             MULTI_RTMP_STREAM_LOG_INFO("Stream reconnected successfully: %s", streamId.c_str());
             break;
