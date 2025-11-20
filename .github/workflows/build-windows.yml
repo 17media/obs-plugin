@@ -140,7 +140,7 @@ jobs:
         shell: pwsh
         env:
           YOUTUBE_API_CLIENT_ID: ${{ vars.YOUTUBE_API_CLIENT_ID }}
-          YOUTUBE_API_CLIENT_SECRET: ${{ secrets.YOUTUBE_API_CLIENT_SECRET }}
+          YOUTUBE_API_CLIENT_SECRET: ${{ vars.YOUTUBE_API_CLIENT_SECRET }}
           TWITCH_API_CLIENT_ID: ${{ vars.TWITCH_API_CLIENT_ID }}
           ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
         run: |
