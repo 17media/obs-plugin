@@ -272,6 +272,18 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAdvancedSettingsWidget() {
     
     advancedLayout->addWidget(m_serviceWidget);
 
+    // Set initial visibility based on current platform authorization state
+    if (m_streamNameCombo) {
+        const QString channelSel = m_streamNameCombo->currentText();
+        bool isAuthorized = false;
+        if (channelSel == "YouTube") {
+            isAuthorized = (m_youtubeAuth && m_youtubeAuth->hasValidToken());
+        } else if (channelSel == "Twitch") {
+            isAuthorized = (m_twitchAuth && m_twitchAuth->hasValidToken());
+        }
+        m_serviceWidget->setVisible(!isAuthorized);
+    }
+
     // Create tab widget for advanced settings
     m_tabWidget = new QTabWidget(m_advancedWidget);
     m_tabWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
@@ -906,9 +918,11 @@ void OneSevenLiveMultiRtmpConfigDialog::updateAuthorizeButtonState()
     if (isAuthorized) {
         m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Reauthorize"));
         m_authorizeButton->setEnabled(true);
+        if (m_serviceWidget) m_serviceWidget->setVisible(false);
     } else {
         m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Authorize"));
         m_authorizeButton->setEnabled(true);
+        if (m_serviceWidget) m_serviceWidget->setVisible(true);
     }
 }
 
