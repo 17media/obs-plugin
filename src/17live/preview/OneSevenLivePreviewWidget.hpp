@@ -28,7 +28,8 @@ class OneSevenLivePreviewWidget : public QWidget {
     /**
      * @brief Force refresh the display and overlays
      */
-    void forceRefresh();
+   void forceRefresh();
+   void syncDisplaySize();
 
     /**
      * @brief Set an override URL for the browser overlay.

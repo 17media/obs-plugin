@@ -344,7 +344,7 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
 
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    createDisplay();
+    QTimer::singleShot(0, this, &OneSevenLivePreviewWidget::createDisplay);
 }
 
 void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
@@ -546,4 +546,8 @@ void OneSevenLivePreviewWidget::forceRefresh() {
         // Also trigger a video refresh
         refreshVideo();
     }
+}
+
+void OneSevenLivePreviewWidget::syncDisplaySize() {
+    updateVideoInfo();
 }

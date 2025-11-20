@@ -4,6 +4,7 @@
 
 #include <QCloseEvent>
 #include <QShowEvent>
+#include <QTimer>
 
 #include "../../plugin-support.h"
 #include "../streaming/OneSevenLiveStreamManager.hpp"
@@ -78,11 +79,20 @@ void OneSevenLivePreviewDock::showEvent(QShowEvent* event) {
     }
 
     updatePreviewGeometry();
+
+    if (previewWidget) {
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
+    }
 }
 
 void OneSevenLivePreviewDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
     updatePreviewGeometry();
+    if (previewWidget) {
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
+    }
 }
 
 void OneSevenLivePreviewDock::closeEvent(QCloseEvent* event) {
