@@ -17,14 +17,7 @@
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
 
-// Helper function to get module data path
-std::string get_obs_module_data_path_str() {
-    const char* path = obs_get_module_data_path(obs_current_module());
-    if (path) {
-        return std::string(path);
-    }
-    return "";  // Or throw exception, or return a default known path
-}
+#include "utility/Common.hpp"
 
 std::string OneSevenLiveHttpServer::get_file_extension(const std::string& file_path) const {
     size_t dot_pos = file_path.rfind('.');

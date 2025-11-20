@@ -17,3 +17,6 @@ std::string GetCurrentLanguage();
 std::string GetCurrentLocale();
 
 obs_data_t* ObsDataFromJson(nlohmann::json j);
+
+// OBS module data path helper
+std::string get_obs_module_data_path_str();

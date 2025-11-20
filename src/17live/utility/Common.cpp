@@ -1,6 +1,7 @@
 #include "Common.hpp"
 
 #include <obs.h>
+#include <obs-module.h>
 
 #include <algorithm>
 #include <array>  // For std::array
@@ -243,4 +244,12 @@ obs_data_t* ObsDataFromJson(nlohmann::json j) {
 
     // DO NOT release here - caller is responsible for managing the returned pointer
     return r;
+}
+
+std::string get_obs_module_data_path_str() {
+    const char* path = obs_get_module_data_path(obs_current_module());
+    if (!path) {
+        return "";
+    }
+    return std::string(path);
 }

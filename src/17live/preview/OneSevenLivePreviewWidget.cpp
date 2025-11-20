@@ -19,16 +19,9 @@
 #include <QWindow>
 #include <cmath>
 
-#include "moc_OneSevenLivePreviewWidget.cpp"
+#include "utility/Common.hpp"
 
-// Helper function to get module data path
-static std::string get_obs_module_data_path_str() {
-    const char* path = obs_get_module_data_path(obs_current_module());
-    if (!path) {
-        return "";
-    }
-    return std::string(path);
-}
+#include "moc_OneSevenLivePreviewWidget.cpp"
 
 OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     : QWidget(parent),

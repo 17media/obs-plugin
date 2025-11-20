@@ -29,6 +29,11 @@
     "desc_key": "MultiRTMP.ErrDesc.APIError",
     "solution_key": "MultiRTMP.ErrSolution.APIError"
   },
+  "NetworkError": {
+    "title_key": "MultiRTMP.ErrTitle.NetworkError",
+    "desc_key": "MultiRTMP.ErrDesc.NetworkError",
+    "solution_key": "MultiRTMP.ErrSolution.NetworkError"
+  },
   "Generic": {
     "title_key": "MultiRTMP.ErrTitle.Generic",
     "desc_key": "MultiRTMP.ErrDesc.Generic",

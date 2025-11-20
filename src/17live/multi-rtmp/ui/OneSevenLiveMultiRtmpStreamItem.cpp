@@ -1,11 +1,13 @@
 #include "OneSevenLiveMultiRtmpStreamItem.hpp"
 
 #include <obs-output.h>
+#include <obs-module.h>
 
 #include <QApplication>
 #include <QMessageBox>
 #include <QStyle>
 #include <QPixmap>
+#include "plugin-support.h"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -17,6 +19,7 @@
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
+#include "utility/Common.hpp"
 
 // Static style class constants
 const QString OneSevenLiveMultiRtmpStreamItem::STATUS_IDLE_CLASS = "status-idle";
@@ -415,7 +418,7 @@ void OneSevenLiveMultiRtmpStreamItem::updateErrorHint() {
     QString code = QString::fromStdString(m_status.errorMessage);
     QString detail;
     if (code.contains(":")) {
-        detail = code.section(":", 1, 1);
+        detail = code.section(":", 1);
         code = code.section(":", 0, 0);
     }
     ErrorMapping map = mapErrorCode(code);
@@ -440,7 +443,9 @@ QString OneSevenLiveMultiRtmpStreamItem::composeErrorTooltip(const QString& brie
 OneSevenLiveMultiRtmpStreamItem::ErrorMapping OneSevenLiveMultiRtmpStreamItem::mapErrorCode(const QString& code) const {
     static QJsonObject cache;
     if (cache.isEmpty()) {
-        QFile f("data/multi-rtmp-errors.json");
+        std::string dataPath = get_obs_module_data_path_str();
+        QString configPath = QString("%1/multi-rtmp-errors.json").arg(QString::fromStdString(dataPath));
+        QFile f(configPath);
         if (f.open(QIODevice::ReadOnly)) {
             auto doc = QJsonDocument::fromJson(f.readAll());
             if (doc.isObject()) cache = doc.object();

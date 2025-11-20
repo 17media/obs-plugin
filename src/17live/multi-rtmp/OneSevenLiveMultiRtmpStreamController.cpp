@@ -731,10 +731,12 @@ void OneSevenLiveMultiRtmpStreamController::outputStopCallback(void* data, calld
                 } else if (code != 0) {
                     detail = std::string("code=") + std::to_string(code);
                 }
-                std::string errMsg = "ConnectFailed";
-                if (!detail.empty()) {
-                    errMsg += ":" + detail;
-                }
+                std::string errMsg;
+                std::string dlow = detail;
+                std::transform(dlow.begin(), dlow.end(), dlow.begin(), ::tolower);
+                bool isNet = dlow.find("tls") != std::string::npos || dlow.find("ssl") != std::string::npos || dlow.find("timeout") != std::string::npos || dlow.find("connection") != std::string::npos || dlow.find("recv") != std::string::npos || dlow.find("reset") != std::string::npos || dlow.find("handshake") != std::string::npos || dlow.find("network") != std::string::npos || dlow.find("code=-2") != std::string::npos;
+                errMsg = isNet ? "NetworkError:RTMP" : "ConnectFailed";
+                if (!detail.empty()) errMsg += ":" + detail;
                 controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE, errMsg);
             } else {
                 controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STOPPED);
@@ -957,7 +959,7 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 MULTI_RTMP_STREAM_LOG_WARNING("YouTube resolve timeout for stream: %s",
                                               streamId.c_str());
                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                   "APIError:YouTube:Timeout");
+                                   "NetworkError:YouTube:Timeout");
                 m_pendingYouTubeClients.erase(streamId);
                 timeout->deleteLater();
             });
@@ -993,12 +995,15 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                              });
 
             QObject::connect(client.get(), &OneSevenLiveYouTubeClient::errorOccurred,
-                             [this, streamId, timeout](const QString&, const QString&) {
+                             [this, streamId, timeout](const QString& err, const QString&) {
                                  if (timeout) timeout->stop();
                                  MULTI_RTMP_STREAM_LOG_WARNING(
                                      "YouTube resolve error for stream: %s", streamId.c_str());
+                                 QString e = err.toLower();
+                                 bool isNet = e.contains("recv failure") || e.contains("connection reset") || e.contains("timeout") || e.contains("could not resolve") || e.contains("dns") || e.contains("tls") || e.contains("ssl") || e.contains("handshake") || e.contains("network");
+                                 std::string msg = std::string(isNet ? "NetworkError:YouTube:" : "APIError:YouTube:") + err.toUtf8().constData();
                                  updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                    "APIError:YouTube");
+                                                    msg.c_str());
                              });
 
             m_pendingYouTubeClients[streamId] = std::move(client);
@@ -1033,7 +1038,7 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 MULTI_RTMP_STREAM_LOG_WARNING("Twitch resolve timeout for stream: %s",
                                               streamId.c_str());
                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                   "APIError:Twitch:Timeout");
+                                   "NetworkError:Twitch:Timeout");
                 m_pendingTwitchClients.erase(streamId);
                 timeout->deleteLater();
             });
@@ -1053,12 +1058,15 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                              });
 
             QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
-                             [this, streamId, timeout](const QString&) {
+                             [this, streamId, timeout](const QString& err) {
                                  if (timeout) timeout->stop();
                                  MULTI_RTMP_STREAM_LOG_WARNING(
                                      "Twitch resolve error for stream: %s", streamId.c_str());
+                                 QString e = err.toLower();
+                                 bool isNet = e.contains("recv failure") || e.contains("connection reset") || e.contains("timeout") || e.contains("could not resolve") || e.contains("dns") || e.contains("tls") || e.contains("ssl") || e.contains("handshake") || e.contains("network");
+                                 std::string msg = std::string(isNet ? "NetworkError:Twitch:" : "APIError:Twitch:") + err.toUtf8().constData();
                                  updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                    "APIError:Twitch");
+                                                    msg.c_str());
                              });
 
             timeout->start(5000);
