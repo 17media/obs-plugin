@@ -18,6 +18,8 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
+#include <QMessageBox>
+
 #include <nlohmann/json.hpp>
 #include <thread>
 
@@ -1613,4 +1615,37 @@ void OneSevenLiveCoreManager::ensureChatDockOpen() {
     if (!chatDock || !chatDock->isVisible()) {
         handleChatRoomClicked();
     }
+}
+
+bool OneSevenLiveCoreManager::confirmCloseChatRelatedDocks() {
+    QMainWindow* mw = getMainWindow();
+    if (!mw) return true;
+
+    const bool rockVisible = rockZoneDock && rockZoneDock->isVisible();
+    const bool previewVisible = previewDock && previewDock->isVisible();
+    if (!rockVisible && !previewVisible) {
+        return true;
+    }
+
+    QMessageBox msgBox(mw);
+    msgBox.setWindowTitle(obs_module_text("Live.Common.Notice"));
+    msgBox.setText(QString::fromUtf8(obs_module_text("ChatDock.Close.JoinRelated")));
+    msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::AcceptRole);
+    QPushButton* cancelButton = msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::RejectRole);
+    msgBox.setDefaultButton(cancelButton);
+    msgBox.exec();
+    const bool accept = (msgBox.buttonRole(msgBox.clickedButton()) == QMessageBox::AcceptRole);
+    if (!accept) return false;
+
+    if (chatDock) {
+        chatDock->setSuppressClosePrompt(true);
+        chatDock->close();
+    }
+    if (rockZoneDock && rockVisible) {
+        rockZoneDock->close();
+    }
+    if (previewDock && previewVisible) {
+        previewDock->close();
+    }
+    return true;
 }

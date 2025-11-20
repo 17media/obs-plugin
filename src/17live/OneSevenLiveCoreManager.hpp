@@ -146,6 +146,9 @@ class OneSevenLiveCoreManager : public QObject {
     void connectTwitchChatClient(const QString& channel = QString());
     void disconnectTwitchChatClient();
 
+    // Unified confirmation for closing chat-related docks
+    bool confirmCloseChatRelatedDocks();
+
     bool handleLoginClicked();
 
     // Disable copy constructor and assignment operator

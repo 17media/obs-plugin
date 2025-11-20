@@ -7,6 +7,7 @@
 #include <QApplication>
 
 #include "utility/QCefView.hpp"
+#include "OneSevenLiveCoreManager.hpp"
 #include "moc_OneSevenLiveChatDock.cpp"
 
 OneSevenLiveChatDock::OneSevenLiveChatDock(QWidget* parent, const QString& chatUrl)
@@ -45,14 +46,8 @@ void OneSevenLiveChatDock::closeEvent(QCloseEvent* event) {
         QDockWidget::closeEvent(event);
         return;
     }
-    QMessageBox msgBox(this);
-    msgBox.setWindowTitle(obs_module_text("Live.Common.Notice"));
-    msgBox.setText(obs_module_text("ChatDock.Close.Warning"));
-    msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::AcceptRole);
-    QPushButton* cancelButton = msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::RejectRole);
-    msgBox.setDefaultButton(cancelButton);
-    msgBox.exec();
-    if (msgBox.buttonRole(msgBox.clickedButton()) != QMessageBox::AcceptRole) {
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    if (!core.confirmCloseChatRelatedDocks()) {
         event->ignore();
         return;
     }
