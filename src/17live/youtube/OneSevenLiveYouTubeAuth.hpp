@@ -31,6 +31,7 @@ public:
     // Refresh the access token using stored refresh_token
     // Returns true on success; persists new token and updates in-memory state
     bool refreshAccessToken();
+    void refreshAccessTokenAsync();
 
     // Schedule auto-refresh 1 minute before access token expiry
     // If already expired on startup, refresh immediately if refresh_token is valid,

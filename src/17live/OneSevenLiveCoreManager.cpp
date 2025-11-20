@@ -197,9 +197,7 @@ bool OneSevenLiveCoreManager::initialize() {
             const bool notExpired = hasExpiry ? (nowEpoch < ytRefreshFetchedAt + ytRefreshExpiresIn) : true;
             if (notExpired) {
                 obs_log(LOG_INFO, "[17Live Core] No YouTube access token; refreshing using refresh token");
-                if (!youtubeAuth->refreshAccessToken()) {
-                    obs_log(LOG_ERROR, "[17Live Core] Immediate YouTube refresh failed on startup");
-                }
+                QTimer::singleShot(0, youtubeAuth.get(), &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
             } else {
                 obs_log(LOG_INFO, "[17Live Core] YouTube refresh token expired; clearing stored tokens");
                 configManager->clearYouTubeAccessToken();

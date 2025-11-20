@@ -322,6 +322,115 @@ bool OneSevenLiveYouTubeAuth::refreshAccessToken()
     return true;
 }
 
+void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync()
+{
+    QString rt = m_refreshToken;
+    OneSevenLiveConfigManager* cfg = OneSevenLiveCoreManager::getInstance().getConfigManager();
+    if (rt.isEmpty()) {
+        if (!cfg || !cfg->initialize()) {
+            obs_log(LOG_ERROR, "ConfigManager not initialized; cannot refresh YouTube token");
+            emit authorizationFailed("ConfigManager not initialized");
+            return;
+        }
+        QString cfgRt;
+        int rtExpiresIn = 0;
+        qint64 rtFetched = 0;
+        if (!cfg->getYouTubeRefreshToken(cfgRt, rtExpiresIn, rtFetched)) {
+            obs_log(LOG_ERROR, "No YouTube refresh token available in config");
+            emit authorizationFailed("YouTube refresh token missing");
+            return;
+        }
+        rt = cfgRt;
+    }
+
+    if (rt.isEmpty()) {
+        obs_log(LOG_ERROR, "YouTube refresh token is empty; cannot refresh");
+        emit authorizationFailed("YouTube refresh token empty");
+        return;
+    }
+
+    const QByteArray clientIdEnc = QUrl::toPercentEncoding(getClientId());
+    const QByteArray clientSecretEnc = QUrl::toPercentEncoding(getClientSecret());
+    const QByteArray refreshEnc = QUrl::toPercentEncoding(rt);
+    std::string postData = QString("client_id=%1&client_secret=%2&refresh_token=%3&grant_type=refresh_token")
+                               .arg(QString::fromUtf8(clientIdEnc), QString::fromUtf8(clientSecretEnc), QString::fromUtf8(refreshEnc))
+                               .toStdString();
+
+    auto* thread = new RemoteTextThread(YT_TOKEN_URL.toUtf8().constData(), "application/x-www-form-urlencoded", postData, 0, false);
+    QObject::connect(thread, &RemoteTextThread::Result, this, [this, thread](const QString& text, const QString& error) {
+        if (!error.isEmpty()) {
+            obs_log(LOG_ERROR, "YouTube token refresh failed: %s", error.toUtf8().constData());
+            emit authorizationFailed(error);
+            thread->deleteLater();
+            return;
+        }
+
+        QString newAccessToken;
+        int expiresIn = 0;
+        QString tokenType;
+        QString scope;
+        try {
+            Json json = Json::parse(text.toUtf8().constData());
+            if (json.contains("access_token") && json["access_token"].is_string()) {
+                newAccessToken = QString::fromStdString(json["access_token"].get<std::string>());
+            }
+            if (json.contains("expires_in") && json["expires_in"].is_number_integer()) {
+                expiresIn = json["expires_in"].get<int>();
+            }
+            if (json.contains("token_type") && json["token_type"].is_string()) {
+                tokenType = QString::fromStdString(json["token_type"].get<std::string>());
+            }
+            if (json.contains("scope") && json["scope"].is_string()) {
+                scope = QString::fromStdString(json["scope"].get<std::string>());
+            }
+        } catch (const std::exception &e) {
+            obs_log(LOG_ERROR, "Failed to parse YouTube refresh JSON: %s", e.what());
+            emit authorizationFailed("Failed to parse refresh response");
+            thread->deleteLater();
+            return;
+        }
+
+        if (newAccessToken.isEmpty()) {
+            obs_log(LOG_ERROR, "YouTube token refresh did not return access_token");
+            emit authorizationFailed("Refresh missing access_token");
+            thread->deleteLater();
+            return;
+        }
+
+        OneSevenLiveConfigManager* cfgLocal = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        if (!cfgLocal || !cfgLocal->initialize()) {
+            cfgLocal = OneSevenLiveCoreManager::getInstance().getConfigManager();
+            if (!cfgLocal || !cfgLocal->initialize()) {
+                obs_log(LOG_ERROR, "ConfigManager not initialized; cannot persist refreshed token");
+                emit authorizationFailed("Configuration manager not initialized");
+                thread->deleteLater();
+                return;
+            }
+        }
+
+        const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
+        if (!cfgLocal->setYouTubeAccessToken(newAccessToken, expiresIn, nowEpoch)) {
+            obs_log(LOG_ERROR, "Failed to save refreshed YouTube access token");
+            emit authorizationFailed("Failed to save refreshed YouTube access token");
+            thread->deleteLater();
+            return;
+        }
+
+        setAccessToken(newAccessToken);
+        m_callbackScope = scope;
+        {
+            QString tok = newAccessToken;
+            QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+            obs_log(LOG_INFO, "YouTube access token updated in memory token(masked)=%s", masked.toUtf8().constData());
+        }
+        obs_log(LOG_INFO, "YouTube token refreshed: token_type=%s expires_in=%d",
+                tokenType.toUtf8().constData(), expiresIn);
+        emit authorizationCompleted(m_accessToken);
+        thread->deleteLater();
+    });
+    thread->start();
+}
+
 void OneSevenLiveYouTubeAuth::scheduleAutoRefresh(int accessExpiresInSec, qint64 accessFetchedAtEpochSec,
                                                   int refreshExpiresInSec, qint64 refreshFetchedAtEpochSec)
 {
@@ -355,12 +464,8 @@ void OneSevenLiveYouTubeAuth::scheduleAutoRefresh(int accessExpiresInSec, qint64
     if (accessExpiresInSec > 0 && nowEpoch >= accessExpiresAt) {
         if (!m_refreshToken.isEmpty()) {
             if (refreshExpiresInSec <= 0 || nowEpoch < refreshExpiresAt) {
-                obs_log(LOG_INFO, "YouTube access token expired; attempting immediate refresh (refresh_token_present=true refresh_expires_in=%d)", refreshExpiresInSec);
-                if (!refreshAccessToken()) {
-                    obs_log(LOG_ERROR, "YouTube immediate refresh failed");
-                } else {
-                    obs_log(LOG_INFO, "YouTube immediate refresh succeeded");
-                }
+                obs_log(LOG_INFO, "YouTube access token expired; scheduling async refresh");
+                QTimer::singleShot(0, this, &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
             } else if (cfg && cfg->initialize()) {
                 obs_log(LOG_INFO, "YouTube refresh token expired; clearing stored tokens");
                 cfg->clearYouTubeAccessToken();
