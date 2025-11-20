@@ -534,11 +534,13 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked() {
 
     // Show authorization dialog with embedded browser
     m_authDialog = new OneSevenLiveAuthDialog(authUrl, this);
+    m_authDialog->setAttribute(Qt::WA_DeleteOnClose, true);
 
     connect(m_authDialog, &OneSevenLiveAuthDialog::urlChanged, this,
             &OneSevenLiveMultiRtmpConfigDialog::onAuthUrlChanged);
 
     m_authDialog->exec();
+    m_authDialog = nullptr;
     m_isAuthorizing = false;
 }
 
@@ -588,8 +590,9 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthUrlChanged(const QString& url)
         m_youtubeAuth->handleAuthorizationCallbackUrl(url);
     }
 
-    m_authDialog->close();
-    m_authDialog->deleteLater();
+    if (m_authDialog) {
+        QMetaObject::invokeMethod(m_authDialog, "accept", Qt::QueuedConnection);
+    }
 
     // Update button state after potential token change
     updateAuthorizeButtonState();
