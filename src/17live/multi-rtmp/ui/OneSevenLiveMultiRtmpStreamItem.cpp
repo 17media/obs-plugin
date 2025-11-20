@@ -92,7 +92,7 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
 
     // Stream name (left side)
     m_nameLabel = new QLabel();
-    m_nameLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #FFFFFF;");
+    m_nameLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #FFFFFF; background-color: transparent;");
     m_nameLabel->setWordWrap(false);
 
     // Status section (right side)
@@ -107,7 +107,7 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
 
     // Status text
     m_statusLabel = new QLabel();
-    m_statusLabel->setStyleSheet("font-size: 12px; color: #CCCCCC;");
+    m_statusLabel->setStyleSheet("font-size: 12px; color: #CCCCCC; background-color: transparent;");
     m_statusLabel->setWordWrap(false);
 
     m_statusLayout->addWidget(m_statusDot);
@@ -122,15 +122,15 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
 
     // Duration
     m_durationLabel = new QLabel("-");
-    m_durationLabel->setStyleSheet("font-size: 11px; color: #AAAAAA;");
+    m_durationLabel->setStyleSheet("font-size: 11px; color: #AAAAAA; background-color: transparent;");
 
     // Upload speed
     m_bitrateLabel = new QLabel("-");
-    m_bitrateLabel->setStyleSheet("font-size: 11px; color: #AAAAAA;");
+    m_bitrateLabel->setStyleSheet("font-size: 11px; color: #AAAAAA; background-color: transparent;");
 
     // Frame rate
     m_framesLabel = new QLabel("-");
-    m_framesLabel->setStyleSheet("font-size: 11px; color: #AAAAAA;");
+    m_framesLabel->setStyleSheet("font-size: 11px; color: #AAAAAA; background-color: transparent;");
 
     m_statsLayout->addWidget(m_durationLabel);
     m_statsLayout->addWidget(m_bitrateLabel);
@@ -148,7 +148,7 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
     m_errorIconLabel->setFixedSize(16, 16);
     m_errorIconLabel->setPixmap(QPixmap(":/resources/alert.svg").scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     m_errorTextLabel = new QLabel();
-    m_errorTextLabel->setStyleSheet("font-size: 12px; color: #FF873D;");
+    m_errorTextLabel->setStyleSheet("font-size: 12px; color: #FF873D; background-color: transparent;");
     m_errorHintLayout->addWidget(m_errorIconLabel);
     m_errorHintLayout->addWidget(m_errorTextLabel);
 
@@ -206,7 +206,9 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
     // Set minimum height and dark background
     setMinimumHeight(170);
     setMaximumHeight(170);
-    setStyleSheet("OneSevenLiveMultiRtmpStreamItem { background-color: #2D2D30; border-radius: 8px; }");
+    setObjectName("multiRtmpItem");
+    setAutoFillBackground(true);
+    setStyleSheet("#multiRtmpItem { background-color: #2D2D30; border-radius: 8px; }");
 
     // Initialize unused legacy widgets to nullptr
     m_urlLabel = nullptr;
