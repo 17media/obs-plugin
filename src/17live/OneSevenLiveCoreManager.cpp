@@ -48,6 +48,9 @@
 #include "twitch/OneSevenLiveTwitchChatClient.hpp"
 #include "youtube/OneSevenLiveYouTubeChatClient.hpp"
 #include "youtube/OneSevenLiveYouTubeClient.hpp"
+#include "api/OneSevenLiveAblyChatClient.hpp"
+#include "websocket/WebsocketUtils.hpp"
+#include <zlib.h>
 
 using Json = nlohmann::json;
 using namespace std;
@@ -487,6 +490,10 @@ OneSevenLiveTwitchChatClient* OneSevenLiveCoreManager::getTwitchChatClient() con
     return twitchChatClient.get();
 }
 
+OneSevenLiveAblyChatClient* OneSevenLiveCoreManager::getAblyChatClient() const {
+    return ablyChatClient.get();
+}
+
 void OneSevenLiveCoreManager::createYouTubeChatClient() {
     if (youtubeChatClient) {
         return;
@@ -619,6 +626,94 @@ void OneSevenLiveCoreManager::createTwitchChatClient() {
             }
         }
     }
+}
+
+void OneSevenLiveCoreManager::createAblyChatClient() {
+    if (ablyChatClient) return;
+    ablyChatClient = std::make_unique<OneSevenLiveAblyChatClient>(this);
+}
+
+void OneSevenLiveCoreManager::destroyAblyChatClient() {
+    if (ablyChatClient) {
+        ablyChatClient->disconnect();
+        ablyChatClient.reset();
+    }
+}
+
+static bool gunzipBase64ToJson(const std::string& base64Data, nlohmann::json& out) {
+    QByteArray raw = QByteArray::fromBase64(QByteArray::fromStdString(base64Data));
+    if (raw.isEmpty()) return false;
+    QByteArray outBuf;
+    z_stream zs{};
+    zs.next_in = reinterpret_cast<Bytef*>(raw.data());
+    zs.avail_in = raw.size();
+    if (inflateInit2(&zs, 15 + 16) != Z_OK) return false;
+    char buf[4096];
+    int ret;
+    do {
+        zs.next_out = reinterpret_cast<Bytef*>(buf);
+        zs.avail_out = sizeof(buf);
+        ret = inflate(&zs, Z_NO_FLUSH);
+        if (ret != Z_OK && ret != Z_STREAM_END) break;
+        int have = sizeof(buf) - zs.avail_out;
+        if (have > 0) outBuf.append(buf, have);
+    } while (ret != Z_STREAM_END);
+    inflateEnd(&zs);
+    if (ret != Z_STREAM_END) return false;
+    try { out = nlohmann::json::parse(outBuf.constData()); return true; } catch (...) { return false; }
+}
+
+void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QString& token) {
+    createAblyChatClient();
+    if (!ablyChatClient) return;
+    ablyChatClient->setRoomId(roomId);
+    if (!token.isEmpty()) ablyChatClient->setAblyToken(token);
+    ablyChatClient->setOnOpen([this]() {
+        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
+    });
+    ablyChatClient->setOnClose([this]() {
+        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"}});
+    });
+    ablyChatClient->setOnError([this](const std::string& err) {
+        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"},{"error",err}});
+    });
+    ablyChatClient->setOnMessage([this](const std::string& msg) {
+        try {
+            nlohmann::json j = nlohmann::json::parse(msg);
+            if (j.contains("messages") && j["messages"].is_array()) {
+                for (auto& m : j["messages"]) {
+                    if (m.contains("data") && m["data"].is_string()) {
+                        nlohmann::json decoded;
+                        if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded)) continue;
+                        int type = decoded.contains("msgType") && decoded["msgType"].is_number_integer() ? decoded["msgType"].get<int>() : -1;
+                        switch (type) {
+                            case ably::MsgType_COMMENT:
+                            case ably::MsgType_NEW_GIFT:
+                            case ably::MsgType_JOIN_ROOM:
+                            case ably::MsgType_NEW_LUCKYBAG:
+                            case ably::MsgType_POKE:
+                            case ably::MsgType_AI_COHOST_MESSAGE:
+                                wsBroadcast(QString::fromUtf8(ws::EventAblyChatMessage), decoded);
+                                break;
+                            case ably::MsgType_ROCKZONE:
+                                if (rockZoneDock) {
+                                    rockZoneDock->refreshUserList();
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+        } catch (...) {
+        }
+    });
+    ablyChatClient->connect();
+}
+
+void OneSevenLiveCoreManager::disconnectAblyChat() {
+    if (ablyChatClient) ablyChatClient->disconnect();
 }
 
 void OneSevenLiveCoreManager::destroyYouTubeChatClient() {

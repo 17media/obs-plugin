@@ -10,6 +10,8 @@ static constexpr const char* EventTwitchChatConnected = "twitch_chat_connected";
 static constexpr const char* EventTwitchChatMessage = "twitch_chat_message";
 static constexpr const char* EventYouTubeChatConnected = "youtube_chat_connected";
 static constexpr const char* EventYouTubeChatMessage = "youtube_chat_message";
+static constexpr const char* EventAblyChatConnected = "ably_chat_connected";
+static constexpr const char* EventAblyChatMessage = "ably_chat_message";
 }
 
 struct WsMessage {
