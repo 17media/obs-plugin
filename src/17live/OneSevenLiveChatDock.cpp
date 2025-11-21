@@ -36,20 +36,3 @@ void OneSevenLiveChatDock::reload() {
         cefView_->reload();
     }
 }
-
-void OneSevenLiveChatDock::setSuppressClosePrompt(bool suppress) {
-    suppressClosePrompt_ = suppress;
-}
-
-void OneSevenLiveChatDock::closeEvent(QCloseEvent* event) {
-    if (suppressClosePrompt_ || QApplication::closingDown()) {
-        QDockWidget::closeEvent(event);
-        return;
-    }
-    auto& core = OneSevenLiveCoreManager::getInstance();
-    if (!core.confirmCloseChatRelatedDocks()) {
-        event->ignore();
-        return;
-    }
-    QDockWidget::closeEvent(event);
-}

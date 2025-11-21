@@ -1048,7 +1048,6 @@ void OneSevenLiveCoreManager::closeAllDocks() {
     if (chatDock) {
         chatRoomVisible = chatDock->isVisible();
         chatDock->disconnect(this);
-        chatDock->setSuppressClosePrompt(true);
         chatDock->close();
         chatDock->deleteLater();
         chatDock = nullptr;
@@ -1292,11 +1291,7 @@ void OneSevenLiveCoreManager::handleRockZoneClicked() {
     if (!rockZoneDock) {
         createRockZoneDock();
     } else {
-        const bool newVisible = !rockZoneDock->isVisible();
-        if (newVisible) {
-            ensureChatDockOpen();
-        }
-        rockZoneDock->setVisible(newVisible);
+        rockZoneDock->setVisible(!rockZoneDock->isVisible());
     }
 
     // Update menu item checked status
@@ -1318,8 +1313,6 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         obs_log(LOG_ERROR, "Failed to get login data");
         return;
     }
-
-    ensureChatDockOpen();
 
     // Create and show rock zone window
     rockZoneDock = new OneSevenLiveRockZoneDock(mainWindow, apiWrapper.get(), configManager.get());
@@ -1756,11 +1749,7 @@ void OneSevenLiveCoreManager::handlePreviewDockClicked() {
     if (!previewDock) {
         createPreviewDock();
     } else {
-        const bool newVisible = !previewDock->isVisible();
-        if (newVisible) {
-            ensureChatDockOpen();
-        }
-        previewDock->setVisible(newVisible);
+        previewDock->setVisible(!previewDock->isVisible());
     }
 
     // Update menu item checked status
@@ -1776,8 +1765,6 @@ void OneSevenLiveCoreManager::createPreviewDock() {
     if (previewDock) {
         return;
     }
-
-    ensureChatDockOpen();
     
     QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
 
@@ -1826,43 +1813,4 @@ void OneSevenLiveCoreManager::createPreviewDock() {
 
         previewDockFirstLoad = false;
     }
-}
-
-void OneSevenLiveCoreManager::ensureChatDockOpen() {
-    if (!chatDock || !chatDock->isVisible()) {
-        handleChatRoomClicked();
-    }
-}
-
-bool OneSevenLiveCoreManager::confirmCloseChatRelatedDocks() {
-    QMainWindow* mw = getMainWindow();
-    if (!mw) return true;
-
-    const bool rockVisible = rockZoneDock && rockZoneDock->isVisible();
-    const bool previewVisible = previewDock && previewDock->isVisible();
-    if (!rockVisible && !previewVisible) {
-        return true;
-    }
-
-    QMessageBox msgBox(mw);
-    msgBox.setWindowTitle(obs_module_text("Live.Common.Notice"));
-    msgBox.setText(QString::fromUtf8(obs_module_text("ChatDock.Close.JoinRelated")));
-    msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::AcceptRole);
-    QPushButton* cancelButton = msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::RejectRole);
-    msgBox.setDefaultButton(cancelButton);
-    msgBox.exec();
-    const bool accept = (msgBox.buttonRole(msgBox.clickedButton()) == QMessageBox::AcceptRole);
-    if (!accept) return false;
-
-    if (chatDock) {
-        chatDock->setSuppressClosePrompt(true);
-        chatDock->close();
-    }
-    if (rockZoneDock && rockVisible) {
-        rockZoneDock->close();
-    }
-    if (previewDock && previewVisible) {
-        previewDock->close();
-    }
-    return true;
 }
