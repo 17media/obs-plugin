@@ -142,7 +142,20 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 if (br == len) {
                     if (opcode == 0x1) {
                         if (onMessage) QMetaObject::invokeMethod(this, [this, payload]() { onMessage(payload); }, Qt::QueuedConnection);
-                    } else if (opcode == 0x8) { break; }
+                    } else if (opcode == 0x8) {
+                        int code = 1000;
+                        std::string reason;
+                        if (payload.size() >= 2) {
+                            code = ((unsigned char)payload[0] << 8) | (unsigned char)payload[1];
+                            if (payload.size() > 2) reason.assign(payload.data() + 2, payload.size() - 2);
+                        }
+                        obs_log(LOG_INFO, "[17Live WebSocket] Close received: code=%d reason=%s", code, reason.c_str());
+                        if (onError) {
+                            std::string msg = std::string("ws_close ") + std::to_string(code) + (reason.empty() ? std::string("") : std::string(" ") + reason);
+                            QMetaObject::invokeMethod(this, [this, msg]() { onError(msg); }, Qt::QueuedConnection);
+                        }
+                        break;
+                    }
                     else if (opcode == 0x9) {
                         std::string pl = payload;
                         if (pl.size() > 125) pl.clear();
@@ -155,7 +168,11 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                     }
                 }
             }
-        } else if (r == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) { break; }
+        } else if (r == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) {
+            obs_log(LOG_INFO, "[17Live WebSocket] Peer close notify received");
+            if (onError) QMetaObject::invokeMethod(this, [this]() { onError("peer_close_notify"); }, Qt::QueuedConnection);
+            break;
+        }
         else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) { continue; }
         else if (r < 0) { if (onError) QMetaObject::invokeMethod(this, [this]() { onError("tls_read"); }, Qt::QueuedConnection); break; }
         else { break; }

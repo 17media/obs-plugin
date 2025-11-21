@@ -673,6 +673,11 @@ void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QStri
     if (!ablyChatClient) return;
     ablyChatClient->setRoomId(roomId);
     if (!token.isEmpty()) ablyChatClient->setAblyToken(token);
+    ablyChatClient->setAuthCallback([this](const QString& rid, nlohmann::json& out) {
+        auto* api = this->getApiWrapper();
+        if (!api) return false;
+        return api->GetAblyToken(rid.toStdString(), out);
+    });
     ablyChatClient->setOnOpen([this]() {
         obs_log(LOG_INFO, "[17Live Core] AblyChat onOpen");
         // wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});

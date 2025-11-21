@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <QSet>
 
 #include "OneSevenLiveApiWrappers.hpp"
 #include "../websocket/OneSevenLiveWebsocketClient.hpp"
@@ -25,16 +26,28 @@ class OneSevenLiveAblyChatClient : public QObject {
     void setOnMessage(const std::function<void(const std::string&)>& cb);
     void setOnClose(const std::function<void()>& cb);
     void setOnError(const std::function<void(const std::string&)>& cb);
+    void setAuthCallback(const std::function<bool(const QString&, nlohmann::json&)>& cb);
 
     bool connect();
     void disconnect();
-    bool isConnected() const;
+   bool isConnected() const;
 
-   private:
+  private:
     void tryConnectWithFallbackHosts();
     void attachChannel();
+    void attachChannel(const QString& channel);
+    void detachChannel(const QString& channel);
+    void publishMessage(const QString& channel, const nlohmann::json& payload);
+    void enterPresence(const QString& channel, const nlohmann::json& data);
+    void updatePresence(const QString& channel, const nlohmann::json& data);
+    void leavePresence(const QString& channel);
     void scheduleReconnect();
     void cancelReconnect();
+    bool refreshToken();
+    void scheduleTokenRefresh(qint64 expiresEpochMs, qint64 issuedEpochMs, qint64 ttlMs);
+    void cancelTokenRefresh();
+    void sendAuth();
+    void sendConnect();
 
     QString m_roomId;
     QString m_token;
@@ -46,11 +59,20 @@ class OneSevenLiveAblyChatClient : public QObject {
     int m_maxReconnectAttempts{10};
     int m_baseReconnectDelayMs{1000};
     bool m_closing{false};
+    QTimer* m_tokenRefreshTimer{nullptr};
+    qint64 m_tokenExpiresMs{0};
+    int m_tokenRefreshAdvanceMs{60000};
+    int m_tokenDefaultTtlMs{3000000};
+    QString m_connectionKey;
+    bool m_attached{false};
+    QSet<QString> m_attachedChannels;
+    long long m_msgSerialCounter{0};
 
     std::function<void()> m_onOpen;
     std::function<void(const std::string&)> m_onMessage;
     std::function<void()> m_onClose;
     std::function<void(const std::string&)> m_onError;
+    std::function<bool(const QString&, nlohmann::json&)> m_authCallback;
 };
 
 namespace ably {
