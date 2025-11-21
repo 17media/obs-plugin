@@ -9,6 +9,8 @@
 #include "OneSevenLiveApiWrappers.hpp"
 #include "../websocket/OneSevenLiveWebsocketClient.hpp"
 
+class QTimer;
+
 class OneSevenLiveAblyChatClient : public QObject {
     Q_OBJECT
 
@@ -31,12 +33,19 @@ class OneSevenLiveAblyChatClient : public QObject {
    private:
     void tryConnectWithFallbackHosts();
     void attachChannel();
+    void scheduleReconnect();
+    void cancelReconnect();
 
     QString m_roomId;
     QString m_token;
     std::unique_ptr<OneSevenLiveWebsocketClient> m_wsClient;
     std::vector<QString> m_hosts;
     int m_hostIndex = 0;
+    QTimer* m_reconnectTimer{nullptr};
+    int m_reconnectAttempts{0};
+    int m_maxReconnectAttempts{10};
+    int m_baseReconnectDelayMs{1000};
+    bool m_closing{false};
 
     std::function<void()> m_onOpen;
     std::function<void(const std::string&)> m_onMessage;

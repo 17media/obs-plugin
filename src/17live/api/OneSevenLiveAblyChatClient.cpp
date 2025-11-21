@@ -15,7 +15,7 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
 
     m_wsClient->setOpenCallback([this]() {
         if (m_onOpen) QMetaObject::invokeMethod(this, [this]() { m_onOpen(); }, Qt::QueuedConnection);
-        // Wait for server CONNECTED message before attaching
+        m_reconnectAttempts = 0;
     });
     m_wsClient->setMessageCallback([this](const std::string& msg) {
         // Parse Ably protocol message and attach after CONNECTED
@@ -31,7 +31,7 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                     else if (a == "message") action = 15;
                 }
                 if (action == 4) {
-                    QTimer::singleShot(0, this, [this]() { attachChannel(); });
+                    QTimer::singleShot(100, this, [this]() { attachChannel(); });
                 }
             }
         } catch (...) {
@@ -40,13 +40,15 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
     });
     m_wsClient->setCloseCallback([this]() {
         if (m_onClose) QMetaObject::invokeMethod(this, [this]() { m_onClose(); }, Qt::QueuedConnection);
+        if (!m_closing) scheduleReconnect();
     });
     m_wsClient->setErrorCallback([this](const std::string& err) {
         if (m_onError) QMetaObject::invokeMethod(this, [this, err]() { m_onError(err); }, Qt::QueuedConnection);
-        // try next fallback host
         if (m_hostIndex + 1 < (int)m_hosts.size()) {
             m_hostIndex++;
             tryConnectWithFallbackHosts();
+        } else {
+            scheduleReconnect();
         }
     });
 }
@@ -82,11 +84,16 @@ bool OneSevenLiveAblyChatClient::connect() {
     }
 
     m_hostIndex = 0;
+    m_closing = false;
+    m_reconnectAttempts = 0;
+    cancelReconnect();
     tryConnectWithFallbackHosts();
     return true;
 }
 
 void OneSevenLiveAblyChatClient::disconnect() {
+    m_closing = true;
+    cancelReconnect();
     if (m_wsClient) m_wsClient->disconnect();
 }
 
@@ -97,8 +104,8 @@ bool OneSevenLiveAblyChatClient::isConnected() const {
 void OneSevenLiveAblyChatClient::tryConnectWithFallbackHosts() {
     if (m_hostIndex < 0 || m_hostIndex >= (int)m_hosts.size()) return;
     const QString host = m_hosts[m_hostIndex];
-    // Build Ably websocket URL with token auth (JSON format, echo off)
-    QUrl url(QString("%1/realtime?v=1&format=json&echo=false&accessToken=%2").arg(host, m_token));
+    // Build Ably websocket URL with token auth (JSON protocol, echo off)
+    QUrl url(QString("%1?protocol=json&echo=false&access_token=%2").arg(host, m_token));
     m_wsClient->connectUrl(url.toString());
 }
 
@@ -110,4 +117,28 @@ void OneSevenLiveAblyChatClient::attachChannel() {
     attachMsg["action"] = 10; // ATTACH
     attachMsg["channel"] = m_roomId.toStdString();
     m_wsClient->sendText(QString::fromStdString(attachMsg.dump()));
+}
+
+void OneSevenLiveAblyChatClient::scheduleReconnect() {
+    if (m_closing) return;
+    if (!m_reconnectTimer) {
+        m_reconnectTimer = new QTimer(this);
+        m_reconnectTimer->setSingleShot(true);
+        QObject::connect(m_reconnectTimer, &QTimer::timeout, this, [this]() {
+            if (m_closing) return;
+            m_hostIndex = 0;
+            tryConnectWithFallbackHosts();
+        });
+    }
+    if (m_reconnectAttempts >= m_maxReconnectAttempts) m_reconnectAttempts = m_maxReconnectAttempts;
+    int delay = m_baseReconnectDelayMs;
+    for (int i = 0; i < m_reconnectAttempts; ++i) {
+        delay = std::min(delay * 2, 15000);
+    }
+    m_reconnectAttempts = std::min(m_reconnectAttempts + 1, m_maxReconnectAttempts);
+    m_reconnectTimer->start(delay);
+}
+
+void OneSevenLiveAblyChatClient::cancelReconnect() {
+    if (m_reconnectTimer) m_reconnectTimer->stop();
 }

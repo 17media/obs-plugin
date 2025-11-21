@@ -102,6 +102,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     ret = mbedtls_ssl_setup(ssl, conf);
     if (ret != 0) { if (onError) QMetaObject::invokeMethod(this, [this]() { onError("ssl_setup"); }, Qt::QueuedConnection); stopThread(); return; }
     mbedtls_ssl_set_bio(ssl, server_fd, mbedtls_net_send, mbedtls_net_recv, nullptr);
+    mbedtls_ssl_set_hostname(ssl, host.toUtf8().constData());
 
     while ((ret = mbedtls_ssl_handshake(ssl)) != 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) { if (onError) QMetaObject::invokeMethod(this, [this]() { onError("tls_handshake"); }, Qt::QueuedConnection); stopThread(); return; }
