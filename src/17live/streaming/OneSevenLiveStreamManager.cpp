@@ -14,6 +14,8 @@
 #include "api/OneSevenLiveModels.hpp"
 #include "moc_OneSevenLiveStreamManager.cpp"
 #include "plugin-support.h"
+#include "websocket/WebsocketUtils.hpp"
+#include "websocket/WsMessage.hpp"
 
 OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* apiWrapper,
                                                      OneSevenLiveConfigManager* configManager,
@@ -31,6 +33,12 @@ OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* ap
     configManager->getConfigValue("RoomID", roomIDStr);
     currentRoomID = std::stoll(roomIDStr);
     QTimer::singleShot(0, this, [this]() { loadRoomInfo(); });
+
+    m_statusTimer = new QTimer(this);
+    m_statusTimer->setSingleShot(false);
+    m_statusTimer->setInterval(10 * 1000);
+    connect(m_statusTimer, &QTimer::timeout, this, &OneSevenLiveStreamManager::onStatusTimer);
+    m_statusTimer->start();
 
     obs_log(LOG_INFO, "OneSevenLiveStreamManager initialized");
 }
@@ -154,6 +162,9 @@ bool OneSevenLiveStreamManager::createRtmp(const OneSevenLiveRtmpRequest& reques
     // Update status
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
 
+    // Broadcast Ably chat connected when live is created
+    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
+
     obs_log(LOG_INFO, "Live stream created successfully. LiveStreamID: %s",
             currentLiveStreamID.c_str());
     return true;
@@ -184,6 +195,9 @@ bool OneSevenLiveStreamManager::startStream() {
 
     // Update status
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
+
+    // Broadcast Ably chat connected when streaming starts
+    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
 
     obs_log(LOG_INFO, "Streaming started successfully");
     return true;
@@ -223,6 +237,9 @@ bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
     // Update status
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::NotStarted);
 
+    // Broadcast Ably chat break when streaming stops
+    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"}});
+
     // Clear current stream info
     currentLiveStreamID.clear();
     currentUserID.clear();
@@ -232,6 +249,12 @@ bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
 
     obs_log(LOG_INFO, "Streaming stopped successfully");
     return true;
+}
+
+void OneSevenLiveStreamManager::onStatusTimer() {
+    if (currentStreamingStatus == OneSevenLiveStreamingStatus::NotStarted) {
+        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"}});
+    }
 }
 
 void OneSevenLiveStreamManager::startOBSStreaming() {

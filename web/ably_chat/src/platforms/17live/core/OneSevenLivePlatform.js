@@ -4,10 +4,8 @@
  */
 
 import { BasePlatform } from '../../BasePlatform';
-import * as Ably from 'ably';
 import { nanoid } from 'nanoid';
 import { fromJS } from 'immutable';
-import { getAblyDecodeData } from '@/platforms/17live/util/getAblyDecodeData';
 import {
   MsgType_COMMENT,
   MsgType_NEW_GIFT,
@@ -17,7 +15,7 @@ import {
   MsgType_POKE,
   MsgType_ROCKZONE,
 } from '@/lib/constants';
-import { getAblyTokenFromServer, getGifts, getGiftByID, getRoomInfo } from '../api';
+import { getGifts, getGiftByID, getRoomInfo } from '../api';
 import { sendWSMessage } from '@/services/WSSender';
 
 // Dev-only mock messages (same as Ably.jsx)
@@ -45,7 +43,7 @@ export class OneSevenLivePlatform extends BasePlatform {
 
   async connect(config = {}) {
     try {
-      let { roomID, userID, ablyToken } = config;
+      let { roomID, userID } = config;
 
       // Allow fetching roomID/userID from URL when not provided (aligned with Ably.jsx)
       if (!roomID || !userID) {
@@ -61,38 +59,6 @@ export class OneSevenLivePlatform extends BasePlatform {
       // Fetch room info and gifts
       this.roomInfo = await getRoomInfo();
       await getGifts();
-
-      // Create Ably client (same settings as Ably.jsx)
-      this.ablyClient = new Ably.Realtime({
-        environment: '17media',
-        fallbackHosts: [
-          '17-media-a-fallback.ably-realtime.com',
-          '17-media-b-fallback.ably-realtime.com',
-          '17-media-c-fallback.ably-realtime.com',
-        ],
-        authCallback: async (data, cb) => {
-          try {
-            // Prefer caller-provided token; otherwise fetch and pass to upper layer
-            if (ablyToken) {
-              cb(null, ablyToken);
-              return;
-            }
-            // Consistent with Ably.jsx: request token by roomID
-            const token = await getAblyTokenFromServer(roomID);
-            cb(null, token);
-          } catch (e) {
-            cb(e);
-          }
-        },
-      });
-
-      // Subscribe to room ID channel per Ably.jsx
-      this.channel = this.ablyClient.channels.get(roomID);
-      
-      // Listen for messages
-      this.channel.subscribe((message) => {
-        this.handleAblyMessage(message);
-      });
 
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, roomID });
@@ -133,12 +99,6 @@ export class OneSevenLivePlatform extends BasePlatform {
 
   async disconnect() {
     try {
-      if (this.channel) {
-        this.channel.unsubscribe();
-      }
-      if (this.ablyClient) {
-        this.ablyClient.close();
-      }
       this.isConnected = false;
       this.emit('disconnected', { platform: this.platformId });
     } catch (error) {
@@ -147,17 +107,24 @@ export class OneSevenLivePlatform extends BasePlatform {
     }
   }
 
-  handleAblyMessage(message) {
-    try {
-      const decodedData = getAblyDecodeData(message);
-      const unifiedMessage = this.processRawMessage(decodedData);
-
-      if (unifiedMessage) {
-        this.enqueueMessage(unifiedMessage);
+  // WebSocket-driven updates (consistent with Twitch/YouTube)
+  handleWsMessage({ type, payload }) {
+    if (type === 'ably_chat_connected') {
+      const status = payload?.status;
+      const connected = status === 'connected';
+      this.isConnected = connected;
+      if (connected) {
+        this.emit('connected', { platform: this.platformId, roomID: this.roomID });
+      } else {
+        this.emit('disconnected', { platform: this.platformId });
       }
-    } catch (error) {
-      console.error('Failed to process 17Live message:', error);
-      this.emit('error', { platform: this.platformId, error });
+      return;
+    }
+    if (type === 'ably_chat_message') {
+      const decoded = payload; // already decoded server-side
+      const unifiedMessage = this.processRawMessage(decoded);
+      if (unifiedMessage) this.enqueueMessage(unifiedMessage);
+      return;
     }
   }
 
@@ -170,19 +137,20 @@ export class OneSevenLivePlatform extends BasePlatform {
   prepareIndexedChat(message) {
     const id = nanoid();
     const streamerInfo = this.roomInfo?.userInfo;
+    const msgType = typeof message.type !== 'undefined' ? message.type : message?.msgType;
 
-    if (message.type === MsgType_NEW_GIFT || message.type === MsgType_NEW_LUCKYBAG) {
+    if (msgType === MsgType_NEW_GIFT || msgType === MsgType_NEW_LUCKYBAG) {
       const { displayUser, barrage, ...restGift } = message?.giftMsg || {};
       const gift = getGiftByID(restGift?.giftID);
 
-      if (message.type === MsgType_NEW_LUCKYBAG && restGift?.extID) {
+      if (msgType === MsgType_NEW_LUCKYBAG && restGift?.extID) {
         const luckyBag = getGiftByID(restGift.extID);
         const indexedGift = fromJS({
           ...restGift,
           ...(displayUser || {}),
           barrage,
           id,
-          messageType: message.type,
+          messageType: msgType,
           gift,
           luckyBag,
           streamerInfo,
@@ -195,12 +163,12 @@ export class OneSevenLivePlatform extends BasePlatform {
         ...(displayUser || {}),
         barrage,
         id,
-        messageType: message.type,
+        messageType: msgType,
         gift,
         streamerInfo,
       });
       return indexedGift;
-    } else if (message.type === MsgType_AI_COHOST_MESSAGE) {
+    } else if (msgType === MsgType_AI_COHOST_MESSAGE) {
       const { commentTxt } = message?.aiCohostMsg || {};
       const indexedChat = fromJS({
         content: commentTxt,
@@ -214,18 +182,18 @@ export class OneSevenLivePlatform extends BasePlatform {
         },
         backgroundColor: '#FFFFFFE6',
         id,
-        messageType: message.type,
+        messageType: msgType,
         streamerInfo,
       });
       return indexedChat;
-    } else if (message.type === MsgType_POKE) {
+    } else if (msgType === MsgType_POKE) {
       const { sender } = message?.pokeInfo || {};
       return fromJS({
         ...(sender || {}),
         isStreamer: sender?.userID && streamerInfo?.userID ? sender.userID === streamerInfo.userID : false,
         pokeInfo: message?.pokeInfo,
         id,
-        messageType: message.type,
+        messageType: msgType,
         streamerInfo,
       });
     }
@@ -236,14 +204,14 @@ export class OneSevenLivePlatform extends BasePlatform {
       ...(displayUser || {}),
       barrage,
       id,
-      messageType: message.type,
+      messageType: msgType,
       streamerInfo,
     });
     return indexedChat;
   }
 
   processRawMessage(rawData) {
-    const { type } = rawData;
+    const type = typeof rawData?.type !== 'undefined' ? rawData.type : rawData?.msgType;
     
     switch (type) {
       case MsgType_COMMENT:
@@ -257,10 +225,10 @@ export class OneSevenLivePlatform extends BasePlatform {
         return this.processAICohostMessage(rawData);
       case MsgType_POKE:
         return this.processPokeMessage(rawData);
-      case MsgType_ROCKZONE:
-        // just send refresh-rockzone message
-        this.processRockZoneMessage(rawData);
-        return null;
+      // case MsgType_ROCKZONE:
+      //   // just send refresh-rockzone message
+      //   this.processRockZoneMessage(rawData);
+      //   return null;
       default:
         // console.warn('Unknown 17Live message type:', type);
         return null;
@@ -280,24 +248,24 @@ export class OneSevenLivePlatform extends BasePlatform {
   processGiftMessage(data) {
     const content = this.prepareIndexedChat(data);
 
-    const gift = content.get('gift');
+    // const gift = content.get('gift');
     
-    if (gift) {
-      let playData = {
-        type: 'play_vff',
-        vffURL: gift.get('vffURL'),
-        vffJson: gift.get('vffJson'),
-      }
-      const composite = data?.giftMsg?.giftMetas?.[0]?.composite;
-      if (composite) {
-        playData.compositeData = Object.fromEntries(composite.map(item => [item.tag, item.imageURL]));
-      }
-      sendWSMessage({
-        type: 'transmit',
-        source: 'client',
-        payload: playData
-      });
-    }
+    // if (gift) {
+    //   let playData = {
+    //     type: 'play_vff',
+    //     vffURL: gift.get('vffURL'),
+    //     vffJson: gift.get('vffJson'),
+    //   }
+    //   const composite = data?.giftMsg?.giftMetas?.[0]?.composite;
+    //   if (composite) {
+    //     playData.compositeData = Object.fromEntries(composite.map(item => [item.tag, item.imageURL]));
+    //   }
+    //   sendWSMessage({
+    //     type: 'transmit',
+    //     source: 'client',
+    //     payload: playData
+    //   });
+    // }
 
     return {
       id: content.get('id'),
@@ -337,14 +305,14 @@ export class OneSevenLivePlatform extends BasePlatform {
     };
   }
 
-  processRockZoneMessage(data) {
-    let playData = {
-      type: 'refresh_rockzone',
-    }
-    sendWSMessage({
-      type: 'action',
-      source: 'client',
-      payload: playData
-    });
-  }
+  // processRockZoneMessage(data) {
+  //   let playData = {
+  //     type: 'refresh_rockzone',
+  //   }
+  //   sendWSMessage({
+  //     type: 'action',
+  //     source: 'client',
+  //     payload: playData
+  //   });
+  // }
 }

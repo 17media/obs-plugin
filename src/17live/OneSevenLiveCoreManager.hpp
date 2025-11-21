@@ -6,6 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 
 #include "api/OneSevenLiveModels.hpp"
 #include "utility/NetworkDiagnostics.hpp"
@@ -276,6 +277,9 @@ class OneSevenLiveCoreManager : public QObject {
     void handleDiagnosticsClicked();
 
     void loadGifts();
+    void loadGiftsFromConfig();
+    void buildGiftsMapFromJson(const nlohmann::json& giftsJson);
+    const nlohmann::json* getGiftByID(int giftID) const;
 
     class OneSevenLiveUpdateManager* updateManager = nullptr;
 
@@ -291,4 +295,7 @@ class OneSevenLiveCoreManager : public QObject {
 
     void handleWebsocketMessage(const std::string& clientId, const std::string& message);
     void handleWebsocketConnectionChanged(const std::string& clientId, bool connected);
+
+    // Gifts lookup map: giftID -> gift json
+    std::unordered_map<int, nlohmann::json> giftsMap;
 };

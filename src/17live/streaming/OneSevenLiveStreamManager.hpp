@@ -250,4 +250,7 @@ class OneSevenLiveStreamManager : public QObject {
     OneSevenLiveUserInfo userInfo;
     OneSevenLiveArmySubscriptionLevels levels;
     bool roomInfoLoading = false;
+
+    QTimer* m_statusTimer{nullptr};
+    void onStatusTimer();
 };

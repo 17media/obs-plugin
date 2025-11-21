@@ -211,6 +211,9 @@ bool OneSevenLiveCoreManager::initialize() {
         }
     }
 
+    // Load gifts from saved config into memory map for fast lookup
+    loadGiftsFromConfig();
+
     // Initialize menu manager
     menuManager = std::make_unique<OneSevenLiveMenuManager>(mainWindow);
     if (!menuManager) {
@@ -354,33 +357,35 @@ void OneSevenLiveCoreManager::handleDiagnosticsClicked() {
 }
 
 void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId, const std::string& message) {
-    WsMessage m;
-    if (!WsMessage::parse(message, m)) {
-        obs_log(LOG_WARNING, "[17Live WebSocket] JSON parse error in message from %s", clientId.c_str());
-        return;
-    }
-    const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
-    if (m.type.empty()) {
-        obs_log(LOG_WARNING, "[17Live WebSocket] Missing 'type' in message from %s", clientId.c_str());
-        return;
-    }
-    if (!hasServer) {
-        obs_log(LOG_WARNING, "[17Live WebSocket] Server not running; cannot handle message from %s", clientId.c_str());
-        return;
-    }
-    if (m.is(ws::TypeTransmit)) {
-        this->websocketServer_->broadcastMessage(m.payload.dump());
-        return;
-    }
-    if (m.is(ws::TypeAction)) {
-        if (m.payloadString("type") == ws::ActionRefreshRockzone) {
-            if (rockZoneDock) {
-                rockZoneDock->refreshUserList();
-            }
-        }
-        return;
-    }
-    obs_log(LOG_INFO, "[17Live WebSocket] Unhandled message type '%s' from %s", m.type.c_str(), clientId.c_str());
+    UNUSED_PARAMETER(clientId);
+    UNUSED_PARAMETER(message);
+    // WsMessage m;
+    // if (!WsMessage::parse(message, m)) {
+    //     obs_log(LOG_WARNING, "[17Live WebSocket] JSON parse error in message from %s", clientId.c_str());
+    //     return;
+    // }
+    // const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
+    // if (m.type.empty()) {
+    //     obs_log(LOG_WARNING, "[17Live WebSocket] Missing 'type' in message from %s", clientId.c_str());
+    //     return;
+    // }
+    // if (!hasServer) {
+    //     obs_log(LOG_WARNING, "[17Live WebSocket] Server not running; cannot handle message from %s", clientId.c_str());
+    //     return;
+    // }
+    // if (m.is(ws::TypeTransmit)) {
+    //     this->websocketServer_->broadcastMessage(m.payload.dump());
+    //     return;
+    // }
+    // if (m.is(ws::TypeAction)) {
+    //     if (m.payloadString("type") == ws::ActionRefreshRockzone) {
+    //         if (rockZoneDock) {
+    //             rockZoneDock->refreshUserList();
+    //         }
+    //     }
+    //     return;
+    // }
+    // obs_log(LOG_INFO, "[17Live WebSocket] Unhandled message type '%s' from %s", m.type.c_str(), clientId.c_str());
 }
 
 void OneSevenLiveCoreManager::handleWebsocketConnectionChanged(const std::string& clientId, bool connected) {
@@ -694,6 +699,46 @@ void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QStri
                             case ably::MsgType_POKE:
                             case ably::MsgType_AI_COHOST_MESSAGE:
                                 wsBroadcast(QString::fromUtf8(ws::EventAblyChatMessage), decoded);
+                                if (type == ably::MsgType_NEW_GIFT || type == ably::MsgType_NEW_LUCKYBAG) {
+                                    int giftID = -1;
+                                    try {
+                                        if (decoded.contains("giftMsg") && decoded["giftMsg"].is_object()) {
+                                            const auto& gm = decoded["giftMsg"];
+                                            if (gm.contains("giftID") && gm["giftID"].is_number_integer()) {
+                                                giftID = gm["giftID"].get<int>();
+                                            }
+                                        }
+                                    } catch (...) {}
+
+                                    const nlohmann::json* gift = (giftID >= 0) ? getGiftByID(giftID) : nullptr;
+                                    if (gift && gift->contains("vffURL") && gift->contains("vffJson") &&
+                                        (*gift)["vffURL"].is_string() && (*gift)["vffJson"].is_string()) {
+                                        nlohmann::json playData;
+                                        playData["type"] = "play_vff";
+                                        playData["vffURL"] = (*gift)["vffURL"].get<std::string>();
+                                        playData["vffJson"] = (*gift)["vffJson"].get<std::string>();
+
+                                        try {
+                                            const auto& gm = decoded["giftMsg"];
+                                            if (gm.contains("giftMetas") && gm["giftMetas"].is_array() && !gm["giftMetas"].empty()) {
+                                                const auto& meta0 = gm["giftMetas"][0];
+                                                if (meta0.contains("composite") && meta0["composite"].is_array()) {
+                                                    nlohmann::json compositeObj = nlohmann::json::object();
+                                                    for (const auto& item : meta0["composite"]) {
+                                                        if (item.contains("tag") && item.contains("imageURL") &&
+                                                            item["tag"].is_string() && item["imageURL"].is_string()) {
+                                                            compositeObj[item["tag"].get<std::string>()] = item["imageURL"].get<std::string>();
+                                                        }
+                                                    }
+                                                    if (!compositeObj.empty()) playData["compositeData"] = compositeObj;
+                                                }
+                                            }
+                                        } catch (...) {}
+
+                                        // wsBroadcast(QString::fromUtf8("play_vff"), playData);
+                                        this->websocketServer_->broadcastMessage(playData.dump());
+                                    }
+                                }
                                 break;
                             case ably::MsgType_ROCKZONE:
                                 if (rockZoneDock) {
@@ -1496,6 +1541,9 @@ void OneSevenLiveCoreManager::loadGifts() {
                 configManager->saveGifts(apiResult);
                 obs_log(LOG_INFO, "Gifts loaded and saved successfully");
 
+                // Build in-memory map for fast lookup
+                buildGiftsMapFromJson(apiResult);
+
                 // Reload chat room dock to support new gifts
                 if (chatDock && chatDock->isVisible()) {
                     obs_log(LOG_INFO, "Reloading chat dock to support new gifts");
@@ -1512,6 +1560,37 @@ void OneSevenLiveCoreManager::loadGifts() {
     });
 
     giftLoadThread.detach();
+}
+
+void OneSevenLiveCoreManager::loadGiftsFromConfig() {
+    if (!configManager) return;
+    nlohmann::json gifts;
+    if (configManager->loadGifts(gifts)) {
+        buildGiftsMapFromJson(gifts);
+        obs_log(LOG_INFO, "Loaded gifts into memory map from config");
+    }
+}
+
+void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJson) {
+    giftsMap.clear();
+    try {
+        if (giftsJson.contains("gifts") && giftsJson["gifts"].is_array()) {
+            for (const auto& gift : giftsJson["gifts"]) {
+                if (gift.contains("giftID") && gift["giftID"].is_number_integer()) {
+                    int gid = gift["giftID"].get<int>();
+                    giftsMap[gid] = gift;
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "Failed to build gifts map: %s", e.what());
+    }
+}
+
+const nlohmann::json* OneSevenLiveCoreManager::getGiftByID(int giftID) const {
+    auto it = giftsMap.find(giftID);
+    if (it != giftsMap.end()) return &it->second;
+    return nullptr;
 }
 
 bool OneSevenLiveCoreManager::showAutoCloseConfirmation(const QString& message) {
