@@ -357,11 +357,11 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync()
                                .toStdString();
 
     auto* thread = new RemoteTextThread(YT_TOKEN_URL.toUtf8().constData(), "application/x-www-form-urlencoded", postData, 0, false);
+    QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     QObject::connect(thread, &RemoteTextThread::Result, this, [this, thread](const QString& text, const QString& error) {
         if (!error.isEmpty()) {
             obs_log(LOG_ERROR, "YouTube token refresh failed: %s", error.toUtf8().constData());
             emit authorizationFailed(error);
-            thread->deleteLater();
             return;
         }
 
@@ -386,14 +386,12 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync()
         } catch (const std::exception &e) {
             obs_log(LOG_ERROR, "Failed to parse YouTube refresh JSON: %s", e.what());
             emit authorizationFailed("Failed to parse refresh response");
-            thread->deleteLater();
             return;
         }
 
         if (newAccessToken.isEmpty()) {
             obs_log(LOG_ERROR, "YouTube token refresh did not return access_token");
             emit authorizationFailed("Refresh missing access_token");
-            thread->deleteLater();
             return;
         }
 
@@ -403,7 +401,6 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync()
             if (!cfgLocal || !cfgLocal->initialize()) {
                 obs_log(LOG_ERROR, "ConfigManager not initialized; cannot persist refreshed token");
                 emit authorizationFailed("Configuration manager not initialized");
-                thread->deleteLater();
                 return;
             }
         }
@@ -412,7 +409,6 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync()
         if (!cfgLocal->setYouTubeAccessToken(newAccessToken, expiresIn, nowEpoch)) {
             obs_log(LOG_ERROR, "Failed to save refreshed YouTube access token");
             emit authorizationFailed("Failed to save refreshed YouTube access token");
-            thread->deleteLater();
             return;
         }
 
@@ -426,7 +422,6 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync()
         obs_log(LOG_INFO, "YouTube token refreshed: token_type=%s expires_in=%d",
                 tokenType.toUtf8().constData(), expiresIn);
         emit authorizationCompleted(m_accessToken);
-        thread->deleteLater();
     });
     thread->start();
 }

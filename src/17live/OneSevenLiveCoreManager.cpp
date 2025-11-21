@@ -674,23 +674,31 @@ void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QStri
     ablyChatClient->setRoomId(roomId);
     if (!token.isEmpty()) ablyChatClient->setAblyToken(token);
     ablyChatClient->setOnOpen([this]() {
-        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
+        obs_log(LOG_INFO, "[17Live Core] AblyChat onOpen");
+        // wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
     });
     ablyChatClient->setOnClose([this]() {
+        obs_log(LOG_INFO, "[17Live Core] AblyChat onClose");
         wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"}});
     });
     ablyChatClient->setOnError([this](const std::string& err) {
+        obs_log(LOG_INFO, "[17Live Core] AblyChat onError: %s", err.c_str());
         wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"},{"error",err}});
     });
     ablyChatClient->setOnMessage([this](const std::string& msg) {
+        // obs_log(LOG_INFO, "[17Live Core] AblyChat onMessage len=%zu", msg.size());
         try {
             nlohmann::json j = nlohmann::json::parse(msg);
             if (j.contains("messages") && j["messages"].is_array()) {
                 for (auto& m : j["messages"]) {
                     if (m.contains("data") && m["data"].is_string()) {
+                        // Dump entire message object to see all fields
+                        // obs_log(LOG_INFO, "[17Live Core] AblyChat onMessage (full): %s", m.dump().c_str());
                         nlohmann::json decoded;
                         if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded)) continue;
-                        int type = decoded.contains("msgType") && decoded["msgType"].is_number_integer() ? decoded["msgType"].get<int>() : -1;
+                        int type = decoded.contains("type") && decoded["type"].is_number_integer() ? decoded["type"].get<int>() : -1;
+                        // obs_log(LOG_INFO, "received message: %s", decoded.dump().c_str());
+                        // obs_log(LOG_INFO, "received message type: %d", type);
                         switch (type) {
                             case ably::MsgType_COMMENT:
                             case ably::MsgType_NEW_GIFT:
@@ -700,17 +708,20 @@ void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QStri
                             case ably::MsgType_AI_COHOST_MESSAGE:
                                 wsBroadcast(QString::fromUtf8(ws::EventAblyChatMessage), decoded);
                                 if (type == ably::MsgType_NEW_GIFT || type == ably::MsgType_NEW_LUCKYBAG) {
-                                    int giftID = -1;
+                                    // obs_log(LOG_INFO, "transmit message: %s", decoded.dump().c_str());
+                                    std::string giftID;
                                     try {
                                         if (decoded.contains("giftMsg") && decoded["giftMsg"].is_object()) {
                                             const auto& gm = decoded["giftMsg"];
-                                            if (gm.contains("giftID") && gm["giftID"].is_number_integer()) {
-                                                giftID = gm["giftID"].get<int>();
+                                            // obs_log(LOG_INFO, "giftMsg: %s", gm.dump().c_str());
+                                            if (gm.contains("giftID") && gm["giftID"].is_string()) {
+                                                giftID = gm["giftID"].get<std::string>();
                                             }
                                         }
                                     } catch (...) {}
 
-                                    const nlohmann::json* gift = (giftID >= 0) ? getGiftByID(giftID) : nullptr;
+                                    const nlohmann::json* gift = (!giftID.empty()) ? getGiftByID(giftID) : nullptr;
+                                    // obs_log(LOG_INFO, "Gift: %s", gift ? gift->dump().c_str() : "null");
                                     if (gift && gift->contains("vffURL") && gift->contains("vffJson") &&
                                         (*gift)["vffURL"].is_string() && (*gift)["vffJson"].is_string()) {
                                         nlohmann::json playData;
@@ -736,6 +747,7 @@ void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QStri
                                         } catch (...) {}
 
                                         // wsBroadcast(QString::fromUtf8("play_vff"), playData);
+                                        obs_log(LOG_INFO, "Playing VFF %s", playData.dump().c_str());
                                         this->websocketServer_->broadcastMessage(playData.dump());
                                     }
                                 }
@@ -901,6 +913,27 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     createYouTubeChatClient();
     createTwitchChatClient();
 
+    // Connect Ably chat based on current room ID and fetched token
+    if (streamManager && apiWrapper) {
+        const qint64 rid = streamManager->getRoomID();
+        if (rid > 0) {
+            nlohmann::json ablyResp;
+            QString token;
+            if (apiWrapper->GetAblyToken(std::to_string(rid), ablyResp)) {
+                if (ablyResp.contains("token") && ablyResp["token"].is_string()) {
+                    token = QString::fromStdString(ablyResp["token"].get<std::string>());
+                    QString masked = token.length() >= 12 ? token.left(6) + "..." + token.right(6) : token;
+                    obs_log(LOG_INFO, "[17Live Core] Fetched Ably token for room %lld token(masked)=%s", (long long)rid, masked.toUtf8().constData());
+                } else {
+                    obs_log(LOG_WARNING, "[17Live Core] Ably token response missing 'token' field for room %lld", (long long)rid);
+                }
+            } else {
+                obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld", (long long)rid);
+            }
+            connectAblyChat(QString::number(rid), token);
+        }
+    }
+
     // discovery is managed by YouTubeChatClient
 }
 
@@ -919,6 +952,7 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
     // Destroy chat clients on logout
     destroyYouTubeChatClient();
     destroyTwitchChatClient();
+    disconnectAblyChat();
 }
 
 void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
@@ -1572,12 +1606,14 @@ void OneSevenLiveCoreManager::loadGiftsFromConfig() {
 }
 
 void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJson) {
+    obs_log(LOG_INFO, "Building gifts map from json");
+
     giftsMap.clear();
     try {
         if (giftsJson.contains("gifts") && giftsJson["gifts"].is_array()) {
             for (const auto& gift : giftsJson["gifts"]) {
-                if (gift.contains("giftID") && gift["giftID"].is_number_integer()) {
-                    int gid = gift["giftID"].get<int>();
+                if (gift.contains("giftID") && gift["giftID"].is_string()) {
+                    const std::string gid = gift["giftID"].get<std::string>();
                     giftsMap[gid] = gift;
                 }
             }
@@ -1585,9 +1621,11 @@ void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJ
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Failed to build gifts map: %s", e.what());
     }
+
+    obs_log(LOG_INFO, "Gifts map built with %d entries", giftsMap.size());
 }
 
-const nlohmann::json* OneSevenLiveCoreManager::getGiftByID(int giftID) const {
+const nlohmann::json* OneSevenLiveCoreManager::getGiftByID(const std::string& giftID) const {
     auto it = giftsMap.find(giftID);
     if (it != giftsMap.end()) return &it->second;
     return nullptr;

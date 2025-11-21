@@ -24,8 +24,13 @@ void OneSevenLiveWebsocketClient::setErrorCallback(const std::function<void(cons
 
 void OneSevenLivewebsocketClient_connectUrl_parse_helper(QUrl& parsed, QString& host, QString& port, QString& path) {
     host = parsed.host();
-    path = parsed.path();
-    if (path.isEmpty()) path = "/";
+    QString pth = parsed.path();
+    if (pth.isEmpty()) pth = "/";
+    if (parsed.hasQuery()) {
+        path = pth + "?" + parsed.query();
+    } else {
+        path = pth;
+    }
     int p = parsed.port(443);
     port = QString::number(p);
 }
@@ -53,7 +58,13 @@ void OneSevenLiveWebsocketClient::startThread(const QString& host, const QString
 
 void OneSevenLiveWebsocketClient::stopThread() {
     running.store(false);
-    if (th.joinable()) th.join();
+    if (th.joinable()) {
+        if (std::this_thread::get_id() == th.get_id()) {
+            th.detach();
+        } else {
+            th.join();
+        }
+    }
     cleanupTLS();
     if (connected.load() && onClose) QMetaObject::invokeMethod(this, [this]() { onClose(); }, Qt::QueuedConnection);
     connected.store(false);
@@ -131,7 +142,16 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                     if (opcode == 0x1) {
                         if (onMessage) QMetaObject::invokeMethod(this, [this, payload]() { onMessage(payload); }, Qt::QueuedConnection);
                     } else if (opcode == 0x8) { break; }
-                    else if (opcode == 0x9) { std::string pong; pong.push_back((char)0x8A); pong.push_back((char)len); pong.append(payload); sendTLS(pong); }
+                    else if (opcode == 0x9) {
+                        std::string pl = payload;
+                        if (pl.size() > 125) pl.clear();
+                        unsigned char k[4]; mbedtls_ctr_drbg_random(ctr_drbg, k, 4);
+                        std::string f; f.push_back((char)0x8A);
+                        f.push_back((char)(0x80 | (unsigned char)pl.size()));
+                        f.append((char*)k, 4);
+                        for (size_t i = 0; i < pl.size(); i++) f.push_back(pl[i] ^ k[i % 4]);
+                        sendTLS(f);
+                    }
                 }
             }
         } else if (r == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) { break; }

@@ -4,6 +4,7 @@
  * - Re-emits events via EventEmitter for subscribers
  */
 import { EventEmitter } from 'events';
+import { messageAggregator } from './MessageAggregator';
 
 class WebSocketManager extends EventEmitter {
   constructor() {
@@ -106,85 +107,88 @@ class WebSocketManager extends EventEmitter {
       const payload = msg?.payload;
       if (!type) return;
 
-      // 路由到平台处理：twitch-chat / youtube-chat
-      try {
-        import('./MessageAggregator')
-          .then(({ messageAggregator }) => {
-            if (!messageAggregator) return;
+      // 路由到平台处理：twitch / youtube / 17live
+      const routeTo = (platformId, transform) => {
+        const platform = messageAggregator.platforms?.get(platformId);
+        if (platform && typeof platform.processRawMessage === 'function') {
+          const rawPayload = typeof transform === 'function' ? transform(payload) : payload;
+          const unified = platform.processRawMessage(rawPayload);
+          if (unified) platform.enqueueMessage(unified);
+        }
+      };
 
-            const routeTo = (platformId, transform) => {
-              const platform = messageAggregator.platforms?.get(platformId);
-              if (platform && typeof platform.processRawMessage === 'function') {
-                const raw = typeof transform === 'function' ? transform(payload) : payload;
-                const unified = platform.processRawMessage(raw);
-                if (unified) platform.enqueueMessage(unified);
+      const parseTwitchPrivmsg = (rawStr) => {
+        if (!rawStr || typeof rawStr !== 'string') return null;
+        const s = rawStr.replace(/\r\n?$/, '');
+        const idxPriv = s.indexOf('PRIVMSG ');
+        if (idxPriv < 0) return null;
+        const idxHash = s.indexOf('#', idxPriv);
+        if (idxHash < 0) return null;
+        const idxSpaceAfterChan = s.indexOf(' ', idxHash);
+        if (idxSpaceAfterChan < 0) return null;
+        const idxMsg = s.indexOf(' :', idxSpaceAfterChan);
+        if (idxMsg < 0) return null;
+        const channel = s.substring(idxHash + 1, idxSpaceAfterChan);
+        const message = s.substring(idxMsg + 2).trim();
+        let username = '';
+        const u = s.match(/:([^!\s]+)!/);
+        if (u) username = u[1];
+        return { type: 'chat', channel, username, tags: { 'display-name': username }, message };
+      };
+
+      if (type === 'twitch_chat_connected' || type === 'twitch_chat_message') {
+        const ensure = () => {
+          const platform = messageAggregator.platforms?.get('twitch');
+          if (!platform) return messageAggregator.addPlatform('twitch', {}).then(() => messageAggregator.platforms.get('twitch'));
+          return Promise.resolve(platform);
+        };
+        ensure()
+          .then((platform) => {
+            if (!platform) return;
+            if (type === 'twitch_chat_connected') {
+              if (typeof platform.handleWsMessage === 'function') {
+                platform.handleWsMessage({ type, payload });
               }
-            };
-
-            const parseTwitchPrivmsg = (rawStr) => {
-              if (!rawStr || typeof rawStr !== 'string') return null;
-              const s = rawStr.replace(/\r\n?$/, '');
-              const idxPriv = s.indexOf('PRIVMSG ');
-              if (idxPriv < 0) return null;
-              const idxHash = s.indexOf('#', idxPriv);
-              if (idxHash < 0) return null;
-              const idxSpaceAfterChan = s.indexOf(' ', idxHash);
-              if (idxSpaceAfterChan < 0) return null;
-              const idxMsg = s.indexOf(' :', idxSpaceAfterChan);
-              if (idxMsg < 0) return null;
-              const channel = s.substring(idxHash + 1, idxSpaceAfterChan);
-              const message = s.substring(idxMsg + 2).trim();
-              let username = '';
-              const u = s.match(/:([^!\s]+)!/);
-              if (u) username = u[1];
-              return { type: 'chat', channel, username, tags: { 'display-name': username }, message };
-            };
-
-            if (type === 'twitch_chat_connected' || type === 'twitch_chat_message') {
-              const ensure = () => {
-                const platform = messageAggregator.platforms?.get('twitch');
-                if (!platform) return messageAggregator.addPlatform('twitch', {}).then(() => messageAggregator.platforms.get('twitch'));
-                return Promise.resolve(platform);
-              };
-              ensure()
-                .then((platform) => {
-                  if (!platform) return;
-                  if (type === 'twitch_chat_connected') {
-                    if (typeof platform.handleWsMessage === 'function') {
-                      platform.handleWsMessage({ type, payload });
-                    }
-                  } else if (type === 'twitch_chat_message') {
-                    const parsed = parseTwitchPrivmsg(payload?.raw);
-                    if (parsed) {
-                      routeTo('twitch', () => parsed);
-                    }
-                  }
-                })
-                .catch(() => {});
-            } else if (type === 'youtube_chat_connected' || type === 'youtube_chat_message') {
-              const ensure = () => {
-                const platform = messageAggregator.platforms?.get('youtube');
-                if (!platform) return messageAggregator.addPlatform('youtube', {}).then(() => messageAggregator.platforms.get('youtube'));
-                return Promise.resolve(platform);
-              };
-              ensure()
-                .then((platform) => {
-                  if (!platform) return;
-                  if (type === 'youtube_chat_connected') {
-                    if (typeof platform.handleWsMessage === 'function') {
-                      platform.handleWsMessage({ type, payload });
-                    }
-                  } else if (type === 'youtube_chat_message') {
-                    routeTo('youtube');
-                  }
-                })
-                .catch(() => {});
+            } else if (type === 'twitch_chat_message') {
+              const parsed = parseTwitchPrivmsg(payload?.raw);
+              if (parsed) {
+                routeTo('twitch', () => parsed);
+              }
             }
           })
           .catch(() => {});
-      } catch (e) {
-        // 记录但不打断连接
-        this.emit('error', e);
+      } else if (type === 'youtube_chat_connected' || type === 'youtube_chat_message') {
+        const ensure = () => {
+          const platform = messageAggregator.platforms?.get('youtube');
+          if (!platform) return messageAggregator.addPlatform('youtube', {}).then(() => messageAggregator.platforms.get('youtube'));
+          return Promise.resolve(platform);
+        };
+        ensure()
+          .then((platform) => {
+            if (!platform) return;
+            if (type === 'youtube_chat_connected') {
+              if (typeof platform.handleWsMessage === 'function') {
+                platform.handleWsMessage({ type, payload });
+              }
+            } else if (type === 'youtube_chat_message') {
+              routeTo('youtube');
+            }
+          })
+          .catch(() => {});
+      } else if (type === 'ably_chat_connected' || type === 'ably_chat_message') {
+        const ensure = () => {
+          const platform = messageAggregator.platforms?.get('17live');
+          if (!platform) return messageAggregator.addPlatform('17live', {}).then(() => messageAggregator.platforms.get('17live'));
+          return Promise.resolve(platform);
+        };
+        ensure()
+          .then((platform) => {
+            if (!platform) return;
+            if (typeof platform.handleWsMessage === 'function') {
+              platform.handleWsMessage({ type, payload });
+            }
+          })
+          .catch(() => {});
       }
     };
 
