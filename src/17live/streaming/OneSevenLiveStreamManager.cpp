@@ -113,6 +113,8 @@ bool OneSevenLiveStreamManager::startStreamWithWeb() {
             info.streamUuid = rtmpResponse.streamID;
             currentLiveStreamInfo = info;
 
+            wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
+
         } else {
             obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s", provider.toStdString().c_str());
             return false;
@@ -252,9 +254,7 @@ bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
 }
 
 void OneSevenLiveStreamManager::onStatusTimer() {
-    if (currentStreamingStatus == OneSevenLiveStreamingStatus::NotStarted) {
-        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"}});
-    }
+    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status",currentStreamingStatus == OneSevenLiveStreamingStatus::NotStarted ? "break" : "connected"}});
 }
 
 void OneSevenLiveStreamManager::startOBSStreaming() {
