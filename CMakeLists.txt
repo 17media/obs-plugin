@@ -180,6 +180,7 @@ configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   resources.qrc
+  src/17live/api/OneSevenLiveAblyChatClient.cpp
   src/17live/api/OneSevenLiveApiWrappers.cpp
   src/17live/api/OneSevenLiveModels.cpp
   src/17live/api/OneSevenLiveUtility.cpp
