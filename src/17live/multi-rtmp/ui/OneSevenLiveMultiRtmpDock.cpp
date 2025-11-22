@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QStyle>
+#include <QMetaObject>
 
 #include "OneSevenLiveMultiRtmpConfigDialog.hpp"
 #include "OneSevenLiveMultiRtmpListWidget.hpp"
@@ -28,6 +29,13 @@ OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
 OneSevenLiveMultiRtmpDock::~OneSevenLiveMultiRtmpDock() {
     if (m_statsUpdateTimer) {
         m_statsUpdateTimer->stop();
+    }
+
+    if (m_manager) {
+        m_manager->setStreamStatusCallback(nullptr);
+        m_manager->setStreamStatsCallback(nullptr);
+        m_manager->setConfigChangeCallback(nullptr);
+        m_manager->setConfigDeleteCallback(nullptr);
     }
 
     if (m_configDialog) {
@@ -224,22 +232,32 @@ void OneSevenLiveMultiRtmpDock::setupManagerCallbacks() {
     // Set up callbacks for manager events
     m_manager->setStreamStatusCallback(
         [this](const std::string& streamId, const OneSevenLiveMultiRtmpStreamStatus& status) {
-            updateStreamStatus(streamId, status);
+            QMetaObject::invokeMethod(this, [this, streamId, status]() {
+                updateStreamStatus(streamId, status);
+            }, Qt::QueuedConnection);
         });
 
     m_manager->setStreamStatsCallback(
         [this](const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats) {
-            updateStreamStats(streamId, stats);
+            QMetaObject::invokeMethod(this, [this, streamId, stats]() {
+                updateStreamStats(streamId, stats);
+            }, Qt::QueuedConnection);
         });
 
     m_manager->setConfigChangeCallback(
         [this](const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
-            Q_UNUSED(config);  // Parameter not used in current implementation
-            onStreamConfigChanged(streamId);
+            Q_UNUSED(config);
+            QMetaObject::invokeMethod(this, [this, streamId]() {
+                onStreamConfigChanged(streamId);
+            }, Qt::QueuedConnection);
         });
 
     m_manager->setConfigDeleteCallback(
-        [this](const std::string& streamId) { onStreamDeleted(streamId); });
+        [this](const std::string& streamId) {
+            QMetaObject::invokeMethod(this, [this, streamId]() {
+                onStreamDeleted(streamId);
+            }, Qt::QueuedConnection);
+        });
 }
 
 void OneSevenLiveMultiRtmpDock::showEvent(QShowEvent* event) {
