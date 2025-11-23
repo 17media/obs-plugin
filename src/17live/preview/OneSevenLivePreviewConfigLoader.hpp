@@ -8,7 +8,7 @@
 class OneSevenLivePreviewConfigLoader : public QObject {
     Q_OBJECT
 
-public:
+   public:
     struct PreviewConfig {
         QString sourceType;
         QString url;
@@ -26,7 +26,7 @@ public:
     PreviewConfig getConfiguration() const;
     bool isConfigurationValid() const;
 
-private:
+   private:
     PreviewConfig config;
     bool parseJsonConfig(const QJsonObject& jsonObj);
 };

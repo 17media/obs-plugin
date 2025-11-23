@@ -1,11 +1,12 @@
 #pragma once
 
+#include <QDateTime>
 #include <QObject>
 #include <QString>
 #include <QVector>
-#include <QDateTime>
 #include <memory>
 #include <nlohmann/json.hpp>
+
 #include "OneSevenLiveYouTubeClient.hpp"
 
 // Forward declarations
@@ -20,7 +21,7 @@ struct YouTubeChatMessageSnippet {
     QString displayMessage;
     QString textMessageDetails;
     QString messageId;
-    
+
     YouTubeChatMessageSnippet() : type("textMessageEvent") {}
 };
 
@@ -32,8 +33,9 @@ struct YouTubeChatAuthorDetails {
     bool isChatOwner;
     bool isChatSponsor;
     bool isChatModerator;
-    
-    YouTubeChatAuthorDetails() : isVerified(false), isChatOwner(false), isChatSponsor(false), isChatModerator(false) {}
+
+    YouTubeChatAuthorDetails()
+        : isVerified(false), isChatOwner(false), isChatSponsor(false), isChatModerator(false) {}
 };
 
 struct YouTubeChatMessage {
@@ -42,7 +44,7 @@ struct YouTubeChatMessage {
     QString id;
     YouTubeChatMessageSnippet snippet;
     YouTubeChatAuthorDetails authorDetails;
-    
+
     YouTubeChatMessage() : kind("youtube#liveChatMessage") {}
 };
 
@@ -53,14 +55,17 @@ struct YouTubeChatMessageListResponse {
     int pollingIntervalMillis;
     int totalResults;
     QVector<YouTubeChatMessage> items;
-    
-    YouTubeChatMessageListResponse() : kind("youtube#liveChatMessageListResponse"), pollingIntervalMillis(5000), totalResults(0) {}
+
+    YouTubeChatMessageListResponse()
+        : kind("youtube#liveChatMessageListResponse"),
+          pollingIntervalMillis(5000),
+          totalResults(0) {}
 };
 
 class OneSevenLiveYouTubeChatClient : public QObject {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenLiveYouTubeChatClient(QObject* parent = nullptr);
     ~OneSevenLiveYouTubeChatClient();
 
@@ -82,7 +87,7 @@ public:
     void startDiscovery();
     void stopDiscovery();
 
-signals:
+   signals:
     void chatMessagesReceived(const YouTubeChatMessageListResponse& response);
     void newChatMessage(const YouTubeChatMessage& message);
     void pollingStarted(const QString& liveChatId);
@@ -90,30 +95,31 @@ signals:
     void errorOccurred(const QString& error, const QString& operation);
     void rateLimitHit(int retryAfterMs);
 
-private slots:
+   private slots:
     void onChatRequestFinished(const QString& response, const QString& error);
     void onPollingTimeout();
     void onStatusTimer();
     void doReconnect();
     void onBroadcastsReceived(const YouTubeLiveBroadcastListResponse& resp);
 
-private:
+   private:
     void fetchChatMessages();
     void scheduleNextPoll(int intervalMs);
     void scheduleReconnect();
     void handleRateLimit(int retryAfterMs);
     void handleApiError(const QString& error, const QString& operation, int httpStatus);
-    
+
     // JSON parsing
     YouTubeChatMessage parseChatMessage(const nlohmann::json& json) const;
     YouTubeChatMessageSnippet parseMessageSnippet(const nlohmann::json& json) const;
     YouTubeChatAuthorDetails parseAuthorDetails(const nlohmann::json& json) const;
     YouTubeChatMessageListResponse parseChatMessageListResponse(const nlohmann::json& json) const;
-    
+
     // Request building
-    QString buildChatMessagesUrl(const QString& liveChatId, const QString& pageToken = QString()) const;
+    QString buildChatMessagesUrl(const QString& liveChatId,
+                                 const QString& pageToken = QString()) const;
     void makeChatRequest(const QString& endpoint);
-    
+
     // Constants
     static const QString YOUTUBE_API_BASE_URL;
     static const QString YOUTUBE_API_VERSION;
@@ -123,7 +129,7 @@ private:
     static const int MAX_QUICK_RETRIES;
     static const int LONG_RETRY_DELAY;
     static const int MAX_NO_MESSAGE_QUICK_POLLS;
-    
+
     // State
     QString m_accessToken;
     QString m_apiKey;
@@ -139,15 +145,15 @@ private:
     bool m_hasValidAuth;
     bool m_isPolling;
     bool m_isRateLimited;
-    
+
     // Polling
     int m_currentPollingInterval;
     int m_exponentialBackoffDelay;
-    
+
     // Request context
     QString m_currentOperation;
     QString m_lastEndpoint;
-    
+
     // Timer for polling
     class QTimer* m_pollingTimer;
     class QTimer* m_statusTimer;

@@ -2,8 +2,8 @@
 
 #include <QObject>
 #include <QString>
-#include <functional>
 #include <atomic>
+#include <functional>
 #include <thread>
 
 struct mbedtls_ssl_context;
@@ -16,7 +16,7 @@ struct mbedtls_x509_crt;
 class OneSevenLiveWebsocketClient : public QObject {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenLiveWebsocketClient(QObject* parent = nullptr);
     ~OneSevenLiveWebsocketClient();
 
@@ -30,7 +30,7 @@ public:
     void setCloseCallback(const std::function<void()>& cb);
     void setErrorCallback(const std::function<void(const std::string&)>& cb);
 
-private:
+   private:
     void startThread(const QString& host, const QString& port, const QString& path);
     void stopThread();
     void threadFunc(const QString& host, const QString& port, const QString& path);

@@ -1,16 +1,16 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <functional>
-#include <atomic>
-#include <random>
 
 // Include ASIO first to ensure ASIO_STANDALONE is properly defined
 #include <asio.hpp>
@@ -23,7 +23,8 @@ typedef websocketpp::server<websocketpp::config::asio> websocketpp_server;
 
 class OneSevenLiveWebsocketServer {
    public:
-    using MessageCallback = std::function<void(const std::string& clientId, const std::string& message)>;
+    using MessageCallback =
+        std::function<void(const std::string& clientId, const std::string& message)>;
     using ConnectionCallback = std::function<void(const std::string& clientId, bool connected)>;
 
     OneSevenLiveWebsocketServer(const std::string& host = "localhost", int port = 0);
@@ -37,7 +38,7 @@ class OneSevenLiveWebsocketServer {
     // Message broadcasting
     void broadcastMessage(const std::string& message);
     void sendMessageToClient(const std::string& clientId, const std::string& message);
-    
+
     // Client management
     size_t getConnectedClientsCount() const;
     std::vector<std::string> getConnectedClientIds() const;
@@ -53,7 +54,7 @@ class OneSevenLiveWebsocketServer {
     std::string generate_client_id();
     std::string get_client_ip(websocketpp::connection_hdl hdl);
     std::string hdl_to_string(websocketpp::connection_hdl hdl);
-    
+
     // Port management helper
     int getAvailablePort() const;
 
@@ -77,8 +78,8 @@ class OneSevenLiveWebsocketServer {
     std::unordered_map<std::string, std::string> hdl_to_client_id_;
 
     // Security-related member variables
-    static constexpr size_t MAX_MESSAGE_SIZE = 64 * 1024;    // 64KB
-    static constexpr int RATE_LIMIT_MESSAGES = 50;          // Maximum messages per minute
+    static constexpr size_t MAX_MESSAGE_SIZE = 64 * 1024;  // 64KB
+    static constexpr int RATE_LIMIT_MESSAGES = 50;         // Maximum messages per minute
     static constexpr int RATE_LIMIT_WINDOW_SECONDS = 60;
 
     mutable std::mutex rate_limit_mutex_;

@@ -33,7 +33,8 @@ class OneSevenLiveMultiRtmpListWidget : public QWidget {
     void updateStream(const OneSevenLiveMultiRtmpConfig& config);
     void updateStreamStatus(const std::string& streamId,
                             const OneSevenLiveMultiRtmpStreamStatus& status);
-    void updateStreamStats(const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats);
+    void updateStreamStats(const std::string& streamId,
+                           const OneSevenLiveMultiRtmpStreamStats& stats);
     void clearAllStreams();
     void refreshAllStreams();
 

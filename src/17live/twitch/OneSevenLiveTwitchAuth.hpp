@@ -3,9 +3,10 @@
 #include <QObject>
 #include <QString>
 #include <QTimer>
+#include <memory>
+
 #include "../utility/RemoteTextThread.hpp"
 #include "OneSevenLiveTwitchClient.hpp"
-#include <memory>
 
 /**
  * Twitch authorization handler using device code flow
@@ -14,7 +15,7 @@
 class OneSevenLiveTwitchAuth : public QObject {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenLiveTwitchAuth(QObject* parent = nullptr);
     ~OneSevenLiveTwitchAuth();
 
@@ -26,15 +27,30 @@ public:
     // Device code flow steps
     void startDeviceCodeFlow();
     void cancelAuthorization();
-    
+
     // Token management
     bool hasValidToken() const;
-    QString getAccessToken() const { return m_accessToken; }
-    QString getRefreshToken() const { return m_refreshToken; }
-    QString getUserCode() const { return m_userCode; }
-    QString getVerificationUri() const { return m_verificationUri; }
-    QString getVerificationUriComplete() const { return m_verificationUriComplete; }
-    
+
+    QString getAccessToken() const {
+        return m_accessToken;
+    }
+
+    QString getRefreshToken() const {
+        return m_refreshToken;
+    }
+
+    QString getUserCode() const {
+        return m_userCode;
+    }
+
+    QString getVerificationUri() const {
+        return m_verificationUri;
+    }
+
+    QString getVerificationUriComplete() const {
+        return m_verificationUriComplete;
+    }
+
     // Token operations
     void setTokens(const QString& accessToken, const QString& refreshToken);
     void clearTokens();
@@ -44,10 +60,13 @@ public:
     bool handleAuthorizationCallbackUrl(const QString& callbackUrl);
 
     // Get Twitch API client instance
-    OneSevenLiveTwitchClient* getTwitchClient() { return m_twitchClient.get(); }
+    OneSevenLiveTwitchClient* getTwitchClient() {
+        return m_twitchClient.get();
+    }
 
-signals:
-    void deviceCodeReceived(const QString& userCode, const QString& verificationUri, const QString& verificationUriComplete);
+   signals:
+    void deviceCodeReceived(const QString& userCode, const QString& verificationUri,
+                            const QString& verificationUriComplete);
     void authorizationStarted();
     void authorizationCompleted(const QString& accessToken, const QString& refreshToken);
     void authorizationFailed(const QString& error);
@@ -55,25 +74,25 @@ signals:
     void pollingStarted(int intervalSeconds);
     void pollingProgress(int remainingSeconds);
 
-private slots:
+   private slots:
     void onDeviceCodeResult(const QString& text, const QString& error);
     void onTokenResult(const QString& text, const QString& error);
     void pollForToken();
 
-private:
+   private:
     void requestDeviceCode();
     void requestToken();
     void startPolling();
     void stopPolling();
-    
+
     QString getClientId() const;
     QString getScope() const;
-    
+
     // Internal helpers
     QString m_state;
 
     QTimer* m_pollingTimer;
-    
+
     // Authorization state
     QString m_deviceCode;
     QString m_userCode;
@@ -82,11 +101,11 @@ private:
     int m_expiresIn;
     int m_interval;
     int m_remainingTime;
-    
+
     // Token storage
     QString m_accessToken;
     QString m_refreshToken;
-    
+
     // State flags
     bool m_isAuthorizing;
     bool m_isPolling;
@@ -99,7 +118,7 @@ private:
     // Twitch API client
     std::unique_ptr<OneSevenLiveTwitchClient> m_twitchClient;
 
-public:
+   public:
     // Constants
     static const QString PLATFORM;
     static const QString TWITCH_DEVICE_AUTH_URL;

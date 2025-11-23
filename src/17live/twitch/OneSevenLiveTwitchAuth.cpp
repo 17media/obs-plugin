@@ -1,83 +1,82 @@
 #include "OneSevenLiveTwitchAuth.hpp"
-#include "OneSevenLiveTwitchClient.hpp"
-#include "plugin-support.h"
-#include "utility/RemoteTextThread.hpp"
-#include "OneSevenLiveCoreManager.hpp"
-#include "OneSevenLiveConfigManager.hpp"
-#include <QTimer>
-#include <QDateTime>
-
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonValue>
-#include <QUrl>
-#include <QUrlQuery>
-#include <QDesktopServices>
-#include <QTimerEvent>
-#include <QRandomGenerator>
-#include <QMessageBox>
 
 #include <obs-module.h>
 
+#include <QDateTime>
+#include <QDesktopServices>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QMessageBox>
+#include <QRandomGenerator>
+#include <QTimer>
+#include <QTimerEvent>
+#include <QUrl>
+#include <QUrlQuery>
+
+#include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveTwitchClient.hpp"
+#include "plugin-support.h"
+#include "utility/RemoteTextThread.hpp"
+
 // https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=hof5gwx0su6owfnys0nyan9c87zr6t&redirect_uri=http://localhost:3000&scope=channel%3Amanage%3Apolls+channel%3Aread%3Apolls&state=c3ab8aa609ea11e793ae92361f002671
-const QString OneSevenLiveTwitchAuth::TWITCH_DEVICE_AUTH_URL = "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=%1&redirect_uri=%2&scope=%3&state=%4";
+const QString OneSevenLiveTwitchAuth::TWITCH_DEVICE_AUTH_URL =
+    "https://id.twitch.tv/oauth2/"
+    "authorize?response_type=token&client_id=%1&redirect_uri=%2&scope=%3&state=%4";
 const QString OneSevenLiveTwitchAuth::TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token";
-const QString OneSevenLiveTwitchAuth::TWITCH_SCOPE = "channel:read:stream_key channel:manage:broadcast user:read:email chat:read chat:edit";
+const QString OneSevenLiveTwitchAuth::TWITCH_SCOPE =
+    "channel:read:stream_key channel:manage:broadcast user:read:email chat:read chat:edit";
 const QString OneSevenLiveTwitchAuth::TWITCH_CALLBACK_URI = "https://17.live";
 const QString OneSevenLiveTwitchAuth::PLATFORM = "Twitch";
 
 OneSevenLiveTwitchAuth::OneSevenLiveTwitchAuth(QObject* parent)
-    : QObject(parent)
-    , m_pollingTimer(new QTimer(this))
-    , m_expiresIn(0)
-    , m_interval(5)
-    , m_remainingTime(0)
-    , m_isAuthorizing(false)
-    , m_isPolling(false)
-    , m_wasCancelled(false)
-    , m_twitchClient(std::make_unique<OneSevenLiveTwitchClient>(this))
-{
+    : QObject(parent),
+      m_pollingTimer(new QTimer(this)),
+      m_expiresIn(0),
+      m_interval(5),
+      m_remainingTime(0),
+      m_isAuthorizing(false),
+      m_isPolling(false),
+      m_wasCancelled(false),
+      m_twitchClient(std::make_unique<OneSevenLiveTwitchClient>(this)) {
     connect(m_pollingTimer, &QTimer::timeout, this, &OneSevenLiveTwitchAuth::pollForToken);
-    
+
     // Connect Twitch client signals to handle user info retrieval
-    connect(m_twitchClient.get(), &OneSevenLiveTwitchClient::userInfoReceived, this, [this](const TwitchUserInfo& userInfo) {
-        obs_log(LOG_INFO, "Twitch user info received for: %s", userInfo.login.toUtf8().constData());
-        
-        // Save user info to config manager
-        auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
-        if (configManager) {
-            configManager->setTwitchUserInfo(
-                userInfo.id,
-                userInfo.login,
-                userInfo.displayName,
-                userInfo.profileImageUrl,
-                userInfo.email,
-                userInfo.viewCount
-            );
-        }
-    });
-    
-    connect(m_twitchClient.get(), &OneSevenLiveTwitchClient::errorOccurred, this, [](const QString& errorMessage) {
-        obs_log(LOG_ERROR, "Twitch API client error: %s", errorMessage.toUtf8().constData());
-    });
+    connect(m_twitchClient.get(), &OneSevenLiveTwitchClient::userInfoReceived, this,
+            [this](const TwitchUserInfo& userInfo) {
+                obs_log(LOG_INFO, "Twitch user info received for: %s",
+                        userInfo.login.toUtf8().constData());
+
+                // Save user info to config manager
+                auto* configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
+                if (configManager) {
+                    configManager->setTwitchUserInfo(userInfo.id, userInfo.login,
+                                                     userInfo.displayName, userInfo.profileImageUrl,
+                                                     userInfo.email, userInfo.viewCount);
+                }
+            });
+
+    connect(m_twitchClient.get(), &OneSevenLiveTwitchClient::errorOccurred, this,
+            [](const QString& errorMessage) {
+                obs_log(LOG_ERROR, "Twitch API client error: %s",
+                        errorMessage.toUtf8().constData());
+            });
 }
 
-OneSevenLiveTwitchAuth::~OneSevenLiveTwitchAuth()
-{
+OneSevenLiveTwitchAuth::~OneSevenLiveTwitchAuth() {
     stopPolling();
 }
 
-QString OneSevenLiveTwitchAuth::getAuthUrl(const QString& redirectUri)
-{
+QString OneSevenLiveTwitchAuth::getAuthUrl(const QString& redirectUri) {
     return TWITCH_DEVICE_AUTH_URL.arg(getClientId(), redirectUri, getScope(), getState());
 }
 
-QString OneSevenLiveTwitchAuth::getState()
-{
+QString OneSevenLiveTwitchAuth::getState() {
     // Generate a 32-hex-character CSRF state if not present
     if (m_state.isEmpty()) {
         QByteArray bytes;
-        bytes.resize(16); // 128-bit random
+        bytes.resize(16);  // 128-bit random
         for (int i = 0; i < bytes.size(); ++i) {
             bytes[i] = static_cast<char>(QRandomGenerator::global()->bounded(256));
         }
@@ -86,57 +85,50 @@ QString OneSevenLiveTwitchAuth::getState()
     return m_state;
 }
 
-bool OneSevenLiveTwitchAuth::validateState(const QString& state) const
-{
+bool OneSevenLiveTwitchAuth::validateState(const QString& state) const {
     return !m_state.isEmpty() && state == m_state;
 }
 
-void OneSevenLiveTwitchAuth::startDeviceCodeFlow()
-{
+void OneSevenLiveTwitchAuth::startDeviceCodeFlow() {
     if (m_isAuthorizing) {
         obs_log(LOG_WARNING, "Twitch authorization already in progress");
         return;
     }
-    
+
     m_isAuthorizing = true;
     m_wasCancelled = false;
     emit authorizationStarted();
-    
+
     requestDeviceCode();
 }
 
-void OneSevenLiveTwitchAuth::cancelAuthorization()
-{
+void OneSevenLiveTwitchAuth::cancelAuthorization() {
     if (!m_isAuthorizing) {
         return;
     }
-    
+
     m_wasCancelled = true;
     m_isAuthorizing = false;
     stopPolling();
-    
+
     emit authorizationCancelled();
 }
 
-bool OneSevenLiveTwitchAuth::hasValidToken() const
-{
+bool OneSevenLiveTwitchAuth::hasValidToken() const {
     return !m_accessToken.isEmpty();
 }
 
-void OneSevenLiveTwitchAuth::setTokens(const QString& accessToken, const QString& refreshToken)
-{
+void OneSevenLiveTwitchAuth::setTokens(const QString& accessToken, const QString& refreshToken) {
     m_accessToken = accessToken;
     m_refreshToken = refreshToken;
 }
 
-void OneSevenLiveTwitchAuth::clearTokens()
-{
+void OneSevenLiveTwitchAuth::clearTokens() {
     m_accessToken.clear();
     m_refreshToken.clear();
 }
 
-void OneSevenLiveTwitchAuth::requestDeviceCode()
-{
+void OneSevenLiveTwitchAuth::requestDeviceCode() {
     obs_log(LOG_INFO, "Requesting Twitch device code");
 
     QUrlQuery query;
@@ -145,8 +137,7 @@ void OneSevenLiveTwitchAuth::requestDeviceCode()
     QByteArray postData = query.query(QUrl::FullyEncoded).toUtf8();
 
     RemoteTextThread* thread = new RemoteTextThread(
-        TWITCH_DEVICE_AUTH_URL.toStdString(),
-        "application/x-www-form-urlencoded",
+        TWITCH_DEVICE_AUTH_URL.toStdString(), "application/x-www-form-urlencoded",
         std::string(postData.constData(), postData.size()),
         /*timeoutSec=*/15,
         /*isImageRequest=*/false);
@@ -156,8 +147,7 @@ void OneSevenLiveTwitchAuth::requestDeviceCode()
     thread->start();
 }
 
-void OneSevenLiveTwitchAuth::onDeviceCodeResult(const QString& text, const QString& error)
-{
+void OneSevenLiveTwitchAuth::onDeviceCodeResult(const QString& text, const QString& error) {
     if (m_wasCancelled) {
         return;
     }
@@ -200,73 +190,67 @@ void OneSevenLiveTwitchAuth::onDeviceCodeResult(const QString& text, const QStri
     startPolling();
 }
 
-void OneSevenLiveTwitchAuth::startPolling()
-{
+void OneSevenLiveTwitchAuth::startPolling() {
     if (m_isPolling) {
         return;
     }
-    
+
     m_isPolling = true;
     m_remainingTime = m_expiresIn;
-    
-    m_pollingTimer->start(m_interval * 1000); // Convert to milliseconds
+
+    m_pollingTimer->start(m_interval * 1000);  // Convert to milliseconds
     emit pollingStarted(m_interval);
-    
+
     // Start the first poll immediately
     pollForToken();
 }
 
-void OneSevenLiveTwitchAuth::stopPolling()
-{
+void OneSevenLiveTwitchAuth::stopPolling() {
     if (!m_isPolling) {
         return;
     }
-    
+
     m_isPolling = false;
     m_pollingTimer->stop();
 }
 
-void OneSevenLiveTwitchAuth::pollForToken()
-{
+void OneSevenLiveTwitchAuth::pollForToken() {
     if (m_wasCancelled || !m_isPolling) {
         return;
     }
-    
+
     m_remainingTime -= m_interval;
     emit pollingProgress(m_remainingTime);
-    
+
     if (m_remainingTime <= 0) {
         stopPolling();
         m_isAuthorizing = false;
         emit authorizationFailed("Authorization timeout - device code expired");
         return;
     }
-    
+
     requestToken();
 }
 
-void OneSevenLiveTwitchAuth::requestToken()
-{
+void OneSevenLiveTwitchAuth::requestToken() {
     QUrlQuery query;
     query.addQueryItem("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
     query.addQueryItem("device_code", m_deviceCode);
     query.addQueryItem("client_id", getClientId());
     QByteArray postData = query.query(QUrl::FullyEncoded).toUtf8();
 
-    RemoteTextThread* thread = new RemoteTextThread(
-        TWITCH_TOKEN_URL.toStdString(),
-        "application/x-www-form-urlencoded",
-        std::string(postData.constData(), postData.size()),
-        /*timeoutSec=*/15,
-        /*isImageRequest=*/false);
+    RemoteTextThread* thread =
+        new RemoteTextThread(TWITCH_TOKEN_URL.toStdString(), "application/x-www-form-urlencoded",
+                             std::string(postData.constData(), postData.size()),
+                             /*timeoutSec=*/15,
+                             /*isImageRequest=*/false);
 
     connect(thread, &RemoteTextThread::Result, this, &OneSevenLiveTwitchAuth::onTokenResult);
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     thread->start();
 }
 
-void OneSevenLiveTwitchAuth::onTokenResult(const QString& text, const QString& error)
-{
+void OneSevenLiveTwitchAuth::onTokenResult(const QString& text, const QString& error) {
     if (m_wasCancelled) {
         return;
     }
@@ -285,7 +269,7 @@ void OneSevenLiveTwitchAuth::onTokenResult(const QString& text, const QString& e
     if (json.contains("error")) {
         QString err = json["error"].toString();
         if (err == "authorization_pending") {
-            return; // continue polling
+            return;  // continue polling
         } else if (err == "slow_down") {
             m_interval += 5;
             m_pollingTimer->setInterval(m_interval * 1000);
@@ -312,34 +296,30 @@ void OneSevenLiveTwitchAuth::onTokenResult(const QString& text, const QString& e
         obs_log(LOG_INFO, "Twitch authorization completed successfully");
         stopPolling();
         m_isAuthorizing = false;
-        
+
         // Initialize Twitch client with the access token and fetch user info
         if (m_twitchClient && !m_accessToken.isEmpty()) {
             m_twitchClient->setAuthData(m_accessToken, getClientId());
             m_twitchClient->getCurrentUser();
         }
-        
+
         emit authorizationCompleted(m_accessToken, m_refreshToken);
     } else {
         emit authorizationFailed("Invalid token response from Twitch");
     }
 }
 
-
-QString OneSevenLiveTwitchAuth::getClientId() const
-{
+QString OneSevenLiveTwitchAuth::getClientId() const {
     return QString(TWITCH_API_CLIENT_ID);
 }
 
-QString OneSevenLiveTwitchAuth::getScope() const
-{
+QString OneSevenLiveTwitchAuth::getScope() const {
     return TWITCH_SCOPE;
 }
 
 // getTwitchClient is defined inline in the header; no out-of-line definition needed.
 
-bool OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callbackUrl)
-{
+bool OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callbackUrl) {
     QUrl url(callbackUrl);
     if (!url.isValid()) {
         obs_log(LOG_WARNING, "Twitch callback URL invalid: %s", callbackUrl.toUtf8().constData());
@@ -352,15 +332,16 @@ bool OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
     const QString errorDescription = query.queryItemValue("error_description");
     if (!error.isEmpty()) {
         const QString desc = errorDescription.isEmpty() ? error : errorDescription;
-        obs_log(LOG_WARNING, "Twitch authorization error: %s - %s",
-                error.toUtf8().constData(), desc.toUtf8().constData());
+        obs_log(LOG_WARNING, "Twitch authorization error: %s - %s", error.toUtf8().constData(),
+                desc.toUtf8().constData());
         QMessageBox::warning(nullptr, obs_module_text("Live.Common.Notice"),
                              QString("Twitch authorization failed: %1").arg(desc));
         emit authorizationFailed(desc);
         return false;
     }
 
-    // Support implicit grant style: http://localhost:3000/#access_token=...&scope=...&state=...&token_type=bearer
+    // Support implicit grant style:
+    // http://localhost:3000/#access_token=...&scope=...&state=...&token_type=bearer
     const QString fragment = url.fragment();
     if (!fragment.isEmpty()) {
         QUrlQuery fragQuery(fragment);
@@ -395,15 +376,16 @@ bool OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
         // Update local state and notify
         setTokens(accessToken, "");
         m_callbackScope = scope;
-        obs_log(LOG_INFO, "Twitch implicit callback parsed: access_token set, scope=%s token_type=%s",
+        obs_log(LOG_INFO,
+                "Twitch implicit callback parsed: access_token set, scope=%s token_type=%s",
                 m_callbackScope.toUtf8().constData(), tokenType.toUtf8().constData());
-        
+
         // Initialize Twitch client with the access token and fetch user info
         if (m_twitchClient && !m_accessToken.isEmpty()) {
             m_twitchClient->setAuthData(m_accessToken, getClientId());
             m_twitchClient->getCurrentUser();
         }
-        
+
         emit authorizationCompleted(m_accessToken, m_refreshToken);
         return true;
     }

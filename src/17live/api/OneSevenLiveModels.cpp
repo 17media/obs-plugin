@@ -121,8 +121,9 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
 
             if (userInfoJson.contains("lastUsedHashtags") &&
                 userInfoJson["lastUsedHashtags"].is_array()) {
-                    // Parse last used hashtags
-                JsonToOneSevenLiveHashtags(userInfoJson["lastUsedHashtags"], loginData.userInfo.lastUsedHashtags);
+                // Parse last used hashtags
+                JsonToOneSevenLiveHashtags(userInfoJson["lastUsedHashtags"],
+                                           loginData.userInfo.lastUsedHashtags);
             }
 
             if (userInfoJson.contains("levelBadges") && userInfoJson["levelBadges"].is_array()) {
@@ -135,7 +136,8 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
             // Object attributes - monthlyVIPBadges
             // Note: This assumes QVariantMap can be built directly from JSON object, actual
             // implementation may need adjustment
-            if (userInfoJson.contains("monthlyVIPBadges") && userInfoJson["monthlyVIPBadges"].is_object()) {
+            if (userInfoJson.contains("monthlyVIPBadges") &&
+                userInfoJson["monthlyVIPBadges"].is_object()) {
                 // Need to handle monthlyVIPBadges based on actual situation
                 // Simple example:
                 // const auto& badges = userInfoJson["monthlyVIPBadges"].object_items();
@@ -1789,9 +1791,9 @@ bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json,
 
     try {
         // Parse event section
-    if (json.contains("event") && json["event"].is_object()) {
-        JsonToOneSevenLiveEventSection(json["event"], response.event);
-    }
+        if (json.contains("event") && json["event"].is_object()) {
+            JsonToOneSevenLiveEventSection(json["event"], response.event);
+        }
 
         // Parse customEvent section
         if (json.contains("customEvent") && json["customEvent"].is_object()) {

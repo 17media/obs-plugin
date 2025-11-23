@@ -10,8 +10,8 @@
 #include <QLineEdit>
 #include <QTimer>
 
-#include "OneSevenLivePropertyRefreshHandler.hpp"
 #include "OneSevenLiveLineEditWithEye.hpp"
+#include "OneSevenLivePropertyRefreshHandler.hpp"
 #include "plugin-support.h"
 
 OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
@@ -115,7 +115,7 @@ OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget() {
             }
         }
     }
-    
+
     obs_log(LOG_DEBUG, "[~OneSevenLivePropertyWidget] Destructor called for property: %s",
             name.c_str());
 }

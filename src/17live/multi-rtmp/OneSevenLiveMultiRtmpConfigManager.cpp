@@ -72,7 +72,8 @@ std::string OneSevenLiveMultiRtmpConfigManager::getConfigFilePath() const {
     return m_configFilePath;
 }
 
-bool OneSevenLiveMultiRtmpConfigManager::addStreamConfig(const OneSevenLiveMultiRtmpConfig& config) {
+bool OneSevenLiveMultiRtmpConfigManager::addStreamConfig(
+    const OneSevenLiveMultiRtmpConfig& config) {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Adding stream config: %s",
             config.streamName.c_str());
 
@@ -117,8 +118,8 @@ bool OneSevenLiveMultiRtmpConfigManager::removeStreamConfig(const std::string& s
     return true;
 }
 
-bool OneSevenLiveMultiRtmpConfigManager::updateStreamConfig(const std::string& streamId,
-                                                        const OneSevenLiveMultiRtmpConfig& config) {
+bool OneSevenLiveMultiRtmpConfigManager::updateStreamConfig(
+    const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Updating stream config: %s", streamId.c_str());
 
     OneSevenLiveMultiRtmpConfig updatedConfig = config;
@@ -140,7 +141,8 @@ bool OneSevenLiveMultiRtmpConfigManager::updateStreamConfig(const std::string& s
     return true;
 }
 
-std::vector<OneSevenLiveMultiRtmpConfig> OneSevenLiveMultiRtmpConfigManager::getStreamConfigs() const {
+std::vector<OneSevenLiveMultiRtmpConfig> OneSevenLiveMultiRtmpConfigManager::getStreamConfigs()
+    const {
     return m_globalConfig.streams;
 }
 
@@ -357,12 +359,13 @@ bool OneSevenLiveMultiRtmpConfigManager::readConfigFromFile(
     }
 }
 
-std::string OneSevenLiveMultiRtmpConfigManager::getBackupFilePath(const std::string& timestamp) const {
+std::string OneSevenLiveMultiRtmpConfigManager::getBackupFilePath(
+    const std::string& timestamp) const {
     return m_configDirectory + "/" + CONFIG_BACKUP_PREFIX + timestamp + CONFIG_BACKUP_EXTENSION;
 }
 
-void OneSevenLiveMultiRtmpConfigManager::notifyConfigChange(const std::string& streamId,
-                                                        const OneSevenLiveMultiRtmpConfig& config) {
+void OneSevenLiveMultiRtmpConfigManager::notifyConfigChange(
+    const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
     if (m_configChangeCallback) {
         m_configChangeCallback(streamId, config);
     }

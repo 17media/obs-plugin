@@ -28,7 +28,7 @@ class OneSevenLiveMenuManager : public QObject {
 
     // Update dock window visibility status
     void updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible,
-                              bool rockZoneVisible = false, bool multiRtmpVisible = false, 
+                              bool rockZoneVisible = false, bool multiRtmpVisible = false,
                               bool previewDockVisible = false);
 
     // Update menu item enable status

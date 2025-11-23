@@ -72,7 +72,7 @@ bool OneSevenLiveStreamManager::startStreamWithWeb() {
             request.device = "OBS";
 
             qint64 selectedEventId = 0;
-            for (const auto &evt : roomInfo.eventList) {
+            for (const auto& evt : roomInfo.eventList) {
                 if (evt.type == 2) {
                     selectedEventId = evt.ID;
                     break;
@@ -81,7 +81,7 @@ bool OneSevenLiveStreamManager::startStreamWithWeb() {
             request.eventID = selectedEventId;
 
             QStringList tags;
-            for (const auto &t : roomInfo.lastUsedHashtags) {
+            for (const auto& t : roomInfo.lastUsedHashtags) {
                 tags << t.text;
             }
             request.hashtags = tags;
@@ -113,17 +113,19 @@ bool OneSevenLiveStreamManager::startStreamWithWeb() {
             info.streamUuid = rtmpResponse.streamID;
             currentLiveStreamInfo = info;
 
-            wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
+            wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                        nlohmann::json{{"status", "connected"}});
 
         } else {
-            obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s", provider.toStdString().c_str());
+            obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s",
+                    provider.toStdString().c_str());
             return false;
         }
     } else {
         obs_log(LOG_ERROR, "Empty rtmpUrl in roomInfo");
         return false;
     }
-    
+
     return true;
 }
 
@@ -165,7 +167,8 @@ bool OneSevenLiveStreamManager::createRtmp(const OneSevenLiveRtmpRequest& reques
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
 
     // Broadcast Ably chat connected when live is created
-    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
+    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                nlohmann::json{{"status", "connected"}});
 
     obs_log(LOG_INFO, "Live stream created successfully. LiveStreamID: %s",
             currentLiveStreamID.c_str());
@@ -199,7 +202,8 @@ bool OneSevenLiveStreamManager::startStream() {
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
 
     // Broadcast Ably chat connected when streaming starts
-    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
+    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                nlohmann::json{{"status", "connected"}});
 
     obs_log(LOG_INFO, "Streaming started successfully");
     return true;
@@ -240,7 +244,7 @@ bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::NotStarted);
 
     // Broadcast Ably chat break when streaming stops
-    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"}});
+    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status", "break"}});
 
     // Clear current stream info
     currentLiveStreamID.clear();
@@ -254,7 +258,11 @@ bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
 }
 
 void OneSevenLiveStreamManager::onStatusTimer() {
-    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status",currentStreamingStatus == OneSevenLiveStreamingStatus::NotStarted ? "break" : "connected"}});
+    wsBroadcast(
+        QString::fromUtf8(ws::EventAblyChatConnected),
+        nlohmann::json{{"status", currentStreamingStatus == OneSevenLiveStreamingStatus::NotStarted
+                                      ? "break"
+                                      : "connected"}});
 }
 
 void OneSevenLiveStreamManager::startOBSStreaming() {
@@ -285,8 +293,6 @@ bool OneSevenLiveStreamManager::saveStreamConfiguration(const OneSevenLiveStream
         emit errorOccurred("Failed to save stream configuration", "saveStreamConfiguration");
         return false;
     }
-
-    
 
     emit streamConfigurationSaved();
     obs_log(LOG_INFO, "Stream configuration saved successfully");
@@ -385,7 +391,8 @@ void OneSevenLiveStreamManager::saveWhipStreamingSettings(const std::string& liv
     obs_log(LOG_INFO, "WHIP streaming settings saved successfully");
 }
 
-void OneSevenLiveStreamManager::configureStreamingService(const OneSevenLiveRtmpResponse& response) {
+void OneSevenLiveStreamManager::configureStreamingService(
+    const OneSevenLiveRtmpResponse& response) {
     obs_log(LOG_INFO, "Configuring streaming service");
 
     // Check if WHIP information is available

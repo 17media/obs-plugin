@@ -2,13 +2,13 @@
 
 #include <obs-module.h>
 
-#include <QVBoxLayout>
-#include <QMessageBox>
 #include <QApplication>
+#include <QMessageBox>
+#include <QVBoxLayout>
 
-#include "utility/QCefView.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "moc_OneSevenLiveChatDock.cpp"
+#include "utility/QCefView.hpp"
 
 OneSevenLiveChatDock::OneSevenLiveChatDock(QWidget* parent, const QString& chatUrl)
     : QDockWidget(obs_module_text("ChatRoom.Title"), parent), chatUrl_(chatUrl) {

@@ -5,8 +5,7 @@
 #include <sstream>
 #include <string>
 
-static OneSevenLiveProtocol s_protocolList[] = {
-    {"rtmp", "RTMP", "rtmp_output", "rtmp_common"}};
+static OneSevenLiveProtocol s_protocolList[] = {{"rtmp", "RTMP", "rtmp_output", "rtmp_common"}};
 
 // OneSevenLiveMultiRtmpVideoConfig implementation
 void OneSevenLiveMultiRtmpVideoConfig::to_json(nlohmann::json& j) const {
@@ -164,7 +163,8 @@ void OneSevenLiveMultiRtmpGlobalConfig::from_json(const nlohmann::json& j) {
     }
 }
 
-OneSevenLiveMultiRtmpConfig* OneSevenLiveMultiRtmpGlobalConfig::findStream(const std::string& streamId) {
+OneSevenLiveMultiRtmpConfig* OneSevenLiveMultiRtmpGlobalConfig::findStream(
+    const std::string& streamId) {
     auto it = std::find_if(
         streams.begin(), streams.end(),
         [&streamId](const OneSevenLiveMultiRtmpConfig& config) { return config.id == streamId; });
@@ -258,11 +258,13 @@ const OneSevenLiveProtocol* findProtocol(const std::string& protocol) {
 }
 
 std::string get_protocol_from_settings(const nlohmann::json& j) {
-    if (j.is_null()) return "";
+    if (j.is_null())
+        return "";
     try {
         if (j.contains("server") && j["server"].is_string()) {
             std::string url = j["server"].get<std::string>();
-            if (url.rfind("rtmps://", 0) == 0) return "RTMPS";
+            if (url.rfind("rtmps://", 0) == 0)
+                return "RTMPS";
             return "RTMP";
         }
         if (j.contains("protocol") && j["protocol"].is_string()) {
@@ -274,7 +276,8 @@ std::string get_protocol_from_settings(const nlohmann::json& j) {
 }
 
 std::string get_url_from_settings(const nlohmann::json& j) {
-    if (j.is_null()) return "";
+    if (j.is_null())
+        return "";
     try {
         if (j.contains("server") && j["server"].is_string()) {
             return j["server"].get<std::string>();
@@ -285,7 +288,8 @@ std::string get_url_from_settings(const nlohmann::json& j) {
 }
 
 std::string get_key_from_settings(const nlohmann::json& j) {
-    if (j.is_null()) return "";
+    if (j.is_null())
+        return "";
     try {
         if (j.contains("key") && j["key"].is_string()) {
             return j["key"].get<std::string>();

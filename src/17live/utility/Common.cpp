@@ -1,7 +1,7 @@
 #include "Common.hpp"
 
-#include <obs.h>
 #include <obs-module.h>
+#include <obs.h>
 
 #include <algorithm>
 #include <array>  // For std::array

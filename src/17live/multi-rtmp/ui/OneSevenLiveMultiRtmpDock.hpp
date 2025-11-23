@@ -34,7 +34,8 @@ class OneSevenLiveMultiRtmpDock : public QDockWidget {
     void refreshStreamList();
     void updateStreamStatus(const std::string& streamId,
                             const OneSevenLiveMultiRtmpStreamStatus& status);
-    void updateStreamStats(const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats);
+    void updateStreamStats(const std::string& streamId,
+                           const OneSevenLiveMultiRtmpStreamStats& stats);
 
    public slots:
     void onAddStreamClicked();

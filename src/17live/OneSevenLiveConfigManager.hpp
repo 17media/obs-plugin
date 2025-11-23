@@ -71,19 +71,22 @@ class OneSevenLiveConfigManager {
     bool clearTwitchTokens();
 
     // YouTube token management
-    bool setYouTubeAccessToken(const QString &accessToken, int expiresInSec, qint64 fetchedAtEpochSec);
+    bool setYouTubeAccessToken(const QString &accessToken, int expiresInSec,
+                               qint64 fetchedAtEpochSec);
     bool getYouTubeAccessToken(QString &accessToken, int &expiresInSec, qint64 &fetchedAtEpochSec);
     bool clearYouTubeAccessToken();
 
-    bool setYouTubeRefreshToken(const QString &refreshToken, int expiresInSec, qint64 fetchedAtEpochSec);
-    bool getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec, qint64 &fetchedAtEpochSec);
+    bool setYouTubeRefreshToken(const QString &refreshToken, int expiresInSec,
+                                qint64 fetchedAtEpochSec);
+    bool getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec,
+                                qint64 &fetchedAtEpochSec);
     bool clearYouTubeRefreshToken();
 
     // Twitch user information management
     bool setTwitchUserInfo(const QString &userId, const QString &login, const QString &displayName,
-                          const QString &profileImageUrl, const QString &email, int viewCount);
+                           const QString &profileImageUrl, const QString &email, int viewCount);
     bool getTwitchUserInfo(QString &userId, QString &login, QString &displayName,
-                          QString &profileImageUrl, QString &email, int &viewCount);
+                           QString &profileImageUrl, QString &email, int &viewCount);
     bool clearTwitchUserInfo();
 
    private:

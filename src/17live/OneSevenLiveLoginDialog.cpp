@@ -333,7 +333,7 @@ void OneSevenLiveLoginDialog::handleLogin() {
     OneSevenLiveLoginData loginData;
 
     obs_log(LOG_INFO, "Login username: [%s]", usernameEdit->text().toStdString().c_str());
-    
+
     // output username's unicode values for emoji tracking
     QString username = usernameEdit->text();
     QString unicodeStr = "Username unicode values: ";
@@ -345,7 +345,6 @@ void OneSevenLiveLoginDialog::handleLogin() {
 
     // trip whitespace
     QString trimmedUsername = usernameEdit->text().trimmed();
-
 
     // Call login interface
     if (!apiWrapper->Login(trimmedUsername, passwordEdit->text(), loginData)) {

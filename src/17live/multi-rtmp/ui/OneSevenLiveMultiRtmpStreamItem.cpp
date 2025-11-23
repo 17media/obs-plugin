@@ -1,23 +1,22 @@
 #include "OneSevenLiveMultiRtmpStreamItem.hpp"
 
-#include <obs-output.h>
 #include <obs-module.h>
+#include <obs-output.h>
 
 #include <QApplication>
-#include <QMessageBox>
-#include <QStyle>
-#include <QPixmap>
-#include "plugin-support.h"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QMessageBox>
+#include <QPixmap>
+#include <QStyle>
 #include <chrono>
 #include <cmath>
 
 #include "../OneSevenLiveMultiRtmpManager.hpp"
-
 #include "OneSevenLiveCoreManager.hpp"
+#include "plugin-support.h"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "utility/Common.hpp"
 
@@ -28,8 +27,8 @@ const QString OneSevenLiveMultiRtmpStreamItem::STATUS_ACTIVE_CLASS = "status-act
 const QString OneSevenLiveMultiRtmpStreamItem::STATUS_ERROR_CLASS = "status-error";
 const QString OneSevenLiveMultiRtmpStreamItem::STATUS_STOPPING_CLASS = "status-stopping";
 
-OneSevenLiveMultiRtmpStreamItem::OneSevenLiveMultiRtmpStreamItem(const OneSevenLiveMultiRtmpConfig& config,
-                                                         QWidget* parent)
+OneSevenLiveMultiRtmpStreamItem::OneSevenLiveMultiRtmpStreamItem(
+    const OneSevenLiveMultiRtmpConfig& config, QWidget* parent)
     : QFrame(parent),
       m_config(config),
       m_mainLayout(nullptr),
@@ -66,7 +65,8 @@ OneSevenLiveMultiRtmpStreamItem::OneSevenLiveMultiRtmpStreamItem(const OneSevenL
     // Setup stats update timer
     m_statsTimer = new QTimer(this);
     m_statsTimer->setInterval(1000);  // Update every second
-    connect(m_statsTimer, &QTimer::timeout, this, &OneSevenLiveMultiRtmpStreamItem::onStatsUpdateTimer);
+    connect(m_statsTimer, &QTimer::timeout, this,
+            &OneSevenLiveMultiRtmpStreamItem::onStatsUpdateTimer);
     m_statsTimer->start();
 }
 
@@ -92,7 +92,8 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
 
     // Stream name (left side)
     m_nameLabel = new QLabel();
-    m_nameLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #FFFFFF; background-color: transparent;");
+    m_nameLabel->setStyleSheet(
+        "font-weight: bold; font-size: 14px; color: #FFFFFF; background-color: transparent;");
     m_nameLabel->setWordWrap(false);
 
     // Status section (right side)
@@ -122,11 +123,13 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
 
     // Duration
     m_durationLabel = new QLabel("-");
-    m_durationLabel->setStyleSheet("font-size: 11px; color: #AAAAAA; background-color: transparent;");
+    m_durationLabel->setStyleSheet(
+        "font-size: 11px; color: #AAAAAA; background-color: transparent;");
 
     // Upload speed
     m_bitrateLabel = new QLabel("-");
-    m_bitrateLabel->setStyleSheet("font-size: 11px; color: #AAAAAA; background-color: transparent;");
+    m_bitrateLabel->setStyleSheet(
+        "font-size: 11px; color: #AAAAAA; background-color: transparent;");
 
     // Frame rate
     m_framesLabel = new QLabel("-");
@@ -146,9 +149,11 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
     m_errorHintLayout->setAlignment(Qt::AlignLeft);
     m_errorIconLabel = new QLabel();
     m_errorIconLabel->setFixedSize(16, 16);
-    m_errorIconLabel->setPixmap(QPixmap(":/resources/alert.svg").scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_errorIconLabel->setPixmap(QPixmap(":/resources/alert.svg")
+                                    .scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     m_errorTextLabel = new QLabel();
-    m_errorTextLabel->setStyleSheet("font-size: 12px; color: #FF873D; background-color: transparent;");
+    m_errorTextLabel->setStyleSheet(
+        "font-size: 12px; color: #FF873D; background-color: transparent;");
     m_errorHintLayout->addWidget(m_errorIconLabel);
     m_errorHintLayout->addWidget(m_errorTextLabel);
 
@@ -175,7 +180,8 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
         "QPushButton { border: none; background: transparent; } QPushButton:hover { "
         "background-color: rgba(255,255,255,0.1); border-radius: 12px; }");
     m_editButton->setToolTip(obs_module_text("MultiRTMP.Edit"));
-    connect(m_editButton, &QPushButton::clicked, this, &OneSevenLiveMultiRtmpStreamItem::onEditClicked);
+    connect(m_editButton, &QPushButton::clicked, this,
+            &OneSevenLiveMultiRtmpStreamItem::onEditClicked);
 
     // Delete button
     m_menuButton = new QPushButton();
@@ -230,7 +236,8 @@ void OneSevenLiveMultiRtmpStreamItem::updateConfig(const OneSevenLiveMultiRtmpCo
     updateUI();
 }
 
-void OneSevenLiveMultiRtmpStreamItem::updateStatus(const OneSevenLiveMultiRtmpStreamStatus& status) {
+void OneSevenLiveMultiRtmpStreamItem::updateStatus(
+    const OneSevenLiveMultiRtmpStreamStatus& status) {
     // Record start time when stream becomes active
     if (status.state == OneSevenLiveMultiRtmpStreamStatus::STREAMING &&
         m_status.state != OneSevenLiveMultiRtmpStreamStatus::STREAMING) {
@@ -279,41 +286,47 @@ void OneSevenLiveMultiRtmpStreamItem::onStartStopClicked() {
             OneSevenLiveStreamManager* streamMgr = core.getStreamManager();
             if (!streamMgr) {
                 obs_log(LOG_ERROR, "[MultiRTMP-Manager] 17LIVE StreamManager not available");
-                QMessageBox::warning(nullptr, obs_module_text("Live.Common.Notice"),
-                                    obs_module_text("MultiRTMP.Precheck.StreamManagerUnavailable"));
+                QMessageBox::warning(
+                    nullptr, obs_module_text("Live.Common.Notice"),
+                    obs_module_text("MultiRTMP.Precheck.StreamManagerUnavailable"));
                 return;
             }
 
             // 1) If 17live live NOT started
             if (!streamMgr->hasActiveLiveStream() ||
                 streamMgr->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::NotStarted) {
-                obs_log(LOG_WARNING, "[MultiRTMP-Manager] 17LIVE live not started; blocking MultiRTMP %d", streamMgr->getCurrentStreamingStatus());
+                obs_log(LOG_WARNING,
+                        "[MultiRTMP-Manager] 17LIVE live not started; blocking MultiRTMP %d",
+                        streamMgr->getCurrentStreamingStatus());
                 QMessageBox::information(nullptr, obs_module_text("Live.Common.Notice"),
-                                        obs_module_text("MultiRTMP.Precheck.LiveNotStarted"));
+                                         obs_module_text("MultiRTMP.Precheck.LiveNotStarted"));
                 return;
             }
 
             // Fetch current info to inspect group call flag
             const OneSevenLiveStreamInfo& liveInfo = streamMgr->getCurrentLiveStreamInfo();
             const OneSevenLiveRtmpRequest& liveReq = streamMgr->getCurrentStreamRequest();
-            const bool isGroupCall = liveReq.enableOBSGroupCall || liveInfo.request.enableOBSGroupCall;
+            const bool isGroupCall =
+                liveReq.enableOBSGroupCall || liveInfo.request.enableOBSGroupCall;
 
             // 2) If live is groupcall (party live), block
             if (isGroupCall) {
                 obs_log(LOG_WARNING,
                         "[MultiRTMP-Manager] 17LIVE live is GroupCall; MultiRTMP unsupported");
                 QMessageBox::warning(nullptr, obs_module_text("Live.Common.Notice"),
-                                    obs_module_text("MultiRTMP.Precheck.GroupCallNotSupported"));
+                                     obs_module_text("MultiRTMP.Precheck.GroupCallNotSupported"));
                 return;
             }
 
             // 3) If live started but not streaming, prompt user to start streaming first
             if (streamMgr->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::Live &&
                 !streamMgr->isOBSStreaming()) {
-                obs_log(LOG_INFO,
-                        "[MultiRTMP-Manager] 17LIVE live started but OBS not streaming; prompt user");
-                QMessageBox::information(nullptr, obs_module_text("Live.Common.Notice"),
-                                        obs_module_text("MultiRTMP.Precheck.StartObsStreamingFirst"));
+                obs_log(
+                    LOG_INFO,
+                    "[MultiRTMP-Manager] 17LIVE live started but OBS not streaming; prompt user");
+                QMessageBox::information(
+                    nullptr, obs_module_text("Live.Common.Notice"),
+                    obs_module_text("MultiRTMP.Precheck.StartObsStreamingFirst"));
                 // Do not return here per requirement 3: prompt then continue starting MultiRTMP
             }
             // 4) If already streaming, proceed directly (no-op)
@@ -404,18 +417,20 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatsDisplay() {
         if (m_bitrateLabel)
             m_bitrateLabel->setText(
                 QString("%1: -- Kbps").arg(obs_module_text("MultiRTMP.Stats.UploadRate")));
-    if (m_framesLabel)
-        m_framesLabel->setText(
-            QString("%1: -- FPS").arg(obs_module_text("MultiRTMP.Stats.FrameRate")));
+        if (m_framesLabel)
+            m_framesLabel->setText(
+                QString("%1: -- FPS").arg(obs_module_text("MultiRTMP.Stats.FrameRate")));
+    }
 }
-}
-
 
 void OneSevenLiveMultiRtmpStreamItem::updateErrorHint() {
     const bool show = isError();
-    if (m_errorIconLabel) m_errorIconLabel->setVisible(show);
-    if (m_errorTextLabel) m_errorTextLabel->setVisible(show);
-    if (!show) return;
+    if (m_errorIconLabel)
+        m_errorIconLabel->setVisible(show);
+    if (m_errorTextLabel)
+        m_errorTextLabel->setVisible(show);
+    if (!show)
+        return;
 
     QString code = QString::fromStdString(m_status.errorMessage);
     QString detail;
@@ -434,7 +449,9 @@ void OneSevenLiveMultiRtmpStreamItem::updateErrorHint() {
     m_errorTextLabel->setToolTip(composeErrorTooltip(brief, desc, solution));
 }
 
-QString OneSevenLiveMultiRtmpStreamItem::composeErrorTooltip(const QString& brief, const QString& detail, const QString& solution) const {
+QString OneSevenLiveMultiRtmpStreamItem::composeErrorTooltip(const QString& brief,
+                                                             const QString& detail,
+                                                             const QString& solution) const {
     QString tip;
     tip += brief + "\n\n";
     tip += detail + "\n\n";
@@ -442,15 +459,18 @@ QString OneSevenLiveMultiRtmpStreamItem::composeErrorTooltip(const QString& brie
     return tip;
 }
 
-OneSevenLiveMultiRtmpStreamItem::ErrorMapping OneSevenLiveMultiRtmpStreamItem::mapErrorCode(const QString& code) const {
+OneSevenLiveMultiRtmpStreamItem::ErrorMapping OneSevenLiveMultiRtmpStreamItem::mapErrorCode(
+    const QString& code) const {
     static QJsonObject cache;
     if (cache.isEmpty()) {
         std::string dataPath = get_obs_module_data_path_str();
-        QString configPath = QString("%1/multi-rtmp-errors.json").arg(QString::fromStdString(dataPath));
+        QString configPath =
+            QString("%1/multi-rtmp-errors.json").arg(QString::fromStdString(dataPath));
         QFile f(configPath);
         if (f.open(QIODevice::ReadOnly)) {
             auto doc = QJsonDocument::fromJson(f.readAll());
-            if (doc.isObject()) cache = doc.object();
+            if (doc.isObject())
+                cache = doc.object();
             f.close();
         }
     }
@@ -624,14 +644,14 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
             auto byteDiff = newBytes - m_lastTotalBytes;
             if (byteDiff > 0) {
                 double newBitrate = (byteDiff * 8.0) / (interval * 1000.0);  // Convert to Kbps
-                
+
                 // Apply reasonable bounds (0 to 100 Mbps)
                 if (newBitrate >= 0.0 && newBitrate <= 100000.0) {
                     // Apply simple smoothing to reduce flickering
                     const double SMOOTHING_FACTOR = 0.3;
                     if (m_stats.currentBitrate > 0.0) {
-                        m_stats.currentBitrate = m_stats.currentBitrate * (1.0 - SMOOTHING_FACTOR) + 
-                                               newBitrate * SMOOTHING_FACTOR;
+                        m_stats.currentBitrate = m_stats.currentBitrate * (1.0 - SMOOTHING_FACTOR) +
+                                                 newBitrate * SMOOTHING_FACTOR;
                     } else {
                         m_stats.currentBitrate = newBitrate;
                     }
@@ -651,14 +671,14 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
             auto frameDiff = newFrames - m_lastTotalFrames;
             if (frameDiff > 0) {
                 double newFPS = static_cast<double>(frameDiff) / interval;
-                
+
                 // Apply reasonable bounds (0 to 120 FPS)
                 if (newFPS >= 0.0 && newFPS <= 120.0) {
                     // Apply simple smoothing to reduce flickering
                     const double SMOOTHING_FACTOR = 0.3;
                     if (m_stats.currentFPS > 0) {
-                        double smoothedFPS = m_stats.currentFPS * (1.0 - SMOOTHING_FACTOR) + 
-                                           newFPS * SMOOTHING_FACTOR;
+                        double smoothedFPS = m_stats.currentFPS * (1.0 - SMOOTHING_FACTOR) +
+                                             newFPS * SMOOTHING_FACTOR;
                         m_stats.currentFPS = static_cast<int>(std::round(smoothedFPS));
                     } else {
                         m_stats.currentFPS = static_cast<int>(std::round(newFPS));
@@ -676,7 +696,7 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
 
         // Update total stats with validation
         m_stats.totalFrames = newFrames;
-        
+
         // Get dropped frames with validation
         uint32_t droppedFrames = obs_output_get_frames_dropped(output);
         if (droppedFrames <= static_cast<uint32_t>(newFrames)) {  // Sanity check

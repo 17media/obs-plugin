@@ -119,16 +119,16 @@ void OneSevenLiveMultiRtmpListWidget::updateStream(const OneSevenLiveMultiRtmpCo
     }
 }
 
-void OneSevenLiveMultiRtmpListWidget::updateStreamStatus(const std::string& streamId,
-                                                    const OneSevenLiveMultiRtmpStreamStatus& status) {
+void OneSevenLiveMultiRtmpListWidget::updateStreamStatus(
+    const std::string& streamId, const OneSevenLiveMultiRtmpStreamStatus& status) {
     auto* item = findStreamItem(streamId);
     if (item) {
         item->updateStatus(status);
     }
 }
 
-void OneSevenLiveMultiRtmpListWidget::updateStreamStats(const std::string& streamId,
-                                                   const OneSevenLiveMultiRtmpStreamStats& stats) {
+void OneSevenLiveMultiRtmpListWidget::updateStreamStats(
+    const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats) {
     auto* item = findStreamItem(streamId);
     if (item) {
         item->updateStats(stats);
@@ -183,8 +183,8 @@ std::vector<std::string> OneSevenLiveMultiRtmpListWidget::getActiveStreamIds() c
     return activeIds;
 }
 
-OneSevenLiveMultiRtmpListWidget::StreamStatusStats OneSevenLiveMultiRtmpListWidget::getStreamStatusStats()
-    const {
+OneSevenLiveMultiRtmpListWidget::StreamStatusStats
+OneSevenLiveMultiRtmpListWidget::getStreamStatusStats() const {
     StreamStatusStats stats;
     stats.totalCount = m_streamItems.size();
 
@@ -194,17 +194,17 @@ OneSevenLiveMultiRtmpListWidget::StreamStatusStats OneSevenLiveMultiRtmpListWidg
 
         const auto& status = item->getStatus();
         switch (status.state) {
-    case OneSevenLiveMultiRtmpStreamStatus::State::STREAMING:
+        case OneSevenLiveMultiRtmpStreamStatus::State::STREAMING:
             stats.activeCount++;
             break;
-    case OneSevenLiveMultiRtmpStreamStatus::State::CONNECTING:
-    case OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING:
+        case OneSevenLiveMultiRtmpStreamStatus::State::CONNECTING:
+        case OneSevenLiveMultiRtmpStreamStatus::State::RECONNECTING:
             stats.connectingCount++;
             break;
-    case OneSevenLiveMultiRtmpStreamStatus::State::STOPPED:
+        case OneSevenLiveMultiRtmpStreamStatus::State::STOPPED:
             stats.stoppedCount++;
             break;
-    case OneSevenLiveMultiRtmpStreamStatus::State::ERROR_STATE:
+        case OneSevenLiveMultiRtmpStreamStatus::State::ERROR_STATE:
             stats.errorCount++;
             break;
         }
@@ -258,7 +258,7 @@ void OneSevenLiveMultiRtmpListWidget::updateEmptyState() {
 OneSevenLiveMultiRtmpStreamItem* OneSevenLiveMultiRtmpListWidget::findStreamItem(
     const std::string& streamId) const {
     auto it = std::find_if(m_streamItems.begin(), m_streamItems.end(),
-    [&streamId](const OneSevenLiveMultiRtmpStreamItem* item) {
+                           [&streamId](const OneSevenLiveMultiRtmpStreamItem* item) {
                                return item && item->getStreamId() == streamId;
                            });
 

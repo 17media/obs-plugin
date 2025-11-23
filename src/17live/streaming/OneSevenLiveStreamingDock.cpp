@@ -149,7 +149,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     formLayout->addRow(titleLabel, titleEdit);
 
     // Category selection
-    categoryCombo = new QComboBox(this); // Set parent to ensure proper cleanup
+    categoryCombo = new QComboBox(this);  // Set parent to ensure proper cleanup
     QLabel *categoryLabel = new QLabel();
     categoryLabel->setText(
         QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
@@ -202,7 +202,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     eventContainer->addWidget(eventLabel);
 
     // Dropdown box
-    eventCombo = new QComboBox(this); // Set parent to ensure proper cleanup
+    eventCombo = new QComboBox(this);  // Set parent to ensure proper cleanup
     eventContainer->addWidget(eventCombo);
 
     // Create hint label and align right
@@ -278,7 +278,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     QLabel *userConditionLabel = new QLabel(obs_module_text("Live.Settings.UserCondition"));
     userConditionLayout->addWidget(userConditionLabel);
 
-    requiredArmyRankCombo = new QComboBox(this); // Set parent to ensure proper cleanup
+    requiredArmyRankCombo = new QComboBox(this);  // Set parent to ensure proper cleanup
     requiredArmyRankCombo->setEditable(false);
     userConditionLayout->addWidget(requiredArmyRankCombo);
 
@@ -414,7 +414,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     clipLayout->addWidget(clipTip);
 
     // Clip identity
-    clipIdentityCombo = new QComboBox(this); // Set parent to ensure proper cleanup
+    clipIdentityCombo = new QComboBox(this);  // Set parent to ensure proper cleanup
     QList<OneSevenLiveMetaValueLabel> clipIdentityList;
     getMetaValueLabelList("ClipPermissions", clipIdentityList);
     for (const auto &item : clipIdentityList) {
@@ -493,16 +493,16 @@ void OneSevenLiveStreamingDock::loadRoomInfo() {
         }
 
         // connect streamManager's roomInfoLoaded signal to updateUIWithRoomInfo slot
-        
-        connect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this,
-            [this](const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
-                roomInfo = streamManager->getRoomInfo();
-                configStreamer = streamManager->getConfigStreamer();
-                userInfo = streamManager->getUserInfo();
-                levels = streamManager->getArmyLevels();
 
-                handleLoadingCompleted(result);
-        });
+        connect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this,
+                [this](const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
+                    roomInfo = streamManager->getRoomInfo();
+                    configStreamer = streamManager->getConfigStreamer();
+                    userInfo = streamManager->getUserInfo();
+                    levels = streamManager->getArmyLevels();
+
+                    handleLoadingCompleted(result);
+                });
     }
 }
 
@@ -577,7 +577,7 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
     }
 
     updateUIValues();
-    
+
     // How to handle when web has already started streaming
     if (roomInfo.status == static_cast<int>(OneSevenLiveStreamingStatus::Live)) {
         // Add user prompt dialog to ask for next operation
@@ -608,7 +608,8 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
 }
 
 // Handle loading completion with comprehensive error handling
-void OneSevenLiveStreamingDock::handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
+void OneSevenLiveStreamingDock::handleLoadingCompleted(
+    const OneSevenLiveLoadRoomInfoWorker::LoadResult &result) {
     obs_log(LOG_INFO, "OneSevenLiveStreamingDock::handleLoadingCompleted");
 
     loadingOverlay->setVisible(false);
@@ -1156,7 +1157,7 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
         // update streaming status
         streamManager->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
     }
-    
+
     // Ask whether to start streaming simultaneously
     QMessageBox msgBox;
     msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
@@ -1310,7 +1311,7 @@ void OneSevenLiveStreamingDock::updateLiveButton(bool isLive) {
 
 void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus status) {
     obs_log(LOG_INFO, "Updating live status to %d", status);
-    
+
     currentLiveStatus = status;
 
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);

@@ -1,14 +1,15 @@
 // OneSevenLiveAuthDialog: embed QCefView to show external URL and re-emit URL changes
 #include "OneSevenLiveAuthDialog.hpp"
-#include "../../plugin-support.h"
 
-#include <QVBoxLayout>
+#include <obs-module.h>
+
 #include <QDialog>
 #include <QString>
+#include <QVBoxLayout>
 
+#include "../../plugin-support.h"
 #include "../utility/QCefView.hpp"
 #include "moc_OneSevenLiveAuthDialog.cpp"
-#include <obs-module.h>
 
 OneSevenLiveAuthDialog::OneSevenLiveAuthDialog(QWidget* parent)
     : QDialog(parent), cefView_(nullptr) {

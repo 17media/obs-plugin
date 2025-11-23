@@ -42,7 +42,8 @@ void OneSevenLivePreviewDock::setupUi() {
 }
 
 void OneSevenLivePreviewDock::updatePreviewGeometry() {
-    if (!previewWidget) return;
+    if (!previewWidget)
+        return;
     const QRect cr = contentsRect();
     int cw = cr.width();
     int ch = cr.height();
@@ -58,7 +59,7 @@ void OneSevenLivePreviewDock::updatePreviewGeometry() {
     int targetH = static_cast<int>(std::round(targetW / aspect));
     if (targetH > ch) {
         targetH = ch;
-        targetW = cw; // keep width full per requirement
+        targetW = cw;  // keep width full per requirement
     }
     int x = cr.x() + (cw - targetW) / 2;
     int y = cr.y() + (ch - targetH) / 2;

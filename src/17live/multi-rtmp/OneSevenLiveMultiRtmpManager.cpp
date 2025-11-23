@@ -1,9 +1,9 @@
 #include "OneSevenLiveMultiRtmpManager.hpp"
 
-#include <algorithm>
-#include <exception>
 #include <QMessageBox>
 #include <QTimer>
+#include <algorithm>
+#include <exception>
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
@@ -188,7 +188,7 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
 }
 
 bool OneSevenLiveMultiRtmpManager::updateStreamConfig(const std::string& streamId,
-                                                  const OneSevenLiveMultiRtmpConfig& config) {
+                                                      const OneSevenLiveMultiRtmpConfig& config) {
     if (!m_initialized || !m_configManager) {
         obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
@@ -268,8 +268,7 @@ bool OneSevenLiveMultiRtmpManager::startStream(const std::string& streamId) {
             return;
         }
         if (!m_streamController->startOutput(streamId)) {
-            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to start stream: %s",
-                    streamId.c_str());
+            obs_log(LOG_ERROR, "[MultiRTMP-Manager] Failed to start stream: %s", streamId.c_str());
         }
     });
 
@@ -293,7 +292,7 @@ bool OneSevenLiveMultiRtmpManager::startAllStreams() {
 
     auto configs = getAllStreamConfigs();
     for (const auto& config : configs) {
-        (void)startStream(config.id);
+        (void) startStream(config.id);
     }
 
     return true;
@@ -515,7 +514,7 @@ obs_output_t* OneSevenLiveMultiRtmpManager::getStreamOutput(const std::string& s
 
 // Private methods
 void OneSevenLiveMultiRtmpManager::onConfigChanged(const std::string& streamId,
-                                               const OneSevenLiveMultiRtmpConfig& config) {
+                                                   const OneSevenLiveMultiRtmpConfig& config) {
     if (m_configChangeCallback) {
         m_configChangeCallback(streamId, config);
     }
@@ -527,15 +526,15 @@ void OneSevenLiveMultiRtmpManager::onConfigDeleted(const std::string& streamId) 
     }
 }
 
-void OneSevenLiveMultiRtmpManager::onStreamStatusChanged(const std::string& streamId,
-                                                     const OneSevenLiveMultiRtmpStreamStatus& status) {
+void OneSevenLiveMultiRtmpManager::onStreamStatusChanged(
+    const std::string& streamId, const OneSevenLiveMultiRtmpStreamStatus& status) {
     if (m_statusCallback) {
         m_statusCallback(streamId, status);
     }
 }
 
-void OneSevenLiveMultiRtmpManager::onStreamStatsUpdated(const std::string& streamId,
-                                                    const OneSevenLiveMultiRtmpStreamStats& stats) {
+void OneSevenLiveMultiRtmpManager::onStreamStatsUpdated(
+    const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats) {
     if (m_statsCallback) {
         m_statsCallback(streamId, stats);
     }

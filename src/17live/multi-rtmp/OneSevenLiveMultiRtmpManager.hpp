@@ -19,10 +19,10 @@
 class OneSevenLiveMultiRtmpManager {
    public:
     // Callback types for UI notifications
-    using StreamStatusCallback = std::function<void(const std::string& streamId,
-                                                    const OneSevenLiveMultiRtmpStreamStatus& status)>;
-    using StreamStatsCallback =
-        std::function<void(const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats)>;
+    using StreamStatusCallback = std::function<void(
+        const std::string& streamId, const OneSevenLiveMultiRtmpStreamStatus& status)>;
+    using StreamStatsCallback = std::function<void(const std::string& streamId,
+                                                   const OneSevenLiveMultiRtmpStreamStats& stats)>;
     using ConfigChangeCallback =
         std::function<void(const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config)>;
     using ConfigDeleteCallback = std::function<void(const std::string& streamId)>;

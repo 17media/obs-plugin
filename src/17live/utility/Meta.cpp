@@ -1,5 +1,7 @@
 #include "Meta.hpp"
 
+#include <obs-module.h>
+
 #include <QFile>
 #include <QMetaType>
 #include <QString>
@@ -9,7 +11,6 @@
 #include <nlohmann/json.hpp>
 
 #include "Common.hpp"
-#include <obs-module.h>
 #include "plugin-support.h"
 
 using Json = nlohmann::json;

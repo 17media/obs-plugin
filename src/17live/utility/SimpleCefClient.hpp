@@ -15,10 +15,10 @@
 #include <include/cef_render_handler.h>
 #include <include/wrapper/cef_helpers.h>
 
+#include <QString>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QWindow>
-#include <QString>
 #include <functional>
 
 class SimpleCefClient : public CefClient, public CefLifeSpanHandler, public CefDisplayHandler {
@@ -30,7 +30,9 @@ class SimpleCefClient : public CefClient, public CefLifeSpanHandler, public CefD
     }
 
     // Callback to notify URL changes (Qt bridge sets this)
-    void setUrlChangedCallback(const std::function<void(QString)> &cb) { onUrlChanged_ = cb; }
+    void setUrlChangedCallback(const std::function<void(QString)> &cb) {
+        onUrlChanged_ = cb;
+    }
 
     // CefClient interface implementation
     virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override {
@@ -47,8 +49,7 @@ class SimpleCefClient : public CefClient, public CefLifeSpanHandler, public CefD
     virtual void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
 
     // CefDisplayHandler
-    virtual void OnAddressChange(CefRefPtr<CefBrowser> browser,
-                                 CefRefPtr<CefFrame> frame,
+    virtual void OnAddressChange(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
                                  const CefString &url) override;
 
    private:

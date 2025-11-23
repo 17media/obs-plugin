@@ -1,14 +1,14 @@
 #pragma once
 
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <functional>
 #include <memory>
 #include <vector>
-#include <QSet>
 
-#include "OneSevenLiveApiWrappers.hpp"
 #include "../websocket/OneSevenLiveWebsocketClient.hpp"
+#include "OneSevenLiveApiWrappers.hpp"
 
 class QTimer;
 
@@ -30,9 +30,9 @@ class OneSevenLiveAblyChatClient : public QObject {
 
     bool connect();
     void disconnect();
-   bool isConnected() const;
+    bool isConnected() const;
 
-  private:
+   private:
     void tryConnectWithFallbackHosts();
     void attachChannel();
     void attachChannel(const QString& channel);
@@ -76,11 +76,11 @@ class OneSevenLiveAblyChatClient : public QObject {
 };
 
 namespace ably {
-static constexpr int MsgType_COMMENT = 3;      // General comment message
-static constexpr int MsgType_NEW_GIFT = 13;    // Gift animation message
-static constexpr int MsgType_JOIN_ROOM = 18;   // Audience join room message
-static constexpr int MsgType_NEW_LUCKYBAG = 32; // Random gift message
-static constexpr int MsgType_POKE = 47;        // Poke message
-static constexpr int MsgType_ROCKZONE = 74;    // Rock Zone message
-static constexpr int MsgType_AI_COHOST_MESSAGE = 120; // AI co-host message
-}
+    static constexpr int MsgType_COMMENT = 3;              // General comment message
+    static constexpr int MsgType_NEW_GIFT = 13;            // Gift animation message
+    static constexpr int MsgType_JOIN_ROOM = 18;           // Audience join room message
+    static constexpr int MsgType_NEW_LUCKYBAG = 32;        // Random gift message
+    static constexpr int MsgType_POKE = 47;                // Poke message
+    static constexpr int MsgType_ROCKZONE = 74;            // Rock Zone message
+    static constexpr int MsgType_AI_COHOST_MESSAGE = 120;  // AI co-host message
+}  // namespace ably

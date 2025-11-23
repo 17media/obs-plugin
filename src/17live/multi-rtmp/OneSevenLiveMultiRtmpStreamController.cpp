@@ -4,21 +4,19 @@
 #include <obs-module.h>
 #include <util/config-file.h>
 
+#include <QEventLoop>
+#include <QString>
+#include <QTimer>
 #include <chrono>
 #include <thread>
 
-#include "plugin-support.h"
-#include "utility/Common.hpp"
-
 #include "OneSevenLiveCoreManager.hpp"
-#include "youtube/OneSevenLiveYouTubeAuth.hpp"
-#include "youtube/OneSevenLiveYouTubeClient.hpp"
+#include "plugin-support.h"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "twitch/OneSevenLiveTwitchClient.hpp"
-
-#include <QEventLoop>
-#include <QTimer>
-#include <QString>
+#include "utility/Common.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
+#include "youtube/OneSevenLiveYouTubeClient.hpp"
 
 OneSevenLiveMultiRtmpStreamController::OneSevenLiveMultiRtmpStreamController() {
     MULTI_RTMP_STREAM_LOG_INFO("Creating MultiRTMP Stream Controller");
@@ -47,8 +45,8 @@ OneSevenLiveMultiRtmpStreamController::~OneSevenLiveMultiRtmpStreamController() 
     m_sharedAudioEncoders.clear();
 }
 
-bool OneSevenLiveMultiRtmpStreamController::createOutput(const std::string& streamId,
-                                                     const OneSevenLiveMultiRtmpConfig& config) {
+bool OneSevenLiveMultiRtmpStreamController::createOutput(
+    const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
     MULTI_RTMP_STREAM_LOG_INFO("Creating output for stream: %s", streamId.c_str());
 
     // Check if output already exists
@@ -87,8 +85,9 @@ bool OneSevenLiveMultiRtmpStreamController::createOutput(const std::string& stre
             return false;
         }
     } else {
-        MULTI_RTMP_STREAM_LOG_INFO("Service not yet available for stream: %s; awaiting async resolution",
-                                   streamId.c_str());
+        MULTI_RTMP_STREAM_LOG_INFO(
+            "Service not yet available for stream: %s; awaiting async resolution",
+            streamId.c_str());
     }
 
     return true;
@@ -115,7 +114,7 @@ bool OneSevenLiveMultiRtmpStreamController::startOutput(const std::string& strea
 }
 
 bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::string& streamId,
-                                                            StreamOutput* streamOutput) {
+                                                                StreamOutput* streamOutput) {
     MULTI_RTMP_STREAM_LOG_INFO("Starting output internal for stream: %s", streamId.c_str());
 
     if (!streamOutput || !streamOutput->output) {
@@ -185,7 +184,7 @@ bool OneSevenLiveMultiRtmpStreamController::stopOutput(const std::string& stream
 }
 
 bool OneSevenLiveMultiRtmpStreamController::stopOutputInternal(const std::string& streamId,
-                                                           StreamOutput* streamOutput) {
+                                                               StreamOutput* streamOutput) {
     if (!streamOutput || !streamOutput->output) {
         MULTI_RTMP_STREAM_LOG_ERROR("Invalid stream output for: %s", streamId.c_str());
         return false;
@@ -448,7 +447,8 @@ void OneSevenLiveMultiRtmpStreamController::startStatsMonitoring() {
     }
 
     m_statsMonitoringActive = true;
-    m_statsThread = std::thread(&OneSevenLiveMultiRtmpStreamController::statsMonitoringThread, this);
+    m_statsThread =
+        std::thread(&OneSevenLiveMultiRtmpStreamController::statsMonitoringThread, this);
 
     MULTI_RTMP_STREAM_LOG_INFO("Statistics monitoring started");
 }
@@ -467,8 +467,8 @@ void OneSevenLiveMultiRtmpStreamController::stopStatsMonitoring() {
 }
 
 bool OneSevenLiveMultiRtmpStreamController::createService(const std::string& streamId,
-                                                      const OneSevenLiveMultiRtmpConfig& config,
-                                                      StreamOutput* streamOutput) {
+                                                          const OneSevenLiveMultiRtmpConfig& config,
+                                                          StreamOutput* streamOutput) {
     if (!streamOutput) {
         MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput is null for stream: %s", streamId.c_str());
         return false;
@@ -504,9 +504,9 @@ bool OneSevenLiveMultiRtmpStreamController::createService(const std::string& str
     return true;
 }
 
-bool OneSevenLiveMultiRtmpStreamController::createEncoders(const std::string& streamId,
-                                                       const OneSevenLiveMultiRtmpConfig& config,
-                                                       StreamOutput* streamOutput) {
+bool OneSevenLiveMultiRtmpStreamController::createEncoders(
+    const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config,
+    StreamOutput* streamOutput) {
     if (!streamOutput) {
         MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput is null for stream: %s", streamId.c_str());
         return false;
@@ -644,8 +644,8 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(const std::string& st
 }
 
 bool OneSevenLiveMultiRtmpStreamController::setupOutput(const std::string& streamId,
-                                                    const OneSevenLiveMultiRtmpConfig& config,
-                                                    StreamOutput* streamOutput) {
+                                                        const OneSevenLiveMultiRtmpConfig& config,
+                                                        StreamOutput* streamOutput) {
     if (!streamOutput) {
         MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput is null for stream: %s", streamId.c_str());
         return false;
@@ -758,7 +758,8 @@ void OneSevenLiveMultiRtmpStreamController::outputStopCallback(void* data, calld
                 int code = 0;
                 // Attempt to read error fields from calldata if present
                 lastErr = calldata_string(cd, "last_error");
-                if (!lastErr) lastErr = calldata_string(cd, "error");
+                if (!lastErr)
+                    lastErr = calldata_string(cd, "error");
                 reason = calldata_string(cd, "reason");
                 code = calldata_int(cd, "code");
                 if (lastErr && *lastErr) {
@@ -771,12 +772,23 @@ void OneSevenLiveMultiRtmpStreamController::outputStopCallback(void* data, calld
                 std::string errMsg;
                 std::string dlow = detail;
                 std::transform(dlow.begin(), dlow.end(), dlow.begin(), ::tolower);
-                bool isNet = dlow.find("tls") != std::string::npos || dlow.find("ssl") != std::string::npos || dlow.find("timeout") != std::string::npos || dlow.find("connection") != std::string::npos || dlow.find("recv") != std::string::npos || dlow.find("reset") != std::string::npos || dlow.find("handshake") != std::string::npos || dlow.find("network") != std::string::npos || dlow.find("code=-2") != std::string::npos;
+                bool isNet = dlow.find("tls") != std::string::npos ||
+                             dlow.find("ssl") != std::string::npos ||
+                             dlow.find("timeout") != std::string::npos ||
+                             dlow.find("connection") != std::string::npos ||
+                             dlow.find("recv") != std::string::npos ||
+                             dlow.find("reset") != std::string::npos ||
+                             dlow.find("handshake") != std::string::npos ||
+                             dlow.find("network") != std::string::npos ||
+                             dlow.find("code=-2") != std::string::npos;
                 errMsg = isNet ? "NetworkError:RTMP" : "ConnectFailed";
-                if (!detail.empty()) errMsg += ":" + detail;
-                controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE, errMsg);
+                if (!detail.empty())
+                    errMsg += ":" + detail;
+                controller->updateStreamStatus(
+                    streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE, errMsg);
             } else {
-                controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STOPPED);
+                controller->updateStreamStatus(streamId,
+                                               OneSevenLiveMultiRtmpStreamStatus::STOPPED);
             }
             MULTI_RTMP_STREAM_LOG_INFO("Stream stopped: %s", streamId.c_str());
             break;
@@ -797,14 +809,16 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectCallback(void* data, 
                 streamOutput->connectTimeoutTimer->deleteLater();
                 streamOutput->connectTimeoutTimer = nullptr;
             }
-            controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::RECONNECTING);
+            controller->updateStreamStatus(streamId,
+                                           OneSevenLiveMultiRtmpStreamStatus::RECONNECTING);
             MULTI_RTMP_STREAM_LOG_INFO("Stream reconnecting: %s", streamId.c_str());
             break;
         }
     }
 }
 
-void OneSevenLiveMultiRtmpStreamController::outputReconnectSuccessCallback(void* data, calldata_t* cd) {
+void OneSevenLiveMultiRtmpStreamController::outputReconnectSuccessCallback(void* data,
+                                                                           calldata_t* cd) {
     auto* controller = static_cast<OneSevenLiveMultiRtmpStreamController*>(data);
     obs_output_t* output = static_cast<obs_output_t*>(calldata_ptr(cd, "output"));
 
@@ -844,7 +858,7 @@ void OneSevenLiveMultiRtmpStreamController::statsMonitoringThread() {
 }
 
 void OneSevenLiveMultiRtmpStreamController::collectStreamStats(const std::string& streamId,
-                                                           StreamOutput& streamOutput) {
+                                                               StreamOutput& streamOutput) {
     (void) streamId;  // Suppress unused parameter warning
 
     if (!streamOutput.output) {
@@ -873,11 +887,13 @@ void OneSevenLiveMultiRtmpStreamController::collectStreamStats(const std::string
 }
 
 // Helper method implementations
-std::string OneSevenLiveMultiRtmpStreamController::getOutputName(const std::string& streamId) const {
+std::string OneSevenLiveMultiRtmpStreamController::getOutputName(
+    const std::string& streamId) const {
     return "MultiRTMP_Output_" + streamId;
 }
 
-std::string OneSevenLiveMultiRtmpStreamController::getServiceName(const std::string& streamId) const {
+std::string OneSevenLiveMultiRtmpStreamController::getServiceName(
+    const std::string& streamId) const {
     return "MultiRTMP_Service_" + streamId;
 }
 
@@ -1011,47 +1027,55 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 timeout->deleteLater();
             });
 
-            QObject::connect(client.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
-                             [this, streamId, timeout](const YouTubeLiveStreamListResponse& resp) {
-                                 if (timeout) timeout->stop();
-                                 QString resolvedServer;
-                                 QString resolvedKey;
-                                 for (const auto& s : resp.items) {
-                                     const auto& info = s.cdn.ingestionInfo;
-                                     const QString serverCandidate = !info.rtmpsIngestionAddress.isEmpty()
-                                                                         ? info.rtmpsIngestionAddress
-                                                                         : info.ingestionAddress;
-                                     const QString keyCandidate = info.streamName;
-                                     if (!serverCandidate.isEmpty() && !keyCandidate.isEmpty()) {
-                                         resolvedServer = serverCandidate;
-                                         resolvedKey = keyCandidate;
-                                         break;
-                                     }
-                                 }
-                                 if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
-                                     finalizeServiceSetupAfterResolve(streamId,
-                                                                      resolvedServer.toUtf8().constData(),
-                                                                      resolvedKey.toUtf8().constData());
-                                 } else {
-                                     MULTI_RTMP_STREAM_LOG_WARNING(
-                                         "YouTube resolve returned empty server/key for %s",
-                                         streamId.c_str());
-                                     updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                        "MissingServerKey:YouTube");
-                                 }
-                             });
+            QObject::connect(
+                client.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
+                [this, streamId, timeout](const YouTubeLiveStreamListResponse& resp) {
+                    if (timeout)
+                        timeout->stop();
+                    QString resolvedServer;
+                    QString resolvedKey;
+                    for (const auto& s : resp.items) {
+                        const auto& info = s.cdn.ingestionInfo;
+                        const QString serverCandidate = !info.rtmpsIngestionAddress.isEmpty()
+                                                            ? info.rtmpsIngestionAddress
+                                                            : info.ingestionAddress;
+                        const QString keyCandidate = info.streamName;
+                        if (!serverCandidate.isEmpty() && !keyCandidate.isEmpty()) {
+                            resolvedServer = serverCandidate;
+                            resolvedKey = keyCandidate;
+                            break;
+                        }
+                    }
+                    if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
+                        finalizeServiceSetupAfterResolve(streamId,
+                                                         resolvedServer.toUtf8().constData(),
+                                                         resolvedKey.toUtf8().constData());
+                    } else {
+                        MULTI_RTMP_STREAM_LOG_WARNING(
+                            "YouTube resolve returned empty server/key for %s", streamId.c_str());
+                        updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                           "MissingServerKey:YouTube");
+                    }
+                });
 
-            QObject::connect(client.get(), &OneSevenLiveYouTubeClient::errorOccurred,
-                             [this, streamId, timeout](const QString& err, const QString&) {
-                                 if (timeout) timeout->stop();
-                                 MULTI_RTMP_STREAM_LOG_WARNING(
-                                     "YouTube resolve error for stream: %s", streamId.c_str());
-                                 QString e = err.toLower();
-                                 bool isNet = e.contains("recv failure") || e.contains("connection reset") || e.contains("timeout") || e.contains("could not resolve") || e.contains("dns") || e.contains("tls") || e.contains("ssl") || e.contains("handshake") || e.contains("network");
-                                 std::string msg = std::string(isNet ? "NetworkError:YouTube:" : "APIError:YouTube:") + err.toUtf8().constData();
-                                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                    msg.c_str());
-                             });
+            QObject::connect(
+                client.get(), &OneSevenLiveYouTubeClient::errorOccurred,
+                [this, streamId, timeout](const QString& err, const QString&) {
+                    if (timeout)
+                        timeout->stop();
+                    MULTI_RTMP_STREAM_LOG_WARNING("YouTube resolve error for stream: %s",
+                                                  streamId.c_str());
+                    QString e = err.toLower();
+                    bool isNet = e.contains("recv failure") || e.contains("connection reset") ||
+                                 e.contains("timeout") || e.contains("could not resolve") ||
+                                 e.contains("dns") || e.contains("tls") || e.contains("ssl") ||
+                                 e.contains("handshake") || e.contains("network");
+                    std::string msg =
+                        std::string(isNet ? "NetworkError:YouTube:" : "APIError:YouTube:") +
+                        err.toUtf8().constData();
+                    updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                       msg.c_str());
+                });
 
             m_pendingYouTubeClients[streamId] = std::move(client);
             timeout->start(5000);
@@ -1092,29 +1116,38 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
 
             QObject::connect(client, &OneSevenLiveTwitchClient::userInfoReceived,
                              [this, streamId, client, timeout](const TwitchUserInfo& user) {
-                                 QObject::connect(client, &OneSevenLiveTwitchClient::streamKeyReceived,
-                                                  [this, streamId, timeout](const QString& keyVal) {
-                                                      if (timeout) timeout->stop();
-                                                      const QString serverUrl =
-                                                          OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
-                                                      finalizeServiceSetupAfterResolve(
-                                                          streamId, serverUrl.toUtf8().constData(),
-                                                          keyVal.toUtf8().constData());
-                                                  });
+                                 QObject::connect(
+                                     client, &OneSevenLiveTwitchClient::streamKeyReceived,
+                                     [this, streamId, timeout](const QString& keyVal) {
+                                         if (timeout)
+                                             timeout->stop();
+                                         const QString serverUrl =
+                                             OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
+                                         finalizeServiceSetupAfterResolve(
+                                             streamId, serverUrl.toUtf8().constData(),
+                                             keyVal.toUtf8().constData());
+                                     });
                                  client->getStreamKey(user.id);
                              });
 
-            QObject::connect(client, &OneSevenLiveTwitchClient::errorOccurred,
-                             [this, streamId, timeout](const QString& err) {
-                                 if (timeout) timeout->stop();
-                                 MULTI_RTMP_STREAM_LOG_WARNING(
-                                     "Twitch resolve error for stream: %s", streamId.c_str());
-                                 QString e = err.toLower();
-                                 bool isNet = e.contains("recv failure") || e.contains("connection reset") || e.contains("timeout") || e.contains("could not resolve") || e.contains("dns") || e.contains("tls") || e.contains("ssl") || e.contains("handshake") || e.contains("network");
-                                 std::string msg = std::string(isNet ? "NetworkError:Twitch:" : "APIError:Twitch:") + err.toUtf8().constData();
-                                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                    msg.c_str());
-                             });
+            QObject::connect(
+                client, &OneSevenLiveTwitchClient::errorOccurred,
+                [this, streamId, timeout](const QString& err) {
+                    if (timeout)
+                        timeout->stop();
+                    MULTI_RTMP_STREAM_LOG_WARNING("Twitch resolve error for stream: %s",
+                                                  streamId.c_str());
+                    QString e = err.toLower();
+                    bool isNet = e.contains("recv failure") || e.contains("connection reset") ||
+                                 e.contains("timeout") || e.contains("could not resolve") ||
+                                 e.contains("dns") || e.contains("tls") || e.contains("ssl") ||
+                                 e.contains("handshake") || e.contains("network");
+                    std::string msg =
+                        std::string(isNet ? "NetworkError:Twitch:" : "APIError:Twitch:") +
+                        err.toUtf8().constData();
+                    updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                       msg.c_str());
+                });
 
             timeout->start(5000);
             client->getCurrentUser();
@@ -1139,7 +1172,8 @@ void OneSevenLiveMultiRtmpStreamController::finalizeServiceSetupAfterResolve(
     const std::string platform = streamOutput->config.streamName;
 
     obs_data_t* settings = ObsDataFromJson(streamOutput->config.serviceSettings);
-    if (!settings) settings = obs_data_create();
+    if (!settings)
+        settings = obs_data_create();
     if (platform == "YouTube") {
         obs_data_set_string(settings, "service", "YouTube - RTMPS");
     } else if (platform == "Twitch") {
@@ -1177,7 +1211,7 @@ void OneSevenLiveMultiRtmpStreamController::finalizeServiceSetupAfterResolve(
     m_pendingYouTubeClients.erase(streamId);
     m_pendingTwitchClients.erase(streamId);
 
-    (void)startOutputInternal(streamId, streamOutput);
+    (void) startOutputInternal(streamId, streamOutput);
 }
 
 void OneSevenLiveMultiRtmpStreamController::destroyService(const std::string& streamId) {

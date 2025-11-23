@@ -5,24 +5,23 @@
 
 // Qt widgets and helpers used in this translation unit
 #include <QAbstractItemView>
-#include <QListWidget>
-#include <QListWidgetItem>
-#include <QPushButton>
-#include <QIcon>
-#include <QSize>
-#include <QSizePolicy>
-#include <QVariant>
-
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
+#include <QListWidget>
+#include <QListWidgetItem>
 #include <QMessageBox>
+#include <QPushButton>
+#include <QSize>
+#include <QSizePolicy>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QVariant>
 
-#include "api/OneSevenLiveModels.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveStreamListItem.hpp"
+#include "api/OneSevenLiveModels.hpp"
 #include "moc_OneSevenLiveStreamListDock.cpp"
 #include "plugin-support.h"
 
@@ -167,14 +166,13 @@ void OneSevenLiveStreamListDock::updateStreamItem(QListWidgetItem* item,
     buttonLayout->setAlignment(Qt::AlignRight);
 
     int btnCount = 2;
-    int btnSize = 24;                     
+    int btnSize = 24;
     int spacing = buttonLayout->spacing();
     int margins = 0;
 
     int totalWidth = btnCount * btnSize + (btnCount - 1) * spacing + margins;
     buttonContainer->setFixedWidth(totalWidth);
     buttonContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-    
 
     QPushButton* editButton = new QPushButton();
     editButton->setFixedSize(24, 24);

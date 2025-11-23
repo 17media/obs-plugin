@@ -6,9 +6,9 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QObject>
+#include <QString>
 #include <QTimer>
 #include <QWidget>
-#include <QString>
 
 #include "OneSevenLivePreviewConfigLoader.hpp"
 
@@ -28,8 +28,8 @@ class OneSevenLivePreviewWidget : public QWidget {
     /**
      * @brief Force refresh the display and overlays
      */
-   void forceRefresh();
-   void syncDisplaySize();
+    void forceRefresh();
+    void syncDisplaySize();
 
     /**
      * @brief Set an override URL for the browser overlay.

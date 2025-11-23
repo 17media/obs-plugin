@@ -29,7 +29,7 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
 
    public:
     explicit OneSevenLiveMultiRtmpStreamItem(const OneSevenLiveMultiRtmpConfig& config,
-                                         QWidget* parent = nullptr);
+                                             QWidget* parent = nullptr);
     ~OneSevenLiveMultiRtmpStreamItem();
 
     // Configuration management
@@ -69,13 +69,13 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     void deleteRequested(const std::string& streamId);
 
    private slots:
-   void onStartStopClicked();
-   void onEditClicked();
-   void onMenuRequested();
-   void onDeleteAction();
-   void onStatsUpdateTimer();
+    void onStartStopClicked();
+    void onEditClicked();
+    void onMenuRequested();
+    void onDeleteAction();
+    void onStatsUpdateTimer();
 
- private:
+   private:
     void setupUI();
     void setupContextMenu();
     void updateUI();
@@ -152,7 +152,14 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     QLabel* m_errorTextLabel;
 
     void updateErrorHint();
-    QString composeErrorTooltip(const QString& brief, const QString& detail, const QString& solution) const;
-    struct ErrorMapping { QString titleKey; QString descKey; QString solutionKey; };
+    QString composeErrorTooltip(const QString& brief, const QString& detail,
+                                const QString& solution) const;
+
+    struct ErrorMapping {
+        QString titleKey;
+        QString descKey;
+        QString solutionKey;
+    };
+
     ErrorMapping mapErrorCode(const QString& code) const;
 };

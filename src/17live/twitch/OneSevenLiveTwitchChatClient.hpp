@@ -1,12 +1,12 @@
 #pragma once
 
+#include <QDateTime>
 #include <QObject>
 #include <QString>
-#include <QVector>
-#include <QDateTime>
 #include <QTimer>
-#include <memory>
+#include <QVector>
 #include <functional>
+#include <memory>
 #include <string>
 
 class OneSevenLiveWebsocketClient;
@@ -45,11 +45,15 @@ struct TwitchChatMessage {
     QString emotes;
     QString badges;
     TwitchMessageType type;
-    
-    TwitchChatMessage() : 
-        isModerator(false), isSubscriber(false), isTurbo(false), 
-        isFirstMessage(false), isReturningChatter(false), bits(0),
-        type(TwitchMessageType::Chat) {}
+
+    TwitchChatMessage()
+        : isModerator(false),
+          isSubscriber(false),
+          isTurbo(false),
+          isFirstMessage(false),
+          isReturningChatter(false),
+          bits(0),
+          type(TwitchMessageType::Chat) {}
 };
 
 struct TwitchChatUser {
@@ -60,14 +64,14 @@ struct TwitchChatUser {
     bool isModerator;
     bool isSubscriber;
     bool isTurbo;
-    
+
     TwitchChatUser() : isModerator(false), isSubscriber(false), isTurbo(false) {}
 };
 
 class OneSevenLiveTwitchChatClient : public QObject {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenLiveTwitchChatClient(QObject* parent = nullptr);
     ~OneSevenLiveTwitchChatClient();
 
@@ -92,7 +96,7 @@ public:
     void setPingInterval(int seconds);
     void setTargetChannel(const QString& channel);
 
-signals:
+   signals:
     void connected();
     void disconnected();
     void connectionError(const QString& error);
@@ -107,7 +111,7 @@ signals:
     void reconnecting(int attempt);
     void reconnected();
 
-private slots:
+   private slots:
     void onWebSocketMessage(const std::string& message);
     void onWebSocketOpen();
     void onWebSocketClose();
@@ -116,23 +120,23 @@ private slots:
     void attemptReconnect();
     void onStatusTimer();
 
-private:
+   private:
     void sendRawMessage(const QString& message);
     void sendIRCCommand(const QString& command, const QString& parameters);
     void authenticate();
     void requestCapabilities();
     void startPingTimer();
     void stopPingTimer();
-    
+
     // Message parsing
     void parseIRCMessage(const QString& rawMessage);
     TwitchChatMessage parseChatMessage(const QString& rawMessage, const QString& prefix);
     QString extractUsernameFromPrefix(const QString& prefix);
-    
+
     // Channel management
     bool isChannelJoined(const QString& channel) const;
     QString normalizeChannelName(const QString& channel) const;
-    
+
     // Reconnection logic
     void scheduleReconnect();
     void resetReconnectAttempts();
@@ -140,7 +144,7 @@ private:
     void connectWebSocket();
     void disconnectWebSocket();
     void sendWebSocketMessage(const std::string& message);
-    
+
     // Connection state
     bool m_connected;
     QString m_username;
@@ -148,20 +152,20 @@ private:
     QString m_targetChannel;
     QVector<QString> m_joinedChannels;
     std::unique_ptr<OneSevenLiveWebsocketClient> m_client;
-    
+
     // Configuration
     bool m_autoReconnect;
     int m_reconnectDelay;
     int m_pingInterval;
     int m_reconnectAttempts;
     int m_maxReconnectAttempts;
-    
+
     // Timers
     QTimer* m_pingTimer;
     QTimer* m_reconnectTimer;
     QTimer* m_statusTimer;
     QDateTime m_lastPongTs;
-    
+
     // Constants
     static const QString TWITCH_IRC_SERVER;
     static const int DEFAULT_PING_INTERVAL;

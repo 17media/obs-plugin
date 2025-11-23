@@ -706,7 +706,8 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
     }
 }
 
-bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken, qint64 fetchedAtEpochSec) {
+bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken,
+                                                qint64 fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -791,7 +792,8 @@ bool OneSevenLiveConfigManager::clearTwitchTokens() {
     return true;
 }
 
-bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken, int expiresInSec, qint64 fetchedAtEpochSec) {
+bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken, int expiresInSec,
+                                                      qint64 fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -811,7 +813,6 @@ bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken
     config_set_string(config, service, "YouTubeAccessTokenFetchedAt", fetchedStr.c_str());
     config_set_string(config, service, "YouTubeAccessTokenExpiresIn", expiresStr.c_str());
 
-
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save YouTube access token");
         return false;
@@ -826,7 +827,8 @@ bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken
     return true;
 }
 
-bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken, int &expiresInSec, qint64 &fetchedAtEpochSec) {
+bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken, int &expiresInSec,
+                                                      qint64 &fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -896,7 +898,8 @@ bool OneSevenLiveConfigManager::clearYouTubeAccessToken() {
     return true;
 }
 
-bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec, qint64 &fetchedAtEpochSec) {
+bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec,
+                                                       qint64 &fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }
@@ -964,8 +967,10 @@ bool OneSevenLiveConfigManager::clearYouTubeRefreshToken() {
     return true;
 }
 
-bool OneSevenLiveConfigManager::setTwitchUserInfo(const QString &userId, const QString &login, const QString &displayName,
-                                                  const QString &profileImageUrl, const QString &email, int viewCount) {
+bool OneSevenLiveConfigManager::setTwitchUserInfo(const QString &userId, const QString &login,
+                                                  const QString &displayName,
+                                                  const QString &profileImageUrl,
+                                                  const QString &email, int viewCount) {
     if (!initialized) {
         return false;
     }
@@ -994,12 +999,14 @@ bool OneSevenLiveConfigManager::setTwitchUserInfo(const QString &userId, const Q
         return false;
     }
 
-    obs_log(LOG_INFO, "Twitch user info saved - User ID: %s, Login: %s", userIdStr.c_str(), loginStr.c_str());
+    obs_log(LOG_INFO, "Twitch user info saved - User ID: %s, Login: %s", userIdStr.c_str(),
+            loginStr.c_str());
     return true;
 }
 
-bool OneSevenLiveConfigManager::getTwitchUserInfo(QString &userId, QString &login, QString &displayName,
-                                                  QString &profileImageUrl, QString &email, int &viewCount) {
+bool OneSevenLiveConfigManager::getTwitchUserInfo(QString &userId, QString &login,
+                                                  QString &displayName, QString &profileImageUrl,
+                                                  QString &email, int &viewCount) {
     if (!initialized) {
         return false;
     }
@@ -1017,7 +1024,7 @@ bool OneSevenLiveConfigManager::getTwitchUserInfo(QString &userId, QString &logi
     const char *emailChar = config_get_string(config, service, "TwitchEmail");
 
     if (!userIdChar || !loginChar) {
-        return false; // Required fields missing
+        return false;  // Required fields missing
     }
 
     userId = QString::fromUtf8(userIdChar);
@@ -1047,7 +1054,7 @@ bool OneSevenLiveConfigManager::clearTwitchUserInfo() {
     config_set_string(config, service, "TwitchProfileImageUrl", "");
     config_set_string(config, service, "TwitchEmail", "");
     config_set_int(config, service, "TwitchViewCount", 0);
-    
+
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save config");
         return false;
@@ -1056,7 +1063,8 @@ bool OneSevenLiveConfigManager::clearTwitchUserInfo() {
     return true;
 }
 
-bool OneSevenLiveConfigManager::setYouTubeRefreshToken(const QString &refreshToken, int expiresInSec, qint64 fetchedAtEpochSec) {
+bool OneSevenLiveConfigManager::setYouTubeRefreshToken(const QString &refreshToken,
+                                                       int expiresInSec, qint64 fetchedAtEpochSec) {
     if (!initialized) {
         return false;
     }

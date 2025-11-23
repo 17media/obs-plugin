@@ -41,8 +41,7 @@ void SimpleCefClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
     }
 }
 
-void SimpleCefClient::OnAddressChange(CefRefPtr<CefBrowser> browser,
-                                      CefRefPtr<CefFrame> frame,
+void SimpleCefClient::OnAddressChange(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
                                       const CefString &url) {
     CEF_REQUIRE_UI_THREAD();
     // Only care about main frame navigation

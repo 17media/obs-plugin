@@ -19,9 +19,8 @@
 #include <QWindow>
 #include <cmath>
 
-#include "utility/Common.hpp"
-
 #include "moc_OneSevenLivePreviewWidget.cpp"
+#include "utility/Common.hpp"
 
 OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     : QWidget(parent),
@@ -174,7 +173,8 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
         uint32_t source_height = obs_source_get_height(currentSource);
 
         if (source_width > 0 && source_height > 0) {
-            // Calculate scaling to fit while maintaining aspect ratio (ensure entire video is visible)
+            // Calculate scaling to fit while maintaining aspect ratio (ensure entire video is
+            // visible)
             float scale_x = (float) cx / (float) source_width;
             float scale_y = (float) cy / (float) source_height;
             // Use the smaller scale to ensure entire video content is visible within preview bounds
@@ -222,17 +222,17 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
                 float preview_height = static_cast<float>(cy);
                 float browser_width_f = static_cast<float>(browser_width);
                 float browser_height_f = static_cast<float>(browser_height);
-                
+
                 // Calculate scale factors for both dimensions
                 float scale_x = preview_width / browser_width_f;
                 float scale_y = preview_height / browser_height_f;
-                
+
                 // Use the larger scale to ensure overlay covers entire area
                 float fill_scale = qMax(scale_x, scale_y);
-                
+
                 // Apply the overlay scale factor from OneSevenLivePreviewScreen
                 float final_scale = fill_scale * overlayScale;
-                
+
                 // Calculate position to center the scaled overlay
                 float scaled_browser_width = browser_width_f * final_scale;
                 float scaled_browser_height = browser_height_f * final_scale;
@@ -334,7 +334,7 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
         display_height = physical_height;
 
         obs_display_resize(previewDisplay, physical_width, physical_height);
-        
+
         // Force refresh to ensure content scales properly with new size
         forceRefresh();
     }
@@ -455,7 +455,8 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
 
     // Only create browser source if we have valid configuration
     if (!browserConfig.isValid) {
-        obs_log(LOG_INFO, "No valid browser source configuration, skipping browser source creation");
+        obs_log(LOG_INFO,
+                "No valid browser source configuration, skipping browser source creation");
         return;
     }
 
@@ -523,8 +524,8 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
 }
 
 void OneSevenLivePreviewWidget::setOverlayScale(float scale) {
-    overlayScale = qMax(0.1f, qMin(5.0f, scale)); // Clamp between 0.1 and 5.0
-    
+    overlayScale = qMax(0.1f, qMin(5.0f, scale));  // Clamp between 0.1 and 5.0
+
     // Force refresh to apply new scale
     forceRefresh();
 }
@@ -542,7 +543,7 @@ void OneSevenLivePreviewWidget::forceRefresh() {
         // Invalidate the display to force re-rendering
         obs_display_set_enabled(previewDisplay, false);
         obs_display_set_enabled(previewDisplay, true);
-        
+
         // Also trigger a video refresh
         refreshVideo();
     }

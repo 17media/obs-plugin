@@ -19,5 +19,4 @@ class OneSevenLiveChatDock : public QDockWidget {
    private:
     QCefView* cefView_ = nullptr;
     QString chatUrl_;
-
 };

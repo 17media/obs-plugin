@@ -2,8 +2,8 @@
 
 #include <QDockWidget>
 #include <QPointer>
-#include <QString>
 #include <QResizeEvent>
+#include <QString>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLivePreviewWidget.hpp"
@@ -12,7 +12,8 @@ class OneSevenLivePreviewDock : public QDockWidget {
     Q_OBJECT
 
    public:
-    explicit OneSevenLivePreviewDock(QWidget* parent = nullptr, const QString& overlayUrl = QString());
+    explicit OneSevenLivePreviewDock(QWidget* parent = nullptr,
+                                     const QString& overlayUrl = QString());
     ~OneSevenLivePreviewDock();
 
     void initializePreview();

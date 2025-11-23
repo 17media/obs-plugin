@@ -1,7 +1,5 @@
 #include "OneSevenLiveCoreManager.hpp"
 
-#include "../diag/ui/DiagnosticsDialog.hpp"
-
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
@@ -18,39 +16,39 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
-#include <QMessageBox>
-
 #include <nlohmann/json.hpp>
 #include <thread>
 
+#include "../diag/ui/DiagnosticsDialog.hpp"
+#include "OneSevenLiveChatDock.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
-#include "websocket/OneSevenLiveWebsocketServer.hpp"
-#include "websocket/WsMessage.hpp"
 #include "OneSevenLiveLoginDialog.hpp"
 #include "OneSevenLiveMenuManager.hpp"
-#include "rockzone/OneSevenLiveRockZoneDock.hpp"
-#include "streamlist/OneSevenLiveStreamListDock.hpp"
-#include "streaming/OneSevenLiveStreamingDock.hpp"
-#include "streaming/OneSevenLiveStreamManager.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
-#include "OneSevenLiveChatDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
-#include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
-#include "preview/OneSevenLivePreviewDock.hpp"
+#include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "plugin-support.h"
+#include "preview/OneSevenLivePreviewDock.hpp"
+#include "rockzone/OneSevenLiveRockZoneDock.hpp"
+#include "streaming/OneSevenLiveStreamManager.hpp"
+#include "streaming/OneSevenLiveStreamingDock.hpp"
+#include "streamlist/OneSevenLiveStreamListDock.hpp"
+#include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
-#include "twitch/OneSevenLiveTwitchAuth.hpp"
+#include "websocket/OneSevenLiveWebsocketServer.hpp"
+#include "websocket/WsMessage.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
 // Chat clients
+#include <zlib.h>
+
+#include "api/OneSevenLiveAblyChatClient.hpp"
 #include "twitch/OneSevenLiveTwitchChatClient.hpp"
+#include "websocket/WebsocketUtils.hpp"
 #include "youtube/OneSevenLiveYouTubeChatClient.hpp"
 #include "youtube/OneSevenLiveYouTubeClient.hpp"
-#include "api/OneSevenLiveAblyChatClient.hpp"
-#include "websocket/WebsocketUtils.hpp"
-#include <zlib.h>
 
 using Json = nlohmann::json;
 using namespace std;
@@ -120,16 +118,18 @@ bool OneSevenLiveCoreManager::initialize() {
         obs_log(LOG_ERROR, "[17Live Core] Failed to start WebSocket server");
         // Continue initialization even if WebSocket server fails
     } else {
-        obs_log(LOG_INFO, "[17Live Core] WebSocket server started successfully on port %d", 
+        obs_log(LOG_INFO, "[17Live Core] WebSocket server started successfully on port %d",
                 websocketServer_->getPort());
     }
 
     // Set up WebSocket server callbacks
-    websocketServer_->setMessageCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketMessage, this,
-                                                  std::placeholders::_1, std::placeholders::_2));
+    websocketServer_->setMessageCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketMessage,
+                                                   this, std::placeholders::_1,
+                                                   std::placeholders::_2));
 
-    websocketServer_->setConnectionCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketConnectionChanged, this,
-                                                      std::placeholders::_1, std::placeholders::_2));
+    websocketServer_->setConnectionCallback(
+        std::bind(&OneSevenLiveCoreManager::handleWebsocketConnectionChanged, this,
+                  std::placeholders::_1, std::placeholders::_2));
 
     // Initialize configuration manager
     configManager = std::make_unique<OneSevenLiveConfigManager>();
@@ -183,28 +183,36 @@ bool OneSevenLiveCoreManager::initialize() {
         QString ytAccess;
         int ytExpiresIn{0};
         qint64 ytFetchedAt{0};
-        const bool hasAccess = configManager->getYouTubeAccessToken(ytAccess, ytExpiresIn, ytFetchedAt) && !ytAccess.isEmpty();
+        const bool hasAccess =
+            configManager->getYouTubeAccessToken(ytAccess, ytExpiresIn, ytFetchedAt) &&
+            !ytAccess.isEmpty();
 
         QString ytRefresh;
         int ytRefreshExpiresIn{0};
         qint64 ytRefreshFetchedAt{0};
-        const bool hasRefresh = configManager->getYouTubeRefreshToken(ytRefresh, ytRefreshExpiresIn, ytRefreshFetchedAt) && !ytRefresh.isEmpty();
+        const bool hasRefresh = configManager->getYouTubeRefreshToken(ytRefresh, ytRefreshExpiresIn,
+                                                                      ytRefreshFetchedAt) &&
+                                !ytRefresh.isEmpty();
 
         const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
 
         if (hasAccess) {
             youtubeAuth->setAccessToken(ytAccess);
             // Schedule auto refresh; if access already expired, this will attempt immediate refresh
-            youtubeAuth->scheduleAutoRefresh(ytExpiresIn, ytFetchedAt,
-                                                ytRefreshExpiresIn, ytRefreshFetchedAt);
+            youtubeAuth->scheduleAutoRefresh(ytExpiresIn, ytFetchedAt, ytRefreshExpiresIn,
+                                             ytRefreshFetchedAt);
         } else if (hasRefresh) {
             const bool hasExpiry = ytRefreshExpiresIn > 0;
-            const bool notExpired = hasExpiry ? (nowEpoch < ytRefreshFetchedAt + ytRefreshExpiresIn) : true;
+            const bool notExpired =
+                hasExpiry ? (nowEpoch < ytRefreshFetchedAt + ytRefreshExpiresIn) : true;
             if (notExpired) {
-                obs_log(LOG_INFO, "[17Live Core] No YouTube access token; refreshing using refresh token");
-                QTimer::singleShot(0, youtubeAuth.get(), &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
+                obs_log(LOG_INFO,
+                        "[17Live Core] No YouTube access token; refreshing using refresh token");
+                QTimer::singleShot(0, youtubeAuth.get(),
+                                   &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
             } else {
-                obs_log(LOG_INFO, "[17Live Core] YouTube refresh token expired; clearing stored tokens");
+                obs_log(LOG_INFO,
+                        "[17Live Core] YouTube refresh token expired; clearing stored tokens");
                 configManager->clearYouTubeAccessToken();
                 configManager->clearYouTubeRefreshToken();
             }
@@ -356,22 +364,23 @@ void OneSevenLiveCoreManager::handleDiagnosticsClicked() {
     dialog.exec();
 }
 
-void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId, const std::string& message) {
+void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId,
+                                                     const std::string& message) {
     UNUSED_PARAMETER(clientId);
     UNUSED_PARAMETER(message);
     // WsMessage m;
     // if (!WsMessage::parse(message, m)) {
-    //     obs_log(LOG_WARNING, "[17Live WebSocket] JSON parse error in message from %s", clientId.c_str());
-    //     return;
+    //     obs_log(LOG_WARNING, "[17Live WebSocket] JSON parse error in message from %s",
+    //     clientId.c_str()); return;
     // }
     // const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
     // if (m.type.empty()) {
-    //     obs_log(LOG_WARNING, "[17Live WebSocket] Missing 'type' in message from %s", clientId.c_str());
-    //     return;
+    //     obs_log(LOG_WARNING, "[17Live WebSocket] Missing 'type' in message from %s",
+    //     clientId.c_str()); return;
     // }
     // if (!hasServer) {
-    //     obs_log(LOG_WARNING, "[17Live WebSocket] Server not running; cannot handle message from %s", clientId.c_str());
-    //     return;
+    //     obs_log(LOG_WARNING, "[17Live WebSocket] Server not running; cannot handle message from
+    //     %s", clientId.c_str()); return;
     // }
     // if (m.is(ws::TypeTransmit)) {
     //     this->websocketServer_->broadcastMessage(m.payload.dump());
@@ -385,10 +394,12 @@ void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId
     //     }
     //     return;
     // }
-    // obs_log(LOG_INFO, "[17Live WebSocket] Unhandled message type '%s' from %s", m.type.c_str(), clientId.c_str());
+    // obs_log(LOG_INFO, "[17Live WebSocket] Unhandled message type '%s' from %s", m.type.c_str(),
+    // clientId.c_str());
 }
 
-void OneSevenLiveCoreManager::handleWebsocketConnectionChanged(const std::string& clientId, bool connected) {
+void OneSevenLiveCoreManager::handleWebsocketConnectionChanged(const std::string& clientId,
+                                                               bool connected) {
     if (connected) {
         obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
     } else {
@@ -522,90 +533,117 @@ void OneSevenLiveCoreManager::createYouTubeChatClient() {
                 youtubeApiClient->setAccessToken(accessToken);
             }
         }
-        if (youtubeChatClient) youtubeChatClient->setApiClient(youtubeApiClient.get());
-        connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived, this, [this](const YouTubeLiveStreamListResponse& resp) {
-            for (const auto& s : resp.items) {
-                obs_log(LOG_INFO, "YouTube stream: id=%s status=%s", s.id.toUtf8().constData(), s.status.streamStatus.toUtf8().constData());
-            }
-        });
-        connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::errorOccurred, this, [this](const QString& err, const QString& op) {
-            int status = -1;
-            QRegularExpression r1(R"(HTTP\s+(\d{3}))");
-            QRegularExpressionMatch m1 = r1.match(err);
-            if (m1.hasMatch()) status = m1.captured(1).toInt();
-            if (status == -1) {
-                QRegularExpression r2(R"(returned error:\s*(\d{3}))");
-                QRegularExpressionMatch m2 = r2.match(err);
-                if (m2.hasMatch()) status = m2.captured(1).toInt();
-            }
-            obs_log(LOG_WARNING, "YouTube API op=%s error=%s status=%d", op.toUtf8().constData(), err.toUtf8().constData(), status);
-            if (status == 401 && youtubeAuth) {
-                obs_log(LOG_INFO, "Attempting YouTube token refresh due to 401");
-                if (youtubeAuth->refreshAccessToken()) {
-                    const QString accessToken = youtubeAuth->getAccessToken();
-                    if (!accessToken.isEmpty()) {
-                        youtubeApiClient->setAccessToken(accessToken);
-                        if (op == "getMyLiveBroadcasts") {
-                            youtubeApiClient->getMyLiveBroadcasts();
+        if (youtubeChatClient)
+            youtubeChatClient->setApiClient(youtubeApiClient.get());
+        connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived, this,
+                [this](const YouTubeLiveStreamListResponse& resp) {
+                    for (const auto& s : resp.items) {
+                        obs_log(LOG_INFO, "YouTube stream: id=%s status=%s",
+                                s.id.toUtf8().constData(),
+                                s.status.streamStatus.toUtf8().constData());
+                    }
+                });
+        connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::errorOccurred, this,
+                [this](const QString& err, const QString& op) {
+                    int status = -1;
+                    QRegularExpression r1(R"(HTTP\s+(\d{3}))");
+                    QRegularExpressionMatch m1 = r1.match(err);
+                    if (m1.hasMatch())
+                        status = m1.captured(1).toInt();
+                    if (status == -1) {
+                        QRegularExpression r2(R"(returned error:\s*(\d{3}))");
+                        QRegularExpressionMatch m2 = r2.match(err);
+                        if (m2.hasMatch())
+                            status = m2.captured(1).toInt();
+                    }
+                    obs_log(LOG_WARNING, "YouTube API op=%s error=%s status=%d",
+                            op.toUtf8().constData(), err.toUtf8().constData(), status);
+                    if (status == 401 && youtubeAuth) {
+                        obs_log(LOG_INFO, "Attempting YouTube token refresh due to 401");
+                        if (youtubeAuth->refreshAccessToken()) {
+                            const QString accessToken = youtubeAuth->getAccessToken();
+                            if (!accessToken.isEmpty()) {
+                                youtubeApiClient->setAccessToken(accessToken);
+                                if (op == "getMyLiveBroadcasts") {
+                                    youtubeApiClient->getMyLiveBroadcasts();
+                                }
+                            }
                         }
                     }
-                }
-            }
-        });
+                });
         if (youtubeAuth) {
-            connect(youtubeAuth.get(), &OneSevenLiveYouTubeAuth::authorizationCompleted, this, [this](const QString& accessToken) {
-                obs_log(LOG_INFO, "YouTube authorizationCompleted: token refreshed");
-                if (youtubeApiClient && !accessToken.isEmpty()) {
-                    youtubeApiClient->setAccessToken(accessToken);
-                    {
-                        QString tok = accessToken;
-                        QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
-                        obs_log(LOG_INFO, "YouTube API client token set token(masked)=%s", masked.toUtf8().constData());
-                    }
-                    youtubeApiClient->getMyLiveBroadcasts();
-                }
-                if (youtubeChatClient && !accessToken.isEmpty()) {
-                    youtubeChatClient->setAccessToken(accessToken);
-                    {
-                        QString tok = accessToken;
-                        QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
-                        obs_log(LOG_INFO, "YouTube chat client token set token(masked)=%s", masked.toUtf8().constData());
-                    }
-                }
-            });
+            connect(youtubeAuth.get(), &OneSevenLiveYouTubeAuth::authorizationCompleted, this,
+                    [this](const QString& accessToken) {
+                        obs_log(LOG_INFO, "YouTube authorizationCompleted: token refreshed");
+                        if (youtubeApiClient && !accessToken.isEmpty()) {
+                            youtubeApiClient->setAccessToken(accessToken);
+                            {
+                                QString tok = accessToken;
+                                QString masked =
+                                    tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+                                obs_log(LOG_INFO, "YouTube API client token set token(masked)=%s",
+                                        masked.toUtf8().constData());
+                            }
+                            youtubeApiClient->getMyLiveBroadcasts();
+                        }
+                        if (youtubeChatClient && !accessToken.isEmpty()) {
+                            youtubeChatClient->setAccessToken(accessToken);
+                            {
+                                QString tok = accessToken;
+                                QString masked =
+                                    tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
+                                obs_log(LOG_INFO, "YouTube chat client token set token(masked)=%s",
+                                        masked.toUtf8().constData());
+                            }
+                        }
+                    });
         }
 
         if (youtubeChatClient && youtubeAuth) {
-            connect(youtubeChatClient.get(), &OneSevenLiveYouTubeChatClient::errorOccurred, this, [this](const QString& err, const QString& op) {
-                int status = -1;
-                QRegularExpression r1(R"(HTTP\s+(\d{3}))");
-                QRegularExpressionMatch m1 = r1.match(err);
-                if (m1.hasMatch()) status = m1.captured(1).toInt();
-                obs_log(LOG_WARNING, "YouTube Chat error op=%s status=%d err=%s", op.toUtf8().constData(), status, err.toUtf8().constData());
-                if (status == 401 && youtubeAuth) {
-                    obs_log(LOG_INFO, "Refreshing YouTube token due to chat 401");
-                    if (youtubeAuth->refreshAccessToken()) {
-                        const QString accessToken = youtubeAuth->getAccessToken();
-                        if (!accessToken.isEmpty()) {
-                            if (youtubeApiClient) youtubeApiClient->setAccessToken(accessToken);
-                            if (youtubeChatClient) youtubeChatClient->setAccessToken(accessToken);
-                            {
-                                QString tok = accessToken;
-                                QString masked = tok.length() >= 12 ? tok.left(6) + "..." + tok.right(6) : tok;
-                                obs_log(LOG_INFO, "YouTube tokens synchronized to clients token(masked)=%s", masked.toUtf8().constData());
+            connect(
+                youtubeChatClient.get(), &OneSevenLiveYouTubeChatClient::errorOccurred, this,
+                [this](const QString& err, const QString& op) {
+                    int status = -1;
+                    QRegularExpression r1(R"(HTTP\s+(\d{3}))");
+                    QRegularExpressionMatch m1 = r1.match(err);
+                    if (m1.hasMatch())
+                        status = m1.captured(1).toInt();
+                    obs_log(LOG_WARNING, "YouTube Chat error op=%s status=%d err=%s",
+                            op.toUtf8().constData(), status, err.toUtf8().constData());
+                    if (status == 401 && youtubeAuth) {
+                        obs_log(LOG_INFO, "Refreshing YouTube token due to chat 401");
+                        if (youtubeAuth->refreshAccessToken()) {
+                            const QString accessToken = youtubeAuth->getAccessToken();
+                            if (!accessToken.isEmpty()) {
+                                if (youtubeApiClient)
+                                    youtubeApiClient->setAccessToken(accessToken);
+                                if (youtubeChatClient)
+                                    youtubeChatClient->setAccessToken(accessToken);
+                                {
+                                    QString tok = accessToken;
+                                    QString masked = tok.length() >= 12
+                                                         ? tok.left(6) + "..." + tok.right(6)
+                                                         : tok;
+                                    obs_log(
+                                        LOG_INFO,
+                                        "YouTube tokens synchronized to clients token(masked)=%s",
+                                        masked.toUtf8().constData());
+                                }
+                                if (youtubeApiClient)
+                                    youtubeApiClient->getMyLiveBroadcasts();
                             }
-                            if (youtubeApiClient) youtubeApiClient->getMyLiveBroadcasts();
                         }
                     }
-                }
-                if (err.contains("liveChatEnded", Qt::CaseInsensitive)) {
-                    obs_log(LOG_INFO, "Chat reported liveChatEnded; rediscovering liveChatId");
-                    if (youtubeApiClient) youtubeApiClient->getMyLiveBroadcasts();
-                }
-            });
+                    if (err.contains("liveChatEnded", Qt::CaseInsensitive)) {
+                        obs_log(LOG_INFO, "Chat reported liveChatEnded; rediscovering liveChatId");
+                        if (youtubeApiClient)
+                            youtubeApiClient->getMyLiveBroadcasts();
+                    }
+                });
         }
     }
-    if (youtubeChatClient) youtubeChatClient->startDiscovery();
+    if (youtubeChatClient)
+        youtubeChatClient->startDiscovery();
 }
 
 void OneSevenLiveCoreManager::createTwitchChatClient() {
@@ -625,7 +663,7 @@ void OneSevenLiveCoreManager::createTwitchChatClient() {
         QString email;
         int viewCount = 0;
         if (configManager && configManager->getTwitchUserInfo(userId, login, displayName,
-                                                             profileImageUrl, email, viewCount)) {
+                                                              profileImageUrl, email, viewCount)) {
             if (!login.isEmpty() && !oauth.isEmpty()) {
                 twitchChatClient->connectToChat(login, oauth);
             }
@@ -634,7 +672,8 @@ void OneSevenLiveCoreManager::createTwitchChatClient() {
 }
 
 void OneSevenLiveCoreManager::createAblyChatClient() {
-    if (ablyChatClient) return;
+    if (ablyChatClient)
+        return;
     ablyChatClient = std::make_unique<OneSevenLiveAblyChatClient>(this);
 }
 
@@ -647,48 +686,64 @@ void OneSevenLiveCoreManager::destroyAblyChatClient() {
 
 static bool gunzipBase64ToJson(const std::string& base64Data, nlohmann::json& out) {
     QByteArray raw = QByteArray::fromBase64(QByteArray::fromStdString(base64Data));
-    if (raw.isEmpty()) return false;
+    if (raw.isEmpty())
+        return false;
     QByteArray outBuf;
     z_stream zs{};
     zs.next_in = reinterpret_cast<Bytef*>(raw.data());
     zs.avail_in = raw.size();
-    if (inflateInit2(&zs, 15 + 16) != Z_OK) return false;
+    if (inflateInit2(&zs, 15 + 16) != Z_OK)
+        return false;
     char buf[4096];
     int ret;
     do {
         zs.next_out = reinterpret_cast<Bytef*>(buf);
         zs.avail_out = sizeof(buf);
         ret = inflate(&zs, Z_NO_FLUSH);
-        if (ret != Z_OK && ret != Z_STREAM_END) break;
+        if (ret != Z_OK && ret != Z_STREAM_END)
+            break;
         int have = sizeof(buf) - zs.avail_out;
-        if (have > 0) outBuf.append(buf, have);
+        if (have > 0)
+            outBuf.append(buf, have);
     } while (ret != Z_STREAM_END);
     inflateEnd(&zs);
-    if (ret != Z_STREAM_END) return false;
-    try { out = nlohmann::json::parse(outBuf.constData()); return true; } catch (...) { return false; }
+    if (ret != Z_STREAM_END)
+        return false;
+    try {
+        out = nlohmann::json::parse(outBuf.constData());
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QString& token) {
     createAblyChatClient();
-    if (!ablyChatClient) return;
+    if (!ablyChatClient)
+        return;
     ablyChatClient->setRoomId(roomId);
-    if (!token.isEmpty()) ablyChatClient->setAblyToken(token);
+    if (!token.isEmpty())
+        ablyChatClient->setAblyToken(token);
     ablyChatClient->setAuthCallback([this](const QString& rid, nlohmann::json& out) {
         auto* api = this->getApiWrapper();
-        if (!api) return false;
+        if (!api)
+            return false;
         return api->GetAblyToken(rid.toStdString(), out);
     });
     ablyChatClient->setOnOpen([this]() {
         obs_log(LOG_INFO, "[17Live Core] AblyChat onOpen");
-        // wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","connected"}});
+        // wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+        // nlohmann::json{{"status","connected"}});
     });
     ablyChatClient->setOnClose([this]() {
         obs_log(LOG_INFO, "[17Live Core] AblyChat onClose");
-        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"}});
+        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                    nlohmann::json{{"status", "break"}});
     });
     ablyChatClient->setOnError([this](const std::string& err) {
         obs_log(LOG_INFO, "[17Live Core] AblyChat onError: %s", err.c_str());
-        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status","break"},{"error",err}});
+        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                    nlohmann::json{{"status", "break"}, {"error", err}});
     });
     ablyChatClient->setOnMessage([this](const std::string& msg) {
         // obs_log(LOG_INFO, "[17Live Core] AblyChat onMessage len=%zu", msg.size());
@@ -698,72 +753,93 @@ void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QStri
                 for (auto& m : j["messages"]) {
                     if (m.contains("data") && m["data"].is_string()) {
                         // Dump entire message object to see all fields
-                        // obs_log(LOG_INFO, "[17Live Core] AblyChat onMessage (full): %s", m.dump().c_str());
+                        // obs_log(LOG_INFO, "[17Live Core] AblyChat onMessage (full): %s",
+                        // m.dump().c_str());
                         nlohmann::json decoded;
-                        if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded)) continue;
-                        int type = decoded.contains("type") && decoded["type"].is_number_integer() ? decoded["type"].get<int>() : -1;
+                        if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded))
+                            continue;
+                        int type = decoded.contains("type") && decoded["type"].is_number_integer()
+                                       ? decoded["type"].get<int>()
+                                       : -1;
                         // obs_log(LOG_INFO, "received message: %s", decoded.dump().c_str());
                         // obs_log(LOG_INFO, "received message type: %d", type);
                         switch (type) {
-                            case ably::MsgType_COMMENT:
-                            case ably::MsgType_NEW_GIFT:
-                            case ably::MsgType_JOIN_ROOM:
-                            case ably::MsgType_NEW_LUCKYBAG:
-                            case ably::MsgType_POKE:
-                            case ably::MsgType_AI_COHOST_MESSAGE:
-                                wsBroadcast(QString::fromUtf8(ws::EventAblyChatMessage), decoded);
-                                if (type == ably::MsgType_NEW_GIFT || type == ably::MsgType_NEW_LUCKYBAG) {
-                                    // obs_log(LOG_INFO, "transmit message: %s", decoded.dump().c_str());
-                                    std::string giftID;
+                        case ably::MsgType_COMMENT:
+                        case ably::MsgType_NEW_GIFT:
+                        case ably::MsgType_JOIN_ROOM:
+                        case ably::MsgType_NEW_LUCKYBAG:
+                        case ably::MsgType_POKE:
+                        case ably::MsgType_AI_COHOST_MESSAGE:
+                            wsBroadcast(QString::fromUtf8(ws::EventAblyChatMessage), decoded);
+                            if (type == ably::MsgType_NEW_GIFT ||
+                                type == ably::MsgType_NEW_LUCKYBAG) {
+                                // obs_log(LOG_INFO, "transmit message: %s",
+                                // decoded.dump().c_str());
+                                std::string giftID;
+                                try {
+                                    if (decoded.contains("giftMsg") &&
+                                        decoded["giftMsg"].is_object()) {
+                                        const auto& gm = decoded["giftMsg"];
+                                        // obs_log(LOG_INFO, "giftMsg: %s", gm.dump().c_str());
+                                        if (gm.contains("giftID") && gm["giftID"].is_string()) {
+                                            giftID = gm["giftID"].get<std::string>();
+                                        }
+                                    }
+                                } catch (...) {
+                                }
+
+                                const nlohmann::json* gift =
+                                    (!giftID.empty()) ? getGiftByID(giftID) : nullptr;
+                                // obs_log(LOG_INFO, "Gift: %s", gift ? gift->dump().c_str() :
+                                // "null");
+                                if (gift && gift->contains("vffURL") && gift->contains("vffJson") &&
+                                    (*gift)["vffURL"].is_string() &&
+                                    (*gift)["vffJson"].is_string()) {
+                                    nlohmann::json playData;
+                                    playData["type"] = "play_vff";
+                                    playData["vffURL"] = (*gift)["vffURL"].get<std::string>();
+                                    playData["vffJson"] = (*gift)["vffJson"].get<std::string>();
+
                                     try {
-                                        if (decoded.contains("giftMsg") && decoded["giftMsg"].is_object()) {
-                                            const auto& gm = decoded["giftMsg"];
-                                            // obs_log(LOG_INFO, "giftMsg: %s", gm.dump().c_str());
-                                            if (gm.contains("giftID") && gm["giftID"].is_string()) {
-                                                giftID = gm["giftID"].get<std::string>();
+                                        const auto& gm = decoded["giftMsg"];
+                                        if (gm.contains("giftMetas") &&
+                                            gm["giftMetas"].is_array() &&
+                                            !gm["giftMetas"].empty()) {
+                                            const auto& meta0 = gm["giftMetas"][0];
+                                            if (meta0.contains("composite") &&
+                                                meta0["composite"].is_array()) {
+                                                nlohmann::json compositeObj =
+                                                    nlohmann::json::object();
+                                                for (const auto& item : meta0["composite"]) {
+                                                    if (item.contains("tag") &&
+                                                        item.contains("imageURL") &&
+                                                        item["tag"].is_string() &&
+                                                        item["imageURL"].is_string()) {
+                                                        compositeObj[item["tag"]
+                                                                         .get<std::string>()] =
+                                                            item["imageURL"].get<std::string>();
+                                                    }
+                                                }
+                                                if (!compositeObj.empty())
+                                                    playData["compositeData"] = compositeObj;
                                             }
                                         }
-                                    } catch (...) {}
-
-                                    const nlohmann::json* gift = (!giftID.empty()) ? getGiftByID(giftID) : nullptr;
-                                    // obs_log(LOG_INFO, "Gift: %s", gift ? gift->dump().c_str() : "null");
-                                    if (gift && gift->contains("vffURL") && gift->contains("vffJson") &&
-                                        (*gift)["vffURL"].is_string() && (*gift)["vffJson"].is_string()) {
-                                        nlohmann::json playData;
-                                        playData["type"] = "play_vff";
-                                        playData["vffURL"] = (*gift)["vffURL"].get<std::string>();
-                                        playData["vffJson"] = (*gift)["vffJson"].get<std::string>();
-
-                                        try {
-                                            const auto& gm = decoded["giftMsg"];
-                                            if (gm.contains("giftMetas") && gm["giftMetas"].is_array() && !gm["giftMetas"].empty()) {
-                                                const auto& meta0 = gm["giftMetas"][0];
-                                                if (meta0.contains("composite") && meta0["composite"].is_array()) {
-                                                    nlohmann::json compositeObj = nlohmann::json::object();
-                                                    for (const auto& item : meta0["composite"]) {
-                                                        if (item.contains("tag") && item.contains("imageURL") &&
-                                                            item["tag"].is_string() && item["imageURL"].is_string()) {
-                                                            compositeObj[item["tag"].get<std::string>()] = item["imageURL"].get<std::string>();
-                                                        }
-                                                    }
-                                                    if (!compositeObj.empty()) playData["compositeData"] = compositeObj;
-                                                }
-                                            }
-                                        } catch (...) {}
-
-                                        // wsBroadcast(QString::fromUtf8("play_vff"), playData);
-                                        obs_log(LOG_INFO, "Playing VFF %s", playData.dump().c_str());
-                                        this->websocketServer_->broadcastMessage(playData.dump());
+                                    } catch (...) {
                                     }
+
+                                    // wsBroadcast(QString::fromUtf8("play_vff"), playData);
+                                    obs_log(LOG_INFO, "Playing VFF %s", playData.dump().c_str());
+                                    this->websocketServer_->broadcastMessage(playData.dump());
                                 }
-                                break;
-                            case ably::MsgType_ROCKZONE:
-                                if (rockZoneDock) {
-                                    rockZoneDock->refreshUserList();
-                                }
-                                break;
-                            default:
-                                break;
+                            }
+                            break;
+                        case ably::MsgType_ROCKZONE:
+                            if (rockZoneDock) {
+                                rockZoneDock->refreshUserList();
+                            }
+                            break;
+                        default:
+                            break;
                         }
                     }
                 }
@@ -775,7 +851,8 @@ void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QStri
 }
 
 void OneSevenLiveCoreManager::disconnectAblyChat() {
-    if (ablyChatClient) ablyChatClient->disconnect();
+    if (ablyChatClient)
+        ablyChatClient->disconnect();
 }
 
 void OneSevenLiveCoreManager::destroyYouTubeChatClient() {
@@ -828,7 +905,7 @@ void OneSevenLiveCoreManager::connectTwitchChatClient(const QString& channel) {
         int viewCount = 0;
         QString oauth = twitchAuth ? twitchAuth->getAccessToken() : QString();
         if (configManager && configManager->getTwitchUserInfo(userId, login, displayName,
-                                                             profileImageUrl, email, viewCount)) {
+                                                              profileImageUrl, email, viewCount)) {
             if (!login.isEmpty() && !oauth.isEmpty()) {
                 twitchChatClient->connectToChat(login, oauth);
             }
@@ -890,7 +967,8 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     }
 
     // Initialize stream manager (after apiWrapper is ready)
-    streamManager = std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
+    streamManager =
+        std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
     if (!streamManager) {
         obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
         return;
@@ -927,13 +1005,19 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
             if (apiWrapper->GetAblyToken(std::to_string(rid), ablyResp)) {
                 if (ablyResp.contains("token") && ablyResp["token"].is_string()) {
                     token = QString::fromStdString(ablyResp["token"].get<std::string>());
-                    QString masked = token.length() >= 12 ? token.left(6) + "..." + token.right(6) : token;
-                    obs_log(LOG_INFO, "[17Live Core] Fetched Ably token for room %lld token(masked)=%s", (long long)rid, masked.toUtf8().constData());
+                    QString masked =
+                        token.length() >= 12 ? token.left(6) + "..." + token.right(6) : token;
+                    obs_log(LOG_INFO,
+                            "[17Live Core] Fetched Ably token for room %lld token(masked)=%s",
+                            (long long) rid, masked.toUtf8().constData());
                 } else {
-                    obs_log(LOG_WARNING, "[17Live Core] Ably token response missing 'token' field for room %lld", (long long)rid);
+                    obs_log(LOG_WARNING,
+                            "[17Live Core] Ably token response missing 'token' field for room %lld",
+                            (long long) rid);
                 }
             } else {
-                obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld", (long long)rid);
+                obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld",
+                        (long long) rid);
             }
             connectAblyChat(QString::number(rid), token);
         }
@@ -1464,12 +1548,10 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                          streamingDock && streamingDock->isVisible(),
-                                          liveListDock && liveListDock->isVisible(),
-                                          rockZoneDock && rockZoneDock->isVisible(),
-                                          multiRtmpDock && multiRtmpDock->isVisible(),
-                                          previewDock && previewDock->isVisible());
+        menuManager->updateDockVisibility(
+            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
+            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
+            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
     }
 }
 
@@ -1520,8 +1602,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
 
         connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(visible,
-                                              streamingDock && streamingDock->isVisible(),
+            menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
                                               liveListDock && liveListDock->isVisible(),
                                               rockZoneDock && rockZoneDock->isVisible(),
                                               multiRtmpDock && multiRtmpDock->isVisible(),
@@ -1550,11 +1631,10 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     }
 
     if (menuManager) {
-        menuManager->updateDockVisibility(true, streamingDock && streamingDock->isVisible(),
-                                          liveListDock && liveListDock->isVisible(),
-                                          rockZoneDock && rockZoneDock->isVisible(),
-                                          multiRtmpDock && multiRtmpDock->isVisible(),
-                                          previewDock && previewDock->isVisible());
+        menuManager->updateDockVisibility(
+            true, streamingDock && streamingDock->isVisible(),
+            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
+            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
     }
 }
 
@@ -1595,7 +1675,8 @@ void OneSevenLiveCoreManager::loadGifts() {
 }
 
 void OneSevenLiveCoreManager::loadGiftsFromConfig() {
-    if (!configManager) return;
+    if (!configManager)
+        return;
     nlohmann::json gifts;
     if (configManager->loadGifts(gifts)) {
         buildGiftsMapFromJson(gifts);
@@ -1625,7 +1706,8 @@ void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJ
 
 const nlohmann::json* OneSevenLiveCoreManager::getGiftByID(const std::string& giftID) const {
     auto it = giftsMap.find(giftID);
-    if (it != giftsMap.end()) return &it->second;
+    if (it != giftsMap.end())
+        return &it->second;
     return nullptr;
 }
 
@@ -1700,8 +1782,8 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
     }
 
     // Create multi-RTMP dock
-multiRtmpDock = new OneSevenLiveMultiRtmpDock(mainWindow);
-multiRtmpDock->setObjectName("OneSevenLiveMultiRtmpDock");
+    multiRtmpDock = new OneSevenLiveMultiRtmpDock(mainWindow);
+    multiRtmpDock->setObjectName("OneSevenLiveMultiRtmpDock");
 
     multiRtmpDock->setMaximumWidth(600);
     multiRtmpDock->resize(450, 600);
@@ -1734,8 +1816,7 @@ multiRtmpDock->setObjectName("OneSevenLiveMultiRtmpDock");
                                                   streamingDock && streamingDock->isVisible(),
                                                   liveListDock && liveListDock->isVisible(),
                                                   rockZoneDock && rockZoneDock->isVisible(),
-                                                  visible,
-                                                  previewDock && previewDock->isVisible());
+                                                  visible, previewDock && previewDock->isVisible());
             }
         });
 
@@ -1765,12 +1846,11 @@ void OneSevenLiveCoreManager::createPreviewDock() {
     if (previewDock) {
         return;
     }
-    
+
     QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
 
-    QString cartoonUrl =
-        QString("http://localhost:%1/vff/?ws=%2")
-            .arg(QString::number(httpServer_->getPort()), wsUrl);
+    QString cartoonUrl = QString("http://localhost:%1/vff/?ws=%2")
+                             .arg(QString::number(httpServer_->getPort()), wsUrl);
     obs_log(LOG_INFO, "cartoonUrl: %s", cartoonUrl.toStdString().c_str());
     // Create preview dock
     previewDock = new OneSevenLivePreviewDock(mainWindow, cartoonUrl);
@@ -1802,12 +1882,11 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         // Connect visibility change signal to update menu status
         connect(previewDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (menuManager) {
-                menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                                  streamingDock && streamingDock->isVisible(),
-                                                  liveListDock && liveListDock->isVisible(),
-                                                  rockZoneDock && rockZoneDock->isVisible(),
-                                                  multiRtmpDock && multiRtmpDock->isVisible(),
-                                                  visible);
+                menuManager->updateDockVisibility(
+                    chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
+                    liveListDock && liveListDock->isVisible(),
+                    rockZoneDock && rockZoneDock->isVisible(),
+                    multiRtmpDock && multiRtmpDock->isVisible(), visible);
             }
         });
 

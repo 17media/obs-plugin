@@ -13,7 +13,7 @@ class QTimer;
 class OneSevenLiveYouTubeAuth : public QObject {
     Q_OBJECT
 
-public:
+   public:
     explicit OneSevenLiveYouTubeAuth(QObject* parent = nullptr);
     ~OneSevenLiveYouTubeAuth();
 
@@ -40,19 +40,25 @@ public:
                              int refreshExpiresInSec, qint64 refreshFetchedAtEpochSec);
     void stopAutoRefresh();
 
-    QString getRedirectUri() const { return m_redirectUri; }
+    QString getRedirectUri() const {
+        return m_redirectUri;
+    }
 
     // Token state
     bool hasValidToken() const;
-    QString getAccessToken() const { return m_accessToken; }
+
+    QString getAccessToken() const {
+        return m_accessToken;
+    }
+
     void setAccessToken(const QString& token);
     void clearToken();
 
-signals:
+   signals:
     void authorizationCompleted(const QString& accessToken);
     void authorizationFailed(const QString& error);
 
-private:
+   private:
     QString getClientId() const;
     QString getClientSecret() const;
     QString getScope() const;
@@ -65,13 +71,13 @@ private:
     QString m_refreshToken;
     QTimer* m_refreshTimer{nullptr};
 
-public:
+   public:
     // Constants
     static const QString YT_AUTH_URL_TEMPLATE;
     static const QString YT_SCOPE;
     static const QString YT_TOKEN_URL;
     static const QString PLATFORM;
 
-private slots:
+   private slots:
     void onRefreshTimerTimeout();
 };

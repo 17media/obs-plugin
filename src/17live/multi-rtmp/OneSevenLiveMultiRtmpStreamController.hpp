@@ -3,6 +3,7 @@
 #include <obs-module.h>
 #include <obs.h>
 
+#include <QTimer>
 #include <atomic>
 #include <functional>
 #include <map>
@@ -10,14 +11,9 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <QTimer>
-
-#include <QTimer>
 
 #include "OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
-
-#include <string>
 
 // Forward declarations for async platform resolution
 class OneSevenLiveYouTubeClient;
@@ -31,10 +27,10 @@ class OneSevenLiveTwitchClient;
 class OneSevenLiveMultiRtmpStreamController {
    public:
     // Callback types for stream events
-    using StreamStatusCallback = std::function<void(const std::string& streamId,
-                                                    const OneSevenLiveMultiRtmpStreamStatus& status)>;
-    using StreamStatsCallback =
-        std::function<void(const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats)>;
+    using StreamStatusCallback = std::function<void(
+        const std::string& streamId, const OneSevenLiveMultiRtmpStreamStatus& status)>;
+    using StreamStatsCallback = std::function<void(const std::string& streamId,
+                                                   const OneSevenLiveMultiRtmpStreamStats& stats)>;
 
     OneSevenLiveMultiRtmpStreamController();
     ~OneSevenLiveMultiRtmpStreamController();
@@ -102,7 +98,8 @@ class OneSevenLiveMultiRtmpStreamController {
     void destroyService(const std::string& streamId);
     void destroyEncoders(const std::string& streamId);
 
-    void updateStreamStatus(const std::string& streamId, OneSevenLiveMultiRtmpStreamStatus::State state,
+    void updateStreamStatus(const std::string& streamId,
+                            OneSevenLiveMultiRtmpStreamStatus::State state,
                             const std::string& error = "");
     void updateStreamStats(const std::string& streamId);
 
@@ -130,8 +127,7 @@ class OneSevenLiveMultiRtmpStreamController {
     // Async platform resolution
     void resolvePlatformServerKeyAsync(const std::string& streamId,
                                        const OneSevenLiveMultiRtmpConfig& config);
-    void finalizeServiceSetupAfterResolve(const std::string& streamId,
-                                          const std::string& server,
+    void finalizeServiceSetupAfterResolve(const std::string& streamId, const std::string& server,
                                           const std::string& key);
 
     // Helper methods for getting OBS default encoder settings

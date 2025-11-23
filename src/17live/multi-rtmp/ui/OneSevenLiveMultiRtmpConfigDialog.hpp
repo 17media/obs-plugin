@@ -13,15 +13,14 @@
 #include <QLineEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QResizeEvent>
+#include <QScrollArea>
 #include <QSlider>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <QResizeEvent>
-#include <QScrollArea>
-
 #include <memory>
 
 #include "multi-rtmp/OneSevenLiveMultiRtmpModels.hpp"
@@ -73,7 +72,7 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     void setupAudioTab();
     void setupButtonBox();
 
-   void setupConnections();
+    void setupConnections();
 
     void loadEncoders();
     void refreshVideoEncoderProperties();

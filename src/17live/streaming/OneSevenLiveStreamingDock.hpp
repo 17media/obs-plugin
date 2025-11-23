@@ -70,8 +70,6 @@ class OneSevenLiveStreamingDock : public QDockWidget {
      */
     int getEventCooldownRemaining() const;
 
-    
-
     // Member variables
     OneSevenLiveApiWrappers *apiWrapper;
 
@@ -142,7 +140,6 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     OneSevenLiveConfigStreamer configStreamer;
     OneSevenLiveUserInfo userInfo;
     OneSevenLiveArmySubscriptionLevels levels;
-    
 
    signals:
     void streamInfoSaved();
