@@ -13,10 +13,8 @@ import {
   MsgType_NEW_LUCKYBAG,
   MsgType_AI_COHOST_MESSAGE,
   MsgType_POKE,
-  MsgType_ROCKZONE,
 } from '@/lib/constants';
 import { getGifts, getGiftByID, getRoomInfo } from '../api';
-import { sendWSMessage } from '@/services/WSSender';
 
 // Dev-only mock messages (same as Ably.jsx)
 // import giftdata from '@/../public/mock/chat_new_gift_2.json';
@@ -225,10 +223,6 @@ export class OneSevenLivePlatform extends BasePlatform {
         return this.processAICohostMessage(rawData);
       case MsgType_POKE:
         return this.processPokeMessage(rawData);
-      // case MsgType_ROCKZONE:
-      //   // just send refresh-rockzone message
-      //   this.processRockZoneMessage(rawData);
-      //   return null;
       default:
         // console.warn('Unknown 17Live message type:', type);
         return null;
@@ -247,25 +241,6 @@ export class OneSevenLivePlatform extends BasePlatform {
 
   processGiftMessage(data) {
     const content = this.prepareIndexedChat(data);
-
-    // const gift = content.get('gift');
-    
-    // if (gift) {
-    //   let playData = {
-    //     type: 'play_vff',
-    //     vffURL: gift.get('vffURL'),
-    //     vffJson: gift.get('vffJson'),
-    //   }
-    //   const composite = data?.giftMsg?.giftMetas?.[0]?.composite;
-    //   if (composite) {
-    //     playData.compositeData = Object.fromEntries(composite.map(item => [item.tag, item.imageURL]));
-    //   }
-    //   sendWSMessage({
-    //     type: 'transmit',
-    //     source: 'client',
-    //     payload: playData
-    //   });
-    // }
 
     return {
       id: content.get('id'),
@@ -304,15 +279,4 @@ export class OneSevenLivePlatform extends BasePlatform {
       content,
     };
   }
-
-  // processRockZoneMessage(data) {
-  //   let playData = {
-  //     type: 'refresh_rockzone',
-  //   }
-  //   sendWSMessage({
-  //     type: 'action',
-  //     source: 'client',
-  //     payload: playData
-  //   });
-  // }
 }
