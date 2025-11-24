@@ -741,7 +741,7 @@ bool OneSevenLiveApiWrappers::GetConfigStreamer(const std::string region,
                                                 OneSevenLiveConfigStreamer &response) {
     obs_log(LOG_INFO, "GetConfigStreamer");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CONFIG_STREAMER_URL);
     QByteArray url = urlStr.toUtf8();
 
@@ -771,7 +771,7 @@ bool OneSevenLiveApiWrappers::GetRtmpByProvider(const std::string provider,
                                                 OneSevenLiveRtmpResponse &response) {
     obs_log(LOG_INFO, "GetRtmpByProvider");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_RTMP_URL).arg(provider.c_str());
     QByteArray url = urlStr.toUtf8();
 
@@ -797,7 +797,7 @@ bool OneSevenLiveApiWrappers::GetArmySubscriptionLevels(
     OneSevenLiveArmySubscriptionLevels &response) {
     obs_log(LOG_INFO, "GetArmySubscriptionLevels");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ARMYSUBSCRIPIONLEVELS_URL);
     QByteArray url = urlStr.toUtf8();
 
@@ -827,7 +827,7 @@ bool OneSevenLiveApiWrappers::GetConfig(const std::string region, const std::str
                                         Json &json_out_resp) {
     obs_log(LOG_INFO, "GetConfig");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CONFIG_URL);
     QByteArray url = urlStr.toUtf8();
 
@@ -851,7 +851,7 @@ bool OneSevenLiveApiWrappers::GetUserInfo(const std::string userID, const std::s
                                           OneSevenLiveUserInfo &response) {
     obs_log(LOG_INFO, "GetUserInfo");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_USERINFO_URL).arg(userID.c_str());
     QByteArray url = urlStr.toUtf8();
 
@@ -879,7 +879,7 @@ bool OneSevenLiveApiWrappers::GetUserInfo(const std::string userID, const std::s
 
 bool OneSevenLiveApiWrappers::GetAblyToken(const std::string &liveStreamID, Json &json_out) {
     // obs_log(LOG_INFO, "GetAblyToken");
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
     QString urlStr =
         QString::fromStdString(ONESEVENLIVE_GET_ABLY_TOKEN_URL).arg(liveStreamID.c_str());
     QByteArray url = urlStr.toUtf8();
@@ -899,7 +899,7 @@ bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &roomID, const std::
                                           Json &json_out_resp) {
     obs_log(LOG_INFO, "GetGiftTabs");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
 
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_GIFTTABS_URL).arg(roomID.c_str());
     QByteArray url = urlStr.toUtf8();
@@ -919,7 +919,7 @@ bool OneSevenLiveApiWrappers::GetGiftTabs(const std::string &roomID, const std::
 bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_out_resp) {
     obs_log(LOG_INFO, "GetGifts: %s", language.c_str());
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
 
     QByteArray url = ONESEVENLIVE_GET_GIFTS_URL.c_str();
 
@@ -940,7 +940,7 @@ bool OneSevenLiveApiWrappers::GetGifts(const std::string language, Json &json_ou
 bool OneSevenLiveApiWrappers::GetRockViewers(const std::string &roomID, Json &json_out_resp) {
     // obs_log(LOG_INFO, "GetRockViewers");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ROCKVIEWERS_URL).arg(roomID.c_str());
     QByteArray url = urlStr.toUtf8();
 
@@ -959,7 +959,7 @@ bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID,
                                              OneSevenLiveCustomEvent &response) {
     obs_log(LOG_INFO, "GetCustomEvent start");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
 
     // Build request URL with query parameter
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_CUSTOMEVENT_URL) +
@@ -987,7 +987,7 @@ bool OneSevenLiveApiWrappers::GetCustomEvent(const std::string &userID,
 bool OneSevenLiveApiWrappers::GetArmyName(const std::string &userID,
                                           OneSevenLiveArmyNameResponse &response) {
     obs_log(LOG_INFO, "GetArmyName start");
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_ARMYNAME_URL).arg(userID.c_str());
     QByteArray url = urlStr.toUtf8();
 
@@ -1014,7 +1014,7 @@ bool OneSevenLiveApiWrappers::PokeOne(const OneSevenLivePokeRequest &request,
                                       OneSevenLivePokeResponse &response) {
     obs_log(LOG_INFO, "PokeOne start");
 
-    lastErrorMessage.clear();
+    clearLastErrorMessage();
 
     QByteArray url = QByteArray(ONESEVENLIVE_POKE_URL.c_str());
     obs_log(LOG_INFO, "PokeOne url: %s", ONESEVENLIVE_POKE_URL.c_str());
