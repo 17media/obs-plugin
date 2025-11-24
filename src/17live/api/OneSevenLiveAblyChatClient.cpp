@@ -213,7 +213,10 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                             break;
                         case ably::MsgType_ROCKZONE:
                             try {
-                                OneSevenLiveCoreManager::getInstance().refreshRockZoneUserList();
+                                QMetaObject::invokeMethod(this, []() {
+                                    auto& core = OneSevenLiveCoreManager::getInstance();
+                                    core.refreshRockZoneUserList();
+                                }, Qt::QueuedConnection);
                             } catch (...) {
                             }
                             break;
