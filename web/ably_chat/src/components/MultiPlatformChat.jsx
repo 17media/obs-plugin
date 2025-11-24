@@ -103,6 +103,13 @@ export const MultiPlatformChat = () => {
   // Listen to message aggregator events (directly using unified format)
   useEffect(() => {
     if (!messageAggregator) return;
+    const initial = typeof messageAggregator.getHistory === 'function' ? messageAggregator.getHistory(1000) : [];
+    if (initial && initial.length) {
+      setMessages(prev => {
+        const next = [...prev, ...initial];
+        return next.length > 1000 ? next.slice(-1000) : next;
+      });
+    }
     // Consume only batch events to avoid duplicate inserts
     const handleMessagesBatch = (batch) => {
       if (!batch || batch.length === 0) return;

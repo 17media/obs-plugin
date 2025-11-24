@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import { fromJS } from 'immutable';
 import { OneSevenLivePlatform } from '../platforms/17live/core/OneSevenLivePlatform';
 import { YouTubePlatform } from '../platforms/youtube/core/YouTubePlatform';
 import { TwitchPlatform } from '../platforms/twitch/core/TwitchPlatform';
@@ -26,6 +27,12 @@ export class MessageAggregator extends EventEmitter {
     
     // Max message queue length
     this.maxQueueSize = 1000;
+
+    // Local storage config
+    this.storageKey = 'obs17live_chat_messages_v1';
+    this.maxStored = 1000;
+    this.history = [];
+    this.currentRoomId = null;
     
     // Message processing interval (ms)
     this.processInterval = 100;
@@ -44,11 +51,11 @@ export class MessageAggregator extends EventEmitter {
   }
 
   initialize() {
-    // Start message processing timer
     this.startMessageProcessor();
-    
-    // Setup listeners for platform events
     this.setupEventListeners();
+    this.currentRoomId = this.getCurrentRoomId();
+    try { console.log('[MsgAgg] init storageKey', this.storageKey, 'roomId', this.currentRoomId); } catch {}
+    this.loadFromStorage();
   }
 
   setupEventListeners() {
@@ -220,7 +227,7 @@ export class MessageAggregator extends EventEmitter {
       // Sort by timestamp
       this.messageQueue.sort((a, b) => a.timestamp - b.timestamp);
 
-      // Emit message event immediately
+      // Emit message event immediately (single message stream)
       this.emit('message', enrichedMessage);
 
       // Forward to WebSocket centrally (on demand)
@@ -325,10 +332,139 @@ export class MessageAggregator extends EventEmitter {
       }
     }
 
-    // Emit batch of messages
+    // Emit batch of messages and persist history
     if (messagesToProcess.length > 0) {
+      // Append to history (dedup by id)
+      for (const m of messagesToProcess) {
+        const idx = this.history.findIndex((x) => x.id === m.id);
+        if (idx === -1) {
+          this.history.push(m);
+        } else {
+          this.history[idx] = m;
+        }
+      }
+      if (this.history.length > this.maxStored) {
+        this.history = this.history.slice(-this.maxStored);
+      }
+      // Persist
+      this.saveToStorage();
+      // Notify UI
       this.emit('messages_batch', messagesToProcess);
     }
+  }
+
+  /**
+   * Get current roomID from URL
+   */
+  getCurrentRoomId() {
+    try {
+      if (typeof window === 'undefined') return null;
+      const params = new URLSearchParams(window.location.search);
+      const roomID = params.get('roomID');
+      return roomID || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Load messages from local storage
+   */
+  loadFromStorage() {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      const raw = window.localStorage.getItem(this.storageKey);
+      if (!raw) {
+        try { console.log('[MsgAgg] no storage for key', this.storageKey); } catch {}
+        return;
+      }
+      try { console.log('[MsgAgg] load raw length', raw.length); } catch {}
+      const parsed = JSON.parse(raw);
+      const restored = [];
+      if (Array.isArray(parsed)) {
+        try { console.log('[MsgAgg] parsed array size', parsed.length); } catch {}
+        for (const item of parsed) {
+          const id = item && item.id;
+          if (!id || this.messageIds.has(id)) continue;
+          const content = item && item.content;
+          const unified = {
+            id,
+            platform: item.platform,
+            timestamp: item.timestamp || Date.now(),
+            content: content && typeof content === 'object' ? fromJS(content) : content,
+            aggregatedAt: Date.now(),
+          };
+          this.messageIds.add(id);
+          restored.push(unified);
+        }
+      } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.chats)) {
+        // Require matching roomId when provided
+        const bundleRoomId = parsed.roomId || null;
+        try { console.log('[MsgAgg] parsed bundle roomId', bundleRoomId, 'current', this.currentRoomId, 'chats', parsed.chats.length); } catch {}
+        if (bundleRoomId && this.currentRoomId && bundleRoomId !== this.currentRoomId) {
+          try { console.log('[MsgAgg] skip bundle due to roomId mismatch'); } catch {}
+          return;
+        }
+        for (const chat of parsed.chats) {
+          const id = chat && chat.id;
+          if (!id || this.messageIds.has(id)) continue;
+          const ts = (chat && (chat.sendTime || chat.timestamp)) || (parsed.timestamp || Date.now());
+          const unified = {
+            id,
+            platform: '17live',
+            timestamp: ts,
+            content: fromJS(chat),
+            aggregatedAt: Date.now(),
+          };
+          this.messageIds.add(id);
+          restored.push(unified);
+        }
+      } else {
+        try { console.log('[MsgAgg] parsed unknown format'); } catch {}
+        return;
+      }
+      this.history = restored.slice(-this.maxStored);
+      this.history.sort((a, b) => a.timestamp - b.timestamp);
+      try { console.log('[MsgAgg] restored count', this.history.length); } catch {}
+      if (this.history.length) {
+        this.emit('messages_batch', this.history);
+        try { console.log('[MsgAgg] emitted batch', this.history.length); } catch {}
+      }
+    } catch (e) {
+      console.error('Failed to load messages from storage:', e);
+    }
+  }
+
+  /**
+   * Save tail messages to local storage
+   */
+  saveToStorage() {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      let tail = this.history.slice(-this.maxStored);
+      // Ensure chronological order
+      tail = tail.sort((a, b) => a.timestamp - b.timestamp);
+      // Persist all platforms' chats merged under the same roomId (assumed same user)
+      const chats = tail
+        .filter((m) => m && m.content)
+        .map((m) => (typeof m.content.get === 'function' ? m.content.toJS() : m.content));
+      const bundle = {
+        roomId: this.currentRoomId || '',
+        timestamp: Date.now(),
+        chats,
+      };
+      window.localStorage.setItem(this.storageKey, JSON.stringify(bundle));
+    } catch (e) {
+      console.error('Failed to save messages to storage:', e);
+    }
+  }
+
+  /**
+   * Get persisted history (tail up to limit)
+   */
+  getHistory(limit = 1000) {
+    const n = Math.max(0, Math.min(limit, this.history.length));
+    return this.history.slice(this.history.length - n);
   }
 
   /**
