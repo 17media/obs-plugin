@@ -390,7 +390,7 @@ void OneSevenLivePreviewWidget::createNotificationBar() {
     alertIcon->setFixedSize(16, 16);
 
     // Create notification text
-    notificationText = new QLabel("視窗僅展示動畫效果，不推流。", this);
+    notificationText = new QLabel(QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), this);
     notificationText->setStyleSheet("color: white; font-size: 12px;");
 
     // Add widgets to layout

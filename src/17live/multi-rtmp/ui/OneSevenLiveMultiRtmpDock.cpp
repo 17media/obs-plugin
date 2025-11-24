@@ -70,8 +70,8 @@ void OneSevenLiveMultiRtmpDock::setupUI() {
     m_controlLayout->setContentsMargins(8, 8, 8, 8);
     m_controlLayout->setSpacing(8);
 
-    // Top row: "新建推流" button
-    m_addStreamButton = new QPushButton("新建推流");
+    // Top row: Add stream button
+    m_addStreamButton = new QPushButton(obs_module_text("MultiRTMP.AddStream"));
     m_addStreamButton->setMinimumHeight(40);
     m_addStreamButton->setStyleSheet(
         "QPushButton {"
@@ -91,11 +91,11 @@ void OneSevenLiveMultiRtmpDock::setupUI() {
         "    background-color: #999999;"
         "}");
 
-    // Bottom row: "全部开始" and "全部停止" buttons
+    // Bottom row: Start All and Stop All buttons
     QHBoxLayout* bottomButtonLayout = new QHBoxLayout();
     bottomButtonLayout->setSpacing(8);
 
-    m_startAllButton = new QPushButton("全部开始");
+    m_startAllButton = new QPushButton(obs_module_text("MultiRTMP.Dock.StartAll"));
     m_startAllButton->setMinimumHeight(40);
     m_startAllButton->setStyleSheet(
         "QPushButton {"
@@ -115,7 +115,7 @@ void OneSevenLiveMultiRtmpDock::setupUI() {
         "    background-color: #999999;"
         "}");
 
-    m_stopAllButton = new QPushButton("全部停止");
+    m_stopAllButton = new QPushButton(obs_module_text("MultiRTMP.Dock.StopAll"));
     m_stopAllButton->setMinimumHeight(40);
     m_stopAllButton->setStyleSheet(
         "QPushButton {"

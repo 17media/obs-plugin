@@ -57,7 +57,7 @@ void OneSevenLiveMultiRtmpListWidget::setupEmptyState() {
     m_emptyLayout->setSpacing(0);
 
     // Simple text message
-    m_emptyTextLabel = new QLabel("请新建推流");
+    m_emptyTextLabel = new QLabel(obs_module_text("MultiRTMP.List.EmptyTip"));
     m_emptyTextLabel->setAlignment(Qt::AlignCenter);
     m_emptyTextLabel->setStyleSheet(
         "font-size: 16px; "
