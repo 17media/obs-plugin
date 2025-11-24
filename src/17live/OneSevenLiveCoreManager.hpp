@@ -10,6 +10,7 @@
 
 #include "api/OneSevenLiveModels.hpp"
 #include "utility/NetworkDiagnostics.hpp"
+#include <nlohmann/json.hpp>
 
 // Forward declarations for auth handlers
 class OneSevenLiveTwitchAuth;
@@ -146,6 +147,8 @@ class OneSevenLiveCoreManager : public QObject {
     void destroyAblyChatClient();
     void connectAblyChat(const QString& roomId, const QString& token = QString());
     void disconnectAblyChat();
+    void refreshRockZoneUserList();
+    const nlohmann::json* getGiftByID(const std::string& giftID) const;
 
     // Chat tracking external calls
     void startYouTubeChatPolling(const QString& liveChatId);
@@ -275,7 +278,6 @@ class OneSevenLiveCoreManager : public QObject {
     void loadGifts();
     void loadGiftsFromConfig();
     void buildGiftsMapFromJson(const nlohmann::json& giftsJson);
-    const nlohmann::json* getGiftByID(const std::string& giftID) const;
 
     class OneSevenLiveUpdateManager* updateManager = nullptr;
 
