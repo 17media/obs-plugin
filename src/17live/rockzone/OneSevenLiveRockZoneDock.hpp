@@ -9,6 +9,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTimer>
+#include <QMutex>
 
 #include "api/OneSevenLiveModels.hpp"
 
@@ -57,6 +58,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     // Cached army name response to avoid repeated API calls
     OneSevenLiveArmyNameResponse cachedArmyNameResponse;
     bool armyNameCached = false;
+    QMutex armyNameMutex;
 
     // User information dialog
     OneSevenLiveUserDialog* userDialog;

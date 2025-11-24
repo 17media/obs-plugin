@@ -236,12 +236,15 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         OneSevenLiveArmyNameResponse armyNameResponse;
 
         // Only call GetArmyName if not cached
-        if (!armyNameCached) {
-            apiWrapper->GetArmyName(userID, armyNameResponse);
-            cachedArmyNameResponse = armyNameResponse;
-            armyNameCached = true;
-        } else {
-            armyNameResponse = cachedArmyNameResponse;
+        {
+            QMutexLocker locker(&armyNameMutex);
+            if (!armyNameCached) {
+                apiWrapper->GetArmyName(userID, armyNameResponse);
+                cachedArmyNameResponse = armyNameResponse;
+                armyNameCached = true;
+            } else {
+                armyNameResponse = cachedArmyNameResponse;
+            }
         }
 
         // Use Qt::QueuedConnection to ensure UI updates happen on the main thread
@@ -368,6 +371,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
 }
 
 void OneSevenLiveRockZoneDock::clearArmyNameCache() {
+    QMutexLocker locker(&armyNameMutex);
     armyNameCached = false;
     cachedArmyNameResponse = OneSevenLiveArmyNameResponse();
 }
