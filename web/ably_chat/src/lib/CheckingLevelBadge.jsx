@@ -6,8 +6,8 @@ import { mapCheckingLevelImage } from './constants';
 import { getCheckingLevelImage, getWebp2xURL } from './utils';
 
 const CheckingLevelWrapper = styled.span`
-  margin-left: ${props => props.marginLeft || 0}px;
-  margin-right: ${props => props.marginRight || 0}px;
+  margin-left: ${props => props.$marginLeft || 0}px;
+  margin-right: ${props => props.$marginRight || 0}px;
   vertical-align: middle;
   margin-top: -2px;
   display: inline-flex;
@@ -31,7 +31,7 @@ const CheckingLevelBadge = ({
     }
 
     return (
-        <CheckingLevelWrapper marginLeft={marginLeft} marginRight={marginRight}>
+        <CheckingLevelWrapper $marginLeft={marginLeft} $marginRight={marginRight}>
             <img width={24} height={14} src={imageURL} />
         </CheckingLevelWrapper>
     );

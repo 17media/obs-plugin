@@ -159,16 +159,16 @@ const Chat = ({
             >
                 <InnerWrapper
                     ref={commentRef}
-                    isFullWidth={false}
-                    userType={userType}
-                    reactionType={
+                    $isFullWidth={false}
+                    $userType={userType}
+                    $reactionType={
                         messageType === REACTION_TYPE && type
                     }
-                    hasUserDecoration={hasUserDecoration}
-                    backgroundColor={backgroundColor}
-                    textShadowColor={textShadowColor}
-                    borderRadius={border?.get('commentCornerRadius')}
-                    hasPaddingRight={hasTopRightBadge}
+                    $hasUserDecoration={hasUserDecoration}
+                    $backgroundColor={backgroundColor}
+                    $textShadowColor={textShadowColor}
+                    $borderRadius={border?.get('commentCornerRadius')}
+                    $hasPaddingRight={hasTopRightBadge}
                 >
                     {levelBadges?.map(badge => (
                         <LevelBadge
