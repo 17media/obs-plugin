@@ -91,6 +91,9 @@ class WebSocketManager extends EventEmitter {
           break;
         }
       }
+      try {
+        this.send({ type: 'action', payload: { type: 'register_chatdock' } });
+      } catch {}
     };
 
     this.ws.onmessage = (event) => {

@@ -11,6 +11,8 @@
 #include "api/OneSevenLiveModels.hpp"
 #include "utility/NetworkDiagnostics.hpp"
 #include <nlohmann/json.hpp>
+#include <deque>
+#include "websocket/WsMessage.hpp"
 
 // Forward declarations for auth handlers
 class OneSevenLiveTwitchAuth;
@@ -149,6 +151,7 @@ class OneSevenLiveCoreManager : public QObject {
     void disconnectAblyChat();
     void refreshRockZoneUserList();
     const nlohmann::json* getGiftByID(const std::string& giftID) const;
+    void enqueueOrBroadcastChatEvent(const QString& type, const nlohmann::json& payload);
 
     // Chat tracking external calls
     void startYouTubeChatPolling(const QString& liveChatId);
@@ -296,4 +299,12 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Gifts lookup map: giftID (string) -> gift json
     std::unordered_map<std::string, nlohmann::json> giftsMap;
+
+    bool chatDockVisible{false};
+    std::deque<WsMessage> chatEventQueue;
+    size_t chatQueueMaxSize{5000};
+    std::string chatDockClientId;
+
+    void flushChatEventQueue();
+    bool isChatDockClientConnected() const;
 };

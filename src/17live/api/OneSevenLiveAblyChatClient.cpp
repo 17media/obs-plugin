@@ -27,8 +27,8 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
             QMetaObject::invokeMethod(this, [this]() { m_onOpen(); }, Qt::QueuedConnection);
         m_reconnectAttempts = 0;
         sendConnect();
-        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                    nlohmann::json{{"status", "connected"}});
+        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+            QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status", "connected"}});
     });
     m_wsClient->setMessageCallback([this](const std::string& msg) {
         // Parse Ably protocol message and attach after CONNECTED
@@ -154,7 +154,8 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                         case ably::MsgType_NEW_LUCKYBAG:
                         case ably::MsgType_POKE:
                         case ably::MsgType_AI_COHOST_MESSAGE:
-                            wsBroadcast(QString::fromUtf8(ws::EventAblyChatMessage), decoded);
+                            OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+                                QString::fromUtf8(ws::EventAblyChatMessage), decoded);
                             if (type == ably::MsgType_NEW_GIFT || type == ably::MsgType_NEW_LUCKYBAG) {
                                 std::string giftID;
                                 try {
@@ -233,8 +234,8 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
             QMetaObject::invokeMethod(this, [this]() { m_onClose(); }, Qt::QueuedConnection);
         if (!m_closing)
             scheduleReconnect();
-        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                    nlohmann::json{{"status", "break"}});
+        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+            QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status", "break"}});
     });
     m_wsClient->setErrorCallback([this](const std::string& err) {
         if (m_onError)
@@ -246,8 +247,8 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
         } else {
             scheduleReconnect();
         }
-        wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                    nlohmann::json{{"status", "break"}, {"error", err}});
+        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+            QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status", "break"}, {"error", err}});
     });
 }
 

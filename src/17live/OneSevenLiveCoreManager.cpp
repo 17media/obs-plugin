@@ -365,44 +365,43 @@ void OneSevenLiveCoreManager::handleDiagnosticsClicked() {
 
 void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId,
                                                      const std::string& message) {
-    UNUSED_PARAMETER(clientId);
-    UNUSED_PARAMETER(message);
-    // WsMessage m;
-    // if (!WsMessage::parse(message, m)) {
-    //     obs_log(LOG_WARNING, "[17Live WebSocket] JSON parse error in message from %s",
-    //     clientId.c_str()); return;
-    // }
-    // const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
-    // if (m.type.empty()) {
-    //     obs_log(LOG_WARNING, "[17Live WebSocket] Missing 'type' in message from %s",
-    //     clientId.c_str()); return;
-    // }
-    // if (!hasServer) {
-    //     obs_log(LOG_WARNING, "[17Live WebSocket] Server not running; cannot handle message from
-    //     %s", clientId.c_str()); return;
-    // }
-    // if (m.is(ws::TypeTransmit)) {
-    //     this->websocketServer_->broadcastMessage(m.payload.dump());
-    //     return;
-    // }
-    // if (m.is(ws::TypeAction)) {
-    //     if (m.payloadString("type") == ws::ActionRefreshRockzone) {
-    //         if (rockZoneDock) {
-    //             rockZoneDock->refreshUserList();
-    //         }
-    //     }
-    //     return;
-    // }
-    // obs_log(LOG_INFO, "[17Live WebSocket] Unhandled message type '%s' from %s", m.type.c_str(),
-    // clientId.c_str());
+    WsMessage m;
+    if (!WsMessage::parse(message, m)) {
+        obs_log(LOG_WARNING, "[17Live WebSocket] JSON parse error in message from %s",
+                clientId.c_str());
+        return;
+    }
+    const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
+    if (m.type.empty() || !hasServer) {
+        return;
+    }
+    if (m.is(ws::TypeAction)) {
+        const std::string actionType = m.payloadString("type");
+        if (actionType == ws::ActionRefreshRockzone) {
+            if (rockZoneDock) {
+                rockZoneDock->refreshUserList();
+            }
+            return;
+        }
+        if (actionType == ws::ActionRegisterChatDock) {
+            chatDockClientId = clientId;
+            obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
+            flushChatEventQueue();
+            return;
+        }
+    }
 }
 
 void OneSevenLiveCoreManager::handleWebsocketConnectionChanged(const std::string& clientId,
                                                                bool connected) {
     if (connected) {
         obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
+        flushChatEventQueue();
     } else {
         obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
+        if (!chatDockClientId.empty() && chatDockClientId == clientId) {
+            chatDockClientId.clear();
+        }
     }
 }
 
@@ -709,6 +708,50 @@ void OneSevenLiveCoreManager::refreshRockZoneUserList() {
     if (rockZoneDock) {
         rockZoneDock->refreshUserList();
     }
+}
+
+void OneSevenLiveCoreManager::enqueueOrBroadcastChatEvent(const QString& type,
+                                                          const nlohmann::json& payload) {
+    auto* ws = getWebsocketServer();
+    if (ws && ws->is_running() && !chatDockClientId.empty()) {
+        auto ids = ws->getConnectedClientIds();
+        if (std::find(ids.begin(), ids.end(), chatDockClientId) != ids.end()) {
+            ws->sendMessageToClient(chatDockClientId,
+                                    WsMessage{type.toStdString(), payload}.dump());
+            return;
+        }
+    }
+    chatEventQueue.push_back(WsMessage{type.toStdString(), payload});
+    if (chatEventQueue.size() > chatQueueMaxSize) {
+        chatEventQueue.pop_front();
+    }
+    obs_log(LOG_DEBUG, "[ChatQueue] Enqueued type=%s size=%zu", type.toUtf8().constData(),
+            chatEventQueue.size());
+}
+
+void OneSevenLiveCoreManager::flushChatEventQueue() {
+    auto* ws = getWebsocketServer();
+    if (!ws || !ws->is_running())
+        return;
+    if (chatDockClientId.empty())
+        return;
+    auto ids = ws->getConnectedClientIds();
+    if (std::find(ids.begin(), ids.end(), chatDockClientId) == ids.end())
+        return;
+    obs_log(LOG_INFO, "[ChatQueue] Flushing %zu events to ChatDock client %s",
+            chatEventQueue.size(), chatDockClientId.c_str());
+    while (!chatEventQueue.empty()) {
+        const auto& m = chatEventQueue.front();
+        // std::string payloadStr = m.payload.dump();
+        // if (payloadStr.size() > 512) {
+        //     payloadStr = payloadStr.substr(0, 512) + "...";
+        // }
+        // obs_log(LOG_INFO, "[ChatQueue] Flush item type=%s payload=%s", m.type.c_str(),
+        //         payloadStr.c_str());
+        ws->sendMessageToClient(chatDockClientId, m.dump());
+        chatEventQueue.pop_front();
+    }
+    obs_log(LOG_INFO, "[ChatQueue] Flush complete");
 }
 
 void OneSevenLiveCoreManager::destroyYouTubeChatClient() {
@@ -1463,6 +1506,8 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
                                               rockZoneDock && rockZoneDock->isVisible(),
                                               multiRtmpDock && multiRtmpDock->isVisible(),
                                               previewDock && previewDock->isVisible());
+            chatDockVisible = visible;
+            if (visible) flushChatEventQueue();
         });
     } else {
         if (chatDock->isVisible()) {
@@ -1492,6 +1537,8 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
             multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
     }
+    chatDockVisible = true;
+    flushChatEventQueue();
 }
 
 void OneSevenLiveCoreManager::loadGifts() {

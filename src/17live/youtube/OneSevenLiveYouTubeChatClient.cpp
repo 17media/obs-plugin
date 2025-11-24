@@ -129,8 +129,8 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId) 
         m_reconnectTimer->stop();
     emit pollingStarted(liveChatId);
 
-    wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                nlohmann::json{{"status", "connected"}});
+    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "connected"}});
     if (!m_statusTimer->isActive())
         m_statusTimer->start();
     obs_log(LOG_INFO, "YouTube chat connected");
@@ -157,8 +157,8 @@ void OneSevenLiveYouTubeChatClient::stopChatPolling() {
     m_noMessageStreak = 0;
 
     emit pollingStopped();
-    wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                nlohmann::json{{"status", "break"}});
+    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "break"}});
     if (m_statusTimer->isActive())
         m_statusTimer->stop();
     if (m_reconnectTimer->isActive())
@@ -353,15 +353,15 @@ void OneSevenLiveYouTubeChatClient::onBroadcastsReceived(
     }
     if (discovered.isEmpty()) {
         if (!isPolling()) {
-            wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                        nlohmann::json{{"status", "break"}});
+            OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+                QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "break"}});
         }
         return;
     }
     if (!m_liveChatId.isEmpty() && discovered == m_liveChatId) {
         if (!isPolling()) {
-            wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                        nlohmann::json{{"status", "break"}});
+            OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+                QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "break"}});
         }
         return;
     }
@@ -454,7 +454,8 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
                     message.snippet.displayMessage.toUtf8().constData());
 
             try {
-                wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatMessage), toJson(message));
+                OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+                    QString::fromUtf8(ws::EventYouTubeChatMessage), toJson(message));
             } catch (const std::exception& e) {
                 obs_log(LOG_WARNING, "Failed to serialize/broadcast YouTube chat message: %s",
                         e.what());
@@ -494,8 +495,8 @@ void OneSevenLiveYouTubeChatClient::onPollingTimeout() {
 
 void OneSevenLiveYouTubeChatClient::onStatusTimer() {
     const char* status = m_isPolling ? "connected" : "break";
-    wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                nlohmann::json{{"status", status}});
+    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", status}});
 }
 
 void OneSevenLiveYouTubeChatClient::scheduleReconnect() {

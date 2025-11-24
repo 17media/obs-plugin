@@ -215,8 +215,8 @@ void OneSevenLiveTwitchChatClient::onWebSocketMessage(const std::string& message
     } else {
         obs_log(LOG_DEBUG, "Received message from Twitch chat: %s", qMessage.toUtf8().constData());
     }
-    wsBroadcast(QString::fromUtf8(ws::EventTwitchChatMessage),
-                nlohmann::json{{"raw", qMessage.toStdString()}});
+    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventTwitchChatMessage), nlohmann::json{{"raw", qMessage.toStdString()}});
 }
 
 void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
@@ -235,9 +235,9 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
     startPingTimer();
 
     emit connected();
-    wsBroadcast(QString::fromUtf8(ws::EventTwitchChatConnected),
-                nlohmann::json{{"username", m_username.toStdString()},
-                               {"status", m_connected ? "connected" : "break"}});
+    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventTwitchChatConnected),
+        nlohmann::json{{"username", m_username.toStdString()}, {"status", m_connected ? "connected" : "break"}});
 
     QString channelToJoin = m_targetChannel.isEmpty() ? m_username : m_targetChannel;
     if (!channelToJoin.isEmpty()) {
@@ -251,8 +251,9 @@ void OneSevenLiveTwitchChatClient::onWebSocketClose() {
     stopPingTimer();
 
     emit disconnected();
-    wsBroadcast(QString::fromUtf8(ws::EventTwitchChatConnected),
-                nlohmann::json{{"username", m_username.toStdString()}, {"status", "break"}});
+    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventTwitchChatConnected),
+        nlohmann::json{{"username", m_username.toStdString()}, {"status", "break"}});
 
     if (m_autoReconnect) {
         scheduleReconnect();
@@ -485,9 +486,9 @@ void OneSevenLiveTwitchChatClient::resetReconnectAttempts() {
 }
 
 void OneSevenLiveTwitchChatClient::onStatusTimer() {
-    wsBroadcast(QString::fromUtf8(ws::EventTwitchChatConnected),
-                nlohmann::json{{"username", m_username.toStdString()},
-                               {"status", m_connected ? "connected" : "break"}});
+    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventTwitchChatConnected),
+        nlohmann::json{{"username", m_username.toStdString()}, {"status", m_connected ? "connected" : "break"}});
 
     if (m_connected) {
         QDateTime now = QDateTime::currentDateTime();

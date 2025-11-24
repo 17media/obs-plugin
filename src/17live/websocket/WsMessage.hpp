@@ -6,6 +6,7 @@ namespace ws {
     static constexpr const char* TypeTransmit = "transmit";
     static constexpr const char* TypeAction = "action";
     static constexpr const char* ActionRefreshRockzone = "refresh_rockzone";
+    static constexpr const char* ActionRegisterChatDock = "register_chatdock";
     static constexpr const char* EventTwitchChatConnected = "twitch_chat_connected";
     static constexpr const char* EventTwitchChatMessage = "twitch_chat_message";
     static constexpr const char* EventYouTubeChatConnected = "youtube_chat_connected";
