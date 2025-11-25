@@ -650,7 +650,7 @@ void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConf
     // Clean up dialog
     if (m_configDialog) {
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Cleaning up config dialog");
-        delete m_configDialog;
+        m_configDialog->deleteLater();
         m_configDialog = nullptr;
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Config dialog cleaned up successfully");
     }

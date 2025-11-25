@@ -7,6 +7,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <optional>
 
 #include "api/OneSevenLiveModels.hpp"
 #include "utility/NetworkDiagnostics.hpp"
@@ -150,7 +151,7 @@ class OneSevenLiveCoreManager : public QObject {
     void connectAblyChat(const QString& roomId, const QString& token = QString());
     void disconnectAblyChat();
     void refreshRockZoneUserList();
-    const nlohmann::json* getGiftByID(const std::string& giftID) const;
+    std::optional<nlohmann::json> getGiftByID(const std::string& giftID) const;
     void enqueueOrBroadcastChatEvent(const QString& type, const nlohmann::json& payload);
 
     // Chat tracking external calls

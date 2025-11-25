@@ -473,22 +473,22 @@ bool OneSevenLiveMultiRtmpStreamController::createService(const std::string& str
         MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput is null for stream: %s", streamId.c_str());
         return false;
     }
-    obs_data_t* serviceSettings = createServiceSettings(config);
+    ObsDataPtr serviceSettings{createServiceSettings(config)};
     if (!serviceSettings) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create base service settings for stream: %s",
                                     streamId.c_str());
         return false;
     }
 
-    const char* server = obs_data_get_string(serviceSettings, "server");
-    const char* key = obs_data_get_string(serviceSettings, "key");
+    const char* server = obs_data_get_string(serviceSettings.get(), "server");
+    const char* key = obs_data_get_string(serviceSettings.get(), "key");
     const bool hasServer = server && *server;
     const bool hasKey = key && *key;
 
     if (hasServer && hasKey) {
         streamOutput->service = obs_service_create(SERVICE_ID, getServiceName(streamId).c_str(),
-                                                   serviceSettings, nullptr);
-        obs_data_release(serviceSettings);
+                                                   serviceSettings.get(), nullptr);
+        serviceSettings.reset();
         if (!streamOutput->service) {
             MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service for stream: %s",
                                         streamId.c_str());
@@ -497,7 +497,7 @@ bool OneSevenLiveMultiRtmpStreamController::createService(const std::string& str
         return true;
     }
 
-    obs_data_release(serviceSettings);
+    serviceSettings.reset();
     MULTI_RTMP_STREAM_LOG_INFO("Server/key missing for stream: %s; resolving asynchronously",
                                streamId.c_str());
     resolvePlatformServerKeyAsync(streamId, config);
@@ -523,7 +523,7 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
                 "Shared video encoder not available, creating independent encoder for stream: %s",
                 streamId.c_str());
 
-            obs_data_t* videoSettings = createVideoEncoderSettings(config);
+            ObsDataPtr videoSettings{createVideoEncoderSettings(config)};
             if (!videoSettings) {
                 MULTI_RTMP_STREAM_LOG_ERROR(
                     "Failed to create video encoder settings for stream: %s", streamId.c_str());
@@ -534,8 +534,8 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
             const char* videoEncoderId = getObsDefaultVideoEncoderId();
 
             streamOutput->videoEncoder = obs_video_encoder_create(
-                videoEncoderId, getVideoEncoderName(streamId).c_str(), videoSettings, nullptr);
-            obs_data_release(videoSettings);
+                videoEncoderId, getVideoEncoderName(streamId).c_str(), videoSettings.get(), nullptr);
+            videoSettings.reset();
 
             if (!streamOutput->videoEncoder) {
                 MULTI_RTMP_STREAM_LOG_ERROR(
@@ -545,7 +545,7 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
         }
     } else {
         // Create dedicated encoder with custom settings
-        obs_data_t* videoSettings = createVideoEncoderSettings(config);
+        ObsDataPtr videoSettings{createVideoEncoderSettings(config)};
         if (!videoSettings) {
             MULTI_RTMP_STREAM_LOG_ERROR("Failed to create video encoder settings for stream: %s",
                                         streamId.c_str());
@@ -558,8 +558,8 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
                                          : config.videoConfig->encoderId.c_str();
 
         streamOutput->videoEncoder = obs_video_encoder_create(
-            videoEncoderId, getVideoEncoderName(streamId).c_str(), videoSettings, nullptr);
-        obs_data_release(videoSettings);
+            videoEncoderId, getVideoEncoderName(streamId).c_str(), videoSettings.get(), nullptr);
+        videoSettings.reset();
 
         if (!streamOutput->videoEncoder) {
             MULTI_RTMP_STREAM_LOG_ERROR("Failed to create video encoder for stream: %s",
@@ -579,7 +579,7 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
                 "Shared audio encoder not available, creating independent encoder for stream: %s",
                 streamId.c_str());
 
-            obs_data_t* audioSettings = createAudioEncoderSettings(config);
+            ObsDataPtr audioSettings{createAudioEncoderSettings(config)};
             if (!audioSettings) {
                 MULTI_RTMP_STREAM_LOG_ERROR(
                     "Failed to create audio encoder settings for stream: %s", streamId.c_str());
@@ -590,8 +590,8 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
             const char* audioEncoderId = AUDIO_ENCODER_ID;
 
             streamOutput->audioEncoder = obs_audio_encoder_create(
-                audioEncoderId, getAudioEncoderName(streamId).c_str(), audioSettings, 0, nullptr);
-            obs_data_release(audioSettings);
+                audioEncoderId, getAudioEncoderName(streamId).c_str(), audioSettings.get(), 0, nullptr);
+            audioSettings.reset();
 
             if (!streamOutput->audioEncoder) {
                 MULTI_RTMP_STREAM_LOG_ERROR(
@@ -600,7 +600,7 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
             }
         }
     } else {
-        obs_data_t* audioSettings = createAudioEncoderSettings(config);
+        ObsDataPtr audioSettings{createAudioEncoderSettings(config)};
         if (!audioSettings) {
             MULTI_RTMP_STREAM_LOG_ERROR("Failed to create audio encoder settings for stream: %s",
                                         streamId.c_str());
@@ -613,8 +613,8 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
                                          : config.audioConfig->encoderId.c_str();
 
         streamOutput->audioEncoder = obs_audio_encoder_create(
-            audioEncoderId, getAudioEncoderName(streamId).c_str(), audioSettings, 0, nullptr);
-        obs_data_release(audioSettings);
+            audioEncoderId, getAudioEncoderName(streamId).c_str(), audioSettings.get(), 0, nullptr);
+        audioSettings.reset();
 
         if (!streamOutput->audioEncoder) {
             MULTI_RTMP_STREAM_LOG_ERROR("Failed to create audio encoder for stream: %s",
@@ -667,7 +667,7 @@ bool OneSevenLiveMultiRtmpStreamController::setupOutput(const std::string& strea
         return false;
     }
 
-    obs_data_t* outputSettings = createOutputSettings(config);
+    ObsDataPtr outputSettings{createOutputSettings(config)};
     if (!outputSettings) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create output settings for stream: %s",
                                     streamId.c_str());
@@ -675,8 +675,8 @@ bool OneSevenLiveMultiRtmpStreamController::setupOutput(const std::string& strea
     }
 
     streamOutput->output =
-        obs_output_create(OUTPUT_ID, getOutputName(streamId).c_str(), outputSettings, nullptr);
-    obs_data_release(outputSettings);
+        obs_output_create(OUTPUT_ID, getOutputName(streamId).c_str(), outputSettings.get(), nullptr);
+    outputSettings.reset();
 
     if (!streamOutput->output) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create output for stream: %s", streamId.c_str());
@@ -1171,20 +1171,20 @@ void OneSevenLiveMultiRtmpStreamController::finalizeServiceSetupAfterResolve(
     auto* streamOutput = it->second.get();
     const std::string platform = streamOutput->config.streamName;
 
-    obs_data_t* settings = ObsDataFromJson(streamOutput->config.serviceSettings);
+    ObsDataPtr settings{ObsDataFromJson(streamOutput->config.serviceSettings)};
     if (!settings)
-        settings = obs_data_create();
+        settings.reset(obs_data_create());
     if (platform == "YouTube") {
-        obs_data_set_string(settings, "service", "YouTube - RTMPS");
+    obs_data_set_string(settings.get(), "service", "YouTube - RTMPS");
     } else if (platform == "Twitch") {
-        obs_data_set_string(settings, "service", "Twitch");
+        obs_data_set_string(settings.get(), "service", "Twitch");
     }
-    obs_data_set_string(settings, "server", server.c_str());
-    obs_data_set_string(settings, "key", key.c_str());
+    obs_data_set_string(settings.get(), "server", server.c_str());
+    obs_data_set_string(settings.get(), "key", key.c_str());
 
     streamOutput->service =
-        obs_service_create(SERVICE_ID, getServiceName(streamId).c_str(), settings, nullptr);
-    obs_data_release(settings);
+        obs_service_create(SERVICE_ID, getServiceName(streamId).c_str(), settings.get(), nullptr);
+    settings.reset();
     if (!streamOutput->service) {
         MULTI_RTMP_STREAM_LOG_ERROR("Failed to create service after resolve for: %s",
                                     streamId.c_str());
@@ -1274,11 +1274,10 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::getObsDefaultVideoEncoderSett
     if (streamingOutput) {
         obs_encoder_t* videoEncoder = obs_output_get_video_encoder(streamingOutput);
         if (videoEncoder) {
-            obs_data_t* encoderSettings = obs_encoder_get_settings(videoEncoder);
+            ObsDataPtr encoderSettings{obs_encoder_get_settings(videoEncoder)};
             if (encoderSettings) {
                 // Copy the settings
-                obs_data_apply(settings, encoderSettings);
-                obs_data_release(encoderSettings);
+                obs_data_apply(settings, encoderSettings.get());
                 obs_output_release(streamingOutput);
                 MULTI_RTMP_STREAM_LOG_DEBUG("Using OBS default video encoder settings");
                 return settings;
@@ -1307,11 +1306,10 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::getObsDefaultAudioEncoderSett
     if (streamingOutput) {
         obs_encoder_t* audioEncoder = obs_output_get_audio_encoder(streamingOutput, 0);
         if (audioEncoder) {
-            obs_data_t* encoderSettings = obs_encoder_get_settings(audioEncoder);
+            ObsDataPtr encoderSettings{obs_encoder_get_settings(audioEncoder)};
             if (encoderSettings) {
                 // Copy the settings
-                obs_data_apply(settings, encoderSettings);
-                obs_data_release(encoderSettings);
+                obs_data_apply(settings, encoderSettings.get());
                 obs_output_release(streamingOutput);
                 MULTI_RTMP_STREAM_LOG_DEBUG("Using OBS default audio encoder settings");
                 return settings;
@@ -1327,3 +1325,4 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::getObsDefaultAudioEncoderSett
     MULTI_RTMP_STREAM_LOG_DEBUG("Using fallback audio encoder settings");
     return settings;
 }
+#include "utility/Common.hpp"

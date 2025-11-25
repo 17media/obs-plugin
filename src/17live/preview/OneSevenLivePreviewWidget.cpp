@@ -461,20 +461,20 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
     }
 
     // Create settings from configuration (allow override by overlayUrl_)
-    obs_data_t* settings = obs_data_create();
+    ObsDataPtr settings{obs_data_create()};
 
     const QString effectiveUrl = overlayUrl_.isEmpty() ? browserConfig.url : overlayUrl_;
     obs_log(LOG_INFO, "Using overlay URL: %s", effectiveUrl.toUtf8().constData());
-    obs_data_set_string(settings, "url", effectiveUrl.toUtf8().constData());
-    obs_data_set_int(settings, "width", browserConfig.width);
-    obs_data_set_int(settings, "height", browserConfig.height);
-    obs_data_set_int(settings, "fps", browserConfig.fps);
-    obs_data_set_bool(settings, "shutdown", false);
-    obs_data_set_bool(settings, "restart_when_active", false);
-    obs_data_set_bool(settings, "reroute_audio", false);
+    obs_data_set_string(settings.get(), "url", effectiveUrl.toUtf8().constData());
+    obs_data_set_int(settings.get(), "width", browserConfig.width);
+    obs_data_set_int(settings.get(), "height", browserConfig.height);
+    obs_data_set_int(settings.get(), "fps", browserConfig.fps);
+    obs_data_set_bool(settings.get(), "shutdown", false);
+    obs_data_set_bool(settings.get(), "restart_when_active", false);
+    obs_data_set_bool(settings.get(), "reroute_audio", false);
 
     // Create browser source
-    browserSource = obs_source_create("browser_source", "LivePreviewOverlay", settings, nullptr);
+    browserSource = obs_source_create("browser_source", "LivePreviewOverlay", settings.get(), nullptr);
 
     if (browserSource) {
         // Get reference and activate source
@@ -489,7 +489,7 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
         obs_log(LOG_ERROR, "Failed to create browser source");
     }
 
-    obs_data_release(settings);
+    settings.reset();
 }
 
 void OneSevenLivePreviewWidget::destroyBrowserSource() {
@@ -513,13 +513,13 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
     }
 
     // Force browser source to refresh by triggering a property update
-    obs_data_t* settings = obs_source_get_settings(browserSource);
+    ObsDataPtr settings{obs_source_get_settings(browserSource)};
     if (settings) {
         // Update the URL to trigger a refresh; overlayUrl_ overrides config
         const QString effectiveUrl = overlayUrl_.isEmpty() ? browserConfig.url : overlayUrl_;
-        obs_data_set_string(settings, "url", effectiveUrl.toUtf8().constData());
-        obs_source_update(browserSource, settings);
-        obs_data_release(settings);
+        obs_data_set_string(settings.get(), "url", effectiveUrl.toUtf8().constData());
+        obs_source_update(browserSource, settings.get());
+        settings.reset();
     }
 }
 

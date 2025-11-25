@@ -5,13 +5,9 @@
 #include <atomic>
 #include <functional>
 #include <thread>
+#include <memory>
 
-struct mbedtls_ssl_context;
-struct mbedtls_net_context;
-struct mbedtls_ssl_config;
-struct mbedtls_ctr_drbg_context;
-struct mbedtls_entropy_context;
-struct mbedtls_x509_crt;
+struct TLSHandles;
 
 class OneSevenLiveWebsocketClient : public QObject {
     Q_OBJECT
@@ -41,12 +37,7 @@ class OneSevenLiveWebsocketClient : public QObject {
     std::atomic<bool> running{false};
     std::thread th;
 
-    mbedtls_ssl_context* ssl{nullptr};
-    mbedtls_net_context* server_fd{nullptr};
-    mbedtls_ssl_config* conf{nullptr};
-    mbedtls_ctr_drbg_context* ctr_drbg{nullptr};
-    mbedtls_entropy_context* entropy{nullptr};
-    mbedtls_x509_crt* cacert{nullptr};
+    std::unique_ptr<TLSHandles> tls;
 
     std::function<void()> onOpen;
     std::function<void(const std::string&)> onMessage;

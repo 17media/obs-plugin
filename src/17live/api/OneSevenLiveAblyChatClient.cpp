@@ -6,6 +6,7 @@
 #include <QMetaObject>
 #include <QTimer>
 #include <QUrl>
+#include <optional>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
@@ -168,10 +169,10 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                                 } catch (...) {
                                 }
 
-                                const nlohmann::json* gift = nullptr;
+                                std::optional<nlohmann::json> gift;
                                 try {
                                     auto& core = OneSevenLiveCoreManager::getInstance();
-                                    gift = (!giftID.empty()) ? core.getGiftByID(giftID) : nullptr;
+                                    if (!giftID.empty()) gift = core.getGiftByID(giftID);
                                 } catch (...) {
                                 }
                                 if (gift && gift->contains("vffURL") && gift->contains("vffJson") &&

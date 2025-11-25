@@ -9,6 +9,7 @@
 #include <util/dstr.hpp>  // For DStr
 
 #include "plugin-support.h"
+#include "utility/Common.hpp"
 
 static bool cef_initialized = false;
 static os_event_t *cef_started_event = nullptr;
@@ -25,19 +26,19 @@ static bool create_dummy_browser_source(void) {
     // Get browser source type (ensure obs-browser plugin is loaded)
     const char *source_id = "browser_source";
 
-    obs_data_t *settings = obs_get_source_defaults(source_id);
+    ObsDataPtr settings{obs_get_source_defaults(source_id)};
 
     // Create source
-    dummy_source = obs_source_create(source_id, "DummyBrowser", settings, nullptr);
+    dummy_source = obs_source_create(source_id, "DummyBrowser", settings.get(), nullptr);
     if (!dummy_source) {
         obs_log(LOG_ERROR, "Failed to create browser source");
-        obs_data_release(settings);
+        settings.reset();
         return false;
     }
 
     obs_log(LOG_INFO, "Browser source created successfully");
 
-    obs_data_release(settings);
+    settings.reset();
     return true;
 }
 

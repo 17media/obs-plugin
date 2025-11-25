@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "OneSevenLivePropertyWidget.hpp"
+#include "utility/Common.hpp"
 #include "plugin-support.h"
 
 OneSevenLivePropertiesWidget::OneSevenLivePropertiesWidget(QWidget *parent, obs_data_t *settings,
@@ -18,10 +19,10 @@ OneSevenLivePropertiesWidget::OneSevenLivePropertiesWidget(QWidget *parent, obs_
 
     // If original settings provided, seed with defaults then apply originals
     if (m_origSettings) {
-        obs_data_t *defaultSettings = obs_data_get_defaults(m_origSettings);
+        ObsDataPtr defaultSettings{obs_data_get_defaults(m_origSettings)};
         if (defaultSettings) {
-            obs_data_apply(m_settings, defaultSettings);
-            obs_data_release(defaultSettings);
+            obs_data_apply(m_settings, defaultSettings.get());
+            defaultSettings.reset();
         }
         obs_data_apply(m_settings, m_origSettings);
     }
@@ -305,10 +306,10 @@ void OneSevenLivePropertiesWidget::UpdateProperties(obs_data_t *settings, obs_pr
 
     if (m_origSettings) {
         obs_log(LOG_DEBUG, "[UpdateProperties] Applying default and original settings");
-        obs_data_t *defaultSettings = obs_data_get_defaults(m_origSettings);
+        ObsDataPtr defaultSettings{obs_data_get_defaults(m_origSettings)};
         if (defaultSettings) {
-            obs_data_apply(m_settings, defaultSettings);
-            obs_data_release(defaultSettings);
+            obs_data_apply(m_settings, defaultSettings.get());
+            defaultSettings.reset();
             obs_log(LOG_DEBUG, "[UpdateProperties] Applied default settings");
         }
         obs_data_apply(m_settings, m_origSettings);

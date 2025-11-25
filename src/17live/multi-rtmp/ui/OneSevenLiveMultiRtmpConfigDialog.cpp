@@ -414,18 +414,19 @@ void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
 
     connect(m_streamNameCombo, &QComboBox::currentTextChanged, this, [this](const QString& text) {
         const char* svc = (text == "YouTube") ? "YouTube - RTMPS" : "Twitch";
-        obs_data_t* s = obs_data_create();
-        obs_data_set_string(s, "service", svc);
-        obs_service_t* tmp = obs_service_create("rtmp_common", "temp_service_refresh", s, nullptr);
-        obs_data_release(s);
+        ObsDataPtr s{obs_data_create()};
+        obs_data_set_string(s.get(), "service", svc);
+        obs_service_t* tmp = obs_service_create("rtmp_common", "temp_service_refresh", s.get(), nullptr);
+        s.reset();
         if (tmp) {
             obs_data_t* st = obs_service_get_settings(tmp);
             obs_properties_t* pr = obs_service_properties(tmp);
             if (st && pr && m_serviceWidget) {
                 m_serviceWidget->UpdateProperties(st, pr);
+            } else {
+                if (pr) obs_properties_destroy(pr);
+                if (st) obs_data_release(st);
             }
-            obs_properties_destroy(pr);
-            obs_data_release(st);
             obs_service_release(tmp);
         }
         if (text == "Twitch") {
@@ -650,17 +651,17 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
 
     // Load service settings
     {
-        obs_data_t* service_settings = nullptr;
+        ObsDataPtr service_settings{nullptr};
         if (!m_config->serviceSettings.empty()) {
-            service_settings = obs_data_create_from_json(m_config->serviceSettings.dump().c_str());
+            service_settings.reset(obs_data_create_from_json(m_config->serviceSettings.dump().c_str()));
         }
 
         obs_service_t* service =
-            obs_service_create(protocol_info->serviceId, "temp_service", service_settings, nullptr);
+            obs_service_create(protocol_info->serviceId, "temp_service", service_settings.get(), nullptr);
         if (!service) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create OBS service with ID: %s",
                     protocol_info->serviceId);
-            obs_data_release(service_settings);
+            service_settings.reset();
             return;
         }
 
@@ -677,7 +678,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
         if (!settings || !props) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to get service settings or properties");
             obs_service_release(service);
-            obs_data_release(service_settings);
+            service_settings.reset();
             return;
         }
 
@@ -687,22 +688,22 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
 
         // Ownership of 'settings' and 'props' is transferred to m_serviceWidget
         obs_service_release(service);
-        obs_data_release(service_settings);
+        service_settings.reset();
     }
 
     // Load output settings
     {
-        obs_data_t* output_settings = nullptr;
+        ObsDataPtr output_settings{nullptr};
         if (!m_config->outputSettings.empty()) {
-            output_settings = obs_data_create_from_json(m_config->outputSettings.dump().c_str());
+            output_settings.reset(obs_data_create_from_json(m_config->outputSettings.dump().c_str()));
         }
 
         obs_output_t* output =
-            obs_output_create(protocol_info->outputId, "temp_output", output_settings, nullptr);
+            obs_output_create(protocol_info->outputId, "temp_output", output_settings.get(), nullptr);
         if (!output) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create OBS output with ID: %s",
                     protocol_info->outputId);
-            obs_data_release(output_settings);
+            output_settings.reset();
             return;
         }
 
@@ -715,7 +716,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
                     "props: %p)",
                     (void*) settings, (void*) props);
             obs_output_release(output);
-            obs_data_release(output_settings);
+            output_settings.reset();
             return;
         }
 
@@ -723,7 +724,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
             obs_log(LOG_ERROR, "[loadConfig] m_outputWidget is null, cannot update properties");
             // Ownership of 'settings' and 'props' is transferred to m_outputWidget
             obs_output_release(output);
-            obs_data_release(output_settings);
+            output_settings.reset();
             return;
         }
 
@@ -737,7 +738,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
 
         // Ownership of 'settings' and 'props' is transferred to m_outputWidget
         obs_output_release(output);
-        obs_data_release(output_settings);
+        output_settings.reset();
     }
 
     // Load video encoder selection and settings
@@ -755,16 +756,17 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
         }
 
         if (!m_config->videoConfig->encoderSettings.empty()) {
-            obs_data_t* encoder_settings =
-                obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str());
+            ObsDataPtr encoder_settings{
+                obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str())
+            };
 
             obs_encoder_t* encoder =
                 obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(),
-                                         "temp_video_encoder", encoder_settings, nullptr);
+                                         "temp_video_encoder", encoder_settings.get(), nullptr);
             if (!encoder) {
                 obs_log(LOG_ERROR, "[loadConfig] Failed to create video encoder with ID: %s",
                         m_config->videoConfig->encoderId.c_str());
-                obs_data_release(encoder_settings);
+                encoder_settings.reset();
                 // Fall back to refreshing default properties if encoder cannot be created
                 refreshVideoEncoderProperties();
             } else {
@@ -778,7 +780,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
                             "%p, props: %p)",
                             (void*) settings, (void*) props);
                     obs_encoder_release(encoder);
-                    obs_data_release(encoder_settings);
+                    encoder_settings.reset();
                     refreshVideoEncoderProperties();
                 } else {
                     if (!m_videoWidget) {
@@ -787,7 +789,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
                             "[loadConfig] m_videoWidget is null, cannot update video properties");
                         // Ownership of 'settings' and 'props' is transferred to m_videoWidget
                         obs_encoder_release(encoder);
-                        obs_data_release(encoder_settings);
+                        encoder_settings.reset();
                         refreshVideoEncoderProperties();
                     } else {
                         try {
@@ -804,7 +806,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
 
                         // Ownership of 'settings' and 'props' is transferred to m_videoWidget
                         obs_encoder_release(encoder);
-                        obs_data_release(encoder_settings);
+                        encoder_settings.reset();
                     }
                 }
             }
@@ -842,16 +844,17 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
         }
 
         if (!m_config->audioConfig->encoderSettings.empty()) {
-            obs_data_t* encoder_settings =
-                obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str());
+            ObsDataPtr encoder_settings{
+                obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str())
+            };
 
             obs_encoder_t* encoder =
                 obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(),
-                                         "temp_audio_encoder", encoder_settings, 0, nullptr);
+                                         "temp_audio_encoder", encoder_settings.get(), 0, nullptr);
             if (!encoder) {
                 obs_log(LOG_ERROR, "[loadConfig] Failed to create audio encoder with ID: %s",
                         m_config->audioConfig->encoderId.c_str());
-                obs_data_release(encoder_settings);
+                encoder_settings.reset();
                 refreshAudioEncoderProperties();
             } else {
                 obs_data_t* settings = obs_encoder_get_settings(encoder);
@@ -864,7 +867,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
                             "%p, props: %p)",
                             (void*) settings, (void*) props);
                     obs_encoder_release(encoder);
-                    obs_data_release(encoder_settings);
+                    encoder_settings.reset();
                     refreshAudioEncoderProperties();
                 } else {
                     if (!m_audioWidget) {
@@ -873,7 +876,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
                             "[loadConfig] m_audioWidget is null, cannot update audio properties");
                         // Ownership of 'settings' and 'props' is transferred to m_audioWidget
                         obs_encoder_release(encoder);
-                        obs_data_release(encoder_settings);
+                        encoder_settings.reset();
                         refreshAudioEncoderProperties();
                     } else {
                         try {
@@ -890,7 +893,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
 
                         // Ownership of 'settings' and 'props' is transferred to m_audioWidget
                         obs_encoder_release(encoder);
-                        obs_data_release(encoder_settings);
+                        encoder_settings.reset();
                     }
                 }
             }
@@ -1198,10 +1201,10 @@ void OneSevenLiveMultiRtmpConfigDialog::loadEncoders() {
 
         QString channelSel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
         const char* svcName = (channelSel == "YouTube") ? "YouTube - RTMPS" : "Twitch";
-        obs_data_t* s = obs_data_create();
-        obs_data_set_string(s, "service", svcName);
-        obs_service_t* tmp = obs_service_create("rtmp_common", "temp_codec_service_v", s, nullptr);
-        obs_data_release(s);
+        ObsDataPtr s{obs_data_create()};
+        obs_data_set_string(s.get(), "service", svcName);
+        obs_service_t* tmp = obs_service_create("rtmp_common", "temp_codec_service_v", s.get(), nullptr);
+        s.reset();
         std::set<std::string> vset;
         const char** vcodecs = nullptr;
         if (tmp)
@@ -1257,11 +1260,11 @@ void OneSevenLiveMultiRtmpConfigDialog::loadEncoders() {
 
         QString channelSelA = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
         const char* svcNameA = (channelSelA == "YouTube") ? "YouTube - RTMPS" : "Twitch";
-        obs_data_t* sa = obs_data_create();
-        obs_data_set_string(sa, "service", svcNameA);
+        ObsDataPtr sa{obs_data_create()};
+        obs_data_set_string(sa.get(), "service", svcNameA);
         obs_service_t* tmpa =
-            obs_service_create("rtmp_common", "temp_codec_service_a", sa, nullptr);
-        obs_data_release(sa);
+            obs_service_create("rtmp_common", "temp_codec_service_a", sa.get(), nullptr);
+        sa.reset();
         std::set<std::string> aset;
         const char** acodecs = nullptr;
         if (tmpa)
@@ -1318,10 +1321,10 @@ void OneSevenLiveMultiRtmpConfigDialog::refreshVideoEncoderProperties() {
         return;
     }
     m_videoWidget->setVisible(true);
-    obs_data_t* initSettings = obs_data_create();
+    ObsDataPtr initSettings{obs_data_create()};
     obs_encoder_t* enc = obs_video_encoder_create(
-        id.toUtf8().constData(), "temp_video_encoder_props", initSettings, nullptr);
-    obs_data_release(initSettings);
+        id.toUtf8().constData(), "temp_video_encoder_props", initSettings.get(), nullptr);
+    initSettings.reset();
     if (!enc)
         return;
     obs_data_t* settings = obs_encoder_get_settings(enc);
@@ -1341,10 +1344,10 @@ void OneSevenLiveMultiRtmpConfigDialog::refreshAudioEncoderProperties() {
         return;
     }
     m_audioWidget->setVisible(true);
-    obs_data_t* initSettings = obs_data_create();
+    ObsDataPtr initSettings{obs_data_create()};
     obs_encoder_t* enc = obs_audio_encoder_create(
-        id.toUtf8().constData(), "temp_audio_encoder_props", initSettings, 0, nullptr);
-    obs_data_release(initSettings);
+        id.toUtf8().constData(), "temp_audio_encoder_props", initSettings.get(), 0, nullptr);
+    initSettings.reset();
     if (!enc)
         return;
     obs_data_t* settings = obs_encoder_get_settings(enc);

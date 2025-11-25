@@ -180,12 +180,12 @@ void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
 
 void OneSevenLiveMenuManager::cleanup() {
     if (dockSubMenu) {
-        delete dockSubMenu;
+        dockSubMenu->deleteLater();
         dockSubMenu = nullptr;
     }
 
     if (menu) {
-        delete menu;
+        menu->deleteLater();
         menu = nullptr;
     }
 

@@ -885,7 +885,7 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
 
         customEventDialog->close();
-        delete customEventDialog;
+        customEventDialog->deleteLater();
         customEventDialog = nullptr;
     } else {
         // Open dialog first; dialog will fetch custom event asynchronously

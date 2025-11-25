@@ -3,6 +3,7 @@
 #include <obs-module.h>
 
 #include <QDockWidget>
+#include <QPointer>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -88,7 +89,7 @@ class OneSevenLiveMultiRtmpDock : public QDockWidget {
     QLabel* m_statusLabel;
 
     // Dialog
-    OneSevenLiveMultiRtmpConfigDialog* m_configDialog;
+    QPointer<OneSevenLiveMultiRtmpConfigDialog> m_configDialog;
 
     // Timer for periodic updates
     QTimer* m_statsUpdateTimer;

@@ -16,6 +16,7 @@
 #include "plugin-support.h"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
+#include "utility/Common.hpp"
 
 OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* apiWrapper,
                                                      OneSevenLiveConfigManager* configManager,
@@ -335,13 +336,13 @@ void OneSevenLiveStreamManager::saveStreamingSettings(const std::string& liveStr
     }
 
     // Set streaming URL and key
-    obs_data_t* settings = obs_service_get_settings(service);
-    obs_data_set_string(settings, "server", streamUrl.c_str());
-    obs_data_set_string(settings, "key", streamKey.c_str());
+    ObsDataPtr settings{obs_service_get_settings(service)};
+    obs_data_set_string(settings.get(), "server", streamUrl.c_str());
+    obs_data_set_string(settings.get(), "key", streamKey.c_str());
 
     // Apply settings
-    obs_service_update(service, settings);
-    obs_data_release(settings);
+    obs_service_update(service, settings.get());
+    settings.reset();
 
     obs_frontend_set_streaming_service(service);
     obs_frontend_save_streaming_service();
@@ -362,17 +363,17 @@ void OneSevenLiveStreamManager::saveWhipStreamingSettings(const std::string& liv
     obs_log(LOG_INFO, "Saving WHIP streaming settings for stream: %s", liveStreamID.c_str());
 
     // Set WHIP server and token
-    obs_data_t* settings = obs_data_create();
-    obs_data_set_string(settings, "type", "whip_custom");
-    obs_data_set_string(settings, "service", "WHIP");
-    obs_data_set_string(settings, "server", whipServer.c_str());
-    obs_data_set_string(settings, "bearer_token", whipToken.c_str());
+    ObsDataPtr settings{obs_data_create()};
+    obs_data_set_string(settings.get(), "type", "whip_custom");
+    obs_data_set_string(settings.get(), "service", "WHIP");
+    obs_data_set_string(settings.get(), "server", whipServer.c_str());
+    obs_data_set_string(settings.get(), "bearer_token", whipToken.c_str());
 
     // Get or create WHIP service
-    obs_service_t* service = obs_service_create("whip_custom", "whip_service", settings, NULL);
+    obs_service_t* service = obs_service_create("whip_custom", "whip_service", settings.get(), NULL);
     if (!service) {
         obs_log(LOG_ERROR, "Failed to create WHIP service");
-        obs_data_release(settings);
+        settings.reset();
         return;
     }
 
@@ -380,7 +381,7 @@ void OneSevenLiveStreamManager::saveWhipStreamingSettings(const std::string& liv
     obs_frontend_set_streaming_service(service);
 
     obs_service_release(service);
-    obs_data_release(settings);
+    settings.reset();
 
     obs_frontend_save_streaming_service();
 

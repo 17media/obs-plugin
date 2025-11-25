@@ -14,6 +14,33 @@
 #include "WebsocketUtils.hpp"
 #include "plugin-support.h"
 
+struct TLSHandles {
+    mbedtls_ssl_context ssl;
+    mbedtls_net_context server_fd;
+    mbedtls_ssl_config conf;
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_entropy_context entropy;
+    mbedtls_x509_crt cacert;
+
+    TLSHandles() {
+        mbedtls_ssl_init(&ssl);
+        mbedtls_net_init(&server_fd);
+        mbedtls_ssl_config_init(&conf);
+        mbedtls_ctr_drbg_init(&ctr_drbg);
+        mbedtls_entropy_init(&entropy);
+        mbedtls_x509_crt_init(&cacert);
+    }
+    ~TLSHandles() {
+        mbedtls_ssl_close_notify(&ssl);
+        mbedtls_ssl_free(&ssl);
+        mbedtls_net_free(&server_fd);
+        mbedtls_ssl_config_free(&conf);
+        mbedtls_ctr_drbg_free(&ctr_drbg);
+        mbedtls_entropy_free(&entropy);
+        mbedtls_x509_crt_free(&cacert);
+    }
+};
+
 OneSevenLiveWebsocketClient::OneSevenLiveWebsocketClient(QObject* parent) : QObject(parent) {}
 
 OneSevenLiveWebsocketClient::~OneSevenLiveWebsocketClient() {
@@ -95,21 +122,10 @@ void OneSevenLiveWebsocketClient::stopThread() {
 
 void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString& port,
                                              const QString& path) {
-    ssl = new mbedtls_ssl_context;
-    server_fd = new mbedtls_net_context;
-    conf = new mbedtls_ssl_config;
-    ctr_drbg = new mbedtls_ctr_drbg_context;
-    entropy = new mbedtls_entropy_context;
-    cacert = new mbedtls_x509_crt;
-    mbedtls_ssl_init(ssl);
-    mbedtls_net_init(server_fd);
-    mbedtls_ssl_config_init(conf);
-    mbedtls_ctr_drbg_init(ctr_drbg);
-    mbedtls_entropy_init(entropy);
-    mbedtls_x509_crt_init(cacert);
+    tls = std::make_unique<TLSHandles>();
 
     const char* pers = "ws_client";
-    int ret = mbedtls_ctr_drbg_seed(ctr_drbg, mbedtls_entropy_func, entropy,
+    int ret = mbedtls_ctr_drbg_seed(&tls->ctr_drbg, mbedtls_entropy_func, &tls->entropy,
                                     (const unsigned char*) pers, strlen(pers));
     if (ret != 0) {
         if (onError)
@@ -119,7 +135,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         return;
     }
 
-    ret = mbedtls_ssl_config_defaults(conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
+    ret = mbedtls_ssl_config_defaults(&tls->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
                                       MBEDTLS_SSL_PRESET_DEFAULT);
     if (ret != 0) {
         if (onError)
@@ -128,11 +144,11 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         return;
     }
 
-    mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
-    mbedtls_ssl_conf_ca_chain(conf, nullptr, nullptr);
-    mbedtls_ssl_conf_rng(conf, mbedtls_ctr_drbg_random, ctr_drbg);
+    mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_NONE);
+    mbedtls_ssl_conf_ca_chain(&tls->conf, nullptr, nullptr);
+    mbedtls_ssl_conf_rng(&tls->conf, mbedtls_ctr_drbg_random, &tls->ctr_drbg);
 
-    ret = mbedtls_net_connect(server_fd, host.toUtf8().constData(), port.toUtf8().constData(),
+    ret = mbedtls_net_connect(&tls->server_fd, host.toUtf8().constData(), port.toUtf8().constData(),
                               MBEDTLS_NET_PROTO_TCP);
     if (ret != 0) {
         if (onError)
@@ -142,7 +158,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         return;
     }
 
-    ret = mbedtls_ssl_setup(ssl, conf);
+    ret = mbedtls_ssl_setup(&tls->ssl, &tls->conf);
     if (ret != 0) {
         if (onError)
             QMetaObject::invokeMethod(
@@ -150,10 +166,10 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         stopThread();
         return;
     }
-    mbedtls_ssl_set_bio(ssl, server_fd, mbedtls_net_send, mbedtls_net_recv, nullptr);
-    mbedtls_ssl_set_hostname(ssl, host.toUtf8().constData());
+    mbedtls_ssl_set_bio(&tls->ssl, &tls->server_fd, mbedtls_net_send, mbedtls_net_recv, nullptr);
+    mbedtls_ssl_set_hostname(&tls->ssl, host.toUtf8().constData());
 
-    while ((ret = mbedtls_ssl_handshake(ssl)) != 0) {
+    while ((ret = mbedtls_ssl_handshake(&tls->ssl)) != 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
             if (onError)
                 QMetaObject::invokeMethod(
@@ -188,7 +204,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     int tr = 0;
     int maxR = 4096;
     while (tr < maxR) {
-        int r = mbedtls_ssl_read(ssl, (unsigned char*) buf, sizeof(buf) - 1);
+        int r = mbedtls_ssl_read(&tls->ssl, (unsigned char*) buf, sizeof(buf) - 1);
         if (r > 0) {
             buf[r] = '\0';
             resp.append(buf, r);
@@ -218,19 +234,19 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
 
     while (running.load()) {
         unsigned char h[2];
-        int r = mbedtls_ssl_read(ssl, h, 2);
+        int r = mbedtls_ssl_read(&tls->ssl, h, 2);
         if (r == 2) {
             unsigned char opcode = h[0] & 0x0F;
             uint64_t len = h[1] & 0x7F;
             if (len == 126) {
                 unsigned char ext[2];
-                r = mbedtls_ssl_read(ssl, ext, 2);
+                r = mbedtls_ssl_read(&tls->ssl, ext, 2);
                 if (r != 2)
                     break;
                 len = (ext[0] << 8) | ext[1];
             } else if (len == 127) {
                 unsigned char ext[8];
-                r = mbedtls_ssl_read(ssl, ext, 8);
+                r = mbedtls_ssl_read(&tls->ssl, ext, 8);
                 if (r != 8)
                     break;
                 len = 0;
@@ -242,7 +258,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 payload.resize(len);
                 size_t br = 0;
                 while (br < len) {
-                    r = mbedtls_ssl_read(ssl, (unsigned char*) payload.data() + br, len - br);
+                    r = mbedtls_ssl_read(&tls->ssl, (unsigned char*) payload.data() + br, len - br);
                     if (r > 0)
                         br += r;
                     else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE)
@@ -281,7 +297,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                         if (pl.size() > 125)
                             pl.clear();
                         unsigned char k[4];
-                        mbedtls_ctr_drbg_random(ctr_drbg, k, 4);
+                        mbedtls_ctr_drbg_random(&tls->ctr_drbg, k, 4);
                         std::string f;
                         f.push_back((char) 0x8A);
                         f.push_back((char) (0x80 | (unsigned char) pl.size()));
@@ -314,7 +330,9 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
 }
 
 bool OneSevenLiveWebsocketClient::sendTLS(const std::string& data) {
-    int ret = mbedtls_ssl_write(ssl, (const unsigned char*) data.c_str(), data.length());
+    if (!tls)
+        return false;
+    int ret = mbedtls_ssl_write(&tls->ssl, (const unsigned char*) data.c_str(), data.length());
     return ret >= 0;
 }
 
@@ -325,7 +343,9 @@ void OneSevenLiveWebsocketClient::sendText(const QString& text) {
     std::string f;
     f.push_back((char) 0x81);
     unsigned char k[4];
-    mbedtls_ctr_drbg_random(ctr_drbg, k, 4);
+    if (!tls)
+        return;
+    mbedtls_ctr_drbg_random(&tls->ctr_drbg, k, 4);
     if (m.length() <= 125) {
         f.push_back((char) (0x80 | (unsigned char) m.length()));
     } else if (m.length() <= 65535) {
@@ -342,35 +362,5 @@ void OneSevenLiveWebsocketClient::sendText(const QString& text) {
 }
 
 void OneSevenLiveWebsocketClient::cleanupTLS() {
-    if (ssl) {
-        mbedtls_ssl_close_notify(ssl);
-        mbedtls_ssl_free(ssl);
-        delete ssl;
-        ssl = nullptr;
-    }
-    if (server_fd) {
-        mbedtls_net_free(server_fd);
-        delete server_fd;
-        server_fd = nullptr;
-    }
-    if (conf) {
-        mbedtls_ssl_config_free(conf);
-        delete conf;
-        conf = nullptr;
-    }
-    if (ctr_drbg) {
-        mbedtls_ctr_drbg_free(ctr_drbg);
-        delete ctr_drbg;
-        ctr_drbg = nullptr;
-    }
-    if (entropy) {
-        mbedtls_entropy_free(entropy);
-        delete entropy;
-        entropy = nullptr;
-    }
-    if (cacert) {
-        mbedtls_x509_crt_free(cacert);
-        delete cacert;
-        cacert = nullptr;
-    }
+    tls.reset();
 }
