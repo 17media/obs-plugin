@@ -839,9 +839,9 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
         obs_log(LOG_ERROR, "Failed to save login data");
         return;
     }
-
-    // Use the new centralized login state handler
-    handleLoginStateChanged(true, loginData);
+    QMetaObject::invokeMethod(this, [this, loginData]() {
+        handleLoginStateChanged(true, loginData);
+    }, Qt::QueuedConnection);
 }
 
 void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn,
@@ -872,7 +872,7 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
         return;
     }
 
-    loadGifts();
+    QTimer::singleShot(0, this, [this]() { loadGifts(); });
 
     // Update menu with user info
     QString username = loginData.userInfo.displayName;
@@ -881,13 +881,14 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     }
     menuManager->updateLoginStatus(true, username);
 
-    // Load configuration
-    load17LiveConfig(loginData);
+    QTimer::singleShot(0, this, [this, loginData]() { load17LiveConfig(loginData); });
 
     // Restore dock states if this is during startup and there are saved states
     if (isStartupRestore) {
-        restoreDockStatesOnLogin();
-        isStartupRestore = false;
+        QTimer::singleShot(0, this, [this]() {
+            restoreDockStatesOnLogin();
+            isStartupRestore = false;
+        });
     }
 
     // Create chat clients on login
@@ -1065,30 +1066,22 @@ void OneSevenLiveCoreManager::closeAllDocks() {
 void OneSevenLiveCoreManager::handleLogoutClicked() {
     obs_log(LOG_INFO, "handleLogoutClicked");
 
-    // Check if currently streaming
     if (status == OneSevenLiveStreamingStatus::Streaming) {
-        // Show warning message to user about interrupting live stream
-        QMessageBox msgBox;
-        msgBox.setWindowTitle(obs_module_text("Logout.Warning.Title"));
-        msgBox.setText(obs_module_text("Logout.Warning.Message"));
-        QPushButton* confirmButton =
-            msgBox.addButton(obs_module_text("Logout.Warning.Button.Yes"), QMessageBox::YesRole);
-        QPushButton* cancelButton =
-            msgBox.addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
-        msgBox.setDefaultButton(cancelButton);
-
-        msgBox.exec();
-        if (msgBox.clickedButton() != confirmButton) {
-            // User cancelled the operation
-            return;
-        }
-
-        // User confirmed, stop streaming using the streaming dock's method
-        closeLive(false);  // Pass false to indicate manual stream closure
+        auto* msgBox = new QMessageBox(mainWindow);
+        msgBox->setWindowTitle(obs_module_text("Logout.Warning.Title"));
+        msgBox->setText(obs_module_text("Logout.Warning.Message"));
+        QPushButton* confirmButton = msgBox->addButton(obs_module_text("Logout.Warning.Button.Yes"), QMessageBox::YesRole);
+        QPushButton* cancelButton = msgBox->addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
+        msgBox->setDefaultButton(cancelButton);
+        connect(msgBox, &QMessageBox::finished, this, [this, msgBox, confirmButton](int) {
+            if (msgBox->clickedButton() != confirmButton) { msgBox->deleteLater(); return; }
+            QMetaObject::invokeMethod(this, [this]() { closeLive(false); handleLoginStateChanged(false); }, Qt::QueuedConnection);
+            msgBox->deleteLater();
+        });
+        msgBox->open();
+        return;
     }
-
-    // Use the new centralized logout state handler
-    handleLoginStateChanged(false);
+    QMetaObject::invokeMethod(this, [this]() { handleLoginStateChanged(false); }, Qt::QueuedConnection);
 }
 
 void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
