@@ -7,6 +7,8 @@
 #include <QEventLoop>
 #include <QString>
 #include <QTimer>
+#include <QPointer>
+#include <QObject>
 #include <chrono>
 #include <thread>
 
@@ -1016,7 +1018,7 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
             auto client = std::make_unique<OneSevenLiveYouTubeClient>();
             client->setAccessToken(ytAuth->getAccessToken());
 
-            QTimer* timeout = new QTimer(client.get());
+            QPointer<QTimer> timeout = new QTimer(client.get());
             timeout->setSingleShot(true);
             QObject::connect(timeout, &QTimer::timeout, [this, streamId, timeout]() {
                 MULTI_RTMP_STREAM_LOG_WARNING("YouTube resolve timeout for stream: %s",
@@ -1024,7 +1026,8 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
                                    "NetworkError:YouTube:Timeout");
                 m_pendingYouTubeClients.erase(streamId);
-                timeout->deleteLater();
+                if (timeout)
+                    timeout->deleteLater();
             });
 
             QObject::connect(
@@ -1103,7 +1106,7 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 client->setAuthData(twAuth->getAccessToken(), QString(TWITCH_API_CLIENT_ID));
             }
 
-            QTimer* timeout = new QTimer(client);
+            QPointer<QTimer> timeout = new QTimer(client);
             timeout->setSingleShot(true);
             QObject::connect(timeout, &QTimer::timeout, [this, streamId, timeout]() {
                 MULTI_RTMP_STREAM_LOG_WARNING("Twitch resolve timeout for stream: %s",
@@ -1111,24 +1114,29 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
                                    "NetworkError:Twitch:Timeout");
                 m_pendingTwitchClients.erase(streamId);
-                timeout->deleteLater();
+                if (timeout)
+                    timeout->deleteLater();
             });
 
-            QObject::connect(client, &OneSevenLiveTwitchClient::userInfoReceived,
-                             [this, streamId, client, timeout](const TwitchUserInfo& user) {
-                                 QObject::connect(
-                                     client, &OneSevenLiveTwitchClient::streamKeyReceived,
-                                     [this, streamId, timeout](const QString& keyVal) {
-                                         if (timeout)
-                                             timeout->stop();
-                                         const QString serverUrl =
-                                             OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
-                                         finalizeServiceSetupAfterResolve(
-                                             streamId, serverUrl.toUtf8().constData(),
-                                             keyVal.toUtf8().constData());
-                                     });
-                                 client->getStreamKey(user.id);
-                             });
+            QMetaObject::Connection userConn;
+            userConn = QObject::connect(
+                client, &OneSevenLiveTwitchClient::userInfoReceived,
+                [client, &userConn](const TwitchUserInfo& user) {
+                    client->getStreamKey(user.id);
+                    QObject::disconnect(userConn);
+                });
+
+            QMetaObject::Connection keyConn;
+            keyConn = QObject::connect(
+                client, &OneSevenLiveTwitchClient::streamKeyReceived,
+                [this, streamId, timeout, &keyConn](const QString& keyVal) {
+                    if (timeout)
+                        timeout->stop();
+                    const QString serverUrl = OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
+                    finalizeServiceSetupAfterResolve(streamId, serverUrl.toUtf8().constData(),
+                                                     keyVal.toUtf8().constData());
+                    QObject::disconnect(keyConn);
+                });
 
             QObject::connect(
                 client, &OneSevenLiveTwitchClient::errorOccurred,
