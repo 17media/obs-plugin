@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <QDesktopServices>
 #include <QDockWidget>
+#include <QMetaObject>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -332,9 +333,7 @@ bool OneSevenLiveCoreManager::initialize() {
         return false;
     }
 
-    // Check for updates
-    std::thread updateThread([this]() { updateManager->checkForUpdates(); });
-    updateThread.detach();
+    QTimer::singleShot(0, updateManager, &OneSevenLiveUpdateManager::checkForUpdates);
 
     isStartupRestore = true;
 
@@ -1191,58 +1190,46 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                     if (!streamCheckTimer) {
                         streamCheckTimer = new QTimer(this);
                         connect(streamCheckTimer, &QTimer::timeout, this, [this]() {
+                            if (streamCheckInFlight.load()) return;
                             std::string liveStreamID;
-                            if (configManager->getConfigValue("LiveStreamID", liveStreamID)) {
-                                if (!apiWrapper->CheckStream(liveStreamID)) {
-                                    // Stream check failed, increment consecutive failure count
-                                    consecutiveFailureCount++;
-                                    obs_log(LOG_WARNING,
-                                            "Stream check failed. Consecutive failures: %d/%d",
-                                            consecutiveFailureCount, MAX_CONSECUTIVE_FAILURES);
-
-                                    // Only trigger auto-close when consecutive failures reach
-                                    // threshold
-                                    if (consecutiveFailureCount >= MAX_CONSECUTIVE_FAILURES) {
-                                        obs_log(LOG_ERROR,
-                                                "Stream check failed %d times consecutively. "
-                                                "Showing auto-close confirmation.",
-                                                MAX_CONSECUTIVE_FAILURES);
-
-                                        // Show confirmation dialog before auto-closing
-                                        QString message =
-                                            QString(obs_module_text(
-                                                        "Live.Settings.CloseLive.Auto.Message"))
-                                                .arg(MAX_CONSECUTIVE_FAILURES);
-
-                                        if (showAutoCloseConfirmation(message)) {
-                                            obs_log(LOG_INFO,
-                                                    "User confirmed auto-close live stream due to "
-                                                    "stream check failures");
-                                            closeLive(
-                                                true);  // Pass true to indicate this is auto-close
-                                            if (streamCheckTimer) {
-                                                streamCheckTimer->stop();
-                                                streamCheckTimer->deleteLater();
-                                                streamCheckTimer = nullptr;
+                            if (!configManager->getConfigValue("LiveStreamID", liveStreamID)) return;
+                            streamCheckInFlight.store(true);
+                            std::thread([this, liveStreamID]() {
+                                bool ok = false;
+                                try { ok = apiWrapper->CheckStream(liveStreamID); } catch (...) { ok = false; }
+                                QMetaObject::invokeMethod(this, [this, ok]() {
+                                    if (!ok) {
+                                        consecutiveFailureCount++;
+                                        obs_log(LOG_WARNING,
+                                                "Stream check failed. Consecutive failures: %d/%d",
+                                                consecutiveFailureCount, MAX_CONSECUTIVE_FAILURES);
+                                        if (consecutiveFailureCount >= MAX_CONSECUTIVE_FAILURES) {
+                                            obs_log(LOG_ERROR,
+                                                    "Stream check failed %d times consecutively. Showing auto-close confirmation.",
+                                                    MAX_CONSECUTIVE_FAILURES);
+                                            QString message = QString(obs_module_text("Live.Settings.CloseLive.Auto.Message"))
+                                                              .arg(MAX_CONSECUTIVE_FAILURES);
+                                            if (showAutoCloseConfirmation(message)) {
+                                                closeLive(true);
+                                                if (streamCheckTimer) {
+                                                    streamCheckTimer->stop();
+                                                    streamCheckTimer->deleteLater();
+                                                    streamCheckTimer = nullptr;
+                                                }
                                             }
-                                        } else {
-                                            obs_log(LOG_INFO,
-                                                    "User cancelled auto-close live stream");
+                                            consecutiveFailureCount = 0;
                                         }
-                                        // Reset failure counter regardless of user choice
-                                        consecutiveFailureCount = 0;
+                                    } else {
+                                        if (consecutiveFailureCount > 0) {
+                                            obs_log(LOG_INFO,
+                                                    "Stream check succeeded. Resetting failure count from %d to 0.",
+                                                    consecutiveFailureCount);
+                                            consecutiveFailureCount = 0;
+                                        }
                                     }
-                                } else {
-                                    // Stream check succeeded, reset consecutive failure counter
-                                    if (consecutiveFailureCount > 0) {
-                                        obs_log(LOG_INFO,
-                                                "Stream check succeeded. Resetting failure count "
-                                                "from %d to 0.",
-                                                consecutiveFailureCount);
-                                        consecutiveFailureCount = 0;
-                                    }
-                                }
-                            }
+                                    streamCheckInFlight.store(false);
+                                }, Qt::QueuedConnection);
+                            }).detach();
                         });
                     }
                     streamCheckTimer->start(30000);  // 30 seconds
@@ -1252,6 +1239,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                         streamCheckTimer->stop();
                         streamCheckTimer->deleteLater();
                         streamCheckTimer = nullptr;
+                        streamCheckInFlight.store(false);
                     }
                 }
             });
@@ -1543,37 +1531,27 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
 
 void OneSevenLiveCoreManager::loadGifts() {
     obs_log(LOG_INFO, "Starting to load gifts asynchronously");
-
-    // Run gift loading in a separate thread to avoid blocking main thread
     std::thread giftLoadThread([this]() {
+        Json apiResult;
+        bool ok = false;
         try {
             std::string language = GetCurrentLanguage();
-
-            Json apiResult;
-            bool success = apiWrapper->GetGifts(language, apiResult);
-
-            if (success) {
-                configManager->saveGifts(apiResult);
-                obs_log(LOG_INFO, "Gifts loaded and saved successfully");
-
-                // Build in-memory map for fast lookup
-                buildGiftsMapFromJson(apiResult);
-
-                // Reload chat room dock to support new gifts
-                if (chatDock && chatDock->isVisible()) {
-                    obs_log(LOG_INFO, "Reloading chat dock to support new gifts");
-                    chatDock->reload();
-                }
-            } else {
-                obs_log(LOG_WARNING, "Failed to load gifts from API");
-            }
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "Exception while loading gifts: %s", e.what());
+            ok = apiWrapper->GetGifts(language, apiResult);
         } catch (...) {
-            obs_log(LOG_ERROR, "Unknown exception while loading gifts");
+            ok = false;
         }
+        QMetaObject::invokeMethod(this, [this, ok, apiResult]() {
+            if (!ok) {
+                obs_log(LOG_WARNING, "Failed to load gifts from API");
+                return;
+            }
+            configManager->saveGifts(apiResult);
+            buildGiftsMapFromJson(apiResult);
+            if (chatDock && chatDock->isVisible()) {
+                chatDock->reload();
+            }
+        }, Qt::QueuedConnection);
     });
-
     giftLoadThread.detach();
 }
 

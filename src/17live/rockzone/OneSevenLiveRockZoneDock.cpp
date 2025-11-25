@@ -215,6 +215,8 @@ void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
 }
 
 void OneSevenLiveRockZoneDock::refreshUserList() {
+    if (!apiWrapper)
+        return;
     std::string roomID;
     configManager->getConfigValue("RoomID", roomID);
 
@@ -226,7 +228,16 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
     QObject* worker = new QObject;
     worker->moveToThread(thread);
 
+    connect(this, &QObject::destroyed, thread, &QThread::quit);
     connect(thread, &QThread::started, worker, [this, worker, thread, roomID, userID]() {
+        if (!apiWrapper) {
+            QMetaObject::invokeMethod(this, [this]() {
+                obs_log(LOG_ERROR, "[RockZone] apiWrapper unavailable, abort refresh");
+            }, Qt::QueuedConnection);
+            thread->quit();
+            worker->deleteLater();
+            return;
+        }
         // Execute API call in new thread
         Json jsonResponse;
         bool success = apiWrapper->GetRockViewers(roomID, jsonResponse);

@@ -7,6 +7,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <atomic>
 #include <optional>
 
 #include "api/OneSevenLiveModels.hpp"
@@ -266,6 +267,7 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Timer for checking stream status
     QPointer<QTimer> streamCheckTimer;
+    std::atomic<bool> streamCheckInFlight{false};
     // Timer for periodic YouTube chat discovery
     QPointer<QTimer> ytChatDiscoverTimer;
 
