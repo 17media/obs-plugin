@@ -62,8 +62,9 @@ jobs:
         with:
           path: |
             web/ably_chat/node_modules
+            web/ably_client/node_modules
             ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json', 'web/ably_client/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -84,6 +85,14 @@ jobs:
             npm install
           else
             echo "Skipping npm install (dependencies restored from cache)"
+          fi
+          npm run build
+
+      - name: Install and Build Ably Client
+        working-directory: web/ably_client
+        run: |
+          if [ "${{ steps.npm-cache.outputs.cache-hit }}" != "true" ]; then
+            npm install
           fi
           npm run build
 

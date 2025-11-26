@@ -134,6 +134,13 @@ jobs:
             cd web/ably_chat
             npm install
             npm run build
+
+      - run:
+          name: Install and Build Ably Client
+          command: |
+            cd web/ably_client
+            npm install
+            npm run build
       
       # Set environment variables and version
       - run:
@@ -384,6 +391,13 @@ jobs:
           name: Install and Build Web Components
           command: |
             cd web/ably_chat
+            npm install
+            npm run build
+
+      - run:
+          name: Install and Build Ably Client
+          command: |
+            cd web/ably_client
             npm install
             npm run build
       
