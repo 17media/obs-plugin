@@ -164,6 +164,9 @@ class OneSevenLiveCoreManager : public QObject {
 
     bool handleLoginClicked();
 
+    void setShuttingDown(bool v);
+    bool isShuttingDown() const;
+
     // Disable copy constructor and assignment operator
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
@@ -315,5 +318,3 @@ class OneSevenLiveCoreManager : public QObject {
     void flushChatEventQueue();
     bool isChatDockClientConnected() const;
 };
-    void setShuttingDown(bool v);
-    bool isShuttingDown() const;
