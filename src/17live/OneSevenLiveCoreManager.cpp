@@ -38,6 +38,7 @@
 #include "streamlist/OneSevenLiveStreamListDock.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "utility/Common.hpp"
+#include "chat/OneSevenLiveChatMessageHandler.hpp"
 #include "utility/Meta.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WsMessage.hpp"
@@ -366,27 +367,30 @@ void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId
                                                      const std::string& message) {
     WsMessage m;
     if (!WsMessage::parse(message, m)) {
-        obs_log(LOG_WARNING, "[17Live WebSocket] JSON parse error in message from %s",
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] JSON parse error in message from %s",
                 clientId.c_str());
         return;
     }
+    // output m for debug
+    obs_log(LOG_INFO, "[17Live WebSocket Server] Message from %s: %s", clientId.c_str(),
+            m.dump().c_str());
     const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
     if (m.type.empty() || !hasServer) {
         return;
     }
-    if (m.is(ws::TypeAction)) {
-        const std::string actionType = m.payloadString("type");
-        if (actionType == ws::ActionRefreshRockzone) {
-            if (rockZoneDock) {
-                rockZoneDock->refreshUserList();
-            }
+    if (m.is(ws::EventAblyChatMessage)) {
+        const std::string roomID = m.payloadString("roomID");
+        const std::string data = m.payloadString("data");
+        if (roomID.empty() || data.empty()) {
+            obs_log(LOG_WARNING, "[17Live WebSocket Server] Missing roomID or data in Ably message");
             return;
         }
-        if (actionType == ws::ActionRegisterChatDock) {
-            chatDockClientId = clientId;
-            obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
-            flushChatEventQueue();
-            return;
+        // Process Ably chat message via unified handler
+        {
+            nlohmann::json wrapper;
+            wrapper["messages"] = nlohmann::json::array({ nlohmann::json{{"data", data}} });
+            OneSevenLiveChatMessageHandler handler;
+            handler.handleRaw(wrapper.dump());
         }
     }
 }
@@ -896,31 +900,31 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     createTwitchChatClient();
 
     // Connect Ably chat based on current room ID and fetched token
-    if (streamManager && apiWrapper) {
-        const qint64 rid = streamManager->getRoomID();
-        if (rid > 0) {
-            nlohmann::json ablyResp;
-            QString token;
-            if (apiWrapper->GetAblyToken(std::to_string(rid), ablyResp)) {
-                if (ablyResp.contains("token") && ablyResp["token"].is_string()) {
-                    token = QString::fromStdString(ablyResp["token"].get<std::string>());
-                    QString masked =
-                        token.length() >= 12 ? token.left(6) + "..." + token.right(6) : token;
-                    obs_log(LOG_INFO,
-                            "[17Live Core] Fetched Ably token for room %lld token(masked)=%s",
-                            (long long) rid, masked.toUtf8().constData());
-                } else {
-                    obs_log(LOG_WARNING,
-                            "[17Live Core] Ably token response missing 'token' field for room %lld",
-                            (long long) rid);
-                }
-            } else {
-                obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld",
-                        (long long) rid);
-            }
-            connectAblyChat(QString::number(rid), token);
-        }
-    }
+    // if (streamManager && apiWrapper) {
+    //     const qint64 rid = streamManager->getRoomID();
+    //     if (rid > 0) {
+    //         nlohmann::json ablyResp;
+    //         QString token;
+    //         if (apiWrapper->GetAblyToken(std::to_string(rid), ablyResp)) {
+    //             if (ablyResp.contains("token") && ablyResp["token"].is_string()) {
+    //                 token = QString::fromStdString(ablyResp["token"].get<std::string>());
+    //                 QString masked =
+    //                     token.length() >= 12 ? token.left(6) + "..." + token.right(6) : token;
+    //                 obs_log(LOG_INFO,
+    //                         "[17Live Core] Fetched Ably token for room %lld token(masked)=%s",
+    //                         (long long) rid, masked.toUtf8().constData());
+    //             } else {
+    //                 obs_log(LOG_WARNING,
+    //                         "[17Live Core] Ably token response missing 'token' field for room %lld",
+    //                         (long long) rid);
+    //             }
+    //         } else {
+    //             obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld",
+    //                     (long long) rid);
+    //         }
+    //         connectAblyChat(QString::number(rid), token);
+    //     }
+    // }
 
     // discovery is managed by YouTubeChatClient
 }

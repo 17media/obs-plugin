@@ -10,6 +10,7 @@
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
+#include "chat/OneSevenLiveChatMessageHandler.hpp"
 #include <zlib.h>
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
@@ -104,131 +105,9 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
         } catch (...) {
         }
 
-        auto gunzipBase64ToJson = [](const std::string& base64Data, nlohmann::json& out) -> bool {
-            QByteArray raw = QByteArray::fromBase64(QByteArray::fromStdString(base64Data));
-            if (raw.isEmpty())
-                return false;
-            QByteArray outBuf;
-            z_stream zs{};
-            zs.next_in = reinterpret_cast<Bytef*>(raw.data());
-            zs.avail_in = raw.size();
-            if (inflateInit2(&zs, 15 + 16) != Z_OK)
-                return false;
-            char buf[4096];
-            int ret;
-            do {
-                zs.next_out = reinterpret_cast<Bytef*>(buf);
-                zs.avail_out = sizeof(buf);
-                ret = inflate(&zs, Z_NO_FLUSH);
-                if (ret != Z_OK && ret != Z_STREAM_END)
-                    break;
-                int have = sizeof(buf) - zs.avail_out;
-                if (have > 0)
-                    outBuf.append(buf, have);
-            } while (ret != Z_STREAM_END);
-            inflateEnd(&zs);
-            if (ret != Z_STREAM_END)
-                return false;
-            try {
-                out = nlohmann::json::parse(outBuf.constData());
-                return true;
-            } catch (...) {
-                return false;
-            }
-        };
 
-        try {
-            nlohmann::json j = nlohmann::json::parse(msg);
-            if (j.contains("messages") && j["messages"].is_array()) {
-                for (auto& m : j["messages"]) {
-                    if (m.contains("data") && m["data"].is_string()) {
-                        nlohmann::json decoded;
-                        if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded))
-                            continue;
-                        int type = decoded.contains("type") && decoded["type"].is_number_integer()
-                                       ? decoded["type"].get<int>()
-                                       : -1;
-                        switch (type) {
-                        case ably::MsgType_COMMENT:
-                        case ably::MsgType_NEW_GIFT:
-                        case ably::MsgType_JOIN_ROOM:
-                        case ably::MsgType_NEW_LUCKYBAG:
-                        case ably::MsgType_POKE:
-                        case ably::MsgType_AI_COHOST_MESSAGE:
-                            OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-                                QString::fromUtf8(ws::EventAblyChatMessage), decoded);
-                            if (type == ably::MsgType_NEW_GIFT || type == ably::MsgType_NEW_LUCKYBAG) {
-                                std::string giftID;
-                                try {
-                                    if (decoded.contains("giftMsg") && decoded["giftMsg"].is_object()) {
-                                        const auto& gm = decoded["giftMsg"];
-                                        if (gm.contains("giftID") && gm["giftID"].is_string()) {
-                                            giftID = gm["giftID"].get<std::string>();
-                                        }
-                                    }
-                                } catch (...) {
-                                }
-
-                                std::optional<nlohmann::json> gift;
-                                try {
-                                    auto& core = OneSevenLiveCoreManager::getInstance();
-                                    if (!giftID.empty()) gift = core.getGiftByID(giftID);
-                                } catch (...) {
-                                }
-                                if (gift && gift->contains("vffURL") && gift->contains("vffJson") &&
-                                    (*gift)["vffURL"].is_string() && (*gift)["vffJson"].is_string()) {
-                                    nlohmann::json playData;
-                                    playData["type"] = "play_vff";
-                                    playData["vffURL"] = (*gift)["vffURL"].get<std::string>();
-                                    playData["vffJson"] = (*gift)["vffJson"].get<std::string>();
-
-                                    try {
-                                        const auto& gm = decoded["giftMsg"];
-                                        if (gm.contains("giftMetas") && gm["giftMetas"].is_array() && !gm["giftMetas"].empty()) {
-                                            const auto& meta0 = gm["giftMetas"][0];
-                                            if (meta0.contains("composite") && meta0["composite"].is_array()) {
-                                                nlohmann::json compositeObj = nlohmann::json::object();
-                                                for (const auto& item : meta0["composite"]) {
-                                                    if (item.contains("tag") && item.contains("imageURL") &&
-                                                        item["tag"].is_string() && item["imageURL"].is_string()) {
-                                                        compositeObj[item["tag"].get<std::string>()] =
-                                                            item["imageURL"].get<std::string>();
-                                                    }
-                                                }
-                                                if (!compositeObj.empty())
-                                                    playData["compositeData"] = compositeObj;
-                                            }
-                                        }
-                                    } catch (...) {
-                                    }
-
-                                    try {
-                                        auto* ws = OneSevenLiveCoreManager::getInstance().getWebsocketServer();
-                                        if (ws && ws->is_running()) {
-                                            ws->broadcastMessage(playData.dump());
-                                        }
-                                    } catch (...) {
-                                    }
-                                }
-                            }
-                            break;
-                        case ably::MsgType_ROCKZONE:
-                            try {
-                                QMetaObject::invokeMethod(this, []() {
-                                    auto& core = OneSevenLiveCoreManager::getInstance();
-                                    core.refreshRockZoneUserList();
-                                }, Qt::QueuedConnection);
-                            } catch (...) {
-                            }
-                            break;
-                        default:
-                            break;
-                        }
-                    }
-                }
-            }
-        } catch (...) {
-        }
+        OneSevenLiveChatMessageHandler handler;
+        handler.handleRaw(msg);
         if (m_onMessage)
             QMetaObject::invokeMethod(
                 this, [this, msg]() { m_onMessage(msg); }, Qt::QueuedConnection);
