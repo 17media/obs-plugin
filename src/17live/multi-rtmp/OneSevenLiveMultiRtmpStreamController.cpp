@@ -1118,22 +1118,24 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                     timeout->deleteLater();
             });
 
-            const QMetaObject::Connection userConn = QObject::connect(
+            auto userConnPtr = std::make_shared<QMetaObject::Connection>();
+            *userConnPtr = QObject::connect(
                 client, &OneSevenLiveTwitchClient::userInfoReceived,
-                [client, userConn](const TwitchUserInfo& user) {
+                [client, userConnPtr](const TwitchUserInfo& user) {
                     if (client) client->getStreamKey(user.id);
-                    QObject::disconnect(userConn);
+                    QObject::disconnect(*userConnPtr);
                 });
 
-            const QMetaObject::Connection keyConn = QObject::connect(
+            auto keyConnPtr = std::make_shared<QMetaObject::Connection>();
+            *keyConnPtr = QObject::connect(
                 client, &OneSevenLiveTwitchClient::streamKeyReceived,
-                [this, streamId, timeout, keyConn](const QString& keyVal) {
+                [this, streamId, timeout, keyConnPtr](const QString& keyVal) {
                     if (timeout)
                         timeout->stop();
                     const QString serverUrl = OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
                     finalizeServiceSetupAfterResolve(streamId, serverUrl.toUtf8().constData(),
                                                      keyVal.toUtf8().constData());
-                    QObject::disconnect(keyConn);
+                    QObject::disconnect(*keyConnPtr);
                 });
 
             QObject::connect(
