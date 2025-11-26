@@ -17,6 +17,7 @@
 #include <QScreen>
 #include <QTimer>
 #include <QWindow>
+#include <QFont>
 #include <cmath>
 
 #include "moc_OneSevenLivePreviewWidget.cpp"
@@ -50,6 +51,13 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     QPalette palette = this->palette();
     palette.setColor(QPalette::Window, Qt::black);
     setPalette(palette);
+
+#ifdef _WIN32
+    QFont safeFont;
+    safeFont.setFamily("Segoe UI");
+    safeFont.setPointSize(10);
+    setFont(safeFont);
+#endif
 
     // Set up refresh timer (30 FPS)
     refreshTimer->setInterval(33);
@@ -356,6 +364,12 @@ void OneSevenLivePreviewWidget::paintEvent(QPaintEvent* event) {
     // Only draw placeholder when display isn't ready
     if (!display_created) {
         QPainter painter(this);
+#ifdef _WIN32
+        QFont f;
+        f.setFamily("Segoe UI");
+        f.setPointSize(12);
+        painter.setFont(f);
+#endif
         painter.fillRect(event->rect(), Qt::black);
         painter.setPen(Qt::white);
         painter.drawText(rect(), Qt::AlignCenter, "Initializing video display...");
@@ -392,6 +406,12 @@ void OneSevenLivePreviewWidget::createNotificationBar() {
     // Create notification text
     notificationText = new QLabel(QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), this);
     notificationText->setStyleSheet("color: white; font-size: 12px;");
+#ifdef _WIN32
+    QFont barFont;
+    barFont.setFamily("Segoe UI");
+    barFont.setPointSize(12);
+    notificationText->setFont(barFont);
+#endif
 
     // Add widgets to layout
     layout->addWidget(alertIcon);
@@ -405,9 +425,15 @@ void OneSevenLivePreviewWidget::createNotificationBar() {
         "    border-radius: 4px;"
         "}");
 
+#ifdef _WIN32
+    notificationBar->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    notificationBar->setAttribute(Qt::WA_TranslucentBackground, true);
+#endif
+
     // Position and show the notification bar
     updateNotificationBarPosition();
     notificationBar->show();
+    notificationBar->raise();
 }
 
 void OneSevenLivePreviewWidget::updateNotificationBarPosition() {
@@ -425,6 +451,7 @@ void OneSevenLivePreviewWidget::updateNotificationBarPosition() {
     int y = 10;  // 10px from top
 
     notificationBar->setGeometry(x, y, barWidth, barHeight);
+    notificationBar->raise();
 }
 
 void OneSevenLivePreviewWidget::loadBrowserSourceConfig() {
