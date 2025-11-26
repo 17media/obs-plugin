@@ -14,6 +14,7 @@
 #include "api/OneSevenLiveModels.hpp"
 #include "moc_OneSevenLiveStreamManager.cpp"
 #include "plugin-support.h"
+#include "../OneSevenLiveCoreManager.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
 #include "utility/Common.hpp"
@@ -273,6 +274,11 @@ void OneSevenLiveStreamManager::startOBSStreaming() {
 
 void OneSevenLiveStreamManager::stopOBSStreaming() {
     obs_log(LOG_INFO, "Stopping OBS streaming");
+
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        obs_log(LOG_INFO, "Skipping obs_frontend_streaming_stop due to shutting down");
+        return;
+    }
 
     if (!obs_frontend_streaming_active()) {
         obs_log(LOG_INFO, "OBS streaming is not active");

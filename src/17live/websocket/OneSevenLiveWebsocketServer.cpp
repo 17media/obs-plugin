@@ -414,7 +414,7 @@ void OneSevenLiveWebsocketServer::onConnection(websocketpp::connection_hdl hdl) 
     std::string clientId = generate_client_id();
     std::string clientIp = get_client_ip(hdl);
 
-    obs_log(LOG_INFO, "[17Live WebSocket Server] New connection: %s from %s", clientId.c_str(),
+    obs_log(LOG_DEBUG, "[17Live WebSocket Server] New connection: %s from %s", clientId.c_str(),
             clientIp.c_str());
 
     // Store client connection
@@ -457,7 +457,7 @@ void OneSevenLiveWebsocketServer::onClose(websocketpp::connection_hdl hdl) {
         if (it != hdl_to_client_id_.end()) {
             clientId = it->second;
 
-            obs_log(LOG_INFO, "[17Live WebSocket Server] Client %s disconnected", clientId.c_str());
+            obs_log(LOG_DEBUG, "[17Live WebSocket Server] Client %s disconnected", clientId.c_str());
 
             // Remove client from connections
             clients_.erase(clientId);

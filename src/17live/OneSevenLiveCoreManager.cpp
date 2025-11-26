@@ -512,9 +512,7 @@ OneSevenLiveWebsocketServer* OneSevenLiveCoreManager::getWebsocketServer() const
     return websocketServer_.get();
 }
 
-OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const {
-    return httpServer_.get();
-}
+OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const { return httpServer_.get(); }
 
 OneSevenLiveTwitchAuth* OneSevenLiveCoreManager::getTwitchAuth() const {
     return twitchAuth.get();
@@ -771,7 +769,7 @@ void OneSevenLiveCoreManager::flushChatEventQueue() {
     auto ids = ws->getConnectedClientIds();
     if (std::find(ids.begin(), ids.end(), chatDockClientId) == ids.end())
         return;
-    obs_log(LOG_INFO, "[ChatQueue] Flushing %zu events to ChatDock client %s",
+    obs_log(LOG_DEBUG, "[ChatQueue] Flushing %zu events to ChatDock client %s",
             chatEventQueue.size(), chatDockClientId.c_str());
     while (!chatEventQueue.empty()) {
         const auto& m = chatEventQueue.front();
@@ -784,7 +782,7 @@ void OneSevenLiveCoreManager::flushChatEventQueue() {
         ws->sendMessageToClient(chatDockClientId, m.dump());
         chatEventQueue.pop_front();
     }
-    obs_log(LOG_INFO, "[ChatQueue] Flush complete");
+    obs_log(LOG_DEBUG, "[ChatQueue] Flush complete");
 }
 
 void OneSevenLiveCoreManager::destroyYouTubeChatClient() {
@@ -1823,3 +1821,5 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         previewDockFirstLoad = false;
     }
 }
+void OneSevenLiveCoreManager::setShuttingDown(bool v) { shuttingDown = v; }
+bool OneSevenLiveCoreManager::isShuttingDown() const { return shuttingDown; }

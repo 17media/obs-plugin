@@ -121,6 +121,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
         // Release OneSevenLiveCoreManager resources
         try {
             auto& manager = OneSevenLiveCoreManager::getInstance();
+            manager.setShuttingDown(true);
             manager.shutdown();
             obs_log(LOG_INFO, "OneSevenLiveCoreManager resources released");
         } catch (const std::exception& e) {

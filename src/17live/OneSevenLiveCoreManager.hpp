@@ -189,6 +189,7 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Initialization flag
     bool initialized;
+    bool shuttingDown = false;
 
     // Flag to track if we are in startup dock restoration phase
     bool isStartupRestore = false;
@@ -314,3 +315,5 @@ class OneSevenLiveCoreManager : public QObject {
     void flushChatEventQueue();
     bool isChatDockClientConnected() const;
 };
+    void setShuttingDown(bool v);
+    bool isShuttingDown() const;
