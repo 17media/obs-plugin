@@ -39,6 +39,7 @@
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "utility/Common.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
+#include "chat/OneSevenLiveChatRelayWidget.hpp"
 #include "utility/Meta.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WsMessage.hpp"
@@ -106,6 +107,17 @@ bool OneSevenLiveCoreManager::initialize() {
         // failure based on requirements return false;
     } else {
         obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
+    }
+
+    ablyHttpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/ably");
+    if (!ablyHttpServer_) {
+        obs_log(LOG_ERROR, "[17Live Core] Failed to create Ably HTTP server instance");
+    } else {
+        if (!ablyHttpServer_->start()) {
+            obs_log(LOG_ERROR, "[17Live Core] Failed to start Ably HTTP server");
+        } else {
+            obs_log(LOG_INFO, "[17Live Core] Ably HTTP server started successfully");
+        }
     }
 
     // Initialize and start WebSocket server
@@ -372,13 +384,21 @@ void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId
         return;
     }
     // output m for debug
-    obs_log(LOG_INFO, "[17Live WebSocket Server] Message from %s: %s", clientId.c_str(),
-            m.dump().c_str());
+    // obs_log(LOG_INFO, "[17Live WebSocket Server] Message from %s: %s", clientId.c_str(),
+    //         m.dump().c_str());
     const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
     if (m.type.empty() || !hasServer) {
         return;
     }
-    if (m.is(ws::EventAblyChatMessage)) {
+    if (m.is(ws::TypeAction)) {
+        const std::string actionType = m.payloadString("type");
+        if (actionType == ws::ActionRegisterChatDock) {
+            chatDockClientId = clientId;
+            obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
+            flushChatEventQueue();
+            return;
+        }
+    } else if (m.is(ws::EventAblyChatMessage)) {
         const std::string roomID = m.payloadString("roomID");
         const std::string data = m.payloadString("data");
         if (roomID.empty() || data.empty()) {
@@ -447,6 +467,11 @@ void OneSevenLiveCoreManager::shutdown() {
     if (httpServer_) {
         httpServer_->stop();
         obs_log(LOG_INFO, "[17Live Core] HTTP server stopped");
+    }
+
+    if (ablyHttpServer_) {
+        ablyHttpServer_->stop();
+        obs_log(LOG_INFO, "[17Live Core] Ably HTTP server stopped");
     }
 
     // Clean up menu manager resources
@@ -715,8 +740,13 @@ void OneSevenLiveCoreManager::refreshRockZoneUserList() {
 
 void OneSevenLiveCoreManager::enqueueOrBroadcastChatEvent(const QString& type,
                                                           const nlohmann::json& payload) {
+    obs_log(LOG_DEBUG, "Enqueueing chat event: %s payload: %s", type.toStdString().c_str(),
+            payload.dump().c_str());
+
     auto* ws = getWebsocketServer();
     if (ws && ws->is_running() && !chatDockClientId.empty()) {
+        obs_log(LOG_DEBUG, "Sending chat event to chat dock client %s",
+                    chatDockClientId.c_str());
         auto ids = ws->getConnectedClientIds();
         if (std::find(ids.begin(), ids.end(), chatDockClientId) != ids.end()) {
             ws->sendMessageToClient(chatDockClientId,
@@ -895,6 +925,20 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
         });
     }
 
+    // Start chat relay widget (hidden) to connect Ably via web relay
+    QTimer::singleShot(0, this, [this]() {
+        if (!chatRelayWidget)
+            chatRelayWidget = new OneSevenLiveChatRelayWidget(mainWindow);
+        qint64 rid = 0;
+        if (streamManager) rid = streamManager->getRoomID();
+        int httpPort = 0;
+        if (ablyHttpServer_) httpPort = ablyHttpServer_->getPort();
+        int wsPort = 0;
+        if (websocketServer_) wsPort = websocketServer_->getPort();
+        if (rid > 0 && httpPort > 0 && wsPort > 0)
+            chatRelayWidget->startRelay(QString::number(rid), httpPort, wsPort);
+    });
+
     // Create chat clients on login
     createYouTubeChatClient();
     createTwitchChatClient();
@@ -937,6 +981,12 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
 
     // Reset login status in menu
     menuManager->updateLoginStatus(false, "");
+
+    // Cleanup chat relay widget
+    if (chatRelayWidget) {
+        chatRelayWidget->deleteLater();
+        chatRelayWidget = nullptr;
+    }
 
     // Clear login data
     configManager->clearLoginData();
@@ -1478,6 +1528,8 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         QString("http://localhost:%1/%2.html?roomID=%3&userID=%4&ws=%5")
             .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
                  QString::number(loginData.userInfo.roomID), loginData.userInfo.userID, wsUrl);
+
+    obs_log(LOG_INFO, "Chat URL: %s", chatUrl.toStdString().c_str());
 
     if (!chatDock) {
         chatDock = new OneSevenLiveChatDock(mainWindow, chatUrl);

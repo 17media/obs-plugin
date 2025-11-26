@@ -56,7 +56,7 @@ export default function Relay() {
         try { ws = new WebSocket(wsUrl) } catch { scheduleReconnect(); return }
         ws.onopen = () => {
           reconnectAttempts = 0
-          send({ type: 'action', payload: { type: 'register_chatdock' } })
+          send({ type: 'action', payload: { type: 'register_ablyrelay' } })
           send({ type: 'ably_chat_connected', payload: { roomID } })
           flush()
         }
@@ -69,7 +69,7 @@ export default function Relay() {
       ws = new WebSocket(wsUrl)
       ws.onopen = () => {
         reconnectAttempts = 0
-        send({ type: 'action', payload: { type: 'register_chatdock' } })
+        send({ type: 'action', payload: { type: 'register_ablyrelay' } })
         send({ type: 'ably_chat_connected', payload: { roomID } })
         flush()
       }

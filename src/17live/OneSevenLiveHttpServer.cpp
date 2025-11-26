@@ -118,7 +118,7 @@ bool OneSevenLiveHttpServer::start() {
     obs_log(LOG_INFO, "[17Live HTTP Server] Mounting '/' to serve files from '%s'",
             base_dir_.c_str());
 
-    // Override the default handler for static files to add security checks
+    // Override the default handler for static files
     svr_.Get("/.*", [this](const httplib::Request& req, httplib::Response& res) {
         // Security check: get client IP
         std::string client_ip = req.get_header_value("X-Forwarded-For");
@@ -257,6 +257,16 @@ bool OneSevenLiveHttpServer::start() {
         }
     });
 
+    for (const auto& p : extra_get_) {
+        svr_.Get(p.first.c_str(), [this, handler = p.second](const httplib::Request& req, httplib::Response& res) {
+            std::string client_ip = req.get_header_value("X-Forwarded-For");
+            if (client_ip.empty()) client_ip = req.get_header_value("X-Real-IP");
+            if (client_ip.empty()) client_ip = "127.0.0.1";
+            if (!check_rate_limit(client_ip)) { res.status = 429; res.set_content("Too Many Requests", "text/plain"); return; }
+            handler(req, res);
+        });
+    }
+
     svr_.Get("/ping", [this](const httplib::Request& req, httplib::Response& res) {
         // Security check: rate limiting
         std::string client_ip = req.get_header_value("X-Forwarded-For");
@@ -303,7 +313,7 @@ bool OneSevenLiveHttpServer::start() {
         res.set_content(responseStr, "application/json");
     });
 
-    // Add /lapi route to handle API requests
+    if (enable_default_api_) {
     svr_.Post("/lapi", [this](const httplib::Request& req, httplib::Response& res) {
         // Security check: get client IP
         std::string client_ip = req.get_header_value("X-Forwarded-For");
@@ -444,6 +454,18 @@ bool OneSevenLiveHttpServer::start() {
             res.set_content(responseStr, "application/json");
         }
     });
+    }
+
+    for (const auto& p : extra_post_) {
+        svr_.Post(p.first.c_str(), [this, handler = p.second](const httplib::Request& req, httplib::Response& res) {
+            std::string client_ip = req.get_header_value("X-Forwarded-For");
+            if (client_ip.empty()) client_ip = req.get_header_value("X-Real-IP");
+            if (client_ip.empty()) client_ip = "127.0.0.1";
+            if (!check_rate_limit(client_ip)) { res.status = 429; res.set_header("Content-Type", "application/json"); const nlohmann::json err = {{"success", false},{"error","Rate limit exceeded"}}; res.set_content(err.dump(), "application/json"); return; }
+            if (!validate_request_size(req)) { res.status = 413; res.set_header("Content-Type", "application/json"); const nlohmann::json err = {{"success", false},{"error","Request too large"}}; res.set_content(err.dump(), "application/json"); return; }
+            handler(req, res);
+        });
+    }
 
     // Start server in new thread to avoid blocking main thread
     server_thread_ = std::make_unique<std::thread>([this]() {
@@ -509,6 +531,18 @@ bool OneSevenLiveHttpServer::start() {
 
     return running_;
 }
+
+void OneSevenLiveHttpServer::addGetHandler(const std::string& pattern,
+                                           std::function<void(const httplib::Request&, httplib::Response&)> handler) {
+    extra_get_.push_back({pattern, std::move(handler)});
+}
+
+void OneSevenLiveHttpServer::addPostHandler(const std::string& pattern,
+                                            std::function<void(const httplib::Request&, httplib::Response&)> handler) {
+    extra_post_.push_back({pattern, std::move(handler)});
+}
+
+void OneSevenLiveHttpServer::setEnableDefaultApi(bool enable) { enable_default_api_ = enable; }
 
 void OneSevenLiveHttpServer::stop() {
     if (running_) {

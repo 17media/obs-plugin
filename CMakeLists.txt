@@ -231,6 +231,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/utility/QCefView.cpp
   src/17live/utility/RemoteTextThread.cpp
   src/17live/utility/SimpleCefClient.cpp
+  src/17live/chat/OneSevenLiveChatMessageHandler.cpp
+  src/17live/chat/OneSevenLiveChatRelayWidget.cpp
   src/17live/websocket/OneSevenLiveWebsocketClient.cpp
   src/17live/websocket/OneSevenLiveWebsocketServer.cpp
   src/17live/websocket/WebsocketUtils.cpp
