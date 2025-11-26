@@ -61,7 +61,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
     QMutex armyNameMutex;
 
     // User information dialog
-    OneSevenLiveUserDialog* userDialog;
+    QPointer<OneSevenLiveUserDialog> userDialog;
 
     // Cooldown timer for poke all button
     QTimer* cooldownTimer = nullptr;
