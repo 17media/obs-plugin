@@ -34,6 +34,7 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
       notificationBar(nullptr),
       alertIcon(nullptr),
       notificationText(nullptr),
+      initPlaceholder(nullptr),
       browserSource(nullptr),
       configLoader(new OneSevenLivePreviewConfigLoader(this)),
       browserRefreshTimer(new QTimer(this)),
@@ -69,6 +70,13 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
 
     // Create notification bar
     createNotificationBar();
+
+    initPlaceholder = new QLabel(this);
+    initPlaceholder->setText("Initializing video display...");
+    initPlaceholder->setAlignment(Qt::AlignCenter);
+    initPlaceholder->setStyleSheet("background-color: black; color: white; font-size: 12px;");
+    initPlaceholder->setGeometry(rect());
+    initPlaceholder->show();
 
     // Load browser source configuration and create browser source
     loadBrowserSourceConfig();
@@ -136,6 +144,8 @@ void OneSevenLivePreviewWidget::createDisplay() {
         display_height = physical_height;
 
         obs_display_add_draw_callback(previewDisplay, drawCallback, this);
+
+        if (initPlaceholder) initPlaceholder->hide();
     }
 }
 
@@ -146,6 +156,8 @@ void OneSevenLivePreviewWidget::destroyDisplay() {
         previewDisplay = nullptr;
     }
     display_created = false;
+
+    if (initPlaceholder) initPlaceholder->show();
 
     if (currentSource) {
         obs_source_release(currentSource);
@@ -348,6 +360,8 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
     }
 
     updateNotificationBarPosition();
+
+    if (initPlaceholder) initPlaceholder->setGeometry(rect());
 }
 
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
@@ -361,19 +375,7 @@ void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
 }
 
 void OneSevenLivePreviewWidget::paintEvent(QPaintEvent* event) {
-    // Only draw placeholder when display isn't ready
-    if (!display_created) {
-        QPainter painter(this);
-#ifdef _WIN32
-        QFont f;
-        f.setFamily("Segoe UI");
-        f.setPointSize(12);
-        painter.setFont(f);
-#endif
-        painter.fillRect(event->rect(), Qt::black);
-        painter.setPen(Qt::white);
-        painter.drawText(rect(), Qt::AlignCenter, "Initializing video display...");
-    }
+    Q_UNUSED(event);
 }
 
 void OneSevenLivePreviewWidget::frontendEvent(enum obs_frontend_event event, void* data) {

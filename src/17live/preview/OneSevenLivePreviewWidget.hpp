@@ -77,6 +77,7 @@ class OneSevenLivePreviewWidget : public QWidget {
     QWidget* notificationBar;
     QLabel* alertIcon;
     QLabel* notificationText;
+    QLabel* initPlaceholder;
 
     // Browser source overlay components
     obs_source_t* browserSource;
