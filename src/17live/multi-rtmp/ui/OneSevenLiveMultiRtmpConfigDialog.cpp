@@ -24,6 +24,7 @@
 #include "ui/OneSevenLivePropertiesWidget.hpp"
 #include "utility/Common.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
     QWidget* parent, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config)
@@ -204,8 +205,22 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
         QString("<span style='color:red;'>*</span><span style='color:white;'>%1</span>")
             .arg(obs_module_text("MultiRtmp.Config.StreamName")));
     m_streamNameCombo = new QComboBox();
-    m_streamNameCombo->addItem("YouTube");
-    m_streamNameCombo->addItem("Twitch");
+    bool hasYouTube = false;
+    bool hasTwitch = false;
+    if (auto mgr = OneSevenLiveMultiRtmpManager::getInstance()) {
+        auto configs = mgr->getAllStreamConfigs();
+        for (const auto& cfg : configs) {
+            if (cfg.streamName == "YouTube") hasYouTube = true;
+            else if (cfg.streamName == "Twitch") hasTwitch = true;
+        }
+    }
+    if (m_isEditMode && m_config) {
+        m_streamNameCombo->addItem(QString::fromStdString(m_config->streamName));
+        m_streamNameCombo->setEnabled(false);
+    } else {
+        if (!hasYouTube) m_streamNameCombo->addItem("YouTube");
+        if (!hasTwitch) m_streamNameCombo->addItem("Twitch");
+    }
     m_streamNameCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_basicInfoLayout->addRow(streamNameLabel, m_streamNameCombo);
 
@@ -961,11 +976,15 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
         }
 
         // Basic configuration with null checks
-        if (!m_streamNameCombo) {
-            obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_streamNameCombo is null");
-            throw std::runtime_error("Stream name combo widget is null");
+        if (m_isEditMode && m_config) {
+            config.streamName = m_config->streamName;
+        } else {
+            if (!m_streamNameCombo) {
+                obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] m_streamNameCombo is null");
+                throw std::runtime_error("Stream name combo widget is null");
+            }
+            config.streamName = m_streamNameCombo->currentText().toStdString();
         }
-        config.streamName = m_streamNameCombo->currentText().toStdString();
         obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] RTMP channel (stream name): '%s'",
                 config.streamName.c_str());
 

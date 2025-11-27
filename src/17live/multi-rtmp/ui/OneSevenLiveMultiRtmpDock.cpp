@@ -521,6 +521,19 @@ void OneSevenLiveMultiRtmpDock::updateButtonStates() {
         m_startAllButton->setText(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StartAll")));
         m_stopAllButton->setText(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StopAll")));
     }
+
+    // Hide Add Stream when both YouTube and Twitch exist
+    bool hasYouTube = false;
+    bool hasTwitch = false;
+    if (ensureManagerInitialized()) {
+        auto configs = m_manager->getAllStreamConfigs();
+        for (const auto& cfg : configs) {
+            if (cfg.streamName == "YouTube") hasYouTube = true;
+            else if (cfg.streamName == "Twitch") hasTwitch = true;
+        }
+    }
+    if (m_addStreamButton)
+        m_addStreamButton->setVisible(!(hasYouTube && hasTwitch));
 }
 
 void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConfig& config) {
