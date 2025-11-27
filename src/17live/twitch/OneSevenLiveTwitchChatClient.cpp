@@ -15,7 +15,7 @@
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
-#include "streaming/OneSevenLiveStreamManager.hpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 const QString OneSevenLiveTwitchChatClient::TWITCH_IRC_SERVER = "wss://irc-ws.chat.twitch.tv:443";
 const int OneSevenLiveTwitchChatClient::DEFAULT_PING_INTERVAL = 60;   // 1 minute
@@ -237,27 +237,10 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
 
     emit connected();
     auto& core = OneSevenLiveCoreManager::getInstance();
-    auto* sm = core.getStreamManager();
-    if (sm && !m_streamSignalConnected) {
-        connect(sm, &OneSevenLiveStreamManager::streamStatusChanged, this,
-                [this](OneSevenLiveStreamingStatus status) {
-                    const bool isLive = (status == OneSevenLiveStreamingStatus::Live ||
-                                         status == OneSevenLiveStreamingStatus::Streaming);
-                    const char* st = (m_connected && isLive) ? "connected" : "break";
-                    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-                        QString::fromUtf8(ws::EventTwitchChatConnected),
-                        nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
-                });
-        m_streamSignalConnected = true;
-    }
-    if (sm) {
-        auto s = sm->getCurrentStreamingStatus();
-        const bool isLive = (s == OneSevenLiveStreamingStatus::Live ||
-                             s == OneSevenLiveStreamingStatus::Streaming);
-        const char* st = (m_connected && isLive) ? "connected" : "break";
-        core.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventTwitchChatConnected),
-                                         nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
-    }
+    const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
+    const char* st = (m_connected && isLive) ? "connected" : "break";
+    core.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventTwitchChatConnected),
+                                     nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
 
     QString channelToJoin = m_targetChannel.isEmpty() ? m_username : m_targetChannel;
     if (!channelToJoin.isEmpty()) {

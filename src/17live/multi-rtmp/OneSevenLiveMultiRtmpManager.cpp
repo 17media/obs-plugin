@@ -316,6 +316,25 @@ OneSevenLiveMultiRtmpStreamStatus OneSevenLiveMultiRtmpManager::getStreamStatus(
     return m_streamController->getStreamStatus(streamId);
 }
 
+OneSevenLiveMultiRtmpStreamStatus OneSevenLiveMultiRtmpManager::getStreamStatusByName(
+    const std::string& streamName) const {
+    OneSevenLiveMultiRtmpStreamStatus status;
+    status.state = OneSevenLiveMultiRtmpStreamStatus::STOPPED;
+    if (!m_initialized || !m_streamController || !m_configManager) return status;
+    auto configs = m_configManager->getStreamConfigs();
+    for (const auto& cfg : configs) {
+        if (cfg.streamName == streamName) {
+            return m_streamController->getStreamStatus(cfg.id);
+        }
+    }
+    return status;
+}
+
+bool OneSevenLiveMultiRtmpManager::isPlatformStreaming(const std::string& streamName) const {
+    auto st = getStreamStatusByName(streamName);
+    return st.state == OneSevenLiveMultiRtmpStreamStatus::STREAMING;
+}
+
 OneSevenLiveMultiRtmpStreamStats OneSevenLiveMultiRtmpManager::getStreamStats(
     const std::string& streamId) const {
     if (!m_initialized || !m_streamController) {

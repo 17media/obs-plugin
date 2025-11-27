@@ -54,6 +54,8 @@ class OneSevenLiveMultiRtmpManager {
 
     // Status and statistics monitoring
     OneSevenLiveMultiRtmpStreamStatus getStreamStatus(const std::string& streamId) const;
+    OneSevenLiveMultiRtmpStreamStatus getStreamStatusByName(const std::string& streamName) const;
+    bool isPlatformStreaming(const std::string& streamName) const;
     OneSevenLiveMultiRtmpStreamStats getStreamStats(const std::string& streamId) const;
     std::vector<std::string> getActiveStreamIds() const;
     std::vector<std::string> getAllStreamIds() const;

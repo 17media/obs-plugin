@@ -15,6 +15,8 @@
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
+#include "api/OneSevenLiveModels.hpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL =
     "https://www.googleapis.com/youtube/v3";
@@ -494,9 +496,11 @@ void OneSevenLiveYouTubeChatClient::onPollingTimeout() {
 }
 
 void OneSevenLiveYouTubeChatClient::onStatusTimer() {
-    const char* status = m_isPolling ? "connected" : "break";
-    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-        QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", status}});
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
+    const char* status = (m_isPolling && isLive) ? "connected" : "break";
+    core.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
+                                     nlohmann::json{{"status", status}});
 }
 
 void OneSevenLiveYouTubeChatClient::scheduleReconnect() {
