@@ -18,7 +18,7 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
       isMultiRtmpVisible(false),
       isPreviewDockVisible(false) {
     // Create 17Live menu
-    menu = mainWindow->menuBar()->addMenu(obs_module_text("17Live"));
+    menu = mainWindow->menuBar()->addMenu(obs_module_text("17LIVE"));
 
     // Add submenu for dock menu
     dockSubMenu = new QMenu(obs_module_text("Menu.Dock"));
