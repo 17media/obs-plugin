@@ -339,7 +339,7 @@ void OneSevenLiveYouTubeChatClient::makeChatRequest(const QString& endpoint) {
     m_currentOperation = "getChatMessages";
 
     connect(thread, &RemoteTextThread::Result, this,
-            &OneSevenLiveYouTubeChatClient::onChatRequestFinished);
+            &OneSevenLiveYouTubeChatClient::onChatRequestFinished, Qt::QueuedConnection);
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     thread->start();
 }

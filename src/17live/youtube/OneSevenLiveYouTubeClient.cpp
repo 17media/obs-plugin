@@ -19,7 +19,9 @@ OneSevenLiveYouTubeClient::OneSevenLiveYouTubeClient(QObject* parent)
       ,
       m_hasValidAuth(false) {}
 
-OneSevenLiveYouTubeClient::~OneSevenLiveYouTubeClient() = default;
+OneSevenLiveYouTubeClient::~OneSevenLiveYouTubeClient() {
+    disconnect(this);
+}
 
 void OneSevenLiveYouTubeClient::setAccessToken(const QString& accessToken) {
     m_accessToken = accessToken;
@@ -188,7 +190,7 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
     }
 
     connect(thread, &RemoteTextThread::Result, this,
-            &OneSevenLiveYouTubeClient::onApiRequestFinished);
+            &OneSevenLiveYouTubeClient::onApiRequestFinished, Qt::QueuedConnection);
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     thread->start();
 }
@@ -268,17 +270,23 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                 // This is a GET request for stream(s)
                 YouTubeLiveStreamListResponse streamList = parseLiveStreamListResponse(json);
                 emit myLiveStreamsReceived(streamList);
-                emit requestCompleted("getLiveStreams");
+                QMetaObject::invokeMethod(this, [this]() {
+                    emit requestCompleted(QString("getLiveStreams"));
+                }, Qt::QueuedConnection);
             } else {
                 // This might be a POST request (create)
                 YouTubeLiveStream stream = parseLiveStream(json);
                 emit liveStreamCreated(stream);
-                emit requestCompleted("createLiveStream");
+                QMetaObject::invokeMethod(this, [this]() {
+                    emit requestCompleted(QString("createLiveStream"));
+                }, Qt::QueuedConnection);
             }
         } else if (m_currentOperation == "getMyLiveBroadcasts") {
             YouTubeLiveBroadcastListResponse broadcasts = parseLiveBroadcastListResponse(json);
             emit myLiveBroadcastsReceived(broadcasts);
-            emit requestCompleted("getMyLiveBroadcasts");
+            QMetaObject::invokeMethod(this, [this]() {
+                emit requestCompleted(QString("getMyLiveBroadcasts"));
+            }, Qt::QueuedConnection);
         }
     }
 }

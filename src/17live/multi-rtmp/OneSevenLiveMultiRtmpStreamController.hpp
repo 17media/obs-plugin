@@ -139,8 +139,7 @@ class OneSevenLiveMultiRtmpStreamController {
     std::map<std::string, std::unique_ptr<StreamOutput>> m_streamOutputs;
     mutable std::mutex m_outputsMutex;
 
-    // Pending async resolution clients per stream
-    std::map<std::string, std::unique_ptr<OneSevenLiveYouTubeClient>> m_pendingYouTubeClients;
+    // Pending async resolution clients per stream (Twitch only)
     std::map<std::string, std::unique_ptr<OneSevenLiveTwitchClient>> m_pendingTwitchClients;
 
     // Shared encoders

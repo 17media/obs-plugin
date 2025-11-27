@@ -19,6 +19,7 @@
 #include "utility/Common.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
 #include "youtube/OneSevenLiveYouTubeClient.hpp"
+#include "utility/RemoteTextThread.hpp"
 
 OneSevenLiveMultiRtmpStreamController::OneSevenLiveMultiRtmpStreamController() {
     MULTI_RTMP_STREAM_LOG_INFO("Creating MultiRTMP Stream Controller");
@@ -1017,74 +1018,70 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 return;
             }
 
-            auto client = std::make_unique<OneSevenLiveYouTubeClient>();
-            client->setAccessToken(ytAuth->getAccessToken());
+            const std::string accessToken = ytAuth->getAccessToken().toUtf8().constData();
+            const std::string url =
+                std::string("https://www.googleapis.com/youtube/v3/liveStreams?mine=true&part=") +
+                "snippet,cdn,status,contentDetails";
+            std::string response;
+            std::string error;
+            long status = 0;
+            std::vector<std::string> headers;
+            headers.push_back("Accept: application/json");
+            headers.push_back("Authorization: Bearer " + accessToken);
+            bool ok = GetRemoteFile(url.c_str(), response, error, &status, "application/json",
+                                    "GET", nullptr, headers, nullptr, 5, true, 0);
 
-            QPointer<QTimer> timeout = new QTimer(client.get());
-            timeout->setSingleShot(true);
-            QObject::connect(timeout, &QTimer::timeout, [this, streamId, timeout]() {
-                MULTI_RTMP_STREAM_LOG_WARNING("YouTube resolve timeout for stream: %s",
-                                              streamId.c_str());
-                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                   "NetworkError:YouTube:Timeout");
-                m_pendingYouTubeClients.erase(streamId);
-                if (timeout)
-                    timeout->deleteLater();
-            });
+            if (!ok) {
+                std::string detail = error;
+                std::string dlow = detail;
+                std::transform(dlow.begin(), dlow.end(), dlow.begin(), ::tolower);
+                bool isNet = dlow.find("tls") != std::string::npos || dlow.find("ssl") != std::string::npos ||
+                             dlow.find("timeout") != std::string::npos || dlow.find("connection") != std::string::npos ||
+                             dlow.find("recv") != std::string::npos || dlow.find("reset") != std::string::npos ||
+                             dlow.find("handshake") != std::string::npos || dlow.find("network") != std::string::npos;
+                std::string msg = (status == 401) ? "AuthInvalid:YouTube"
+                                                  : std::string(isNet ? "NetworkError:YouTube:" : "APIError:YouTube:") + detail;
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE, msg.c_str());
+                return;
+            }
 
-            QObject::connect(
-                client.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
-                [this, streamId, timeout](const YouTubeLiveStreamListResponse& resp) {
-                    if (timeout)
-                        timeout->stop();
-                    QString resolvedServer;
-                    QString resolvedKey;
-                    for (const auto& s : resp.items) {
-                        const auto& info = s.cdn.ingestionInfo;
-                        const QString serverCandidate = !info.rtmpsIngestionAddress.isEmpty()
-                                                            ? info.rtmpsIngestionAddress
-                                                            : info.ingestionAddress;
-                        const QString keyCandidate = info.streamName;
-                        if (!serverCandidate.isEmpty() && !keyCandidate.isEmpty()) {
-                            resolvedServer = serverCandidate;
-                            resolvedKey = keyCandidate;
+            try {
+                auto j = nlohmann::json::parse(response);
+                QString resolvedServer;
+                QString resolvedKey;
+                if (j.contains("items") && j["items"].is_array()) {
+                    for (const auto& item : j["items"]) {
+                        if (!item.is_object())
+                            continue;
+                        const auto& cdn = item.contains("cdn") ? item["cdn"] : nlohmann::json{};
+                        const auto& info = (cdn.contains("ingestionInfo") && cdn["ingestionInfo"].is_object())
+                                               ? cdn["ingestionInfo"]
+                                               : nlohmann::json{};
+                        std::string server = info.value("rtmpsIngestionAddress", std::string());
+                        if (server.empty())
+                            server = info.value("ingestionAddress", std::string());
+                        std::string key = info.value("streamName", std::string());
+                        if (!server.empty() && !key.empty()) {
+                            resolvedServer = QString::fromStdString(server);
+                            resolvedKey = QString::fromStdString(key);
                             break;
                         }
                     }
-                    if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
-                        finalizeServiceSetupAfterResolve(streamId,
-                                                         resolvedServer.toUtf8().constData(),
-                                                         resolvedKey.toUtf8().constData());
-                    } else {
-                        MULTI_RTMP_STREAM_LOG_WARNING(
-                            "YouTube resolve returned empty server/key for %s", streamId.c_str());
-                        updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                           "MissingServerKey:YouTube");
-                    }
-                });
+                }
 
-            QObject::connect(
-                client.get(), &OneSevenLiveYouTubeClient::errorOccurred,
-                [this, streamId, timeout](const QString& err, const QString&) {
-                    if (timeout)
-                        timeout->stop();
-                    MULTI_RTMP_STREAM_LOG_WARNING("YouTube resolve error for stream: %s",
-                                                  streamId.c_str());
-                    QString e = err.toLower();
-                    bool isNet = e.contains("recv failure") || e.contains("connection reset") ||
-                                 e.contains("timeout") || e.contains("could not resolve") ||
-                                 e.contains("dns") || e.contains("tls") || e.contains("ssl") ||
-                                 e.contains("handshake") || e.contains("network");
-                    std::string msg =
-                        std::string(isNet ? "NetworkError:YouTube:" : "APIError:YouTube:") +
-                        err.toUtf8().constData();
+                if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
+                    finalizeServiceSetupAfterResolve(streamId, resolvedServer.toUtf8().constData(),
+                                                     resolvedKey.toUtf8().constData());
+                } else {
+                    MULTI_RTMP_STREAM_LOG_WARNING(
+                        "YouTube resolve returned empty server/key for %s", streamId.c_str());
                     updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                       msg.c_str());
-                });
-
-            m_pendingYouTubeClients[streamId] = std::move(client);
-            timeout->start(5000);
-            m_pendingYouTubeClients[streamId]->getMyLiveStreams();
+                                       "MissingServerKey:YouTube");
+                }
+            } catch (...) {
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "ParseError:YouTube");
+            }
         } else if (contains_ci(platform, "twitch")) {
             auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
             OneSevenLiveTwitchClient* client = nullptr;
@@ -1218,7 +1215,6 @@ void OneSevenLiveMultiRtmpStreamController::finalizeServiceSetupAfterResolve(
     }
 
     // Cleanup pending clients if any
-    m_pendingYouTubeClients.erase(streamId);
     m_pendingTwitchClients.erase(streamId);
 
     (void) startOutputInternal(streamId, streamOutput);
