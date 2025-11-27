@@ -27,12 +27,12 @@
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
-    QWidget* parent, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config)
+    QWidget* parent, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config, bool isEditMode)
     : QDialog(parent),
       m_config(config),
       m_mainLayout(nullptr),
       m_tabWidget(nullptr),
-      m_isEditMode(config != nullptr),
+      m_isEditMode(isEditMode),
       m_advancedExpanded(false),
       m_baseHeight(0),
       m_isAuthorizing(false) {
@@ -209,11 +209,17 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
     bool hasTwitch = false;
     if (auto mgr = OneSevenLiveMultiRtmpManager::getInstance()) {
         auto configs = mgr->getAllStreamConfigs();
+        obs_log(LOG_INFO, "MultiRtmp: %d stream configs loaded", configs.size());
         for (const auto& cfg : configs) {
+            // log stream name
+            obs_log(LOG_INFO, "Stream name: %s", cfg.streamName.c_str());
             if (cfg.streamName == "YouTube") hasYouTube = true;
             else if (cfg.streamName == "Twitch") hasTwitch = true;
         }
     }
+    obs_log(LOG_INFO, "isEditMode: %s", m_isEditMode ? "true" : "false");
+    obs_log(LOG_INFO, "hasYouTube: %s", hasYouTube ? "true" : "false");
+    obs_log(LOG_INFO, "hasTwitch: %s", hasTwitch ? "true" : "false");
     if (m_isEditMode && m_config) {
         m_streamNameCombo->addItem(QString::fromStdString(m_config->streamName));
         m_streamNameCombo->setEnabled(false);
@@ -231,6 +237,35 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
     // Initialize authorize button state based on current selection and token validity
     // The state will be updated again after config load and when selection changes
     updateAuthorizeButtonState();
+
+    connect(m_authorizeButton, &QPushButton::clicked, this, [this]() {
+        const QString channel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
+        bool isAuthorized = false;
+        if (channel == OneSevenLiveYouTubeAuth::PLATFORM) {
+            isAuthorized = (m_youtubeAuth && m_youtubeAuth->hasValidToken());
+            if (isAuthorized && m_youtubeAuth) {
+                m_youtubeAuth->clearToken();
+                if (auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager()) {
+                    cm->clearYouTubeAccessToken();
+                    cm->clearYouTubeRefreshToken();
+                }
+            } else if (!isAuthorized) {
+                onAuthorizeClicked();
+            }
+        } else if (channel == OneSevenLiveTwitchAuth::PLATFORM) {
+            isAuthorized = (m_twitchAuth && m_twitchAuth->hasValidToken());
+            if (isAuthorized && m_twitchAuth) {
+                m_twitchAuth->clearTokens();
+                if (auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager()) {
+                    cm->clearTwitchTokens();
+                    cm->clearTwitchUserInfo();
+                }
+            } else if (!isAuthorized) {
+                onAuthorizeClicked();
+            }
+        }
+        updateAuthorizeButtonState();
+    });
 
     // Protocol dropdown - only RTMP, SRT/RIST, WHIP
     QLabel* protocolLabel = new QLabel();
@@ -418,10 +453,6 @@ void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
     connect(m_okButton, &QPushButton::clicked, this, &OneSevenLiveMultiRtmpConfigDialog::accept);
     connect(m_cancelButton, &QPushButton::clicked, this,
             &OneSevenLiveMultiRtmpConfigDialog::reject);
-
-    // Authorize button
-    connect(m_authorizeButton, &QPushButton::clicked, this,
-            &OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked);
 
     // Update authorize button whenever channel selection changes
     connect(m_streamNameCombo, &QComboBox::currentTextChanged, this,
@@ -946,7 +977,7 @@ void OneSevenLiveMultiRtmpConfigDialog::updateAuthorizeButtonState() {
     }
 
     if (isAuthorized) {
-        m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Reauthorize"));
+        m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Deauthorize"));
         m_authorizeButton->setEnabled(true);
         if (m_serviceWidget)
             m_serviceWidget->setVisible(false);

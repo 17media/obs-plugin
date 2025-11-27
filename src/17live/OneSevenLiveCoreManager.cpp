@@ -457,6 +457,11 @@ void OneSevenLiveCoreManager::shutdown() {
 
     closeAllDocks();
 
+    if (chatRelayWidget) {
+        chatRelayWidget->deleteLater();
+        chatRelayWidget = nullptr;
+    }
+
     // Stop WebSocket server
     if (websocketServer_) {
         websocketServer_->stop();

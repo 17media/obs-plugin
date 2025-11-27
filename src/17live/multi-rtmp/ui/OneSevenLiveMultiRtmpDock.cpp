@@ -548,14 +548,12 @@ void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConf
             std::make_shared<OneSevenLiveMultiRtmpConfig>(config);
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Created config pointer");
 
-        m_configDialog = new OneSevenLiveMultiRtmpConfigDialog(this, configPtr);
+        m_configDialog = new OneSevenLiveMultiRtmpConfigDialog(this, configPtr, isEdit);
         if (!m_configDialog) {
             obs_log(LOG_ERROR, "[MultiRTMP-Dock] Failed to create config dialog");
             return;
         }
         obs_log(LOG_INFO, "[MultiRTMP-Dock] Created config dialog successfully");
-
-        m_configDialog->setEditMode(isEdit);
 
         if (isEdit) {
             m_configDialog->setWindowTitle(
