@@ -10,6 +10,9 @@
 #include <string>
 
 class OneSevenLiveWebsocketClient;
+namespace ably {}
+class OneSevenLiveStreamManager;
+enum class OneSevenLiveStreamingStatus;
 
 enum class TwitchMessageType {
     Chat,
@@ -173,4 +176,6 @@ class OneSevenLiveTwitchChatClient : public QObject {
     static const int MAX_RECONNECT_ATTEMPTS;
     static const int STATUS_BROADCAST_INTERVAL;
     static const int LONG_RETRY_DELAY;
+
+    bool m_streamSignalConnected{false};
 };
