@@ -10,12 +10,12 @@
 #include <vector>
 
 #include "OneSevenLiveCoreManager.hpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "plugin-support.h"
 #include "websocket/OneSevenLiveWebsocketClient.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
-#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 const QString OneSevenLiveTwitchChatClient::TWITCH_IRC_SERVER = "wss://irc-ws.chat.twitch.tv:443";
 const int OneSevenLiveTwitchChatClient::DEFAULT_PING_INTERVAL = 60;   // 1 minute
@@ -217,7 +217,8 @@ void OneSevenLiveTwitchChatClient::onWebSocketMessage(const std::string& message
         obs_log(LOG_DEBUG, "Received message from Twitch chat: %s", qMessage.toUtf8().constData());
     }
     OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-        QString::fromUtf8(ws::EventTwitchChatMessage), nlohmann::json{{"raw", qMessage.toStdString()}});
+        QString::fromUtf8(ws::EventTwitchChatMessage),
+        nlohmann::json{{"raw", qMessage.toStdString()}});
 }
 
 void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
@@ -239,8 +240,9 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
     auto& core = OneSevenLiveCoreManager::getInstance();
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
     const char* st = (m_connected && isLive) ? "connected" : "break";
-    core.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventTwitchChatConnected),
-                                     nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
+    core.enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventTwitchChatConnected),
+        nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
 
     QString channelToJoin = m_targetChannel.isEmpty() ? m_username : m_targetChannel;
     if (!channelToJoin.isEmpty()) {
@@ -491,7 +493,8 @@ void OneSevenLiveTwitchChatClient::resetReconnectAttempts() {
 void OneSevenLiveTwitchChatClient::onStatusTimer() {
     OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
         QString::fromUtf8(ws::EventTwitchChatConnected),
-        nlohmann::json{{"username", m_username.toStdString()}, {"status", m_connected ? "connected" : "break"}});
+        nlohmann::json{{"username", m_username.toStdString()},
+                       {"status", m_connected ? "connected" : "break"}});
 
     if (m_connected) {
         QDateTime now = QDateTime::currentDateTime();

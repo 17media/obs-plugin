@@ -8,8 +8,8 @@
 #include <utility>
 
 #include "OneSevenLivePropertyWidget.hpp"
-#include "utility/Common.hpp"
 #include "plugin-support.h"
+#include "utility/Common.hpp"
 
 OneSevenLivePropertiesWidget::OneSevenLivePropertiesWidget(QWidget *parent, obs_data_t *settings,
                                                            obs_properties_t *props)

@@ -231,9 +231,12 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
     connect(this, &QObject::destroyed, thread, &QThread::quit);
     connect(thread, &QThread::started, worker, [this, worker, thread, roomID, userID]() {
         if (!apiWrapper) {
-            QMetaObject::invokeMethod(this, [this]() {
-                obs_log(LOG_ERROR, "[RockZone] apiWrapper unavailable, abort refresh");
-            }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this,
+                [this]() {
+                    obs_log(LOG_ERROR, "[RockZone] apiWrapper unavailable, abort refresh");
+                },
+                Qt::QueuedConnection);
             thread->quit();
             worker->deleteLater();
             return;

@@ -2,18 +2,18 @@
 
 #include <QObject>
 #include <QPointer>
+#include <atomic>
+#include <deque>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <unordered_map>
-#include <atomic>
-#include <optional>
 
 #include "api/OneSevenLiveModels.hpp"
 #include "utility/NetworkDiagnostics.hpp"
-#include <nlohmann/json.hpp>
-#include <deque>
 #include "websocket/WsMessage.hpp"
 
 // Forward declarations for auth handlers

@@ -3,10 +3,10 @@
 #include <obs-module.h>
 
 #include <QDockWidget>
-#include <QPointer>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPointer>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QShowEvent>

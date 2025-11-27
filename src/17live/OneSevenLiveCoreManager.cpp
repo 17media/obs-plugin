@@ -6,13 +6,13 @@
 #include <QApplication>
 #include <QDesktopServices>
 #include <QDockWidget>
-#include <QMetaObject>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QMessageBox>
+#include <QMetaObject>
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
@@ -28,6 +28,8 @@
 #include "OneSevenLiveMenuManager.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
+#include "chat/OneSevenLiveChatMessageHandler.hpp"
+#include "chat/OneSevenLiveChatRelayWidget.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "plugin-support.h"
@@ -38,8 +40,6 @@
 #include "streamlist/OneSevenLiveStreamListDock.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "utility/Common.hpp"
-#include "chat/OneSevenLiveChatMessageHandler.hpp"
-#include "chat/OneSevenLiveChatRelayWidget.hpp"
 #include "utility/Meta.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WsMessage.hpp"
@@ -402,13 +402,14 @@ void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId
         const std::string roomID = m.payloadString("roomID");
         const std::string data = m.payloadString("data");
         if (roomID.empty() || data.empty()) {
-            obs_log(LOG_WARNING, "[17Live WebSocket Server] Missing roomID or data in Ably message");
+            obs_log(LOG_WARNING,
+                    "[17Live WebSocket Server] Missing roomID or data in Ably message");
             return;
         }
         // Process Ably chat message via unified handler
         {
             nlohmann::json wrapper;
-            wrapper["messages"] = nlohmann::json::array({ nlohmann::json{{"data", data}} });
+            wrapper["messages"] = nlohmann::json::array({nlohmann::json{{"data", data}}});
             OneSevenLiveChatMessageHandler handler;
             handler.handleRaw(wrapper.dump());
         }
@@ -517,7 +518,9 @@ OneSevenLiveWebsocketServer* OneSevenLiveCoreManager::getWebsocketServer() const
     return websocketServer_.get();
 }
 
-OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const { return httpServer_.get(); }
+OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const {
+    return httpServer_.get();
+}
 
 OneSevenLiveTwitchAuth* OneSevenLiveCoreManager::getTwitchAuth() const {
     return twitchAuth.get();
@@ -713,7 +716,6 @@ void OneSevenLiveCoreManager::destroyAblyChatClient() {
     }
 }
 
-
 void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QString& token) {
     createAblyChatClient();
     if (!ablyChatClient)
@@ -748,8 +750,7 @@ void OneSevenLiveCoreManager::enqueueOrBroadcastChatEvent(const QString& type,
 
     auto* ws = getWebsocketServer();
     if (ws && ws->is_running() && !chatDockClientId.empty()) {
-        obs_log(LOG_DEBUG, "Sending chat event to chat dock client %s",
-                    chatDockClientId.c_str());
+        obs_log(LOG_DEBUG, "Sending chat event to chat dock client %s", chatDockClientId.c_str());
         auto ids = ws->getConnectedClientIds();
         if (std::find(ids.begin(), ids.end(), chatDockClientId) != ids.end()) {
             ws->sendMessageToClient(chatDockClientId,
@@ -876,9 +877,9 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
         obs_log(LOG_ERROR, "Failed to save login data");
         return;
     }
-    QMetaObject::invokeMethod(this, [this, loginData]() {
-        handleLoginStateChanged(true, loginData);
-    }, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        this, [this, loginData]() { handleLoginStateChanged(true, loginData); },
+        Qt::QueuedConnection);
 }
 
 void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn,
@@ -933,11 +934,14 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
         if (!chatRelayWidget)
             chatRelayWidget = new OneSevenLiveChatRelayWidget(mainWindow);
         qint64 rid = 0;
-        if (streamManager) rid = streamManager->getRoomID();
+        if (streamManager)
+            rid = streamManager->getRoomID();
         int httpPort = 0;
-        if (ablyHttpServer_) httpPort = ablyHttpServer_->getPort();
+        if (ablyHttpServer_)
+            httpPort = ablyHttpServer_->getPort();
         int wsPort = 0;
-        if (websocketServer_) wsPort = websocketServer_->getPort();
+        if (websocketServer_)
+            wsPort = websocketServer_->getPort();
         if (rid > 0 && httpPort > 0 && wsPort > 0)
             chatRelayWidget->startRelay(QString::number(rid), httpPort, wsPort);
     });
@@ -962,8 +966,8 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     //                         (long long) rid, masked.toUtf8().constData());
     //             } else {
     //                 obs_log(LOG_WARNING,
-    //                         "[17Live Core] Ably token response missing 'token' field for room %lld",
-    //                         (long long) rid);
+    //                         "[17Live Core] Ably token response missing 'token' field for room
+    //                         %lld", (long long) rid);
     //             }
     //         } else {
     //             obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld",
@@ -1127,18 +1131,30 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
         auto* msgBox = new QMessageBox(mainWindow);
         msgBox->setWindowTitle(obs_module_text("Logout.Warning.Title"));
         msgBox->setText(obs_module_text("Logout.Warning.Message"));
-        QPushButton* confirmButton = msgBox->addButton(obs_module_text("Logout.Warning.Button.Yes"), QMessageBox::YesRole);
-        QPushButton* cancelButton = msgBox->addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
+        QPushButton* confirmButton =
+            msgBox->addButton(obs_module_text("Logout.Warning.Button.Yes"), QMessageBox::YesRole);
+        QPushButton* cancelButton =
+            msgBox->addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
         msgBox->setDefaultButton(cancelButton);
         connect(msgBox, &QMessageBox::finished, this, [this, msgBox, confirmButton](int) {
-            if (msgBox->clickedButton() != confirmButton) { msgBox->deleteLater(); return; }
-            QMetaObject::invokeMethod(this, [this]() { closeLive(false); handleLoginStateChanged(false); }, Qt::QueuedConnection);
+            if (msgBox->clickedButton() != confirmButton) {
+                msgBox->deleteLater();
+                return;
+            }
+            QMetaObject::invokeMethod(
+                this,
+                [this]() {
+                    closeLive(false);
+                    handleLoginStateChanged(false);
+                },
+                Qt::QueuedConnection);
             msgBox->deleteLater();
         });
         msgBox->open();
         return;
     }
-    QMetaObject::invokeMethod(this, [this]() { handleLoginStateChanged(false); }, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        this, [this]() { handleLoginStateChanged(false); }, Qt::QueuedConnection);
 }
 
 void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
@@ -1240,45 +1256,62 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                     if (!streamCheckTimer) {
                         streamCheckTimer = new QTimer(this);
                         connect(streamCheckTimer, &QTimer::timeout, this, [this]() {
-                            if (streamCheckInFlight.load()) return;
+                            if (streamCheckInFlight.load())
+                                return;
                             std::string liveStreamID;
-                            if (!configManager->getConfigValue("LiveStreamID", liveStreamID)) return;
+                            if (!configManager->getConfigValue("LiveStreamID", liveStreamID))
+                                return;
                             streamCheckInFlight.store(true);
                             std::thread([this, liveStreamID]() {
                                 bool ok = false;
-                                try { ok = apiWrapper->CheckStream(liveStreamID); } catch (...) { ok = false; }
-                                QMetaObject::invokeMethod(this, [this, ok]() {
-                                    if (!ok) {
-                                        consecutiveFailureCount++;
-                                        obs_log(LOG_WARNING,
+                                try {
+                                    ok = apiWrapper->CheckStream(liveStreamID);
+                                } catch (...) {
+                                    ok = false;
+                                }
+                                QMetaObject::invokeMethod(
+                                    this,
+                                    [this, ok]() {
+                                        if (!ok) {
+                                            consecutiveFailureCount++;
+                                            obs_log(
+                                                LOG_WARNING,
                                                 "Stream check failed. Consecutive failures: %d/%d",
                                                 consecutiveFailureCount, MAX_CONSECUTIVE_FAILURES);
-                                        if (consecutiveFailureCount >= MAX_CONSECUTIVE_FAILURES) {
-                                            obs_log(LOG_ERROR,
-                                                    "Stream check failed %d times consecutively. Showing auto-close confirmation.",
+                                            if (consecutiveFailureCount >=
+                                                MAX_CONSECUTIVE_FAILURES) {
+                                                obs_log(
+                                                    LOG_ERROR,
+                                                    "Stream check failed %d times consecutively. "
+                                                    "Showing auto-close confirmation.",
                                                     MAX_CONSECUTIVE_FAILURES);
-                                            QString message = QString(obs_module_text("Live.Settings.CloseLive.Auto.Message"))
-                                                              .arg(MAX_CONSECUTIVE_FAILURES);
-                                            if (showAutoCloseConfirmation(message)) {
-                                                closeLive(true);
-                                                if (streamCheckTimer) {
-                                                    streamCheckTimer->stop();
-                                                    streamCheckTimer->deleteLater();
-                                                    streamCheckTimer = nullptr;
+                                                QString message =
+                                                    QString(
+                                                        obs_module_text(
+                                                            "Live.Settings.CloseLive.Auto.Message"))
+                                                        .arg(MAX_CONSECUTIVE_FAILURES);
+                                                if (showAutoCloseConfirmation(message)) {
+                                                    closeLive(true);
+                                                    if (streamCheckTimer) {
+                                                        streamCheckTimer->stop();
+                                                        streamCheckTimer->deleteLater();
+                                                        streamCheckTimer = nullptr;
+                                                    }
                                                 }
+                                                consecutiveFailureCount = 0;
                                             }
-                                            consecutiveFailureCount = 0;
+                                        } else {
+                                            if (consecutiveFailureCount > 0) {
+                                                obs_log(LOG_INFO,
+                                                        "Stream check succeeded. Resetting failure "
+                                                        "count from %d to 0.",
+                                                        consecutiveFailureCount);
+                                                consecutiveFailureCount = 0;
+                                            }
                                         }
-                                    } else {
-                                        if (consecutiveFailureCount > 0) {
-                                            obs_log(LOG_INFO,
-                                                    "Stream check succeeded. Resetting failure count from %d to 0.",
-                                                    consecutiveFailureCount);
-                                            consecutiveFailureCount = 0;
-                                        }
-                                    }
-                                    streamCheckInFlight.store(false);
-                                }, Qt::QueuedConnection);
+                                        streamCheckInFlight.store(false);
+                                    },
+                                    Qt::QueuedConnection);
                             }).detach();
                         });
                     }
@@ -1547,7 +1580,8 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
                                               multiRtmpDock && multiRtmpDock->isVisible(),
                                               previewDock && previewDock->isVisible());
             chatDockVisible = visible;
-            if (visible) flushChatEventQueue();
+            if (visible)
+                flushChatEventQueue();
         });
     } else {
         if (chatDock->isVisible()) {
@@ -1592,17 +1626,20 @@ void OneSevenLiveCoreManager::loadGifts() {
         } catch (...) {
             ok = false;
         }
-        QMetaObject::invokeMethod(this, [this, ok, apiResult]() {
-            if (!ok) {
-                obs_log(LOG_WARNING, "Failed to load gifts from API");
-                return;
-            }
-            configManager->saveGifts(apiResult);
-            buildGiftsMapFromJson(apiResult);
-            if (chatDock && chatDock->isVisible()) {
-                chatDock->reload();
-            }
-        }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            this,
+            [this, ok, apiResult]() {
+                if (!ok) {
+                    obs_log(LOG_WARNING, "Failed to load gifts from API");
+                    return;
+                }
+                configManager->saveGifts(apiResult);
+                buildGiftsMapFromJson(apiResult);
+                if (chatDock && chatDock->isVisible()) {
+                    chatDock->reload();
+                }
+            },
+            Qt::QueuedConnection);
     });
     giftLoadThread.detach();
 }
@@ -1637,7 +1674,8 @@ void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJ
     obs_log(LOG_INFO, "Gifts map built with %d entries", giftsMap.size());
 }
 
-std::optional<nlohmann::json> OneSevenLiveCoreManager::getGiftByID(const std::string& giftID) const {
+std::optional<nlohmann::json> OneSevenLiveCoreManager::getGiftByID(
+    const std::string& giftID) const {
     auto it = giftsMap.find(giftID);
     if (it != giftsMap.end())
         return it->second;
@@ -1826,5 +1864,11 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         previewDockFirstLoad = false;
     }
 }
-void OneSevenLiveCoreManager::setShuttingDown(bool v) { shuttingDown = v; }
-bool OneSevenLiveCoreManager::isShuttingDown() const { return shuttingDown; }
+
+void OneSevenLiveCoreManager::setShuttingDown(bool v) {
+    shuttingDown = v;
+}
+
+bool OneSevenLiveCoreManager::isShuttingDown() const {
+    return shuttingDown;
+}

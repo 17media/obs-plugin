@@ -320,7 +320,8 @@ OneSevenLiveMultiRtmpStreamStatus OneSevenLiveMultiRtmpManager::getStreamStatusB
     const std::string& streamName) const {
     OneSevenLiveMultiRtmpStreamStatus status;
     status.state = OneSevenLiveMultiRtmpStreamStatus::STOPPED;
-    if (!m_initialized || !m_streamController || !m_configManager) return status;
+    if (!m_initialized || !m_streamController || !m_configManager)
+        return status;
     auto configs = m_configManager->getStreamConfigs();
     for (const auto& cfg : configs) {
         if (cfg.streamName == streamName) {

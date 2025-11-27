@@ -9,15 +9,15 @@
 #include <QThread>
 #include <QTimer>
 
+#include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "api/OneSevenLiveModels.hpp"
 #include "moc_OneSevenLiveStreamManager.cpp"
 #include "plugin-support.h"
-#include "../OneSevenLiveCoreManager.hpp"
+#include "utility/Common.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
-#include "utility/Common.hpp"
 
 OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* apiWrapper,
                                                      OneSevenLiveConfigManager* configManager,
@@ -376,7 +376,8 @@ void OneSevenLiveStreamManager::saveWhipStreamingSettings(const std::string& liv
     obs_data_set_string(settings.get(), "bearer_token", whipToken.c_str());
 
     // Get or create WHIP service
-    obs_service_t* service = obs_service_create("whip_custom", "whip_service", settings.get(), NULL);
+    obs_service_t* service =
+        obs_service_create("whip_custom", "whip_service", settings.get(), NULL);
     if (!service) {
         obs_log(LOG_ERROR, "Failed to create WHIP service");
         settings.reset();

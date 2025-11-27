@@ -10,6 +10,7 @@
 #include <string>
 
 class OneSevenLiveWebsocketClient;
+
 namespace ably {}
 class OneSevenLiveStreamManager;
 enum class OneSevenLiveStreamingStatus;

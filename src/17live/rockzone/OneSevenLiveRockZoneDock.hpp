@@ -5,11 +5,11 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QMutex>
 #include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTimer>
-#include <QMutex>
 
 #include "api/OneSevenLiveModels.hpp"
 

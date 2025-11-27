@@ -1005,7 +1005,8 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
     // Clear existing gift buttons for this tab
     QLayoutItem* item;
     while ((item = giftsLayout->takeAt(0)) != nullptr) {
-        if (item->widget()) item->widget()->deleteLater();
+        if (item->widget())
+            item->widget()->deleteLater();
         delete item;
     }
 

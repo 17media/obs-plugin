@@ -8,6 +8,7 @@
 #endif
 #include <graphics/graphics.h>
 
+#include <QFont>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -17,7 +18,6 @@
 #include <QScreen>
 #include <QTimer>
 #include <QWindow>
-#include <QFont>
 #include <cmath>
 
 #include "moc_OneSevenLivePreviewWidget.cpp"
@@ -145,7 +145,8 @@ void OneSevenLivePreviewWidget::createDisplay() {
 
         obs_display_add_draw_callback(previewDisplay, drawCallback, this);
 
-        if (initPlaceholder) initPlaceholder->hide();
+        if (initPlaceholder)
+            initPlaceholder->hide();
     }
 }
 
@@ -157,7 +158,8 @@ void OneSevenLivePreviewWidget::destroyDisplay() {
     }
     display_created = false;
 
-    if (initPlaceholder) initPlaceholder->show();
+    if (initPlaceholder)
+        initPlaceholder->show();
 
     if (currentSource) {
         obs_source_release(currentSource);
@@ -361,7 +363,8 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
 
     updateNotificationBarPosition();
 
-    if (initPlaceholder) initPlaceholder->setGeometry(rect());
+    if (initPlaceholder)
+        initPlaceholder->setGeometry(rect());
 }
 
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
@@ -406,7 +409,8 @@ void OneSevenLivePreviewWidget::createNotificationBar() {
     alertIcon->setFixedSize(16, 16);
 
     // Create notification text
-    notificationText = new QLabel(QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), this);
+    notificationText =
+        new QLabel(QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), this);
     notificationText->setStyleSheet("color: white; font-size: 12px;");
 #ifdef _WIN32
     QFont barFont;
@@ -503,7 +507,8 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
     obs_data_set_bool(settings.get(), "reroute_audio", false);
 
     // Create browser source
-    browserSource = obs_source_create("browser_source", "LivePreviewOverlay", settings.get(), nullptr);
+    browserSource =
+        obs_source_create("browser_source", "LivePreviewOverlay", settings.get(), nullptr);
 
     if (browserSource) {
         // Get reference and activate source

@@ -4,8 +4,8 @@
 #include <QString>
 #include <atomic>
 #include <functional>
-#include <thread>
 #include <memory>
+#include <thread>
 
 struct TLSHandles;
 

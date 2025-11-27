@@ -19,12 +19,12 @@
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
 #include "moc_OneSevenLiveMultiRtmpConfigDialog.cpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "ui/OneSevenLiveAuthDialog.hpp"
 #include "ui/OneSevenLivePropertiesWidget.hpp"
 #include "utility/Common.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
-#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
     QWidget* parent, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config, bool isEditMode)
@@ -213,8 +213,10 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
         for (const auto& cfg : configs) {
             // log stream name
             obs_log(LOG_INFO, "Stream name: %s", cfg.streamName.c_str());
-            if (cfg.streamName == "YouTube") hasYouTube = true;
-            else if (cfg.streamName == "Twitch") hasTwitch = true;
+            if (cfg.streamName == "YouTube")
+                hasYouTube = true;
+            else if (cfg.streamName == "Twitch")
+                hasTwitch = true;
         }
     }
     obs_log(LOG_INFO, "isEditMode: %s", m_isEditMode ? "true" : "false");
@@ -224,8 +226,10 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
         m_streamNameCombo->addItem(QString::fromStdString(m_config->streamName));
         m_streamNameCombo->setEnabled(false);
     } else {
-        if (!hasYouTube) m_streamNameCombo->addItem("YouTube");
-        if (!hasTwitch) m_streamNameCombo->addItem("Twitch");
+        if (!hasYouTube)
+            m_streamNameCombo->addItem("YouTube");
+        if (!hasTwitch)
+            m_streamNameCombo->addItem("Twitch");
     }
     m_streamNameCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_basicInfoLayout->addRow(streamNameLabel, m_streamNameCombo);
@@ -462,7 +466,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
         const char* svc = (text == "YouTube") ? "YouTube - RTMPS" : "Twitch";
         ObsDataPtr s{obs_data_create()};
         obs_data_set_string(s.get(), "service", svc);
-        obs_service_t* tmp = obs_service_create("rtmp_common", "temp_service_refresh", s.get(), nullptr);
+        obs_service_t* tmp =
+            obs_service_create("rtmp_common", "temp_service_refresh", s.get(), nullptr);
         s.reset();
         if (tmp) {
             obs_data_t* st = obs_service_get_settings(tmp);
@@ -470,8 +475,10 @@ void OneSevenLiveMultiRtmpConfigDialog::setupConnections() {
             if (st && pr && m_serviceWidget) {
                 m_serviceWidget->UpdateProperties(st, pr);
             } else {
-                if (pr) obs_properties_destroy(pr);
-                if (st) obs_data_release(st);
+                if (pr)
+                    obs_properties_destroy(pr);
+                if (st)
+                    obs_data_release(st);
             }
             obs_service_release(tmp);
         }
@@ -699,11 +706,12 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
     {
         ObsDataPtr service_settings{nullptr};
         if (!m_config->serviceSettings.empty()) {
-            service_settings.reset(obs_data_create_from_json(m_config->serviceSettings.dump().c_str()));
+            service_settings.reset(
+                obs_data_create_from_json(m_config->serviceSettings.dump().c_str()));
         }
 
-        obs_service_t* service =
-            obs_service_create(protocol_info->serviceId, "temp_service", service_settings.get(), nullptr);
+        obs_service_t* service = obs_service_create(protocol_info->serviceId, "temp_service",
+                                                    service_settings.get(), nullptr);
         if (!service) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create OBS service with ID: %s",
                     protocol_info->serviceId);
@@ -741,11 +749,12 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
     {
         ObsDataPtr output_settings{nullptr};
         if (!m_config->outputSettings.empty()) {
-            output_settings.reset(obs_data_create_from_json(m_config->outputSettings.dump().c_str()));
+            output_settings.reset(
+                obs_data_create_from_json(m_config->outputSettings.dump().c_str()));
         }
 
-        obs_output_t* output =
-            obs_output_create(protocol_info->outputId, "temp_output", output_settings.get(), nullptr);
+        obs_output_t* output = obs_output_create(protocol_info->outputId, "temp_output",
+                                                 output_settings.get(), nullptr);
         if (!output) {
             obs_log(LOG_ERROR, "[loadConfig] Failed to create OBS output with ID: %s",
                     protocol_info->outputId);
@@ -803,8 +812,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
 
         if (!m_config->videoConfig->encoderSettings.empty()) {
             ObsDataPtr encoder_settings{
-                obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str())
-            };
+                obs_data_create_from_json(m_config->videoConfig->encoderSettings.dump().c_str())};
 
             obs_encoder_t* encoder =
                 obs_video_encoder_create(m_config->videoConfig->encoderId.c_str(),
@@ -891,8 +899,7 @@ void OneSevenLiveMultiRtmpConfigDialog::loadConfig() {
 
         if (!m_config->audioConfig->encoderSettings.empty()) {
             ObsDataPtr encoder_settings{
-                obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str())
-            };
+                obs_data_create_from_json(m_config->audioConfig->encoderSettings.dump().c_str())};
 
             obs_encoder_t* encoder =
                 obs_audio_encoder_create(m_config->audioConfig->encoderId.c_str(),
@@ -1253,7 +1260,8 @@ void OneSevenLiveMultiRtmpConfigDialog::loadEncoders() {
         const char* svcName = (channelSel == "YouTube") ? "YouTube - RTMPS" : "Twitch";
         ObsDataPtr s{obs_data_create()};
         obs_data_set_string(s.get(), "service", svcName);
-        obs_service_t* tmp = obs_service_create("rtmp_common", "temp_codec_service_v", s.get(), nullptr);
+        obs_service_t* tmp =
+            obs_service_create("rtmp_common", "temp_codec_service_v", s.get(), nullptr);
         s.reset();
         std::set<std::string> vset;
         const char** vcodecs = nullptr;

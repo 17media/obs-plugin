@@ -58,6 +58,6 @@ void* __cdecl __imp_realloc(void* memblock, size_t size) {
     return realloc(memblock, size);
 }
 
-} // extern "C"
+}  // extern "C"
 
-#endif // _WIN32
+#endif  // _WIN32

@@ -10,13 +10,13 @@
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveYouTubeClient.hpp"
+#include "api/OneSevenLiveModels.hpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "plugin-support.h"
 #include "utility/RemoteTextThread.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
-#include "api/OneSevenLiveModels.hpp"
-#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL =
     "https://www.googleapis.com/youtube/v3";
@@ -356,14 +356,16 @@ void OneSevenLiveYouTubeChatClient::onBroadcastsReceived(
     if (discovered.isEmpty()) {
         if (!isPolling()) {
             OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-                QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "break"}});
+                QString::fromUtf8(ws::EventYouTubeChatConnected),
+                nlohmann::json{{"status", "break"}});
         }
         return;
     }
     if (!m_liveChatId.isEmpty() && discovered == m_liveChatId) {
         if (!isPolling()) {
             OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-                QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "break"}});
+                QString::fromUtf8(ws::EventYouTubeChatConnected),
+                nlohmann::json{{"status", "break"}});
         }
         return;
     }

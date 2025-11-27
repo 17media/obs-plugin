@@ -7,17 +7,17 @@
 #endif
 
 namespace seventeen {
-namespace diag {
+    namespace diag {
 
-std::unique_ptr<IDiagnosticsCollector> createDiagnosticsCollector() {
+        std::unique_ptr<IDiagnosticsCollector> createDiagnosticsCollector() {
 #ifdef __APPLE__
-    return std::make_unique<DiagnosticsCollectorMacOS>();
+            return std::make_unique<DiagnosticsCollectorMacOS>();
 #elif defined(_WIN32)
-    return std::make_unique<DiagnosticsCollectorWindows>();
+            return std::make_unique<DiagnosticsCollectorWindows>();
 #else
-    return nullptr;
+            return nullptr;
 #endif
-}
+        }
 
-} // namespace diag
-} // namespace seventeen
+    }  // namespace diag
+}  // namespace seventeen

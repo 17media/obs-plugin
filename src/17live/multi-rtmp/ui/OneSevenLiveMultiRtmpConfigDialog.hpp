@@ -40,7 +40,8 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
 
    public:
     explicit OneSevenLiveMultiRtmpConfigDialog(
-        QWidget* parent = nullptr, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config = nullptr, bool isEditMode = false);
+        QWidget* parent = nullptr, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config = nullptr,
+        bool isEditMode = false);
     ~OneSevenLiveMultiRtmpConfigDialog();
 
     // Dialog modes

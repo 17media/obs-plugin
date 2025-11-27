@@ -5,10 +5,10 @@
 #include <util/config-file.h>
 
 #include <QEventLoop>
+#include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QTimer>
-#include <QPointer>
-#include <QObject>
 #include <chrono>
 #include <thread>
 
@@ -535,8 +535,9 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
             // Determine the video encoder ID to use
             const char* videoEncoderId = getObsDefaultVideoEncoderId();
 
-            streamOutput->videoEncoder = obs_video_encoder_create(
-                videoEncoderId, getVideoEncoderName(streamId).c_str(), videoSettings.get(), nullptr);
+            streamOutput->videoEncoder =
+                obs_video_encoder_create(videoEncoderId, getVideoEncoderName(streamId).c_str(),
+                                         videoSettings.get(), nullptr);
             videoSettings.reset();
 
             if (!streamOutput->videoEncoder) {
@@ -591,8 +592,9 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
             // Determine the audio encoder ID to use
             const char* audioEncoderId = AUDIO_ENCODER_ID;
 
-            streamOutput->audioEncoder = obs_audio_encoder_create(
-                audioEncoderId, getAudioEncoderName(streamId).c_str(), audioSettings.get(), 0, nullptr);
+            streamOutput->audioEncoder =
+                obs_audio_encoder_create(audioEncoderId, getAudioEncoderName(streamId).c_str(),
+                                         audioSettings.get(), 0, nullptr);
             audioSettings.reset();
 
             if (!streamOutput->audioEncoder) {
@@ -676,8 +678,8 @@ bool OneSevenLiveMultiRtmpStreamController::setupOutput(const std::string& strea
         return false;
     }
 
-    streamOutput->output =
-        obs_output_create(OUTPUT_ID, getOutputName(streamId).c_str(), outputSettings.get(), nullptr);
+    streamOutput->output = obs_output_create(OUTPUT_ID, getOutputName(streamId).c_str(),
+                                             outputSettings.get(), nullptr);
     outputSettings.reset();
 
     if (!streamOutput->output) {
@@ -1119,12 +1121,12 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
             });
 
             auto userConnPtr = std::make_shared<QMetaObject::Connection>();
-            *userConnPtr = QObject::connect(
-                client, &OneSevenLiveTwitchClient::userInfoReceived,
-                [client, userConnPtr](const TwitchUserInfo& user) {
-                    if (client) client->getStreamKey(user.id);
-                    QObject::disconnect(*userConnPtr);
-                });
+            *userConnPtr = QObject::connect(client, &OneSevenLiveTwitchClient::userInfoReceived,
+                                            [client, userConnPtr](const TwitchUserInfo& user) {
+                                                if (client)
+                                                    client->getStreamKey(user.id);
+                                                QObject::disconnect(*userConnPtr);
+                                            });
 
             auto keyConnPtr = std::make_shared<QMetaObject::Connection>();
             *keyConnPtr = QObject::connect(
@@ -1183,7 +1185,7 @@ void OneSevenLiveMultiRtmpStreamController::finalizeServiceSetupAfterResolve(
     if (!settings)
         settings.reset(obs_data_create());
     if (platform == "YouTube") {
-    obs_data_set_string(settings.get(), "service", "YouTube - RTMPS");
+        obs_data_set_string(settings.get(), "service", "YouTube - RTMPS");
     } else if (platform == "Twitch") {
         obs_data_set_string(settings.get(), "service", "Twitch");
     }
@@ -1333,4 +1335,5 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::getObsDefaultAudioEncoderSett
     MULTI_RTMP_STREAM_LOG_DEBUG("Using fallback audio encoder settings");
     return settings;
 }
+
 #include "utility/Common.hpp"

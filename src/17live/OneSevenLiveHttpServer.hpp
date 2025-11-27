@@ -3,26 +3,26 @@
 
 #include <chrono>
 #include <filesystem>
-#include <memory>
 #include <functional>
-#include <vector>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 #include "../../deps/cpp-httplib/httplib.h"
 
 class OneSevenLiveHttpServer {
    public:
-   OneSevenLiveHttpServer(const std::string& host, int port = 0,
-                          const std::string& base_dir_relative_to_module_data = "html");
-   ~OneSevenLiveHttpServer();
+    OneSevenLiveHttpServer(const std::string& host, int port = 0,
+                           const std::string& base_dir_relative_to_module_data = "html");
+    ~OneSevenLiveHttpServer();
 
-   bool start();
-   void stop();
-   bool is_running() const;
-   int getPort() const;
+    bool start();
+    void stop();
+    bool is_running() const;
+    int getPort() const;
 
     void addGetHandler(const std::string& pattern,
                        std::function<void(const httplib::Request&, httplib::Response&)> handler);
@@ -45,11 +45,15 @@ class OneSevenLiveHttpServer {
     std::string host_;
     int port_ = 0;  // Default to 0, meaning find an available port
     std::string base_dir_;
-   std::unique_ptr<std::thread> server_thread_;
-   bool running_ = false;
+    std::unique_ptr<std::thread> server_thread_;
+    bool running_ = false;
 
-    std::vector<std::pair<std::string, std::function<void(const httplib::Request&, httplib::Response&)>>> extra_get_;
-    std::vector<std::pair<std::string, std::function<void(const httplib::Request&, httplib::Response&)>>> extra_post_;
+    std::vector<
+        std::pair<std::string, std::function<void(const httplib::Request&, httplib::Response&)>>>
+        extra_get_;
+    std::vector<
+        std::pair<std::string, std::function<void(const httplib::Request&, httplib::Response&)>>>
+        extra_post_;
     bool enable_default_api_ = true;
 
     // Security-related member variables

@@ -1,8 +1,11 @@
 #include "OneSevenLiveChatRelayWidget.hpp"
-#include <QUrl>
-#include "utility/QCefView.hpp"
+
 #include <obs-module.h>
+
+#include <QUrl>
+
 #include "plugin-support.h"
+#include "utility/QCefView.hpp"
 
 OneSevenLiveChatRelayWidget::OneSevenLiveChatRelayWidget(QWidget* parent) : QWidget(parent) {
     setObjectName("OneSevenLiveChatRelayWidget");
@@ -16,7 +19,8 @@ OneSevenLiveChatRelayWidget::OneSevenLiveChatRelayWidget(QWidget* parent) : QWid
 OneSevenLiveChatRelayWidget::~OneSevenLiveChatRelayWidget() {}
 
 void OneSevenLiveChatRelayWidget::startRelay(const QString& roomID, int httpPort, int wsPort) {
-    if (roomID.isEmpty() || httpPort <= 0 || wsPort <= 0) return;
+    if (roomID.isEmpty() || httpPort <= 0 || wsPort <= 0)
+        return;
     const QString wsRaw = QString("ws://127.0.0.1:%1").arg(wsPort);
     const QString wsParam = QString::fromUtf8(QUrl::toPercentEncoding(wsRaw));
     const QString url = QString("http://localhost:%1/?roomID=%2&ws=%3")

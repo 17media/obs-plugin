@@ -457,7 +457,8 @@ void OneSevenLiveWebsocketServer::onClose(websocketpp::connection_hdl hdl) {
         if (it != hdl_to_client_id_.end()) {
             clientId = it->second;
 
-            obs_log(LOG_DEBUG, "[17Live WebSocket Server] Client %s disconnected", clientId.c_str());
+            obs_log(LOG_DEBUG, "[17Live WebSocket Server] Client %s disconnected",
+                    clientId.c_str());
 
             // Remove client from connections
             clients_.erase(clientId);

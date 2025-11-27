@@ -258,13 +258,20 @@ bool OneSevenLiveHttpServer::start() {
     });
 
     for (const auto& p : extra_get_) {
-        svr_.Get(p.first.c_str(), [this, handler = p.second](const httplib::Request& req, httplib::Response& res) {
-            std::string client_ip = req.get_header_value("X-Forwarded-For");
-            if (client_ip.empty()) client_ip = req.get_header_value("X-Real-IP");
-            if (client_ip.empty()) client_ip = "127.0.0.1";
-            if (!check_rate_limit(client_ip)) { res.status = 429; res.set_content("Too Many Requests", "text/plain"); return; }
-            handler(req, res);
-        });
+        svr_.Get(p.first.c_str(),
+                 [this, handler = p.second](const httplib::Request& req, httplib::Response& res) {
+                     std::string client_ip = req.get_header_value("X-Forwarded-For");
+                     if (client_ip.empty())
+                         client_ip = req.get_header_value("X-Real-IP");
+                     if (client_ip.empty())
+                         client_ip = "127.0.0.1";
+                     if (!check_rate_limit(client_ip)) {
+                         res.status = 429;
+                         res.set_content("Too Many Requests", "text/plain");
+                         return;
+                     }
+                     handler(req, res);
+                 });
     }
 
     svr_.Get("/ping", [this](const httplib::Request& req, httplib::Response& res) {
@@ -314,155 +321,170 @@ bool OneSevenLiveHttpServer::start() {
     });
 
     if (enable_default_api_) {
-    svr_.Post("/lapi", [this](const httplib::Request& req, httplib::Response& res) {
-        // Security check: get client IP
-        std::string client_ip = req.get_header_value("X-Forwarded-For");
-        if (client_ip.empty()) {
-            client_ip = req.get_header_value("X-Real-IP");
-        }
-        if (client_ip.empty()) {
-            client_ip = "127.0.0.1";  // local request
-        }
+        svr_.Post("/lapi", [this](const httplib::Request& req, httplib::Response& res) {
+            // Security check: get client IP
+            std::string client_ip = req.get_header_value("X-Forwarded-For");
+            if (client_ip.empty()) {
+                client_ip = req.get_header_value("X-Real-IP");
+            }
+            if (client_ip.empty()) {
+                client_ip = "127.0.0.1";  // local request
+            }
 
-        // Security check: rate limiting
-        if (!check_rate_limit(client_ip)) {
-            res.status = 429;
-            res.set_header("Content-Type", "application/json");
-            const nlohmann::json errorResponse = {{"success", false},
-                                                  {"error", "Rate limit exceeded"}};
-            const std::string responseStr = errorResponse.dump();
-            res.set_content(responseStr, "application/json");
-            return;
-        }
-
-        // Security check: request size validation
-        if (!validate_request_size(req)) {
-            res.status = 413;  // Payload Too Large
-            res.set_header("Content-Type", "application/json");
-            const nlohmann::json errorResponse = {{"success", false},
-                                                  {"error", "Request too large"}};
-            const std::string responseStr = errorResponse.dump();
-            res.set_content(responseStr, "application/json");
-            return;
-        }
-
-        // obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi from %s",
-        // client_ip.c_str());
-
-        // Set response headers
-        res.set_header("Content-Type", "application/json");
-        res.set_header("X-Content-Type-Options", "nosniff");
-        res.set_header("X-Frame-Options", "DENY");
-        res.set_header("X-XSS-Protection", "1; mode=block");
-
-        // Get OneSevenLiveCoreManager instance
-        auto& coreManager = OneSevenLiveCoreManager::getInstance();
-
-        // Parse JSON data from request body
-        nlohmann::json requestJson;
-        try {
-            requestJson = nlohmann::json::parse(req.body);
-        } catch (const nlohmann::json::parse_error& e) {
-            // JSON parsing error - pre-build error message to avoid repeated string operations
-            const std::string errorMsg = "Invalid JSON: " + std::string(e.what());
-            const nlohmann::json errorResponse = {{"success", false}, {"error", errorMsg}};
-            const std::string responseStr = errorResponse.dump();
-            res.set_content(responseStr, "application/json");
-            return;
-        }
-
-        // Get requested action
-        if (!requestJson.contains("action") || !requestJson["action"].is_string()) {
-            // Missing action parameter
-            const nlohmann::json errorResponse = {{"success", false},
-                                                  {"error", "Missing 'action' parameter"}};
-            const std::string responseStr = errorResponse.dump();
-            res.set_content(responseStr, "application/json");
-            return;
-        }
-
-        const std::string action = requestJson["action"].get<std::string>();
-
-        // Call API and return result
-        nlohmann::json apiResult;
-        bool success = false;
-
-        try {
-            // Get apiWrapper instance
-            auto apiWrapper = coreManager.getApiWrapper();
-            auto configManager = coreManager.getConfigManager();
-
-            if (!apiWrapper) {
-                // API Wrapper not initialized
+            // Security check: rate limiting
+            if (!check_rate_limit(client_ip)) {
+                res.status = 429;
+                res.set_header("Content-Type", "application/json");
                 const nlohmann::json errorResponse = {{"success", false},
-                                                      {"error", "API not initialized"}};
+                                                      {"error", "Rate limit exceeded"}};
                 const std::string responseStr = errorResponse.dump();
                 res.set_content(responseStr, "application/json");
                 return;
             }
 
-            // Call corresponding API function based on action
-            if (action == ACTION_GETABLYTOKEN) {
-                std::string roomID;
-                configManager->getConfigValue("RoomID", roomID);
-                success = apiWrapper->GetAblyToken(roomID, apiResult);
-            } else if (action == ACTION_GETGIFTS) {
-                if (!configManager->loadGifts(apiResult)) {
-                    std::string language;
-                    configManager->getConfigValue("Region", language);
-                    success = apiWrapper->GetGifts(language, apiResult);
-                    configManager->saveGifts(apiResult);
+            // Security check: request size validation
+            if (!validate_request_size(req)) {
+                res.status = 413;  // Payload Too Large
+                res.set_header("Content-Type", "application/json");
+                const nlohmann::json errorResponse = {{"success", false},
+                                                      {"error", "Request too large"}};
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
+                return;
+            }
+
+            // obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi from %s",
+            // client_ip.c_str());
+
+            // Set response headers
+            res.set_header("Content-Type", "application/json");
+            res.set_header("X-Content-Type-Options", "nosniff");
+            res.set_header("X-Frame-Options", "DENY");
+            res.set_header("X-XSS-Protection", "1; mode=block");
+
+            // Get OneSevenLiveCoreManager instance
+            auto& coreManager = OneSevenLiveCoreManager::getInstance();
+
+            // Parse JSON data from request body
+            nlohmann::json requestJson;
+            try {
+                requestJson = nlohmann::json::parse(req.body);
+            } catch (const nlohmann::json::parse_error& e) {
+                // JSON parsing error - pre-build error message to avoid repeated string operations
+                const std::string errorMsg = "Invalid JSON: " + std::string(e.what());
+                const nlohmann::json errorResponse = {{"success", false}, {"error", errorMsg}};
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
+                return;
+            }
+
+            // Get requested action
+            if (!requestJson.contains("action") || !requestJson["action"].is_string()) {
+                // Missing action parameter
+                const nlohmann::json errorResponse = {{"success", false},
+                                                      {"error", "Missing 'action' parameter"}};
+                const std::string responseStr = errorResponse.dump();
+                res.set_content(responseStr, "application/json");
+                return;
+            }
+
+            const std::string action = requestJson["action"].get<std::string>();
+
+            // Call API and return result
+            nlohmann::json apiResult;
+            bool success = false;
+
+            try {
+                // Get apiWrapper instance
+                auto apiWrapper = coreManager.getApiWrapper();
+                auto configManager = coreManager.getConfigManager();
+
+                if (!apiWrapper) {
+                    // API Wrapper not initialized
+                    const nlohmann::json errorResponse = {{"success", false},
+                                                          {"error", "API not initialized"}};
+                    const std::string responseStr = errorResponse.dump();
+                    res.set_content(responseStr, "application/json");
+                    return;
+                }
+
+                // Call corresponding API function based on action
+                if (action == ACTION_GETABLYTOKEN) {
+                    std::string roomID;
+                    configManager->getConfigValue("RoomID", roomID);
+                    success = apiWrapper->GetAblyToken(roomID, apiResult);
+                } else if (action == ACTION_GETGIFTS) {
+                    if (!configManager->loadGifts(apiResult)) {
+                        std::string language;
+                        configManager->getConfigValue("Region", language);
+                        success = apiWrapper->GetGifts(language, apiResult);
+                        configManager->saveGifts(apiResult);
+                    } else {
+                        success = true;
+                    }
+                } else if (action == ACTION_GETROOMINFO) {
+                    OneSevenLiveLoginData loginData;
+                    configManager->getLoginData(loginData);
+
+                    OneSevenLiveRoomInfo roomInfo;
+                    success = apiWrapper->GetRoomInfo(loginData.userInfo.roomID, roomInfo);
+                    if (success) {
+                        OneSevenLiveRoomInfoToJson(roomInfo, apiResult);
+                    }
                 } else {
-                    success = true;
+                    // Unsupported action - pre-build error message
+                    const std::string errorMsg = "Unsupported action: " + action;
+                    const nlohmann::json errorResponse = {{"success", false}, {"error", errorMsg}};
+                    const std::string responseStr = errorResponse.dump();
+                    res.set_content(responseStr, "application/json");
+                    return;
                 }
-            } else if (action == ACTION_GETROOMINFO) {
-                OneSevenLiveLoginData loginData;
-                configManager->getLoginData(loginData);
 
-                OneSevenLiveRoomInfo roomInfo;
-                success = apiWrapper->GetRoomInfo(loginData.userInfo.roomID, roomInfo);
-                if (success) {
-                    OneSevenLiveRoomInfoToJson(roomInfo, apiResult);
+                if (!success) {
+                    // API call failed - pre-convert error message
+                    const std::string errorMsg = apiWrapper->getLastErrorMessage().toStdString();
+                    const nlohmann::json errorResponse = {{"success", false}, {"error", errorMsg}};
+                    const std::string responseStr = errorResponse.dump();
+                    res.set_content(responseStr, "application/json");
+                    return;
                 }
-            } else {
-                // Unsupported action - pre-build error message
-                const std::string errorMsg = "Unsupported action: " + action;
+
+                // Build response - cache dump result
+                const nlohmann::json response = apiResult;
+                const std::string responseStr = response.dump();
+                res.set_content(responseStr, "application/json");
+            } catch (const std::exception& e) {
+                // Handle exceptions - pre-build error message
+                const std::string errorMsg = std::string("Exception: ") + e.what();
                 const nlohmann::json errorResponse = {{"success", false}, {"error", errorMsg}};
                 const std::string responseStr = errorResponse.dump();
                 res.set_content(responseStr, "application/json");
-                return;
             }
-
-            if (!success) {
-                // API call failed - pre-convert error message
-                const std::string errorMsg = apiWrapper->getLastErrorMessage().toStdString();
-                const nlohmann::json errorResponse = {{"success", false}, {"error", errorMsg}};
-                const std::string responseStr = errorResponse.dump();
-                res.set_content(responseStr, "application/json");
-                return;
-            }
-
-            // Build response - cache dump result
-            const nlohmann::json response = apiResult;
-            const std::string responseStr = response.dump();
-            res.set_content(responseStr, "application/json");
-        } catch (const std::exception& e) {
-            // Handle exceptions - pre-build error message
-            const std::string errorMsg = std::string("Exception: ") + e.what();
-            const nlohmann::json errorResponse = {{"success", false}, {"error", errorMsg}};
-            const std::string responseStr = errorResponse.dump();
-            res.set_content(responseStr, "application/json");
-        }
-    });
+        });
     }
 
     for (const auto& p : extra_post_) {
-        svr_.Post(p.first.c_str(), [this, handler = p.second](const httplib::Request& req, httplib::Response& res) {
+        svr_.Post(p.first.c_str(), [this, handler = p.second](const httplib::Request& req,
+                                                              httplib::Response& res) {
             std::string client_ip = req.get_header_value("X-Forwarded-For");
-            if (client_ip.empty()) client_ip = req.get_header_value("X-Real-IP");
-            if (client_ip.empty()) client_ip = "127.0.0.1";
-            if (!check_rate_limit(client_ip)) { res.status = 429; res.set_header("Content-Type", "application/json"); const nlohmann::json err = {{"success", false},{"error","Rate limit exceeded"}}; res.set_content(err.dump(), "application/json"); return; }
-            if (!validate_request_size(req)) { res.status = 413; res.set_header("Content-Type", "application/json"); const nlohmann::json err = {{"success", false},{"error","Request too large"}}; res.set_content(err.dump(), "application/json"); return; }
+            if (client_ip.empty())
+                client_ip = req.get_header_value("X-Real-IP");
+            if (client_ip.empty())
+                client_ip = "127.0.0.1";
+            if (!check_rate_limit(client_ip)) {
+                res.status = 429;
+                res.set_header("Content-Type", "application/json");
+                const nlohmann::json err = {{"success", false}, {"error", "Rate limit exceeded"}};
+                res.set_content(err.dump(), "application/json");
+                return;
+            }
+            if (!validate_request_size(req)) {
+                res.status = 413;
+                res.set_header("Content-Type", "application/json");
+                const nlohmann::json err = {{"success", false}, {"error", "Request too large"}};
+                res.set_content(err.dump(), "application/json");
+                return;
+            }
             handler(req, res);
         });
     }
@@ -532,17 +554,21 @@ bool OneSevenLiveHttpServer::start() {
     return running_;
 }
 
-void OneSevenLiveHttpServer::addGetHandler(const std::string& pattern,
-                                           std::function<void(const httplib::Request&, httplib::Response&)> handler) {
+void OneSevenLiveHttpServer::addGetHandler(
+    const std::string& pattern,
+    std::function<void(const httplib::Request&, httplib::Response&)> handler) {
     extra_get_.push_back({pattern, std::move(handler)});
 }
 
-void OneSevenLiveHttpServer::addPostHandler(const std::string& pattern,
-                                            std::function<void(const httplib::Request&, httplib::Response&)> handler) {
+void OneSevenLiveHttpServer::addPostHandler(
+    const std::string& pattern,
+    std::function<void(const httplib::Request&, httplib::Response&)> handler) {
     extra_post_.push_back({pattern, std::move(handler)});
 }
 
-void OneSevenLiveHttpServer::setEnableDefaultApi(bool enable) { enable_default_api_ = enable; }
+void OneSevenLiveHttpServer::setEnableDefaultApi(bool enable) {
+    enable_default_api_ = enable;
+}
 
 void OneSevenLiveHttpServer::stop() {
     if (running_) {

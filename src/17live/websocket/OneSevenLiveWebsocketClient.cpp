@@ -30,6 +30,7 @@ struct TLSHandles {
         mbedtls_entropy_init(&entropy);
         mbedtls_x509_crt_init(&cacert);
     }
+
     ~TLSHandles() {
         mbedtls_ssl_close_notify(&ssl);
         mbedtls_ssl_free(&ssl);
@@ -135,8 +136,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         return;
     }
 
-    ret = mbedtls_ssl_config_defaults(&tls->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
-                                      MBEDTLS_SSL_PRESET_DEFAULT);
+    ret = mbedtls_ssl_config_defaults(&tls->conf, MBEDTLS_SSL_IS_CLIENT,
+                                      MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
     if (ret != 0) {
         if (onError)
             QMetaObject::invokeMethod(this, [this]() { onError("ssl_cfg"); }, Qt::QueuedConnection);

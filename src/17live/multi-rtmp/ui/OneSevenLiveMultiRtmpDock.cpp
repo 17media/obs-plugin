@@ -528,8 +528,10 @@ void OneSevenLiveMultiRtmpDock::updateButtonStates() {
     if (ensureManagerInitialized()) {
         auto configs = m_manager->getAllStreamConfigs();
         for (const auto& cfg : configs) {
-            if (cfg.streamName == "YouTube") hasYouTube = true;
-            else if (cfg.streamName == "Twitch") hasTwitch = true;
+            if (cfg.streamName == "YouTube")
+                hasYouTube = true;
+            else if (cfg.streamName == "Twitch")
+                hasTwitch = true;
         }
     }
     if (m_addStreamButton)

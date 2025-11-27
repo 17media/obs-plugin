@@ -1,6 +1,7 @@
 #include "OneSevenLiveAblyChatClient.hpp"
 
 #include <obs-module.h>
+#include <zlib.h>
 
 #include <QDateTime>
 #include <QMetaObject>
@@ -9,12 +10,11 @@
 #include <optional>
 
 #include "../OneSevenLiveCoreManager.hpp"
-#include "plugin-support.h"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
-#include <zlib.h>
+#include "plugin-support.h"
+#include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
-#include "websocket/OneSevenLiveWebsocketServer.hpp"
 
 OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
     : QObject(parent), m_wsClient(std::make_unique<OneSevenLiveWebsocketClient>()) {
@@ -105,7 +105,6 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
         } catch (...) {
         }
 
-
         OneSevenLiveChatMessageHandler handler;
         handler.handleRaw(msg);
         if (m_onMessage)
@@ -131,7 +130,8 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
             scheduleReconnect();
         }
         OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-            QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status", "break"}, {"error", err}});
+            QString::fromUtf8(ws::EventAblyChatConnected),
+            nlohmann::json{{"status", "break"}, {"error", err}});
     });
 }
 

@@ -361,7 +361,6 @@ void OneSevenLiveLoginDialog::handleLogin() {
     // obs_log(LOG_INFO, "displayName: %s", loginData.userInfo.displayName.toStdString().c_str());
     // obs_log(LOG_INFO, "roomID: %d", loginData.userInfo.roomID);
 
-
     // log access token
     // obs_log(LOG_INFO, "access token: %s", loginData.accessToken.toStdString().c_str());
 

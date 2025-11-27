@@ -1,12 +1,13 @@
 #pragma once
 
-#include "IDiagnosticsCollector.hpp"
 #include <memory>
 
+#include "IDiagnosticsCollector.hpp"
+
 namespace seventeen {
-namespace diag {
+    namespace diag {
 
-std::unique_ptr<IDiagnosticsCollector> createDiagnosticsCollector();
+        std::unique_ptr<IDiagnosticsCollector> createDiagnosticsCollector();
 
-} // namespace diag
-} // namespace seventeen
+    }  // namespace diag
+}  // namespace seventeen
