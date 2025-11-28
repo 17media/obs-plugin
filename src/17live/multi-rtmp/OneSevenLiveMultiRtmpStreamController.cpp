@@ -193,6 +193,17 @@ bool OneSevenLiveMultiRtmpStreamController::stopOutputInternal(const std::string
         return false;
     }
 
+    // Cancel pending connect timeout and async resolution if any
+    if (streamOutput->connectTimeoutTimer) {
+        streamOutput->connectTimeoutTimer->stop();
+        streamOutput->connectTimeoutTimer->deleteLater();
+        streamOutput->connectTimeoutTimer = nullptr;
+    }
+    auto pendIt = m_pendingTwitchClients.find(streamId);
+    if (pendIt != m_pendingTwitchClients.end()) {
+        m_pendingTwitchClients.erase(pendIt);
+    }
+
     if (!obs_output_active(streamOutput->output)) {
         updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STOPPED);
         return true;
@@ -1179,6 +1190,11 @@ void OneSevenLiveMultiRtmpStreamController::finalizeServiceSetupAfterResolve(
     }
 
     auto* streamOutput = it->second.get();
+    // If user requested stop while resolving, do not finalize
+    if (streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::STOPPED) {
+        MULTI_RTMP_STREAM_LOG_INFO("Finalize skipped; stream stopped: %s", streamId.c_str());
+        return;
+    }
     const std::string platform = streamOutput->config.streamName;
 
     ObsDataPtr settings{ObsDataFromJson(streamOutput->config.serviceSettings)};
