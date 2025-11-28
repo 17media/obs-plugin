@@ -209,13 +209,18 @@ void OneSevenLiveYouTubeChatClient::startDiscovery() {
         m_discoverTimer = new QTimer(this);
         m_discoverTimer->setInterval(60000);
         connect(m_discoverTimer, &QTimer::timeout, this, [this]() {
-            if (m_apiClient)
+            if (m_apiClient && m_apiClient->hasValidAuth())
                 m_apiClient->getMyLiveBroadcasts();
         });
     }
-    if (!m_discoverTimer->isActive())
-        m_discoverTimer->start();
-    m_apiClient->getMyLiveBroadcasts();
+    if (m_apiClient->hasValidAuth()) {
+        if (!m_discoverTimer->isActive())
+            m_discoverTimer->start();
+        m_apiClient->getMyLiveBroadcasts();
+    } else {
+        if (m_discoverTimer->isActive())
+            m_discoverTimer->stop();
+    }
 }
 
 void OneSevenLiveYouTubeChatClient::stopDiscovery() {

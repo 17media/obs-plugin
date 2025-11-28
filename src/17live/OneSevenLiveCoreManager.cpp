@@ -597,15 +597,17 @@ void OneSevenLiveCoreManager::createYouTubeChatClient() {
                         if (m2.hasMatch())
                             status = m2.captured(1).toInt();
                     }
-                    obs_log(LOG_WARNING, "YouTube API op=%s error=%s status=%d",
-                            op.toUtf8().constData(), err.toUtf8().constData(), status);
+                    if (!(op == "getMyLiveBroadcasts" && err.contains("No valid authentication token"))) {
+                        obs_log(LOG_WARNING, "YouTube API op=%s error=%s status=%d",
+                                op.toUtf8().constData(), err.toUtf8().constData(), status);
+                    }
                     if (status == 401 && youtubeAuth) {
                         obs_log(LOG_INFO, "Attempting YouTube token refresh due to 401");
                         if (youtubeAuth->refreshAccessToken()) {
                             const QString accessToken = youtubeAuth->getAccessToken();
                             if (!accessToken.isEmpty()) {
                                 youtubeApiClient->setAccessToken(accessToken);
-                                if (op == "getMyLiveBroadcasts") {
+                                if (op == "getMyLiveBroadcasts" && youtubeApiClient->hasValidAuth()) {
                                     youtubeApiClient->getMyLiveBroadcasts();
                                 }
                             }
@@ -625,7 +627,8 @@ void OneSevenLiveCoreManager::createYouTubeChatClient() {
                                 obs_log(LOG_INFO, "YouTube API client token set token(masked)=%s",
                                         masked.toUtf8().constData());
                             }
-                            youtubeApiClient->getMyLiveBroadcasts();
+                            if (youtubeApiClient->hasValidAuth())
+                                youtubeApiClient->getMyLiveBroadcasts();
                         }
                         if (youtubeChatClient && !accessToken.isEmpty()) {
                             youtubeChatClient->setAccessToken(accessToken);
@@ -670,14 +673,14 @@ void OneSevenLiveCoreManager::createYouTubeChatClient() {
                                         "YouTube tokens synchronized to clients token(masked)=%s",
                                         masked.toUtf8().constData());
                                 }
-                                if (youtubeApiClient)
+                                if (youtubeApiClient && youtubeApiClient->hasValidAuth())
                                     youtubeApiClient->getMyLiveBroadcasts();
                             }
                         }
                     }
                     if (err.contains("liveChatEnded", Qt::CaseInsensitive)) {
                         obs_log(LOG_INFO, "Chat reported liveChatEnded; rediscovering liveChatId");
-                        if (youtubeApiClient)
+                        if (youtubeApiClient && youtubeApiClient->hasValidAuth())
                             youtubeApiClient->getMyLiveBroadcasts();
                     }
                 });
