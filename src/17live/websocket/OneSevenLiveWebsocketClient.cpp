@@ -108,6 +108,11 @@ void OneSevenLiveWebsocketClient::startThread(const QString& host, const QString
 
 void OneSevenLiveWebsocketClient::stopThread() {
     running.store(false);
+    // Proactively signal TLS to close to unblock any pending reads
+    if (tls) {
+        mbedtls_ssl_close_notify(&tls->ssl);
+        mbedtls_net_free(&tls->server_fd);
+    }
     if (th.joinable()) {
         if (std::this_thread::get_id() == th.get_id()) {
             th.detach();
@@ -167,6 +172,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         stopThread();
         return;
     }
+    // Set underlying socket non-blocking to allow graceful stop
+    mbedtls_net_set_nonblock(&tls->server_fd);
     mbedtls_ssl_set_bio(&tls->ssl, &tls->server_fd, mbedtls_net_send, mbedtls_net_recv, nullptr);
     mbedtls_ssl_set_hostname(&tls->ssl, host.toUtf8().constData());
 
