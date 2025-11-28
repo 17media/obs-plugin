@@ -585,6 +585,24 @@ void OneSevenLiveHttpServer::stop() {
     }
 }
 
+void OneSevenLiveHttpServer::stopAsync() {
+    if (!running_ || stopping_.load()) {
+        return;
+    }
+    stopping_.store(true);
+    obs_log(LOG_INFO, "[17Live HTTP Server] Stopping server...");
+    svr_.stop();
+    std::thread([this]() {
+        if (server_thread_ && server_thread_->joinable()) {
+            server_thread_->join();
+        }
+        server_thread_.reset();
+        running_ = false;
+        stopping_.store(false);
+        obs_log(LOG_INFO, "[17Live HTTP Server] Server stopped.");
+    }).detach();
+}
+
 bool OneSevenLiveHttpServer::is_running() const {
     // svr_.is_running() checks if server is listening.
     // However, if listen fails in another thread, this state may not update immediately.

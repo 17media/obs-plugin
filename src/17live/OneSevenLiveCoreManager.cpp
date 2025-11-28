@@ -471,12 +471,12 @@ void OneSevenLiveCoreManager::shutdown() {
 
     // Stop HTTP server
     if (httpServer_) {
-        httpServer_->stop();
+        httpServer_->stopAsync();
         obs_log(LOG_INFO, "[17Live Core] HTTP server stopped");
     }
 
     if (ablyHttpServer_) {
-        ablyHttpServer_->stop();
+        ablyHttpServer_->stopAsync();
         obs_log(LOG_INFO, "[17Live Core] Ably HTTP server stopped");
     }
 

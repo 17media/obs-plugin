@@ -21,6 +21,7 @@ class OneSevenLiveHttpServer {
 
     bool start();
     void stop();
+    void stopAsync();
     bool is_running() const;
     int getPort() const;
 
@@ -47,6 +48,7 @@ class OneSevenLiveHttpServer {
     std::string base_dir_;
     std::unique_ptr<std::thread> server_thread_;
     bool running_ = false;
+    std::atomic<bool> stopping_{false};
 
     std::vector<
         std::pair<std::string, std::function<void(const httplib::Request&, httplib::Response&)>>>

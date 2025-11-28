@@ -18,6 +18,7 @@ class OneSevenLiveWebsocketClient : public QObject {
 
     void connectUrl(const QString& url);
     void disconnect();
+    void disconnectAsync();
     bool isConnected() const;
     void sendText(const QString& text);
 

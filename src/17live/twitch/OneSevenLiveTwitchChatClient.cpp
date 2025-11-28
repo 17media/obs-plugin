@@ -543,7 +543,7 @@ void OneSevenLiveTwitchChatClient::connectWebSocket() {
 void OneSevenLiveTwitchChatClient::disconnectWebSocket() {
     obs_log(LOG_INFO, "Disconnecting WebSocket client from Twitch");
     if (m_client) {
-        m_client->disconnect();
+        m_client->disconnectAsync();
     }
 }
 
