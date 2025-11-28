@@ -118,6 +118,8 @@ class OneSevenLiveMultiRtmpStreamController {
     std::string getServiceName(const std::string& streamId) const;
     std::string getVideoEncoderName(const std::string& streamId) const;
     std::string getAudioEncoderName(const std::string& streamId) const;
+    // Select best Twitch server from OBS service list
+    std::string getRecommendedTwitchServer() const;
 
     obs_data_t* createServiceSettings(const OneSevenLiveMultiRtmpConfig& config) const;
     obs_data_t* createOutputSettings(const OneSevenLiveMultiRtmpConfig& config) const;

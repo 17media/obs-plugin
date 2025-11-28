@@ -1131,8 +1131,11 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                 [this, streamId, timeout, keyConnPtr](const QString& keyVal) {
                     if (timeout)
                         timeout->stop();
-                    const QString serverUrl = OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER;
-                    finalizeServiceSetupAfterResolve(streamId, serverUrl.toUtf8().constData(),
+                    std::string serverUrl = getRecommendedTwitchServer();
+                    if (serverUrl.empty()) {
+                        serverUrl = OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER.toUtf8().constData();
+                    }
+                    finalizeServiceSetupAfterResolve(streamId, serverUrl.c_str(),
                                                      keyVal.toUtf8().constData());
                     QObject::disconnect(*keyConnPtr);
                 });
@@ -1333,3 +1336,34 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::getObsDefaultAudioEncoderSett
 }
 
 #include "utility/Common.hpp"
+std::string OneSevenLiveMultiRtmpStreamController::getRecommendedTwitchServer() const {
+    std::string best;
+    ObsDataPtr settings{obs_data_create()};
+    obs_data_set_string(settings.get(), "service", "Twitch");
+    obs_service_t* svc = obs_service_create(SERVICE_ID, "temp_twitch_service", settings.get(), nullptr);
+    settings.reset();
+    if (!svc)
+        return best;
+    obs_properties_t* props = obs_service_properties(svc);
+    if (props) {
+        obs_property_t* srvProp = obs_properties_get(props, "server");
+        if (srvProp && obs_property_get_type(srvProp) == OBS_PROPERTY_LIST) {
+            size_t count = obs_property_list_item_count(srvProp);
+            for (size_t i = 0; i < count; ++i) {
+                const char* name = obs_property_list_item_name(srvProp, i);
+                const char* val = obs_property_list_item_string(srvProp, i);
+                if (!best.empty())
+                    continue;
+                if (name && (strstr(name, "Auto") || strstr(name, "Recommended"))) {
+                    best = val ? val : "";
+                }
+            }
+            if (best.empty() && count > 0) {
+                const char* val0 = obs_property_list_item_string(srvProp, 0);
+                best = val0 ? val0 : "";
+            }
+        }
+    }
+    obs_service_release(svc);
+    return best;
+}
