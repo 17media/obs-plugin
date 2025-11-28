@@ -453,6 +453,15 @@ void OneSevenLiveCoreManager::shutdown() {
         return;
     }
 
+    // Ensure MultiRTMP outputs are stopped and destroyed before OBS subsystems shut down
+    {
+        auto* multiMgr = OneSevenLiveMultiRtmpManager::getInstance();
+        if (multiMgr) {
+            multiMgr->shutdown();
+            OneSevenLiveMultiRtmpManager::destroyInstance();
+        }
+    }
+
     // Save dock state before closing any docks
     saveDockState();
 
