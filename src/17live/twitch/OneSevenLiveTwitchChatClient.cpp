@@ -93,7 +93,11 @@ void OneSevenLiveTwitchChatClient::connectToChat(const QString& username,
     m_username = username;
     m_oauthToken = oauthToken;
     m_reconnectAttempts = 0;
-
+    const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
+    if (!isLive) {
+        obs_log(LOG_INFO, "Twitch stream is not live; deferring chat connection");
+        return;
+    }
     obs_log(LOG_INFO, "Connecting to Twitch chat server: %s",
             TWITCH_IRC_SERVER.toUtf8().constData());
     connectWebSocket();
@@ -285,7 +289,8 @@ void OneSevenLiveTwitchChatClient::onPingTimeout() {
 }
 
 void OneSevenLiveTwitchChatClient::attemptReconnect() {
-    if (m_connected || !m_autoReconnect) {
+    const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
+    if (m_connected || !m_autoReconnect || !isLive) {
         return;
     }
 
@@ -478,6 +483,9 @@ QString OneSevenLiveTwitchChatClient::normalizeChannelName(const QString& channe
 }
 
 void OneSevenLiveTwitchChatClient::scheduleReconnect() {
+    const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
+    if (!isLive)
+        return;
     if (m_reconnectTimer && !m_reconnectTimer->isActive()) {
         int delay = m_reconnectDelay;
         if (m_reconnectAttempts >= m_maxReconnectAttempts) {
@@ -498,6 +506,13 @@ void OneSevenLiveTwitchChatClient::onStatusTimer() {
         QString::fromUtf8(ws::EventTwitchChatConnected),
         nlohmann::json{{"username", m_username.toStdString()},
                        {"status", m_connected ? "connected" : "break"}});
+
+    const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
+    if (!isLive && m_connected) {
+        disconnectWebSocket();
+    } else if (isLive && !m_connected && !m_username.isEmpty() && !m_oauthToken.isEmpty()) {
+        connectToChat(m_username, m_oauthToken);
+    }
 
     if (m_connected) {
         QDateTime now = QDateTime::currentDateTime();
