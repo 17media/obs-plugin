@@ -268,8 +268,91 @@ void OneSevenLiveStreamManager::onStatusTimer() {
 }
 
 void OneSevenLiveStreamManager::startOBSStreaming() {
-    // Start OBS streaming
+    obs_video_info vinfo{};
+    if (obs_get_video_info(&vinfo)) {
+        obs_log(LOG_INFO, "OBS video: base=%ux%u output=%ux%u fps=%u/%u colorspace=%d range=%d",
+                vinfo.base_width, vinfo.base_height, vinfo.output_width, vinfo.output_height,
+                vinfo.fps_num, vinfo.fps_den, (int) vinfo.colorspace, (int) vinfo.range);
+    }
+    obs_audio_info ainfo{};
+    if (obs_get_audio_info(&ainfo)) {
+        obs_log(LOG_INFO, "OBS audio: rate=%u speakers=%d", ainfo.samples_per_sec, (int) ainfo.speakers);
+    }
+
+    obs_service_t* svc = obs_frontend_get_streaming_service();
+    if (svc) {
+        const char* stype = obs_service_get_type(svc);
+        const char* proto = obs_service_get_protocol(svc);
+        ObsDataPtr sset{obs_service_get_settings(svc)};
+        const char* server = sset ? obs_data_get_string(sset.get(), "server") : nullptr;
+        const char* key = sset ? obs_data_get_string(sset.get(), "key") : nullptr;
+        const char* token = sset ? obs_data_get_string(sset.get(), "bearer_token") : nullptr;
+        const char** svc_vcodecs = obs_service_get_supported_video_codecs(svc);
+        const char** svc_acodecs = obs_service_get_supported_audio_codecs(svc);
+        int max_v_bitrate = 0, max_a_bitrate = 0;
+        obs_service_get_max_bitrate(svc, &max_v_bitrate, &max_a_bitrate);
+        obs_log(LOG_INFO, "OBS service: type=%s proto=%s server=%s key_len=%zu token_len=%zu",
+                stype ? stype : "", proto ? proto : "", server ? server : "",
+                key ? strlen(key) : 0, token ? strlen(token) : 0);
+        if (svc_vcodecs) {
+            std::string vlist;
+            for (size_t i = 0; svc_vcodecs[i]; ++i) {
+                if (!vlist.empty()) vlist += ",";
+                vlist += svc_vcodecs[i];
+            }
+            obs_log(LOG_INFO, "OBS service supported video codecs: %s", vlist.c_str());
+        }
+        if (svc_acodecs) {
+            std::string alist;
+            for (size_t i = 0; svc_acodecs[i]; ++i) {
+                if (!alist.empty()) alist += ",";
+                alist += svc_acodecs[i];
+            }
+            obs_log(LOG_INFO, "OBS service supported audio codecs: %s", alist.c_str());
+        }
+        obs_log(LOG_INFO, "OBS service max bitrate: video=%d audio=%d", max_v_bitrate, max_a_bitrate);
+    }
+
     obs_frontend_streaming_start();
+    if (!m_streamLogTimer) {
+        m_streamLogTimer = new QTimer(this);
+        m_streamLogTimer->setSingleShot(true);
+        connect(m_streamLogTimer, &QTimer::timeout, this, &OneSevenLiveStreamManager::logCurrentObsOutputInfo);
+    }
+    m_streamLogTimer->start(200);
+}
+
+void OneSevenLiveStreamManager::logCurrentObsOutputInfo() {
+    obs_output_t* out = obs_frontend_get_streaming_output();
+    if (!out) {
+        return;
+    }
+    const char* oid = obs_output_get_id(out);
+    uint32_t ow = obs_output_get_width(out);
+    uint32_t oh = obs_output_get_height(out);
+    obs_encoder_t* venc = obs_output_get_video_encoder(out);
+    obs_encoder_t* aenc = obs_output_get_audio_encoder(out, 0);
+    const char* v_id = venc ? obs_encoder_get_id(venc) : nullptr;
+    const char* v_codec = venc ? obs_encoder_get_codec(venc) : nullptr;
+    ObsDataPtr vset{venc ? obs_encoder_get_settings(venc) : nullptr};
+    int v_bitrate = vset ? (int) obs_data_get_int(vset.get(), "bitrate") : 0;
+    uint32_t v_scaled_w = venc ? obs_encoder_get_width(venc) : 0;
+    uint32_t v_scaled_h = venc ? obs_encoder_get_height(venc) : 0;
+    uint32_t v_fps_div = venc ? obs_encoder_get_frame_rate_divisor(venc) : 1;
+    const char* a_id = aenc ? obs_encoder_get_id(aenc) : nullptr;
+    const char* a_codec = aenc ? obs_encoder_get_codec(aenc) : nullptr;
+    ObsDataPtr aset{aenc ? obs_encoder_get_settings(aenc) : nullptr};
+    int a_bitrate = aset ? (int) obs_data_get_int(aset.get(), "bitrate") : 0;
+    uint32_t a_rate = aenc ? obs_encoder_get_sample_rate(aenc) : 0;
+    size_t a_mixer = aenc ? obs_encoder_get_mixer_index(aenc) : 0;
+    const char* out_v_supported = obs_output_get_supported_video_codecs(out);
+    const char* out_a_supported = obs_output_get_supported_audio_codecs(out);
+    obs_log(LOG_INFO,
+            "OBS output: id=%s size=%ux%u video_encoder=%s codec=%s bitrate=%d scaled=%ux%u fps_div=%u audio_encoder=%s codec=%s bitrate=%d rate=%u mixer=%zu",
+            oid ? oid : "", ow, oh, v_id ? v_id : "", v_codec ? v_codec : "", v_bitrate, v_scaled_w,
+            v_scaled_h, v_fps_div, a_id ? a_id : "", a_codec ? a_codec : "", a_bitrate, a_rate, a_mixer);
+    obs_log(LOG_INFO, "OBS output supported codecs: video=%s audio=%s",
+            out_v_supported ? out_v_supported : "", out_a_supported ? out_a_supported : "");
 }
 
 void OneSevenLiveStreamManager::stopOBSStreaming() {

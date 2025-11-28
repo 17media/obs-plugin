@@ -253,4 +253,6 @@ class OneSevenLiveStreamManager : public QObject {
 
     QTimer* m_statusTimer{nullptr};
     void onStatusTimer();
+    void logCurrentObsOutputInfo();
+    QTimer* m_streamLogTimer{nullptr};
 };
