@@ -90,6 +90,25 @@ OneSevenLiveLoadRoomInfoWorker::LoadResult OneSevenLiveLoadRoomInfoWorker::loadR
             result.roomInfoSuccess = false;
         }
 
+        // if room info failed, set default values
+        // landscape: false
+        // streamerType: 0
+        // archiveConfig
+            // autoRecording: true
+            // autoPublish: false
+            // clipPermission: 0
+        if (!result.roomInfoSuccess) {
+            obs_log(LOG_WARNING, "OneSevenLiveLoadRoomInfoWorker: GetRoomInfo failed, setting default values");
+            m_roomInfo->landscape = false;
+            m_roomInfo->streamerType = 0;
+            m_roomInfo->archiveConfig = OneSevenLiveArchiveConfig();
+            m_roomInfo->archiveConfig.autoRecording = true;
+            m_roomInfo->archiveConfig.autoPublish = false;
+            m_roomInfo->archiveConfig.clipPermission = 0;
+            m_roomInfo->status = 0;
+            result.roomInfoSuccess = true;
+        }
+
         // Step 3: Load config streamer information
         try {
             result.configStreamerSuccess =
