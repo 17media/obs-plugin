@@ -111,6 +111,12 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId) 
         return;
     }
 
+    bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
+    if (!isLive) {
+        obs_log(LOG_INFO, "YouTube stream not live; skipping chat polling start");
+        return;
+    }
+
     if (m_isPolling) {
         obs_log(LOG_INFO, "Chat polling already running, stopping first");
         stopChatPolling();
@@ -222,6 +228,15 @@ void OneSevenLiveYouTubeChatClient::fetchChatMessages() {
         return;
     }
 
+    if (!m_hasValidAuth && m_apiKey.isEmpty()) {
+        return;
+    }
+
+    bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
+    if (!isLive) {
+        return;
+    }
+
     QString endpoint = buildChatMessagesUrl(m_liveChatId, m_nextPageToken);
     // obs_log(LOG_INFO, "YouTube chat fetch: liveChatId=%s pageToken=%s",
     // m_liveChatId.toUtf8().constData(), m_nextPageToken.toUtf8().constData());
@@ -261,6 +276,10 @@ void OneSevenLiveYouTubeChatClient::handleApiError(const QString& error, const Q
     case 401:
         detailedError = "Authentication failed - invalid or expired token";
         m_hasValidAuth = false;
+        if (m_apiKey.isEmpty()) {
+            stopChatPolling();
+            return;
+        }
         break;
     case 403:
         detailedError = "Access forbidden - insufficient permissions or quota exceeded";
@@ -499,10 +518,22 @@ void OneSevenLiveYouTubeChatClient::onStatusTimer() {
     const char* status = (m_isPolling && isLive) ? "connected" : "break";
     core.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
                                      nlohmann::json{{"status", status}});
+
+    if (!isLive && m_isPolling) {
+        stopChatPolling();
+    }
 }
 
 void OneSevenLiveYouTubeChatClient::scheduleReconnect() {
     if (!m_liveChatId.isEmpty()) {
+        bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
+        if (!isLive) {
+            m_reconnectAttempts = 0;
+            m_isPolling = false;
+            wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected),
+                        nlohmann::json{{"status", "break"}});
+            return;
+        }
         if (m_reconnectAttempts < MAX_QUICK_RETRIES) {
             int delayMs = qMin(m_exponentialBackoffDelay, 5000);
             m_reconnectAttempts++;
@@ -523,6 +554,9 @@ void OneSevenLiveYouTubeChatClient::scheduleReconnect() {
 
 void OneSevenLiveYouTubeChatClient::doReconnect() {
     if (m_liveChatId.isEmpty())
+        return;
+    bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
+    if (!isLive)
         return;
     startChatPolling(m_liveChatId);
 }
