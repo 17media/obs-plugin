@@ -256,9 +256,12 @@ void OneSevenLiveTwitchChatClient::onWebSocketClose() {
     stopPingTimer();
 
     emit disconnected();
-    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
+    const char* st = (m_connected && isLive) ? "connected" : "break";
+    core.enqueueOrBroadcastChatEvent(
         QString::fromUtf8(ws::EventTwitchChatConnected),
-        nlohmann::json{{"username", m_username.toStdString()}, {"status", "break"}});
+        nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
 
     if (m_autoReconnect) {
         scheduleReconnect();

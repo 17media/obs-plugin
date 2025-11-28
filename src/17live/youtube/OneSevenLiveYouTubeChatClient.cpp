@@ -131,8 +131,6 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId) 
         m_reconnectTimer->stop();
     emit pollingStarted(liveChatId);
 
-    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-        QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "connected"}});
     if (!m_statusTimer->isActive())
         m_statusTimer->start();
     obs_log(LOG_INFO, "YouTube chat connected");
@@ -159,8 +157,6 @@ void OneSevenLiveYouTubeChatClient::stopChatPolling() {
     m_noMessageStreak = 0;
 
     emit pollingStopped();
-    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-        QString::fromUtf8(ws::EventYouTubeChatConnected), nlohmann::json{{"status", "break"}});
     if (m_statusTimer->isActive())
         m_statusTimer->stop();
     if (m_reconnectTimer->isActive())
