@@ -45,32 +45,8 @@ QCefView::~QCefView() {
         obs_log(LOG_INFO, "Starting QCefView destruction, closing CEF browser");
         auto browser = m_client->getBrowser();
         auto host = browser->GetHost();
-
-        // Request browser closure
         host->CloseBrowser(true);
-
-        // Wait for browser to completely close to avoid resource leaks
-        // Use timeout mechanism to prevent infinite waiting
-        int timeout_ms = 5000;  // 5 second timeout
-        int wait_interval_ms = 10;
-        int elapsed_ms = 0;
-
-        while (elapsed_ms < timeout_ms) {
-            if (!browser->GetHost()->TryCloseBrowser()) {
-                // Browser has closed
-                break;
-            }
-
-            // Brief wait before retry
-            std::this_thread::sleep_for(std::chrono::milliseconds(wait_interval_ms));
-            elapsed_ms += wait_interval_ms;
-        }
-
-        if (elapsed_ms >= timeout_ms) {
-            obs_log(LOG_WARNING, "CEF browser close timeout, potential resource leak risk");
-        } else {
-            obs_log(LOG_INFO, "CEF browser closed successfully");
-        }
+        obs_log(LOG_INFO, "CEF close requested");
     }
 }
 
