@@ -436,11 +436,13 @@ obs_output_t* OneSevenLiveMultiRtmpStreamController::getStreamOutput(
 }
 
 void OneSevenLiveMultiRtmpStreamController::setStreamStatusCallback(StreamStatusCallback callback) {
-    m_statusCallback = callback;
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_statusCallback = std::move(callback);
 }
 
 void OneSevenLiveMultiRtmpStreamController::setStreamStatsCallback(StreamStatsCallback callback) {
-    m_statsCallback = callback;
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_statsCallback = std::move(callback);
 }
 
 void OneSevenLiveMultiRtmpStreamController::startStatsMonitoring() {
@@ -646,9 +648,14 @@ void OneSevenLiveMultiRtmpStreamController::updateStreamStatus(
     if (it != m_streamOutputs.end()) {
         it->second->status.state = state;
         it->second->status.errorMessage = error;
-
-        if (m_statusCallback) {
-            m_statusCallback(streamId, it->second->status);
+        StreamStatusCallback cb;
+        OneSevenLiveMultiRtmpStreamStatus statusCopy = it->second->status;
+        {
+            std::lock_guard<std::mutex> lock(m_callbackMutex);
+            cb = m_statusCallback;
+        }
+        if (cb) {
+            cb(streamId, statusCopy);
         }
     }
 }
@@ -1180,13 +1187,23 @@ void OneSevenLiveMultiRtmpStreamController::destroyEncoders(const std::string& s
 }
 
 void OneSevenLiveMultiRtmpStreamController::updateStreamStats(const std::string& streamId) {
-    std::lock_guard<std::mutex> lock(m_outputsMutex);
-    auto it = m_streamOutputs.find(streamId);
-    if (it != m_streamOutputs.end()) {
-        collectStreamStats(streamId, *it->second);
-        if (m_statsCallback) {
-            m_statsCallback(streamId, it->second->stats);
+    OneSevenLiveMultiRtmpStreamStats statsCopy;
+    {
+        std::lock_guard<std::mutex> lock(m_outputsMutex);
+        auto it = m_streamOutputs.find(streamId);
+        if (it == m_streamOutputs.end()) {
+            return;
         }
+        collectStreamStats(streamId, *it->second);
+        statsCopy = it->second->stats;
+    }
+    StreamStatsCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        cb = m_statsCallback;
+    }
+    if (cb) {
+        cb(streamId, statsCopy);
     }
 }
 

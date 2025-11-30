@@ -128,6 +128,9 @@ class OneSevenLiveMultiRtmpManager {
     // State
     bool m_initialized = false;
 
+    // Synchronization for callback assignment/invocation
+    mutable std::mutex m_callbackMutex;
+
     // Singleton instance
     static OneSevenLiveMultiRtmpManager* s_instance;
     static std::mutex s_instanceMutex;

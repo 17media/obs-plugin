@@ -152,6 +152,7 @@ class OneSevenLiveMultiRtmpStreamController {
     // Callbacks
     StreamStatusCallback m_statusCallback;
     StreamStatsCallback m_statsCallback;
+    mutable std::mutex m_callbackMutex;
 
     // Statistics monitoring
     std::atomic<bool> m_statsMonitoringActive{false};

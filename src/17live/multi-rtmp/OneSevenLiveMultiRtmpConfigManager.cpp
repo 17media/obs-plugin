@@ -223,11 +223,13 @@ std::vector<std::string> OneSevenLiveMultiRtmpConfigManager::getStreamIds() cons
 }
 
 void OneSevenLiveMultiRtmpConfigManager::setConfigChangeCallback(ConfigChangeCallback callback) {
-    m_configChangeCallback = callback;
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_configChangeCallback = std::move(callback);
 }
 
 void OneSevenLiveMultiRtmpConfigManager::setConfigDeleteCallback(ConfigDeleteCallback callback) {
-    m_configDeleteCallback = callback;
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_configDeleteCallback = std::move(callback);
 }
 
 bool OneSevenLiveMultiRtmpConfigManager::createBackup() const {
@@ -371,14 +373,24 @@ std::string OneSevenLiveMultiRtmpConfigManager::getBackupFilePath(
 
 void OneSevenLiveMultiRtmpConfigManager::notifyConfigChange(
     const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
-    if (m_configChangeCallback) {
-        m_configChangeCallback(streamId, config);
+    ConfigChangeCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        cb = m_configChangeCallback;
+    }
+    if (cb) {
+        cb(streamId, config);
     }
 }
 
 void OneSevenLiveMultiRtmpConfigManager::notifyConfigDelete(const std::string& streamId) {
-    if (m_configDeleteCallback) {
-        m_configDeleteCallback(streamId);
+    ConfigDeleteCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        cb = m_configDeleteCallback;
+    }
+    if (cb) {
+        cb(streamId);
     }
 }
 

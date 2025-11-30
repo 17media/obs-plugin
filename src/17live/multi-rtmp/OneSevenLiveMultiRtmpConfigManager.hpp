@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <mutex>
 
 #include "OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
@@ -74,6 +75,7 @@ class OneSevenLiveMultiRtmpConfigManager {
     // Callbacks
     ConfigChangeCallback m_configChangeCallback;
     ConfigDeleteCallback m_configDeleteCallback;
+    mutable std::mutex m_callbackMutex;
 
     // Constants
     static constexpr const char* CONFIG_FILE_NAME = "17live_multi_rtmp.json";

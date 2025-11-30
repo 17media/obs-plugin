@@ -469,19 +469,23 @@ bool OneSevenLiveMultiRtmpManager::restoreFromBackup() {
 
 // Callback registration
 void OneSevenLiveMultiRtmpManager::setStreamStatusCallback(StreamStatusCallback callback) {
-    m_statusCallback = callback;
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_statusCallback = std::move(callback);
 }
 
 void OneSevenLiveMultiRtmpManager::setStreamStatsCallback(StreamStatsCallback callback) {
-    m_statsCallback = callback;
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_statsCallback = std::move(callback);
 }
 
 void OneSevenLiveMultiRtmpManager::setConfigChangeCallback(ConfigChangeCallback callback) {
-    m_configChangeCallback = callback;
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_configChangeCallback = std::move(callback);
 }
 
 void OneSevenLiveMultiRtmpManager::setConfigDeleteCallback(ConfigDeleteCallback callback) {
-    m_configDeleteCallback = callback;
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_configDeleteCallback = std::move(callback);
 }
 
 // Stream lifecycle management
@@ -589,28 +593,48 @@ obs_output_t* OneSevenLiveMultiRtmpManager::getStreamOutput(const std::string& s
 // Private methods
 void OneSevenLiveMultiRtmpManager::onConfigChanged(const std::string& streamId,
                                                    const OneSevenLiveMultiRtmpConfig& config) {
-    if (m_configChangeCallback) {
-        m_configChangeCallback(streamId, config);
+    ConfigChangeCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        cb = m_configChangeCallback;
+    }
+    if (cb) {
+        cb(streamId, config);
     }
 }
 
 void OneSevenLiveMultiRtmpManager::onConfigDeleted(const std::string& streamId) {
-    if (m_configDeleteCallback) {
-        m_configDeleteCallback(streamId);
+    ConfigDeleteCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        cb = m_configDeleteCallback;
+    }
+    if (cb) {
+        cb(streamId);
     }
 }
 
 void OneSevenLiveMultiRtmpManager::onStreamStatusChanged(
     const std::string& streamId, const OneSevenLiveMultiRtmpStreamStatus& status) {
-    if (m_statusCallback) {
-        m_statusCallback(streamId, status);
+    StreamStatusCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        cb = m_statusCallback;
+    }
+    if (cb) {
+        cb(streamId, status);
     }
 }
 
 void OneSevenLiveMultiRtmpManager::onStreamStatsUpdated(
     const std::string& streamId, const OneSevenLiveMultiRtmpStreamStats& stats) {
-    if (m_statsCallback) {
-        m_statsCallback(streamId, stats);
+    StreamStatsCallback cb;
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        cb = m_statsCallback;
+    }
+    if (cb) {
+        cb(streamId, stats);
     }
 }
 
@@ -649,10 +673,13 @@ void OneSevenLiveMultiRtmpManager::cleanupCallbacks() {
         m_streamController->setStreamStatsCallback(nullptr);
     }
 
-    m_statusCallback = nullptr;
-    m_statsCallback = nullptr;
-    m_configChangeCallback = nullptr;
-    m_configDeleteCallback = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        m_statusCallback = nullptr;
+        m_statsCallback = nullptr;
+        m_configChangeCallback = nullptr;
+        m_configDeleteCallback = nullptr;
+    }
 }
 
 bool OneSevenLiveMultiRtmpManager::ensureStreamOutput(const std::string& streamId) {
