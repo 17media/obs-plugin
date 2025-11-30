@@ -76,11 +76,8 @@ endif()
 find_package(CEF REQUIRED)
 
 # obs-studio official strategy: prefer pre-built static libraries to avoid runtime conflicts
-find_package(MbedTLS REQUIRED)
-
-# Ensure MbedTLS uses runtime library consistent with the project
-if(OS_WINDOWS)
-  # MbedTLS linked as dynamic library to avoid conflicts with static runtime
+if(NOT OS_WINDOWS)
+  find_package(MbedTLS REQUIRED)
 endif()
 
 # Add LibDataChannel support from obs-deps
@@ -130,11 +127,9 @@ if(OS_WINDOWS)
   # obs-studio official strategy: use static runtime (/MT) for CEF compatibility
   # Provide stdio function compatibility for MbedTLS through legacy_stdio_definitions.lib
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
-    MbedTLS::mbedcrypto
-    MbedTLS::mbedtls
-    MbedTLS::mbedx509
-    ws2_32 # Windows sockets library
-    bcrypt # Windows cryptography library
+    ws2_32
+    bcrypt
+    winhttp
   )
 
   # Windows-specific definitions for stdio compatibility
@@ -145,14 +140,6 @@ if(OS_WINDOWS)
 
   # obs-studio strategy: use static runtime, provide stdio compatibility through legacy libraries
   # Provide stdio function compatibility for MbedTLS (setbuf, ferror, remove, etc.)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
-    legacy_stdio_definitions.lib # Provide stdio function compatibility
-    legacy_stdio_wide_specifiers.lib # Provide wide character stdio support
-
-    # Provide additional C runtime functions
-    kernel32.lib
-    user32.lib
-  )
 
   # CEF wrapper library compatibility handling - use static runtime
   set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
@@ -254,7 +241,6 @@ if(OS_MACOS)
 elseif(OS_WINDOWS)
   target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     src/diag/DiagnosticsCollectorWindows.cpp
-    src/windows_stdio_compat.cpp # Windows stdio compatibility for MbedTLS
   )
 endif()
 
@@ -287,11 +273,7 @@ if(OS_WINDOWS)
   # Provide stdio function compatibility for MbedTLS through legacy_stdio_definitions.lib
 
   # Provide stdio function compatibility layer (resolve MbedTLS setbuf and other function requirements)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
-    legacy_stdio_definitions.lib # Provide stdio function compatibility
-    legacy_stdio_wide_specifiers.lib # Provide wide character stdio support
-  )
 
   # Comprehensive runtime library conflict resolution
-  message(STATUS "Windows static runtime configuration with MbedTLS stdio compatibility")
+  message(STATUS "Windows static runtime configuration with SChannel via WinHTTP")
 endif()
