@@ -31,6 +31,11 @@ OneSevenLiveMultiRtmpManager* OneSevenLiveMultiRtmpManager::getInstance() {
     return s_instance;
 }
 
+OneSevenLiveMultiRtmpManager* OneSevenLiveMultiRtmpManager::peekInstance() {
+    std::lock_guard<std::mutex> lock(s_instanceMutex);
+    return s_instance;
+}
+
 void OneSevenLiveMultiRtmpManager::destroyInstance() {
     std::lock_guard<std::mutex> lock(s_instanceMutex);
     if (s_instance) {
@@ -43,6 +48,11 @@ bool OneSevenLiveMultiRtmpManager::initialize() {
     if (m_initialized) {
         obs_log(LOG_WARNING, "[MultiRTMP-Manager] Manager already initialized");
         return true;
+    }
+
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        obs_log(LOG_WARNING, "[MultiRTMP-Manager] Skipping initialize: shutting down");
+        return false;
     }
 
     obs_log(LOG_INFO, "[MultiRTMP-Manager] Initializing MultiRTMP Manager");
@@ -119,8 +129,11 @@ void OneSevenLiveMultiRtmpManager::shutdown() {
             }
         }
 
-        // Save configuration
-        saveConfiguration();
+        if (!OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+            saveConfiguration();
+        } else {
+            obs_log(LOG_INFO, "[MultiRTMP-Manager] Skipping save during shutdown");
+        }
 
         // Cleanup callbacks
         cleanupCallbacks();

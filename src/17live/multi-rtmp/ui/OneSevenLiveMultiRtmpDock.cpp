@@ -208,9 +208,17 @@ void OneSevenLiveMultiRtmpDock::setupConnections() {
 }
 
 bool OneSevenLiveMultiRtmpDock::ensureManagerInitialized() {
-    if (!m_manager) {
-        obs_log(LOG_ERROR, "[MultiRTMP-Dock] Manager instance is null");
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Skipping ensureManagerInitialized during shutdown");
         return false;
+    }
+    auto* inst = OneSevenLiveMultiRtmpManager::peekInstance();
+    if (!inst) {
+        obs_log(LOG_INFO, "[MultiRTMP-Dock] Manager instance not alive (peekInstance=null)");
+        return false;
+    }
+    if (m_manager != inst) {
+        m_manager = inst;
     }
 
     if (!m_manager->isInitialized()) {
@@ -474,6 +482,9 @@ void OneSevenLiveMultiRtmpDock::onStreamDeleted(const std::string& streamId) {
 }
 
 void OneSevenLiveMultiRtmpDock::onStatsUpdateTimer() {
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        return;
+    }
     if (!ensureManagerInitialized() || !m_streamListWidget || m_isUpdatingUI) {
         return;
     }
@@ -487,6 +498,9 @@ void OneSevenLiveMultiRtmpDock::onStatsUpdateTimer() {
 }
 
 void OneSevenLiveMultiRtmpDock::updateButtonStates() {
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        return;
+    }
     if (!ensureManagerInitialized() || !m_streamListWidget) {
         return;
     }
@@ -525,7 +539,7 @@ void OneSevenLiveMultiRtmpDock::updateButtonStates() {
     // Hide Add Stream when both YouTube and Twitch exist
     bool hasYouTube = false;
     bool hasTwitch = false;
-    if (ensureManagerInitialized()) {
+    if (!OneSevenLiveCoreManager::getInstance().isShuttingDown() && ensureManagerInitialized()) {
         auto configs = m_manager->getAllStreamConfigs();
         for (const auto& cfg : configs) {
             if (cfg.streamName == "YouTube")

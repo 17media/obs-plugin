@@ -32,6 +32,7 @@ class OneSevenLiveMultiRtmpManager {
 
     // Singleton access
     static OneSevenLiveMultiRtmpManager* getInstance();
+    static OneSevenLiveMultiRtmpManager* peekInstance();
     static void destroyInstance();
 
     // Initialization and cleanup

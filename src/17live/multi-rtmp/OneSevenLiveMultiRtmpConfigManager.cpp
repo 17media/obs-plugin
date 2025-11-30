@@ -2,6 +2,7 @@
 
 #include <obs-module.h>
 #include <plugin-support.h>
+#include "OneSevenLiveCoreManager.hpp"
 #include <util/config-file.h>
 
 #include <QDir>
@@ -43,8 +44,12 @@ OneSevenLiveMultiRtmpConfigManager::OneSevenLiveMultiRtmpConfigManager() {
 }
 
 OneSevenLiveMultiRtmpConfigManager::~OneSevenLiveMultiRtmpConfigManager() {
-    // Save configuration on destruction
-    saveConfiguration();
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        obs_log(LOG_INFO,
+                "[MultiRTMP-ConfigManager] Skipping save on destruction during shutdown");
+    } else {
+        saveConfiguration();
+    }
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Configuration manager destroyed");
 }
 
