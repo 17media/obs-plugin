@@ -398,15 +398,6 @@ void OneSevenLiveMultiRtmpConfigDialog::setupVideoTab() {
     m_videoWidget->setMinimumWidth(0);
     m_videoLayout->addRow("", m_videoWidget);
 
-    // TODO: if suitable for rtmp?
-    // m_videoResolutionCombo = new QComboBox(m_videoTab);
-    // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.Resolution"),
-    // m_videoResolutionCombo);
-
-    // m_fpsDenominatorCombo = new QComboBox(m_videoTab);
-    // m_videoLayout->addRow(obs_module_text("MultiRtmp.Config.Video.FPSDenominator"),
-    // m_fpsDenominatorCombo);
-
     m_tabWidget->addTab(m_videoTab, obs_module_text("MultiRTMP.Config.Tab.Video"));
 }
 
@@ -1062,16 +1053,7 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
             vcfg.encoderId = vidId.toStdString();
             obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video encoder ID: '%s'",
                     vcfg.encoderId.c_str());
-            if (m_videoResolutionCombo) {
-                vcfg.resolution = m_videoResolutionCombo->currentText().toStdString();
-                obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video resolution: '%s'",
-                        vcfg.resolution.c_str());
-            }
-            if (m_fpsDenominatorCombo) {
-                vcfg.fpsDenominator = m_fpsDenominatorCombo->currentText().toInt();
-                obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] Video FPS denominator: %d",
-                        vcfg.fpsDenominator);
-            }
+
             if (m_outputSceneCombo) {
                 const QVariant data = m_outputSceneCombo->currentData();
                 vcfg.outputScene = data.isValid() ? data.toString().toStdString()
