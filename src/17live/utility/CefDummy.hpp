@@ -2,3 +2,4 @@
 
 void cef_view_load(void);
 void cef_view_unload(void);
+bool cef_is_initialized();

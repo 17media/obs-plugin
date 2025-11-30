@@ -62,40 +62,40 @@ class OneSevenLiveMultiRtmpDock : public QDockWidget {
     bool ensureManagerInitialized();
 
     // UI components
-    QWidget* m_centralWidget;
-    QVBoxLayout* m_mainLayout;
+    QWidget* m_centralWidget = nullptr;
+    QVBoxLayout* m_mainLayout = nullptr;
 
     // Header section
-    QFrame* m_headerFrame;
-    QHBoxLayout* m_headerLayout;
-    QLabel* m_titleLabel;
-    QLabel* m_streamCountLabel;
-    QPushButton* m_addStreamButton;
-    QPushButton* m_refreshButton;
+    QFrame* m_headerFrame = nullptr;
+    QHBoxLayout* m_headerLayout = nullptr;
+    QLabel* m_titleLabel = nullptr;
+    QLabel* m_streamCountLabel = nullptr;
+    QPushButton* m_addStreamButton = nullptr;
+    QPushButton* m_refreshButton = nullptr;
 
     // Control section
-    QFrame* m_controlFrame;
-    QVBoxLayout* m_controlLayout;
-    QPushButton* m_startAllButton;
-    QPushButton* m_stopAllButton;
+    QFrame* m_controlFrame = nullptr;
+    QVBoxLayout* m_controlLayout = nullptr;
+    QPushButton* m_startAllButton = nullptr;
+    QPushButton* m_stopAllButton = nullptr;
 
     // Stream list section
-    QScrollArea* m_scrollArea;
-    OneSevenLiveMultiRtmpListWidget* m_streamListWidget;
+    QScrollArea* m_scrollArea = nullptr;
+    OneSevenLiveMultiRtmpListWidget* m_streamListWidget = nullptr;
 
     // Status section
-    QFrame* m_statusFrame;
-    QHBoxLayout* m_statusLayout;
-    QLabel* m_statusLabel;
+    QFrame* m_statusFrame = nullptr;
+    QHBoxLayout* m_statusLayout = nullptr;
+    QLabel* m_statusLabel = nullptr;
 
     // Dialog
     QPointer<OneSevenLiveMultiRtmpConfigDialog> m_configDialog;
 
     // Timer for periodic updates
-    QTimer* m_statsUpdateTimer;
+    QTimer* m_statsUpdateTimer = nullptr;
 
     // Manager reference
-    OneSevenLiveMultiRtmpManager* m_manager;
+    OneSevenLiveMultiRtmpManager* m_manager = nullptr;
 
     // State management
     bool m_isUpdatingUI;

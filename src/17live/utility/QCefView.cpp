@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QResizeEvent>
 #include <QScreen>
+#include <QCloseEvent>
 #include <QTimer>
 #include <QWindow>
 #include <chrono>
@@ -21,8 +22,12 @@
 #endif
 
 #include "SimpleCefClient.hpp"
+#include "CefDummy.hpp"
+#include "../OneSevenLiveCoreManager.hpp"
 #include "moc_QCefView.cpp"
 #include "plugin-support.h"
+#include <atomic>
+static std::atomic<int> g_qcef_alive_count{0};
 
 QCefView::QCefView(QWidget *parent) : QWidget(parent), m_client(nullptr) {
     // Create layout
@@ -38,20 +43,22 @@ QCefView::QCefView(QWidget *parent) : QWidget(parent), m_client(nullptr) {
     // Set window attributes
     setAttribute(Qt::WA_NativeWindow, true);
     setAttribute(Qt::WA_DeleteOnClose, true);
+    g_qcef_alive_count.fetch_add(1, std::memory_order_relaxed);
 }
 
 QCefView::~QCefView() {
-    if (m_client && m_client->getBrowser()) {
-        obs_log(LOG_INFO, "Starting QCefView destruction, closing CEF browser");
-        auto browser = m_client->getBrowser();
-        auto host = browser->GetHost();
-        host->CloseBrowser(true);
-        obs_log(LOG_INFO, "CEF close requested");
-    }
+    m_client = nullptr;
+    g_qcef_alive_count.fetch_sub(1, std::memory_order_relaxed);
 }
 
 void QCefView::loadUrl(const QString &url) {
     m_currentUrl = url;
+    if (m_closing)
+        return;
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown())
+        return;
+    if (!cef_is_initialized())
+        return;
     if (m_client && m_client->getBrowser()) {
         CefString cefUrl(url.toStdString());
         m_client->getBrowser()->GetMainFrame()->LoadURL(cefUrl);
@@ -61,6 +68,12 @@ void QCefView::loadUrl(const QString &url) {
 
         // Use QTimer to delay browser creation, ensuring window size is properly set
         QTimer::singleShot(100, this, [this, url]() {
+            if (m_closing || OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+                return;
+            }
+            if (!cef_is_initialized()) {
+                return;
+            }
             // Create browser window
             CefWindowInfo windowInfo;
 
@@ -98,6 +111,9 @@ void QCefView::loadUrl(const QString &url) {
 
             // Ensure browser window fills the entire container
             QTimer::singleShot(200, this, [this]() {
+                if (m_closing || OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+                    return;
+                }
                 if (m_client->getBrowser()) {
                     resizeEvent(nullptr);
                 }
@@ -106,11 +122,19 @@ void QCefView::loadUrl(const QString &url) {
     }
 }
 
+int QCefView::aliveCount() {
+    return g_qcef_alive_count.load(std::memory_order_relaxed);
+}
+
 QString QCefView::currentUrl() const {
     return m_currentUrl;
 }
 
 void QCefView::reload() {
+    if (m_closing || OneSevenLiveCoreManager::getInstance().isShuttingDown())
+        return;
+    if (!cef_is_initialized())
+        return;
     if (m_client && m_client->getBrowser()) {
         obs_log(LOG_INFO, "QCefView::reload() - Reloading current page");
         m_client->getBrowser()->Reload();
@@ -121,6 +145,10 @@ void QCefView::reload() {
 
 void QCefView::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
+    if (m_closing || OneSevenLiveCoreManager::getInstance().isShuttingDown())
+        return;
+    if (!cef_is_initialized())
+        return;
     if (m_client && m_client->getBrowser()) {
         CefWindowHandle hwnd = m_client->getBrowser()->GetHost()->GetWindowHandle();
         if (hwnd) {
@@ -147,4 +175,8 @@ void QCefView::resizeEvent(QResizeEvent *event) {
 #endif
         }
     }
+}
+void QCefView::closeEvent(QCloseEvent *event) {
+    m_closing = true;
+    QWidget::closeEvent(event);
 }

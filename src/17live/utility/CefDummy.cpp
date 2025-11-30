@@ -115,3 +115,7 @@ void cef_view_unload(void) {
         cef_started_event = nullptr;
     }
 }
+
+bool cef_is_initialized() {
+    return cef_initialized;
+}

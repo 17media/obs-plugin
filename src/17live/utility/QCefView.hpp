@@ -32,21 +32,26 @@ class QCefView : public QWidget {
     void loadUrl(const QString &url);
     // Get current URL
     QString currentUrl() const;
-    // Reload current page
+   // Reload current page
     void reload();
 
    protected:
-    virtual void resizeEvent(QResizeEvent *event) override;
+   virtual void resizeEvent(QResizeEvent *event) override;
+   virtual void closeEvent(QCloseEvent *event) override;
 
    signals:
     // Emitted when the browser's current URL changes
     void urlChanged(const QString &url);
 
    private:
-    CefRefPtr<SimpleCefClient> m_client;
+   CefRefPtr<SimpleCefClient> m_client;
 
     QWindow *m_window;
     QWidget *m_container;
-    QVBoxLayout *m_layout;
-    QString m_currentUrl;
+   QVBoxLayout *m_layout;
+   QString m_currentUrl;
+   bool m_closing = false;
+
+   public:
+   static int aliveCount();
 };

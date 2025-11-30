@@ -28,6 +28,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMainWindow>
 #include <QStatusBar>
 #include <QTimer>
+#include <QCoreApplication>
+#include <QEventLoop>
+#include <QThread>
 #include <thread>
 #include <util/util.hpp>
 
@@ -39,6 +42,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "17live/OneSevenLiveCoreManager.hpp"
 #include "17live/utility/CefDummy.hpp"
+#include "17live/utility/QCefView.hpp"
 
 using namespace std;
 
@@ -149,6 +153,14 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
             obs_log(LOG_ERROR, "OneSevenLiveCoreManager resource release exception: %s", e.what());
         }
 
+        {
+            int attempts = 0;
+            while (QCefView::aliveCount() > 0 && attempts < 40) {
+                QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+                QThread::msleep(50);
+                attempts++;
+            }
+        }
         cef_view_unload();
 
         obs_log(LOG_INFO, "shutdown complete");
