@@ -519,7 +519,7 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
             obs_source_inc_active(source_ref);
             obs_source_release(source_ref);
         }
-        obs_log(LOG_INFO, "Browser source created successfully");
+        obs_log(LOG_INFO, "Preview Cartoon Browser source created successfully");
     } else {
         obs_log(LOG_ERROR, "Failed to create browser source");
     }
