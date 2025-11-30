@@ -94,6 +94,8 @@ void OneSevenLiveTwitchChatClient::connectToChat(const QString& username,
     m_oauthToken = oauthToken;
     m_reconnectAttempts = 0;
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
+    obs_log(LOG_INFO, "Twitch chat connect requested: isLive=%d username=%s", isLive ? 1 : 0,
+            username.toUtf8().constData());
     if (!isLive) {
         obs_log(LOG_INFO, "Twitch stream is not live; deferring chat connection");
         return;
@@ -244,6 +246,8 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
     auto& core = OneSevenLiveCoreManager::getInstance();
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
     const char* st = (m_connected && isLive) ? "connected" : "break";
+    obs_log(LOG_INFO, "Broadcast EventTwitchChatConnected on open: username=%s status=%s isLive=%d m_connected=%d",
+            m_username.toUtf8().constData(), st, isLive ? 1 : 0, m_connected ? 1 : 0);
     core.enqueueOrBroadcastChatEvent(
         QString::fromUtf8(ws::EventTwitchChatConnected),
         nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
@@ -263,6 +267,8 @@ void OneSevenLiveTwitchChatClient::onWebSocketClose() {
     auto& core = OneSevenLiveCoreManager::getInstance();
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
     const char* st = (m_connected && isLive) ? "connected" : "break";
+    obs_log(LOG_INFO, "Broadcast EventTwitchChatConnected on close: username=%s status=%s isLive=%d m_connected=%d",
+            m_username.toUtf8().constData(), st, isLive ? 1 : 0, m_connected ? 1 : 0);
     core.enqueueOrBroadcastChatEvent(
         QString::fromUtf8(ws::EventTwitchChatConnected),
         nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
@@ -502,6 +508,8 @@ void OneSevenLiveTwitchChatClient::resetReconnectAttempts() {
 }
 
 void OneSevenLiveTwitchChatClient::onStatusTimer() {
+    obs_log(LOG_INFO, "StatusTimer broadcast: username=%s status=%s",
+            m_username.toUtf8().constData(), m_connected ? "connected" : "break");
     OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
         QString::fromUtf8(ws::EventTwitchChatConnected),
         nlohmann::json{{"username", m_username.toStdString()},
@@ -511,6 +519,8 @@ void OneSevenLiveTwitchChatClient::onStatusTimer() {
     if (!isLive && m_connected) {
         disconnectWebSocket();
     } else if (isLive && !m_connected && !m_username.isEmpty() && !m_oauthToken.isEmpty()) {
+        obs_log(LOG_INFO, "StatusTimer: attempting connect as live=%d username=%s",
+                isLive ? 1 : 0, m_username.toUtf8().constData());
         connectToChat(m_username, m_oauthToken);
     }
 
