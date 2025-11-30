@@ -154,12 +154,16 @@ void OneSevenLiveWebsocketClient::stopThread() {
         mbedtls_net_free(&tls->server_fd);
         #endif
     }
-    if (th.joinable()) {
-        if (std::this_thread::get_id() == th.get_id()) {
-            th.detach();
-        } else {
-            th.join();
+    try {
+        if (th.joinable()) {
+            if (std::this_thread::get_id() == th.get_id()) {
+                th.detach();
+            } else {
+                th.join();
+            }
         }
+    } catch (...) {
+        // Swallow thread join errors to avoid terminate during shutdown
     }
     cleanupTLS();
     if (connected.load() && onClose)
@@ -190,30 +194,45 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     std::wstring wpath = path.toStdWString();
     tls->hRequest = WinHttpOpenRequest(tls->hConnect, L"GET", wpath.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
     if (!tls->hRequest) {
+        DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("winhttp_openreq"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_openreq ") + std::to_string(ec)); }, Qt::QueuedConnection);
         stopThread();
         return;
     }
+    if (!WinHttpSetOption(tls->hRequest, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, nullptr, 0)) {
+        DWORD ec = GetLastError();
+        if (onError)
+            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_setopt_upgrade ") + std::to_string(ec)); }, Qt::QueuedConnection);
+        stopThread();
+        return;
+    }
+#if defined(WINHTTP_OPTION_SECURE_PROTOCOLS) && defined(WINHTTP_PROTOCOL_FLAG_TLS1_2)
+    DWORD sp = WINHTTP_PROTOCOL_FLAG_TLS1_2;
+    WinHttpSetOption(tls->hRequest, WINHTTP_OPTION_SECURE_PROTOCOLS, &sp, sizeof(sp));
+#endif
     std::string wsKey = generateWebSocketKey();
     std::wstring hdr = L"Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ";
     hdr += QString::fromStdString(wsKey).toStdWString();
-    hdr += L"\r\nSec-WebSocket-Version: 13\r\n";
+    hdr += L"\r\nSec-WebSocket-Version: 13\r\nOrigin: https://www.twitch.tv\r\n";
     if (!WinHttpAddRequestHeaders(tls->hRequest, hdr.c_str(), (DWORD) hdr.size(), WINHTTP_ADDREQ_FLAG_ADD)) {
+        DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("winhttp_addhdr"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_addhdr ") + std::to_string(ec)); }, Qt::QueuedConnection);
         stopThread();
         return;
     }
     if (!WinHttpSendRequest(tls->hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+        DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("winhttp_send"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_send ") + std::to_string(ec)); }, Qt::QueuedConnection);
         stopThread();
         return;
     }
     if (!WinHttpReceiveResponse(tls->hRequest, nullptr)) {
+        DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("winhttp_resp"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_resp ") + std::to_string(ec)); }, Qt::QueuedConnection);
         stopThread();
         return;
     }
@@ -251,8 +270,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 std::string payload(buf.data(), buf.data() + rd);
                 if (onMessage)
                     QMetaObject::invokeMethod(this, [this, payload]() { onMessage(payload); }, Qt::QueuedConnection);
-            } else if (tp == WINHTTP_WEB_SOCKET_PING_BUFFER_TYPE) {
-                WinHttpWebSocketSend(tls->hWebSocket, WINHTTP_WEB_SOCKET_PONG_BUFFER_TYPE, buf.data(), rd);
+            } else if (tp == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE || tp == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE || tp == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) {
+                // Ignore non-text frames or fragments for now
             } else if (tp == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) {
                 break;
             }

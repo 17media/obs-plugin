@@ -151,6 +151,7 @@ class OneSevenLiveTwitchChatClient : public QObject {
 
     // Connection state
     bool m_connected;
+    bool m_connecting{false};
     QString m_username;
     QString m_oauthToken;
     QString m_targetChannel;
