@@ -2,6 +2,7 @@
 
 #include <QMessageBox>
 #include <QTimer>
+#include <QThread>
 #include <algorithm>
 #include <exception>
 
@@ -95,11 +96,28 @@ void OneSevenLiveMultiRtmpManager::shutdown() {
     obs_log(LOG_INFO, "[MultiRTMP-Manager] Shutting down MultiRTMP Manager");
 
     try {
-        // Stop all streams first
-        stopAllStreams();
+        auto& core = OneSevenLiveCoreManager::getInstance();
 
-        // Destroy all outputs
-        destroyAllStreamOutputs();
+        if (m_streamController) {
+            if (QThread::currentThread() == core.thread()) {
+                m_streamController->beginShutdown();
+                m_streamController->stopStatsMonitoring();
+                (void) m_streamController->stopAllOutputs();
+                m_streamController->destroyAllOutputs();
+            } else {
+                QMetaObject::invokeMethod(
+                    &core,
+                    [this]() {
+                        if (!m_streamController)
+                            return;
+                        m_streamController->beginShutdown();
+                        m_streamController->stopStatsMonitoring();
+                        (void) m_streamController->stopAllOutputs();
+                        m_streamController->destroyAllOutputs();
+                    },
+                    Qt::BlockingQueuedConnection);
+            }
+        }
 
         // Save configuration
         saveConfiguration();
@@ -280,8 +298,16 @@ bool OneSevenLiveMultiRtmpManager::stopStream(const std::string& streamId) {
         obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
-
-    return m_streamController->stopOutput(streamId);
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    if (QThread::currentThread() == core.thread()) {
+        return m_streamController->stopOutput(streamId);
+    } else {
+        bool result = false;
+        QMetaObject::invokeMethod(&core, [this, &streamId, &result]() {
+            result = m_streamController->stopOutput(streamId);
+        }, Qt::BlockingQueuedConnection);
+        return result;
+    }
 }
 
 bool OneSevenLiveMultiRtmpManager::startAllStreams() {
@@ -303,8 +329,16 @@ bool OneSevenLiveMultiRtmpManager::stopAllStreams() {
         obs_log(LOG_ERROR, "[MultiRTMP-Manager] Manager not initialized");
         return false;
     }
-
-    return m_streamController->stopAllOutputs();
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    if (QThread::currentThread() == core.thread()) {
+        return m_streamController->stopAllOutputs();
+    } else {
+        bool result = false;
+        QMetaObject::invokeMethod(&core, [this, &result]() {
+            result = m_streamController->stopAllOutputs();
+        }, Qt::BlockingQueuedConnection);
+        return result;
+    }
 }
 
 // Status and statistics
@@ -442,7 +476,6 @@ bool OneSevenLiveMultiRtmpManager::createStreamOutput(const std::string& streamI
     if (!m_initialized || !m_streamController) {
         return false;
     }
-
     auto config = getStreamConfig(streamId);
     if (config.id.empty()) {
         obs_log(LOG_ERROR, "[MultiRTMP-Manager] Stream configuration not found: %s",
@@ -457,14 +490,22 @@ bool OneSevenLiveMultiRtmpManager::destroyStreamOutput(const std::string& stream
     if (!m_initialized || !m_streamController) {
         return false;
     }
-    return m_streamController->destroyOutput(streamId);
+    bool result = false;
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    QMetaObject::invokeMethod(&core, [this, &streamId, &result]() {
+        result = m_streamController->destroyOutput(streamId);
+    }, Qt::BlockingQueuedConnection);
+    return result;
 }
 
 void OneSevenLiveMultiRtmpManager::destroyAllStreamOutputs() {
     if (!m_initialized || !m_streamController) {
         return;
     }
-    m_streamController->destroyAllOutputs();
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    QMetaObject::invokeMethod(&core, [this]() {
+        m_streamController->destroyAllOutputs();
+    }, Qt::BlockingQueuedConnection);
 }
 
 // Bulk operations with synchronization

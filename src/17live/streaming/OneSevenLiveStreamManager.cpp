@@ -6,6 +6,8 @@
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QCoreApplication>
+#include <QEventLoop>
 #include <QThread>
 #include <QTimer>
 
@@ -357,18 +359,42 @@ void OneSevenLiveStreamManager::logCurrentObsOutputInfo() {
 
 void OneSevenLiveStreamManager::stopOBSStreaming() {
     obs_log(LOG_INFO, "Stopping OBS streaming");
-
-    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
-        obs_log(LOG_INFO, "Skipping obs_frontend_streaming_stop due to shutting down");
+    auto &core = OneSevenLiveCoreManager::getInstance();
+    if (QThread::currentThread() != core.thread()) {
+        QMetaObject::invokeMethod(&core, [this]() { this->stopOBSStreaming(); }, Qt::BlockingQueuedConnection);
         return;
     }
-
     if (!obs_frontend_streaming_active()) {
         obs_log(LOG_INFO, "OBS streaming is not active");
         return;
     }
 
+    if (m_streamLogTimer) {
+        m_streamLogTimer->stop();
+    }
+
     obs_frontend_streaming_stop();
+
+    int wait_ms = 0;
+    const int max_wait_ms = 5000;
+    while (obs_frontend_streaming_active() && wait_ms < max_wait_ms) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        QThread::msleep(10);
+        wait_ms += 10;
+    }
+
+    obs_output_t* out = obs_frontend_get_streaming_output();
+    if (out) {
+        int wait_ms2 = 0;
+        while (obs_output_active(out) && wait_ms2 < max_wait_ms) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+            QThread::msleep(10);
+            wait_ms2 += 10;
+        }
+        obs_output_release(out);
+    }
+
+    obs_log(LOG_INFO, "OBS streaming stopped");
 }
 
 bool OneSevenLiveStreamManager::isOBSStreaming() const {

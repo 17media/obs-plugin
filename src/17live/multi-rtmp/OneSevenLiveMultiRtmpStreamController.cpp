@@ -232,12 +232,21 @@ bool OneSevenLiveMultiRtmpStreamController::destroyOutput(const std::string& str
         streamOutput->connectTimeoutTimer = nullptr;
     }
 
-    // Stop output if active
     if (streamOutput->output && obs_output_active(streamOutput->output)) {
         obs_output_stop(streamOutput->output);
     }
 
-    // Destroy OBS objects
+    
+    
+    if (streamOutput->output) {
+        signal_handler_t* handler = obs_output_get_signal_handler(streamOutput->output);
+        if (handler) {
+            signal_handler_disconnect(handler, "start", outputStartCallback, this);
+            signal_handler_disconnect(handler, "stop", outputStopCallback, this);
+            signal_handler_disconnect(handler, "reconnect", outputReconnectCallback, this);
+            signal_handler_disconnect(handler, "reconnect_success", outputReconnectSuccessCallback, this);
+        }
+    }
     if (streamOutput->output) {
         obs_output_release(streamOutput->output);
     }
@@ -276,7 +285,7 @@ bool OneSevenLiveMultiRtmpStreamController::startAllOutputs() {
 bool OneSevenLiveMultiRtmpStreamController::stopAllOutputs() {
     bool allStopped = true;
     for (const auto& [streamId, streamOutput] : m_streamOutputs) {
-        if (obs_output_active(streamOutput->output)) {
+        if (streamOutput->output && obs_output_active(streamOutput->output)) {
             if (!stopOutputInternal(streamId, streamOutput.get())) {
                 allStopped = false;
                 MULTI_RTMP_STREAM_LOG_ERROR("Failed to stop output for stream: %s",
@@ -284,7 +293,6 @@ bool OneSevenLiveMultiRtmpStreamController::stopAllOutputs() {
             }
         }
     }
-
     return allStopped;
 }
 
@@ -293,12 +301,23 @@ void OneSevenLiveMultiRtmpStreamController::destroyAllOutputs() {
     // std::lock_guard<std::mutex> lock(m_outputsMutex);
 
     for (auto& [streamId, streamOutput] : m_streamOutputs) {
-        // Stop output if active
+        if (streamOutput->connectTimeoutTimer) {
+            streamOutput->connectTimeoutTimer->stop();
+            streamOutput->connectTimeoutTimer->deleteLater();
+            streamOutput->connectTimeoutTimer = nullptr;
+        }
         if (streamOutput->output && obs_output_active(streamOutput->output)) {
             obs_output_stop(streamOutput->output);
         }
-
-        // Destroy OBS objects
+        if (streamOutput->output) {
+            signal_handler_t* handler = obs_output_get_signal_handler(streamOutput->output);
+            if (handler) {
+                signal_handler_disconnect(handler, "start", outputStartCallback, this);
+                signal_handler_disconnect(handler, "stop", outputStopCallback, this);
+                signal_handler_disconnect(handler, "reconnect", outputReconnectCallback, this);
+                signal_handler_disconnect(handler, "reconnect_success", outputReconnectSuccessCallback, this);
+            }
+        }
         if (streamOutput->output) {
             obs_output_release(streamOutput->output);
         }
@@ -376,43 +395,14 @@ std::vector<std::string> OneSevenLiveMultiRtmpStreamController::getAllStreamIds(
 }
 
 obs_encoder_t* OneSevenLiveMultiRtmpStreamController::getSharedVideoEncoder() {
-    if (!m_sharedVideoEncoder) {
-        // Get the main video encoder from OBS
-        m_sharedVideoEncoder =
-            obs_frontend_get_streaming_output()
-                ? obs_output_get_video_encoder(obs_frontend_get_streaming_output())
-                : nullptr;
-
-        if (m_sharedVideoEncoder) {
-            obs_encoder_get_ref(m_sharedVideoEncoder);
-        } else {
-            MULTI_RTMP_STREAM_LOG_WARNING("No shared video encoder available");
-        }
-    }
-
-    return m_sharedVideoEncoder;
+    MULTI_RTMP_STREAM_LOG_INFO("Shared video encoder disabled; using dedicated encoders per output");
+    return nullptr;
 }
 
 obs_encoder_t* OneSevenLiveMultiRtmpStreamController::getSharedAudioEncoder(int mixerId) {
-    auto it = m_sharedAudioEncoders.find(mixerId);
-    if (it != m_sharedAudioEncoders.end()) {
-        return it->second;
-    }
-
-    // Get the main audio encoder from OBS
-    obs_encoder_t* audioEncoder =
-        obs_frontend_get_streaming_output()
-            ? obs_output_get_audio_encoder(obs_frontend_get_streaming_output(), 0)
-            : nullptr;
-
-    if (audioEncoder) {
-        obs_encoder_get_ref(audioEncoder);
-        m_sharedAudioEncoders[mixerId] = audioEncoder;
-    } else {
-        MULTI_RTMP_STREAM_LOG_WARNING("No shared audio encoder available for mixer %d", mixerId);
-    }
-
-    return audioEncoder;
+    (void) mixerId;
+    MULTI_RTMP_STREAM_LOG_INFO("Shared audio encoder disabled; using dedicated encoders per output");
+    return nullptr;
 }
 
 bool OneSevenLiveMultiRtmpStreamController::isStreamActive(const std::string& streamId) const {
@@ -526,115 +516,44 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
         return false;
     }
 
-    // Video encoder
-    if (!config.videoConfig.has_value()) {
-        // Use shared encoder when no custom video config provided
-        streamOutput->videoEncoder = getSharedVideoEncoder();
-
-        // Fallback to creating independent encoder if shared encoder is not available
-        if (!streamOutput->videoEncoder) {
-            MULTI_RTMP_STREAM_LOG_WARNING(
-                "Shared video encoder not available, creating independent encoder for stream: %s",
-                streamId.c_str());
-
-            ObsDataPtr videoSettings{createVideoEncoderSettings(config)};
-            if (!videoSettings) {
-                MULTI_RTMP_STREAM_LOG_ERROR(
-                    "Failed to create video encoder settings for stream: %s", streamId.c_str());
-                return false;
-            }
-
-            // Determine the video encoder ID to use
-            const char* videoEncoderId = getObsDefaultVideoEncoderId();
-
-            streamOutput->videoEncoder =
-                obs_video_encoder_create(videoEncoderId, getVideoEncoderName(streamId).c_str(),
-                                         videoSettings.get(), nullptr);
-            videoSettings.reset();
-
-            if (!streamOutput->videoEncoder) {
-                MULTI_RTMP_STREAM_LOG_ERROR(
-                    "Failed to create fallback video encoder for stream: %s", streamId.c_str());
-                return false;
-            }
-        }
-    } else {
-        // Create dedicated encoder with custom settings
+    // Video encoder: always create dedicated encoder
+    {
         ObsDataPtr videoSettings{createVideoEncoderSettings(config)};
         if (!videoSettings) {
-            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create video encoder settings for stream: %s",
-                                        streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_ERROR(
+                "Failed to create video encoder settings for stream: %s", streamId.c_str());
             return false;
         }
-
-        // Determine the video encoder ID to use
-        const char* videoEncoderId = config.videoConfig->encoderId.empty()
-                                         ? getObsDefaultVideoEncoderId()
-                                         : config.videoConfig->encoderId.c_str();
-
+        const char* videoEncoderId = config.videoConfig.has_value() && !config.videoConfig->encoderId.empty()
+                                         ? config.videoConfig->encoderId.c_str()
+                                         : getObsDefaultVideoEncoderId();
         streamOutput->videoEncoder = obs_video_encoder_create(
             videoEncoderId, getVideoEncoderName(streamId).c_str(), videoSettings.get(), nullptr);
         videoSettings.reset();
-
         if (!streamOutput->videoEncoder) {
-            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create video encoder for stream: %s",
-                                        streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_ERROR(
+                "Failed to create video encoder for stream: %s", streamId.c_str());
             return false;
         }
     }
 
-    // Audio encoder
-    if (!config.audioConfig.has_value()) {
-        // Use shared audio encoder when no custom audio config provided
-        streamOutput->audioEncoder = getSharedAudioEncoder(0);
-
-        // Fallback to creating independent encoder if shared encoder is not available
-        if (!streamOutput->audioEncoder) {
-            MULTI_RTMP_STREAM_LOG_WARNING(
-                "Shared audio encoder not available, creating independent encoder for stream: %s",
-                streamId.c_str());
-
-            ObsDataPtr audioSettings{createAudioEncoderSettings(config)};
-            if (!audioSettings) {
-                MULTI_RTMP_STREAM_LOG_ERROR(
-                    "Failed to create audio encoder settings for stream: %s", streamId.c_str());
-                return false;
-            }
-
-            // Determine the audio encoder ID to use
-            const char* audioEncoderId = AUDIO_ENCODER_ID;
-
-            streamOutput->audioEncoder =
-                obs_audio_encoder_create(audioEncoderId, getAudioEncoderName(streamId).c_str(),
-                                         audioSettings.get(), 0, nullptr);
-            audioSettings.reset();
-
-            if (!streamOutput->audioEncoder) {
-                MULTI_RTMP_STREAM_LOG_ERROR(
-                    "Failed to create fallback audio encoder for stream: %s", streamId.c_str());
-                return false;
-            }
-        }
-    } else {
+    // Audio encoder: always create dedicated encoder
+    {
         ObsDataPtr audioSettings{createAudioEncoderSettings(config)};
         if (!audioSettings) {
-            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create audio encoder settings for stream: %s",
-                                        streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_ERROR(
+                "Failed to create audio encoder settings for stream: %s", streamId.c_str());
             return false;
         }
-
-        // Determine the audio encoder ID to use
-        const char* audioEncoderId = config.audioConfig->encoderId.empty()
-                                         ? AUDIO_ENCODER_ID
-                                         : config.audioConfig->encoderId.c_str();
-
+        const char* audioEncoderId = (config.audioConfig.has_value() && !config.audioConfig->encoderId.empty())
+                                         ? config.audioConfig->encoderId.c_str()
+                                         : AUDIO_ENCODER_ID;
         streamOutput->audioEncoder = obs_audio_encoder_create(
             audioEncoderId, getAudioEncoderName(streamId).c_str(), audioSettings.get(), 0, nullptr);
         audioSettings.reset();
-
         if (!streamOutput->audioEncoder) {
-            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create audio encoder for stream: %s",
-                                        streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_ERROR(
+                "Failed to create audio encoder for stream: %s", streamId.c_str());
             return false;
         }
     }
@@ -762,8 +681,7 @@ void OneSevenLiveMultiRtmpStreamController::outputStopCallback(void* data, calld
     auto* controller = static_cast<OneSevenLiveMultiRtmpStreamController*>(data);
     obs_output_t* output = static_cast<obs_output_t*>(calldata_ptr(cd, "output"));
 
-    // Find stream ID by output - TEMPORARILY REMOVED LOCK FOR DEBUGGING
-    // std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
+    std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
     for (const auto& [streamId, streamOutput] : controller->m_streamOutputs) {
         if (streamOutput->output == output) {
             if (streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::CONNECTING ||
@@ -816,8 +734,7 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectCallback(void* data, 
     auto* controller = static_cast<OneSevenLiveMultiRtmpStreamController*>(data);
     obs_output_t* output = static_cast<obs_output_t*>(calldata_ptr(cd, "output"));
 
-    // Find stream ID by output - TEMPORARILY REMOVED LOCK FOR DEBUGGING
-    // std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
+    std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
     for (const auto& [streamId, streamOutput] : controller->m_streamOutputs) {
         if (streamOutput->output == output) {
             if (streamOutput->connectTimeoutTimer) {
@@ -838,8 +755,7 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectSuccessCallback(void*
     auto* controller = static_cast<OneSevenLiveMultiRtmpStreamController*>(data);
     obs_output_t* output = static_cast<obs_output_t*>(calldata_ptr(cd, "output"));
 
-    // Find stream ID by output - TEMPORARILY REMOVED LOCK FOR DEBUGGING
-    // std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
+    std::lock_guard<std::mutex> lock(controller->m_outputsMutex);
     for (const auto& [streamId, streamOutput] : controller->m_streamOutputs) {
         if (streamOutput->output == output) {
             if (streamOutput->connectTimeoutTimer) {
@@ -1382,4 +1298,8 @@ std::string OneSevenLiveMultiRtmpStreamController::getRecommendedTwitchServer() 
     }
     obs_service_release(svc);
     return best;
+}
+// removed global stop aggregation; rely on manager to orchestrate destroy after stop
+void OneSevenLiveMultiRtmpStreamController::beginShutdown() {
+    m_shuttingDown.store(true);
 }

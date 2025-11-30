@@ -45,6 +45,7 @@ class OneSevenLiveMultiRtmpStreamController {
     bool startAllOutputs();
     bool stopAllOutputs();
     void destroyAllOutputs();
+    void beginShutdown();
 
     // Status and statistics
     OneSevenLiveMultiRtmpStreamStatus getStreamStatus(const std::string& streamId) const;
@@ -156,6 +157,7 @@ class OneSevenLiveMultiRtmpStreamController {
     std::atomic<bool> m_statsMonitoringActive{false};
     std::thread m_statsThread;
     std::mutex m_statsThreadMutex;
+    std::atomic<bool> m_shuttingDown{false};
 
     // Constants
     static constexpr int STATS_UPDATE_INTERVAL_MS = 1000;

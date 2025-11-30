@@ -459,6 +459,16 @@ void OneSevenLiveCoreManager::shutdown() {
         if (multiMgr) {
             multiMgr->shutdown();
             OneSevenLiveMultiRtmpManager::destroyInstance();
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        }
+    }
+
+    if (obs_frontend_streaming_active()) {
+        if (streamManager) {
+            streamManager->stopOBSStreaming();
+        } else {
+            obs_frontend_streaming_stop();
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
     }
 
