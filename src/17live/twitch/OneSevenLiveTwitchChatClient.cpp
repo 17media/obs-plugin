@@ -228,6 +228,7 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
     m_connecting = false;
     m_reconnectAttempts = 0;
     m_lastPongTs = QDateTime::currentDateTime();
+    m_joinedChannels.clear();
 
     // Request capabilities
     requestCapabilities();
@@ -506,7 +507,7 @@ void OneSevenLiveTwitchChatClient::resetReconnectAttempts() {
 }
 
 void OneSevenLiveTwitchChatClient::onStatusTimer() {
-    obs_log(LOG_INFO, "[obs-17live] StatusTimer broadcast: username=%s status=%s",
+    obs_log(LOG_DEBUG, "[obs-17live] StatusTimer broadcast: username=%s status=%s",
             m_username.toUtf8().constData(), m_connected ? "connected" : "break");
     OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
         QString::fromUtf8(ws::EventTwitchChatConnected),
