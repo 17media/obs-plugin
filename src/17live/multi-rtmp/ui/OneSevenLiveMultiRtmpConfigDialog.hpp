@@ -123,8 +123,6 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     QWidget* m_videoTab;
     QFormLayout* m_videoLayout;
     QComboBox* m_videoEncoderCombo;
-    QComboBox* m_videoResolutionCombo;
-    QComboBox* m_fpsDenominatorCombo;
     QComboBox* m_outputSceneCombo;
     OneSevenLivePropertiesWidget* m_videoWidget;
 
