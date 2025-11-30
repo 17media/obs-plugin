@@ -36,7 +36,7 @@ static bool create_dummy_browser_source(void) {
         return false;
     }
 
-    obs_log(LOG_INFO, "Browser source created successfully");
+    obs_log(LOG_INFO, "Dummy Browser source created successfully");
 
     settings.reset();
     return true;

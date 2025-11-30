@@ -44,10 +44,11 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     setAttribute(Qt::WA_NativeWindow, true);
     setAttribute(Qt::WA_PaintOnScreen, true);
     setAttribute(Qt::WA_OpaquePaintEvent, true);
+    setAttribute(Qt::WA_NoSystemBackground, true);
 
     // Set minimum size and background
     setMinimumSize(320, 240);
-    setAutoFillBackground(true);
+    setAutoFillBackground(false);
 
     QPalette palette = this->palette();
     palette.setColor(QPalette::Window, Qt::black);
@@ -518,7 +519,7 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
             obs_source_inc_active(source_ref);
             obs_source_release(source_ref);
         }
-        obs_log(LOG_INFO, "Browser source created successfully");
+        obs_log(LOG_INFO, "Preview Cartoon Browser source created successfully");
     } else {
         obs_log(LOG_ERROR, "Failed to create browser source");
     }

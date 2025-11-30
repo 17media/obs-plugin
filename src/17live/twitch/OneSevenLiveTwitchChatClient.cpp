@@ -76,6 +76,9 @@ OneSevenLiveTwitchChatClient::OneSevenLiveTwitchChatClient(QObject* parent)
 OneSevenLiveTwitchChatClient::~OneSevenLiveTwitchChatClient() {
     disconnectFromChat();
     stopPingTimer();
+    if (m_statusTimer) {
+        m_statusTimer->stop();
+    }
 
     if (m_reconnectTimer) {
         m_reconnectTimer->stop();
@@ -85,6 +88,10 @@ OneSevenLiveTwitchChatClient::~OneSevenLiveTwitchChatClient() {
 
 void OneSevenLiveTwitchChatClient::connectToChat(const QString& username,
                                                  const QString& oauthToken) {
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        obs_log(LOG_INFO, "[obs-17live] Skipping connect: shutting down");
+        return;
+    }
     if (m_connected) { obs_log(LOG_INFO, "[obs-17live] Already connected to Twitch chat"); return; }
     if (m_connecting) { obs_log(LOG_INFO, "[obs-17live] Connect in progress, skip new request"); return; }
 
@@ -267,11 +274,15 @@ void OneSevenLiveTwitchChatClient::onWebSocketClose() {
     const char* st = (m_connected && isLive) ? "connected" : "break";
     obs_log(LOG_INFO, "Broadcast EventTwitchChatConnected on close: username=%s status=%s isLive=%d m_connected=%d",
             m_username.toUtf8().constData(), st, isLive ? 1 : 0, m_connected ? 1 : 0);
-    core.enqueueOrBroadcastChatEvent(
-        QString::fromUtf8(ws::EventTwitchChatConnected),
-        nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
+    if (!OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        core.enqueueOrBroadcastChatEvent(
+            QString::fromUtf8(ws::EventTwitchChatConnected),
+            nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
+    } else {
+        obs_log(LOG_INFO, "[obs-17live] Suppress EventTwitchChatConnected on close due to shutdown");
+    }
 
-    if (m_autoReconnect) {
+    if (m_autoReconnect && !OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
         scheduleReconnect();
     }
 }
@@ -507,6 +518,10 @@ void OneSevenLiveTwitchChatClient::resetReconnectAttempts() {
 }
 
 void OneSevenLiveTwitchChatClient::onStatusTimer() {
+    if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
+        obs_log(LOG_INFO, "[obs-17live] StatusTimer: suppress broadcasts during shutdown");
+        return;
+    }
     obs_log(LOG_DEBUG, "[obs-17live] StatusTimer broadcast: username=%s status=%s",
             m_username.toUtf8().constData(), m_connected ? "connected" : "break");
     OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(

@@ -453,15 +453,6 @@ void OneSevenLiveCoreManager::shutdown() {
         return;
     }
 
-    // Ensure MultiRTMP outputs are stopped and destroyed before OBS subsystems shut down
-    {
-        auto* multiMgr = OneSevenLiveMultiRtmpManager::getInstance();
-        if (multiMgr) {
-            multiMgr->shutdown();
-            OneSevenLiveMultiRtmpManager::destroyInstance();
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        }
-    }
 
     if (obs_frontend_streaming_active()) {
         if (streamManager) {
@@ -476,6 +467,16 @@ void OneSevenLiveCoreManager::shutdown() {
     saveDockState();
 
     closeAllDocks();
+
+    // After docks are closed and UI timers stopped, shutdown MultiRTMP manager
+    {
+        auto* multiMgr = OneSevenLiveMultiRtmpManager::peekInstance();
+        if (multiMgr) {
+            multiMgr->shutdown();
+            OneSevenLiveMultiRtmpManager::destroyInstance();
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        }
+    }
 
     if (chatRelayWidget) {
         chatRelayWidget->deleteLater();
