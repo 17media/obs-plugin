@@ -120,6 +120,14 @@ void OneSevenLiveRockZoneDock::setupUi() {
     userList->setSpacing(1);
     mainLayout->addWidget(userList);
 
+    // Create empty list placeholder
+    emptyListLabel = new QLabel(obs_module_text("RockZone.EmptyList"), container);
+    emptyListLabel->setAlignment(Qt::AlignCenter);
+    emptyListLabel->setStyleSheet("QLabel { color: #999999; font-size: 14px; }");
+    emptyListLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    emptyListLabel->setVisible(false);
+    mainLayout->addWidget(emptyListLabel);
+
     // Create bottom button
     pokeAllButton = new QPushButton(obs_module_text("RockZone.PokeAll"));
     pokeAllButton->setStyleSheet(
@@ -285,6 +293,15 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         if (user.userAttr.sentPoint <= 0) {
                             continue;
                         }
+                        
+                        // Filter out users with empty display name
+                        QString displayName = user.displayUser.displayName.isEmpty()
+                                                  ? user.giftRankOne.displayName
+                                                  : user.displayUser.displayName;
+                        if (displayName.trimmed().isEmpty()) {
+                            continue;
+                        }
+
                         if (idIndex.contains(uid)) {
                             auto& existing = viewersList[idIndex.value(uid)];
                             if (!existing.badgeTypes.contains(user.type)) {
@@ -366,6 +383,19 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         } else {
                             ++it;
                         }
+                    }
+
+                    // Update empty state visibility
+                    bool isEmpty = sortedViewersList.isEmpty();
+                    if (userList)
+                        userList->setVisible(!isEmpty);
+                    if (emptyListLabel)
+                        emptyListLabel->setVisible(isEmpty);
+
+                    // Safety: if list should be empty but has items, clear it to prevent ghost items
+                    if (isEmpty && userList && userList->count() > 0) {
+                        userList->clear();
+                        userItemMap.clear();
                     }
                 } else {
                     // Show error message

@@ -47,6 +47,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
                         const OneSevenLiveArmyNameResponse& armyNameResponse);
 
     QListWidget* userList;
+    QLabel* emptyListLabel = nullptr;
     QPushButton* pokeAllButton;
 
     OneSevenLiveApiWrappers* apiWrapper = nullptr;
