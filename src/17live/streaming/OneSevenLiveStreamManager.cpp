@@ -210,7 +210,10 @@ bool OneSevenLiveStreamManager::startStream() {
                 nlohmann::json{{"status", "connected"}});
 
     // Reload chat URLs and reconnect Ably
-    OneSevenLiveCoreManager::getInstance().reloadChatUrls();
+    // Use QTimer to delay the reload slightly to avoid potential conflicts with UI updates or stream startup
+    QTimer::singleShot(500, []() {
+        OneSevenLiveCoreManager::getInstance().reloadChatUrls();
+    });
 
     obs_log(LOG_INFO, "Streaming started successfully");
     return true;
