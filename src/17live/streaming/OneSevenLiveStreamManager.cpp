@@ -209,6 +209,9 @@ bool OneSevenLiveStreamManager::startStream() {
     wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
                 nlohmann::json{{"status", "connected"}});
 
+    // Reload chat URLs and reconnect Ably
+    OneSevenLiveCoreManager::getInstance().reloadChatUrls();
+
     obs_log(LOG_INFO, "Streaming started successfully");
     return true;
 }

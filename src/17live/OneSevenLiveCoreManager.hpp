@@ -162,6 +162,8 @@ class OneSevenLiveCoreManager : public QObject {
     void connectTwitchChatClient(const QString& channel = QString());
     void disconnectTwitchChatClient();
 
+    void reloadChatUrls();
+
     bool handleLoginClicked();
 
     void setShuttingDown(bool v);

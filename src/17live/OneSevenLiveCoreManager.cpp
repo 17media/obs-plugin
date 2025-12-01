@@ -1888,6 +1888,47 @@ void OneSevenLiveCoreManager::createPreviewDock() {
     }
 }
 
+void OneSevenLiveCoreManager::reloadChatUrls() {
+    if (isShuttingDown()) {
+        return;
+    }
+
+    obs_log(LOG_INFO, "[17Live Core] Reloading chat URLs...");
+
+    qint64 rid = 0;
+    if (streamManager) {
+        rid = streamManager->getRoomID();
+    }
+
+    int httpPort = 0;
+    if (ablyHttpServer_) {
+        httpPort = ablyHttpServer_->getPort();
+    }
+
+    int wsPort = 0;
+    if (websocketServer_) {
+        wsPort = websocketServer_->getPort();
+    }
+
+    // Reload ChatRelayWidget
+    if (chatRelayWidget && rid > 0 && httpPort > 0 && wsPort > 0) {
+        obs_log(LOG_INFO, "[17Live Core] Reloading ChatRelayWidget with RoomID: %lld", rid);
+        chatRelayWidget->startRelay(QString::number(rid), httpPort, wsPort);
+    }
+
+    // Reload ChatDock
+    if (chatDock) {
+        obs_log(LOG_INFO, "[17Live Core] Reloading ChatDock");
+        chatDock->reload();
+    }
+
+    // Reconnect Ably chat client
+    // if (ablyChatClient && rid > 0) {
+    //     obs_log(LOG_INFO, "[17Live Core] Reconnecting Ably chat client for RoomID: %lld", rid);
+    //     connectAblyChat(QString::number(rid));
+    // }
+}
+
 void OneSevenLiveCoreManager::setShuttingDown(bool v) {
     shuttingDown = v;
 }
