@@ -22,6 +22,6 @@ class DownloadWorker : public QObject {
    private:
     QString downloadUrl;
     QString filePath;
-    bool canceled;
+    bool canceled = false;
     QMutex mutex;
 };

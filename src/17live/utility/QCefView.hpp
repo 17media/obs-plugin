@@ -46,9 +46,9 @@ class QCefView : public QWidget {
    private:
    CefRefPtr<SimpleCefClient> m_client;
 
-    QWindow *m_window;
-    QWidget *m_container;
-   QVBoxLayout *m_layout;
+    QWindow *m_window = nullptr;
+    QWidget *m_container = nullptr;
+   QVBoxLayout *m_layout = nullptr;
    QString m_currentUrl;
    bool m_closing = false;
 

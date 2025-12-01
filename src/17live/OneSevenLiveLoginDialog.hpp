@@ -29,14 +29,12 @@ class OneSevenLiveLoginDialog : public QDialog {
     void loginSuccess(const OneSevenLiveLoginData& loginData);
 
    private:
-    QLabel* titleLabel = nullptr;
     QLineEdit* usernameEdit = nullptr;
     QLineEdit* passwordEdit = nullptr;
     QPushButton* showPasswordButton = nullptr;
     QPushButton* loginButton = nullptr;
     QLabel* errorLabel = nullptr;
     QWidget* errorContainer = nullptr;
-    QLabel* forgotPasswordLabel = nullptr;
     QLabel* registerLabel = nullptr;
     QLabel* disclaimerLabel = nullptr;
     QLabel* passwordLabel = nullptr;

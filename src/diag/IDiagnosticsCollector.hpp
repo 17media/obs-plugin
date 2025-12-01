@@ -21,7 +21,7 @@ namespace seventeen {
         enum class CollectStatus { SUCCESS, ERROR, CANCELLED, PERMISSION_DENIED };
 
         struct CollectResult {
-            CollectStatus status;
+            CollectStatus status = CollectStatus::ERROR;
             std::string message;
             std::string outputPath;
             std::vector<std::string> collectedFiles;
@@ -30,8 +30,8 @@ namespace seventeen {
         struct DiagnosticConfig {
             std::vector<DiagnosticCategory> categories;
             std::string outputDirectory;
-            bool enablePrivacyFilter;
-            bool includeSensitiveData;
+            bool enablePrivacyFilter = false;
+            bool includeSensitiveData = false;
             std::vector<std::string> customPaths;
         };
 

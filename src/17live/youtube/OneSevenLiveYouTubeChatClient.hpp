@@ -136,27 +136,27 @@ class OneSevenLiveYouTubeChatClient : public QObject {
     QString m_liveChatId;
     QString m_nextPageToken;
     OneSevenLiveYouTubeClient* m_apiClient{nullptr};
-    int m_timeoutMs;
-    int m_maxRetries;
-    int m_retryDelayMs;
-    int m_currentRetryCount;
-    int m_reconnectAttempts;
-    int m_noMessageStreak;
-    bool m_hasValidAuth;
-    bool m_isPolling;
-    bool m_isRateLimited;
+    int m_timeoutMs = 0;
+    int m_maxRetries = 0;
+    int m_retryDelayMs = 0;
+    int m_currentRetryCount = 0;
+    int m_reconnectAttempts = 0;
+    int m_noMessageStreak = 0;
+    bool m_hasValidAuth = false;
+    bool m_isPolling = false;
+    bool m_isRateLimited = false;
 
     // Polling
-    int m_currentPollingInterval;
-    int m_exponentialBackoffDelay;
+    int m_currentPollingInterval = 0;
+    int m_exponentialBackoffDelay = 0;
 
     // Request context
     QString m_currentOperation;
     QString m_lastEndpoint;
 
     // Timer for polling
-    class QTimer* m_pollingTimer;
-    class QTimer* m_statusTimer;
-    class QTimer* m_reconnectTimer;
+    class QTimer* m_pollingTimer = nullptr;
+    class QTimer* m_statusTimer = nullptr;
+    class QTimer* m_reconnectTimer = nullptr;
     class QTimer* m_discoverTimer{nullptr};
 };

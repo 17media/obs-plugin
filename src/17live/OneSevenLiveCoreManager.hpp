@@ -188,8 +188,7 @@ class OneSevenLiveCoreManager : public QObject {
     QMainWindow* mainWindow = nullptr;
 
     // Configuration storage
-    std::map<std::string, std::string> configMap;
-
+    
     // Initialization flag
     bool initialized = false;
     bool shuttingDown = false;
@@ -238,7 +237,6 @@ class OneSevenLiveCoreManager : public QObject {
     void handleStreamingClicked();
     void createStreamingDock();
 
-    bool chatRoomDockFirstLoad = true;
     QPointer<OneSevenLiveChatDock> chatDock;
     void handleChatRoomClicked();
 

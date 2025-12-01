@@ -67,9 +67,9 @@ class OneSevenLiveWebsocketServer {
     // Server instance
     std::unique_ptr<websocketpp_server> server_;
     std::string host_;
-    int port_;
+    int port_ = 0;
     std::unique_ptr<std::thread> server_thread_;
-    std::atomic<bool> running_;
+    std::atomic<bool> running_{false};
 
     // Client management
     mutable std::mutex clients_mutex_;

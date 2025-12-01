@@ -26,5 +26,5 @@ class OneSevenLiveAuthDialog : public QDialog {
 
    private:
     void setupUi();
-    QCefView* cefView_;
+    QCefView* cefView_ = nullptr;
 };

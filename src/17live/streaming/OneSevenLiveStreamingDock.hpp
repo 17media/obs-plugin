@@ -71,70 +71,70 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     int getEventCooldownRemaining() const;
 
     // Member variables
-    OneSevenLiveApiWrappers *apiWrapper;
+    OneSevenLiveApiWrappers *apiWrapper = nullptr;
 
    private:
     // UI elements
-    QLineEdit *titleEdit;
-    QComboBox *categoryCombo;
+    QLineEdit *titleEdit = nullptr;
+    QComboBox *categoryCombo = nullptr;
 
     // Tag area
-    QLineEdit *tagEdit;
-    QPushButton *addTagButton;
-    QWidget *tagsContainer;   // Container for displaying tags
-    QHBoxLayout *tagsLayout;  // Layout for tag container
+    QLineEdit *tagEdit = nullptr;
+    QPushButton *addTagButton = nullptr;
+    QWidget *tagsContainer = nullptr;   // Container for displaying tags
+    QHBoxLayout *tagsLayout = nullptr;  // Layout for tag container
     QList<QString> tagsList;  // Store current tag list
 
     // Streaming format
-    QRadioButton *landscapeStreamRadio;
-    QRadioButton *portraitStreamRadio;
+    QRadioButton *landscapeStreamRadio = nullptr;
+    QRadioButton *portraitStreamRadio = nullptr;
 
     // Live mode - army-only viewing
-    QLabel *broadcastModeLabel;
-    QWidget *armyOnlyHeader;
-    QHBoxLayout *armyOnlyHeaderLayout;
-    QLabel *armyOnlyLabel;
-    QPushButton *armyOnlyToggleButton;
-    QWidget *armyOnlyContainer;
-    QVBoxLayout *armyOnlyContainerLayout;
-    QCheckBox *armyOnlyCheck;
-    QComboBox *requiredArmyRankCombo;
-    QCheckBox *showInHotPageCheck;
-    QCheckBox *liveNotificationCheck;
-    bool armyOnlyExpanded;
+    QLabel *broadcastModeLabel = nullptr;
+    QWidget *armyOnlyHeader = nullptr;
+    QHBoxLayout *armyOnlyHeaderLayout = nullptr;
+    QLabel *armyOnlyLabel = nullptr;
+    QPushButton *armyOnlyToggleButton = nullptr;
+    QWidget *armyOnlyContainer = nullptr;
+    QVBoxLayout *armyOnlyContainerLayout = nullptr;
+    QCheckBox *armyOnlyCheck = nullptr;
+    QComboBox *requiredArmyRankCombo = nullptr;
+    QCheckBox *showInHotPageCheck = nullptr;
+    QCheckBox *liveNotificationCheck = nullptr;
+    bool armyOnlyExpanded = false;
 
-    QComboBox *eventCombo;
-    QLabel *hintLabel;  // Event hint label
+    QComboBox *eventCombo = nullptr;
+    QLabel *hintLabel = nullptr;  // Event hint label
 
     // Custom Event
-    QWidget *customEventHeader;
-    QHBoxLayout *customEventHeaderLayout;
-    QLabel *customEventLabel;
-    QPushButton *customEventToggleButton;
+    QWidget *customEventHeader = nullptr;
+    QHBoxLayout *customEventHeaderLayout = nullptr;
+    QLabel *customEventLabel = nullptr;
+    QPushButton *customEventToggleButton = nullptr;
     OneSevenLiveCustomEventDialog *customEventDialog = nullptr;
 
     // Party Live
-    QWidget *GroupCallContainer;
-    QHBoxLayout *GroupCallContainerLayout;
-    QLabel *GroupCallLabel;
-    QPushButton *GroupCallHelpButton;
-    QCheckBox *GroupCallCheck;
+    QWidget *GroupCallContainer = nullptr;
+    QHBoxLayout *GroupCallContainerLayout = nullptr;
+    QLabel *GroupCallLabel = nullptr;
+    QPushButton *GroupCallHelpButton = nullptr;
+    QCheckBox *GroupCallCheck = nullptr;
 
     // Switches
-    QCheckBox *archiveStreamCheck;
-    QCheckBox *autoPreviewCheck;
+    QCheckBox *archiveStreamCheck = nullptr;
+    QCheckBox *autoPreviewCheck = nullptr;
 
-    QComboBox *clipIdentityCombo;
-    QCheckBox *virtualStreamerCheck;
+    QComboBox *clipIdentityCombo = nullptr;
+    QCheckBox *virtualStreamerCheck = nullptr;
 
     // Bottom buttons
-    QPushButton *saveConfigButton;
-    QPushButton *createLiveButton;
+    QPushButton *saveConfigButton = nullptr;
+    QPushButton *createLiveButton = nullptr;
 
     // Loading state UI
-    QWidget *loadingOverlay;
-    QProgressBar *loadingProgress;
-    QLabel *loadingLabel;
+    QWidget *loadingOverlay = nullptr;
+    QProgressBar *loadingProgress = nullptr;
+    QLabel *loadingLabel = nullptr;
 
     OneSevenLiveRoomInfo roomInfo;
     OneSevenLiveConfigStreamer configStreamer;

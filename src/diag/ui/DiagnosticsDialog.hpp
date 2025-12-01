@@ -45,25 +45,25 @@ namespace seventeen {
                 void showPrivacyDialog();
 
                 // UI Elements
-                QCheckBox* m_obsLogsCheckBox;
-                QCheckBox* m_pluginLogsCheckBox;
-                QCheckBox* m_networkLogsCheckBox;
-                QCheckBox* m_systemInfoCheckBox;
-                QCheckBox* m_crashInfoCheckBox;
-                QCheckBox* m_configSnapshotCheckBox;
-                QCheckBox* m_networkRequestsCheckBox;
-                QCheckBox* m_privacyFilterCheckBox;
+                QCheckBox* m_obsLogsCheckBox = nullptr;
+                QCheckBox* m_pluginLogsCheckBox = nullptr;
+                QCheckBox* m_networkLogsCheckBox = nullptr;
+                QCheckBox* m_systemInfoCheckBox = nullptr;
+                QCheckBox* m_crashInfoCheckBox = nullptr;
+                QCheckBox* m_configSnapshotCheckBox = nullptr;
+                QCheckBox* m_networkRequestsCheckBox = nullptr;
+                QCheckBox* m_privacyFilterCheckBox = nullptr;
 
-                QProgressBar* m_progressBar;
-                QTextEdit* m_statusTextEdit;
-                QPushButton* m_collectButton;
-                QPushButton* m_cancelButton;
-                QPushButton* m_browseButton;
-                QLabel* m_outputPathLabel;
+                QProgressBar* m_progressBar = nullptr;
+                QTextEdit* m_statusTextEdit = nullptr;
+                QPushButton* m_collectButton = nullptr;
+                QPushButton* m_cancelButton = nullptr;
+                QPushButton* m_browseButton = nullptr;
+                QLabel* m_outputPathLabel = nullptr;
 
                 QString m_outputPath;
-                DiagnosticsWorker* m_worker;
-                QThread* m_workerThread;
+                DiagnosticsWorker* m_worker = nullptr;
+                QThread* m_workerThread = nullptr;
             };
 
             class DiagnosticsWorker : public QObject {

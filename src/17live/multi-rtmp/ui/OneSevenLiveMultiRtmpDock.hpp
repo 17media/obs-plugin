@@ -66,12 +66,7 @@ class OneSevenLiveMultiRtmpDock : public QDockWidget {
     QVBoxLayout* m_mainLayout = nullptr;
 
     // Header section
-    QFrame* m_headerFrame = nullptr;
-    QHBoxLayout* m_headerLayout = nullptr;
-    QLabel* m_titleLabel = nullptr;
-    QLabel* m_streamCountLabel = nullptr;
     QPushButton* m_addStreamButton = nullptr;
-    QPushButton* m_refreshButton = nullptr;
 
     // Control section
     QFrame* m_controlFrame = nullptr;
@@ -82,11 +77,6 @@ class OneSevenLiveMultiRtmpDock : public QDockWidget {
     // Stream list section
     QScrollArea* m_scrollArea = nullptr;
     OneSevenLiveMultiRtmpListWidget* m_streamListWidget = nullptr;
-
-    // Status section
-    QFrame* m_statusFrame = nullptr;
-    QHBoxLayout* m_statusLayout = nullptr;
-    QLabel* m_statusLabel = nullptr;
 
     // Dialog
     QPointer<OneSevenLiveMultiRtmpConfigDialog> m_configDialog;

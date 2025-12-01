@@ -45,8 +45,6 @@ OneSevenLiveMultiRtmpStreamItem::OneSevenLiveMultiRtmpStreamItem(
       m_startStopButton(nullptr),
       m_editButton(nullptr),
       m_menuButton(nullptr),
-      m_urlLabel(nullptr),
-      m_connectionProgress(nullptr),
       m_contextMenu(nullptr),
       m_duplicateAction(nullptr),
       m_deleteAction(nullptr),
@@ -215,10 +213,6 @@ void OneSevenLiveMultiRtmpStreamItem::setupUI() {
     setObjectName("multiRtmpItem");
     setAutoFillBackground(true);
     setStyleSheet("#multiRtmpItem { background-color: #2D2D30; border-radius: 8px; }");
-
-    // Initialize unused legacy widgets to nullptr
-    m_urlLabel = nullptr;
-    m_connectionProgress = nullptr;
 }
 
 void OneSevenLiveMultiRtmpStreamItem::setupContextMenu() {

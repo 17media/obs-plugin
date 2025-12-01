@@ -38,8 +38,8 @@ namespace seventeen {
             };
 
             std::vector<FilterPattern> m_patterns;
-            FilterLevel m_filterLevel;
-            char m_maskCharacter;
+            FilterLevel m_filterLevel = FilterLevel::MODERATE;
+            char m_maskCharacter = '*';
 
             void initializeDefaultPatterns();
             std::string maskString(const std::string& input, size_t start, size_t length);

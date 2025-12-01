@@ -727,7 +727,7 @@ struct OneSevenLiveDisplayUser {
 struct OneSevenLiveGiftRankOne {
     QString displayName;
     QString picture;
-    qint64 timestampMs;
+    qint64 timestampMs = 0;
     QString userID;
 };
 

@@ -150,7 +150,7 @@ class OneSevenLiveTwitchChatClient : public QObject {
     void sendWebSocketMessage(const std::string& message);
 
     // Connection state
-    bool m_connected;
+    bool m_connected = false;
     bool m_connecting{false};
     QString m_username;
     QString m_oauthToken;
@@ -159,16 +159,16 @@ class OneSevenLiveTwitchChatClient : public QObject {
     std::unique_ptr<OneSevenLiveWebsocketClient> m_client;
 
     // Configuration
-    bool m_autoReconnect;
-    int m_reconnectDelay;
-    int m_pingInterval;
-    int m_reconnectAttempts;
-    int m_maxReconnectAttempts;
+    bool m_autoReconnect = false;
+    int m_reconnectDelay = 0;
+    int m_pingInterval = 0;
+    int m_reconnectAttempts = 0;
+    int m_maxReconnectAttempts = 0;
 
     // Timers
-    QTimer* m_pingTimer;
-    QTimer* m_reconnectTimer;
-    QTimer* m_statusTimer;
+    QTimer* m_pingTimer = nullptr;
+    QTimer* m_reconnectTimer = nullptr;
+    QTimer* m_statusTimer = nullptr;
     QDateTime m_lastPongTs;
 
     // Constants

@@ -84,8 +84,8 @@ class OneSevenLiveLoadRoomInfoWorker {
                            OneSevenLiveArmySubscriptionLevels* levels);
 
    private:
-    OneSevenLiveApiWrappers* m_apiWrapper;
-    OneSevenLiveConfigManager* m_configManager;
+    OneSevenLiveApiWrappers* m_apiWrapper = nullptr;
+    OneSevenLiveConfigManager* m_configManager = nullptr;
 
     // Data structures to hold the loaded information
     OneSevenLiveRoomInfo* m_roomInfo = nullptr;

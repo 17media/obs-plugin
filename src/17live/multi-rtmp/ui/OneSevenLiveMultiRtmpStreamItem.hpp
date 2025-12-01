@@ -120,10 +120,6 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     QPushButton* m_editButton = nullptr;
     QPushButton* m_menuButton = nullptr;
 
-    // Unused legacy components (kept for compatibility)
-    QLabel* m_urlLabel = nullptr;
-    QProgressBar* m_connectionProgress = nullptr;
-
     // Context menu
     QMenu* m_contextMenu = nullptr;
     QAction* m_duplicateAction = nullptr;

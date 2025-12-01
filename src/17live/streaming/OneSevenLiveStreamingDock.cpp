@@ -1512,9 +1512,6 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
     }
 
     // Call ChangeEvent API
-    OneSevenLiveChangeEventRequest request;
-    request.eventID = eventID;
-
     bool success = changeEvent(eventID);
     if (success) {
         obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);

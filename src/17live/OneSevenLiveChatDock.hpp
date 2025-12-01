@@ -14,7 +14,6 @@ class OneSevenLiveChatDock : public QDockWidget {
 
     void setUrl(const QString& url);
     void reload();
-    void setSuppressClosePrompt(bool suppress);
 
    private:
     QCefView* cefView_ = nullptr;

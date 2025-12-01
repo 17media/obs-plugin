@@ -38,19 +38,19 @@ class OneSevenLiveStreamListDock : public QDockWidget {
     void onStartLiveClicked();
 
    private:
-    void setupUi();
-    void createConnections();
-    void updateStreamItem(QListWidgetItem* item, const OneSevenLiveStreamInfo& info);
-    void showEmptyListMessage();
+        void setupUi();
+        void createConnections();
+        void updateStreamItem(QListWidgetItem* item, const OneSevenLiveStreamInfo& info);
+        void showEmptyListMessage();
 
-    QListWidget* streamList;
-    QPushButton* startLiveButton;
-    QWidget* emptyContainer = nullptr;
-    OneSevenLiveConfigManager* configManager;
+        QListWidget* streamList = nullptr;
+        QPushButton* startLiveButton = nullptr;
+        QWidget* emptyContainer = nullptr;
+        OneSevenLiveConfigManager* configManager = nullptr;
 
-    QPushButton* goToStreamingButton;
+        QPushButton* goToStreamingButton = nullptr;
 
-    OneSevenLiveStreamingStatus status;
+        OneSevenLiveStreamingStatus status;
 
    private slots:
     void handleTopLevelChanged(bool topLevel);

@@ -15,6 +15,6 @@ class OneSevenLiveLineEditWithEye : public QWidget {
     QString text() const;
 
    private:
-    QLineEdit *m_lineEdit;
-    QPushButton *m_eyeButton;
+    QLineEdit *m_lineEdit = nullptr;
+    QPushButton *m_eyeButton = nullptr;
 };
