@@ -39,17 +39,25 @@ class OneSevenLiveRockViewerItem : public QWidget {
     void mousePressEvent(QMouseEvent *event) override;
 
    private:
-    QLabel *usernameLabel;
+    QLabel *usernameLabel = nullptr;
+    QLabel *avatarLabel = nullptr;
+    QLabel *pointsLabel = nullptr;
+    QHBoxLayout *badgeRowLayout = nullptr;
+    QHBoxLayout *nameRowLayout = nullptr;
+    QVBoxLayout *rightLayout = nullptr;
 
     OneSevenLiveRockZoneViewer user;
-    OneSevenLiveApiWrappers *apiWrapper;
-    OneSevenLiveConfigManager *configManager;
+    OneSevenLiveApiWrappers *apiWrapper = nullptr;
+    OneSevenLiveConfigManager *configManager = nullptr;
     OneSevenLiveArmyNameResponse armyNameResponse;
 
     static QString buildUrl(const QString &path);
     void setupUi();
-    QLabel *setupAvatar();
+    void setupAvatar();
     QHBoxLayout *setupNameRow();
     QHBoxLayout *setupBadgeRow();
     QHBoxLayout *setupPointsRow();
+    void reloadAvatar();
+    void updateBadges();
+    void updateNameRow();
 };

@@ -170,11 +170,24 @@ void OneSevenLiveRockZoneDock::createConnections() {
 void OneSevenLiveRockZoneDock::updateUserItem(
     QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user,
     const OneSevenLiveArmyNameResponse& armyNameResponse) {
+    
+    // Create a mutable copy to apply fallback logic if needed
+    OneSevenLiveRockZoneViewer displayUser = user;
+    
+    // Fallback: If display name is empty, try to use giftRankOne info
+    if (displayUser.displayUser.displayName.trimmed().isEmpty() &&
+        !displayUser.giftRankOne.displayName.trimmed().isEmpty()) {
+        displayUser.displayUser.displayName = displayUser.giftRankOne.displayName;
+        if (displayUser.displayUser.picture.isEmpty()) {
+            displayUser.displayUser.picture = displayUser.giftRankOne.picture;
+        }
+    }
+
     OneSevenLiveRockViewerItem* w =
         qobject_cast<OneSevenLiveRockViewerItem*>(userList->itemWidget(item));
 
     if (!w) {
-        w = new OneSevenLiveRockViewerItem(user, apiWrapper, configManager, armyNameResponse, this);
+        w = new OneSevenLiveRockViewerItem(displayUser, apiWrapper, configManager, armyNameResponse, this);
         item->setSizeHint(w->sizeHint());
         userList->setItemWidget(item, w);
 
@@ -192,7 +205,7 @@ void OneSevenLiveRockZoneDock::updateUserItem(
                     userDialog->show();
                 });
     } else {
-        w->updateData(user, armyNameResponse);
+        w->updateData(displayUser, armyNameResponse);
     }
 }
 
@@ -312,6 +325,15 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             }
                         } else {
                             OneSevenLiveRockZoneViewer base = user;
+                            // Apply fallback display name if needed
+                            if (base.displayUser.displayName.trimmed().isEmpty() &&
+                                !base.giftRankOne.displayName.trimmed().isEmpty()) {
+                                base.displayUser.displayName = base.giftRankOne.displayName;
+                                if (base.displayUser.picture.isEmpty()) {
+                                    base.displayUser.picture = base.giftRankOne.picture;
+                                }
+                            }
+                            
                             if (base.displayUser.userID.isEmpty()) {
                                 base.displayUser.userID = base.giftRankOne.userID;
                                 base.displayUser.displayName = base.giftRankOne.displayName;
