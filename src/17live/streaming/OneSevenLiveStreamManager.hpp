@@ -231,14 +231,14 @@ class OneSevenLiveStreamManager : public QObject {
     bool enableStreamArchive(const std::string& liveStreamID, bool enable);
 
     // Member variables
-    OneSevenLiveApiWrappers* apiWrapper;
-    OneSevenLiveConfigManager* configManager;
+    OneSevenLiveApiWrappers* apiWrapper = nullptr;
+    OneSevenLiveConfigManager* configManager = nullptr;
 
-    OneSevenLiveStreamingStatus currentStreamingStatus;
+    OneSevenLiveStreamingStatus currentStreamingStatus = OneSevenLiveStreamingStatus::NotStarted;
 
     std::string currentLiveStreamID;
     std::string currentUserID;
-    qint64 currentRoomID;
+    qint64 currentRoomID = 0;
 
     OneSevenLiveRtmpResponse currentStreamResponse;  // Store current stream response
     OneSevenLiveRtmpRequest currentStreamRequest;    // Store current stream request

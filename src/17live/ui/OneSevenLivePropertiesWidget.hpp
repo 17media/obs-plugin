@@ -15,9 +15,9 @@ class OneSevenLivePropertiesWidget : public QWidget, public OneSevenLiveProperty
     Q_OBJECT
 
    private:
-    obs_data_t *m_origSettings;
-    obs_data_t *m_settings;
-    obs_properties_t *m_props;
+    obs_data_t *m_origSettings = nullptr;
+    obs_data_t *m_settings = nullptr;
+    obs_properties_t *m_props = nullptr;
 
    public:
     OneSevenLivePropertiesWidget(QWidget *parent = nullptr, obs_data_t *settings = nullptr,
@@ -29,7 +29,7 @@ class OneSevenLivePropertiesWidget : public QWidget, public OneSevenLiveProperty
     nlohmann::json SaveData();
 
    private:
-    QFormLayout *m_formLayout;
+    QFormLayout *m_formLayout = nullptr;
 
     std::unordered_map<std::string, std::shared_ptr<OneSevenLivePropertyWidget>> m_propertyWidgets;
 

@@ -49,27 +49,27 @@ class OneSevenLiveMenuManager : public QObject {
     void diagnosticsClicked();
 
    private:
-    QMainWindow* mainWindow;
-    QMenu* menu;
-    QMenu* dockSubMenu;
-    QAction* chatRoomAction;
-    QAction* settingsAction;
-    QAction* broadcastAction;
-    QAction* liveListAction;
-    QAction* rockZoneAction;
-    QAction* multiRtmpAction;
-    QAction* previewDockAction;
-    QAction* helpAction;
-    QAction* checkUpdateAction;
-    QAction* diagnosticsAction;
-    QAction* loginAction;
-    bool isLoggedIn;
+    QMainWindow* mainWindow = nullptr;
+    QMenu* menu = nullptr;
+    QMenu* dockSubMenu = nullptr;
+    QAction* chatRoomAction = nullptr;
+    QAction* settingsAction = nullptr;
+    QAction* broadcastAction = nullptr;
+    QAction* liveListAction = nullptr;
+    QAction* rockZoneAction = nullptr;
+    QAction* multiRtmpAction = nullptr;
+    QAction* previewDockAction = nullptr;
+    QAction* helpAction = nullptr;
+    QAction* checkUpdateAction = nullptr;
+    QAction* diagnosticsAction = nullptr;
+    QAction* loginAction = nullptr;
+    bool isLoggedIn = false;
 
     // Dock window visibility status
-    bool isChatRoomVisible;
-    bool isBroadcastVisible;
-    bool isLiveListVisible;
-    bool isRockZoneVisible;
-    bool isMultiRtmpVisible;
-    bool isPreviewDockVisible;
+    bool isChatRoomVisible = false;
+    bool isBroadcastVisible = false;
+    bool isLiveListVisible = false;
+    bool isRockZoneVisible = false;
+    bool isMultiRtmpVisible = false;
+    bool isPreviewDockVisible = false;
 };

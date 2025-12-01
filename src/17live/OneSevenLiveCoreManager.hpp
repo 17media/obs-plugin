@@ -185,13 +185,13 @@ class OneSevenLiveCoreManager : public QObject {
     static std::once_flag instanceOnceFlag;
 
     // OBS main window
-    QMainWindow* mainWindow;
+    QMainWindow* mainWindow = nullptr;
 
     // Configuration storage
     std::map<std::string, std::string> configMap;
 
     // Initialization flag
-    bool initialized;
+    bool initialized = false;
     bool shuttingDown = false;
 
     // Flag to track if we are in startup dock restoration phase

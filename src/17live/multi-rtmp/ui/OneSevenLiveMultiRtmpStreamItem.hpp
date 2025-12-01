@@ -99,47 +99,47 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     OneSevenLiveMultiRtmpStreamStats m_stats;
 
     // UI components - Main layout (3-layer vertical)
-    QVBoxLayout* m_mainLayout;
+    QVBoxLayout* m_mainLayout = nullptr;
 
     // Top layer - Name and status
-    QHBoxLayout* m_topLayout;
-    QLabel* m_nameLabel;
-    QHBoxLayout* m_statusLayout;
-    QLabel* m_statusDot;
-    QLabel* m_statusLabel;
+    QHBoxLayout* m_topLayout = nullptr;
+    QLabel* m_nameLabel = nullptr;
+    QHBoxLayout* m_statusLayout = nullptr;
+    QLabel* m_statusDot = nullptr;
+    QLabel* m_statusLabel = nullptr;
 
     // Middle layer - Statistics
-    QVBoxLayout* m_statsLayout;
-    QLabel* m_durationLabel;
-    QLabel* m_bitrateLabel;
-    QLabel* m_framesLabel;
+    QVBoxLayout* m_statsLayout = nullptr;
+    QLabel* m_durationLabel = nullptr;
+    QLabel* m_bitrateLabel = nullptr;
+    QLabel* m_framesLabel = nullptr;
 
     // Bottom layer - Controls
-    QHBoxLayout* m_controlLayout;
-    QPushButton* m_startStopButton;
-    QPushButton* m_editButton;
-    QPushButton* m_menuButton;
+    QHBoxLayout* m_controlLayout = nullptr;
+    QPushButton* m_startStopButton = nullptr;
+    QPushButton* m_editButton = nullptr;
+    QPushButton* m_menuButton = nullptr;
 
     // Unused legacy components (kept for compatibility)
-    QLabel* m_urlLabel;
-    QProgressBar* m_connectionProgress;
+    QLabel* m_urlLabel = nullptr;
+    QProgressBar* m_connectionProgress = nullptr;
 
     // Context menu
-    QMenu* m_contextMenu;
-    QAction* m_duplicateAction;
-    QAction* m_deleteAction;
+    QMenu* m_contextMenu = nullptr;
+    QAction* m_duplicateAction = nullptr;
+    QAction* m_deleteAction = nullptr;
 
     // Update timer
-    QTimer* m_statsTimer;
+    QTimer* m_statsTimer = nullptr;
 
     // Manager reference for real-time stats
-    OneSevenLiveMultiRtmpManager* m_manager;
+    OneSevenLiveMultiRtmpManager* m_manager = nullptr;
 
     // Real-time statistics tracking
     std::chrono::steady_clock::time_point m_startTime;
     std::chrono::steady_clock::time_point m_lastStatsTime;
-    uint64_t m_lastTotalBytes;
-    uint64_t m_lastTotalFrames;
+    uint64_t m_lastTotalBytes = 0;
+    uint64_t m_lastTotalFrames = 0;
 
     // Style classes for different states
     static const QString STATUS_IDLE_CLASS;
@@ -147,9 +147,9 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     static const QString STATUS_ACTIVE_CLASS;
     static const QString STATUS_ERROR_CLASS;
     static const QString STATUS_STOPPING_CLASS;
-    QHBoxLayout* m_errorHintLayout;
-    QLabel* m_errorIconLabel;
-    QLabel* m_errorTextLabel;
+    QHBoxLayout* m_errorHintLayout = nullptr;
+    QLabel* m_errorIconLabel = nullptr;
+    QLabel* m_errorTextLabel = nullptr;
 
     void updateErrorHint();
     QString composeErrorTooltip(const QString& brief, const QString& detail,

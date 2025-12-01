@@ -91,25 +91,25 @@ class OneSevenLiveTwitchAuth : public QObject {
     // Internal helpers
     QString m_state;
 
-    QTimer* m_pollingTimer;
+    QTimer* m_pollingTimer = nullptr;
 
     // Authorization state
     QString m_deviceCode;
     QString m_userCode;
     QString m_verificationUri;
     QString m_verificationUriComplete;
-    int m_expiresIn;
-    int m_interval;
-    int m_remainingTime;
+    int m_expiresIn = 0;
+    int m_interval = 0;
+    int m_remainingTime = 0;
 
     // Token storage
     QString m_accessToken;
     QString m_refreshToken;
 
     // State flags
-    bool m_isAuthorizing;
-    bool m_isPolling;
-    bool m_wasCancelled;
+    bool m_isAuthorizing = false;
+    bool m_isPolling = false;
+    bool m_wasCancelled = false;
 
     // Authorization code flow (via redirect)
     QString m_authorizationCode;

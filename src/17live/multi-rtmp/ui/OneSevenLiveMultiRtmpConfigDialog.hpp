@@ -95,47 +95,47 @@ class OneSevenLiveMultiRtmpConfigDialog : public QDialog {
     std::string m_supportedAudioEncoders;
 
     // Main layout
-    QVBoxLayout* m_mainLayout;
-    QTabWidget* m_tabWidget;
+    QVBoxLayout* m_mainLayout = nullptr;
+    QTabWidget* m_tabWidget = nullptr;
     QScrollArea* m_scrollArea{nullptr};
     QWidget* m_container{nullptr};
 
     // Basic info section
-    QWidget* m_basicInfoWidget;
-    QFormLayout* m_basicInfoLayout;
-    QComboBox* m_streamNameCombo;
-    QPushButton* m_authorizeButton;
-    QComboBox* m_protocolCombo;
-    OneSevenLivePropertiesWidget* m_serviceWidget;
+    QWidget* m_basicInfoWidget = nullptr;
+    QFormLayout* m_basicInfoLayout = nullptr;
+    QComboBox* m_streamNameCombo = nullptr;
+    QPushButton* m_authorizeButton = nullptr;
+    QComboBox* m_protocolCombo = nullptr;
+    OneSevenLivePropertiesWidget* m_serviceWidget = nullptr;
 
     // Advanced settings section
-    QPushButton* m_advancedButton;
-    QWidget* m_advancedWidget;
-    bool m_advancedExpanded;
-    int m_baseHeight;
+    QPushButton* m_advancedButton = nullptr;
+    QWidget* m_advancedWidget = nullptr;
+    bool m_advancedExpanded = false;
+    int m_baseHeight = 0;
 
     // Output tab
-    QWidget* m_outputTab;
-    QFormLayout* m_outputLayout;
-    OneSevenLivePropertiesWidget* m_outputWidget;
+    QWidget* m_outputTab = nullptr;
+    QFormLayout* m_outputLayout = nullptr;
+    OneSevenLivePropertiesWidget* m_outputWidget = nullptr;
 
     // Video tab
-    QWidget* m_videoTab;
-    QFormLayout* m_videoLayout;
-    QComboBox* m_videoEncoderCombo;
-    QComboBox* m_outputSceneCombo;
-    OneSevenLivePropertiesWidget* m_videoWidget;
+    QWidget* m_videoTab = nullptr;
+    QFormLayout* m_videoLayout = nullptr;
+    QComboBox* m_videoEncoderCombo = nullptr;
+    QComboBox* m_outputSceneCombo = nullptr;
+    OneSevenLivePropertiesWidget* m_videoWidget = nullptr;
 
     // Audio tab
-    QWidget* m_audioTab;
-    QFormLayout* m_audioLayout;
-    QComboBox* m_audioEncoderCombo;
-    OneSevenLivePropertiesWidget* m_audioWidget;
+    QWidget* m_audioTab = nullptr;
+    QFormLayout* m_audioLayout = nullptr;
+    QComboBox* m_audioEncoderCombo = nullptr;
+    OneSevenLivePropertiesWidget* m_audioWidget = nullptr;
 
     // Button box
-    QHBoxLayout* m_buttonLayout;
-    QPushButton* m_okButton;
-    QPushButton* m_cancelButton;
+    QHBoxLayout* m_buttonLayout = nullptr;
+    QPushButton* m_okButton = nullptr;
+    QPushButton* m_cancelButton = nullptr;
 
     // State
     bool m_isEditMode;

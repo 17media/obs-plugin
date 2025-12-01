@@ -78,25 +78,25 @@ class OneSevenLiveCustomEventDialog : public QDialog {
 
    private:
     // UI Components
-    QVBoxLayout* mainLayout;
+    QVBoxLayout* mainLayout = nullptr;
 
     // Event Title Section
-    QLabel* titleLabel;
-    QLineEdit* eventTitleEdit;
+    QLabel* titleLabel = nullptr;
+    QLineEdit* eventTitleEdit = nullptr;
 
     // Event Date Section
-    QLabel* dateLabel;
-    QDateEdit* dateEdit;
-    QCalendarWidget* calendar;
-    QFrame* calendarFrame;
+    QLabel* dateLabel = nullptr;
+    QDateEdit* dateEdit = nullptr;
+    QCalendarWidget* calendar = nullptr;
+    QFrame* calendarFrame = nullptr;
 
     // Event Gifts Section
-    QLabel* giftsLabel;
-    QLineEdit* selectedGiftsEdit;
-    QTabWidget* giftTabWidget;
-    QScrollArea* giftsScrollArea;
-    QWidget* giftsContainer;
-    QGridLayout* giftsLayout;
+    QLabel* giftsLabel = nullptr;
+    QLineEdit* selectedGiftsEdit = nullptr;
+    QTabWidget* giftTabWidget = nullptr;
+    QScrollArea* giftsScrollArea = nullptr;
+    QWidget* giftsContainer = nullptr;
+    QGridLayout* giftsLayout = nullptr;
     QList<OneSevenLiveGift> selectedGifts;    // Support multiple gift selection
     static const int MAX_SELECTED_GIFTS = 4;  // Maximum 4 gifts can be selected
 
@@ -106,24 +106,24 @@ class OneSevenLiveCustomEventDialog : public QDialog {
     QList<OneSevenLiveGiftTab> filteredGiftTabs;
 
     // Event Targets Section
-    QLabel* dailyTargetLabel;
-    QLineEdit* dailyTargetEdit;
-    QLabel* totalTargetLabel;
-    QLineEdit* totalTargetEdit;
+    QLabel* dailyTargetLabel = nullptr;
+    QLineEdit* dailyTargetEdit = nullptr;
+    QLabel* totalTargetLabel = nullptr;
+    QLineEdit* totalTargetEdit = nullptr;
 
     // Event Description Section
-    QLabel* descriptionLabel;
-    QTextEdit* descriptionEdit;
-    QLabel* characterCountLabel;
+    QLabel* descriptionLabel = nullptr;
+    QTextEdit* descriptionEdit = nullptr;
+    QLabel* characterCountLabel = nullptr;
 
     // Bottom Buttons
-    QHBoxLayout* buttonLayout;
-    QPushButton* createButton;
+    QHBoxLayout* buttonLayout = nullptr;
+    QPushButton* createButton = nullptr;
 
     // API Wrapper
-    OneSevenLiveApiWrappers* apiWrapper;
+    OneSevenLiveApiWrappers* apiWrapper = nullptr;
     // Config manager
-    OneSevenLiveConfigManager* configManager;
+    OneSevenLiveConfigManager* configManager = nullptr;
 
     // Constants
     static const int MAX_TITLE_LENGTH = 20;

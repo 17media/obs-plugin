@@ -80,21 +80,21 @@ class OneSevenLiveMultiRtmpListWidget : public QWidget {
     void removeStreamItem(OneSevenLiveMultiRtmpStreamItem* item);
 
     // UI components
-    QVBoxLayout* m_mainLayout;
-    QVBoxLayout* m_streamLayout;
-    QWidget* m_streamContainer;
+    QVBoxLayout* m_mainLayout = nullptr;
+    QVBoxLayout* m_streamLayout = nullptr;
+    QWidget* m_streamContainer = nullptr;
 
     // Empty state
-    QFrame* m_emptyFrame;
-    QVBoxLayout* m_emptyLayout;
-    QLabel* m_emptyTextLabel;
+    QFrame* m_emptyFrame = nullptr;
+    QVBoxLayout* m_emptyLayout = nullptr;
+    QLabel* m_emptyTextLabel = nullptr;
 
     // Stream items
     std::vector<OneSevenLiveMultiRtmpStreamItem*> m_streamItems;
 
     // State
-    bool m_showEmptyState;
+    bool m_showEmptyState = false;
 
     // Manager reference
-    OneSevenLiveMultiRtmpManager* m_manager;
+    OneSevenLiveMultiRtmpManager* m_manager = nullptr;
 };

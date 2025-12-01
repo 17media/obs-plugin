@@ -41,8 +41,8 @@ struct OneSevenLiveMultiRtmpVideoConfig {
  */
 
 struct AudioTrackConfig {
-    int mixer_track;
-    int output_track;
+    int mixer_track = 0;
+    int output_track = 0;
 };
 
 struct OneSevenLiveMultiRtmpAudioConfig {
