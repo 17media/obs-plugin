@@ -697,6 +697,16 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
                 streamOutput->connectTimeoutTimer = nullptr;
             }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STREAMING);
+            {
+                std::string platform = streamOutput->config.streamName;
+                std::transform(platform.begin(), platform.end(), platform.begin(), ::tolower);
+                if (platform.find("twitch") != std::string::npos) {
+                    auto& core = OneSevenLiveCoreManager::getInstance();
+                    QMetaObject::invokeMethod(&core, [&core]() {
+                        core.connectTwitchChatClient(QString());
+                    }, Qt::QueuedConnection);
+                }
+            }
             MULTI_RTMP_STREAM_LOG_INFO("Stream started: %s", streamId.c_str());
             break;
         }
@@ -749,6 +759,16 @@ void OneSevenLiveMultiRtmpStreamController::outputStopCallback(void* data, calld
             } else {
                 controller->updateStreamStatus(streamId,
                                                OneSevenLiveMultiRtmpStreamStatus::STOPPED);
+            }
+            {
+                std::string platform = streamOutput->config.streamName;
+                std::transform(platform.begin(), platform.end(), platform.begin(), ::tolower);
+                if (platform.find("twitch") != std::string::npos) {
+                    auto& core = OneSevenLiveCoreManager::getInstance();
+                    QMetaObject::invokeMethod(&core, [&core]() {
+                        core.disconnectTwitchChatClient();
+                    }, Qt::QueuedConnection);
+                }
             }
             MULTI_RTMP_STREAM_LOG_INFO("Stream stopped: %s", streamId.c_str());
             break;
