@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QTimer>
+#include <QPointer>
 
 #include "OneSevenLiveLineEditWithEye.hpp"
 #include "OneSevenLivePropertyRefreshHandler.hpp"
@@ -26,19 +27,23 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
     obs_log(LOG_DEBUG, "[OneSevenLivePropertyWidget] Constructor called for property: %s [%s]",
             name.c_str(), desc);
 
-    label = new QLabel(desc);
+    label = new QLabel(desc, this);
 
     m_propertyType = obs_property_get_type(property);
 
     switch (m_propertyType) {
     case OBS_PROPERTY_BOOL: {
-        auto cb = new QCheckBox(parent);
+        auto cb = new QCheckBox(this);
         // Defer signal connection to avoid triggering recursive RefreshUI calls during construction
-        QTimer::singleShot(0, [this, cb]() {
-            if (cb && m_refreshHandler) {
-                QObject::connect(cb, &QCheckBox::stateChanged, [this]() {
-                    if (m_refreshHandler)
-                        m_refreshHandler->RefreshUI();
+        QPointer<QCheckBox> safeCb(cb);
+        QPointer<OneSevenLivePropertyWidget> safeThis(this);
+        QTimer::singleShot(0, [this, safeCb, safeThis]() {
+            if (!safeCb || !safeThis) return;
+
+            if (safeThis->m_refreshHandler) {
+                QObject::connect(safeCb, &QCheckBox::stateChanged, [safeThis]() {
+                    if (safeThis->m_refreshHandler)
+                        safeThis->m_refreshHandler->RefreshUI();
                 });
             }
         });
@@ -50,39 +55,46 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         hl->addStretch();
         hl->addWidget(ctrl);
 
+        QVBoxLayout *vl = new QVBoxLayout(this);
+        vl->addWidget(container);
+
         break;
     }
     case OBS_PROPERTY_INT: {
-        auto le = new QLineEdit(parent);
+        auto le = new QLineEdit(this);
         le->setValidator(new QIntValidator(le));
         ctrl = le;
         break;
     }
     case OBS_PROPERTY_FLOAT: {
-        auto le = new QLineEdit(parent);
+        auto le = new QLineEdit(this);
         le->setValidator(new QDoubleValidator(le));
         ctrl = le;
         break;
     }
     case OBS_PROPERTY_TEXT: {
         if (obs_property_text_type(property) == OBS_TEXT_PASSWORD) {
-            auto le = new OneSevenLiveLineEditWithEye(parent);
+            auto le = new OneSevenLiveLineEditWithEye(this);
             ctrl = static_cast<QWidget *>(le);
             m_isPassword = true;
         } else {
-            auto le = new QLineEdit(parent);
+            auto le = new QLineEdit(this);
             ctrl = le;
         }
         break;
     }
     case OBS_PROPERTY_LIST: {
-        auto cb = new QComboBox(parent);
-        // 延迟信号连接，避免在构造过程中触发递归RefreshUI调用
-        QTimer::singleShot(0, [this, cb]() {
-            if (cb && m_refreshHandler) {
-                QObject::connect(cb, &QComboBox::currentIndexChanged, [this]() {
-                    if (m_refreshHandler)
-                        m_refreshHandler->RefreshUI();
+        auto cb = new QComboBox(this);
+        
+        QPointer<QComboBox> safeCb(cb);
+        QPointer<OneSevenLivePropertyWidget> safeThis(this);
+        QTimer::singleShot(0, [safeCb, safeThis]() {
+            if (!safeCb || !safeThis) return;
+
+            if (safeThis->m_refreshHandler) {
+                QObject::connect(safeCb, &QComboBox::currentIndexChanged, [safeThis]() {
+                    if (safeThis->m_refreshHandler)
+                        safeThis->m_refreshHandler->RefreshUI();
                 });
             }
         });
@@ -90,7 +102,7 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         break;
     }
     default:
-        ctrl = new QLabel("Unsupported", parent);
+        ctrl = new QLabel("Unsupported", this);
         break;
     }
 
@@ -101,23 +113,22 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
 }
 
 OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget() {
-    // Disconnect all signals to prevent crashes during destruction
-    if (label) {
-        disconnect(label, nullptr, this, nullptr);
-    }
-    if (ctrl) {
-        disconnect(ctrl, nullptr, this, nullptr);
-        // For QComboBox, also disconnect from any external connections
-        if (m_propertyType == OBS_PROPERTY_LIST) {
-            auto cb = static_cast<QComboBox *>(ctrl);
-            if (cb) {
-                disconnect(cb, nullptr, nullptr, nullptr);
-            }
-        }
-    }
-
     obs_log(LOG_DEBUG, "[~OneSevenLivePropertyWidget] Destructor called for property: %s",
             name.c_str());
+
+    // Disconnect all signals to prevent crashes during destruction
+    disconnect(this);
+
+    if (ctrl) {
+        disconnect(ctrl, nullptr, nullptr, nullptr);
+    }
+
+    if (label) {
+        disconnect(label, nullptr, nullptr, nullptr);
+    }
+    
+    ctrl = nullptr;
+    label = nullptr;
 }
 
 void OneSevenLivePropertyWidget::ReloadProperty(obs_property *property) {
