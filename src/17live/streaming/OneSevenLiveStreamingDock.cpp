@@ -1316,6 +1316,18 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
 
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
 
+    if (status == OneSevenLiveStreamingStatus::NotStarted) {
+        if (eventCooldownTimer && eventCooldownTimer->isActive()) {
+            eventCooldownTimer->stop();
+            eventCooldownRemaining = 0;
+            if (hintLabel) {
+                hintLabel->setText(obs_module_text("Live.Settings.Event.Tip"));
+                hintLabel->setStyleSheet("color: gray; font-size: 12px;");
+            }
+            emit eventCooldownUpdated(0);
+        }
+    }
+
     // Disable ALL controls above the bottom buttons when streaming is active
     // Only keep save and create live buttons enabled
     bool isStreaming = (status == OneSevenLiveStreamingStatus::Live ||
