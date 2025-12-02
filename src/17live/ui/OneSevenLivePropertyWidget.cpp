@@ -28,6 +28,7 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
             name.c_str(), desc);
 
     label = new QLabel(desc, this);
+    label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     m_propertyType = obs_property_get_type(property);
 
@@ -63,13 +64,17 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
     case OBS_PROPERTY_INT: {
         auto le = new QLineEdit(this);
         le->setValidator(new QIntValidator(le));
+        le->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         ctrl = le;
+        initDefaultVBoxLayout(ctrl);
         break;
     }
     case OBS_PROPERTY_FLOAT: {
         auto le = new QLineEdit(this);
         le->setValidator(new QDoubleValidator(le));
+        le->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         ctrl = le;
+        initDefaultVBoxLayout(ctrl);
         break;
     }
     case OBS_PROPERTY_TEXT: {
@@ -81,10 +86,13 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
             auto le = new QLineEdit(this);
             ctrl = le;
         }
+        initDefaultVBoxLayout(ctrl);
         break;
     }
     case OBS_PROPERTY_LIST: {
         auto cb = new QComboBox(this);
+        cb->setEditable(false);
+        cb->setInsertPolicy(QComboBox::NoInsert);
         
         QPointer<QComboBox> safeCb(cb);
         QPointer<OneSevenLivePropertyWidget> safeThis(this);
@@ -99,6 +107,7 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
             }
         });
         ctrl = cb;
+        initDefaultVBoxLayout(ctrl);
         break;
     }
     default:
@@ -129,6 +138,22 @@ OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget() {
     
     ctrl = nullptr;
     label = nullptr;
+    container = nullptr;
+}
+
+// Initialize default: label above, control below, left aligned, ctrl expanding width
+void OneSevenLivePropertyWidget::initDefaultVBoxLayout(QWidget *control)
+{
+    control->setParent(this);
+    control->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    QVBoxLayout *vl = new QVBoxLayout(this);
+    vl->setContentsMargins(0, 0, 0, 0);
+    vl->setSpacing(4);
+
+    label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    vl->addWidget(label);
+    vl->addWidget(control);
 }
 
 void OneSevenLivePropertyWidget::ReloadProperty(obs_property *property) {
@@ -138,7 +163,7 @@ void OneSevenLivePropertyWidget::ReloadProperty(obs_property *property) {
     if (obs_property_get_type(property) == m_propertyType) {
         switch (m_propertyType) {
         case OBS_PROPERTY_LIST: {
-            auto cb = static_cast<QComboBox *>(ctrl);
+            auto cb = qobject_cast<QComboBox *>(ctrl);
             if (!cb)
                 break;
             for (int i = cb->count() - 1; i >= 0; --i)
@@ -171,37 +196,47 @@ void OneSevenLivePropertyWidget::LoadData(obs_data_t *settings) {
         return;
     switch (m_propertyType) {
     case OBS_PROPERTY_BOOL: {
-        auto cb = static_cast<QCheckBox *>(ctrl);
-        bool v = obs_data_get_bool(settings, name.c_str());
-        cb->setChecked(v);
+        auto cb = qobject_cast<QCheckBox *>(ctrl);
+        if (cb) {
+            bool v = obs_data_get_bool(settings, name.c_str());
+            cb->setChecked(v);
+        }
         break;
     }
     case OBS_PROPERTY_INT: {
-        auto le = static_cast<QLineEdit *>(ctrl);
-        int v = (int) obs_data_get_int(settings, name.c_str());
-        le->setText(QString::number(v));
+        auto le = qobject_cast<QLineEdit *>(ctrl);
+        if (le) {
+            int v = (int) obs_data_get_int(settings, name.c_str());
+            le->setText(QString::number(v));
+        }
         break;
     }
     case OBS_PROPERTY_FLOAT: {
-        auto le = static_cast<QLineEdit *>(ctrl);
-        double v = obs_data_get_double(settings, name.c_str());
-        le->setText(QString::number(v));
+        auto le = qobject_cast<QLineEdit *>(ctrl);
+        if (le) {
+            double v = obs_data_get_double(settings, name.c_str());
+            le->setText(QString::number(v));
+        }
         break;
     }
     case OBS_PROPERTY_TEXT: {
         if (m_isPassword) {
-            auto le = static_cast<OneSevenLiveLineEditWithEye *>(ctrl);
-            const char *str = obs_data_get_string(settings, name.c_str());
-            le->setText(QString(str ? str : ""));
+            auto le = qobject_cast<OneSevenLiveLineEditWithEye *>(ctrl);
+            if (le) {
+                const char *str = obs_data_get_string(settings, name.c_str());
+                le->setText(QString(str ? str : ""));
+            }
         } else {
-            auto le = static_cast<QLineEdit *>(ctrl);
-            const char *str = obs_data_get_string(settings, name.c_str());
-            le->setText(QString(str ? str : ""));
+            auto le = qobject_cast<QLineEdit *>(ctrl);
+            if (le) {
+                const char *str = obs_data_get_string(settings, name.c_str());
+                le->setText(QString(str ? str : ""));
+            }
         }
         break;
     }
     case OBS_PROPERTY_LIST: {
-        auto cb = static_cast<QComboBox *>(ctrl);
+        auto cb = qobject_cast<QComboBox *>(ctrl);
         if (!cb)
             break;
         int indexToSelect = -1;
@@ -246,39 +281,46 @@ void OneSevenLivePropertyWidget::SaveData(obs_data_t *settings) {
     obs_log(LOG_DEBUG, "Saving property %s as %d", name.c_str(), (int) m_propertyType);
     switch (m_propertyType) {
     case OBS_PROPERTY_BOOL: {
-        auto cb = static_cast<QCheckBox *>(ctrl);
-        obs_data_set_bool(settings, name.c_str(), cb->isChecked());
+        auto cb = qobject_cast<QCheckBox *>(ctrl);
+        if (cb)
+            obs_data_set_bool(settings, name.c_str(), cb->isChecked());
         break;
     }
     case OBS_PROPERTY_INT: {
-        auto le = static_cast<QLineEdit *>(ctrl);
-        bool ok = false;
-        int v = le->text().toInt(&ok);
-        if (ok)
-            obs_data_set_int(settings, name.c_str(), v);
+        auto le = qobject_cast<QLineEdit *>(ctrl);
+        if (le) {
+            bool ok = false;
+            int v = le->text().toInt(&ok);
+            if (ok)
+                obs_data_set_int(settings, name.c_str(), v);
+        }
         break;
     }
     case OBS_PROPERTY_FLOAT: {
-        auto le = static_cast<QLineEdit *>(ctrl);
-        bool ok = false;
-        double v = le->text().toDouble(&ok);
-        if (ok)
-            obs_data_set_double(settings, name.c_str(), v);
+        auto le = qobject_cast<QLineEdit *>(ctrl);
+        if (le) {
+            bool ok = false;
+            double v = le->text().toDouble(&ok);
+            if (ok)
+                obs_data_set_double(settings, name.c_str(), v);
+        }
         break;
     }
     case OBS_PROPERTY_TEXT: {
         obs_log(LOG_DEBUG, "Saving property %s as string", name.c_str());
         if (m_isPassword) {
-            auto le = static_cast<OneSevenLiveLineEditWithEye *>(ctrl);
-            obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
+            auto le = qobject_cast<OneSevenLiveLineEditWithEye *>(ctrl);
+            if (le)
+                obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
         } else {
-            auto le = static_cast<QLineEdit *>(ctrl);
-            obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
+            auto le = qobject_cast<QLineEdit *>(ctrl);
+            if (le)
+                obs_data_set_string(settings, name.c_str(), le->text().toUtf8().constData());
         }
         break;
     }
     case OBS_PROPERTY_LIST: {
-        auto cb = static_cast<QComboBox *>(ctrl);
+        auto cb = qobject_cast<QComboBox *>(ctrl);
         if (!cb)
             break;
         QVariant data = cb->currentData();
