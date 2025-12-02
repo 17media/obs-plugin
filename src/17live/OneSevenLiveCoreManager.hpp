@@ -155,6 +155,8 @@ class OneSevenLiveCoreManager : public QObject {
     void refreshRockZoneUserList();
     std::optional<nlohmann::json> getGiftByID(const std::string& giftID) const;
     void enqueueOrBroadcastChatEvent(const QString& type, const nlohmann::json& payload);
+    
+    void setConnection();
 
     // Chat tracking external calls
     void startYouTubeChatPolling(const QString& liveChatId);

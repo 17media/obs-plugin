@@ -143,7 +143,6 @@ class OneSevenLiveStreamingDock : public QDockWidget {
 
    signals:
     void streamInfoSaved();
-    void streamStatusUpdated(OneSevenLiveStreamingStatus status);
     void eventCooldownUpdated(int remainingTime);
 
    private slots:

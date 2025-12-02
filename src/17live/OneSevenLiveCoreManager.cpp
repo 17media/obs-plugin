@@ -973,6 +973,8 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     createYouTubeChatClient();
     createTwitchChatClient();
 
+    setConnection();
+
     // Connect Ably chat based on current room ID and fetched token
     // if (streamManager && apiWrapper) {
     //     const qint64 rid = streamManager->getRoomID();
@@ -1001,6 +1003,97 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     // }
 
     // discovery is managed by YouTubeChatClient
+}
+
+void OneSevenLiveCoreManager::setConnection() {
+    
+    connect(
+        streamManager.get(), &OneSevenLiveStreamManager::streamStatusChanged, this,
+        [this](OneSevenLiveStreamingStatus status_) {
+            status = status_;
+            if (liveListDock) {
+                liveListDock->setStatus(status_);
+            }
+
+            // Handle stream status change
+            if (status_ == OneSevenLiveStreamingStatus::Streaming) {
+                // Start timer to check stream status every 30 seconds
+                if (!streamCheckTimer) {
+                    streamCheckTimer = new QTimer(this);
+                    connect(streamCheckTimer, &QTimer::timeout, this, [this]() {
+                        if (streamCheckInFlight.load()) {
+                            return;
+                        }
+                        std::string liveStreamID;
+                        if (!configManager || !configManager->getConfigValue("LiveStreamID", liveStreamID)) {
+                            return;
+                        }
+                        streamCheckInFlight.store(true);
+                        std::thread([this, liveStreamID]() {
+                            bool ok = false;
+                            try {
+                                if (apiWrapper) {
+                                    ok = apiWrapper->CheckStream(liveStreamID);
+                                }
+                            } catch (...) {
+                                ok = false;
+                            }
+                            QMetaObject::invokeMethod(
+                                this,
+                                [this, ok]() {
+                                    if (!ok) {
+                                        consecutiveFailureCount++;
+                                        obs_log(
+                                            LOG_WARNING,
+                                            "Stream check failed. Consecutive failures: %d/%d",
+                                            consecutiveFailureCount, MAX_CONSECUTIVE_FAILURES);
+                                        if (consecutiveFailureCount >= MAX_CONSECUTIVE_FAILURES) {
+                                            obs_log(
+                                                LOG_ERROR,
+                                                "Stream check failed %d times consecutively. "
+                                                "Showing auto-close confirmation.",
+                                                MAX_CONSECUTIVE_FAILURES);
+                                            QString message =
+                                                QString(
+                                                    obs_module_text(
+                                                        "Live.Settings.CloseLive.Auto.Message"))
+                                                    .arg(MAX_CONSECUTIVE_FAILURES);
+                                            if (showAutoCloseConfirmation(message)) {
+                                                closeLive(true);
+                                                if (streamCheckTimer) {
+                                                    streamCheckTimer->stop();
+                                                    streamCheckTimer->deleteLater();
+                                                    streamCheckTimer = nullptr;
+                                                }
+                                            }
+                                            consecutiveFailureCount = 0;
+                                        }
+                                    } else {
+                                        if (consecutiveFailureCount > 0) {
+                                            obs_log(LOG_INFO,
+                                                    "Stream check succeeded. Resetting failure "
+                                                    "count from %d to 0.",
+                                                    consecutiveFailureCount);
+                                            consecutiveFailureCount = 0;
+                                        }
+                                    }
+                                    streamCheckInFlight.store(false);
+                                },
+                                Qt::QueuedConnection);
+                        }).detach();
+                    });
+                }
+                streamCheckTimer->start(30000);  // 30 seconds
+            } else {
+                // Stop timer when not streaming
+                if (streamCheckTimer) {
+                    streamCheckTimer->stop();
+                    streamCheckTimer->deleteLater();
+                    streamCheckTimer = nullptr;
+                    streamCheckInFlight.store(false);
+                }
+            }
+        });
 }
 
 void OneSevenLiveCoreManager::performLogoutOperations() {
@@ -1264,91 +1357,6 @@ void OneSevenLiveCoreManager::createStreamingDock() {
                 liveListDock->refreshStreamList();
             }
         });
-
-        connect(
-            streamingDock, &OneSevenLiveStreamingDock::streamStatusUpdated, this,
-            [this](OneSevenLiveStreamingStatus status_) {
-                status = status_;
-                if (liveListDock) {
-                    liveListDock->setStatus(status_);
-                }
-
-                // Handle stream status change
-                if (status_ == OneSevenLiveStreamingStatus::Streaming) {
-                    // Start timer to check stream status every 30 seconds
-                    if (!streamCheckTimer) {
-                        streamCheckTimer = new QTimer(this);
-                        connect(streamCheckTimer, &QTimer::timeout, this, [this]() {
-                            if (streamCheckInFlight.load())
-                                return;
-                            std::string liveStreamID;
-                            if (!configManager->getConfigValue("LiveStreamID", liveStreamID))
-                                return;
-                            streamCheckInFlight.store(true);
-                            std::thread([this, liveStreamID]() {
-                                bool ok = false;
-                                try {
-                                    ok = apiWrapper->CheckStream(liveStreamID);
-                                } catch (...) {
-                                    ok = false;
-                                }
-                                QMetaObject::invokeMethod(
-                                    this,
-                                    [this, ok]() {
-                                        if (!ok) {
-                                            consecutiveFailureCount++;
-                                            obs_log(
-                                                LOG_WARNING,
-                                                "Stream check failed. Consecutive failures: %d/%d",
-                                                consecutiveFailureCount, MAX_CONSECUTIVE_FAILURES);
-                                            if (consecutiveFailureCount >=
-                                                MAX_CONSECUTIVE_FAILURES) {
-                                                obs_log(
-                                                    LOG_ERROR,
-                                                    "Stream check failed %d times consecutively. "
-                                                    "Showing auto-close confirmation.",
-                                                    MAX_CONSECUTIVE_FAILURES);
-                                                QString message =
-                                                    QString(
-                                                        obs_module_text(
-                                                            "Live.Settings.CloseLive.Auto.Message"))
-                                                        .arg(MAX_CONSECUTIVE_FAILURES);
-                                                if (showAutoCloseConfirmation(message)) {
-                                                    closeLive(true);
-                                                    if (streamCheckTimer) {
-                                                        streamCheckTimer->stop();
-                                                        streamCheckTimer->deleteLater();
-                                                        streamCheckTimer = nullptr;
-                                                    }
-                                                }
-                                                consecutiveFailureCount = 0;
-                                            }
-                                        } else {
-                                            if (consecutiveFailureCount > 0) {
-                                                obs_log(LOG_INFO,
-                                                        "Stream check succeeded. Resetting failure "
-                                                        "count from %d to 0.",
-                                                        consecutiveFailureCount);
-                                                consecutiveFailureCount = 0;
-                                            }
-                                        }
-                                        streamCheckInFlight.store(false);
-                                    },
-                                    Qt::QueuedConnection);
-                            }).detach();
-                        });
-                    }
-                    streamCheckTimer->start(30000);  // 30 seconds
-                } else {
-                    // Stop timer when not streaming
-                    if (streamCheckTimer) {
-                        streamCheckTimer->stop();
-                        streamCheckTimer->deleteLater();
-                        streamCheckTimer = nullptr;
-                        streamCheckInFlight.store(false);
-                    }
-                }
-            });
 
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             menuManager->updateDockVisibility(chatDock && chatDock->isVisible(), visible,
