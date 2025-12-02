@@ -22,14 +22,16 @@
 class OneSevenLiveCustomEventDialog;
 class OneSevenLiveStreamManager;
 class OneSevenLiveApiWrappers;
+class OneSevenLiveConfigManager;
 
 class OneSevenLiveStreamingDock : public QDockWidget {
     Q_OBJECT
 
    public:
     explicit OneSevenLiveStreamingDock(QWidget *parent = nullptr,
-                                       OneSevenLiveStreamManager *streamManager = nullptr,
-                                       OneSevenLiveApiWrappers *apiWrappers = nullptr);
+                                    OneSevenLiveStreamManager *streamManager = nullptr,
+                                    OneSevenLiveApiWrappers *apiWrappers = nullptr,
+                                    OneSevenLiveConfigManager *configManager = nullptr);
     ~OneSevenLiveStreamingDock();
 
     void updateLiveStatus(OneSevenLiveStreamingStatus status);
@@ -174,6 +176,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     int hashtagSelectLimit = 2;  // Maximum number of tags that can be added
 
     OneSevenLiveStreamManager *streamManager = nullptr;
+    OneSevenLiveConfigManager *configManager = nullptr;
 
     QString currentInfoUuid = "";
     // Loading state now controlled by OneSevenLiveStreamManager

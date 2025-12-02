@@ -29,11 +29,13 @@
 #include "utility/Meta.hpp"
 
 OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
-                                                     OneSevenLiveStreamManager *streamManager_,
-                                                     OneSevenLiveApiWrappers *apiWrappers_)
+                                                    OneSevenLiveStreamManager *streamManager_,
+                                                    OneSevenLiveApiWrappers *apiWrappers_,
+                                                    OneSevenLiveConfigManager *configManager_)
     : QDockWidget(obs_module_text("Live.Settings"), parent),
       streamManager(streamManager_),
       apiWrapper(apiWrappers_),
+      configManager(configManager_),
       eventCooldownTimer(new QTimer(this)),
       eventCooldownRemaining(0) {
     // Initialize category cooldown timer
@@ -740,10 +742,6 @@ void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections() {
     // obs_log(LOG_INFO, "updateRequiredArmyRankSelections");
 
     OneSevenLiveConfig config;
-    auto *configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
-    if (!configManager->getConfig(config)) {
-        return;
-    }
 
     // Initialize Combo Items
     requiredArmyRankCombo->clear();
@@ -889,7 +887,6 @@ void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
         customEventDialog = nullptr;
     } else {
         // Open dialog first; dialog will fetch custom event asynchronously
-        auto *configManager = OneSevenLiveCoreManager::getInstance().getConfigManager();
         customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
 
         // Connect dialog close signal to reset button state
@@ -1121,6 +1118,60 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
 
 void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &request_) {
     obs_log(LOG_INFO, "createLive");
+
+    // check current region changed?
+    std::string currentRegion;
+    configManager->getConfigValue("Region", currentRegion);
+
+    // Check feature 207 to control createLiveButton state
+    OneSevenLiveConfig currentConfig;
+    configManager->getConfig(currentConfig);
+    bool currentIsFeature207Enabled = (currentConfig.addOns.features["207"] == 1);
+
+    OneSevenLiveLoginData loginData;
+    if (!apiWrapper->GetSelfInfo(loginData)) {
+        obs_log(LOG_ERROR, "GetSelfInfo failed");
+        QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                             obs_module_text("Live.Create.GetSelfInfoFailed"));
+        return;
+    }
+
+    if (loginData.userInfo.region != QString::fromStdString(currentRegion)) {
+        obs_log(LOG_INFO, "Region changed, reload config");
+        std::string language = GetCurrentLanguage();
+
+        // Call API to get configuration
+        nlohmann::json configJson;
+        if (apiWrapper->GetConfig(currentRegion, language, configJson)) {
+            // Save configuration
+            configManager->setConfig(configJson);
+            obs_log(LOG_INFO, "Config loaded successfully");
+        } else {
+            obs_log(LOG_ERROR, "Failed to load config from API");
+        }
+
+        OneSevenLiveConfig newConfig;
+        JsonToOneSevenLiveConfig(configJson, newConfig);
+
+        bool newIsFeature207Enabled = (newConfig.addOns.features["207"] == 1);
+
+        if (!newIsFeature207Enabled) {
+            QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                                 obs_module_text("Live.Create.Feature207Disabled"));
+            return;
+        } else if (!currentIsFeature207Enabled && request_.subtabID.isEmpty()) {
+            // Feature 207 enabled now, but subtabID is empty, show warning
+            // Show dialog to prompt user to select category
+            QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+                                 obs_module_text("Live.Settings.Save.Category.Empty"));
+
+            return;
+        }
+    } else if (!currentIsFeature207Enabled) {
+        QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                             obs_module_text("Live.Create.Feature207Disabled"));
+        return;
+    }
 
     // Validate request
     OneSevenLiveRtmpRequest request = request_;
