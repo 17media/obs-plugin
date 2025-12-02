@@ -1232,7 +1232,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
     }
 
     // Create and show streaming window
-    streamingDock = new OneSevenLiveStreamingDock(mainWindow, streamManager.get());
+    streamingDock = new OneSevenLiveStreamingDock(mainWindow, streamManager.get(), apiWrapper.get());  
     streamingDock->setObjectName("OneSevenLiveStreamingDock");
 
     streamingDock->setMaximumWidth(600);

@@ -134,7 +134,6 @@ OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(
     setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 
     fetchCustomEventAsync();
-    loadGiftTabsAsync();
 
     // Ensure all widgets are properly initialized
     update();
@@ -622,7 +621,7 @@ void OneSevenLiveCustomEventDialog::fetchCustomEventAsync() {
                 // Update UI on main thread
                 // update UI whatever the result is
                 {
-                    obs_log(LOG_INFO, "id=%s, customEvent.status = %d",
+                    obs_log(LOG_INFO, "customEvent.eventID=%s, customEvent.status = %d",
                             customEvent.eventID.toStdString().c_str(), customEvent.status);
 
                     // Populate fields
