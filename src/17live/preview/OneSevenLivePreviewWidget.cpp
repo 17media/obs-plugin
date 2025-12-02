@@ -375,7 +375,7 @@ void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
 
 void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
-    // Keep display for performance, just hide widget
+    destroyDisplay();
 }
 
 void OneSevenLivePreviewWidget::paintEvent(QPaintEvent* event) {
