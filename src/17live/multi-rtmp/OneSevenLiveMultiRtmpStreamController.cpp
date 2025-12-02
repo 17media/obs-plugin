@@ -9,6 +9,8 @@
 #include <QPointer>
 #include <QString>
 #include <QTimer>
+#include <QCoreApplication>
+#include <QMetaObject>
 #include <chrono>
 #include <thread>
 
@@ -146,11 +148,14 @@ bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::strin
 
     // Setup connect timeout timer
     if (streamOutput->connectTimeoutTimer) {
-        streamOutput->connectTimeoutTimer->stop();
-        streamOutput->connectTimeoutTimer->deleteLater();
+        QTimer* t = streamOutput->connectTimeoutTimer;
+        QMetaObject::invokeMethod(t, [t]() {
+            t->stop();
+            t->deleteLater();
+        }, Qt::QueuedConnection);
         streamOutput->connectTimeoutTimer = nullptr;
     }
-    streamOutput->connectTimeoutTimer = new QTimer();
+    streamOutput->connectTimeoutTimer = new QTimer(QCoreApplication::instance());
     streamOutput->connectTimeoutTimer->setSingleShot(true);
     QObject::connect(streamOutput->connectTimeoutTimer, &QTimer::timeout, [this, streamId]() {
         auto it = m_streamOutputs.find(streamId);
@@ -167,7 +172,9 @@ bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::strin
             }
         }
     });
-    streamOutput->connectTimeoutTimer->start(CONNECT_TIMEOUT_MS);
+    QMetaObject::invokeMethod(streamOutput->connectTimeoutTimer, [timer=streamOutput->connectTimeoutTimer]() {
+        timer->start(CONNECT_TIMEOUT_MS);
+    }, Qt::QueuedConnection);
 
     MULTI_RTMP_STREAM_LOG_INFO("startOutputInternal completed for stream: %s", streamId.c_str());
     return true;
@@ -195,8 +202,11 @@ bool OneSevenLiveMultiRtmpStreamController::stopOutputInternal(const std::string
 
     // Cancel pending connect timeout and async resolution if any
     if (streamOutput->connectTimeoutTimer) {
-        streamOutput->connectTimeoutTimer->stop();
-        streamOutput->connectTimeoutTimer->deleteLater();
+        QTimer* t = streamOutput->connectTimeoutTimer;
+        QMetaObject::invokeMethod(t, [t]() {
+            t->stop();
+            t->deleteLater();
+        }, Qt::QueuedConnection);
         streamOutput->connectTimeoutTimer = nullptr;
     }
     auto pendIt = m_pendingTwitchClients.find(streamId);
@@ -227,8 +237,11 @@ bool OneSevenLiveMultiRtmpStreamController::destroyOutput(const std::string& str
     auto& streamOutput = it->second;
 
     if (streamOutput->connectTimeoutTimer) {
-        streamOutput->connectTimeoutTimer->stop();
-        streamOutput->connectTimeoutTimer->deleteLater();
+        QTimer* t = streamOutput->connectTimeoutTimer;
+        QMetaObject::invokeMethod(t, [t]() {
+            t->stop();
+            t->deleteLater();
+        }, Qt::QueuedConnection);
         streamOutput->connectTimeoutTimer = nullptr;
     }
 
@@ -302,8 +315,11 @@ void OneSevenLiveMultiRtmpStreamController::destroyAllOutputs() {
 
     for (auto& [streamId, streamOutput] : m_streamOutputs) {
         if (streamOutput->connectTimeoutTimer) {
-            streamOutput->connectTimeoutTimer->stop();
-            streamOutput->connectTimeoutTimer->deleteLater();
+            QTimer* t = streamOutput->connectTimeoutTimer;
+            QMetaObject::invokeMethod(t, [t]() {
+                t->stop();
+                t->deleteLater();
+            }, Qt::QueuedConnection);
             streamOutput->connectTimeoutTimer = nullptr;
         }
         if (streamOutput->output && obs_output_active(streamOutput->output)) {
@@ -673,8 +689,11 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
         if (streamOutput->output == output) {
             MULTI_RTMP_STREAM_LOG_INFO("Found matching stream in callback: %s", streamId.c_str());
             if (streamOutput->connectTimeoutTimer) {
-                streamOutput->connectTimeoutTimer->stop();
-                streamOutput->connectTimeoutTimer->deleteLater();
+                QTimer* t = streamOutput->connectTimeoutTimer;
+                QMetaObject::invokeMethod(t, [t]() {
+                    t->stop();
+                    t->deleteLater();
+                }, Qt::QueuedConnection);
                 streamOutput->connectTimeoutTimer = nullptr;
             }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STREAMING);
@@ -745,8 +764,11 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectCallback(void* data, 
     for (const auto& [streamId, streamOutput] : controller->m_streamOutputs) {
         if (streamOutput->output == output) {
             if (streamOutput->connectTimeoutTimer) {
-                streamOutput->connectTimeoutTimer->stop();
-                streamOutput->connectTimeoutTimer->deleteLater();
+                QTimer* t = streamOutput->connectTimeoutTimer;
+                QMetaObject::invokeMethod(t, [t]() {
+                    t->stop();
+                    t->deleteLater();
+                }, Qt::QueuedConnection);
                 streamOutput->connectTimeoutTimer = nullptr;
             }
             controller->updateStreamStatus(streamId,
