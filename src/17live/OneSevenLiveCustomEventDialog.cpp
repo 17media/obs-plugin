@@ -611,15 +611,17 @@ void OneSevenLiveCustomEventDialog::fetchCustomEventAsync() {
         bool ok = false;
         if (apiWrapper) {
             ok = apiWrapper->GetCustomEvent(userID, customEvent);
+            if (!ok) {
+                obs_log(LOG_ERROR, "Failed to get custom event: %s", apiWrapper->getLastErrorMessage().toUtf8().constData());
+            }
         }
 
         QMetaObject::invokeMethod(
             this,
             [this, ok, thread]() {
                 // Update UI on main thread
-                if (!ok) {
-                    obs_log(LOG_ERROR, "Failed to get custom event");
-                } else {
+                // update UI whatever the result is
+                {
                     obs_log(LOG_INFO, "id=%s, customEvent.status = %d",
                             customEvent.eventID.toStdString().c_str(), customEvent.status);
 
