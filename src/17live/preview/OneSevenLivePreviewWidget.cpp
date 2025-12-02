@@ -413,6 +413,9 @@ void OneSevenLivePreviewWidget::createNotificationBar() {
     notificationText =
         new QLabel(QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), this);
     notificationText->setStyleSheet("color: white; font-size: 12px;");
+    notificationText->setWordWrap(true);
+    notificationText->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    notificationText->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 #ifdef _WIN32
     QFont barFont;
     barFont.setFamily("Segoe UI");
@@ -449,6 +452,9 @@ void OneSevenLivePreviewWidget::updateNotificationBarPosition() {
     }
 
     // Calculate notification bar size
+    int maxLabelWidth = width() - 20 - 16 - 8;
+    if (notificationText)
+        notificationText->setMaximumWidth(qMax(50, maxLabelWidth));
     notificationBar->adjustSize();
     int barWidth = notificationBar->sizeHint().width();
     int barHeight = notificationBar->sizeHint().height();
