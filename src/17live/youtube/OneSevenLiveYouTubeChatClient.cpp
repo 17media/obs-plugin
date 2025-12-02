@@ -22,6 +22,7 @@ const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL =
     "https://www.googleapis.com/youtube/v3";
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_VERSION = "v3";
 const int OneSevenLiveYouTubeChatClient::DEFAULT_POLLING_INTERVAL = 5000;        // 5 seconds
+const int OneSevenLiveYouTubeChatClient::MIN_POLLING_INTERVAL = 10000;           
 const int OneSevenLiveYouTubeChatClient::MAX_EXPONENTIAL_BACKOFF_DELAY = 32000;  // 32 seconds max
 const int OneSevenLiveYouTubeChatClient::STATUS_BROADCAST_INTERVAL = 10;
 const int OneSevenLiveYouTubeChatClient::MAX_QUICK_RETRIES = 5;
@@ -253,7 +254,7 @@ void OneSevenLiveYouTubeChatClient::scheduleNextPoll(int intervalMs) {
         return;
     }
 
-    // Store the polling interval for potential rate limit handling
+    intervalMs = qMax(intervalMs, MIN_POLLING_INTERVAL);
     m_currentPollingInterval = intervalMs;
 
     obs_log(LOG_DEBUG, "Scheduling next poll in %d ms", intervalMs);

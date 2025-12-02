@@ -21,6 +21,7 @@
 #include "utility/Common.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
 #include "youtube/OneSevenLiveYouTubeClient.hpp"
+#include "youtube/OneSevenLiveYouTubeChatClient.hpp"
 #include "utility/RemoteTextThread.hpp"
 
 OneSevenLiveMultiRtmpStreamController::OneSevenLiveMultiRtmpStreamController() {
@@ -706,6 +707,19 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
                         core.connectTwitchChatClient(QString());
                     }, Qt::QueuedConnection);
                 }
+                if (platform.find("youtube") != std::string::npos) {
+                    auto& core = OneSevenLiveCoreManager::getInstance();
+                    QMetaObject::invokeMethod(&core, [&core]() {
+                        auto* ytAuth = core.getYouTubeAuth();
+                        if (ytAuth && ytAuth->hasValidToken()) {
+                            core.createYouTubeChatClient();
+                            auto* ytChat = core.getYouTubeChatClient();
+                            if (ytChat) {
+                                ytChat->startDiscovery();
+                            }
+                        }
+                    }, Qt::QueuedConnection);
+                }
             }
             MULTI_RTMP_STREAM_LOG_INFO("Stream started: %s", streamId.c_str());
             break;
@@ -767,6 +781,12 @@ void OneSevenLiveMultiRtmpStreamController::outputStopCallback(void* data, calld
                     auto& core = OneSevenLiveCoreManager::getInstance();
                     QMetaObject::invokeMethod(&core, [&core]() {
                         core.disconnectTwitchChatClient();
+                    }, Qt::QueuedConnection);
+                }
+                if (platform.find("youtube") != std::string::npos) {
+                    auto& core = OneSevenLiveCoreManager::getInstance();
+                    QMetaObject::invokeMethod(&core, [&core]() {
+                        core.stopYouTubeChatPolling();
                     }, Qt::QueuedConnection);
                 }
             }

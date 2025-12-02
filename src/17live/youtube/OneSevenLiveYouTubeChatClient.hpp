@@ -124,6 +124,7 @@ class OneSevenLiveYouTubeChatClient : public QObject {
     static const QString YOUTUBE_API_BASE_URL;
     static const QString YOUTUBE_API_VERSION;
     static const int DEFAULT_POLLING_INTERVAL;
+    static const int MIN_POLLING_INTERVAL;
     static const int MAX_EXPONENTIAL_BACKOFF_DELAY;
     static const int STATUS_BROADCAST_INTERVAL;
     static const int MAX_QUICK_RETRIES;
