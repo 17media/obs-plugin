@@ -66,7 +66,6 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         le->setValidator(new QIntValidator(le));
         le->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         ctrl = le;
-        initDefaultVBoxLayout(ctrl);
         break;
     }
     case OBS_PROPERTY_FLOAT: {
@@ -74,7 +73,6 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         le->setValidator(new QDoubleValidator(le));
         le->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         ctrl = le;
-        initDefaultVBoxLayout(ctrl);
         break;
     }
     case OBS_PROPERTY_TEXT: {
@@ -86,7 +84,6 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
             auto le = new QLineEdit(this);
             ctrl = le;
         }
-        initDefaultVBoxLayout(ctrl);
         break;
     }
     case OBS_PROPERTY_LIST: {
@@ -107,7 +104,6 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
             }
         });
         ctrl = cb;
-        initDefaultVBoxLayout(ctrl);
         break;
     }
     default:
@@ -139,21 +135,6 @@ OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget() {
     ctrl = nullptr;
     label = nullptr;
     container = nullptr;
-}
-
-// Initialize default: label above, control below, left aligned, ctrl expanding width
-void OneSevenLivePropertyWidget::initDefaultVBoxLayout(QWidget *control)
-{
-    control->setParent(this);
-    control->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-
-    QVBoxLayout *vl = new QVBoxLayout(this);
-    vl->setContentsMargins(0, 0, 0, 0);
-    vl->setSpacing(4);
-
-    label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    vl->addWidget(label);
-    vl->addWidget(control);
 }
 
 void OneSevenLivePropertyWidget::ReloadProperty(obs_property *property) {

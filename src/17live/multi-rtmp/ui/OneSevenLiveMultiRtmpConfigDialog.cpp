@@ -394,9 +394,7 @@ void OneSevenLiveMultiRtmpConfigDialog::setupVideoTab() {
     m_videoLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Video"), m_videoEncoderCombo);
 
     m_videoWidget = new OneSevenLivePropertiesWidget(m_videoTab);
-    m_videoWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    m_videoWidget->setMinimumWidth(0);
-    m_videoLayout->addRow("", m_videoWidget);
+    m_videoLayout->addWidget(m_videoWidget);
 
     m_tabWidget->addTab(m_videoTab, obs_module_text("MultiRTMP.Config.Tab.Video"));
 }
@@ -414,7 +412,7 @@ void OneSevenLiveMultiRtmpConfigDialog::setupAudioTab() {
     m_audioLayout->addRow(obs_module_text("MultiRTMP.Config.Encoder.Audio"), m_audioEncoderCombo);
 
     m_audioWidget = new OneSevenLivePropertiesWidget(m_audioTab);
-    m_audioLayout->addRow("", m_audioWidget);
+    m_audioLayout->addWidget(m_audioWidget);
 
     m_tabWidget->addTab(m_audioTab, obs_module_text("MultiRTMP.Config.Tab.Audio"));
 }
