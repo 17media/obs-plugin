@@ -507,12 +507,16 @@ bool OneSevenLiveMultiRtmpManager::destroyStreamOutput(const std::string& stream
     if (!m_initialized || !m_streamController) {
         return false;
     }
-    bool result = false;
     auto& core = OneSevenLiveCoreManager::getInstance();
-    QMetaObject::invokeMethod(&core, [this, &streamId, &result]() {
-        result = m_streamController->destroyOutput(streamId);
-    }, Qt::BlockingQueuedConnection);
-    return result;
+    if (QThread::currentThread() == core.thread()) {
+        return m_streamController->destroyOutput(streamId);
+    } else {
+        bool result = false;
+        QMetaObject::invokeMethod(&core, [this, &streamId, &result]() {
+            result = m_streamController->destroyOutput(streamId);
+        }, Qt::BlockingQueuedConnection);
+        return result;
+    }
 }
 
 void OneSevenLiveMultiRtmpManager::destroyAllStreamOutputs() {
@@ -520,9 +524,13 @@ void OneSevenLiveMultiRtmpManager::destroyAllStreamOutputs() {
         return;
     }
     auto& core = OneSevenLiveCoreManager::getInstance();
-    QMetaObject::invokeMethod(&core, [this]() {
+    if (QThread::currentThread() == core.thread()) {
         m_streamController->destroyAllOutputs();
-    }, Qt::BlockingQueuedConnection);
+    } else {
+        QMetaObject::invokeMethod(&core, [this]() {
+            m_streamController->destroyAllOutputs();
+        }, Qt::BlockingQueuedConnection);
+    }
 }
 
 // Bulk operations with synchronization
