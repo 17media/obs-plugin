@@ -4,6 +4,7 @@
 #include <QPointer>
 #include <QResizeEvent>
 #include <QString>
+#include <QLabel>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLivePreviewWidget.hpp"
@@ -30,8 +31,11 @@ class OneSevenLivePreviewDock : public QDockWidget {
     void setupUi();
     void updatePreviewGeometry();
 
-    QPointer<OneSevenLivePreviewWidget> previewWidget;
+    QPointer<OneSevenLivePreviewWidget> previewWidget = nullptr;
+    QWidget* container = nullptr;
+    QWidget* previewContainer = nullptr;
+    QLabel* notificationLabel = nullptr;
 
-    bool initialized;
+    bool initialized = false;
     QString overlayUrl_;
 };

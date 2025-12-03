@@ -3,7 +3,6 @@
 #include <obs-frontend-api.h>
 #include <obs.h>
 
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QObject>
 #include <QString>
@@ -50,8 +49,6 @@ class OneSevenLivePreviewWidget : public QWidget {
     void createDisplay();
     void destroyDisplay();
     void updateVideoInfo();
-    void createNotificationBar();
-    void updateNotificationBarPosition();
     void loadBrowserSourceConfig();
     void createBrowserSource();
     void destroyBrowserSource();
@@ -73,20 +70,16 @@ class OneSevenLivePreviewWidget : public QWidget {
     int display_width;
     int display_height;
 
-    // Notification bar components
-    QWidget* notificationBar;
-    QLabel* alertIcon;
-    QLabel* notificationText;
-    QLabel* initPlaceholder;
+    QLabel* initPlaceholderLabel = nullptr;
 
     // Browser source overlay components
-    obs_source_t* browserSource;
-    OneSevenLivePreviewConfigLoader* configLoader;
+    obs_source_t* browserSource = nullptr;
+    OneSevenLivePreviewConfigLoader* configLoader = nullptr;
     OneSevenLivePreviewConfigLoader::PreviewConfig browserConfig;
-    QTimer* browserRefreshTimer;
+    QTimer* browserRefreshTimer = nullptr;
 
     // Overlay scaling
-    float overlayScale;
+    float overlayScale = 1.0f;
 
     // Optional overlay URL override
     QString overlayUrl_;

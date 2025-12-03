@@ -5,6 +5,9 @@
 #include <QCloseEvent>
 #include <QShowEvent>
 #include <QTimer>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QSizePolicy>
 
 #include "../../plugin-support.h"
 #include "../streaming/OneSevenLiveStreamManager.hpp"
@@ -34,8 +37,45 @@ void OneSevenLivePreviewDock::setupUi() {
     setMinimumSize(180, 320);
     resize(400, 720);
 
-    previewWidget = new OneSevenLivePreviewWidget(this);
-    setWidget(previewWidget);
+    container = new QWidget(this);
+    QVBoxLayout* layout = new QVBoxLayout(container);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    QHBoxLayout* hintLayout = new QHBoxLayout();
+    hintLayout->setContentsMargins(10, 10, 10, 0);
+    hintLayout->setSpacing(5);
+    hintLayout->setAlignment(Qt::AlignHCenter);
+
+    QLabel* icon = new QLabel(container);
+    icon->setFixedSize(20, 20);
+    icon->setPixmap(QPixmap(":/resources/alert-white.svg")
+                        .scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+    notificationLabel = new QLabel(
+        QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), container);
+    notificationLabel->setWordWrap(true);
+    notificationLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    notificationLabel->setStyleSheet("color: white; font-size: 14px;");
+
+    // Add leading stretch to center contents
+    hintLayout->addStretch();
+    hintLayout->addWidget(icon);
+    hintLayout->addWidget(notificationLabel);
+    hintLayout->addStretch();
+
+    QWidget* hintContainer = new QWidget(container);
+    hintContainer->setLayout(hintLayout);
+
+    previewContainer = new QWidget(container);
+    previewContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    layout->addWidget(hintContainer);
+    layout->addWidget(previewContainer, 1);
+
+    setWidget(container);
+
+    previewWidget = new OneSevenLivePreviewWidget(previewContainer);
     if (previewWidget && !overlayUrl_.isEmpty()) {
         previewWidget->setOverlayUrl(overlayUrl_);
     }
@@ -44,9 +84,12 @@ void OneSevenLivePreviewDock::setupUi() {
 void OneSevenLivePreviewDock::updatePreviewGeometry() {
     if (!previewWidget)
         return;
-    const QRect cr = contentsRect();
-    int cw = cr.width();
-    int ch = cr.height();
+    if (!previewContainer)
+        return;
+    int cw = previewContainer->width();
+    int ch = previewContainer->height();
+    if (cw <= 0 || ch <= 0)
+        return;
 
     bool isLandscape = true;
     auto& core = OneSevenLiveCoreManager::getInstance();
@@ -61,8 +104,8 @@ void OneSevenLivePreviewDock::updatePreviewGeometry() {
         targetH = ch;
         targetW = cw;  // keep width full per requirement
     }
-    int x = cr.x() + (cw - targetW) / 2;
-    int y = cr.y() + (ch - targetH) / 2;
+    int x = (cw - targetW) / 2;
+    int y = (ch - targetH) / 2;
     previewWidget->setGeometry(x, y, targetW, targetH);
 }
 

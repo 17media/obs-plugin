@@ -31,10 +31,7 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
       refreshTimer(new QTimer(this)),
       display_width(0),
       display_height(0),
-      notificationBar(nullptr),
-      alertIcon(nullptr),
-      notificationText(nullptr),
-      initPlaceholder(nullptr),
+      initPlaceholderLabel(nullptr),
       browserSource(nullptr),
       configLoader(new OneSevenLivePreviewConfigLoader(this)),
       browserRefreshTimer(new QTimer(this)),
@@ -69,15 +66,12 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     // Connect to OBS frontend events
     obs_frontend_add_event_callback(frontendEvent, this);
 
-    // Create notification bar
-    createNotificationBar();
-
-    initPlaceholder = new QLabel(this);
-    initPlaceholder->setText("Initializing video display...");
-    initPlaceholder->setAlignment(Qt::AlignCenter);
-    initPlaceholder->setStyleSheet("background-color: black; color: white; font-size: 12px;");
-    initPlaceholder->setGeometry(rect());
-    initPlaceholder->show();
+    initPlaceholderLabel = new QLabel(this);
+    initPlaceholderLabel->setText("Initializing video display...");
+    initPlaceholderLabel->setAlignment(Qt::AlignCenter);
+    initPlaceholderLabel->setStyleSheet("background-color: black; color: white; font-size: 12px;");
+    initPlaceholderLabel->setGeometry(rect());
+    initPlaceholderLabel->show();
 
     // Load browser source configuration and create browser source
     loadBrowserSourceConfig();
@@ -146,8 +140,8 @@ void OneSevenLivePreviewWidget::createDisplay() {
 
         obs_display_add_draw_callback(previewDisplay, drawCallback, this);
 
-        if (initPlaceholder)
-            initPlaceholder->hide();
+        if (initPlaceholderLabel)
+            initPlaceholderLabel->hide();
     }
 }
 
@@ -159,8 +153,8 @@ void OneSevenLivePreviewWidget::destroyDisplay() {
     }
     display_created = false;
 
-    if (initPlaceholder)
-        initPlaceholder->show();
+    if (initPlaceholderLabel)
+        initPlaceholderLabel->show();
 
     if (currentSource) {
         obs_source_release(currentSource);
@@ -362,10 +356,8 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
         forceRefresh();
     }
 
-    updateNotificationBarPosition();
-
-    if (initPlaceholder)
-        initPlaceholder->setGeometry(rect());
+    if (initPlaceholderLabel)
+        initPlaceholderLabel->setGeometry(rect());
 }
 
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
@@ -391,80 +383,6 @@ void OneSevenLivePreviewWidget::frontendEvent(enum obs_frontend_event event, voi
     if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
         QMetaObject::invokeMethod(widget, "refreshVideo", Qt::QueuedConnection);
     }
-}
-
-void OneSevenLivePreviewWidget::createNotificationBar() {
-    // Create notification bar widget
-    notificationBar = new QWidget(this);
-
-    // Create layout for notification bar
-    QHBoxLayout* layout = new QHBoxLayout(notificationBar);
-    layout->setContentsMargins(10, 5, 10, 5);
-    layout->setSpacing(8);
-
-    // Create alert icon using QPixmap and QLabel
-    alertIcon = new QLabel(this);
-    QPixmap alertPixmap(":/resources/alert-white.svg");
-    alertPixmap = alertPixmap.scaled(16, 16, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    alertIcon->setPixmap(alertPixmap);
-    alertIcon->setFixedSize(16, 16);
-
-    // Create notification text
-    notificationText =
-        new QLabel(QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), this);
-    notificationText->setStyleSheet("color: white; font-size: 12px;");
-    notificationText->setWordWrap(true);
-    notificationText->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-    notificationText->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-#ifdef _WIN32
-    QFont barFont;
-    barFont.setFamily("Segoe UI");
-    barFont.setPointSize(12);
-    notificationText->setFont(barFont);
-#endif
-
-    // Add widgets to layout
-    layout->addWidget(alertIcon);
-    layout->addWidget(notificationText);
-    layout->addStretch();  // Add stretch to center the content
-
-    // Style the notification bar
-    notificationBar->setStyleSheet(
-        "QWidget {"
-        "    background-color: rgba(0, 0, 0, 0.7);"
-        "    border-radius: 4px;"
-        "}");
-
-#ifdef _WIN32
-    notificationBar->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    notificationBar->setAttribute(Qt::WA_TranslucentBackground, true);
-#endif
-
-    // Position and show the notification bar
-    updateNotificationBarPosition();
-    notificationBar->show();
-    notificationBar->raise();
-}
-
-void OneSevenLivePreviewWidget::updateNotificationBarPosition() {
-    if (!notificationBar) {
-        return;
-    }
-
-    // Calculate notification bar size
-    int maxLabelWidth = width() - 20 - 16 - 8;
-    if (notificationText)
-        notificationText->setMaximumWidth(qMax(50, maxLabelWidth));
-    notificationBar->adjustSize();
-    int barWidth = notificationBar->sizeHint().width();
-    int barHeight = notificationBar->sizeHint().height();
-
-    // Position at top center with some margin
-    int x = (width() - barWidth) / 2;
-    int y = 10;  // 10px from top
-
-    notificationBar->setGeometry(x, y, barWidth, barHeight);
-    notificationBar->raise();
 }
 
 void OneSevenLivePreviewWidget::loadBrowserSourceConfig() {
