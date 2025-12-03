@@ -1188,84 +1188,84 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
     }
 
     // Prompt user for resolution change
-    QString confirmMsg;
-    if (request.landscape) {
-        confirmMsg = obs_module_text("Live.Settings.AutoRes.Msg.Landscape");
-    } else {
-        confirmMsg = obs_module_text("Live.Settings.AutoRes.Msg.Portrait");
-    }
+    // QString confirmMsg;
+    // if (request.landscape) {
+    //     confirmMsg = obs_module_text("Live.Settings.AutoRes.Msg.Landscape");
+    // } else {
+    //     confirmMsg = obs_module_text("Live.Settings.AutoRes.Msg.Portrait");
+    // }
 
-    QMessageBox::StandardButton reply = QMessageBox::question(this, obs_module_text("Live.Settings.AutoRes.Title"), confirmMsg,
-                                                            QMessageBox::Yes | QMessageBox::No);
+    // QMessageBox::StandardButton reply = QMessageBox::question(this, obs_module_text("Live.Settings.AutoRes.Title"), confirmMsg,
+    //                                                         QMessageBox::Yes | QMessageBox::No);
 
-    if (reply == QMessageBox::Yes) {
-        // Ensure OBS streaming and recording are stopped before changing video settings
-        bool wasStreaming = obs_frontend_streaming_active();
-        bool wasRecording = obs_frontend_recording_active();
+    // if (reply == QMessageBox::Yes) {
+    //     // Ensure OBS streaming and recording are stopped before changing video settings
+    //     bool wasStreaming = obs_frontend_streaming_active();
+    //     bool wasRecording = obs_frontend_recording_active();
 
-        if (wasStreaming) {
-            obs_log(LOG_INFO, "Stopping OBS streaming to change resolution");
-            streamManager->stopOBSStreaming();
-        }
+    //     if (wasStreaming) {
+    //         obs_log(LOG_INFO, "Stopping OBS streaming to change resolution");
+    //         streamManager->stopOBSStreaming();
+    //     }
 
-        if (wasRecording) {
-            obs_log(LOG_INFO, "Stopping OBS recording to change resolution");
-            obs_frontend_recording_stop();
+    //     if (wasRecording) {
+    //         obs_log(LOG_INFO, "Stopping OBS recording to change resolution");
+    //         obs_frontend_recording_stop();
 
-            int wait_ms = 0;
-            const int max_wait_ms = 5000;
-            while (obs_frontend_recording_active() && wait_ms < max_wait_ms) {
-                QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
-                QThread::msleep(10);
-                wait_ms += 10;
-            }
-        }
+    //         int wait_ms = 0;
+    //         const int max_wait_ms = 5000;
+    //         while (obs_frontend_recording_active() && wait_ms < max_wait_ms) {
+    //             QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+    //             QThread::msleep(10);
+    //             wait_ms += 10;
+    //         }
+    //     }
 
-        // Set OBS video resolution based on landscape mode
-        obs_video_info ovi;
-        if (obs_get_video_info(&ovi)) {
-            uint32_t newWidth, newHeight;
-            if (request.landscape) {
-                // Landscape: 1280x720
-                newWidth = 1280;
-                newHeight = 720;
-            } else {
-                // Portrait: 720x1280
-                newWidth = 720;
-                newHeight = 1280;
-            }
+    //     // Set OBS video resolution based on landscape mode
+    //     obs_video_info ovi;
+    //     if (obs_get_video_info(&ovi)) {
+    //         uint32_t newWidth, newHeight;
+    //         if (request.landscape) {
+    //             // Landscape: 1280x720
+    //             newWidth = 1280;
+    //             newHeight = 720;
+    //         } else {
+    //             // Portrait: 720x1280
+    //             newWidth = 720;
+    //             newHeight = 1280;
+    //         }
 
-            if (ovi.base_width != newWidth || ovi.base_height != newHeight ||
-                ovi.output_width != newWidth || ovi.output_height != newHeight) {
+    //         if (ovi.base_width != newWidth || ovi.base_height != newHeight ||
+    //             ovi.output_width != newWidth || ovi.output_height != newHeight) {
 
-                ovi.base_width = newWidth;
-                ovi.base_height = newHeight;
-                ovi.output_width = newWidth;
-                ovi.output_height = newHeight;
+    //             ovi.base_width = newWidth;
+    //             ovi.base_height = newHeight;
+    //             ovi.output_width = newWidth;
+    //             ovi.output_height = newHeight;
 
-                int ret = obs_reset_video(&ovi);
-                if (ret != OBS_VIDEO_SUCCESS) {
-                    obs_log(LOG_WARNING, "Failed to reset video resolution to %ux%u, error code: %d",
-                            newWidth, newHeight, ret);
-                } else {
-                    obs_log(LOG_INFO, "Reset video resolution to %ux%u (Landscape: %s)",
-                            newWidth, newHeight, request.landscape ? "true" : "false");
+    //             int ret = obs_reset_video(&ovi);
+    //             if (ret != OBS_VIDEO_SUCCESS) {
+    //                 obs_log(LOG_WARNING, "Failed to reset video resolution to %ux%u, error code: %d",
+    //                         newWidth, newHeight, ret);
+    //             } else {
+    //                 obs_log(LOG_INFO, "Reset video resolution to %ux%u (Landscape: %s)",
+    //                         newWidth, newHeight, request.landscape ? "true" : "false");
 
-                    // Center Preview (Fit to Screen)
-                    QMainWindow* mainWindow = (QMainWindow*)obs_frontend_get_main_window();
-                    if (mainWindow) {
-                        QAction* fitAction = mainWindow->findChild<QAction*>("actionFitToScreen");
-                        if (fitAction) {
-                            fitAction->trigger();
-                            obs_log(LOG_INFO, "Triggered 'Fit to Screen' for preview.");
-                        } else {
-                            obs_log(LOG_WARNING, "Could not find 'actionFitToScreen' to center preview.");
-                        }
-                    }
-                }
-            }
-        }
-    }
+    //                 // Center Preview (Fit to Screen)
+    //                 QMainWindow* mainWindow = (QMainWindow*)obs_frontend_get_main_window();
+    //                 if (mainWindow) {
+    //                     QAction* fitAction = mainWindow->findChild<QAction*>("actionFitToScreen");
+    //                     if (fitAction) {
+    //                         fitAction->trigger();
+    //                         obs_log(LOG_INFO, "Triggered 'Fit to Screen' for preview.");
+    //                     } else {
+    //                         obs_log(LOG_WARNING, "Could not find 'actionFitToScreen' to center preview.");
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     // Use stream manager to create live stream
     if (!streamManager->createRtmp(request)) {
