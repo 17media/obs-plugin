@@ -112,12 +112,22 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
         std::optional<nlohmann::json> gift;
         if (!giftID.empty())
             gift = OneSevenLiveCoreManager::getInstance().getGiftByID(giftID);
-        if (gift && gift->contains("vffURL") && gift->contains("vffJson") &&
-            (*gift)["vffURL"].is_string() && (*gift)["vffJson"].is_string()) {
+        if (!gift || !gift->contains("vffURL") || !gift->contains("vffJson") ||
+            !(*gift)["vffURL"].is_string() || !(*gift)["vffJson"].is_string()) {
+            obs_log(LOG_WARNING, "Missing VFF fields. message=%s", decoded.dump().c_str());
+            return;
+        }
+        {
+            std::string vffURL = (*gift)["vffURL"].get<std::string>();
+            std::string vffJson = (*gift)["vffJson"].get<std::string>();
+            if (vffURL.empty() || vffJson.empty()) {
+                obs_log(LOG_WARNING, "Empty VFF fields. message=%s", decoded.dump().c_str());
+                return;
+            }
             nlohmann::json playData;
             playData["type"] = "play_vff";
-            playData["vffURL"] = (*gift)["vffURL"].get<std::string>();
-            playData["vffJson"] = (*gift)["vffJson"].get<std::string>();
+            playData["vffURL"] = vffURL;
+            playData["vffJson"] = vffJson;
             try {
                 const auto& gm = decoded["giftMsg"];
                 if (gm.contains("giftMetas") && gm["giftMetas"].is_array() &&
