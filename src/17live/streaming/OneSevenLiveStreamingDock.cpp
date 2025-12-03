@@ -1162,7 +1162,7 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
         } else if (!currentIsFeature207Enabled && request_.subtabID.isEmpty()) {
             // Feature 207 enabled now, but subtabID is empty, show warning
             // Show dialog to prompt user to select category
-            QMessageBox::warning(this, obs_module_text("Live.Settings.Save.Title"),
+            QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
                                  obs_module_text("Live.Settings.Save.Category.Empty"));
 
             return;
