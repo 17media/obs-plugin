@@ -19,6 +19,7 @@
 #include <QTimer>
 #include <QWindow>
 #include <cmath>
+#include <QDir>
 
 #include "moc_OneSevenLivePreviewWidget.cpp"
 #include "utility/Common.hpp"
@@ -430,6 +431,10 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
     obs_data_set_bool(settings.get(), "shutdown", false);
     obs_data_set_bool(settings.get(), "restart_when_active", false);
     obs_data_set_bool(settings.get(), "reroute_audio", false);
+
+    QString uniquePath = QDir::homePath() + "/.17Live/obs_browser_storage_preview";
+    QDir().mkpath(uniquePath);
+    obs_data_set_string(settings.get(), "local_storage_path", uniquePath.toStdString().c_str());
 
     // Create browser source
     browserSource =

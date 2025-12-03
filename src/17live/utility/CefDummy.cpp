@@ -5,6 +5,8 @@
 #include <util/platform.h>  // For os_event_t, etc.
 #include <util/threading.h>
 
+#include <QDir>
+
 #include <obs.hpp>
 #include <util/dstr.hpp>  // For DStr
 
@@ -27,6 +29,10 @@ static bool create_dummy_browser_source(void) {
     const char *source_id = "browser_source";
 
     ObsDataPtr settings{obs_get_source_defaults(source_id)};
+
+    QString uniquePath = QDir::homePath() + "/.17Live/obs_browser_storage_dummysource";
+    QDir().mkpath(uniquePath);
+    obs_data_set_string(settings.get(), "local_storage_path", uniquePath.toStdString().c_str());
 
     // Create source
     dummy_source = obs_source_create(source_id, "DummyBrowser", settings.get(), nullptr);
