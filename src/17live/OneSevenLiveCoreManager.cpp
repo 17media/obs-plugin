@@ -952,21 +952,12 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
         });
     }
 
-    // Start chat relay widget (hidden) to connect Ably via web relay
     QTimer::singleShot(0, this, [this]() {
-        if (!chatRelayWidget)
-            chatRelayWidget = new OneSevenLiveChatRelayWidget(mainWindow);
         qint64 rid = 0;
         if (streamManager)
             rid = streamManager->getRoomID();
-        int httpPort = 0;
-        if (ablyHttpServer_)
-            httpPort = ablyHttpServer_->getPort();
-        int wsPort = 0;
-        if (websocketServer_)
-            wsPort = websocketServer_->getPort();
-        if (rid > 0 && httpPort > 0 && wsPort > 0)
-            chatRelayWidget->startRelay(QString::number(rid), httpPort, wsPort);
+        if (rid > 0)
+            connectAblyChat(QString::number(rid), QString());
     });
 
     // Create chat clients on login
@@ -1918,10 +1909,8 @@ void OneSevenLiveCoreManager::reloadChatUrls() {
         wsPort = websocketServer_->getPort();
     }
 
-    // Reload ChatRelayWidget
-    if (chatRelayWidget && rid > 0 && httpPort > 0 && wsPort > 0) {
-        obs_log(LOG_INFO, "[17Live Core] Reloading ChatRelayWidget with RoomID: %lld", rid);
-        chatRelayWidget->startRelay(QString::number(rid), httpPort, wsPort);
+    if (rid > 0) {
+        connectAblyChat(QString::number(rid), QString());
     }
 
     // Reload ChatDock
@@ -1930,11 +1919,10 @@ void OneSevenLiveCoreManager::reloadChatUrls() {
         chatDock->reload();
     }
 
-    // Reconnect Ably chat client
-    // if (ablyChatClient && rid > 0) {
-    //     obs_log(LOG_INFO, "[17Live Core] Reconnecting Ably chat client for RoomID: %lld", rid);
-    //     connectAblyChat(QString::number(rid));
-    // }
+    if (ablyChatClient && rid > 0) {
+        obs_log(LOG_INFO, "[17Live Core] Reconnecting Ably chat client for RoomID: %lld", rid);
+        connectAblyChat(QString::number(rid), QString());
+    }
 }
 
 void OneSevenLiveCoreManager::setShuttingDown(bool v) {

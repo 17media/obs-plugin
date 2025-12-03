@@ -36,7 +36,7 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
         // Parse Ably protocol message and attach after CONNECTED
         try {
             nlohmann::json j = nlohmann::json::parse(msg);
-            obs_log(LOG_INFO, "[Ably] recv %s", j.dump().c_str());
+            obs_log(LOG_DEBUG, "[Ably] recv %s", j.dump().c_str());
             if (j.contains("action")) {
                 int action = -1;
                 if (j["action"].is_number_integer())
