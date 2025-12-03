@@ -320,32 +320,68 @@ namespace seventeen {
                 return false;
             }
 
-            // Compress the staging directory
-            std::string zipCommand = "Compress-Archive -Path \"" + stagingDir +
-                                     "\" -DestinationPath \"" + outputPath + "\" -Force";
+            std::string zipCommand = "Compress-Archive -LiteralPath '" + stagingDir +
+                                     "' -DestinationPath '" + outputPath + "' -Force";
             std::string result = executePowerShellCommand(zipCommand);
-            return std::filesystem::exists(outputPath) &&
-                   std::filesystem::file_size(outputPath) > 0;
+            if (std::filesystem::exists(outputPath) && std::filesystem::is_regular_file(outputPath) &&
+                std::filesystem::file_size(outputPath) > 0) {
+                return true;
+            }
+
+            auto copyDir = [&](const std::string& src, const std::string& dst) -> bool {
+                try {
+                    std::filesystem::create_directories(dst);
+                    for (const auto& entry : std::filesystem::recursive_directory_iterator(src)) {
+                        const auto& p = entry.path();
+                        auto rel = std::filesystem::relative(p, src);
+                        auto dest = std::filesystem::path(dst) / rel;
+                        if (entry.is_directory()) {
+                            std::filesystem::create_directories(dest);
+                        } else if (entry.is_regular_file()) {
+                            std::filesystem::create_directories(dest.parent_path());
+                            std::filesystem::copy_file(
+                                p, dest, std::filesystem::copy_options::overwrite_existing);
+                        }
+                    }
+                    return true;
+                } catch (const std::exception& e) {
+                    setLastError(std::string("Failed to copy directory: ") + e.what());
+                    return false;
+                }
+            };
+
+            if (copyDir(stagingDir, outputPath)) {
+                return true;
+            }
+
+            setLastError("Failed to create archive and fallback folder");
+            return false;
         }
 
         std::string DiagnosticsCollectorWindows::executePowerShellCommand(
             const std::string& command) const {
-            std::string fullCommand = "powershell -Command \"" + command + "\"";
+            auto run = [&](const char* exe) -> std::string {
+                std::string full = std::string(exe) +
+                                   " -NoProfile -NonInteractive -WindowStyle Hidden -NoLogo "
+                                   "-Command \"" + command + "\" 2>&1";
+                FILE* pipe = _popen(full.c_str(), "r");
+                if (!pipe) {
+                    return std::string();
+                }
+                char buffer[512];
+                std::string out;
+                while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    out += buffer;
+                }
+                _pclose(pipe);
+                return out;
+            };
 
-            FILE* pipe = _popen(fullCommand.c_str(), "r");
-            if (!pipe) {
-                return "";
+            std::string r = run("powershell");
+            if (r.empty()) {
+                r = run("pwsh");
             }
-
-            char buffer[128];
-            std::string result;
-
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                result += buffer;
-            }
-
-            _pclose(pipe);
-            return result;
+            return r;
         }
 
         std::string DiagnosticsCollectorWindows::getAppDataPath() const {
