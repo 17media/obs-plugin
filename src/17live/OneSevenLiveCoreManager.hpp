@@ -52,7 +52,6 @@ class OneSevenLiveWebsocketServer;
 class OneSevenLiveStreamManager;
 
 class OneSevenLiveChatDock;
-class OneSevenLiveChatRelayWidget;
 // Forward declarations for chat clients
 class OneSevenLiveYouTubeChatClient;
 class OneSevenLiveTwitchChatClient;
@@ -304,7 +303,6 @@ class OneSevenLiveCoreManager : public QObject {
     std::unique_ptr<OneSevenLiveTwitchChatClient> twitchChatClient;
     std::unique_ptr<OneSevenLiveYouTubeClient> youtubeApiClient;
     std::unique_ptr<OneSevenLiveAblyChatClient> ablyChatClient;
-    QPointer<OneSevenLiveChatRelayWidget> chatRelayWidget;
 
     void handleWebsocketMessage(const std::string& clientId, const std::string& message);
     void handleWebsocketConnectionChanged(const std::string& clientId, bool connected);

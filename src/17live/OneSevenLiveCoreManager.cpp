@@ -29,7 +29,6 @@
 #include "OneSevenLiveUpdateManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
-#include "chat/OneSevenLiveChatRelayWidget.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "plugin-support.h"
@@ -476,11 +475,6 @@ void OneSevenLiveCoreManager::shutdown() {
             OneSevenLiveMultiRtmpManager::destroyInstance();
             std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
-    }
-
-    if (chatRelayWidget) {
-        chatRelayWidget->deleteLater();
-        chatRelayWidget = nullptr;
     }
 
     // Stop WebSocket server
@@ -1096,19 +1090,13 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
     // Reset login status in menu
     menuManager->updateLoginStatus(false, "");
 
-    // Cleanup chat relay widget
-    if (chatRelayWidget) {
-        chatRelayWidget->deleteLater();
-        chatRelayWidget = nullptr;
-    }
-
     // Clear login data
     configManager->clearLoginData();
 
     // Destroy chat clients on logout
     destroyYouTubeChatClient();
     destroyTwitchChatClient();
-    disconnectAblyChat();
+    destroyAblyChatClient();
 }
 
 void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
