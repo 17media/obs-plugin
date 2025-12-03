@@ -9,6 +9,8 @@
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
+#include "twitch/OneSevenLiveTwitchAuth.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
 
 // Static member initialization
 OneSevenLiveMultiRtmpManager* OneSevenLiveMultiRtmpManager::s_instance = nullptr;
@@ -203,8 +205,8 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
     OneSevenLiveMultiRtmpConfig cfg = m_configManager->getStreamConfig(streamId);
     if (!cfg.id.empty()) {
         OneSevenLiveConfigManager* cm = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        const std::string platform = cfg.streamName;
         if (cm && cm->initialize()) {
-            const std::string platform = cfg.streamName;
             if (platform == "YouTube") {
                 (void) cm->clearYouTubeAccessToken();
                 (void) cm->clearYouTubeRefreshToken();
@@ -216,6 +218,50 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
                 obs_log(LOG_INFO, "[MultiRTMP-Manager] Cleared Twitch tokens on delete: %s",
                         streamId.c_str());
             }
+        }
+
+        auto& core = OneSevenLiveCoreManager::getInstance();
+        if (QThread::currentThread() == core.thread()) {
+            if (platform == "YouTube") {
+                if (core.getYouTubeAuth()) {
+                    core.getYouTubeAuth()->clearToken();
+                }
+                core.stopYouTubeChatPolling();
+                core.destroyYouTubeChatClient();
+                obs_log(LOG_INFO, "[MultiRTMP-Manager] Interrupted YouTube connections and cleared in-memory token: %s",
+                        streamId.c_str());
+            } else if (platform == "Twitch") {
+                if (core.getTwitchAuth()) {
+                    core.getTwitchAuth()->clearTokens();
+                }
+                core.disconnectTwitchChatClient();
+                core.destroyTwitchChatClient();
+                obs_log(LOG_INFO, "[MultiRTMP-Manager] Interrupted Twitch connections and cleared in-memory tokens: %s",
+                        streamId.c_str());
+            }
+        } else {
+            QMetaObject::invokeMethod(
+                &core,
+                [platform, streamId, &core]() {
+                    if (platform == std::string("YouTube")) {
+                        if (core.getYouTubeAuth()) {
+                            core.getYouTubeAuth()->clearToken();
+                        }
+                        core.stopYouTubeChatPolling();
+                        core.destroyYouTubeChatClient();
+                        obs_log(LOG_INFO, "[MultiRTMP-Manager] Interrupted YouTube connections and cleared in-memory token: %s",
+                                streamId.c_str());
+                    } else if (platform == std::string("Twitch")) {
+                        if (core.getTwitchAuth()) {
+                            core.getTwitchAuth()->clearTokens();
+                        }
+                        core.disconnectTwitchChatClient();
+                        core.destroyTwitchChatClient();
+                        obs_log(LOG_INFO, "[MultiRTMP-Manager] Interrupted Twitch connections and cleared in-memory tokens: %s",
+                                streamId.c_str());
+                    }
+                },
+                Qt::BlockingQueuedConnection);
         }
     }
 
