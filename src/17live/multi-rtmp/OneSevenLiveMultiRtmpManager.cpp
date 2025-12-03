@@ -7,6 +7,7 @@
 #include <exception>
 
 #include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveConfigManager.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 
 // Static member initialization
@@ -198,6 +199,25 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
 
     // Destroy output if it exists
     destroyStreamOutput(streamId);
+
+    OneSevenLiveMultiRtmpConfig cfg = m_configManager->getStreamConfig(streamId);
+    if (!cfg.id.empty()) {
+        OneSevenLiveConfigManager* cm = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        if (cm && cm->initialize()) {
+            const std::string platform = cfg.streamName;
+            if (platform == "YouTube") {
+                (void) cm->clearYouTubeAccessToken();
+                (void) cm->clearYouTubeRefreshToken();
+                obs_log(LOG_INFO, "[MultiRTMP-Manager] Cleared YouTube tokens on delete: %s",
+                        streamId.c_str());
+            } else if (platform == "Twitch") {
+                (void) cm->clearTwitchTokens();
+                (void) cm->clearTwitchUserInfo();
+                obs_log(LOG_INFO, "[MultiRTMP-Manager] Cleared Twitch tokens on delete: %s",
+                        streamId.c_str());
+            }
+        }
+    }
 
     bool result = m_configManager->removeStreamConfig(streamId);
 
