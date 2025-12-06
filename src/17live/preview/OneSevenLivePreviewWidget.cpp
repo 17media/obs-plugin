@@ -77,6 +77,9 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
 }
 
 OneSevenLivePreviewWidget::~OneSevenLivePreviewWidget() {
+    // Disconnect all signals to prevent calling slots on destroyed objects
+    disconnect(this, nullptr, nullptr, nullptr);
+
     if (refreshTimer) {
         refreshTimer->stop();
     }
