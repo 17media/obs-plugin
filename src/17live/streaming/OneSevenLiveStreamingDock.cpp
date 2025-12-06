@@ -1269,10 +1269,16 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
 
     // Use stream manager to create live stream
     if (!streamManager->createRtmp(request)) {
-        QString errorMsg = "Failed to create stream";
+        QString errorMsg = streamManager->getLastErrorMessage();
+        if (errorMsg.isEmpty()) {
+            errorMsg = obs_module_text("Live.Create.Failed");
+        }
+        
         obs_log(LOG_ERROR, "Failed to create stream. UserID: %s, Error: %s, Timestamp: %lld",
                 request.userID.toStdString().c_str(), errorMsg.toStdString().c_str(),
                 QDateTime::currentMSecsSinceEpoch());
+
+        QMessageBox::warning(this, obs_module_text("Live.Create.Title"), errorMsg);
         return;
     }
 
@@ -1287,7 +1293,14 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
 
     if (startStream) {
         // Start streaming (server-side)
-        streamManager->startStream();
+        if (!streamManager->startStream()) {
+            QString errorMsg = streamManager->getLastErrorMessage();
+            if (errorMsg.isEmpty()) {
+                errorMsg = obs_module_text("Live.Start.Failed");
+            }
+            QMessageBox::warning(this, obs_module_text("Live.Settings.Error"), errorMsg);
+            return;
+        }
     } else {
         // update streaming status
         streamManager->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
