@@ -1626,6 +1626,12 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
 }
 
 void OneSevenLiveCoreManager::loadGifts() {
+    if (giftsLoading_.load()) {
+        obs_log(LOG_INFO, "Gifts are already loading, skipping request");
+        return;
+    }
+    giftsLoading_.store(true);
+
     obs_log(LOG_INFO, "Starting to load gifts asynchronously");
     std::thread giftLoadThread([this]() {
         Json apiResult;
@@ -1639,6 +1645,7 @@ void OneSevenLiveCoreManager::loadGifts() {
         QMetaObject::invokeMethod(
             this,
             [this, ok, apiResult]() {
+                giftsLoading_.store(false);
                 if (!ok) {
                     obs_log(LOG_WARNING, "Failed to load gifts from API");
                     return;
@@ -1687,6 +1694,10 @@ void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJ
 
 bool OneSevenLiveCoreManager::isGiftsLoaded() const {
     return !giftsMap.empty();
+}
+
+bool OneSevenLiveCoreManager::isGiftsLoading() const {
+    return giftsLoading_.load();
 }
 
 std::optional<nlohmann::json> OneSevenLiveCoreManager::getGiftByID(

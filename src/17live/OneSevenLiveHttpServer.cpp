@@ -415,6 +415,13 @@ bool OneSevenLiveHttpServer::start() {
                     success = apiWrapper->GetAblyToken(roomID, apiResult);
                 } else if (action == ACTION_GETGIFTS) {
                     if (!configManager->loadGifts(apiResult)) {
+                        if (coreManager.isGiftsLoading()) {
+                            obs_log(LOG_INFO, "[17Live HTTP Server] Gifts loading in progress, returning wait response");
+                            const nlohmann::json response = {{"success", false}, {"error", "Gifts loading"}};
+                            res.set_content(response.dump(), "application/json");
+                            return;
+                        }
+
                         std::string language;
                         configManager->getConfigValue("Region", language);
                         success = apiWrapper->GetGifts(language, apiResult);

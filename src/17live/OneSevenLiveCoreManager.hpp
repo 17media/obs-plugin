@@ -171,6 +171,7 @@ class OneSevenLiveCoreManager : public QObject {
     bool isShuttingDown() const;
 
     bool isGiftsLoaded() const;
+    bool isGiftsLoading() const;
 
 signals:
     void giftsLoaded();
@@ -179,6 +180,9 @@ public:
     // Disable copy constructor and assignment operator
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
+
+private:
+    std::atomic<bool> giftsLoading_{false};
 
    private:
     // Private constructor, ensure instance can only be obtained through getInstance method
