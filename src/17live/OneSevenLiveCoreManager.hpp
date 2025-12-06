@@ -170,6 +170,12 @@ class OneSevenLiveCoreManager : public QObject {
     void setShuttingDown(bool v);
     bool isShuttingDown() const;
 
+    bool isGiftsLoaded() const;
+
+signals:
+    void giftsLoaded();
+
+public:
     // Disable copy constructor and assignment operator
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;

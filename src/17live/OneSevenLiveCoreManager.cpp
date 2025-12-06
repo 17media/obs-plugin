@@ -1682,6 +1682,11 @@ void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJ
     }
 
     obs_log(LOG_INFO, "Gifts map built with %d entries", giftsMap.size());
+    emit giftsLoaded();
+}
+
+bool OneSevenLiveCoreManager::isGiftsLoaded() const {
+    return !giftsMap.empty();
 }
 
 std::optional<nlohmann::json> OneSevenLiveCoreManager::getGiftByID(

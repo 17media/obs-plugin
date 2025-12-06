@@ -79,6 +79,27 @@ void OneSevenLivePreviewDock::setupUi() {
     if (previewWidget && !overlayUrl_.isEmpty()) {
         previewWidget->setOverlayUrl(overlayUrl_);
     }
+
+    // Loading overlay
+    loadingOverlay = new QWidget(container);
+    loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 180);");
+    loadingOverlay->hide();
+
+    QVBoxLayout* overlayLayout = new QVBoxLayout(loadingOverlay);
+    overlayLayout->setAlignment(Qt::AlignCenter);
+
+    loadingLabel = new QLabel(obs_module_text("PreviewDock.LoadingGifts"), loadingOverlay);
+    loadingLabel->setStyleSheet("color: white; font-size: 16px; font-weight: bold;");
+    overlayLayout->addWidget(loadingLabel);
+
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    connect(&core, &OneSevenLiveCoreManager::giftsLoaded, this,
+            &OneSevenLivePreviewDock::onGiftsLoaded);
+
+    if (!core.isGiftsLoaded()) {
+        loadingOverlay->show();
+        loadingOverlay->raise();
+    }
 }
 
 void OneSevenLivePreviewDock::updatePreviewGeometry() {
@@ -124,6 +145,11 @@ void OneSevenLivePreviewDock::showEvent(QShowEvent* event) {
 
     updatePreviewGeometry();
 
+    if (loadingOverlay && loadingOverlay->isVisible() && container) {
+        loadingOverlay->resize(container->size());
+        loadingOverlay->raise();
+    }
+
     if (previewWidget) {
         QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
         QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
@@ -133,6 +159,12 @@ void OneSevenLivePreviewDock::showEvent(QShowEvent* event) {
 void OneSevenLivePreviewDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
     updatePreviewGeometry();
+
+    if (loadingOverlay && loadingOverlay->isVisible() && container) {
+        loadingOverlay->resize(container->size());
+        loadingOverlay->raise();
+    }
+
     if (previewWidget) {
         QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
         QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
@@ -142,4 +174,10 @@ void OneSevenLivePreviewDock::resizeEvent(QResizeEvent* event) {
 void OneSevenLivePreviewDock::closeEvent(QCloseEvent* event) {
     emit dockClosed();
     QDockWidget::closeEvent(event);
+}
+
+void OneSevenLivePreviewDock::onGiftsLoaded() {
+    if (loadingOverlay) {
+        loadingOverlay->hide();
+    }
 }
