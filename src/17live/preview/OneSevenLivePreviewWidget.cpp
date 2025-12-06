@@ -44,8 +44,7 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
     setAttribute(Qt::WA_OpaquePaintEvent, true);
     setAttribute(Qt::WA_NoSystemBackground, true);
 
-    // Set minimum size and background
-    setMinimumSize(320, 240);
+    // Set background only; allow full responsive sizing
     setAutoFillBackground(false);
 
     QPalette palette = this->palette();
