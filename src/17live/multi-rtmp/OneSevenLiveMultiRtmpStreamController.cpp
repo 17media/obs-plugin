@@ -196,8 +196,8 @@ bool OneSevenLiveMultiRtmpStreamController::stopOutput(const std::string& stream
 
 bool OneSevenLiveMultiRtmpStreamController::stopOutputInternal(const std::string& streamId,
                                                                StreamOutput* streamOutput) {
-    if (!streamOutput || !streamOutput->output) {
-        MULTI_RTMP_STREAM_LOG_ERROR("Invalid stream output for: %s", streamId.c_str());
+    if (!streamOutput) {
+        MULTI_RTMP_STREAM_LOG_ERROR("Invalid stream output structure for: %s", streamId.c_str());
         return false;
     }
 
@@ -213,6 +213,11 @@ bool OneSevenLiveMultiRtmpStreamController::stopOutputInternal(const std::string
     auto pendIt = m_pendingTwitchClients.find(streamId);
     if (pendIt != m_pendingTwitchClients.end()) {
         m_pendingTwitchClients.erase(pendIt);
+    }
+
+    if (!streamOutput->output) {
+        updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STOPPED);
+        return true;
     }
 
     if (!obs_output_active(streamOutput->output)) {
