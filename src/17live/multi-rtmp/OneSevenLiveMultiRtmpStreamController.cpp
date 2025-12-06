@@ -304,7 +304,17 @@ bool OneSevenLiveMultiRtmpStreamController::startAllOutputs() {
 bool OneSevenLiveMultiRtmpStreamController::stopAllOutputs() {
     bool allStopped = true;
     for (const auto& [streamId, streamOutput] : m_streamOutputs) {
+        // Stop if stream is technically active (Connecting, Streaming, Reconnecting)
+        // OR if the OBS output is active (fallback check)
+        bool shouldStop =
+            streamOutput->status.state != OneSevenLiveMultiRtmpStreamStatus::STOPPED &&
+            streamOutput->status.state != OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE;
+
         if (streamOutput->output && obs_output_active(streamOutput->output)) {
+            shouldStop = true;
+        }
+
+        if (shouldStop) {
             if (!stopOutputInternal(streamId, streamOutput.get())) {
                 allStopped = false;
                 MULTI_RTMP_STREAM_LOG_ERROR("Failed to stop output for stream: %s",
