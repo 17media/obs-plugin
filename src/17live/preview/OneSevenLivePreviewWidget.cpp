@@ -32,7 +32,6 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
       refreshTimer(new QTimer(this)),
       display_width(0),
       display_height(0),
-      initPlaceholderLabel(nullptr),
       browserSource(nullptr),
       configLoader(new OneSevenLivePreviewConfigLoader(this)),
       browserRefreshTimer(new QTimer(this)),
@@ -65,13 +64,6 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
 
     // Connect to OBS frontend events
     obs_frontend_add_event_callback(frontendEvent, this);
-
-    initPlaceholderLabel = new QLabel(this);
-    initPlaceholderLabel->setText("Initializing video display...");
-    initPlaceholderLabel->setAlignment(Qt::AlignCenter);
-    initPlaceholderLabel->setStyleSheet("background-color: black; color: white; font-size: 12px;");
-    initPlaceholderLabel->setGeometry(rect());
-    initPlaceholderLabel->show();
 
     // Load browser source configuration and create browser source
     loadBrowserSourceConfig();
@@ -140,8 +132,7 @@ void OneSevenLivePreviewWidget::createDisplay() {
 
         obs_display_add_draw_callback(previewDisplay, drawCallback, this);
 
-        if (initPlaceholderLabel)
-            initPlaceholderLabel->hide();
+        emit displayCreated(true);
     }
 }
 
@@ -153,8 +144,7 @@ void OneSevenLivePreviewWidget::destroyDisplay() {
     }
     display_created = false;
 
-    if (initPlaceholderLabel)
-        initPlaceholderLabel->show();
+    emit displayCreated(false);
 
     if (currentSource) {
         obs_source_release(currentSource);
@@ -355,9 +345,6 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
         // Force refresh to ensure content scales properly with new size
         forceRefresh();
     }
-
-    if (initPlaceholderLabel)
-        initPlaceholderLabel->setGeometry(rect());
 }
 
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
@@ -372,6 +359,10 @@ void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
 
 void OneSevenLivePreviewWidget::paintEvent(QPaintEvent* event) {
     Q_UNUSED(event);
+}
+
+QPaintEngine* OneSevenLivePreviewWidget::paintEngine() const {
+    return nullptr;
 }
 
 void OneSevenLivePreviewWidget::frontendEvent(enum obs_frontend_event event, void* data) {

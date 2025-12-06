@@ -37,10 +37,12 @@ class OneSevenLivePreviewDock : public QDockWidget {
     QLabel* notificationLabel = nullptr;
     QWidget* loadingOverlay = nullptr;
     QLabel* loadingLabel = nullptr;
+    QLabel* placeholderLabel = nullptr;
 
     bool initialized = false;
     QString overlayUrl_;
 
 private slots:
     void onGiftsLoaded();
+    void onDisplayCreated(bool created);
 };

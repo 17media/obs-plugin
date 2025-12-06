@@ -41,9 +41,13 @@ class OneSevenLivePreviewWidget : public QWidget {
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
+    QPaintEngine* paintEngine() const override;
 
    private slots:
     void refreshVideo();
+
+signals:
+    void displayCreated(bool created);
 
    private:
     void createDisplay();
@@ -69,8 +73,6 @@ class OneSevenLivePreviewWidget : public QWidget {
     // Display dimensions
     int display_width;
     int display_height;
-
-    QLabel* initPlaceholderLabel = nullptr;
 
     // Browser source overlay components
     obs_source_t* browserSource = nullptr;

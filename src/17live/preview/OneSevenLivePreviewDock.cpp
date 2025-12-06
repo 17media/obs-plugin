@@ -80,6 +80,17 @@ void OneSevenLivePreviewDock::setupUi() {
         previewWidget->setOverlayUrl(overlayUrl_);
     }
 
+    if (previewWidget) {
+        connect(previewWidget, &OneSevenLivePreviewWidget::displayCreated, this,
+                &OneSevenLivePreviewDock::onDisplayCreated);
+    }
+
+    // Placeholder label
+    placeholderLabel = new QLabel(obs_module_text("PreviewDock.Initializing"), previewContainer);
+    placeholderLabel->setAlignment(Qt::AlignCenter);
+    placeholderLabel->setStyleSheet("background-color: black; color: white; font-size: 12px;");
+    placeholderLabel->show();
+
     // Loading overlay
     loadingOverlay = new QWidget(container);
     loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 180);");
@@ -128,6 +139,9 @@ void OneSevenLivePreviewDock::updatePreviewGeometry() {
     int x = (cw - targetW) / 2;
     int y = (ch - targetH) / 2;
     previewWidget->setGeometry(x, y, targetW, targetH);
+    if (placeholderLabel) {
+        placeholderLabel->setGeometry(x, y, targetW, targetH);
+    }
 }
 
 void OneSevenLivePreviewDock::initializePreview() {
@@ -179,5 +193,11 @@ void OneSevenLivePreviewDock::closeEvent(QCloseEvent* event) {
 void OneSevenLivePreviewDock::onGiftsLoaded() {
     if (loadingOverlay) {
         loadingOverlay->hide();
+    }
+}
+
+void OneSevenLivePreviewDock::onDisplayCreated(bool created) {
+    if (placeholderLabel) {
+        placeholderLabel->setVisible(!created);
     }
 }
