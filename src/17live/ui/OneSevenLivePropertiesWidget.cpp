@@ -112,6 +112,8 @@ void OneSevenLivePropertiesWidget::loadProperties() {
     origPropWidgets.swap(m_propertyWidgets);
 
     for (auto &x : origPropWidgets) {
+        if (x.second)
+            x.second->hide();
         if (x.second->label)
             m_formLayout->removeWidget(x.second->label);
         if (x.second->ctrl)
@@ -176,6 +178,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
                 }
                 newWidget->LoadData(m_settings);
                 m_propertyWidgets.insert(std::make_pair(newWidget->name, newWidget));
+                newWidget->show();
                 if (newWidget->container)
                     m_formLayout->addWidget(newWidget->container);
                 else
@@ -196,6 +199,7 @@ void OneSevenLivePropertiesWidget::loadProperties() {
                 it->second->ReloadProperty(prop);
                 it->second->LoadData(m_settings);
                 m_propertyWidgets.insert(std::make_pair(it->first, it->second));
+                it->second->show();
                 if (it->second->container)
                     m_formLayout->addWidget(it->second->container);
                 else

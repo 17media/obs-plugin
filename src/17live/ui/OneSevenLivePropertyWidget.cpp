@@ -41,9 +41,9 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         QTimer::singleShot(0, [this, safeCb, safeThis]() {
             if (!safeCb || !safeThis) return;
 
-            if (safeThis->m_refreshHandler) {
+            if (safeThis && safeThis->m_refreshHandler) {
                 QObject::connect(safeCb, &QCheckBox::stateChanged, [safeThis]() {
-                    if (safeThis->m_refreshHandler)
+                    if (safeThis && safeThis->m_refreshHandler)
                         safeThis->m_refreshHandler->RefreshUI();
                 });
             }
@@ -96,9 +96,9 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         QTimer::singleShot(0, [safeCb, safeThis]() {
             if (!safeCb || !safeThis) return;
 
-            if (safeThis->m_refreshHandler) {
+            if (safeThis && safeThis->m_refreshHandler) {
                 QObject::connect(safeCb, &QComboBox::currentIndexChanged, [safeThis]() {
-                    if (safeThis->m_refreshHandler)
+                    if (safeThis && safeThis->m_refreshHandler)
                         safeThis->m_refreshHandler->RefreshUI();
                 });
             }
