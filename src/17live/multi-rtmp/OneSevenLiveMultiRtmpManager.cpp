@@ -378,15 +378,24 @@ bool OneSevenLiveMultiRtmpManager::stopStream(const std::string& streamId) {
         return false;
     }
     auto& core = OneSevenLiveCoreManager::getInstance();
+    bool stopped = false;
     if (QThread::currentThread() == core.thread()) {
-        return m_streamController->stopOutput(streamId);
+        stopped = m_streamController->stopOutput(streamId);
     } else {
-        bool result = false;
-        QMetaObject::invokeMethod(&core, [this, &streamId, &result]() {
-            result = m_streamController->stopOutput(streamId);
+        QMetaObject::invokeMethod(&core, [this, &streamId, &stopped]() {
+            stopped = m_streamController->stopOutput(streamId);
         }, Qt::BlockingQueuedConnection);
-        return result;
     }
+
+    OneSevenLiveMultiRtmpConfig cfg = getStreamConfig(streamId);
+    if (!cfg.id.empty() && cfg.streamName == std::string("YouTube")) {
+        QMetaObject::invokeMethod(&core, []() {
+            OneSevenLiveCoreManager& c = OneSevenLiveCoreManager::getInstance();
+            c.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
+                                          nlohmann::json{{"status", "break"}});
+        }, Qt::QueuedConnection);
+    }
+    return stopped;
 }
 
 bool OneSevenLiveMultiRtmpManager::startAllStreams() {
@@ -409,15 +418,27 @@ bool OneSevenLiveMultiRtmpManager::stopAllStreams() {
         return false;
     }
     auto& core = OneSevenLiveCoreManager::getInstance();
+    bool stopped = false;
     if (QThread::currentThread() == core.thread()) {
-        return m_streamController->stopAllOutputs();
+        stopped = m_streamController->stopAllOutputs();
     } else {
-        bool result = false;
-        QMetaObject::invokeMethod(&core, [this, &result]() {
-            result = m_streamController->stopAllOutputs();
+        QMetaObject::invokeMethod(&core, [this, &stopped]() {
+            stopped = m_streamController->stopAllOutputs();
         }, Qt::BlockingQueuedConnection);
-        return result;
     }
+
+    auto configs = getAllStreamConfigs();
+    bool hadYouTube = std::any_of(configs.begin(), configs.end(), [](const auto& c) {
+        return c.streamName == std::string("YouTube");
+    });
+    if (hadYouTube) {
+        QMetaObject::invokeMethod(&core, []() {
+            OneSevenLiveCoreManager& c = OneSevenLiveCoreManager::getInstance();
+            c.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
+                                          nlohmann::json{{"status", "break"}});
+        }, Qt::QueuedConnection);
+    }
+    return stopped;
 }
 
 // Status and statistics
