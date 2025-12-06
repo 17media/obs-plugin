@@ -3,6 +3,9 @@
 #include <obs-module.h>
 
 #include <QApplication>
+#include <QHideEvent>
+#include <QShowEvent>
+#include <QTimer>
 #include <QMessageBox>
 #include <QVBoxLayout>
 
@@ -35,4 +38,15 @@ void OneSevenLiveChatDock::reload() {
     if (cefView_) {
         cefView_->reload();
     }
+}
+
+void OneSevenLiveChatDock::showEvent(QShowEvent* event) {
+    QDockWidget::showEvent(event);
+    if (cefView_) {
+        QTimer::singleShot(0, cefView_, &QCefView::reload);
+    }
+}
+
+void OneSevenLiveChatDock::hideEvent(QHideEvent* event) {
+    QDockWidget::hideEvent(event);
 }

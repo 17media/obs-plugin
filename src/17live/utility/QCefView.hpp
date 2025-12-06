@@ -18,6 +18,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QWindow>
+#include <QShowEvent>
+#include <QHideEvent>
 
 class SimpleCefClient;
 
@@ -38,6 +40,9 @@ class QCefView : public QWidget {
    protected:
    virtual void resizeEvent(QResizeEvent *event) override;
    virtual void closeEvent(QCloseEvent *event) override;
+   virtual void showEvent(QShowEvent *event) override;
+   virtual void hideEvent(QHideEvent *event) override;
+   virtual bool event(QEvent *e) override;
 
    signals:
     // Emitted when the browser's current URL changes

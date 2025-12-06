@@ -15,6 +15,10 @@ class OneSevenLiveChatDock : public QDockWidget {
     void setUrl(const QString& url);
     void reload();
 
+   protected:
+    void showEvent(QShowEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
+
    private:
     QCefView* cefView_ = nullptr;
     QString chatUrl_;
