@@ -143,14 +143,23 @@ namespace seventeen {
                              (std::chrono::system_clock::now() - cutoff);
 
             std::string tempDir = generateTempDirectory();
+            
+            // Temporary vector to store valid crash files with their modification times
+            struct CrashFileEntry {
+                std::filesystem::path path;
+                std::filesystem::file_time_type mtime;
+            };
+            std::vector<CrashFileEntry> foundCrashes;
 
             for (const auto& dir : crashDirs) {
                 if (!std::filesystem::exists(dir))
                     continue;
                 try {
-                    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+                    // Use recursive iterator to support subdirectories like "Retired"
+                    for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
                         if (!entry.is_regular_file())
                             continue;
+                        
                         auto name = entry.path().filename().string();
                         // Check for .crash or .ips extensions
                         bool isCrashFile = (entry.path().extension() == ".crash" || 
@@ -159,18 +168,38 @@ namespace seventeen {
                         bool isOBS = (name.rfind("obs_", 0) == 0 || name.rfind("OBS_", 0) == 0);
                         
                         if (isCrashFile && isOBS) {
-                            auto mtime = std::filesystem::last_write_time(entry.path());
-                            if (mtime >= cutoff_fs) {
-                                std::string destPath =
-                                    std::filesystem::path(tempDir) / ("crash_" + name);
-                                if (copyWithSizeLimit(entry.path().string(), destPath)) {
-                                    crashFiles.push_back(destPath);
+                            try {
+                                auto mtime = std::filesystem::last_write_time(entry.path());
+                                if (mtime >= cutoff_fs) {
+                                    foundCrashes.push_back({entry.path(), mtime});
                                 }
+                            } catch (...) {
+                                // Skip file if mtime cannot be read
                             }
                         }
                     }
                 } catch (const std::exception& e) {
                     setLastError(std::string("Error reading crash reports: ") + e.what());
+                }
+            }
+
+            // Sort by modification time descending
+            std::sort(foundCrashes.begin(), foundCrashes.end(), 
+                [](const CrashFileEntry& a, const CrashFileEntry& b) {
+                    return a.mtime > b.mtime;
+                });
+
+            // Keep top 5 latest
+            if (foundCrashes.size() > 5) {
+                foundCrashes.resize(5);
+            }
+
+            // Copy selected files
+            for (const auto& entry : foundCrashes) {
+                std::string destPath = std::filesystem::path(tempDir) / 
+                                     ("crash_" + entry.path.filename().string());
+                if (copyWithSizeLimit(entry.path.string(), destPath)) {
+                    crashFiles.push_back(destPath);
                 }
             }
 
