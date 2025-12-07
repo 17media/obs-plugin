@@ -14,7 +14,7 @@ import {
   MsgType_AI_COHOST_MESSAGE,
   MsgType_POKE,
 } from '@/lib/constants';
-import { getGifts, getGiftByID, getRoomInfo } from '../api';
+import { getGiftByID, getRoomInfo } from '../api';
 
 // Dev-only mock messages (same as Ably.jsx)
 // import giftdata from '@/../public/mock/chat_new_gift_2.json';
@@ -56,7 +56,6 @@ export class OneSevenLivePlatform extends BasePlatform {
 
       // Fetch room info and gifts
       this.roomInfo = await getRoomInfo();
-      await getGifts();
 
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, roomID });
@@ -120,8 +119,9 @@ export class OneSevenLivePlatform extends BasePlatform {
     }
     if (type === 'ably_chat_message') {
       const decoded = payload; // already decoded server-side
-      const unifiedMessage = this.processRawMessage(decoded);
-      if (unifiedMessage) this.enqueueMessage(unifiedMessage);
+      this.processRawMessage(decoded).then(unifiedMessage => {
+        if (unifiedMessage) this.enqueueMessage(unifiedMessage);
+      });
       return;
     }
   }
@@ -132,17 +132,17 @@ export class OneSevenLivePlatform extends BasePlatform {
   }
 
   // Build content consistent with Ably.jsx#prepareIndexedChat; returns an Immutable object
-  prepareIndexedChat(message) {
+  async prepareIndexedChat(message) {
     const id = nanoid();
     const streamerInfo = this.roomInfo?.userInfo;
     const msgType = typeof message.type !== 'undefined' ? message.type : message?.msgType;
 
     if (msgType === MsgType_NEW_GIFT || msgType === MsgType_NEW_LUCKYBAG) {
       const { displayUser, barrage, ...restGift } = message?.giftMsg || {};
-      const gift = getGiftByID(restGift?.giftID);
+      const gift = await getGiftByID(restGift?.giftID);
 
       if (msgType === MsgType_NEW_LUCKYBAG && restGift?.extID) {
-        const luckyBag = getGiftByID(restGift.extID);
+        const luckyBag = await getGiftByID(restGift.extID);
         const indexedGift = fromJS({
           ...restGift,
           ...(displayUser || {}),
@@ -208,7 +208,7 @@ export class OneSevenLivePlatform extends BasePlatform {
     return indexedChat;
   }
 
-  processRawMessage(rawData) {
+  async processRawMessage(rawData) {
     const type = typeof rawData?.type !== 'undefined' ? rawData.type : rawData?.msgType;
     
     switch (type) {
@@ -229,8 +229,8 @@ export class OneSevenLivePlatform extends BasePlatform {
     }
   }
 
-  processCommentMessage(data) {
-    const content = this.prepareIndexedChat(data);
+  async processCommentMessage(data) {
+    const content = await this.prepareIndexedChat(data);
     return {
       id: content.get('id'),
       platform: this.platformId,
@@ -239,8 +239,8 @@ export class OneSevenLivePlatform extends BasePlatform {
     };
   }
 
-  processGiftMessage(data) {
-    const content = this.prepareIndexedChat(data);
+  async processGiftMessage(data) {
+    const content = await this.prepareIndexedChat(data);
 
     return {
       id: content.get('id'),
@@ -250,8 +250,8 @@ export class OneSevenLivePlatform extends BasePlatform {
     };
   }
 
-  processJoinMessage(data) {
-    const content = this.prepareIndexedChat(data);
+  async processJoinMessage(data) {
+    const content = await this.prepareIndexedChat(data);
     return {
       id: content.get('id'),
       platform: this.platformId,
@@ -260,8 +260,8 @@ export class OneSevenLivePlatform extends BasePlatform {
     };
   }
 
-  processAICohostMessage(data) {
-    const content = this.prepareIndexedChat(data);
+  async processAICohostMessage(data) {
+    const content = await this.prepareIndexedChat(data);
     return {
       id: content.get('id'),
       platform: this.platformId,
@@ -270,8 +270,8 @@ export class OneSevenLivePlatform extends BasePlatform {
     };
   }
 
-  processPokeMessage(data) {
-    const content = this.prepareIndexedChat(data);
+  async processPokeMessage(data) {
+    const content = await this.prepareIndexedChat(data);
     return {
       id: content.get('id'),
       platform: this.platformId,

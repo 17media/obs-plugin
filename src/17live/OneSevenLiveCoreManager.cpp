@@ -1652,9 +1652,6 @@ void OneSevenLiveCoreManager::loadGifts() {
                 }
                 configManager->saveGifts(apiResult);
                 buildGiftsMapFromJson(apiResult);
-                if (chatDock && chatDock->isVisible()) {
-                    chatDock->reload();
-                }
             },
             Qt::QueuedConnection);
     });

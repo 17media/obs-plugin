@@ -20,6 +20,7 @@
 #define ACTION_GETABLYTOKEN "getAblyToken"
 #define ACTION_GETGIFTTABS "getGiftTabs"
 #define ACTION_GETGIFTS "getGifts"
+#define ACTION_GETGIFT "getGift"
 #define ACTION_GETROOMINFO "getRoomInfo"
 
 #define MAX_CONSECUTIVE_FAILURES 10  // Maximum consecutive failure count

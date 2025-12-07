@@ -429,6 +429,32 @@ bool OneSevenLiveHttpServer::start() {
                     } else {
                         success = true;
                     }
+                } else if (action == ACTION_GETGIFT) {
+                    if (coreManager.isGiftsLoading()) {
+                        obs_log(LOG_INFO, "[17Live HTTP Server] Gifts loading in progress, returning wait response");
+                        const nlohmann::json response = {{"success", false}, {"error", "Gifts loading"}};
+                        res.set_content(response.dump(), "application/json");
+                        return;
+                    }
+                    std::string giftID;
+                    if (requestJson.contains("giftID") && requestJson["giftID"].is_string())
+                        giftID = requestJson["giftID"].get<std::string>();
+                    
+                    std::optional<nlohmann::json> gift;
+                    if (!giftID.empty()) {
+                        gift = OneSevenLiveCoreManager::getInstance().getGiftByID(giftID);
+                    }
+                        
+                    if (gift) {
+                        apiResult = *gift;
+                        success = true;
+                    } else {
+                        obs_log(LOG_WARNING, "Gift not found. giftID=%s", giftID.c_str());
+                        const nlohmann::json errorResponse = {{"success", false}, {"error", "Gift not found"}};
+                        res.set_content(errorResponse.dump(), "application/json");
+                        return;
+                    }
+
                 } else if (action == ACTION_GETROOMINFO) {
                     OneSevenLiveLoginData loginData;
                     configManager->getLoginData(loginData);
