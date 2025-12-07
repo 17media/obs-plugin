@@ -136,6 +136,9 @@ bool OneSevenLiveWebsocketClient::isConnected() const {
 
 void OneSevenLiveWebsocketClient::startThread(const QString& host, const QString& port,
                                               const QString& path) {
+    // Ensure previous thread is joined and resources are cleaned up
+    stopThread();
+
     if (running.load())
         return;
     running.store(true);
@@ -156,19 +159,17 @@ void OneSevenLiveWebsocketClient::stopThread() {
     }
     try {
         if (th.joinable()) {
-            if (std::this_thread::get_id() == th.get_id()) {
-                th.detach();
-            } else {
-                th.join();
-            }
+            th.join();
         }
     } catch (...) {
         // Swallow thread join errors to avoid terminate during shutdown
     }
     cleanupTLS();
-    if (connected.load() && onClose)
-        QMetaObject::invokeMethod(this, [this]() { onClose(); }, Qt::QueuedConnection);
-    connected.store(false);
+    if (connected.load()) {
+        if (onClose)
+            QMetaObject::invokeMethod(this, [this]() { onClose(); }, Qt::QueuedConnection);
+        connected.store(false);
+    }
 }
 
 #ifdef _WIN32
@@ -294,7 +295,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         if (onError)
             QMetaObject::invokeMethod(
                 this, [this]() { onError("rng_init"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
         return;
     }
     ret = mbedtls_ssl_config_defaults(&tls->conf, MBEDTLS_SSL_IS_CLIENT,
@@ -302,7 +303,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     if (ret != 0) {
         if (onError)
             QMetaObject::invokeMethod(this, [this]() { onError("ssl_cfg"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
         return;
     }
     mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_NONE);
@@ -314,7 +315,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         if (onError)
             QMetaObject::invokeMethod(
                 this, [this]() { onError("tcp_connect"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
         return;
     }
     ret = mbedtls_ssl_setup(&tls->ssl, &tls->conf);
@@ -322,7 +323,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         if (onError)
             QMetaObject::invokeMethod(
                 this, [this]() { onError("ssl_setup"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
         return;
     }
     mbedtls_net_set_nonblock(&tls->server_fd);
@@ -338,11 +339,11 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         }
         if (onError)
             QMetaObject::invokeMethod(this, [this]() { onError("tls_handshake"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
         return;
     }
     if (!running.load()) {
-        stopThread();
+        running.store(false);
         return;
     }
     std::string wsKey = generateWebSocketKey();
@@ -361,7 +362,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     if (!sendTLS(req)) {
         if (onError)
             QMetaObject::invokeMethod(this, [this]() { onError("ws_req"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
         return;
     }
     std::string resp;
@@ -382,14 +383,14 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             if (onError)
                 QMetaObject::invokeMethod(
                     this, [this]() { onError("ws_resp"); }, Qt::QueuedConnection);
-            stopThread();
+            running.store(false);
             return;
         }
     }
     if (resp.find("101 Switching Protocols") == std::string::npos) {
         if (onError)
             QMetaObject::invokeMethod(this, [this]() { onError("ws_101"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
         return;
     }
     connected.store(true);
@@ -445,7 +446,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                             if (payload.size() > 2)
                                 reason.assign(payload.data() + 2, payload.size() - 2);
                         }
-                        obs_log(LOG_INFO, "[17Live WebSocket] Close received: code=%d reason=%s",
+                        obs_log(LOG_INFO, "[Websocket Client] Close received: code=%d reason=%s",
                                 code, reason.c_str());
                         if (onError) {
                             std::string msg =
@@ -472,7 +473,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 }
             }
         } else if (r == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) {
-            obs_log(LOG_INFO, "[17Live WebSocket] Peer close notify received");
+            obs_log(LOG_INFO, "[Websocket Client] Peer close notify received");
             if (onError)
                 QMetaObject::invokeMethod(
                     this, [this]() { onError("peer_close_notify"); }, Qt::QueuedConnection);
@@ -488,7 +489,13 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             break;
         }
     }
-    stopThread();
+    
+    if (connected.load()) {
+        if (onClose)
+            QMetaObject::invokeMethod(this, [this]() { onClose(); }, Qt::QueuedConnection);
+        connected.store(false);
+    }
+    running.store(false);
 }
 #endif
 
