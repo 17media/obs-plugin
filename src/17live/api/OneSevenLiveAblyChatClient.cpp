@@ -30,8 +30,6 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
             QMetaObject::invokeMethod(this, [this]() { m_onOpen(); }, Qt::QueuedConnection);
         m_reconnectAttempts = 0;
         sendConnect();
-        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-            QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status", "connected"}});
     });
     m_wsClient->setMessageCallback([this](const std::string& msg) {
         // Parse Ably protocol message and attach after CONNECTED
@@ -65,6 +63,9 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                         }
                     } catch (...) {
                     }
+                    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+                        QString::fromUtf8(ws::EventAblyChatConnected),
+                        nlohmann::json{{"status", "connected"}});
                     QTimer::singleShot(100, this, [this]() { attachChannel(); });
                 } else if (action == 11) {
                     m_attached = true;
@@ -219,7 +220,7 @@ void OneSevenLiveAblyChatClient::tryConnectWithFallbackHosts() {
         return;
     const QString host = m_hosts[m_hostIndex];
     // Build Ably websocket URL with token auth (JSON protocol, echo off)
-    QUrl url(QString("%1?protocol=json&echo=false&access_token=%2").arg(host, m_token));
+    QUrl url(QString("%1?protocol=json&echo=false&access_token=%2&v=1.2").arg(host, m_token));
     m_wsClient->connectUrl(url.toString());
 }
 

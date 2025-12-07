@@ -285,6 +285,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     stopThread();
 }
 #else
+#include <sys/select.h>
 void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString& port,
                                              const QString& path) {
     tls = std::make_unique<TLSHandles>();
@@ -335,6 +336,20 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             break;
         }
         if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
+            // Wait for socket
+            int fd = tls->server_fd.fd;
+            if (fd >= 0) {
+                fd_set fds;
+                FD_ZERO(&fds);
+                FD_SET(fd, &fds);
+                struct timeval tv;
+                tv.tv_sec = 0;
+                tv.tv_usec = 100000; // 100ms
+                select(fd + 1, (ret == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
+                       (ret == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
             continue;
         }
         if (onError)
@@ -378,6 +393,19 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             if (resp.find("\r\n\r\n") != std::string::npos)
                 break;
         } else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) {
+            int fd = tls->server_fd.fd;
+            if (fd >= 0) {
+                fd_set fds;
+                FD_ZERO(&fds);
+                FD_SET(fd, &fds);
+                struct timeval tv;
+                tv.tv_sec = 0;
+                tv.tv_usec = 100000; // 100ms
+                select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
+                       (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
             continue;
         } else {
             if (onError)
@@ -404,15 +432,50 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             uint64_t len = h[1] & 0x7F;
             if (len == 126) {
                 unsigned char ext[2];
-                r = mbedtls_ssl_read(&tls->ssl, ext, 2);
-                if (r != 2)
-                    break;
+                // Loop to ensure we read 2 bytes
+                size_t read_bytes = 0;
+                while (read_bytes < 2) {
+                    r = mbedtls_ssl_read(&tls->ssl, ext + read_bytes, 2 - read_bytes);
+                    if (r > 0) read_bytes += r;
+                    else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) {
+                        int fd = tls->server_fd.fd;
+                        if (fd >= 0) {
+                            fd_set fds;
+                            FD_ZERO(&fds);
+                            FD_SET(fd, &fds);
+                            struct timeval tv;
+                            tv.tv_sec = 0;
+                            tv.tv_usec = 100000; // 100ms
+                            select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
+                                   (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
+                        }
+                        continue;
+                    } else break;
+                }
+                if (read_bytes != 2) break;
                 len = (ext[0] << 8) | ext[1];
             } else if (len == 127) {
                 unsigned char ext[8];
-                r = mbedtls_ssl_read(&tls->ssl, ext, 8);
-                if (r != 8)
-                    break;
+                size_t read_bytes = 0;
+                while (read_bytes < 8) {
+                    r = mbedtls_ssl_read(&tls->ssl, ext + read_bytes, 8 - read_bytes);
+                    if (r > 0) read_bytes += r;
+                    else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) {
+                        int fd = tls->server_fd.fd;
+                        if (fd >= 0) {
+                            fd_set fds;
+                            FD_ZERO(&fds);
+                            FD_SET(fd, &fds);
+                            struct timeval tv;
+                            tv.tv_sec = 0;
+                            tv.tv_usec = 100000; // 100ms
+                            select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
+                                   (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
+                        }
+                        continue;
+                    } else break;
+                }
+                if (read_bytes != 8) break;
                 len = 0;
                 for (int i = 0; i < 8; i++)
                     len = (len << 8) | ext[i];
@@ -425,9 +488,20 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                     r = mbedtls_ssl_read(&tls->ssl, (unsigned char*) payload.data() + br, len - br);
                     if (r > 0)
                         br += r;
-                    else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE)
+                    else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) {
+                        int fd = tls->server_fd.fd;
+                        if (fd >= 0) {
+                            fd_set fds;
+                            FD_ZERO(&fds);
+                            FD_SET(fd, &fds);
+                            struct timeval tv;
+                            tv.tv_sec = 0;
+                            tv.tv_usec = 100000; // 100ms
+                            select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
+                                   (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
+                        }
                         continue;
-                    else {
+                    } else {
                         br = 0;
                         break;
                     }
@@ -479,6 +553,17 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                     this, [this]() { onError("peer_close_notify"); }, Qt::QueuedConnection);
             break;
         } else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) {
+            int fd = tls->server_fd.fd;
+            if (fd >= 0) {
+                fd_set fds;
+                FD_ZERO(&fds);
+                FD_SET(fd, &fds);
+                struct timeval tv;
+                tv.tv_sec = 0;
+                tv.tv_usec = 100000; // 100ms
+                select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
+                       (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
+            }
             continue;
         } else if (r < 0) {
             if (onError)
