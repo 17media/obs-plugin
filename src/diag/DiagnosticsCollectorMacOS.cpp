@@ -152,7 +152,13 @@ namespace seventeen {
                         if (!entry.is_regular_file())
                             continue;
                         auto name = entry.path().filename().string();
-                        if (entry.path().extension() == ".crash" && name.rfind("obs_", 0) == 0) {
+                        // Check for .crash or .ips extensions
+                        bool isCrashFile = (entry.path().extension() == ".crash" || 
+                                          entry.path().extension() == ".ips");
+                        // Check for obs_ or OBS_ prefix
+                        bool isOBS = (name.rfind("obs_", 0) == 0 || name.rfind("OBS_", 0) == 0);
+                        
+                        if (isCrashFile && isOBS) {
                             auto mtime = std::filesystem::last_write_time(entry.path());
                             if (mtime >= cutoff_fs) {
                                 std::string destPath =
