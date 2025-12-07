@@ -138,7 +138,7 @@ namespace seventeen {
                                                   std::string("/Library/Logs/DiagnosticReports")};
 
             auto now = std::chrono::system_clock::now();
-            auto cutoff = now - std::chrono::hours(24);
+            auto cutoff = now - std::chrono::hours(24 * 30); // 30 days
             auto cutoff_fs = std::filesystem::file_time_type::clock::now() -
                              (std::chrono::system_clock::now() - cutoff);
 
