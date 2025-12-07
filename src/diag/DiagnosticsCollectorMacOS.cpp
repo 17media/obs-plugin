@@ -164,8 +164,8 @@ namespace seventeen {
                         // Check for .crash or .ips extensions
                         bool isCrashFile = (entry.path().extension() == ".crash" || 
                                           entry.path().extension() == ".ips");
-                        // Check for obs_ or OBS_ prefix
-                        bool isOBS = (name.rfind("obs_", 0) == 0 || name.rfind("OBS_", 0) == 0);
+                        // Check for obs or OBS prefix (without underscore)
+                        bool isOBS = (name.rfind("obs", 0) == 0 || name.rfind("OBS", 0) == 0);
                         
                         if (isCrashFile && isOBS) {
                             try {
