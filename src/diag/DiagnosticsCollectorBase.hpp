@@ -44,6 +44,7 @@ namespace seventeen {
                                           const std::vector<std::string>& files) = 0;
 
             void reportProgress(const std::string& stage, double progress);
+            void reportSubProgress(const std::string& detail, double subProgress);
 
             void setLastError(const std::string& error) {
                 m_lastError = error;
@@ -61,6 +62,9 @@ namespace seventeen {
            private:
             ProgressCallback m_progressCallback;
             std::string m_lastError;
+            
+            double m_currentBaseProgress = 0.0;
+            double m_currentStageScale = 1.0;
 
             std::vector<std::string> collectCategory(DiagnosticCategory category);
             bool applyPrivacyFilter(const std::string& filePath);

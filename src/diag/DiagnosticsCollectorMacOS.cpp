@@ -50,8 +50,11 @@ namespace seventeen {
                     files.resize(5);
 
                 std::string tempDir = generateTempDirectory();
-                for (const auto& file : files) {
+                double total = files.size();
+                for (size_t i = 0; i < files.size(); ++i) {
+                    const auto& file = files[i];
                     std::string fileName = std::filesystem::path(file).filename().string();
+                    reportSubProgress("Collecting OBS log: " + fileName, (double)i / total);
                     std::string destPath = std::filesystem::path(tempDir) / ("obs_" + fileName);
                     if (copyWithSizeLimit(file, destPath)) {
                         logFiles.push_back(destPath);
@@ -98,8 +101,11 @@ namespace seventeen {
                 files.resize(5);
 
             std::string tempDir = generateTempDirectory();
-            for (const auto& file : files) {
+            double total = files.size();
+            for (size_t i = 0; i < files.size(); ++i) {
+                const auto& file = files[i];
                 std::string fileName = std::filesystem::path(file).filename().string();
+                reportSubProgress("Collecting plugin log: " + fileName, (double)i / total);
                 std::string destPath = std::filesystem::path(tempDir) / ("plugin_" + fileName);
                 if (copyWithSizeLimit(file, destPath)) {
                     logFiles.push_back(destPath);
@@ -195,9 +201,13 @@ namespace seventeen {
             }
 
             // Copy selected files
-            for (const auto& entry : foundCrashes) {
+            double total = foundCrashes.size();
+            for (size_t i = 0; i < foundCrashes.size(); ++i) {
+                const auto& entry = foundCrashes[i];
+                std::string fileName = entry.path.filename().string();
+                reportSubProgress("Collecting crash info: " + fileName, (double)i / total);
                 std::string destPath = std::filesystem::path(tempDir) / 
-                                     ("crash_" + entry.path.filename().string());
+                                     ("crash_" + fileName);
                 if (copyWithSizeLimit(entry.path.string(), destPath)) {
                     crashFiles.push_back(destPath);
                 }
@@ -261,15 +271,27 @@ namespace seventeen {
             if (std::filesystem::exists(pluginConfigDir)) {
                 // Recursively copy all files under ~/.17Live to staging temp with preserved
                 // structure
-                for (auto const& entry :
-                     std::filesystem::recursive_directory_iterator(pluginConfigDir)) {
-                    if (!entry.is_regular_file())
-                        continue;
+                std::vector<std::filesystem::path> filesToCopy;
+                try {
+                    for (auto const& entry :
+                         std::filesystem::recursive_directory_iterator(pluginConfigDir)) {
+                        if (entry.is_regular_file()) {
+                            filesToCopy.push_back(entry.path());
+                        }
+                    }
+                } catch (...) {}
+
+                double total = filesToCopy.size();
+                for (size_t i = 0; i < filesToCopy.size(); ++i) {
+                    const auto& srcPath = filesToCopy[i];
                     std::filesystem::path rel =
-                        std::filesystem::relative(entry.path(), pluginConfigDir);
+                        std::filesystem::relative(srcPath, pluginConfigDir);
                     std::filesystem::path destPath =
                         std::filesystem::path(tempDir) / "plugin_config" / rel;
-                    if (copyFile(entry.path().string(), destPath.string())) {
+                    
+                    reportSubProgress("Collecting config: " + srcPath.filename().string(), (double)i / total);
+
+                    if (copyFile(srcPath.string(), destPath.string())) {
                         configFiles.push_back(destPath.string());
                     }
                 }
@@ -357,7 +379,9 @@ namespace seventeen {
             std::vector<std::string> indexLines;
 
             try {
-                for (const auto& file : files) {
+                double total = files.size();
+                for (size_t i = 0; i < files.size(); ++i) {
+                    const auto& file = files[i];
                     if (!std::filesystem::exists(file)) {
                         continue;
                     }
@@ -367,6 +391,8 @@ namespace seventeen {
                     
                     std::filesystem::path destPath;
                     std::filesystem::path fileName = std::filesystem::path(file).filename();
+                    
+                    reportSubProgress("Archiving: " + fileName.string(), (double)i / total);
                     
                     if (category == "ROOT") {
                         destPath = std::filesystem::path(stagingDir) / fileName;

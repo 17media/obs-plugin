@@ -23,11 +23,14 @@ namespace seventeen {
                     return result;
                 }
 
-                reportProgress("Initializing collection", 0.0);
+                reportProgress("Initializing collection...", 0.0);
 
                 std::vector<std::string> allFiles;
-                double progressStep = 1.0 / config.categories.size();
+                // Add 1 for the archive step
+                double progressStep = 1.0 / (config.categories.size() + 1);
                 double currentProgress = 0.0;
+                
+                m_currentStageScale = progressStep;
 
                 for (const auto& category : config.categories) {
                     std::string categoryName = [category]() {
@@ -51,7 +54,8 @@ namespace seventeen {
                         }
                     }();
 
-                    reportProgress("Collecting " + categoryName, currentProgress);
+                    m_currentBaseProgress = currentProgress;
+                    reportSubProgress("Start collecting " + categoryName + "...", 0.0);
 
                     auto categoryFiles = collectCategory(category);
                     for (const auto& file : categoryFiles) {
@@ -70,7 +74,8 @@ namespace seventeen {
                     return result;
                 }
 
-                reportProgress("Creating archive", 0.9);
+                m_currentBaseProgress = currentProgress;
+                reportSubProgress("Creating archive...", 0.0);
 
                 std::string outputPath = config.outputDirectory;
                 if (outputPath.empty()) {
@@ -206,6 +211,12 @@ namespace seventeen {
             if (m_progressCallback) {
                 m_progressCallback(stage, progress);
             }
+        }
+
+        void DiagnosticsCollectorBase::reportSubProgress(const std::string& detail, double subProgress) {
+            double totalProgress = m_currentBaseProgress + (subProgress * m_currentStageScale);
+            if (totalProgress > 1.0) totalProgress = 1.0;
+            reportProgress(detail, totalProgress);
         }
 
         std::string DiagnosticsCollectorBase::getSystemInfo() const {

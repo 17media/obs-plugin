@@ -185,6 +185,7 @@ namespace seventeen {
                 m_collectButton->setEnabled(false);
                 m_progressBar->setVisible(true);
                 m_progressBar->setValue(0);
+                m_statusTextEdit->clear(); // Clear previous status
 
                 DiagnosticConfig config = getCurrentConfig();
                 config.outputDirectory = m_outputPath.toStdString();
@@ -244,10 +245,12 @@ namespace seventeen {
             }
 
             void DiagnosticsDialog::onProgressUpdate(const QString& stage, double progress) {
-                m_statusTextEdit->setPlainText(
-                    QString("%1: %2")
-                        .arg(obs_module_text("Diagnostics.Status.Collecting"))
-                        .arg(stage));
+                m_statusTextEdit->append(stage);
+                // Scroll to bottom
+                QTextCursor c = m_statusTextEdit->textCursor();
+                c.movePosition(QTextCursor::End);
+                m_statusTextEdit->setTextCursor(c);
+
                 m_progressBar->setValue(static_cast<int>(progress * 100));
             }
 
