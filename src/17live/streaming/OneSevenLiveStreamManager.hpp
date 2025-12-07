@@ -133,6 +133,8 @@ class OneSevenLiveStreamManager : public QObject {
 
     void loadRoomInfo();
 
+    void handleObsStreamStopped(int code, const QString& lastError);
+
     const OneSevenLiveRoomInfo& getRoomInfo() const {
         return roomInfo;
     }
@@ -229,6 +231,11 @@ class OneSevenLiveStreamManager : public QObject {
      * @param operation Operation that failed
      */
     void errorOccurred(const QString& errorMessage, const QString& operation);
+
+    /**
+     * @brief Emitted when OBS streaming stops (e.g. error or manual stop)
+     */
+    void obsStreamStopped(int code, const QString& lastError);
 
     void createRtmpFinished(bool success, const QString& error);
     void startStreamFinished(bool success, const QString& error);

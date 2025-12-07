@@ -44,10 +44,30 @@ OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* ap
     connect(m_statusTimer, &QTimer::timeout, this, &OneSevenLiveStreamManager::onStatusTimer);
     m_statusTimer->start();
 
+    // Register callback for OBS streaming events
+    obs_frontend_add_event_callback([](enum obs_frontend_event event, void* private_data) {
+        OneSevenLiveStreamManager* manager = static_cast<OneSevenLiveStreamManager*>(private_data);
+        if (event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
+             obs_output_t* output = obs_frontend_get_streaming_output();
+             if (output) {
+                 // obs_output_get_last_error returns const char* (message), NOT an error code integer
+                 // To get error code, we need to check if there is a specific function or rely on message
+                 // In standard libobs, obs_output_get_last_error returns string
+                 const char* err = obs_output_get_last_error(output);
+                 manager->handleObsStreamStopped(0, err ? QString(err) : QString());
+                 obs_output_release(output);
+             } else {
+                 manager->handleObsStreamStopped(0, QString());
+             }
+        }
+    }, this);
+
     obs_log(LOG_INFO, "OneSevenLiveStreamManager initialized");
 }
 
-OneSevenLiveStreamManager::~OneSevenLiveStreamManager() {}
+OneSevenLiveStreamManager::~OneSevenLiveStreamManager() {
+    obs_frontend_remove_event_callback([](enum obs_frontend_event, void*) {}, this);
+}
 
 bool OneSevenLiveStreamManager::fetchRtmpByProvider(const std::string& provider,
                                                     OneSevenLiveRtmpResponse& response) {
@@ -766,6 +786,13 @@ void OneSevenLiveStreamManager::configureStreamingSettings(
         saveStreamingSettings(response.liveStreamID.toStdString(), streamUrl.toStdString(),
                               streamKey.toStdString());
     }
+}
+
+void OneSevenLiveStreamManager::handleObsStreamStopped(int code, const QString& lastError) {
+    // This is called from OBS callback thread, so we need to invoke on main thread
+    QMetaObject::invokeMethod(this, [this, code, lastError]() {
+        emit obsStreamStopped(code, lastError);
+    }, Qt::QueuedConnection);
 }
 
 const OneSevenLiveRtmpResponse& OneSevenLiveStreamManager::getCurrentStreamResponse() const {

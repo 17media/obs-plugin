@@ -51,6 +51,25 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
     connect(streamManager, &OneSevenLiveStreamManager::streamStatusChanged, this,
             &OneSevenLiveStreamingDock::updateLiveStatus);
 
+    // Monitor OBS output signals for disconnection
+    // We cannot directly connect to obs signals here easily as they are C callbacks.
+    // Instead, we rely on StreamManager to monitor OBS signals or use a timer/status check.
+    // However, StreamManager already has some status monitoring.
+    // Let's add a signal from StreamManager when OBS stream stops unexpectedly.
+    
+    connect(streamManager, &OneSevenLiveStreamManager::obsStreamStopped, this, [this](int code, const QString& lastError) {
+         obs_log(LOG_WARNING, "OBS stream stopped unexpectedly with code %d: %s", code, lastError.toStdString().c_str());
+         // If this was an unexpected stop (network error etc), we might want to reflect that in UI
+         // For now, just ensure our internal status is updated if it wasn't already
+         if (streamManager->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::Streaming) {
+             // If we were streaming, but OBS stopped, we should probably consider it as stopped or trying to reconnect?
+             // OBS has its own reconnection logic. 
+             // If OBS completely gives up (e.g. after max retries), it stops.
+             // We should sync our status to NotStarted in that case.
+             streamManager->stopStream(false); 
+         }
+    });
+
     connect(streamManager, &OneSevenLiveStreamManager::createRtmpFinished, this,
             [this](bool success, const QString& error) {
                 createLiveButton->setEnabled(true);
