@@ -89,19 +89,19 @@ OneSevenLiveTwitchChatClient::~OneSevenLiveTwitchChatClient() {
 void OneSevenLiveTwitchChatClient::connectToChat(const QString& username,
                                                  const QString& oauthToken) {
     if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
-        obs_log(LOG_INFO, "[obs-17live] Skipping connect: shutting down");
+        obs_log(LOG_INFO, "[Twitch Chat Client] Skipping connect: shutting down");
         return;
     }
-    if (m_connected) { obs_log(LOG_INFO, "[obs-17live] Already connected to Twitch chat"); return; }
-    if (m_connecting) { obs_log(LOG_INFO, "[obs-17live] Connect in progress, skip new request"); return; }
+    if (m_connected) { obs_log(LOG_INFO, "[Twitch Chat Client] Already connected to Twitch chat"); return; }
+    if (m_connecting) { obs_log(LOG_INFO, "[Twitch Chat Client] Connect in progress, skip new request"); return; }
 
     m_username = username;
     m_oauthToken = oauthToken;
     m_reconnectAttempts = 0;
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
-    obs_log(LOG_INFO, "[obs-17live] Twitch chat connect requested: isLive=%d username=%s", isLive ? 1 : 0,
+    obs_log(LOG_INFO, "[Twitch Chat Client] Twitch chat connect requested: isLive=%d username=%s", isLive ? 1 : 0,
             username.toUtf8().constData());
-    obs_log(LOG_INFO, "[obs-17live] Connecting to Twitch chat server: %s",
+    obs_log(LOG_INFO, "[Twitch Chat Client] Connecting to Twitch chat server: %s",
             TWITCH_IRC_SERVER.toUtf8().constData());
     m_connecting = true;
     connectWebSocket();
@@ -230,7 +230,7 @@ void OneSevenLiveTwitchChatClient::onWebSocketMessage(const std::string& message
 }
 
 void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
-    obs_log(LOG_INFO, "[obs-17live] Connected to Twitch chat server");
+    obs_log(LOG_INFO, "[Twitch Chat Client] Connected to Twitch chat server");
     m_connected = true;
     m_connecting = false;
     m_reconnectAttempts = 0;
@@ -263,7 +263,7 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
 }
 
 void OneSevenLiveTwitchChatClient::onWebSocketClose() {
-    obs_log(LOG_INFO, "[obs-17live] Disconnected from Twitch chat server");
+    obs_log(LOG_INFO, "[Twitch Chat Client] Disconnected from Twitch chat server");
     m_connected = false;
     m_connecting = false;
     stopPingTimer();
@@ -279,7 +279,7 @@ void OneSevenLiveTwitchChatClient::onWebSocketClose() {
             QString::fromUtf8(ws::EventTwitchChatConnected),
             nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
     } else {
-        obs_log(LOG_INFO, "[obs-17live] Suppress EventTwitchChatConnected on close due to shutdown");
+        obs_log(LOG_INFO, "[Twitch Chat Client] Suppress EventTwitchChatConnected on close due to shutdown");
     }
 
     if (m_autoReconnect && !OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
@@ -289,7 +289,7 @@ void OneSevenLiveTwitchChatClient::onWebSocketClose() {
 
 void OneSevenLiveTwitchChatClient::onWebSocketError(const std::string& error) {
     QString errorMsg = QString::fromStdString(error);
-    obs_log(LOG_WARNING, "[obs-17live] WebSocket error: %s", errorMsg.toUtf8().constData());
+    obs_log(LOG_WARNING, "[Twitch Chat Client] WebSocket error: %s", errorMsg.toUtf8().constData());
     m_connecting = false;
     emit connectionError(errorMsg);
 
@@ -519,10 +519,10 @@ void OneSevenLiveTwitchChatClient::resetReconnectAttempts() {
 
 void OneSevenLiveTwitchChatClient::onStatusTimer() {
     if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
-        obs_log(LOG_INFO, "[obs-17live] StatusTimer: suppress broadcasts during shutdown");
+        obs_log(LOG_INFO, "[Twitch Chat Client] StatusTimer: suppress broadcasts during shutdown");
         return;
     }
-    obs_log(LOG_DEBUG, "[obs-17live] StatusTimer broadcast: username=%s status=%s",
+    obs_log(LOG_DEBUG, "[Twitch Chat Client] StatusTimer broadcast: username=%s status=%s",
             m_username.toUtf8().constData(), m_connected ? "connected" : "break");
     OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
         QString::fromUtf8(ws::EventTwitchChatConnected),
@@ -533,7 +533,7 @@ void OneSevenLiveTwitchChatClient::onStatusTimer() {
     if (!isLive && m_connected) {
         disconnectWebSocket();
     } else if (isLive && !m_connected && !m_connecting && !m_username.isEmpty() && !m_oauthToken.isEmpty()) {
-        obs_log(LOG_INFO, "[obs-17live] StatusTimer: attempting connect as live=%d username=%s",
+        obs_log(LOG_INFO, "[Twitch Chat Client] StatusTimer: attempting connect as live=%d username=%s",
                 isLive ? 1 : 0, m_username.toUtf8().constData());
         connectToChat(m_username, m_oauthToken);
     }
@@ -554,7 +554,7 @@ void OneSevenLiveTwitchChatClient::onStatusTimer() {
 }
 
 void OneSevenLiveTwitchChatClient::connectWebSocket() {
-    obs_log(LOG_INFO, "[obs-17live] Connecting to Twitch chat server: %s",
+    obs_log(LOG_INFO, "[Twitch Chat Client] Connecting to Twitch chat server: %s",
             TWITCH_IRC_SERVER.toUtf8().constData());
     m_client = std::make_unique<OneSevenLiveWebsocketClient>(this);
     m_client->setOpenCallback([this]() { onWebSocketOpen(); });
@@ -565,7 +565,7 @@ void OneSevenLiveTwitchChatClient::connectWebSocket() {
 }
 
 void OneSevenLiveTwitchChatClient::disconnectWebSocket() {
-    obs_log(LOG_INFO, "[obs-17live] Disconnecting WebSocket client from Twitch");
+    obs_log(LOG_INFO, "[Twitch Chat Client] Disconnecting WebSocket client from Twitch");
     m_connecting = false;
     if (m_client) {
         m_client->disconnectAsync();
