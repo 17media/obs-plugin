@@ -53,7 +53,7 @@ bool OneSevenLivePreviewConfigLoader::parseJsonConfig(const QJsonObject& jsonObj
     config.fps = browserObj["fps"].toInt(30);
     config.isValid = true;
 
-    obs_log(LOG_INFO, "Preview config loaded successfully: %s", config.url.toUtf8().constData());
+    obs_log(LOG_INFO, "Preview config loaded successfully");
     return true;
 }
 

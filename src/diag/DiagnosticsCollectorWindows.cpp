@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <filesystem>
+#include <fstream>
 
 namespace seventeen {
     namespace diag {
@@ -296,25 +297,75 @@ namespace seventeen {
                 return "Misc";
             };
 
+            std::vector<std::string> collectedFiles;
+            std::vector<std::string> indexLines;
+
             try {
                 for (const auto& file : files) {
                     if (!std::filesystem::exists(file))
                         continue;
+                    
+                    std::string relativePath;
                     std::string category = determineCategory(file);
+                    
                     std::filesystem::path destPath;
+                    std::filesystem::path fileName = std::filesystem::path(file).filename();
+                    
                     if (category == "ROOT") {
-                        destPath = std::filesystem::path(stagingDir) /
-                                   std::filesystem::path(file).filename();
+                        destPath = std::filesystem::path(stagingDir) / fileName;
+                        relativePath = fileName.string();
                         std::filesystem::create_directories(std::filesystem::path(stagingDir));
                     } else {
                         std::filesystem::path categoryDir =
                             std::filesystem::path(stagingDir) / category;
                         std::filesystem::create_directories(categoryDir);
-                        destPath = categoryDir / std::filesystem::path(file).filename();
+                        destPath = categoryDir / fileName;
+                        relativePath = (std::filesystem::path(category) / fileName).string();
                     }
-                    std::filesystem::copy_file(file, destPath,
-                                               std::filesystem::copy_options::overwrite_existing);
+
+                    // Check file size limit (2MB) for crash reports
+                    bool isLargeCrash = false;
+                    if (category == "crash_reports") {
+                        try {
+                            auto fileSize = std::filesystem::file_size(file);
+                            if (fileSize > 2 * 1024 * 1024) { // 2MB
+                                isLargeCrash = true;
+                            }
+                        } catch (...) {}
+                    }
+
+                    if (isLargeCrash) {
+                        indexLines.push_back(relativePath + " (文件过大，未采集)");
+                    } else {
+                        try {
+                            std::filesystem::copy_file(file, destPath,
+                                                    std::filesystem::copy_options::overwrite_existing);
+                            collectedFiles.push_back(file);
+                            indexLines.push_back(relativePath);
+                        } catch (const std::exception& e) {
+                            setLastError(std::string("Failed to copy file: ") + e.what());
+                            indexLines.push_back(relativePath + " (Copy failed: " + e.what() + ")");
+                        }
+                    }
                 }
+                
+                // Generate index.txt
+                try {
+                    std::filesystem::path indexPath = std::filesystem::path(stagingDir) / "index.txt";
+                    std::ofstream indexFile(indexPath);
+                    if (indexFile.is_open()) {
+                        indexFile << "Diagnostics Package Content Index\n";
+                        indexFile << "Generated on: " << executePowerShellCommand("Get-Date") << "\n";
+                        indexFile << "========================================\n\n";
+                        for (const auto& line : indexLines) {
+                            indexFile << line << "\n";
+                        }
+                        indexFile.close();
+                    }
+                } catch (...) {
+                    // Ignore index generation errors
+                }
+
             } catch (const std::exception& e) {
                 setLastError(std::string("Failed to prepare staging files: ") + e.what());
                 return false;

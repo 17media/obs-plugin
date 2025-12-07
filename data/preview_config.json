@@ -3,7 +3,7 @@
   "description": "Configuration for 17Live Preview Dock Widget",
   "browser_source": {
     "enabled": true,
-    "url": "https://www.meekee.com.cn/vap-web-player/?src=https://cdn.17app.co/v/s/go-sta/af1a62db-ab10-434c-b0b4-838a8f330f63.mp4&config=https://cdn.17app.co/v/s/go-sta/af1a62db-ab10-434c-b0b4-838a8f330f63.json",
+    "url": "https://17.live",
     "width": 640,
     "height": 480,
     "css": "body { background: transparent; }",
