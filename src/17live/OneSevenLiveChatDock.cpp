@@ -66,11 +66,13 @@ void OneSevenLiveChatDock::reload() {
 void OneSevenLiveChatDock::showEvent(QShowEvent* event) {
     QDockWidget::showEvent(event);
     if (cefView_) {
-        QTimer::singleShot(0, cefView_, &QCefView::reload);
+        // Force resize to ensure CEF view matches dock contents
+        cefView_->setGeometry(contentsRect());
+        // Reload with a slight delay to ensure layout is stable
+        QTimer::singleShot(100, cefView_, &QCefView::reload);
     }
-    if (loadingOverlay && loadingOverlay->isVisible() && cefView_) {
-        loadingOverlay->resize(cefView_->size());
-        loadingOverlay->move(cefView_->pos());
+    if (loadingOverlay && loadingOverlay->isVisible()) {
+        loadingOverlay->setGeometry(contentsRect());
         loadingOverlay->raise();
     }
 }
@@ -81,10 +83,13 @@ void OneSevenLiveChatDock::hideEvent(QHideEvent* event) {
 
 void OneSevenLiveChatDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
-    if (loadingOverlay && loadingOverlay->isVisible() && cefView_) {
-        loadingOverlay->resize(cefView_->size());
-        loadingOverlay->move(cefView_->pos());
+    if (loadingOverlay && loadingOverlay->isVisible()) {
+        loadingOverlay->setGeometry(contentsRect());
         loadingOverlay->raise();
+    }
+    if (cefView_) {
+         // Ensure cefView matches the dock contents
+         cefView_->setGeometry(contentsRect());
     }
 }
 
