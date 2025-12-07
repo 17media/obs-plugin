@@ -75,10 +75,7 @@ void OneSevenLivePreviewDock::setupUi() {
 
     setWidget(container);
 
-    previewWidget = new OneSevenLivePreviewWidget(previewContainer);
-    if (previewWidget && !overlayUrl_.isEmpty()) {
-        previewWidget->setOverlayUrl(overlayUrl_);
-    }
+    previewWidget = new OneSevenLivePreviewWidget(previewContainer, overlayUrl_);
 
     if (previewWidget) {
         connect(previewWidget, &OneSevenLivePreviewWidget::displayCreated, this,

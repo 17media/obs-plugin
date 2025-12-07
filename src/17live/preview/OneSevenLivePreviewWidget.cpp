@@ -24,7 +24,7 @@
 #include "moc_OneSevenLivePreviewWidget.cpp"
 #include "utility/Common.hpp"
 
-OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
+OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QString& overlayUrl)
     : QWidget(parent),
       previewDisplay(nullptr),
       display_created(false),
@@ -36,7 +36,7 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent)
       configLoader(new OneSevenLivePreviewConfigLoader(this)),
       browserRefreshTimer(new QTimer(this)),
       overlayScale(1.0f),
-      overlayUrl_() {
+      overlayUrl_(overlayUrl) {
     // Set widget attributes for proper native rendering
     setAttribute(Qt::WA_NativeWindow, true);
     setAttribute(Qt::WA_PaintOnScreen, true);
@@ -405,22 +405,30 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
         return;
     }
 
-    // Only create browser source if we have valid configuration
-    if (!browserConfig.isValid) {
+    // Only create browser source if we have valid configuration or an overlay URL
+    if (!browserConfig.isValid && overlayUrl_.isEmpty()) {
         obs_log(LOG_INFO,
-                "No valid browser source configuration, skipping browser source creation");
+                "No valid browser source configuration and no overlay URL, skipping browser source creation");
         return;
     }
 
     // Create settings from configuration (allow override by overlayUrl_)
     ObsDataPtr settings{obs_data_create()};
 
-    const QString effectiveUrl = overlayUrl_.isEmpty() ? browserConfig.url : overlayUrl_;
-    obs_log(LOG_INFO, "Using overlay URL: %s", effectiveUrl.toUtf8().constData());
+    QString effectiveUrl;
+    if (!overlayUrl_.isEmpty()) {
+        effectiveUrl = overlayUrl_;
+    } else if (browserConfig.isValid) {
+        effectiveUrl = browserConfig.url;
+    } else {
+        effectiveUrl = "about:blank"; // Should not happen given check above
+    }
+    
+    // obs_log(LOG_INFO, "Using overlay URL: %s", effectiveUrl.toUtf8().constData());
     obs_data_set_string(settings.get(), "url", effectiveUrl.toUtf8().constData());
-    obs_data_set_int(settings.get(), "width", browserConfig.width);
-    obs_data_set_int(settings.get(), "height", browserConfig.height);
-    obs_data_set_int(settings.get(), "fps", browserConfig.fps);
+    obs_data_set_int(settings.get(), "width", browserConfig.isValid ? browserConfig.width : 1920);
+    obs_data_set_int(settings.get(), "height", browserConfig.isValid ? browserConfig.height : 1080);
+    obs_data_set_int(settings.get(), "fps", browserConfig.isValid ? browserConfig.fps : 30);
     obs_data_set_bool(settings.get(), "shutdown", false);
     obs_data_set_bool(settings.get(), "restart_when_active", false);
     obs_data_set_bool(settings.get(), "reroute_audio", false);

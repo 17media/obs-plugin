@@ -15,7 +15,7 @@ class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
 
    public:
-    explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr);
+    explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr, const QString& overlayUrl = QString());
     ~OneSevenLivePreviewWidget();
 
     /**
