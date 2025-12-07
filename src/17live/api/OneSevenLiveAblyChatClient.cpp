@@ -232,7 +232,9 @@ void OneSevenLiveAblyChatClient::attachChannel() {
     nlohmann::json attachMsg;
     attachMsg["action"] = 10;  // ATTACH
     attachMsg["channel"] = m_roomId.toStdString();
-    obs_log(LOG_INFO, "[Ably] send %s", attachMsg.dump().c_str());
+    
+    // Only log error if send fails or logic fails; success is noisy
+    // obs_log(LOG_INFO, "[Ably] send %s", attachMsg.dump().c_str());
     m_wsClient->sendText(QString::fromStdString(attachMsg.dump()));
 }
 
@@ -242,7 +244,7 @@ void OneSevenLiveAblyChatClient::attachChannel(const QString& channel) {
     nlohmann::json attachMsg;
     attachMsg["action"] = 10;
     attachMsg["channel"] = channel.toStdString();
-    obs_log(LOG_INFO, "[Ably] send %s", attachMsg.dump().c_str());
+    // obs_log(LOG_INFO, "[Ably] send %s", attachMsg.dump().c_str());
     m_wsClient->sendText(QString::fromStdString(attachMsg.dump()));
 }
 
