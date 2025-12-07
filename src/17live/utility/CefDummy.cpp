@@ -59,6 +59,10 @@ static bool initialize_cef() {
         return false;
     }
 
+    // dummy_source is only used to initialize the system CEF framework, so it can be released immediately after creation to avoid resource usage
+    obs_source_release(dummy_source);
+    dummy_source = nullptr;
+
     cef_initialized = true;
 
     obs_log(LOG_INFO, "CEF initialized successfully.");
@@ -69,13 +73,9 @@ static bool initialize_cef() {
 static void shutdown_cef() {
     if (!cef_initialized)
         return;
-    obs_log(LOG_INFO, "Shutting down CEF...");
-
-    obs_source_release(dummy_source);
-    dummy_source = nullptr;
+    obs_log(LOG_INFO, "Shutting down CEF... Do Nothing. OBS will handle this.");
 
     cef_initialized = false;
-    obs_log(LOG_INFO, "CEF shutdown complete.");
 }
 
 // Called when the OBS frontend is available
