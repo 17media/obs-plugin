@@ -16,7 +16,8 @@
 class OneSevenLiveHttpServer {
    public:
     OneSevenLiveHttpServer(const std::string& host, int port = 0,
-                           const std::string& base_dir_relative_to_module_data = "html");
+                           const std::string& base_dir_relative_to_module_data = "html",
+                           const std::string& name = "17Live HTTP Server");
     ~OneSevenLiveHttpServer();
 
     bool start();
@@ -67,6 +68,7 @@ class OneSevenLiveHttpServer {
     std::unordered_map<std::string, std::vector<std::chrono::steady_clock::time_point>>
         rate_limit_map_;
     std::string csrf_token_;
+    std::string name_;
 };
 
 #endif  // ONESEVENLIVEHTTPSERVER_HPP

@@ -163,8 +163,6 @@ class OneSevenLiveCoreManager : public QObject {
     void connectTwitchChatClient(const QString& channel = QString());
     void disconnectTwitchChatClient();
 
-    void reloadChatUrls();
-
     bool handleLoginClicked();
 
     void setShuttingDown(bool v);
@@ -181,8 +179,12 @@ public:
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
 
+    // Accessor for cancellation flag
+    std::atomic<bool>* getCancelFlag() { return &m_cancelFlag; }
+
 private:
     std::atomic<bool> giftsLoading_{false};
+    std::atomic<bool> m_cancelFlag{false};
 
    private:
     // Private constructor, ensure instance can only be obtained through getInstance method
@@ -220,7 +222,6 @@ private:
     std::unique_ptr<OneSevenLiveApiWrappers> apiWrapper;
 
     std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
-    std::unique_ptr<OneSevenLiveHttpServer> ablyHttpServer_;
 
     std::shared_ptr<OneSevenLiveWebsocketServer> websocketServer_;
 

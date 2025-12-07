@@ -88,13 +88,15 @@ bool OneSevenLiveCoreManager::initialize() {
 
     obs_log(LOG_INFO, "[17Live Core] Initializing OneSevenLiveCoreManager...");
 
+    m_cancelFlag.store(false);
+
     // Run network diagnostics to check API connectivity
     obs_log(LOG_INFO, "[17Live Core] Running startup network diagnostics...");
     NetworkDiagnostics::runStartupDiagnostics(ONESEVENLIVE_API_URL);
 
     // Initialize and start HTTP server
     // "html" is the path relative to obs_get_module_data_path()
-    httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat");
+    httpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat", "17Live HTTP Server");
     if (!httpServer_) {
         obs_log(LOG_ERROR, "[17Live Core] Failed to create HTTP server instance");
         return false;
@@ -106,17 +108,6 @@ bool OneSevenLiveCoreManager::initialize() {
         // failure based on requirements return false;
     } else {
         obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
-    }
-
-    ablyHttpServer_ = std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/ably");
-    if (!ablyHttpServer_) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to create Ably HTTP server instance");
-    } else {
-        if (!ablyHttpServer_->start()) {
-            obs_log(LOG_ERROR, "[17Live Core] Failed to start Ably HTTP server");
-        } else {
-            obs_log(LOG_INFO, "[17Live Core] Ably HTTP server started successfully");
-        }
     }
 
     // Initialize and start WebSocket server
@@ -164,6 +155,7 @@ bool OneSevenLiveCoreManager::initialize() {
     if (!loginData.jwtAccessToken.isEmpty()) {
         apiWrapper =
             std::make_unique<OneSevenLiveApiWrappers>(loginData.jwtAccessToken.toStdString());
+        apiWrapper->setCancelFlag(&m_cancelFlag);
 
         isLogin = checkLoginStatus();
     }
@@ -171,6 +163,7 @@ bool OneSevenLiveCoreManager::initialize() {
     // if not login, initialize apiWrapper without token
     if (!isLogin) {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
+        apiWrapper->setCancelFlag(&m_cancelFlag);
     }
 
     // Instantiate auth handlers
@@ -448,6 +441,7 @@ void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& logi
 }
 
 void OneSevenLiveCoreManager::shutdown() {
+    m_cancelFlag.store(true);
     if (!initialized) {
         return;
     }
@@ -487,11 +481,6 @@ void OneSevenLiveCoreManager::shutdown() {
     if (httpServer_) {
         httpServer_->stopAsync();
         obs_log(LOG_INFO, "[17Live Core] HTTP server stopped");
-    }
-
-    if (ablyHttpServer_) {
-        ablyHttpServer_->stopAsync();
-        obs_log(LOG_INFO, "[17Live Core] Ably HTTP server stopped");
     }
 
     // Clean up menu manager resources
@@ -1885,44 +1874,6 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         });
 
         previewDockFirstLoad = false;
-    }
-}
-
-void OneSevenLiveCoreManager::reloadChatUrls() {
-    if (isShuttingDown()) {
-        return;
-    }
-
-    obs_log(LOG_INFO, "[17Live Core] Reloading chat URLs...");
-
-    qint64 rid = 0;
-    if (streamManager) {
-        rid = streamManager->getRoomID();
-    }
-
-    int httpPort = 0;
-    if (ablyHttpServer_) {
-        httpPort = ablyHttpServer_->getPort();
-    }
-
-    int wsPort = 0;
-    if (websocketServer_) {
-        wsPort = websocketServer_->getPort();
-    }
-
-    if (rid > 0) {
-        connectAblyChat(QString::number(rid), QString());
-    }
-
-    // Reload ChatDock
-    if (chatDock) {
-        obs_log(LOG_INFO, "[17Live Core] Reloading ChatDock");
-        chatDock->reload();
-    }
-
-    if (ablyChatClient && rid > 0) {
-        obs_log(LOG_INFO, "[17Live Core] Reconnecting Ably chat client for RoomID: %lld", rid);
-        connectAblyChat(QString::number(rid), QString());
     }
 }
 

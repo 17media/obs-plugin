@@ -60,6 +60,11 @@ class RemoteTextThread : public QThread {
           extraHeaders(std::move(extraHeaders_)),
           timeoutSec(timeoutSec_),
           isImageRequest(isImageRequest_) {}
+    
+    void cancel() { m_isCancelled.store(true); }
+
+   private:
+    std::atomic<bool> m_isCancelled{false};
 };
 
 bool GetRemoteFile(const char *url, std::string &str, std::string &error,
@@ -67,4 +72,4 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error,
                    std::string request_type = "", const char *postData = nullptr,
                    std::vector<std::string> extraHeaders = std::vector<std::string>(),
                    std::string *signature = nullptr, int timeoutSec = 0, bool fail_on_error = true,
-                   int postDataSize = 0);
+                   int postDataSize = 0, std::atomic<bool>* cancelFlag = nullptr);

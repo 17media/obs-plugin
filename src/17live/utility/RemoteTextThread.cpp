@@ -49,6 +49,22 @@ static size_t binary_write(char *ptr, size_t size, size_t nmemb, std::vector<cha
     return total;
 }
 
+static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal,
+                             curl_off_t ulnow) {
+    (void) dltotal;
+    (void) dlnow;
+    (void) ultotal;
+    (void) ulnow;
+
+    if (clientp) {
+        std::atomic<bool> *cancelled = static_cast<std::atomic<bool> *>(clientp);
+        if (cancelled->load()) {
+            return 1; // Return non-zero to abort transfer
+        }
+    }
+    return 0;
+}
+
 void RemoteTextThread::run() {
     char error[CURL_ERROR_SIZE];
     CURLcode code;
@@ -100,7 +116,19 @@ void RemoteTextThread::run() {
             curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, postData.c_str());
         }
 
+        // Setup progress callback for cancellation
+        curl_easy_setopt(curl.get(), CURLOPT_XFERINFOFUNCTION, progress_callback);
+        curl_easy_setopt(curl.get(), CURLOPT_XFERINFODATA, &m_isCancelled);
+        curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 0L);
+
         code = curl_easy_perform(curl.get());
+        
+        if (m_isCancelled.load()) {
+            // If cancelled, don't emit results
+            curl_slist_free_all(header);
+            return;
+        }
+        
         if (code != CURLE_OK) {
             // obs_log(LOG_WARNING, "RemoteTextThread: HTTP request failed. %s [url: %s]",
             //      strlen(error) ? error : curl_easy_strerror(code), url.c_str());
@@ -141,7 +169,7 @@ static size_t header_write(char *ptr, size_t size, size_t nmemb, vector<string> 
 bool GetRemoteFile(const char *url, std::string &str, std::string &error, long *responseCode,
                    const char *contentType, std::string request_type, const char *postData,
                    std::vector<std::string> extraHeaders, std::string *signature, int timeoutSec,
-                   bool fail_on_error, int postDataSize) {
+                   bool fail_on_error, int postDataSize, std::atomic<bool>* cancelFlag) {
     vector<string> header_in_list;
     char error_in[CURL_ERROR_SIZE];
     CURLcode code = CURLE_FAILED_INIT;
@@ -204,6 +232,12 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error, long *
                 curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDSIZE, (long) postDataSize);
             }
             curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, postData);
+        }
+
+        if (cancelFlag) {
+            curl_easy_setopt(curl.get(), CURLOPT_XFERINFOFUNCTION, progress_callback);
+            curl_easy_setopt(curl.get(), CURLOPT_XFERINFODATA, cancelFlag);
+            curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 0L);
         }
 
         code = curl_easy_perform(curl.get());

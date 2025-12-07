@@ -184,7 +184,7 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
     // Increase timeout by the time it takes to transfer `data_size` at 1 Mbps
     int timeout = 60 + data_size / 125000;
     bool success = GetRemoteFile(url, output, error, &httpStatusCode, content_type, request_type,
-                                 data, headers, nullptr, timeout, false, data_size);
+                                 data, headers, nullptr, timeout, false, data_size, m_cancelFlag);
     if (error_code)
         *error_code = httpStatusCode;
 
