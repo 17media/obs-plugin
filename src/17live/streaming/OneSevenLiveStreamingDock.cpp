@@ -51,6 +51,66 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
     connect(streamManager, &OneSevenLiveStreamManager::streamStatusChanged, this,
             &OneSevenLiveStreamingDock::updateLiveStatus);
 
+    connect(streamManager, &OneSevenLiveStreamManager::createRtmpFinished, this,
+            [this](bool success, const QString& error) {
+                createLiveButton->setEnabled(true);
+
+                if (success) {
+                    startEventCooldown();
+                    startLive();
+                } else {
+                    QString msg = error;
+                    if (msg.isEmpty()) msg = obs_module_text("Live.Create.Failed");
+                    QMessageBox::warning(this, obs_module_text("Live.Create.Title"), msg);
+                }
+            });
+
+    connect(streamManager, &OneSevenLiveStreamManager::startStreamFinished, this,
+            [this](bool success, const QString& error) {
+                createLiveButton->setEnabled(true);
+
+                if (success) {
+                    // Ask whether to start streaming simultaneously
+                    QMessageBox msgBox(this);
+                    msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
+                    msgBox.setText(obs_module_text("Live.Settings.StartStreaming.Tip"));
+
+                    QPushButton* yesButton = msgBox.addButton(obs_module_text("Live.Settings.Yes"),
+                                                              QMessageBox::YesRole);
+                    msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
+                    msgBox.setDefaultButton(yesButton);
+
+                    msgBox.exec();
+                    if (msgBox.clickedButton() == yesButton) {
+                        streamManager->startOBSStreaming();
+                    }
+                } else {
+                    QString msg = error;
+                    if (msg.isEmpty()) msg = obs_module_text("Live.Start.Failed");
+                    QMessageBox::warning(this, obs_module_text("Live.Settings.Error"), msg);
+                }
+            });
+
+    connect(streamManager, &OneSevenLiveStreamManager::changeEventFinished, this,
+            [this](bool success, const QString& error) {
+                if (success) {
+                    startEventCooldown();
+                } else {
+                    obs_log(LOG_ERROR, "Failed to change event: %s", error.toStdString().c_str());
+                    QMessageBox::warning(this, obs_module_text("Live.Common.Notice"),
+                                         obs_module_text("Live.ChangeEvent.Failed"));
+
+                    if (!isEventInCooldown()) {
+                        eventCombo->setEnabled(true);
+                        if (previousEventIndex >= 0 && previousEventIndex < eventCombo->count()) {
+                            eventCombo->blockSignals(true);
+                            eventCombo->setCurrentIndex(previousEventIndex);
+                            eventCombo->blockSignals(false);
+                        }
+                    }
+                }
+            });
+
     setupUi();
     createConnections();
 
@@ -1268,24 +1328,8 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
     // }
 
     // Use stream manager to create live stream
-    if (!streamManager->createRtmp(request)) {
-        QString errorMsg = streamManager->getLastErrorMessage();
-        if (errorMsg.isEmpty()) {
-            errorMsg = obs_module_text("Live.Create.Failed");
-        }
-        
-        obs_log(LOG_ERROR, "Failed to create stream. UserID: %s, Error: %s, Timestamp: %lld",
-                request.userID.toStdString().c_str(), errorMsg.toStdString().c_str(),
-                QDateTime::currentMSecsSinceEpoch());
-
-        QMessageBox::warning(this, obs_module_text("Live.Create.Title"), errorMsg);
-        return;
-    }
-
-    // Start event cooldown
-    startEventCooldown();
-
-    startLive();
+    createLiveButton->setEnabled(false);
+    streamManager->createRtmpAsync(request);
 }
 
 void OneSevenLiveStreamingDock::startLive(bool startStream) {
@@ -1293,35 +1337,29 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
 
     if (startStream) {
         // Start streaming (server-side)
-        if (!streamManager->startStream()) {
-            QString errorMsg = streamManager->getLastErrorMessage();
-            if (errorMsg.isEmpty()) {
-                errorMsg = obs_module_text("Live.Start.Failed");
-            }
-            QMessageBox::warning(this, obs_module_text("Live.Settings.Error"), errorMsg);
-            return;
-        }
+        createLiveButton->setEnabled(false);
+        streamManager->startStreamAsync();
     } else {
         // update streaming status
         streamManager->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
-    }
 
-    // Ask whether to start streaming simultaneously
-    QMessageBox msgBox;
-    msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
-    msgBox.setText(obs_module_text("Live.Settings.StartStreaming.Tip"));
+        // Ask whether to start streaming simultaneously
+        QMessageBox msgBox;
+        msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
+        msgBox.setText(obs_module_text("Live.Settings.StartStreaming.Tip"));
 
-    // Use localized button text
-    QPushButton *yesButton =
-        msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
-    /* QPushButton *noButton = */ msgBox.addButton(obs_module_text("Live.Settings.No"),
-                                                   QMessageBox::NoRole);
-    msgBox.setDefaultButton(yesButton);
+        // Use localized button text
+        QPushButton *yesButton =
+            msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
+        /* QPushButton *noButton = */ msgBox.addButton(obs_module_text("Live.Settings.No"),
+                                                       QMessageBox::NoRole);
+        msgBox.setDefaultButton(yesButton);
 
-    msgBox.exec();
-    if (msgBox.clickedButton() == yesButton) {
-        // Start OBS streaming
-        streamManager->startOBSStreaming();
+        msgBox.exec();
+        if (msgBox.clickedButton() == yesButton) {
+            // Start OBS streaming
+            streamManager->startOBSStreaming();
+        }
     }
 }
 
@@ -1672,46 +1710,25 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
     }
 
     // Call ChangeEvent API
-    bool success = changeEvent(eventID);
-    if (success) {
-        obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
-
-        // Start event cooldown
-        startEventCooldown();
-    } else {
-        obs_log(LOG_ERROR, "Failed to change event to: %lld", eventID);
-        QMessageBox::warning(this, obs_module_text("Live.Common.Notice"),
-                             obs_module_text("Live.ChangeEvent.Failed"));
-    }
+    changeEvent(eventID);
 }
 
-bool OneSevenLiveStreamingDock::changeEvent(qint64 eventID) {
+void OneSevenLiveStreamingDock::changeEvent(qint64 eventID) {
     obs_log(LOG_INFO, "Changing event to: %lld", eventID);
 
     // Check if we're in cooldown
     if (isEventInCooldown()) {
         obs_log(LOG_INFO, "Event change ignored due to cooldown");
-        return false;
+        return;
     }
+
+    eventCombo->setEnabled(false);
 
     // Call ChangeEvent API
     OneSevenLiveChangeEventRequest request;
     request.eventID = eventID;
 
-    bool success = apiWrapper->ChangeEvent(request);
-    if (success) {
-        obs_log(LOG_INFO, "Successfully changed event to: %lld", eventID);
-
-        // Start event cooldown
-        startEventCooldown();
-    } else {
-        QString errorMsg = apiWrapper->getLastErrorMessage();
-        obs_log(LOG_ERROR, "Failed to change event to: %lld, error: %s", eventID,
-                errorMsg.toStdString().c_str());
-        return false;
-    }
-
-    return success;
+    streamManager->changeEventAsync(request);
 }
 
 void OneSevenLiveStreamingDock::startEventCooldown(int duration) {

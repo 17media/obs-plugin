@@ -50,9 +50,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     /**
      * @brief Change event during streaming
      * @param eventID New event ID
-     * @return bool True if event change was successful
      */
-    bool changeEvent(qint64 eventID);
+    void changeEvent(qint64 eventID);
 
     /**
      * @brief Start event cooldown timer

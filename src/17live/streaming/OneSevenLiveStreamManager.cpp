@@ -179,6 +179,62 @@ bool OneSevenLiveStreamManager::createRtmp(const OneSevenLiveRtmpRequest& reques
     return true;
 }
 
+void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& request) {
+    obs_log(LOG_INFO, "Creating live stream (Async)");
+
+    OneSevenLiveRtmpRequest modifiedRequest = request;
+    modifiedRequest.userID = QString::fromStdString(currentUserID);
+    modifiedRequest.streamerType = roomInfo.streamerType;
+
+    // Capture apiWrapper pointer by value to avoid accessing 'this' in the thread
+    auto* api = this->apiWrapper;
+
+    std::thread([this, modifiedRequest, api]() {
+        OneSevenLiveRtmpResponse response;
+        bool success = false;
+        QString errorMsg;
+
+        if (api) {
+            success = api->CreateRtmp(modifiedRequest, response);
+            if (!success) {
+                errorMsg = api->getLastErrorMessage();
+            }
+        } else {
+            errorMsg = "API Wrapper not initialized";
+        }
+
+        QMetaObject::invokeMethod(this, [this, success, errorMsg, modifiedRequest, response]() {
+            if (success) {
+                currentLiveStreamID = response.liveStreamID.toStdString();
+                currentStreamRequest = modifiedRequest;
+                currentStreamResponse = response;
+
+                OneSevenLiveStreamInfo info;
+                info.request = modifiedRequest;
+                info.categoryName = QString();
+                info.createdAt = QDateTime::currentDateTime();
+                info.streamUuid = response.streamID;
+                currentLiveStreamInfo = info;
+
+                setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
+
+                wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                            nlohmann::json{{"status", "connected"}});
+
+                obs_log(LOG_INFO, "Live stream created successfully (Async). LiveStreamID: %s",
+                        currentLiveStreamID.c_str());
+                
+                emit createRtmpFinished(true, QString());
+            } else {
+                obs_log(LOG_ERROR, "Failed to create stream (Async). Error: %s",
+                        errorMsg.toStdString().c_str());
+                emit errorOccurred(errorMsg, "createLiveStream");
+                emit createRtmpFinished(false, errorMsg);
+            }
+        }, Qt::QueuedConnection);
+    }).detach();
+}
+
 bool OneSevenLiveStreamManager::startStream() {
     obs_log(LOG_INFO, "Starting streaming");
 
@@ -217,6 +273,96 @@ bool OneSevenLiveStreamManager::startStream() {
 
     obs_log(LOG_INFO, "Streaming started successfully");
     return true;
+}
+
+void OneSevenLiveStreamManager::startStreamAsync() {
+    obs_log(LOG_INFO, "Starting streaming (Async)");
+
+    configureStreamingService(currentStreamResponse);
+
+    std::string lid = currentStreamResponse.liveStreamID.toStdString();
+    std::string uid = currentUserID;
+    bool autoRecord = currentStreamRequest.archiveConfig.autoRecording;
+
+    // Capture apiWrapper pointer by value to avoid accessing 'this' in the thread
+    auto* api = this->apiWrapper;
+
+    std::thread([this, lid, uid, autoRecord, api]() {
+        bool success = false;
+        QString errorMsg;
+
+        if (api) {
+            success = api->StartStream(lid, uid);
+            if (!success) {
+                errorMsg = api->getLastErrorMessage();
+            } else if (autoRecord) {
+                if (!api->EnableStreamArchive(lid, 1)) {
+                    QString archiveError = api->getLastErrorMessage();
+                    obs_log(LOG_ERROR, "Failed to enable archive (Async). Error: %s", archiveError.toStdString().c_str());
+                    // We consider archive failure as non-fatal for streaming? 
+                    // Original code returns false if enableStreamArchive fails.
+                    // So we should probably fail here too.
+                    success = false;
+                    errorMsg = archiveError;
+                }
+            }
+        } else {
+            errorMsg = "API Wrapper not initialized";
+        }
+
+        QMetaObject::invokeMethod(this, [this, success, errorMsg]() {
+            if (success) {
+                setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
+
+                wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                            nlohmann::json{{"status", "connected"}});
+
+                QTimer::singleShot(500, []() {
+                    OneSevenLiveCoreManager::getInstance().reloadChatUrls();
+                });
+
+                obs_log(LOG_INFO, "Streaming started successfully (Async)");
+                emit startStreamFinished(true, QString());
+            } else {
+                obs_log(LOG_ERROR, "Failed to start stream (Async). Error: %s",
+                        errorMsg.toStdString().c_str());
+                emit errorOccurred(errorMsg, "startStream");
+                emit startStreamFinished(false, errorMsg);
+            }
+        }, Qt::QueuedConnection);
+    }).detach();
+}
+
+void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRequest& request) {
+    obs_log(LOG_INFO, "Changing event (Async) to: %lld", request.eventID);
+
+    // Capture apiWrapper pointer by value to avoid accessing 'this' in the thread
+    auto* api = this->apiWrapper;
+
+    std::thread([this, request, api]() {
+        bool success = false;
+        QString errorMsg;
+
+        if (api) {
+            success = api->ChangeEvent(request);
+            if (!success) {
+                errorMsg = api->getLastErrorMessage();
+            }
+        } else {
+            errorMsg = "API Wrapper not initialized";
+        }
+
+        QMetaObject::invokeMethod(this, [this, success, errorMsg, request]() {
+            if (success) {
+                obs_log(LOG_INFO, "Successfully changed event (Async) to: %lld", request.eventID);
+                emit changeEventFinished(true, QString());
+            } else {
+                obs_log(LOG_ERROR, "Failed to change event (Async) to: %lld, error: %s", request.eventID,
+                        errorMsg.toStdString().c_str());
+                emit changeEventFinished(false, errorMsg);
+            }
+        }, Qt::QueuedConnection);
+    }).detach();
 }
 
 bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {

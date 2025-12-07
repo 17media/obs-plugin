@@ -44,10 +44,27 @@ class OneSevenLiveStreamManager : public QObject {
     bool createRtmp(const OneSevenLiveRtmpRequest& request);
 
     /**
+     * @brief Create a new live stream asynchronously
+     * @param request RTMP request containing stream configuration
+     */
+    void createRtmpAsync(const OneSevenLiveRtmpRequest& request);
+
+    /**
      * @brief Start streaming with the given configuration
      * @return bool True if streaming started successfully
      */
     bool startStream();
+
+    /**
+     * @brief Start streaming with the given configuration asynchronously
+     */
+    void startStreamAsync();
+
+    /**
+     * @brief Change the current event asynchronously
+     * @param request Change event request
+     */
+    void changeEventAsync(const OneSevenLiveChangeEventRequest& request);
 
     /**
      * @brief Stop the current stream
@@ -212,6 +229,10 @@ class OneSevenLiveStreamManager : public QObject {
      * @param operation Operation that failed
      */
     void errorOccurred(const QString& errorMessage, const QString& operation);
+
+    void createRtmpFinished(bool success, const QString& error);
+    void startStreamFinished(bool success, const QString& error);
+    void changeEventFinished(bool success, const QString& error);
 
     void roomInfoLoaded(const OneSevenLiveLoadRoomInfoWorker::LoadResult& result);
 

@@ -43,11 +43,13 @@ class OneSevenLiveAblyChatClient : public QObject {
     void leavePresence(const QString& channel);
     void scheduleReconnect();
     void cancelReconnect();
-    bool refreshToken();
+    void refreshToken(std::function<void(bool)> callback = nullptr);
     void scheduleTokenRefresh(qint64 expiresEpochMs, qint64 issuedEpochMs, qint64 ttlMs);
     void cancelTokenRefresh();
     void sendAuth();
     void sendConnect();
+    
+    void fetchTokenAsync(std::function<void(bool)> callback);
 
     QString m_roomId;
     QString m_token;
