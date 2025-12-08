@@ -21,7 +21,6 @@
 #include <thread>
 
 #include "../diag/ui/DiagnosticsDialog.hpp"
-#include "chat/OneSevenLiveChatRoomDock.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
 #include "OneSevenLiveLoginDialog.hpp"
@@ -1182,7 +1181,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         chatRoomVisible = chatDock->isVisible();
         chatDock->disconnect(this);
         chatDock->close();
-        chatDock->deleteLater();
+        // Do not delete native dock
         chatDock = nullptr;
     }
     configManager->setDockVisibility("chatRoom", chatRoomVisible);
@@ -1572,41 +1571,48 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "Chat URL: %s", chatUrl.toStdString().c_str());
 
     if (!chatDock) {
-        chatDock = new OneSevenLiveChatRoomDock(mainWindow, chatUrl);
-        chatDock->setObjectName("OneSevenLiveChatRoomDock");
-        chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
-
-        connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
-            chatDockVisible = visible;
-            if (visible)
-                flushChatEventQueue();
-        });
-    } else {
-        if (chatDock->isVisible()) {
-            chatDock->close();
-            return;
+        // Use native OBS browser dock if available
+        // Note: We check if the function exists or browser is available
+        // Assuming obs_frontend_add_browser_dock exists in the API version we are using.
+        
+        // Register/Add the browser dock
+        // The ID "OneSevenLiveChatDock" must be unique.
+        obs_frontend_add_browser_dock("OneSevenLiveChatDock", obs_module_text("ChatRoom.Title"), chatUrl.toUtf8().constData());
+        
+        // Try to find the dock widget created by OBS
+        chatDock = mainWindow->findChild<QDockWidget*>("OneSevenLiveChatDock");
+        
+        if (chatDock) {
+            connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+                menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
+                                                  liveListDock && liveListDock->isVisible(),
+                                                  rockZoneDock && rockZoneDock->isVisible(),
+                                                  multiRtmpDock && multiRtmpDock->isVisible(),
+                                                  previewDock && previewDock->isVisible());
+                chatDockVisible = visible;
+                if (visible)
+                    flushChatEventQueue();
+            });
+        } else {
+             obs_log(LOG_WARNING, "Failed to find native browser dock 'OneSevenLiveChatDock' after adding it.");
         }
-        chatDock->setUrl(chatUrl);
+    } else {
+        // If dock exists, just update URL and ensure visibility
+        obs_frontend_change_browser_dock_url("OneSevenLiveChatDock", chatUrl.toUtf8().constData());
     }
 
-    chatDock->resize(378, 600);
-
-    if (isStartupRestore) {
-        chatDock->setVisible(true);
+    if (chatDock) {
+        if (chatDock->isFloating()) {
+            chatDock->show();
+            chatDock->raise();
+            chatDock->activateWindow();
+        } else {
+            chatDock->setVisible(true);
+        }
     } else {
-        chatDock->setFloating(true);
-        chatDock->setVisible(true);
-
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatDock->width()) / 2;
-        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatDock->height()) / 2;
-        chatDock->move(x, y);
+         // Fallback if chatDock is null (e.g. browser source not available)
+         // We might want to warn the user
+         obs_log(LOG_ERROR, "Chat dock is null. Is obs-browser installed?");
     }
 
     if (menuManager) {

@@ -51,7 +51,6 @@ class OneSevenLiveWebsocketServer;
 
 class OneSevenLiveStreamManager;
 
-class OneSevenLiveChatRoomDock;
 // Forward declarations for chat clients
 class OneSevenLiveYouTubeChatClient;
 class OneSevenLiveTwitchChatClient;
@@ -251,7 +250,7 @@ private:
     void handleStreamingClicked();
     void createStreamingDock();
 
-    QPointer<OneSevenLiveChatRoomDock> chatDock;
+    QPointer<QDockWidget> chatDock;
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;
