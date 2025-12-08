@@ -11,6 +11,7 @@
 #include <QTimer>
 #include <QCoreApplication>
 #include <QMetaObject>
+#include <QElapsedTimer>
 #include <chrono>
 #include <thread>
 
@@ -253,6 +254,10 @@ bool OneSevenLiveMultiRtmpStreamController::destroyOutput(const std::string& str
 
     if (streamOutput->output && obs_output_active(streamOutput->output)) {
         obs_output_stop(streamOutput->output);
+        QElapsedTimer t; t.start();
+        while (obs_output_active(streamOutput->output) && t.elapsed() < 5000) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+        }
     }
 
     
@@ -340,6 +345,10 @@ void OneSevenLiveMultiRtmpStreamController::destroyAllOutputs() {
         }
         if (streamOutput->output && obs_output_active(streamOutput->output)) {
             obs_output_stop(streamOutput->output);
+            QElapsedTimer t; t.start();
+            while (obs_output_active(streamOutput->output) && t.elapsed() < 5000) {
+                QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+            }
         }
         if (streamOutput->output) {
             signal_handler_t* handler = obs_output_get_signal_handler(streamOutput->output);

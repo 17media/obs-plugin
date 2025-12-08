@@ -13,6 +13,7 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QMetaObject>
+#include <QElapsedTimer>
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
@@ -461,6 +462,10 @@ void OneSevenLiveCoreManager::shutdown() {
             obs_frontend_streaming_stop();
             // Don't sleep on main thread
             // std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        }
+        QElapsedTimer t; t.start();
+        while (obs_frontend_streaming_active() && t.elapsed() < 5000) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
         }
     }
 
