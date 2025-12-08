@@ -191,6 +191,15 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
     if (!success || output.empty()) {
         if (!error.empty())
             obs_log(LOG_WARNING, "17Live API request failed: %s [url: %s]", error.c_str(), url);
+        
+        // Ensure json_out is populated with error information if available
+        if (!output.empty()) {
+            try {
+                json_out = Json::parse(output);
+            } catch (...) {
+                // ignore parsing error for failed requests
+            }
+        }
         return false;
     }
 

@@ -37,6 +37,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <plugin-support.h>
 
 #include "17live/OneSevenLiveCoreManager.hpp"
+#include "17live/utility/Common.hpp"
 
 using namespace std;
 
@@ -46,6 +47,8 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 bool obs_module_load(void) {
     obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
     
+    InitThreadPool();
+
     return true;
 }
 
@@ -115,6 +118,17 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
             auto& manager = OneSevenLiveCoreManager::getInstance();
             manager.setShuttingDown(true);
             manager.shutdown();
+            
+            // Wait for all background tasks to complete BEFORE destroying the manager
+            // This ensures tasks don't access destroyed members (like apiWrapper or m_cancelFlag)
+            DestroyThreadPool();
+            
+            OneSevenLiveCoreManager::destroyInstance();
+            
+            // Force process deferred deletions (like QDockWidget::deleteLater) 
+            // to ensure widgets are destroyed before the plugin library is unloaded
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            
             obs_log(LOG_INFO, "OneSevenLiveCoreManager resources released");
         } catch (const std::exception& e) {
             obs_log(LOG_ERROR, "OneSevenLiveCoreManager resource release exception: %s", e.what());
@@ -133,5 +147,7 @@ MODULE_EXPORT void obs_module_post_load(void) {
 }
 
 void obs_module_unload(void) {
+    // Ensure thread pool is destroyed on unload as well
+    DestroyThreadPool();
     obs_log(LOG_INFO, "[obs-17live] plugin unloaded");
 }

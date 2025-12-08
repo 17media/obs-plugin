@@ -38,8 +38,36 @@ public:
     }
 };
 
+static QThreadPool* s_threadPool = nullptr;
+
+void InitThreadPool() {
+    if (!s_threadPool) {
+        s_threadPool = new QThreadPool();
+        // Set max thread count if needed, or leave default
+        obs_log(LOG_INFO, "ThreadPool initialized");
+    }
+}
+
+void DestroyThreadPool() {
+    if (s_threadPool) {
+        obs_log(LOG_INFO, "Destroying ThreadPool - waiting for tasks...");
+        s_threadPool->clear(); // Clear pending tasks
+        s_threadPool->waitForDone(); // Wait for running tasks
+        delete s_threadPool;
+        s_threadPool = nullptr;
+        obs_log(LOG_INFO, "ThreadPool destroyed");
+    }
+}
+
 void ScheduleOBSTask(std::function<void()> task) {
-    QThreadPool::globalInstance()->start(new TaskRunnable(task));
+    if (s_threadPool) {
+        s_threadPool->start(new TaskRunnable(task));
+    } else {
+        // Fallback to global if not initialized (e.g. early init or unit tests),
+        // but warn about it
+        // obs_log(LOG_WARNING, "ScheduleOBSTask called without local ThreadPool, using global");
+        QThreadPool::globalInstance()->start(new TaskRunnable(task));
+    }
 }
 
 std::string GetCurrentLanguage() {

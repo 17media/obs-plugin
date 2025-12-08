@@ -81,6 +81,11 @@ class OneSevenLiveCoreManager : public QObject {
     static OneSevenLiveCoreManager& getInstance(QMainWindow* mainWindow = nullptr);
 
     /**
+     * @brief Destroy the singleton instance
+     */
+    static void destroyInstance();
+
+    /**
      * @brief Initialize the core manager
      *
      * @return bool Whether initialization was successful
@@ -216,13 +221,13 @@ private:
 
     std::unique_ptr<OneSevenLiveConfigManager> configManager;
 
+    std::unique_ptr<OneSevenLiveApiWrappers> apiWrapper;
+
     // Stream manager
     std::unique_ptr<OneSevenLiveStreamManager> streamManager;
 
     // Menu manager
     std::unique_ptr<OneSevenLiveMenuManager> menuManager;
-
-    std::unique_ptr<OneSevenLiveApiWrappers> apiWrapper;
 
     std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
 

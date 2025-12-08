@@ -173,6 +173,8 @@ void OneSevenLiveStreamManager::startStreamWithWebAsync() {
     std::string providerStr = provider.toStdString();
 
     ScheduleOBSTask([self, api, providerStr]() {
+        if (!self) return;
+
         OneSevenLiveRtmpResponse rtmpResponse;
         bool success = false;
         
@@ -304,6 +306,8 @@ void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& r
     QPointer<OneSevenLiveStreamManager> self = this;
 
     ScheduleOBSTask([self, modifiedRequest, api]() {
+        if (!self) return;
+
         OneSevenLiveRtmpResponse response;
         bool success = false;
         QString errorMsg;
@@ -398,6 +402,8 @@ void OneSevenLiveStreamManager::startStreamAsync() {
     QPointer<OneSevenLiveStreamManager> self = this;
 
     ScheduleOBSTask([self, lid, uid, autoRecord, api]() {
+        if (!self) return;
+
         bool success = false;
         QString errorMsg;
 
@@ -445,6 +451,8 @@ void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRe
     QPointer<OneSevenLiveStreamManager> self = this;
 
     ScheduleOBSTask([self, request, api]() {
+        if (!self) return;
+
         bool success = false;
         QString errorMsg;
 

@@ -70,6 +70,13 @@ OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainW
     return *instance;
 }
 
+void OneSevenLiveCoreManager::destroyInstance() {
+    if (instance) {
+        delete instance;
+        instance = nullptr;
+    }
+}
+
 OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
     : mainWindow(mainWindow_), initialized(false), multiRtmpDockFirstLoad(true) {}
 
@@ -452,7 +459,8 @@ void OneSevenLiveCoreManager::shutdown() {
             streamManager->stopOBSStreaming();
         } else {
             obs_frontend_streaming_stop();
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            // Don't sleep on main thread
+            // std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
     }
 
@@ -467,7 +475,8 @@ void OneSevenLiveCoreManager::shutdown() {
         if (multiMgr) {
             multiMgr->shutdown();
             OneSevenLiveMultiRtmpManager::destroyInstance();
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            // Don't sleep on main thread
+            // std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
     }
 
@@ -479,7 +488,8 @@ void OneSevenLiveCoreManager::shutdown() {
 
     // Stop HTTP server
     if (httpServer_) {
-        httpServer_->stopAsync();
+        // Stop synchronous to ensure clean shutdown before destroying other resources
+        httpServer_->stop(); 
         obs_log(LOG_INFO, "[17Live Core] HTTP server stopped");
     }
 
@@ -950,31 +960,33 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     setConnection();
 
     // Connect Ably chat based on current room ID and fetched token
-    // if (streamManager && apiWrapper) {
-    //     const qint64 rid = streamManager->getRoomID();
-    //     if (rid > 0) {
-    //         nlohmann::json ablyResp;
-    //         QString token;
-    //         if (apiWrapper->GetAblyToken(std::to_string(rid), ablyResp)) {
-    //             if (ablyResp.contains("token") && ablyResp["token"].is_string()) {
-    //                 token = QString::fromStdString(ablyResp["token"].get<std::string>());
-    //                 QString masked =
-    //                     token.length() >= 12 ? token.left(6) + "..." + token.right(6) : token;
-    //                 obs_log(LOG_INFO,
-    //                         "[17Live Core] Fetched Ably token for room %lld token(masked)=%s",
-    //                         (long long) rid, masked.toUtf8().constData());
-    //             } else {
-    //                 obs_log(LOG_WARNING,
-    //                         "[17Live Core] Ably token response missing 'token' field for room
-    //                         %lld", (long long) rid);
-    //             }
-    //         } else {
-    //             obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld",
-    //                     (long long) rid);
-    //         }
-    //         connectAblyChat(QString::number(rid), token);
-    //     }
-    // }
+    if (streamManager && apiWrapper) {
+        const qint64 rid = streamManager->getRoomID();
+        if (rid > 0) {
+            // Cancel any pending requests first
+            m_cancelFlag.store(false);
+            
+            nlohmann::json ablyResp;
+            QString token;
+            if (apiWrapper->GetAblyToken(std::to_string(rid), ablyResp)) {
+                if (ablyResp.contains("token") && ablyResp["token"].is_string()) {
+                    token = QString::fromStdString(ablyResp["token"].get<std::string>());
+                    QString masked =
+                        token.length() >= 12 ? token.left(6) + "..." + token.right(6) : token;
+                    obs_log(LOG_INFO,
+                            "[17Live Core] Fetched Ably token for room %lld token(masked)=%s",
+                            (long long) rid, masked.toUtf8().constData());
+                } else {
+                    obs_log(LOG_WARNING,
+                            "[17Live Core] Ably token response missing 'token' field for room %lld", (long long) rid);
+                }
+            } else {
+                obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld",
+                        (long long) rid);
+            }
+            connectAblyChat(QString::number(rid), token);
+        }
+    }
 
     // discovery is managed by YouTubeChatClient
 }
@@ -1182,7 +1194,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         chatRoomVisible = chatDock->isVisible();
         chatDock->disconnect(this);
         chatDock->close();
-        // Do not delete native dock
+        chatDock->deleteLater();
         chatDock = nullptr;
     }
     configManager->setDockVisibility("chatRoom", chatRoomVisible);

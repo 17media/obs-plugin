@@ -29,6 +29,9 @@ std::string get_obs_module_data_path_str();
 // Schedule a task on the OBS task thread
 void ScheduleOBSTask(std::function<void()> task);
 
+void InitThreadPool();
+void DestroyThreadPool();
+
 struct obs_data_deleter {
     void operator()(obs_data_t* p) const {
         if (p)
