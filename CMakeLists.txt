@@ -15,22 +15,21 @@ include(helpers)
 add_library(${CMAKE_PROJECT_NAME} MODULE)
 
 # Set the runtime library on Windows based on the option
-if(OS_WINDOWS)
-  # obs-studio official strategy: use static runtime (/MT) for CEF compatibility
-  # Provide stdio function compatibility for MbedTLS through legacy_stdio_definitions.lib
-  if(USE_STATIC_MSVC_RUNTIME)
-    message(STATUS "Using static MSVC runtime for Windows build")
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-  else()
-    message(STATUS "Using dynamic MSVC runtime for Windows build")
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
-  endif()
+# if(OS_WINDOWS)
+# # obs-studio official strategy: use static runtime (/MT) for CEF compatibility
+# # Provide stdio function compatibility for MbedTLS through legacy_stdio_definitions.lib
+# if(USE_STATIC_MSVC_RUNTIME)
+# message(STATUS "Using static MSVC runtime for Windows build")
+# set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+# else()
+# message(STATUS "Using dynamic MSVC runtime for Windows build")
+# set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
+# endif()
 
-  # Ensure all targets use consistent runtime library settings
-  set(CMAKE_MSVC_RUNTIME_LIBRARY_DEFAULT ${CMAKE_MSVC_RUNTIME_LIBRARY})
-  message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY set to: ${CMAKE_MSVC_RUNTIME_LIBRARY}")
-endif()
-
+# # Ensure all targets use consistent runtime library settings
+# set(CMAKE_MSVC_RUNTIME_LIBRARY_DEFAULT ${CMAKE_MSVC_RUNTIME_LIBRARY})
+# message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY set to: ${CMAKE_MSVC_RUNTIME_LIBRARY}")
+# endif()
 find_package(libobs REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
 
@@ -61,19 +60,6 @@ if(ENABLE_QT)
     PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON
   )
 endif()
-
-# Add CEF support
-# CEF_ROOT_DIR should already be set in defaults.cmake -> buildspec.cmake
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-
-if(CEF_ROOT_DIR)
-  set(CEF_ROOT "${CEF_ROOT_DIR}")
-  message(STATUS "Using CEF_ROOT: ${CEF_ROOT}")
-else()
-  message(FATAL_ERROR "CEF_ROOT_DIR not set. Dependencies may not have been processed correctly.")
-endif()
-
-find_package(CEF REQUIRED)
 
 # obs-studio official strategy: prefer pre-built static libraries to avoid runtime conflicts
 if(NOT OS_WINDOWS)
@@ -117,36 +103,34 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Link CEF libraries (nlohmann json is header-only)
 find_package(Threads REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
-  CEF::Library
-  CEF::Wrapper
   Threads::Threads # For cpp-httplib and websocketpp
 )
 
 # Platform-specific MbedTLS linking
-if(OS_WINDOWS)
-  # obs-studio official strategy: use static runtime (/MT) for CEF compatibility
-  # Provide stdio function compatibility for MbedTLS through legacy_stdio_definitions.lib
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
-    ws2_32
-    bcrypt
-    winhttp
-  )
+if(NOT OS_WINDOWS)
+  # # obs-studio official strategy: use static runtime (/MT) for CEF compatibility
+  # # Provide stdio function compatibility for MbedTLS through legacy_stdio_definitions.lib
+  # target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+  # ws2_32
+  # bcrypt
+  # winhttp
+  # )
 
-  # Windows-specific definitions for stdio compatibility
-  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    _CRT_DECLARE_NONSTDC_NAMES=1 # For stdio functions like setbuf
-    _WIN32_WINNT=0x0A00 # Windows 10 and later
-  )
+  # # Windows-specific definitions for stdio compatibility
+  # target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+  # _CRT_DECLARE_NONSTDC_NAMES=1 # For stdio functions like setbuf
+  # _WIN32_WINNT=0x0A00 # Windows 10 and later
+  # )
 
-  # obs-studio strategy: use static runtime, provide stdio compatibility through legacy libraries
-  # Provide stdio function compatibility for MbedTLS (setbuf, ferror, remove, etc.)
+  # # obs-studio strategy: use static runtime, provide stdio compatibility through legacy libraries
+  # # Provide stdio function compatibility for MbedTLS (setbuf, ferror, remove, etc.)
 
-  # CEF wrapper library compatibility handling - use static runtime
-  set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
-    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    LINK_FLAGS "/WX:NO"
-  )
-else()
+  # # CEF wrapper library compatibility handling - use static runtime
+  # set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
+  # MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+  # LINK_FLAGS "/WX:NO"
+  # )
+  # else()
   # macOS/Linux: Standard MbedTLS linking
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     MbedTLS::mbedcrypto
@@ -162,9 +146,9 @@ target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 # Define websocketpp to use C++11 STL features
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-  _WEBSOCKETPP_CPP11_STL_
-)
+# target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+# _WEBSOCKETPP_CPP11_STL_
+# )
 
 # Configure plugin-support.c file
 configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
@@ -209,15 +193,12 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/ui/OneSevenLiveLineEditWithEye.cpp
   src/17live/ui/OneSevenLivePropertiesWidget.cpp
   src/17live/ui/OneSevenLivePropertyWidget.cpp
-  src/17live/utility/CefDummy.cpp
   src/17live/utility/Common.cpp
   src/17live/utility/CustomCalendarWidget.cpp
   src/17live/utility/DownloadWorker.cpp
   src/17live/utility/Meta.cpp
   src/17live/utility/NetworkDiagnostics.cpp
-  src/17live/utility/QCefView.cpp
   src/17live/utility/RemoteTextThread.cpp
-  src/17live/utility/SimpleCefClient.cpp
   src/17live/chat/OneSevenLiveChatMessageHandler.cpp
   src/17live/websocket/OneSevenLiveWebsocketClient.cpp
   src/17live/websocket/OneSevenLiveWebsocketServer.cpp
@@ -252,27 +233,27 @@ endif()
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 
 # Windows-specific CEF configuration
-if(OS_WINDOWS)
-  # Add Windows specific defines
-  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    NOMINMAX
-    WIN32_LEAN_AND_MEAN
-    _CRT_SECURE_NO_WARNINGS
-    _CRT_DECLARE_NONSTDC_NAMES=1 # Ensure stdio functions like setbuf are properly declared
-  )
+# if(OS_WINDOWS)
+# # Add Windows specific defines
+# target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+# NOMINMAX
+# WIN32_LEAN_AND_MEAN
+# _CRT_SECURE_NO_WARNINGS
+# _CRT_DECLARE_NONSTDC_NAMES=1 # Ensure stdio functions like setbuf are properly declared
+# )
 
-  # Disable treat warnings as errors to allow LNK4098 warnings
-  target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
-    /WX:NO # Don't treat linker warnings as errors
-    /ignore:4098 # Ignore default library conflicts (mixed runtime libraries)
-    /ignore:4286 # Ignore symbol already defined warnings
-  )
+# # Disable treat warnings as errors to allow LNK4098 warnings
+# target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+# /WX:NO # Don't treat linker warnings as errors
+# /ignore:4098 # Ignore default library conflicts (mixed runtime libraries)
+# /ignore:4286 # Ignore symbol already defined warnings
+# )
 
-  # obs-studio strategy: use static runtime to ensure CEF compatibility
-  # Provide stdio function compatibility for MbedTLS through legacy_stdio_definitions.lib
+# # obs-studio strategy: use static runtime to ensure CEF compatibility
+# # Provide stdio function compatibility for MbedTLS through legacy_stdio_definitions.lib
 
-  # Provide stdio function compatibility layer (resolve MbedTLS setbuf and other function requirements)
+# # Provide stdio function compatibility layer (resolve MbedTLS setbuf and other function requirements)
 
-  # Comprehensive runtime library conflict resolution
-  message(STATUS "Windows static runtime configuration with SChannel via WinHTTP")
-endif()
+# # Comprehensive runtime library conflict resolution
+# message(STATUS "Windows static runtime configuration with SChannel via WinHTTP")
+# endif()

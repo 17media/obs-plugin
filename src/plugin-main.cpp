@@ -34,15 +34,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <thread>
 #include <util/util.hpp>
 
-#if defined(__APPLE__)
-#include "include/wrapper/cef_library_loader.h"
-#endif
-
 #include <plugin-support.h>
 
 #include "17live/OneSevenLiveCoreManager.hpp"
-#include "17live/utility/CefDummy.hpp"
-#include "17live/utility/QCefView.hpp"
 
 using namespace std;
 
@@ -51,38 +45,11 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 bool obs_module_load(void) {
     obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
-
-#if defined(__APPLE__)
-    /* Load CEF at runtime as required on macOS */
-    CefScopedLibraryLoader library_loader;
-    if (!library_loader.LoadInMain()) {
-        obs_log(LOG_ERROR, "Failed to load CEF library");
-        return false;
-    }
-#endif
-
-    cef_view_load();  // Register CEF frontend callback early
-
-    obs_log(LOG_INFO, "[%s] loaded successfully (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
-
+    
     return true;
 }
 
 static void schedule_init_core_impl(QMainWindow* mainWindow, bool* isRunningPtr) {
-    static int attempts = 0;
-    void* mod = obs_get_module("obs-browser");
-    const char* browser_display = obs_source_get_display_name("browser_source");
-    bool browser_ready = (mod != nullptr) || (browser_display != nullptr);
-    if (!browser_ready) {
-        if (attempts < 40) {
-            attempts++;
-            QTimer::singleShot(50, mainWindow, [mainWindow, isRunningPtr]() {
-                schedule_init_core_impl(mainWindow, isRunningPtr);
-            });
-            return;
-        }
-    }
-
     try {
         auto& manager = OneSevenLiveCoreManager::getInstance(mainWindow);
         if (!manager.initialize()) {
@@ -152,16 +119,6 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
         } catch (const std::exception& e) {
             obs_log(LOG_ERROR, "OneSevenLiveCoreManager resource release exception: %s", e.what());
         }
-
-        {
-            int attempts = 0;
-            while (QCefView::aliveCount() > 0 && attempts < 40) {
-                QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-                QThread::msleep(50);
-                attempts++;
-            }
-        }
-        cef_view_unload();
 
         obs_log(LOG_INFO, "shutdown complete");
         break;
