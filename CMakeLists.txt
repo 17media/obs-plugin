@@ -183,7 +183,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/multi-rtmp/ui/OneSevenLiveMultiRtmpDock.cpp
   src/17live/multi-rtmp/ui/OneSevenLiveMultiRtmpListWidget.cpp
   src/17live/multi-rtmp/ui/OneSevenLiveMultiRtmpStreamItem.cpp
-  src/17live/OneSevenLiveChatDock.cpp
+  src/17live/chat/OneSevenLiveChatWidget.cpp
   src/17live/OneSevenLiveConfigManager.cpp
   src/17live/OneSevenLiveCoreManager.cpp
   src/17live/OneSevenLiveCustomEventDialog.cpp

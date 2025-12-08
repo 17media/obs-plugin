@@ -28,6 +28,7 @@
 #include "OneSevenLiveUpdateManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
+#include "chat/OneSevenLiveChatWidget.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "plugin-support.h"
@@ -1571,58 +1572,59 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "Chat URL: %s", chatUrl.toStdString().c_str());
 
     if (!chatDock) {
-        // Use native OBS browser dock if available
-        // Note: We check if the function exists or browser is available
-        // Assuming obs_frontend_add_browser_dock exists in the API version we are using.
+        chatDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
+        chatDock->setObjectName("OneSevenLiveChatDock");
+        chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         
-        // Register/Add the browser dock
-        // The ID "OneSevenLiveChatDock" must be unique.
-        obs_frontend_add_browser_dock("OneSevenLiveChatDock", obs_module_text("ChatRoom.Title"), chatUrl.toUtf8().constData());
+        // Create the chat widget and set it as the dock's widget
+        OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(chatDock, chatUrl);
+        chatDock->setWidget(chatWidget);
         
-        // Try to find the dock widget created by OBS
-        chatDock = mainWindow->findChild<QDockWidget*>("OneSevenLiveChatDock");
-        
-        if (chatDock) {
-            connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-                menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
-                                                  liveListDock && liveListDock->isVisible(),
-                                                  rockZoneDock && rockZoneDock->isVisible(),
-                                                  multiRtmpDock && multiRtmpDock->isVisible(),
-                                                  previewDock && previewDock->isVisible());
-                chatDockVisible = visible;
-                if (visible)
-                    flushChatEventQueue();
-            });
-        } else {
-             obs_log(LOG_WARNING, "Failed to find native browser dock 'OneSevenLiveChatDock' after adding it.");
-        }
-    } else {
-        // If dock exists, just update URL and ensure visibility
-        obs_frontend_change_browser_dock_url("OneSevenLiveChatDock", chatUrl.toUtf8().constData());
-    }
+        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
 
-    if (chatDock) {
-        if (chatDock->isFloating()) {
-            chatDock->show();
-            chatDock->raise();
-            chatDock->activateWindow();
-        } else {
+        if (isStartupRestore) {
             chatDock->setVisible(true);
+        } else {
+            chatDock->setFloating(true);
+            chatDock->setVisible(true);
+            
+            // Center the dock
+            QRect mainWindowGeometry = mainWindow->geometry();
+            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatDock->width()) / 2;
+            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatDock->height()) / 2;
+            chatDock->move(x, y);
         }
-    } else {
-         // Fallback if chatDock is null (e.g. browser source not available)
-         // We might want to warn the user
-         obs_log(LOG_ERROR, "Chat dock is null. Is obs-browser installed?");
-    }
 
+        connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
+                                              liveListDock && liveListDock->isVisible(),
+                                              rockZoneDock && rockZoneDock->isVisible(),
+                                              multiRtmpDock && multiRtmpDock->isVisible(),
+                                              previewDock && previewDock->isVisible());
+            chatDockVisible = visible;
+            if (visible)
+                flushChatEventQueue();
+        });
+    } else {
+        chatDock->setVisible(!chatDock->isVisible());
+        if (chatDock->isVisible()) {
+             OneSevenLiveChatWidget* widget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
+             if (widget) {
+                 widget->setUrl(chatUrl);
+                 widget->reload();
+             }
+             chatDock->raise();
+             chatDock->activateWindow();
+        }
+    }
+    
+    // Update visibility status for menu
     if (menuManager) {
         menuManager->updateDockVisibility(
-            true, streamingDock && streamingDock->isVisible(),
+            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
             liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
             multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
     }
-    chatDockVisible = true;
-    flushChatEventQueue();
 }
 
 void OneSevenLiveCoreManager::loadGifts() {

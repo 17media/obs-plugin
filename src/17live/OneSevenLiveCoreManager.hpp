@@ -35,11 +35,15 @@ class OneSevenLiveApiWrappers;
 
 class OneSevenLiveConfigManager;
 
+#include <QDockWidget>
+
 class OneSevenLiveStreamingDock;
 
 class OneSevenLiveStreamListDock;
 
 class OneSevenLiveRockZoneDock;
+
+class OneSevenLiveChatWidget;
 
 class OneSevenLiveMultiRtmpDock;
 
