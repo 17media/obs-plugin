@@ -21,7 +21,7 @@
 #include <thread>
 
 #include "../diag/ui/DiagnosticsDialog.hpp"
-#include "OneSevenLiveChatDock.hpp"
+#include "chat/OneSevenLiveChatRoomDock.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveHttpServer.hpp"
 #include "OneSevenLiveLoginDialog.hpp"
@@ -1572,8 +1572,8 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "Chat URL: %s", chatUrl.toStdString().c_str());
 
     if (!chatDock) {
-        chatDock = new OneSevenLiveChatDock(mainWindow, chatUrl);
-        chatDock->setObjectName("OneSevenLiveChatDock");
+        chatDock = new OneSevenLiveChatRoomDock(mainWindow, chatUrl);
+        chatDock->setObjectName("OneSevenLiveChatRoomDock");
         chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
 
