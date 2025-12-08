@@ -1,27 +1,27 @@
 name: Build OBS 17Live Plugin - macOS Intel
 
-on:
-  push:
-    tags:
-      - 'v*.*.*'
-      - 'v*.*.*.*'
-      - 'v*.*.*-stage'
-      - 'v*.*.*.*-stage'
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Build environment"
-        required: true
-        default: stage
-        type: choice
-        options:
-          - stage
-          - production
-      version:
-        description: "Version number (e.g., 1.0.0 or 1.1.4.1)"
-        required: false
-        default: "0.0.0"
-        type: string
+# on:
+#   push:
+#     tags:
+#       - 'v*.*.*'
+#       - 'v*.*.*.*'
+#       - 'v*.*.*-stage'
+#       - 'v*.*.*.*-stage'
+#   workflow_dispatch:
+#     inputs:
+#       environment:
+#         description: "Build environment"
+#         required: true
+#         default: stage
+#         type: choice
+#         options:
+#           - stage
+#           - production
+#       version:
+#         description: "Version number (e.g., 1.0.0 or 1.1.4.1)"
+#         required: false
+#         default: "0.0.0"
+#         type: string
   
 jobs:
   build-mac-x64:

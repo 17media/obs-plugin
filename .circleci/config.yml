@@ -20,10 +20,10 @@ jobs:
       arch_name:
         type: string
         description: "Architecture name for package naming (e.g., macAppleSilicon, macIntel)"
-      cmake_arch:
-        type: string
-        default: ""
-        description: "CMake architecture parameter (empty for default/arm64, x86_64 for Intel)"
+      # cmake_arch:
+      #   type: string
+      #   default: ""
+      #   description: "CMake architecture parameter (empty for default/arm64, x86_64 for Intel)"
     macos:
       xcode: "16.4.0"
     resource_class: "m4pro.medium"
@@ -168,9 +168,9 @@ jobs:
             CMAKE_ARGS="-DYOUTUBE_API_CLIENT_ID=\"$YOUTUBE_API_CLIENT_ID\" -DYOUTUBE_API_CLIENT_SECRET=\"$YOUTUBE_API_CLIENT_SECRET\" -DTWITCH_API_CLIENT_ID=\"$TWITCH_API_CLIENT_ID\" -DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
             
             # Add architecture parameter if specified
-            if [ -n "<< parameters.cmake_arch >>" ]; then
-              CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=\"<< parameters.cmake_arch >>\""
-            fi
+            # if [ -n "<< parameters.cmake_arch >>" ]; then
+            #   CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=\"<< parameters.cmake_arch >>\""
+            # fi
             
             eval "cmake --preset macos $CMAKE_ARGS"
       
@@ -523,21 +523,32 @@ workflows:
   # Tag-based build workflow - supports both production and stage builds
   tag-build:
     jobs:
+      # - build-macos:
+      #     name: build-macos-apple-silicon
+      #     arch_name: "macAppleSilicon"
+      #     cmake_arch: ""
+      #     filters:
+      #       tags:
+      #         only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
+      #       branches:
+      #         ignore: /.*/
+      #     context:
+      #       - macos-signing
+      # - build-macos:
+      #     name: build-macos-intel
+      #     arch_name: "macIntel"
+      #     cmake_arch: "x86_64"
+      #     filters:
+      #       tags:
+      #         only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
+      #       branches:
+      #         ignore: /.*/
+      #     context:
+      #       - macos-signing
       - build-macos:
-          name: build-macos-apple-silicon
-          arch_name: "macAppleSilicon"
-          cmake_arch: ""
-          filters:
-            tags:
-              only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
-            branches:
-              ignore: /.*/
-          context:
-            - macos-signing
-      - build-macos:
-          name: build-macos-intel
-          arch_name: "macIntel"
-          cmake_arch: "x86_64"
+          name: build-macos-universal
+          arch_name: "mac-universal"
+          # cmake_arch: "arm64;x86_64"
           filters:
             tags:
               only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
@@ -559,18 +570,26 @@ workflows:
     jobs:
       - hold:
           type: approval
+      # - build-macos:
+      #     name: build-macos-apple-silicon
+      #     arch_name: "macAppleSilicon"
+      #     cmake_arch: ""
+      #     requires:
+      #       - hold
+      #     context:
+      #       - macos-signing
+      # - build-macos:
+      #     name: build-macos-intel
+      #     arch_name: "macIntel"
+      #     cmake_arch: "x86_64"
+      #     requires:
+      #       - hold
+      #     context:
+      #       - macos-signing
       - build-macos:
-          name: build-macos-apple-silicon
-          arch_name: "macAppleSilicon"
-          cmake_arch: ""
-          requires:
-            - hold
-          context:
-            - macos-signing
-      - build-macos:
-          name: build-macos-intel
-          arch_name: "macIntel"
-          cmake_arch: "x86_64"
+          name: build-macos-universal
+          arch_name: "mac-universal"
+          # cmake_arch: "arm64;x86_64"
           requires:
             - hold
           context:
