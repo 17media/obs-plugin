@@ -595,12 +595,16 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked() {
 
     // Show authorization dialog with embedded browser
     m_authDialog = new OneSevenLiveAuthDialog(authUrl, this);
-    m_authDialog->setAttribute(Qt::WA_DeleteOnClose, true);
+    // Don't use DeleteOnClose, we will delete it manually after exec() returns
+    // m_authDialog->setAttribute(Qt::WA_DeleteOnClose, true);
 
     connect(m_authDialog, &OneSevenLiveAuthDialog::urlChanged, this,
             &OneSevenLiveMultiRtmpConfigDialog::onAuthUrlChanged);
 
     m_authDialog->exec();
+    
+    // Explicitly delete the dialog
+    delete m_authDialog;
     m_authDialog = nullptr;
     m_isAuthorizing = false;
 }
@@ -611,9 +615,8 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthorizationFailed(const QString& err
 
     // Close auth dialog if it's open
     if (m_authDialog) {
-        m_authDialog->close();
-        m_authDialog->deleteLater();
-        m_authDialog = nullptr;
+        // Just reject/close the dialog. Deletion is handled in onAuthorizeClicked after exec() returns.
+        m_authDialog->reject();
     }
 
     // Show error message to user

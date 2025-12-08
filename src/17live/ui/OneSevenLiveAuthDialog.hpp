@@ -4,6 +4,8 @@
 #include <QString>
 
 class QCefView;
+struct QCef;
+class QCefWidget;
 
 /**
  * Authorization dialog using embedded CEF view.
@@ -20,11 +22,19 @@ class OneSevenLiveAuthDialog : public QDialog {
     // Set or update the URL in the embedded browser
     void setUrl(const QString& url);
 
+   public slots:
+    void accept() override;
+    void reject() override;
+
    signals:
     // Emitted when the embedded browser URL changes
     void urlChanged(const QString& url);
 
+   protected:
+    void resizeEvent(QResizeEvent* event) override;
+
    private:
     void setupUi();
-    QCefView* cefView_ = nullptr;
+    QCef* cef_ = nullptr;
+    QCefWidget* cefWidget_ = nullptr;
 };
