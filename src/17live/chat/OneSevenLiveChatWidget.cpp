@@ -27,14 +27,23 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
                 cefWidget_->allowAllPopups(true);
             }
         } else {
-             obs_log(LOG_ERROR, "Failed to create QCefWidget");
-             errorLabel_ = new QLabel("Failed to create CEF widget", this);
-             errorLabel_->setAlignment(Qt::AlignCenter);
+            obs_log(LOG_ERROR, "Failed to create QCefWidget");
+            errorLabel_ = new QLabel("Failed to create CEF widget", this);
+            errorLabel_->setAlignment(Qt::AlignCenter);
         }
     } else {
         obs_log(LOG_WARNING, "Browser panels unavailable (obs-browser missing or Wayland)");
         errorLabel_ = new QLabel("Browser source not available", this);
         errorLabel_->setAlignment(Qt::AlignCenter);
+    }
+
+    QVBoxLayout* rootLayout = new QVBoxLayout(this);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
+    rootLayout->setSpacing(0);
+    if (cefWidget_) {
+        rootLayout->addWidget(cefWidget_);
+    } else if (errorLabel_) {
+        rootLayout->addWidget(errorLabel_);
     }
 
     // Loading overlay
@@ -86,7 +95,6 @@ void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
     
     if (cefWidget_) {
         cefWidget_->setVisible(true);
-        cefWidget_->setGeometry(rect());
         QTimer::singleShot(100, [this]() {
             if (cefWidget_) cefWidget_->reloadPage();
         });
@@ -105,14 +113,11 @@ void OneSevenLiveChatWidget::hideEvent(QHideEvent* event) {
 
 void OneSevenLiveChatWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
-    if (cefWidget_) {
-        cefWidget_->setGeometry(rect());
-    }
     if (loadingOverlay) {
-        loadingOverlay->setGeometry(rect());
+        loadingOverlay->setGeometry(contentsRect());
     }
     if (errorLabel_) {
-        errorLabel_->setGeometry(rect());
+        errorLabel_->setGeometry(contentsRect());
     }
 }
 
