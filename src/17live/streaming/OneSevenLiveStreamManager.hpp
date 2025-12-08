@@ -158,6 +158,7 @@ class OneSevenLiveStreamManager : public QObject {
     bool fetchRtmpByProvider(const std::string& provider, OneSevenLiveRtmpResponse& response);
     QString getLastErrorMessage() const;
     bool startStreamWithWeb();
+    void startStreamWithWebAsync();
 
     /**
      * @brief Get current streaming status
@@ -240,6 +241,7 @@ class OneSevenLiveStreamManager : public QObject {
     void createRtmpFinished(bool success, const QString& error);
     void startStreamFinished(bool success, const QString& error);
     void changeEventFinished(bool success, const QString& error);
+    void webStreamSettingsLoaded(bool success);
 
     void roomInfoLoaded(const OneSevenLiveLoadRoomInfoWorker::LoadResult& result);
 
@@ -283,4 +285,6 @@ class OneSevenLiveStreamManager : public QObject {
     void onStatusTimer();
     void logCurrentObsOutputInfo();
     QTimer* m_streamLogTimer{nullptr};
+
+    void wsBroadcast(const QString& type, const nlohmann::json& payload);
 };

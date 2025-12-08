@@ -10,6 +10,7 @@
 #include <QEventLoop>
 #include <QThread>
 #include <QTimer>
+#include <QPointer>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveConfigManager.hpp"
@@ -20,6 +21,24 @@
 #include "utility/Common.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
+#include "websocket/OneSevenLiveWebsocketServer.hpp"
+
+// Static callback for OBS frontend events to ensure safe registration/removal
+static void ObsFrontendEventCallback(enum obs_frontend_event event, void* private_data) {
+    OneSevenLiveStreamManager* manager = static_cast<OneSevenLiveStreamManager*>(private_data);
+    if (!manager) return;
+
+    if (event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
+         obs_output_t* output = obs_frontend_get_streaming_output();
+         if (output) {
+             const char* err = obs_output_get_last_error(output);
+             manager->handleObsStreamStopped(0, err ? QString(err) : QString());
+             obs_output_release(output);
+         } else {
+             manager->handleObsStreamStopped(0, QString());
+         }
+    }
+}
 
 OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* apiWrapper,
                                                      OneSevenLiveConfigManager* configManager,
@@ -45,28 +64,13 @@ OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* ap
     m_statusTimer->start();
 
     // Register callback for OBS streaming events
-    obs_frontend_add_event_callback([](enum obs_frontend_event event, void* private_data) {
-        OneSevenLiveStreamManager* manager = static_cast<OneSevenLiveStreamManager*>(private_data);
-        if (event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
-             obs_output_t* output = obs_frontend_get_streaming_output();
-             if (output) {
-                 // obs_output_get_last_error returns const char* (message), NOT an error code integer
-                 // To get error code, we need to check if there is a specific function or rely on message
-                 // In standard libobs, obs_output_get_last_error returns string
-                 const char* err = obs_output_get_last_error(output);
-                 manager->handleObsStreamStopped(0, err ? QString(err) : QString());
-                 obs_output_release(output);
-             } else {
-                 manager->handleObsStreamStopped(0, QString());
-             }
-        }
-    }, this);
+    obs_frontend_add_event_callback(ObsFrontendEventCallback, this);
 
     obs_log(LOG_INFO, "OneSevenLiveStreamManager initialized");
 }
 
 OneSevenLiveStreamManager::~OneSevenLiveStreamManager() {
-    obs_frontend_remove_event_callback([](enum obs_frontend_event, void*) {}, this);
+    obs_frontend_remove_event_callback(ObsFrontendEventCallback, this);
 }
 
 bool OneSevenLiveStreamManager::fetchRtmpByProvider(const std::string& provider,
@@ -153,16 +157,105 @@ bool OneSevenLiveStreamManager::startStreamWithWeb() {
     return true;
 }
 
+void OneSevenLiveStreamManager::startStreamWithWebAsync() {
+    obs_log(LOG_INFO, "Saving web stream settings (Async)");
+
+    if (roomInfo.rtmpUrls.isEmpty()) {
+        obs_log(LOG_ERROR, "Empty rtmpUrl in roomInfo");
+        emit webStreamSettingsLoaded(false);
+        return;
+    }
+
+    QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
+    
+    auto* api = this->apiWrapper;
+    QPointer<OneSevenLiveStreamManager> self = this;
+    std::string providerStr = provider.toStdString();
+
+    ScheduleOBSTask([self, api, providerStr]() {
+        OneSevenLiveRtmpResponse rtmpResponse;
+        bool success = false;
+        
+        if (api) {
+            success = api->GetRtmpByProvider(providerStr, rtmpResponse);
+        }
+        
+        if (self) {
+            QMetaObject::invokeMethod(self, [self, success, rtmpResponse, providerStr]() {
+                if (success) {
+                    OneSevenLiveRtmpResponse resp = rtmpResponse;
+                    resp.liveStreamID = QString::number(self->roomInfo.liveStreamID);
+                    self->configureStreamingService(resp);
+
+                    self->currentLiveStreamID = resp.liveStreamID.toStdString();
+
+                    OneSevenLiveRtmpRequest request;
+                    request.userID = QString::fromStdString(self->currentUserID);
+                    request.caption = self->roomInfo.caption;
+                    request.device = "OBS";
+                    
+                    qint64 selectedEventId = 0;
+                    for (const auto& evt : self->roomInfo.eventList) {
+                        if (evt.type == 2) {
+                            selectedEventId = evt.ID;
+                            break;
+                        }
+                    }
+                    request.eventID = selectedEventId;
+
+                    QStringList tags;
+                    for (const auto& t : self->roomInfo.lastUsedHashtags) {
+                        tags << t.text;
+                    }
+                    request.hashtags = tags;
+
+                    request.landscape = self->roomInfo.landscape;
+                    request.streamerType = self->roomInfo.streamerType;
+                    request.subtabID = (self->roomInfo.subtabs.size() > 0) ? self->roomInfo.subtabs[0] : QString();
+                    request.archiveConfig = self->roomInfo.archiveConfig;
+
+                    OneSevenLiveVliverInfo vl;
+                    vl.vliverModel = self->configStreamer.lastStreamState.vliverInfo.vliverModel;
+                    request.vliverInfo = vl;
+
+                    OneSevenLiveArmy army{};
+                    army.enable = false;
+                    army.requiredArmyRank = 0;
+                    army.showOnHotPage = false;
+                    army.armyOnlyPN = false;
+                    request.armyOnly = army;
+
+                    request.enableOBSGroupCall = self->roomInfo.enableOBSGroupCall;
+
+                    self->currentStreamRequest = request;
+                    self->currentStreamResponse = resp;
+                    OneSevenLiveStreamInfo info;
+                    info.request = request;
+                    info.categoryName = QString();
+                    info.createdAt = QDateTime::currentDateTime();
+                    info.streamUuid = resp.streamID;
+                    self->currentLiveStreamInfo = info;
+
+                    self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                                nlohmann::json{{"status", "connected"}});
+
+                    emit self->webStreamSettingsLoaded(true);
+                } else {
+                    obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s",
+                            providerStr.c_str());
+                    emit self->webStreamSettingsLoaded(false);
+                }
+            }, Qt::QueuedConnection);
+        }
+    });
+}
+
 bool OneSevenLiveStreamManager::createRtmp(const OneSevenLiveRtmpRequest& request) {
     obs_log(LOG_INFO, "Creating live stream");
 
     OneSevenLiveRtmpRequest modifiedRequest = request;
     modifiedRequest.userID = QString::fromStdString(currentUserID);
     modifiedRequest.streamerType = roomInfo.streamerType;
-
-    // Get room info for streamer type
-    // Note: This would need to be passed in or retrieved from somewhere
-    // For now, we'll assume it's available through the API wrapper or config manager
 
     OneSevenLiveRtmpResponse response;
     if (!apiWrapper->CreateRtmp(modifiedRequest, response)) {
@@ -206,10 +299,11 @@ void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& r
     modifiedRequest.userID = QString::fromStdString(currentUserID);
     modifiedRequest.streamerType = roomInfo.streamerType;
 
-    // Capture apiWrapper pointer by value to avoid accessing 'this' in the thread
+    // Capture apiWrapper pointer by value. It is owned by CoreManager.
     auto* api = this->apiWrapper;
+    QPointer<OneSevenLiveStreamManager> self = this;
 
-    std::thread([this, modifiedRequest, api]() {
+    ScheduleOBSTask([self, modifiedRequest, api]() {
         OneSevenLiveRtmpResponse response;
         bool success = false;
         QString errorMsg;
@@ -223,36 +317,38 @@ void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& r
             errorMsg = "API Wrapper not initialized";
         }
 
-        QMetaObject::invokeMethod(this, [this, success, errorMsg, modifiedRequest, response]() {
-            if (success) {
-                currentLiveStreamID = response.liveStreamID.toStdString();
-                currentStreamRequest = modifiedRequest;
-                currentStreamResponse = response;
+        if (self) {
+            QMetaObject::invokeMethod(self, [self, success, errorMsg, modifiedRequest, response]() {
+                if (success) {
+                    self->currentLiveStreamID = response.liveStreamID.toStdString();
+                    self->currentStreamRequest = modifiedRequest;
+                    self->currentStreamResponse = response;
 
-                OneSevenLiveStreamInfo info;
-                info.request = modifiedRequest;
-                info.categoryName = QString();
-                info.createdAt = QDateTime::currentDateTime();
-                info.streamUuid = response.streamID;
-                currentLiveStreamInfo = info;
+                    OneSevenLiveStreamInfo info;
+                    info.request = modifiedRequest;
+                    info.categoryName = QString();
+                    info.createdAt = QDateTime::currentDateTime();
+                    info.streamUuid = response.streamID;
+                    self->currentLiveStreamInfo = info;
 
-                setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
+                    self->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
 
-                wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                            nlohmann::json{{"status", "connected"}});
+                    self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                                nlohmann::json{{"status", "connected"}});
 
-                obs_log(LOG_INFO, "Live stream created successfully (Async). LiveStreamID: %s",
-                        currentLiveStreamID.c_str());
-                
-                emit createRtmpFinished(true, QString());
-            } else {
-                obs_log(LOG_ERROR, "Failed to create stream (Async). Error: %s",
-                        errorMsg.toStdString().c_str());
-                emit errorOccurred(errorMsg, "createLiveStream");
-                emit createRtmpFinished(false, errorMsg);
-            }
-        }, Qt::QueuedConnection);
-    }).detach();
+                    obs_log(LOG_INFO, "Live stream created successfully (Async). LiveStreamID: %s",
+                            self->currentLiveStreamID.c_str());
+                    
+                    emit self->createRtmpFinished(true, QString());
+                } else {
+                    obs_log(LOG_ERROR, "Failed to create stream (Async). Error: %s",
+                            errorMsg.toStdString().c_str());
+                    emit self->errorOccurred(errorMsg, "createLiveStream");
+                    emit self->createRtmpFinished(false, errorMsg);
+                }
+            }, Qt::QueuedConnection);
+        }
+    });
 }
 
 bool OneSevenLiveStreamManager::startStream() {
@@ -298,10 +394,10 @@ void OneSevenLiveStreamManager::startStreamAsync() {
     std::string uid = currentUserID;
     bool autoRecord = currentStreamRequest.archiveConfig.autoRecording;
 
-    // Capture apiWrapper pointer by value to avoid accessing 'this' in the thread
     auto* api = this->apiWrapper;
+    QPointer<OneSevenLiveStreamManager> self = this;
 
-    std::thread([this, lid, uid, autoRecord, api]() {
+    ScheduleOBSTask([self, lid, uid, autoRecord, api]() {
         bool success = false;
         QString errorMsg;
 
@@ -313,9 +409,6 @@ void OneSevenLiveStreamManager::startStreamAsync() {
                 if (!api->EnableStreamArchive(lid, 1)) {
                     QString archiveError = api->getLastErrorMessage();
                     obs_log(LOG_ERROR, "Failed to enable archive (Async). Error: %s", archiveError.toStdString().c_str());
-                    // We consider archive failure as non-fatal for streaming? 
-                    // Original code returns false if enableStreamArchive fails.
-                    // So we should probably fail here too.
                     success = false;
                     errorMsg = archiveError;
                 }
@@ -324,32 +417,34 @@ void OneSevenLiveStreamManager::startStreamAsync() {
             errorMsg = "API Wrapper not initialized";
         }
 
-        QMetaObject::invokeMethod(this, [this, success, errorMsg]() {
-            if (success) {
-                setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
+        if (self) {
+            QMetaObject::invokeMethod(self, [self, success, errorMsg]() {
+                if (success) {
+                    self->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
 
-                wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                            nlohmann::json{{"status", "connected"}});
+                    self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                                nlohmann::json{{"status", "connected"}});
 
-                obs_log(LOG_INFO, "Streaming started successfully (Async)");
-                emit startStreamFinished(true, QString());
-            } else {
-                obs_log(LOG_ERROR, "Failed to start stream (Async). Error: %s",
-                        errorMsg.toStdString().c_str());
-                emit errorOccurred(errorMsg, "startStream");
-                emit startStreamFinished(false, errorMsg);
-            }
-        }, Qt::QueuedConnection);
-    }).detach();
+                    obs_log(LOG_INFO, "Streaming started successfully (Async)");
+                    emit self->startStreamFinished(true, QString());
+                } else {
+                    obs_log(LOG_ERROR, "Failed to start stream (Async). Error: %s",
+                            errorMsg.toStdString().c_str());
+                    emit self->errorOccurred(errorMsg, "startStream");
+                    emit self->startStreamFinished(false, errorMsg);
+                }
+            }, Qt::QueuedConnection);
+        }
+    });
 }
 
 void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRequest& request) {
     obs_log(LOG_INFO, "Changing event (Async) to: %lld", request.eventID);
 
-    // Capture apiWrapper pointer by value to avoid accessing 'this' in the thread
     auto* api = this->apiWrapper;
+    QPointer<OneSevenLiveStreamManager> self = this;
 
-    std::thread([this, request, api]() {
+    ScheduleOBSTask([self, request, api]() {
         bool success = false;
         QString errorMsg;
 
@@ -362,17 +457,19 @@ void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRe
             errorMsg = "API Wrapper not initialized";
         }
 
-        QMetaObject::invokeMethod(this, [this, success, errorMsg, request]() {
-            if (success) {
-                obs_log(LOG_INFO, "Successfully changed event (Async) to: %lld", request.eventID);
-                emit changeEventFinished(true, QString());
-            } else {
-                obs_log(LOG_ERROR, "Failed to change event (Async) to: %lld, error: %s", request.eventID,
-                        errorMsg.toStdString().c_str());
-                emit changeEventFinished(false, errorMsg);
-            }
-        }, Qt::QueuedConnection);
-    }).detach();
+        if (self) {
+            QMetaObject::invokeMethod(self, [self, success, errorMsg, request]() {
+                if (success) {
+                    obs_log(LOG_INFO, "Successfully changed event (Async) to: %lld", request.eventID);
+                    emit self->changeEventFinished(true, QString());
+                } else {
+                    obs_log(LOG_ERROR, "Failed to change event (Async) to: %lld, error: %s", request.eventID,
+                            errorMsg.toStdString().c_str());
+                    emit self->changeEventFinished(false, errorMsg);
+                }
+            }, Qt::QueuedConnection);
+        }
+    });
 }
 
 bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
@@ -394,7 +491,6 @@ bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
                 currentLiveStreamID.c_str(), currentUserID.c_str(),
                 endReason.toStdString().c_str());
         emit errorOccurred(errorMsg, "stopStreaming");
-        // Continue with cleanup even if API call fails
     } else {
         obs_log(LOG_INFO,
                 "Successfully stopped stream. LiveStreamID: %s, UserID: %s, Reason: %s, "
@@ -537,26 +633,8 @@ void OneSevenLiveStreamManager::stopOBSStreaming() {
 
     obs_frontend_streaming_stop();
 
-    int wait_ms = 0;
-    const int max_wait_ms = 5000;
-    while (obs_frontend_streaming_active() && wait_ms < max_wait_ms) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
-        QThread::msleep(10);
-        wait_ms += 10;
-    }
-
-    obs_output_t* out = obs_frontend_get_streaming_output();
-    if (out) {
-        int wait_ms2 = 0;
-        while (obs_output_active(out) && wait_ms2 < max_wait_ms) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
-            QThread::msleep(10);
-            wait_ms2 += 10;
-        }
-        obs_output_release(out);
-    }
-
-    obs_log(LOG_INFO, "OBS streaming stopped");
+    // Removed busy-wait loop. We rely on OBS_FRONTEND_EVENT_STREAMING_STOPPED event.
+    obs_log(LOG_INFO, "OBS streaming stop requested");
 }
 
 bool OneSevenLiveStreamManager::isOBSStreaming() const {
@@ -807,41 +885,50 @@ void OneSevenLiveStreamManager::loadRoomInfo() {
         return;
 
     roomInfoLoading = true;
-    QThread* workerThread = new QThread(this);
 
-    OneSevenLiveRoomInfo localRoomInfo;
-    OneSevenLiveConfigStreamer localConfigStreamer;
-    OneSevenLiveUserInfo localUserInfo;
-    OneSevenLiveArmySubscriptionLevels localLevels;
+    auto* api = this->apiWrapper;
+    auto* cm = this->configManager;
+    qint64 rid = currentRoomID;
+    QPointer<OneSevenLiveStreamManager> self = this;
 
-    connect(
-        workerThread, &QThread::started, this,
-        [this, workerThread, localRoomInfo, localConfigStreamer, localUserInfo,
-         localLevels]() mutable {
-            OneSevenLiveLoadRoomInfoWorker worker(apiWrapper, configManager);
-            worker.setDataStructures(&localRoomInfo, &localConfigStreamer, &localUserInfo,
-                                     &localLevels);
+    ScheduleOBSTask([self, api, cm, rid]() {
+        if (!self) return;
 
-            OneSevenLiveLoadRoomInfoWorker::LoadResult result =
-                worker.loadRoomInfo(static_cast<std::int64_t>(currentRoomID));
+        OneSevenLiveRoomInfo localRoomInfo;
+        OneSevenLiveConfigStreamer localConfigStreamer;
+        OneSevenLiveUserInfo localUserInfo;
+        OneSevenLiveArmySubscriptionLevels localLevels;
 
-            QMetaObject::invokeMethod(
-                this,
-                [this, result, localRoomInfo, localConfigStreamer, localUserInfo, localLevels]() {
-                    roomInfo = localRoomInfo;
-                    configStreamer = localConfigStreamer;
-                    userInfo = localUserInfo;
-                    levels = localLevels;
-                    roomInfoLoading = false;
+        OneSevenLiveLoadRoomInfoWorker worker(api, cm);
+        worker.setDataStructures(&localRoomInfo, &localConfigStreamer, &localUserInfo,
+                                    &localLevels);
 
-                    emit roomInfoLoaded(result);
+        OneSevenLiveLoadRoomInfoWorker::LoadResult result =
+            worker.loadRoomInfo(static_cast<std::int64_t>(rid));
+
+        if (self) {
+             QMetaObject::invokeMethod(
+                self,
+                [self, result, localRoomInfo, localConfigStreamer, localUserInfo, localLevels]() {
+                    self->roomInfo = localRoomInfo;
+                    self->configStreamer = localConfigStreamer;
+                    self->userInfo = localUserInfo;
+                    self->levels = localLevels;
+                    self->roomInfoLoading = false;
+
+                    emit self->roomInfoLoaded(result);
                 },
                 Qt::QueuedConnection);
+        }
+    });
+}
 
-            workerThread->quit();
-        },
-        Qt::DirectConnection);
-
-    connect(workerThread, &QThread::finished, workerThread, &QObject::deleteLater);
-    workerThread->start();
+void OneSevenLiveStreamManager::wsBroadcast(const QString& type, const nlohmann::json& payload) {
+    auto &core = OneSevenLiveCoreManager::getInstance();
+    if (auto *ws = core.getWebsocketServer()) {
+        WsMessage msg;
+        msg.type = type.toStdString();
+        msg.payload = payload;
+        ws->broadcastMessage(msg.dump());
+    }
 }

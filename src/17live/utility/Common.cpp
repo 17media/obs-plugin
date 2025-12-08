@@ -23,6 +23,25 @@
 
 #include "plugin-support.h"
 
+#include <QThreadPool>
+#include <QRunnable>
+
+// Helper class for QThreadPool
+class TaskRunnable : public QRunnable {
+public:
+    std::function<void()> m_task;
+    TaskRunnable(std::function<void()> task) : m_task(task) {
+        setAutoDelete(true);
+    }
+    void run() override {
+        if (m_task) m_task();
+    }
+};
+
+void ScheduleOBSTask(std::function<void()> task) {
+    QThreadPool::globalInstance()->start(new TaskRunnable(task));
+}
+
 std::string GetCurrentLanguage() {
     const char* locale = obs_get_locale();
     if (strcmp(locale, "ja-JP") == 0) {

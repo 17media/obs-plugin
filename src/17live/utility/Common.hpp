@@ -11,6 +11,10 @@
 #define OS_LINUX "Linux"
 #define OS_UNKNOWN "Unknown"
 
+#include <functional>
+
+// ... existing includes ...
+
 std::string GetCurrentOS();
 std::string GetCurrentOSVersion();
 std::string GetCurrentPlatformUUID();
@@ -21,6 +25,9 @@ obs_data_t* ObsDataFromJson(nlohmann::json j);
 
 // OBS module data path helper
 std::string get_obs_module_data_path_str();
+
+// Schedule a task on the OBS task thread
+void ScheduleOBSTask(std::function<void()> task);
 
 struct obs_data_deleter {
     void operator()(obs_data_t* p) const {
