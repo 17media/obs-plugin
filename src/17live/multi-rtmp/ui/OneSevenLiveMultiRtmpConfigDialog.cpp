@@ -576,6 +576,7 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked() {
     }
 
     m_isAuthorizing = true;
+    m_lastAuthError.clear();
 
     QString authUrl;
 
@@ -607,26 +608,48 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked() {
     delete m_authDialog;
     m_authDialog = nullptr;
     m_isAuthorizing = false;
+
+    // Check if there was an error during authorization (deferred display)
+    if (!m_lastAuthError.isEmpty()) {
+        // Use a 0-timer to allow the parent dialog to regain focus/activation properly
+        // before showing the error message. This prevents the message box from being
+        // obscured by the parent dialog on some platforms (macOS).
+        QString error = m_lastAuthError;
+        QTimer::singleShot(0, this, [this, error]() {
+            QMessageBox::warning(
+                this, QString::fromUtf8(obs_module_text("MultiRTMP.AuthorizationFailed.Title")),
+                QString::fromUtf8(obs_module_text("MultiRTMP.AuthorizationFailed.Text")).arg(error),
+                QMessageBox::Ok);
+            updateAuthorizeButtonState();
+        });
+        m_lastAuthError.clear();
+    }
 }
 
 void OneSevenLiveMultiRtmpConfigDialog::onAuthorizationFailed(const QString& error) {
     obs_log(LOG_ERROR, "[MultiRTMP-ConfigDialog] Authorization failed: %s",
             error.toUtf8().constData());
 
+    m_lastAuthError = error;
+
     // Close auth dialog if it's open
     if (m_authDialog) {
         // Just reject/close the dialog. Deletion is handled in onAuthorizeClicked after exec() returns.
         m_authDialog->reject();
+    } else {
+        // If dialog is not open (unlikely in this flow), show error immediately
+        // Use singleShot to ensure proper z-ordering
+        QTimer::singleShot(0, this, [this, error]() {
+            QMessageBox::warning(
+                this, QString::fromUtf8(obs_module_text("MultiRTMP.AuthorizationFailed.Title")),
+                QString::fromUtf8(obs_module_text("MultiRTMP.AuthorizationFailed.Text")).arg(error),
+                QMessageBox::Ok);
+            updateAuthorizeButtonState();
+        });
+        m_lastAuthError.clear();
     }
 
-    // Show error message to user
-    QMessageBox::warning(
-        this, QString::fromUtf8(obs_module_text("MultiRTMP.AuthorizationFailed.Title")),
-        QString::fromUtf8(obs_module_text("MultiRTMP.AuthorizationFailed.Text")).arg(error),
-        QMessageBox::Ok);
-
     m_isAuthorizing = false;
-    updateAuthorizeButtonState();
 }
 
 void OneSevenLiveMultiRtmpConfigDialog::onAuthUrlChanged(const QString& url) {
