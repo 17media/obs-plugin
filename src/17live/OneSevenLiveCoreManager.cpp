@@ -1104,6 +1104,26 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
     // Clear login data
     configManager->clearLoginData();
 
+    // Clear third-party platform authorization data
+    configManager->clearTwitchTokens();
+    configManager->clearTwitchUserInfo();
+    configManager->clearYouTubeAccessToken();
+    configManager->clearYouTubeRefreshToken();
+    
+    // Clear streaming configuration
+    configManager->clearStreamingInfo();
+    configManager->clearWhipStreamingInfo();
+    configManager->clearStreamingPullUrl();
+
+    // Clear in-memory auth states
+    if (twitchAuth) {
+        twitchAuth->clearTokens();
+    }
+    if (youtubeAuth) {
+        youtubeAuth->clearToken();
+        youtubeAuth->stopAutoRefresh();
+    }
+
     // Destroy chat clients on logout
     destroyYouTubeChatClient();
     destroyTwitchChatClient();
