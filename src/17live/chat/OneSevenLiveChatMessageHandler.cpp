@@ -104,8 +104,9 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
 
     try {
         std::string giftID;
+        nlohmann::json gm;
         if (decoded.contains("giftMsg") && decoded["giftMsg"].is_object()) {
-            const auto& gm = decoded["giftMsg"];
+            gm = decoded["giftMsg"];
             if (gm.contains("giftID") && gm["giftID"].is_string())
                 giftID = gm["giftID"].get<std::string>();
         }
