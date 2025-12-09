@@ -30,6 +30,10 @@ namespace {
         }
 
         std::string errorCode = safeGetJsonString(json_resp, "errorCode", "UNKNOWN_ERROR");
+        if (errorCode == "39") {
+            return QString::fromStdString(obs_module_text("Api.Error.39"));
+        }
+
         std::string errorMessage = safeGetJsonString(json_resp, "errorMessage", defaultError);
 
         return QString::fromStdString(errorCode + " " + errorMessage);
