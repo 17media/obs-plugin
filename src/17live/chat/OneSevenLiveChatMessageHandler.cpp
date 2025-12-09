@@ -124,7 +124,8 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
         // Helper lambda to check if a gift object has valid VFF data
         auto hasVFF = [](const std::optional<nlohmann::json>& g) -> bool {
             return g && g->contains("vffURL") && g->contains("vffJson") &&
-                   (*g)["vffURL"].is_string() && (*g)["vffJson"].is_string();
+                   (*g)["vffURL"].is_string() && !(*g)["vffURL"].get<std::string>().empty() &&
+                   (*g)["vffJson"].is_string() && !(*g)["vffJson"].get<std::string>().empty();
         };
 
         // If direct lookup failed or has no VFF, try extended ID
