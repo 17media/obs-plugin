@@ -105,6 +105,7 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
     try {
         // 1. Extract Gift ID and Message Data
         std::string giftID;
+        std::string extID = "";
         nlohmann::json gm;
         if (decoded.contains("giftMsg") && decoded["giftMsg"].is_object()) {
             gm = decoded["giftMsg"];
@@ -130,7 +131,6 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
 
         // If direct lookup failed or has no VFF, try extended ID
         if (!hasVFF(gift)) {
-            std::string extID;
             if (gm.contains("extID") && gm["extID"].is_string()) {
                 extID = gm["extID"].get<std::string>();
             }
@@ -151,11 +151,6 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
         // 3. Construct Playback Data
         std::string vffURL = (*gift)["vffURL"].get<std::string>();
         std::string vffJson = (*gift)["vffJson"].get<std::string>();
-
-        if (vffURL.empty() || vffJson.empty()) {
-            obs_log(LOG_WARNING, "Empty VFF fields. message=%s", decoded.dump().c_str());
-            return;
-        }
 
         nlohmann::json playData;
         playData["type"] = "play_vff";
@@ -185,7 +180,7 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
         }
 
         // 5. Broadcast to WebSocket Clients
-        obs_log(LOG_DEBUG, "PlayData: %s", playData.dump().c_str());
+        obs_log(LOG_INFO, "GiftID=%s ExtID=%s PlayData: %s", giftID.c_str(), extID.c_str(), playData.dump().c_str());
         auto* ws = core.getWebsocketServer();
         if (ws && ws->is_running()) {
             ws->broadcastMessage(playData.dump());
