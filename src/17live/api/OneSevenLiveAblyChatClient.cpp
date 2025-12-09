@@ -29,7 +29,6 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
         if (m_onOpen)
             QMetaObject::invokeMethod(this, [this]() { m_onOpen(); }, Qt::QueuedConnection);
         m_reconnectAttempts = 0;
-        sendConnect();
     });
     m_wsClient->setMessageCallback([this](const std::string& msg) {
         // Parse Ably protocol message and attach after CONNECTED
@@ -97,7 +96,7 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                         m_attachedChannels.remove(
                             QString::fromStdString(j["channel"].get<std::string>()));
                     }
-                } else if (action == 20 || action == 21) {
+                } else if (action == 1 || action == 2) {
                     int msgSerial = j.contains("msgSerial") && j["msgSerial"].is_number_integer()
                                         ? j["msgSerial"].get<int>()
                                         : -1;
@@ -106,7 +105,13 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                         reason = j["error"].dump();
                     }
                     obs_log(LOG_INFO, "[Ably] %s msgSerial=%d reason=%s",
-                            action == 20 ? "ack" : "nack", msgSerial, reason.c_str());
+                            action == 1 ? "ack" : "nack", msgSerial, reason.c_str());
+                }
+                if (j.contains("connectionSerial") && j["connectionSerial"].is_number_integer()) {
+                    try {
+                        m_lastConnectionSerial = j["connectionSerial"].get<long long>();
+                    } catch (...) {
+                    }
                 }
             }
         } catch (...) {
@@ -220,7 +225,12 @@ void OneSevenLiveAblyChatClient::tryConnectWithFallbackHosts() {
         return;
     const QString host = m_hosts[m_hostIndex];
     // Build Ably websocket URL with token auth (JSON protocol, echo off)
-    QUrl url(QString("%1?protocol=json&echo=false&access_token=%2&v=1.2").arg(host, m_token));
+    QString query = QString("protocol=json&echo=false&access_token=%1&v=1.2").arg(m_token);
+    if (!m_connectionKey.isEmpty() && m_lastConnectionSerial >= 0) {
+        query += QString("&resume=%1&connection_serial=%2")
+                     .arg(m_connectionKey, QString::number(m_lastConnectionSerial));
+    }
+    QUrl url(QString("%1?%2").arg(host, query));
     m_wsClient->connectUrl(url.toString());
 }
 
@@ -402,7 +412,9 @@ void OneSevenLiveAblyChatClient::sendAuth() {
         return;
     nlohmann::json authMsg;
     authMsg["action"] = 17;
-    authMsg["accessToken"] = m_token.toStdString();
+    nlohmann::json auth;
+    auth["accessToken"] = m_token.toStdString();
+    authMsg["auth"] = auth;
     m_wsClient->sendText(QString::fromStdString(authMsg.dump()));
 }
 

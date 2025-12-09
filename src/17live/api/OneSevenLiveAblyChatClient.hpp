@@ -66,6 +66,7 @@ class OneSevenLiveAblyChatClient : public QObject {
     int m_tokenRefreshAdvanceMs{60000};
     int m_tokenDefaultTtlMs{3000000};
     QString m_connectionKey;
+    long long m_lastConnectionSerial{-1};
     bool m_attached{false};
     QSet<QString> m_attachedChannels;
     long long m_msgSerialCounter{0};
