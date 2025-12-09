@@ -520,9 +520,11 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                             if (payload.size() > 2)
                                 reason.assign(payload.data() + 2, payload.size() - 2);
                         }
-                        obs_log(LOG_INFO, "[Websocket Client] Close received: code=%d reason=%s",
-                                code, reason.c_str());
-                        if (onError) {
+                        if (code != 1000) {
+                            obs_log(LOG_INFO, "[Websocket Client] Close received: code=%d reason=%s",
+                                    code, reason.c_str());
+                        }
+                        if (code != 1000 && onError) {
                             std::string msg =
                                 std::string("ws_close ") + std::to_string(code) +
                                 (reason.empty() ? std::string("") : std::string(" ") + reason);
