@@ -118,7 +118,11 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
             // inner gift is not a vff gift, check outside gift
             std::string extID;
             if (gm.contains("extID") && gm["extID"].is_string()) extID = gm["extID"].get<std::string>();
-            std::optional<nlohmann::json> extGift = OneSevenLiveCoreManager::getInstance().getGiftByID(extID);
+            obs_log(LOG_INFO,)
+            std::optional<nlohmann::json> extGift;
+            if (!extID.empty())
+                extGift = OneSevenLiveCoreManager::getInstance().getGiftByID(extID);
+            
             if (!extGift || !extGift->contains("vffURL") || !extGift->contains("vffJson") ||
                 !(*extGift)["vffURL"].is_string() || !(*extGift)["vffJson"].is_string()) {
                 // no gift found
