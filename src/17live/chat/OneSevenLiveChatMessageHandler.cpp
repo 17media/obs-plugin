@@ -103,6 +103,7 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
     obs_log(LOG_DEBUG, "Gift playback message received %s", decoded.dump().c_str());
 
     try {
+        // 1. Extract Gift ID and Message Data
         std::string giftID;
         nlohmann::json gm;
         if (decoded.contains("giftMsg") && decoded["giftMsg"].is_object()) {
@@ -110,66 +111,88 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
             if (gm.contains("giftID") && gm["giftID"].is_string())
                 giftID = gm["giftID"].get<std::string>();
         }
+
+        // 2. Find Gift Definition (Direct or Extended)
         std::optional<nlohmann::json> gift;
-        if (!giftID.empty())
-            gift = OneSevenLiveCoreManager::getInstance().getGiftByID(giftID);
-        if (!gift || !gift->contains("vffURL") || !gift->contains("vffJson") ||
-            !(*gift)["vffURL"].is_string() || !(*gift)["vffJson"].is_string()) {
-            // inner gift is not a vff gift, check outside gift
+        auto& core = OneSevenLiveCoreManager::getInstance();
+
+        // Try direct lookup
+        if (!giftID.empty()) {
+            gift = core.getGiftByID(giftID);
+        }
+
+        // Helper lambda to check if a gift object has valid VFF data
+        auto hasVFF = [](const std::optional<nlohmann::json>& g) -> bool {
+            return g && g->contains("vffURL") && g->contains("vffJson") &&
+                   (*g)["vffURL"].is_string() && (*g)["vffJson"].is_string();
+        };
+
+        // If direct lookup failed or has no VFF, try extended ID
+        if (!hasVFF(gift)) {
             std::string extID;
-            if (gm.contains("extID") && gm["extID"].is_string()) extID = gm["extID"].get<std::string>();
-            obs_log(LOG_INFO,)
+            if (gm.contains("extID") && gm["extID"].is_string()) {
+                extID = gm["extID"].get<std::string>();
+            }
+
             std::optional<nlohmann::json> extGift;
-            if (!extID.empty())
-                extGift = OneSevenLiveCoreManager::getInstance().getGiftByID(extID);
-            
-            if (!extGift || !extGift->contains("vffURL") || !extGift->contains("vffJson") ||
-                !(*extGift)["vffURL"].is_string() || !(*extGift)["vffJson"].is_string()) {
-                // no gift found
-                obs_log(LOG_WARNING, "Missing VFF fields. message=%s", decoded.dump().c_str());
+            if (!extID.empty()) {
+                extGift = core.getGiftByID(extID);
+            }
+
+            if (!hasVFF(extGift)) {
+                obs_log(LOG_WARNING, "Missing VFF fields for giftID=%s and extID=%s. message=%s",
+                        giftID.c_str(), extID.c_str(), decoded.dump().c_str());
                 return;
             }
             gift = extGift;
         }
-        {
-            std::string vffURL = (*gift)["vffURL"].get<std::string>();
-            std::string vffJson = (*gift)["vffJson"].get<std::string>();
-            if (vffURL.empty() || vffJson.empty()) {
-                obs_log(LOG_WARNING, "Empty VFF fields. message=%s", decoded.dump().c_str());
-                return;
-            }
-            nlohmann::json playData;
-            playData["type"] = "play_vff";
-            playData["vffURL"] = vffURL;
-            playData["vffJson"] = vffJson;
-            try {
-                const auto& gm = decoded["giftMsg"];
-                if (gm.contains("giftMetas") && gm["giftMetas"].is_array() &&
-                    !gm["giftMetas"].empty()) {
-                    const auto& meta0 = gm["giftMetas"][0];
-                    if (meta0.contains("composite") && meta0["composite"].is_array()) {
-                        nlohmann::json compositeObj = nlohmann::json::object();
-                        for (const auto& item : meta0["composite"]) {
-                            if (item.contains("tag") && item.contains("imageURL") &&
-                                item["tag"].is_string() && item["imageURL"].is_string()) {
-                                compositeObj[item["tag"].get<std::string>()] =
-                                    item["imageURL"].get<std::string>();
-                            }
-                        }
-                        if (!compositeObj.empty())
-                            playData["compositeData"] = compositeObj;
-                    }
-                }
-            } catch (...) {
-            }
-            try {
-                obs_log(LOG_DEBUG, "PlayData: %s", playData.dump().c_str());
-                auto* ws = OneSevenLiveCoreManager::getInstance().getWebsocketServer();
-                if (ws && ws->is_running())
-                    ws->broadcastMessage(playData.dump());
-            } catch (...) {
-            }
+
+        // 3. Construct Playback Data
+        std::string vffURL = (*gift)["vffURL"].get<std::string>();
+        std::string vffJson = (*gift)["vffJson"].get<std::string>();
+
+        if (vffURL.empty() || vffJson.empty()) {
+            obs_log(LOG_WARNING, "Empty VFF fields. message=%s", decoded.dump().c_str());
+            return;
         }
+
+        nlohmann::json playData;
+        playData["type"] = "play_vff";
+        playData["vffURL"] = vffURL;
+        playData["vffJson"] = vffJson;
+
+        // 4. Extract Composite Data (if any)
+        try {
+            if (gm.contains("giftMetas") && gm["giftMetas"].is_array() &&
+                !gm["giftMetas"].empty()) {
+                const auto& meta0 = gm["giftMetas"][0];
+                if (meta0.contains("composite") && meta0["composite"].is_array()) {
+                    nlohmann::json compositeObj = nlohmann::json::object();
+                    for (const auto& item : meta0["composite"]) {
+                        if (item.contains("tag") && item.contains("imageURL") &&
+                            item["tag"].is_string() && item["imageURL"].is_string()) {
+                            compositeObj[item["tag"].get<std::string>()] =
+                                item["imageURL"].get<std::string>();
+                        }
+                    }
+                    if (!compositeObj.empty())
+                        playData["compositeData"] = compositeObj;
+                }
+            }
+        } catch (...) {
+            // Ignore composite parsing errors, continue with basic playback
+        }
+
+        // 5. Broadcast to WebSocket Clients
+        obs_log(LOG_DEBUG, "PlayData: %s", playData.dump().c_str());
+        auto* ws = core.getWebsocketServer();
+        if (ws && ws->is_running()) {
+            ws->broadcastMessage(playData.dump());
+        }
+
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "Exception in handleGiftPlayback: %s", e.what());
     } catch (...) {
+        obs_log(LOG_ERROR, "Unknown exception in handleGiftPlayback");
     }
 }
