@@ -7,6 +7,7 @@
 #include <QMetaObject>
 #include <QTimer>
 #include <QUrl>
+#include <QPointer>
 #include <optional>
 #include <thread>
 
@@ -438,7 +439,10 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
     auto authCb = m_authCallback;
     auto* api = OneSevenLiveCoreManager::getInstance().getApiWrapper();
 
-    std::thread([this, rid, callback, authCb, api]() {
+    // Use QPointer to track object validity
+    QPointer<OneSevenLiveAblyChatClient> self(this);
+    
+    std::thread([self, rid, callback, authCb, api]() {
         nlohmann::json resp;
         bool success = false;
         
@@ -448,15 +452,20 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
              success = api->GetAblyToken(rid.toStdString(), resp);
         }
         
-        QMetaObject::invokeMethod(this, [this, success, resp, callback]() {
+        // If object is destroyed, don't invoke callback
+        if (!self) return;
+
+        QMetaObject::invokeMethod(self, [self, success, resp, callback]() {
+            if (!self) return;
+            
             if (success) {
                 if (resp.contains("token") && resp["token"].is_string()) {
-                    m_token = QString::fromStdString(resp["token"].get<std::string>());
+                    self->m_token = QString::fromStdString(resp["token"].get<std::string>());
                 } else {
                     obs_log(LOG_ERROR, "Got Ably token response error: %s", resp.dump().c_str());
                 }
                 
-                if (!m_token.isEmpty()) {
+                if (!self->m_token.isEmpty()) {
                     qint64 expiresMs = 0, issuedMs = 0, ttlMs = 0;
                     if (resp.contains("expires") && resp["expires"].is_number_integer())
                         expiresMs = resp["expires"].get<long long>();
@@ -466,7 +475,7 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
                         ttlMs = resp["ttl"].get<long long>();
                     if (resp.contains("expiresIn") && resp["expiresIn"].is_number_integer())
                         ttlMs = resp["expiresIn"].get<long long>();
-                    scheduleTokenRefresh(expiresMs, issuedMs, ttlMs);
+                    self->scheduleTokenRefresh(expiresMs, issuedMs, ttlMs);
                     
                     if (callback) callback(true);
                     return;

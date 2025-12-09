@@ -1,4 +1,5 @@
 #include "OneSevenLiveWebsocketClient.hpp"
+#include <QPointer>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -166,8 +167,22 @@ void OneSevenLiveWebsocketClient::stopThread() {
     }
     cleanupTLS();
     if (connected.load()) {
-        if (onClose)
-            QMetaObject::invokeMethod(this, [this]() { onClose(); }, Qt::QueuedConnection);
+        // If we are stopping (e.g. destruction or explicit disconnect), 
+        // we should not invoke async callbacks if the object might be destroyed soon.
+        // However, standard disconnect() calls might expect a callback.
+        // To be safe in destruction scenarios, we should avoid QueuedConnection if we can't guarantee lifetime,
+        // but since we don't know if this is destruction or just stop, we rely on the caller to manage lifetime
+        // OR we can use QPointer in the lambda capture if we inherited from QObject (which we do).
+        
+        // Better yet: invokeMethod with Qt::DirectConnection if we are in the same thread? 
+        // No, stopThread can be called from any thread.
+        // Let's use QPointer protection pattern here too.
+        
+        QPointer<OneSevenLiveWebsocketClient> self(this);
+        QMetaObject::invokeMethod(this, [self]() { 
+            if (self && self->onClose) self->onClose(); 
+        }, Qt::QueuedConnection);
+        
         connected.store(false);
     }
 }
