@@ -137,8 +137,10 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
 }
 
 OneSevenLiveStreamingDock::~OneSevenLiveStreamingDock() {
-    disconnect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this, nullptr);
-    disconnect(streamManager, &OneSevenLiveStreamManager::streamStatusChanged, this, nullptr);
+    if (streamManager) {
+        disconnect(streamManager, &OneSevenLiveStreamManager::roomInfoLoaded, this, nullptr);
+        disconnect(streamManager, &OneSevenLiveStreamManager::streamStatusChanged, this, nullptr);
+    }
 
     // Disconnect all QComboBox signals to prevent crashes during destruction
     if (eventCombo) {

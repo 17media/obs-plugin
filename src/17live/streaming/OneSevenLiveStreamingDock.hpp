@@ -12,6 +12,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QTimer>
+#include <QPointer>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <atomic>
@@ -179,7 +180,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
    private:
     int hashtagSelectLimit = 2;  // Maximum number of tags that can be added
 
-    OneSevenLiveStreamManager *streamManager = nullptr;
+    QPointer<OneSevenLiveStreamManager> streamManager = nullptr;
     OneSevenLiveConfigManager *configManager = nullptr;
 
     QString currentInfoUuid = "";
