@@ -45,6 +45,14 @@ if(ENABLE_FRONTEND_API)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::obs-frontend-api)
 endif()
 
+if(OS_WINDOWS)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+    ws2_32
+    bcrypt
+    winhttp
+  )
+endif()
+
 if(ENABLE_QT)
   # Add our custom cmake modules to the front of the module path
   # This ensures our custom FindWrapOpenGL.cmake is used instead of Qt6's version
