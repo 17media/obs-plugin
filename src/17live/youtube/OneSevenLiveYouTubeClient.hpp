@@ -132,6 +132,10 @@ class OneSevenLiveYouTubeClient : public QObject {
     void createLiveStream(const QString& title, const QString& description = QString());
     void deleteLiveStream(const QString& streamId);
     void getMyLiveBroadcasts(const QString& broadcastStatus = QString());
+    void getLiveBroadcastById(const QString& broadcastId);
+    void createLiveBroadcast(const QString& title, const QString& privacyStatus = "public");
+    void bindLiveBroadcast(const QString& broadcastId, const QString& streamId);
+    void transitionLiveBroadcast(const QString& broadcastId, const QString& status);
 
     // Configuration
     void setApiKey(const QString& apiKey);
@@ -143,6 +147,10 @@ class OneSevenLiveYouTubeClient : public QObject {
     void liveStreamCreated(const YouTubeLiveStream& stream);
     void liveStreamDeleted(const QString& streamId);
     void myLiveBroadcastsReceived(const YouTubeLiveBroadcastListResponse& response);
+    void liveBroadcastReceived(const YouTubeLiveBroadcast& broadcast);
+    void liveBroadcastCreated(const QString& broadcastId);
+    void liveBroadcastBound(const QString& broadcastId, const QString& streamId);
+    void liveBroadcastTransitioned(const QString& broadcastId, const QString& status);
     void errorOccurred(const QString& error, const QString& operation);
     void requestCompleted(const QString& operation);
 
@@ -153,6 +161,9 @@ class OneSevenLiveYouTubeClient : public QObject {
    private:
     void makeApiRequest(const QString& endpoint, const QString& method = "GET",
                         const QString& body = QString());
+    QString m_lastBroadcastId;
+    QString m_lastStreamId;
+    QString m_lastTransitionStatus;
     QString buildApiUrl(const QString& endpoint, const QMap<QString, QString>& params) const;
 
     // JSON parsing

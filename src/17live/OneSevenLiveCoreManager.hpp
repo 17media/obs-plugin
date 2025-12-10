@@ -149,6 +149,7 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveYouTubeChatClient* getYouTubeChatClient() const;
     OneSevenLiveTwitchChatClient* getTwitchChatClient() const;
     OneSevenLiveAblyChatClient* getAblyChatClient() const;
+    OneSevenLiveYouTubeClient* getYouTubeApiClient() const;
 
     // Chat clients lifecycle
     void createYouTubeChatClient();
@@ -170,6 +171,7 @@ class OneSevenLiveCoreManager : public QObject {
     void stopYouTubeChatPolling();
     void connectTwitchChatClient(const QString& channel = QString());
     void disconnectTwitchChatClient();
+    void orchestrateYouTubeBroadcast(const QString& title);
 
     bool handleLoginClicked();
 

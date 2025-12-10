@@ -351,11 +351,13 @@ void OneSevenLiveYouTubeChatClient::makeChatRequest(const QString& endpoint) {
         headers.push_back(bearer);
     }
 
+    std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
     RemoteTextThread* thread =
         new RemoteTextThread(endpoint.toStdString(), std::move(headers), "application/json",
-                             std::string(),  // No body for GET request
-                             /*timeoutSec=*/m_timeoutMs / 1000,
-                             /*isImageRequest=*/false);
+                             std::string(),
+                             m_timeoutMs / 1000,
+                             false,
+                             cancelFlag);
 
     m_currentOperation = "getChatMessages";
 
@@ -415,6 +417,24 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
         if (!response.isEmpty()) {
             obs_log(LOG_WARNING, "YouTube Chat API Error response: %s",
                     response.toUtf8().constData());
+            try {
+                auto j = nlohmann::json::parse(response.toStdString());
+                auto ej = j.contains("error") ? j["error"] : nlohmann::json{};
+                std::string emsg = ej.value("message", std::string());
+                std::string estatus = ej.value("status", std::string());
+                int ecode = ej.value("code", 0);
+                std::string ereason;
+                if (ej.contains("errors") && ej["errors"].is_array() && !ej["errors"].empty()) {
+                    auto e0 = ej["errors"][0];
+                    ereason = e0.value("reason", std::string());
+                }
+                if (ecode || !emsg.empty() || !estatus.empty() || !ereason.empty()) {
+                    obs_log(LOG_WARNING,
+                            "YouTube Chat API Error details: code=%d message=%s status=%s reason=%s",
+                            ecode, emsg.c_str(), estatus.c_str(), ereason.c_str());
+                }
+            } catch (...) {
+            }
         }
 
         bool chatEnded = false;

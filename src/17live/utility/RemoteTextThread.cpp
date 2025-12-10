@@ -116,9 +116,12 @@ void RemoteTextThread::run() {
             curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, postData.c_str());
         }
 
-        // Setup progress callback for cancellation
         curl_easy_setopt(curl.get(), CURLOPT_XFERINFOFUNCTION, progress_callback);
-        curl_easy_setopt(curl.get(), CURLOPT_XFERINFODATA, &m_isCancelled);
+        if (externalCancel) {
+            curl_easy_setopt(curl.get(), CURLOPT_XFERINFODATA, externalCancel);
+        } else {
+            curl_easy_setopt(curl.get(), CURLOPT_XFERINFODATA, &m_isCancelled);
+        }
         curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 0L);
 
         code = curl_easy_perform(curl.get());

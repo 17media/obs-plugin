@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 #include "plugin-support.h"
+#include "OneSevenLiveCoreManager.hpp"
 #include "utility/RemoteTextThread.hpp"
 
 const QString OneSevenLiveYouTubeClient::YOUTUBE_API_BASE_URL =
@@ -133,6 +134,23 @@ void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStat
     makeApiRequest(endpoint);
 }
 
+void OneSevenLiveYouTubeClient::getLiveBroadcastById(const QString& broadcastId) {
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "getLiveBroadcastById");
+        return;
+    }
+    if (broadcastId.isEmpty()) {
+        emit errorOccurred("Broadcast ID cannot be empty", "getLiveBroadcastById");
+        return;
+    }
+    QMap<QString, QString> params;
+    params["id"] = broadcastId;
+    params["part"] = "snippet,status";
+    QString endpoint = buildApiUrl("liveBroadcasts", params);
+    m_currentOperation = "getLiveBroadcastById";
+    makeApiRequest(endpoint);
+}
+
 void OneSevenLiveYouTubeClient::setApiKey(const QString& apiKey) {
     m_apiKey = apiKey;
     obs_log(LOG_INFO, "YouTube API key set");
@@ -141,6 +159,63 @@ void OneSevenLiveYouTubeClient::setApiKey(const QString& apiKey) {
 void OneSevenLiveYouTubeClient::setTimeout(int timeoutMs) {
     m_timeoutMs = timeoutMs;
     obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
+}
+
+void OneSevenLiveYouTubeClient::createLiveBroadcast(const QString& title, const QString& privacyStatus) {
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "createLiveBroadcast");
+        return;
+    }
+    nlohmann::json req;
+    nlohmann::json sn;
+    sn["title"] = title.toStdString();
+    req["snippet"] = sn;
+    nlohmann::json cd;
+    nlohmann::json mon;
+    mon["enableMonitorStream"] = true;
+    cd["monitorStream"] = mon;
+    req["contentDetails"] = cd;
+    nlohmann::json st;
+    st["privacyStatus"] = privacyStatus.toStdString();
+    req["status"] = st;
+    QString body = QString::fromStdString(req.dump());
+    QMap<QString, QString> params;
+    params["part"] = "snippet,contentDetails,status";
+    QString endpoint = buildApiUrl("liveBroadcasts", params);
+    m_currentOperation = "createLiveBroadcast";
+    makeApiRequest(endpoint, "POST", body);
+}
+
+void OneSevenLiveYouTubeClient::bindLiveBroadcast(const QString& broadcastId, const QString& streamId) {
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "bindLiveBroadcast");
+        return;
+    }
+    m_lastBroadcastId = broadcastId;
+    m_lastStreamId = streamId;
+    QMap<QString, QString> params;
+    params["part"] = "id,contentDetails";
+    params["id"] = broadcastId;
+    params["streamId"] = streamId;
+    QString endpoint = buildApiUrl("liveBroadcasts/bind", params);
+    m_currentOperation = "bindLiveBroadcast";
+    makeApiRequest(endpoint, "POST");
+}
+
+void OneSevenLiveYouTubeClient::transitionLiveBroadcast(const QString& broadcastId, const QString& status) {
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "transitionLiveBroadcast");
+        return;
+    }
+    m_lastBroadcastId = broadcastId;
+    m_lastTransitionStatus = status;
+    QMap<QString, QString> params;
+    params["part"] = "status";
+    params["id"] = broadcastId;
+    params["broadcastStatus"] = status;
+    QString endpoint = buildApiUrl("liveBroadcasts/transition", params);
+    m_currentOperation = "transitionLiveBroadcast";
+    makeApiRequest(endpoint, "POST");
 }
 
 void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QString& method,
@@ -175,11 +250,13 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
         headers.push_back(bearer);
     }
 
+    std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
     RemoteTextThread* thread = new RemoteTextThread(
         endpoint.toStdString(), std::move(headers), "application/json",
         method == "POST" || method == "PUT" ? body.toStdString() : std::string(),
-        /*timeoutSec=*/m_timeoutMs / 1000,
-        /*isImageRequest=*/false);
+        m_timeoutMs / 1000,
+        false,
+        cancelFlag);
 
     if (m_currentOperation.isEmpty()) {
         if (m_currentOperation.isEmpty()) {
@@ -286,6 +363,41 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
             emit myLiveBroadcastsReceived(broadcasts);
             QMetaObject::invokeMethod(this, [this]() {
                 emit requestCompleted(QString("getMyLiveBroadcasts"));
+            }, Qt::QueuedConnection);
+        } else if (m_currentOperation == "getLiveBroadcastById") {
+            YouTubeLiveBroadcast b;
+            try {
+                if (json.contains("items") && json["items"].is_array() && !json["items"].empty()) {
+                    auto x = json["items"][0];
+                    b = parseLiveBroadcast(x);
+                }
+            } catch (...) {
+            }
+            emit liveBroadcastReceived(b);
+            QMetaObject::invokeMethod(this, [this]() {
+                emit requestCompleted(QString("getLiveBroadcastById"));
+            }, Qt::QueuedConnection);
+        } else if (m_currentOperation == "createLiveBroadcast") {
+            QString id;
+            try {
+                if (json.contains("id") && json["id"].is_string()) {
+                    id = QString::fromStdString(json["id"].get<std::string>());
+                }
+            } catch (...) {
+            }
+            emit liveBroadcastCreated(id);
+            QMetaObject::invokeMethod(this, [this]() {
+                emit requestCompleted(QString("createLiveBroadcast"));
+            }, Qt::QueuedConnection);
+        } else if (m_currentOperation == "bindLiveBroadcast") {
+            emit liveBroadcastBound(m_lastBroadcastId, m_lastStreamId);
+            QMetaObject::invokeMethod(this, [this]() {
+                emit requestCompleted(QString("bindLiveBroadcast"));
+            }, Qt::QueuedConnection);
+        } else if (m_currentOperation == "transitionLiveBroadcast") {
+            emit liveBroadcastTransitioned(m_lastBroadcastId, m_lastTransitionStatus);
+            QMetaObject::invokeMethod(this, [this]() {
+                emit requestCompleted(QString("transitionLiveBroadcast"));
             }, Qt::QueuedConnection);
         }
     }

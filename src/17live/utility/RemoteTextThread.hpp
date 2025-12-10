@@ -33,6 +33,7 @@ class RemoteTextThread : public QThread {
 
     int timeoutSec = 0;
     bool isImageRequest = false;
+    std::atomic<bool>* externalCancel = nullptr;
 
     void run() override;
 
@@ -61,9 +62,29 @@ class RemoteTextThread : public QThread {
           timeoutSec(timeoutSec_),
           isImageRequest(isImageRequest_) {}
     
+    inline RemoteTextThread(std::string url_, std::vector<std::string> &&extraHeaders_,
+                            std::string contentType_, std::string postData_, int timeoutSec_,
+                            bool isImageRequest_, std::atomic<bool>* externalCancel_)
+        : url(url_),
+          contentType(contentType_),
+          postData(postData_),
+          extraHeaders(std::move(extraHeaders_)),
+          timeoutSec(timeoutSec_),
+          isImageRequest(isImageRequest_),
+          externalCancel(externalCancel_) {}
+    
+    inline RemoteTextThread(std::string url_, std::string contentType_, std::string postData_,
+                            int timeoutSec_, bool isImageRequest_, std::atomic<bool>* externalCancel_)
+        : url(url_),
+          contentType(contentType_),
+          postData(postData_),
+          timeoutSec(timeoutSec_),
+          isImageRequest(isImageRequest_),
+          externalCancel(externalCancel_) {}
+    
     void cancel() { m_isCancelled.store(true); }
 
-   private:
+  private:
     std::atomic<bool> m_isCancelled{false};
 };
 
