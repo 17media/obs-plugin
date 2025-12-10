@@ -1604,6 +1604,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     obs_log(LOG_INFO, "Chat URL: %s", chatUrl.toStdString().c_str());
 
     if (!chatDock) {
+        obs_log(LOG_INFO, "Creating new chatDock instance");
         chatDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
         chatDock->setObjectName("OneSevenLiveChatDock");
         chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -1617,6 +1618,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         if (isStartupRestore) {
             chatDock->setVisible(true);
         } else {
+            obs_log(LOG_INFO, "Setting chatDock to floating mode");
             chatDock->setFloating(true);
             chatDock->setVisible(true);
             
@@ -1628,6 +1630,10 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         }
 
         connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            obs_log(LOG_INFO, "chatDock visibility changed: %s, isFloating: %s", 
+                    visible ? "true" : "false", 
+                    (chatDock && chatDock->isFloating()) ? "true" : "false");
+
             if (menuManager) {
                 menuManager->updateDockVisibility(
                     visible, streamingDock && streamingDock->isVisible(),
@@ -1642,10 +1648,12 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
 
             // Fix for crash when reopening floating dock: destroy it when closed if floating
             if (!visible && chatDock && chatDock->isFloating()) {
+                obs_log(LOG_INFO, "Destroying floating chatDock via deleteLater");
                 chatDock->deleteLater();
             }
         });
     } else {
+        obs_log(LOG_INFO, "Toggling existing chatDock visibility. Current: %s", chatDock->isVisible() ? "visible" : "hidden");
         chatDock->setVisible(!chatDock->isVisible());
         if (chatDock->isVisible()) {
             OneSevenLiveChatWidget* widget =

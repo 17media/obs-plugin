@@ -14,6 +14,8 @@
 OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& chatUrl)
     : QWidget(parent), chatUrl_(chatUrl) {
     
+    obs_log(LOG_INFO, "OneSevenLiveChatWidget constructed");
+
     // Making this a native window often helps with embedding native child windows (CEF)
     this->setAttribute(Qt::WA_NativeWindow);
     
@@ -80,18 +82,22 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
 }
 
 OneSevenLiveChatWidget::~OneSevenLiveChatWidget() {
+    obs_log(LOG_INFO, "OneSevenLiveChatWidget destructor called");
     if (cefWidget_) {
         int panel_version = obs_browser_qcef_version();
         if (panel_version >= 2) {
+            obs_log(LOG_INFO, "Closing CEF browser in destructor");
             cefWidget_->closeBrowser();
         }
     }
 }
 
 void OneSevenLiveChatWidget::shutdown() {
+    obs_log(LOG_INFO, "OneSevenLiveChatWidget shutdown called");
     if (cefWidget_) {
         int panel_version = obs_browser_qcef_version();
         if (panel_version >= 2) {
+            obs_log(LOG_INFO, "Closing CEF browser in shutdown");
             cefWidget_->closeBrowser();
         }
     }
@@ -111,6 +117,7 @@ void OneSevenLiveChatWidget::reload() {
 }
 
 void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
+    obs_log(LOG_INFO, "OneSevenLiveChatWidget showEvent");
     QWidget::showEvent(event);
     
     if (cefWidget_) {
@@ -125,6 +132,7 @@ void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
 }
 
 void OneSevenLiveChatWidget::hideEvent(QHideEvent* event) {
+    obs_log(LOG_INFO, "OneSevenLiveChatWidget hideEvent");
     QWidget::hideEvent(event);
     if (cefWidget_) {
         cefWidget_->setVisible(false);
