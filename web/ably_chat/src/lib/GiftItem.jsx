@@ -20,15 +20,23 @@ const GiftPoint = styled.span`
   font-size: 0.875rem;
 `;
 
-const GiftItem = ({ messageType, giftInfo, luckyBagInfo }) => {
+const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
   const t = useTranslations('ChatPage');
 
   if (!giftInfo) {
-    return null;
+    return (
+      <GiftItemContainer>
+        <>
+          {t('GIVE_GIFT_DEFAULT', {
+            point: giftPoint
+          })}
+        </>
+      </GiftItemContainer>
+    )
   }
 
   if (messageType === MsgType_NEW_LUCKYBAG && !luckyBagInfo) {
-    return null;
+    messageType = MsgType_NEW_GIFT; // Default to gift if lucky bag info is missing
   }
 
   const name = giftInfo.get('name');

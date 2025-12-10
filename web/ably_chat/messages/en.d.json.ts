@@ -6,6 +6,7 @@ declare const messages: {
     "AI_COHOST": "AI Assistant",
     "GIVE_GIFT": "Sent a gift to the streamer",
     "GIVE_LUCKYBAG_GIFT": "Opened {luckyBagName} and sent {giftName} ({point})",
+    "GIVE_GIFT_DEFAULT": "Sent a gift ({point})",
     "EMPTY_CHAT_MESSAGE": "Audience comments will show up here. Have fun with your viewers!",
     "POKE_ONE": "Streamer pokes {receiverName}",
     "POKE_BACK": "pokes back",

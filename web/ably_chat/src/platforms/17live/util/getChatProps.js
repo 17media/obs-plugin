@@ -29,6 +29,7 @@ export const getChatProps = chat => {
         type: chat.get('type'),
         checkingLevel: chat.get('checkinLevel'),
         gift: chat.get('gift'),
+        giftPoint: chat.get('point'),
         luckyBag: chat.get('luckyBag'),
         pokeInfo: chat.get('pokeInfo'),
         giftType: chat.get('giftType'),

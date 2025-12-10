@@ -46,7 +46,7 @@ const MultilineDesktop = styled(Multiline)`
     color: ${({ color }) => color};
 `;
 
-const renderMessageContent = (messageType, content, gift = null, luckyBag = null, pokeInfo = null, streamerInfo = null) => {
+const renderMessageContent = (messageType, content, gift = null, giftPoint = null, luckyBag = null, pokeInfo = null, streamerInfo = null) => {
     switch (messageType) {
         case MsgType_COMMENT:
         case MsgType_JOIN_ROOM:
@@ -54,7 +54,7 @@ const renderMessageContent = (messageType, content, gift = null, luckyBag = null
             return content;
         case MsgType_NEW_GIFT:
         case MsgType_NEW_LUCKYBAG:
-            return <GiftItem messageType={messageType} giftInfo={gift} luckyBagInfo={luckyBag} />;
+            return <GiftItem messageType={messageType} giftInfo={gift} giftPoint={giftPoint} luckyBagInfo={luckyBag} />;
         case MsgType_POKE:
             return <PokeItem pokeInfo={pokeInfo} streamerInfo={streamerInfo} />;
         default:
@@ -93,6 +93,7 @@ const Chat = ({
     gift,
     luckyBag,
     pokeInfo,
+    giftPoint,
 }) => {
     const t = useTranslations('ChatPage');
 
@@ -238,7 +239,7 @@ const Chat = ({
                     <MultilineDesktop
                         color={hasUserDecoration ? textColor : userTypeColor}
                     >
-                        {renderMessageContent(messageType, content, gift, luckyBag, pokeInfo, streamerInfo)}
+                        {renderMessageContent(messageType, content, gift, giftPoint, luckyBag, pokeInfo, streamerInfo)}
                     </MultilineDesktop>
 
                     {/* Top right badge */}
