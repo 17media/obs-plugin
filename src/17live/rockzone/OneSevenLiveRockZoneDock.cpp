@@ -267,18 +267,18 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         bool success = false;
         
         // Try to load mock data first
-        QFile mockFile("/Users/zhuyu/workspace/mk/17live/dev/obs-17live/temp/rock3.json");
-        if (mockFile.exists() && mockFile.open(QIODevice::ReadOnly)) {
-            try {
-                QByteArray data = mockFile.readAll();
-                jsonResponse = Json::parse(data.toStdString());
-                success = true;
-                obs_log(LOG_INFO, "Loaded mock rock viewers data");
-            } catch (...) {
-                obs_log(LOG_ERROR, "Failed to parse mock rock viewers data");
-            }
-            mockFile.close();
-        }
+        // QFile mockFile("/Users/zhuyu/workspace/mk/17live/dev/obs-17live/temp/rock3.json");
+        // if (mockFile.exists() && mockFile.open(QIODevice::ReadOnly)) {
+        //     try {
+        //         QByteArray data = mockFile.readAll();
+        //         jsonResponse = Json::parse(data.toStdString());
+        //         success = true;
+        //         obs_log(LOG_INFO, "Loaded mock rock viewers data");
+        //     } catch (...) {
+        //         obs_log(LOG_ERROR, "Failed to parse mock rock viewers data");
+        //     }
+        //     mockFile.close();
+        // }
 
         if (!success) {
             success = apiWrapper->GetRockViewers(roomID, jsonResponse);
@@ -399,10 +399,9 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
 
                         QListWidgetItem* item = nullptr;
                         if (userItemMap.contains(uid)) {
-                            // Existing user, update item
+                            // Existing user
                             item = userItemMap.value(uid);
-                            updateUserItem(item, user, armyNameResponse);
-
+                            
                             // Move item to correct position if needed
                             int currentRow = userList->row(item);
                             if (currentRow != i && currentRow >= 0) {
@@ -412,11 +411,14 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                                     userList->insertItem(i, item);
                                 }
                             }
+                            // Update existing item or recreate widget if it was destroyed by takeItem
+                            updateUserItem(item, user, armyNameResponse);
                         } else {
                             // New user
                             item = new QListWidgetItem();
-                            updateUserItem(item, user, armyNameResponse);
+                            // Must insert item BEFORE setting widget, otherwise setItemWidget fails
                             userList->insertItem(i, item);
+                            updateUserItem(item, user, armyNameResponse);
                             userItemMap.insert(uid, item);
                         }
                     }
