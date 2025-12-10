@@ -264,7 +264,25 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         }
         // Execute API call in new thread
         Json jsonResponse;
-        bool success = apiWrapper->GetRockViewers(roomID, jsonResponse);
+        bool success = false;
+        
+        // Try to load mock data first
+        QFile mockFile("/Users/zhuyu/workspace/mk/17live/dev/obs-17live/temp/rock3.json");
+        if (mockFile.exists() && mockFile.open(QIODevice::ReadOnly)) {
+            try {
+                QByteArray data = mockFile.readAll();
+                jsonResponse = Json::parse(data.toStdString());
+                success = true;
+                obs_log(LOG_INFO, "Loaded mock rock viewers data");
+            } catch (...) {
+                obs_log(LOG_ERROR, "Failed to parse mock rock viewers data");
+            }
+            mockFile.close();
+        }
+
+        if (!success) {
+            success = apiWrapper->GetRockViewers(roomID, jsonResponse);
+        }
 
         Json response = jsonResponse;
 
@@ -294,23 +312,47 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     QHash<QString, int> idIndex;  // userID -> index in viewersList
                     viewersList.clear();
                     for (const auto& user : users) {
-                        const QString uid = user.displayUser.userID.isEmpty()
-                                                ? user.giftRankOne.userID
-                                                : user.displayUser.userID;
+                        QString uid;
+                        QString displayName;
+                        QString picture;
+                        
+                        // Determine user info based on type
+                        if (user.type == 3) { // Army
+                            uid = user.armyInfo.user.userID;
+                            displayName = user.armyInfo.user.displayName;
+                            picture = user.armyInfo.user.picture;
+                        } else if (user.type == 2) { // Guardian
+                             uid = user.guardian.owner.userID;
+                             displayName = user.guardian.owner.displayName;
+                             picture = user.guardian.owner.picture;
+                        } else if (user.type == 1) { // GiftRankOne
+                            uid = user.giftRankOne.userID;
+                            displayName = user.giftRankOne.displayName;
+                            picture = user.giftRankOne.picture;
+                        } else { // Type 0 or others
+                            uid = user.displayUser.userID;
+                            displayName = user.displayUser.displayName;
+                            picture = user.displayUser.picture;
+                        }
+
                         if (uid.isEmpty()) {
                             continue;
                         }
                         if (uid == QString::fromStdString(userID)) {
-                            continue;
-                        }
-                        if (user.userAttr.sentPoint <= 0) {
+                            obs_log(LOG_INFO, "Skipping viewer: matches current user");
                             continue;
                         }
                         
-                        // Filter out users with empty display name
-                        QString displayName = user.displayUser.displayName.isEmpty()
-                                                  ? user.giftRankOne.displayName
-                                                  : user.displayUser.displayName;
+                        if (user.anonymousInfo.isInvisible) {
+                            obs_log(LOG_INFO, "Skipping viewer: isInvisible is true");
+                            continue;
+                        }
+                        
+                        if (user.userAttr.sentPoint <= 0) {
+                            obs_log(LOG_INFO, "Skipping viewer: sentPoint <= 0");
+                            continue;
+                        }
+                        
                         if (displayName.trimmed().isEmpty()) {
                             continue;
                         }
@@ -320,26 +362,14 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             if (!existing.badgeTypes.contains(user.type)) {
                                 existing.badgeTypes.append(user.type);
                             }
-                            if (!existing.giftRankOne.userID.isEmpty()) {
-                                existing.displayUser = user.displayUser;
-                            }
                         } else {
                             OneSevenLiveRockZoneViewer base = user;
-                            // Apply fallback display name if needed
-                            if (base.displayUser.displayName.trimmed().isEmpty() &&
-                                !base.giftRankOne.displayName.trimmed().isEmpty()) {
-                                base.displayUser.displayName = base.giftRankOne.displayName;
-                                if (base.displayUser.picture.isEmpty()) {
-                                    base.displayUser.picture = base.giftRankOne.picture;
-                                }
-                            }
                             
-                            if (base.displayUser.userID.isEmpty()) {
-                                base.displayUser.userID = base.giftRankOne.userID;
-                                base.displayUser.displayName = base.giftRankOne.displayName;
-                                base.displayUser.picture = base.giftRankOne.picture;
-                            }
-
+                            // Force populate displayUser with the extracted info
+                            base.displayUser.userID = uid;
+                            base.displayUser.displayName = displayName;
+                            base.displayUser.picture = picture;
+                            
                             base.badgeTypes.clear();
                             base.badgeTypes.append(user.type);
                             viewersList.push_back(base);

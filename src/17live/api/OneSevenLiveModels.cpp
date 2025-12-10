@@ -774,6 +774,73 @@ bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne,
     return true;
 }
 
+bool JsonToOneSevenLiveGuardianOwner(const nlohmann::json &json, OneSevenLiveGuardianOwner &owner) {
+    if (json.contains("userID") && json["userID"].is_string()) {
+        owner.userID = QString::fromStdString(json["userID"].get<std::string>());
+    }
+    if (json.contains("displayName") && json["displayName"].is_string()) {
+        owner.displayName = QString::fromStdString(json["displayName"].get<std::string>());
+    }
+    if (json.contains("picture") && json["picture"].is_string()) {
+        owner.picture = QString::fromStdString(json["picture"].get<std::string>());
+    }
+    if (json.contains("name") && json["name"].is_string()) {
+        owner.name = QString::fromStdString(json["name"].get<std::string>());
+    }
+    if (json.contains("level") && json["level"].is_number()) {
+        owner.level = json["level"].get<int>();
+    }
+    if (json.contains("openID") && json["openID"].is_string()) {
+        owner.openID = QString::fromStdString(json["openID"].get<std::string>());
+    }
+    if (json.contains("region") && json["region"].is_string()) {
+        owner.region = QString::fromStdString(json["region"].get<std::string>());
+    }
+    if (json.contains("gloryroadMode") && json["gloryroadMode"].is_number()) {
+        owner.gloryroadMode = json["gloryroadMode"].get<int>();
+    }
+    return true;
+}
+
+bool OneSevenLiveGuardianOwnerToJson(const OneSevenLiveGuardianOwner &owner, nlohmann::json &json) {
+    json = {
+        {"userID", owner.userID.toStdString()},
+        {"displayName", owner.displayName.toStdString()},
+        {"picture", owner.picture.toStdString()},
+        {"name", owner.name.toStdString()},
+        {"level", owner.level},
+        {"openID", owner.openID.toStdString()},
+        {"region", owner.region.toStdString()},
+        {"gloryroadMode", owner.gloryroadMode},
+    };
+    return true;
+}
+
+bool JsonToOneSevenLiveGuardian(const nlohmann::json &json, OneSevenLiveGuardian &guardian) {
+    if (json.contains("owner") && json["owner"].is_object()) {
+        JsonToOneSevenLiveGuardianOwner(json["owner"], guardian.owner);
+    }
+    if (json.contains("bidPrice") && json["bidPrice"].is_number()) {
+        guardian.bidPrice = json["bidPrice"].get<int>();
+    }
+    if (json.contains("expireTime") && json["expireTime"].is_number()) {
+        guardian.expireTime = json["expireTime"].get<qint64>();
+    }
+    return true;
+}
+
+bool OneSevenLiveGuardianToJson(const OneSevenLiveGuardian &guardian, nlohmann::json &json) {
+    nlohmann::json ownerJson;
+    OneSevenLiveGuardianOwnerToJson(guardian.owner, ownerJson);
+
+    json = {
+        {"owner", ownerJson},
+        {"bidPrice", guardian.bidPrice},
+        {"expireTime", static_cast<long long>(guardian.expireTime)},
+    };
+    return true;
+}
+
 // Convert JSON to OneSevenLiveRockZoneViewer
 bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json,
                                       OneSevenLiveRockZoneViewer &viewer) {
@@ -813,6 +880,10 @@ bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json,
         JsonToOneSevenLiveGiftRankOne(json["giftRankOne"], viewer.giftRankOne);
     }
 
+    if (json.contains("guardian") && json["guardian"].is_object()) {
+        JsonToOneSevenLiveGuardian(json["guardian"], viewer.guardian);
+    }
+
     return true;
 }
 
@@ -837,6 +908,9 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer,
     nlohmann::json giftRankOneJson;
     OneSevenLiveGiftRankOneToJson(viewer.giftRankOne, giftRankOneJson);
 
+    nlohmann::json guardianJson;
+    OneSevenLiveGuardianToJson(viewer.guardian, guardianJson);
+
     json = nlohmann::json{
         {"type", viewer.type},
         {"armyInfo", armyInfoJson},
@@ -846,6 +920,7 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer,
         {"armyLevel", viewer.armyLevel},
         {"displayUser", displayUserJson},
         {"giftRankOne", giftRankOneJson},
+        {"guardian", guardianJson},
     };
 
     return true;
@@ -2853,34 +2928,30 @@ QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
                           return true;  // rank 5 goes to the end
                       }
                       // For ranks 1-4, higher rank number comes first (4 > 3 > 2 > 1)
-                      return a.armyInfo.rank > b.armyInfo.rank;
-                  }
-                  if (a.type == 3 && b.type != 3) {
+                      if (a.armyInfo.rank != b.armyInfo.rank) {
+                        return a.armyInfo.rank > b.armyInfo.rank;
+                      }
+                  } else if (a.type == 3 && b.type != 3) {
                       return true;  // Army viewers have highest priority
-                  }
-                  if (a.type != 3 && b.type == 3) {
+                  } else if (a.type != 3 && b.type == 3) {
                       return false;
                   }
 
                   // Priority 2: Guardian Knights (type = 2)
                   if (a.type == 2 && b.type == 2) {
-                      return false;  // Same priority, maintain original order
-                  }
-                  if (a.type == 2 && b.type != 2) {
+                      // Same priority, fall through to next check
+                  } else if (a.type == 2 && b.type != 2) {
                       return true;
-                  }
-                  if (a.type != 2 && b.type == 2) {
+                  } else if (a.type != 2 && b.type == 2) {
                       return false;
                   }
 
                   // Priority 3: Top gifters this session (type = 1)
                   if (a.type == 1 && b.type == 1) {
-                      return false;  // Same priority, maintain original order
-                  }
-                  if (a.type == 1 && b.type != 1) {
+                      // Same priority, fall through to next check
+                  } else if (a.type == 1 && b.type != 1) {
                       return true;
-                  }
-                  if (a.type != 1 && b.type == 1) {
+                  } else if (a.type != 1 && b.type == 1) {
                       return false;
                   }
 
@@ -2888,12 +2959,12 @@ QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
                   bool aIsVIP = a.displayUser.isVIP;
                   bool bIsVIP = b.displayUser.isVIP;
                   if (aIsVIP && bIsVIP) {
-                      return a.displayUser.mLevel > b.displayUser.mLevel;
-                  }
-                  if (aIsVIP && !bIsVIP) {
+                      if (a.displayUser.mLevel != b.displayUser.mLevel) {
+                        return a.displayUser.mLevel > b.displayUser.mLevel;
+                      }
+                  } else if (aIsVIP && !bIsVIP) {
                       return true;
-                  }
-                  if (!aIsVIP && bIsVIP) {
+                  } else if (!aIsVIP && bIsVIP) {
                       return false;
                   }
 
@@ -2901,12 +2972,12 @@ QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
                   int aGloryLevel = a.userAttr.gloryroadInfo.level;
                   int bGloryLevel = b.userAttr.gloryroadInfo.level;
                   if (aGloryLevel > 0 && bGloryLevel > 0) {
-                      return aGloryLevel > bGloryLevel;
-                  }
-                  if (aGloryLevel > 0 && bGloryLevel <= 0) {
+                      if (aGloryLevel != bGloryLevel) {
+                        return aGloryLevel > bGloryLevel;
+                      }
+                  } else if (aGloryLevel > 0 && bGloryLevel <= 0) {
                       return true;
-                  }
-                  if (aGloryLevel <= 0 && bGloryLevel > 0) {
+                  } else if (aGloryLevel <= 0 && bGloryLevel > 0) {
                       return false;
                   }
 
@@ -2914,12 +2985,12 @@ QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
                   int aCheckinLevel = a.displayUser.checkinLevel;
                   int bCheckinLevel = b.displayUser.checkinLevel;
                   if (aCheckinLevel > 0 && bCheckinLevel > 0) {
-                      return aCheckinLevel > bCheckinLevel;
-                  }
-                  if (aCheckinLevel > 0 && bCheckinLevel <= 0) {
+                      if (aCheckinLevel != bCheckinLevel) {
+                          return aCheckinLevel > bCheckinLevel;
+                      }
+                  } else if (aCheckinLevel > 0 && bCheckinLevel <= 0) {
                       return true;
-                  }
-                  if (aCheckinLevel <= 0 && bCheckinLevel > 0) {
+                  } else if (aCheckinLevel <= 0 && bCheckinLevel > 0) {
                       return false;
                   }
 
@@ -2927,12 +2998,12 @@ QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
                   int aSentPoint = a.userAttr.sentPoint;
                   int bSentPoint = b.userAttr.sentPoint;
                   if (aSentPoint > 0 && bSentPoint > 0) {
-                      return aSentPoint > bSentPoint;
-                  }
-                  if (aSentPoint > 0 && bSentPoint <= 0) {
+                      if (aSentPoint != bSentPoint) {
+                          return aSentPoint > bSentPoint;
+                      }
+                  } else if (aSentPoint > 0 && bSentPoint <= 0) {
                       return true;
-                  }
-                  if (aSentPoint <= 0 && bSentPoint > 0) {
+                  } else if (aSentPoint <= 0 && bSentPoint > 0) {
                       return false;
                   }
 

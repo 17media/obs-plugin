@@ -731,6 +731,25 @@ struct OneSevenLiveGiftRankOne {
     QString userID;
 };
 
+// Guardian Owner struct
+struct OneSevenLiveGuardianOwner {
+    QString userID;
+    QString displayName;
+    QString picture;
+    QString name;
+    int level = 0;
+    QString openID;
+    QString region;
+    int gloryroadMode = 0;
+};
+
+// Guardian struct
+struct OneSevenLiveGuardian {
+    OneSevenLiveGuardianOwner owner;
+    int bidPrice = 0;
+    qint64 expireTime = 0;
+};
+
 // Rock Zone Viewer struct
 struct OneSevenLiveRockZoneViewer {
     int type = 0;
@@ -742,7 +761,14 @@ struct OneSevenLiveRockZoneViewer {
     int armyLevel = 0;
     OneSevenLiveDisplayUser displayUser;
     OneSevenLiveGiftRankOne giftRankOne;
+    OneSevenLiveGuardian guardian;
 };
+
+// Function declarations for guardian JSON conversion
+bool JsonToOneSevenLiveGuardianOwner(const nlohmann::json &json, OneSevenLiveGuardianOwner &owner);
+bool OneSevenLiveGuardianOwnerToJson(const OneSevenLiveGuardianOwner &owner, nlohmann::json &json);
+bool JsonToOneSevenLiveGuardian(const nlohmann::json &json, OneSevenLiveGuardian &guardian);
+bool OneSevenLiveGuardianToJson(const OneSevenLiveGuardian &guardian, nlohmann::json &json);
 
 // Function declarations for gift rank one JSON conversion
 bool JsonToOneSevenLiveGiftRankOne(const nlohmann::json &json,
