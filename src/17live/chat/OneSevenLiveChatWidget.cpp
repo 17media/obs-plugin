@@ -17,9 +17,17 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
     // Making this a native window often helps with embedding native child windows (CEF)
     this->setAttribute(Qt::WA_NativeWindow);
     
-    cef_ = obs_browser_init_panel();
+    static QCef* globalCef = nullptr;
+    if (!globalCef) {
+        globalCef = obs_browser_init_panel();
+        if (globalCef) {
+            globalCef->init_browser();
+        }
+    }
+    cef_ = globalCef;
+
     if (cef_) {
-        cef_->init_browser();
+        // cef_->init_browser(); // Already initialized globally
         cefWidget_ = cef_->create_widget(this, chatUrl_.toStdString());
         if (cefWidget_) {
             int panel_version = obs_browser_qcef_version();
@@ -73,13 +81,19 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
 
 OneSevenLiveChatWidget::~OneSevenLiveChatWidget() {
     if (cefWidget_) {
-        cefWidget_->closeBrowser();
+        int panel_version = obs_browser_qcef_version();
+        if (panel_version >= 2) {
+            cefWidget_->closeBrowser();
+        }
     }
 }
 
 void OneSevenLiveChatWidget::shutdown() {
     if (cefWidget_) {
-        cefWidget_->closeBrowser();
+        int panel_version = obs_browser_qcef_version();
+        if (panel_version >= 2) {
+            cefWidget_->closeBrowser();
+        }
     }
 }
 
