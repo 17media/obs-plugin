@@ -23,7 +23,9 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
     if (!globalCef) {
         globalCef = obs_browser_init_panel();
         if (globalCef) {
-            globalCef->init_browser();
+            if (!globalCef->initialized()) {
+                globalCef->init_browser();
+            }
         }
     }
     cef_ = globalCef;
