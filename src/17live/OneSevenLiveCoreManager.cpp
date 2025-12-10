@@ -1205,6 +1205,12 @@ void OneSevenLiveCoreManager::closeAllDocks() {
     if (chatDock) {
         chatRoomVisible = chatDock->isVisible();
         chatDock->disconnect(this);
+        OneSevenLiveChatWidget* widget =
+            qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
+        if (widget) {
+            obs_log(LOG_INFO, "Shutting down chat widget in closeAllDocks");
+            widget->shutdown();
+        }
         chatDock->close();
         delete chatDock;
     }
