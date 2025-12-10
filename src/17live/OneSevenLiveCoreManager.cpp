@@ -1619,6 +1619,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         chatDock->setAttribute(Qt::WA_DeleteOnClose, false);
         chatDock->installEventFilter(this);
+        chatDock->setMinimumSize(300, 400);
         
         // Create the chat widget and set it as the dock's widget
         OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(chatDock, chatUrl);
@@ -1629,10 +1630,11 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         if (isStartupRestore) {
             chatDock->setVisible(true);
         } else {
-            QByteArray savedState = configManager ? configManager->getDockState() : QByteArray();
             obs_log(LOG_INFO, "Setting chatDock to floating mode");
             chatDock->setFloating(true);
-            if (savedState.isEmpty()) {
+            bool hadChatStored =
+                configManager ? configManager->getDockVisibility("chatRoom") : false;
+            if (!hadChatStored) {
                 chatDock->resize(400, 600);
             }
             chatDock->setVisible(true);
