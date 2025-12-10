@@ -518,6 +518,10 @@ OneSevenLiveYouTubeChatClient* OneSevenLiveCoreManager::getYouTubeChatClient() c
     return youtubeChatClient.get();
 }
 
+OneSevenLiveYouTubeClient* OneSevenLiveCoreManager::getYouTubeApiClient() const {
+    return youtubeApiClient.get();
+}
+
 OneSevenLiveTwitchChatClient* OneSevenLiveCoreManager::getTwitchChatClient() const {
     return twitchChatClient.get();
 }
@@ -812,6 +816,103 @@ void OneSevenLiveCoreManager::stopYouTubeChatPolling() {
     }
 }
 
+void OneSevenLiveCoreManager::orchestrateYouTubeBroadcast(const QString& title) {
+    if (!youtubeApiClient) {
+        createYouTubeChatClient();
+    }
+    if (!youtubeApiClient || !youtubeApiClient->hasValidAuth()) {
+        return;
+    }
+    youtubeApiClient->setTimeout(12000);
+    auto selectedStreamIdPtr = std::make_shared<QString>();
+    auto connStreams = std::make_shared<QMetaObject::Connection>();
+    QTimer* tStreams = new QTimer(this);
+    tStreams->setSingleShot(true);
+    tStreams->setInterval(12000);
+    connect(tStreams, &QTimer::timeout, this, [this]() {
+        obs_log(LOG_WARNING, "YouTube orchestration timeout: getMyLiveStreams");
+    });
+    tStreams->start();
+    *connStreams = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived, this,
+                           [this, title, connStreams, selectedStreamIdPtr, tStreams](const YouTubeLiveStreamListResponse& resp) {
+                               QObject::disconnect(*connStreams);
+                               if (tStreams) { tStreams->stop(); tStreams->deleteLater(); }
+                               for (const auto& s : resp.items) {
+                                   if (!s.id.isEmpty()) {
+                                       *selectedStreamIdPtr = s.id;
+                                       break;
+                                   }
+                               }
+                               auto connCreated = std::make_shared<QMetaObject::Connection>();
+                               QTimer* tCreate = new QTimer(this);
+                               tCreate->setSingleShot(true);
+                               tCreate->setInterval(12000);
+                               connect(tCreate, &QTimer::timeout, this, [this]() {
+                                   obs_log(LOG_WARNING, "YouTube orchestration timeout: createLiveBroadcast");
+                               });
+                               tCreate->start();
+                               *connCreated = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastCreated, this,
+                                                      [this, connCreated, selectedStreamIdPtr, tCreate](const QString& bid) {
+                                                          QObject::disconnect(*connCreated);
+                                                          if (tCreate) { tCreate->stop(); tCreate->deleteLater(); }
+                                                          if (!bid.isEmpty() && !selectedStreamIdPtr->isEmpty()) {
+                                                              youtubeApiClient->bindLiveBroadcast(bid, *selectedStreamIdPtr);
+                                                          }
+                                                      });
+                               youtubeApiClient->createLiveBroadcast(title);
+                           });
+    auto connBound = std::make_shared<QMetaObject::Connection>();
+    QTimer* tBind = new QTimer(this);
+    tBind->setSingleShot(true);
+    tBind->setInterval(12000);
+    connect(tBind, &QTimer::timeout, this, [this]() {
+        obs_log(LOG_WARNING, "YouTube orchestration timeout: bindLiveBroadcast");
+    });
+    tBind->start();
+    *connBound = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastBound, this,
+                         [this, connBound, tBind](const QString& bid) {
+                             QObject::disconnect(*connBound);
+                             if (tBind) { tBind->stop(); tBind->deleteLater(); }
+                             auto connPre = std::make_shared<QMetaObject::Connection>();
+                             QTimer* tPre = new QTimer(this);
+                             tPre->setSingleShot(true);
+                             tPre->setInterval(12000);
+                             connect(tPre, &QTimer::timeout, this, [this]() {
+                                 obs_log(LOG_WARNING, "YouTube orchestration timeout: getLiveBroadcastById");
+                             });
+                             tPre->start();
+                             *connPre = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastReceived, this,
+                                                [this, connPre, tPre](const YouTubeLiveBroadcast& b) {
+                                                    QObject::disconnect(*connPre);
+                                                    if (tPre) { tPre->stop(); tPre->deleteLater(); }
+                                                    QString s = b.status.lifeCycleStatus;
+                                                    if (!s.isEmpty() && s.compare("complete", Qt::CaseInsensitive) != 0) {
+                                                        youtubeApiClient->transitionLiveBroadcast(b.id, QString("testing"));
+                                                    } else {
+                                                        obs_log(LOG_WARNING, "YouTube broadcast not transitionable: id=%s status=%s",
+                                                                b.id.toUtf8().constData(), s.toUtf8().constData());
+                                                    }
+                                                });
+                             youtubeApiClient->getLiveBroadcastById(bid);
+                         });
+    auto connTransitioned = std::make_shared<QMetaObject::Connection>();
+    QTimer* tTrans = new QTimer(this);
+    tTrans->setSingleShot(true);
+    tTrans->setInterval(12000);
+    connect(tTrans, &QTimer::timeout, this, [this]() {
+        obs_log(LOG_WARNING, "YouTube orchestration timeout: transitionLiveBroadcast");
+    });
+    tTrans->start();
+    *connTransitioned = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastTransitioned, this,
+                                [this, connTransitioned, tTrans]() {
+                                    QObject::disconnect(*connTransitioned);
+                                    if (tTrans) { tTrans->stop(); tTrans->deleteLater(); }
+                                    if (youtubeChatClient) {
+                                        youtubeChatClient->startDiscovery();
+                                    }
+                                });
+    youtubeApiClient->getMyLiveStreams();
+}
 void OneSevenLiveCoreManager::connectTwitchChatClient(const QString& channel) {
     if (!twitchChatClient) {
         createTwitchChatClient();

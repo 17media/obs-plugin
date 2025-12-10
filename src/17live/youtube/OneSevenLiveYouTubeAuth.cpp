@@ -21,7 +21,7 @@ const QString OneSevenLiveYouTubeAuth::YT_AUTH_URL_TEMPLATE =
     "https://accounts.google.com/o/oauth2/v2/"
     "auth?scope=%1&response_type=code&state=%2&redirect_uri=%3&client_id=%4";
 const QString OneSevenLiveYouTubeAuth::YT_SCOPE =
-    "https://www.googleapis.com/auth/youtube.force-ssl";
+    "https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl";
 const QString OneSevenLiveYouTubeAuth::YT_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const QString OneSevenLiveYouTubeAuth::PLATFORM = "YouTube";
 
@@ -31,7 +31,12 @@ OneSevenLiveYouTubeAuth::~OneSevenLiveYouTubeAuth() {}
 
 QString OneSevenLiveYouTubeAuth::getAuthUrl(const QString& redirectUri) {
     m_redirectUri = redirectUri;
-    return YT_AUTH_URL_TEMPLATE.arg(getScope(), getState(), redirectUri, getClientId());
+    const QByteArray scopeEnc = QUrl::toPercentEncoding(getScope());
+    const QByteArray stateEnc = QUrl::toPercentEncoding(getState());
+    const QByteArray redirectEnc = QUrl::toPercentEncoding(redirectUri);
+    const QByteArray clientIdEnc = QUrl::toPercentEncoding(getClientId());
+    return YT_AUTH_URL_TEMPLATE.arg(QString::fromUtf8(scopeEnc), QString::fromUtf8(stateEnc),
+                                    QString::fromUtf8(redirectEnc), QString::fromUtf8(clientIdEnc));
 }
 
 QString OneSevenLiveYouTubeAuth::getState() {
@@ -353,8 +358,9 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync() {
                  QString::fromUtf8(refreshEnc))
             .toStdString();
 
+    std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
     auto* thread = new RemoteTextThread(YT_TOKEN_URL.toUtf8().constData(),
-                                        "application/x-www-form-urlencoded", postData, 0, false);
+                                        "application/x-www-form-urlencoded", postData, 0, false, cancelFlag);
     QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     QObject::connect(
         thread, &RemoteTextThread::Result, this,

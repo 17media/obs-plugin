@@ -351,11 +351,10 @@ void OneSevenLiveMultiRtmpStreamItem::onDeleteAction() {
 }
 
 void OneSevenLiveMultiRtmpStreamItem::onStatsUpdateTimer() {
-    // Update display if stream is active
     if (isActive()) {
         collectRealTimeStats();
-        updateStatsDisplay();
     }
+    updateStatsDisplay();
 }
 
 void OneSevenLiveMultiRtmpStreamItem::updateUI() {
@@ -383,14 +382,18 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatusDisplay() {
 }
 
 void OneSevenLiveMultiRtmpStreamItem::updateStatsDisplay() {
-    // Update individual stats labels based on connection state
     bool isConnected = (m_status.state == OneSevenLiveMultiRtmpStreamStatus::State::STREAMING);
+    bool isConnPhase = isConnecting();
+    auto now = std::chrono::steady_clock::now();
+    bool hasRecentStats =
+        m_lastStatsTime.time_since_epoch().count() != 0 &&
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastStatsTime).count() <=
+            1500;
+    bool showStats = isConnected || isConnPhase || hasRecentStats;
 
-    if (isConnected) {
-        // Show actual stats when connected with "label: value" format
+    if (showStats) {
         QString duration = formatDuration(static_cast<uint64_t>(m_stats.duration.count()));
-        QString bitrate =
-            formatBitrate(static_cast<uint64_t>(m_stats.currentBitrate * 1000));  // Convert to bps
+        QString bitrate = formatBitrate(static_cast<uint64_t>(m_stats.currentBitrate * 1000));
         QString fps = formatFrameRate(m_stats.currentFPS);
 
         if (m_durationLabel)
@@ -404,7 +407,6 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatsDisplay() {
             m_framesLabel->setText(
                 QString("%1: %2 FPS").arg(obs_module_text("MultiRTMP.Stats.FrameRate")).arg(fps));
     } else {
-        // Show labels with dashes when not connected
         if (m_durationLabel)
             m_durationLabel->setText(
                 QString("%1: --:--:--").arg(obs_module_text("MultiRTMP.Stats.Duration")));
