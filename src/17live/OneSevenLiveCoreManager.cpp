@@ -1041,6 +1041,9 @@ void OneSevenLiveCoreManager::setConnection() {
                     });
                 }
                 streamCheckTimer->start(30000);  // 30 seconds
+
+                // trigger reload gifts when stream is live
+                loadGifts();
             } else {
                 if (streamCheckTimer) {
                     streamCheckTimer->stop();
