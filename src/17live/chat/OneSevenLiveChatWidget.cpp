@@ -83,22 +83,24 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
 
 OneSevenLiveChatWidget::~OneSevenLiveChatWidget() {
     obs_log(LOG_INFO, "OneSevenLiveChatWidget destructor called");
-    if (cefWidget_) {
+    if (cefWidget_ && !browserClosed_) {
         int panel_version = obs_browser_qcef_version();
         if (panel_version >= 2) {
             obs_log(LOG_INFO, "Closing CEF browser in destructor");
             cefWidget_->closeBrowser();
+            browserClosed_ = true;
         }
     }
 }
 
 void OneSevenLiveChatWidget::shutdown() {
     obs_log(LOG_INFO, "OneSevenLiveChatWidget shutdown called");
-    if (cefWidget_) {
+    if (cefWidget_ && !browserClosed_) {
         int panel_version = obs_browser_qcef_version();
         if (panel_version >= 2) {
             obs_log(LOG_INFO, "Closing CEF browser in shutdown");
             cefWidget_->closeBrowser();
+            browserClosed_ = true;
         }
     }
 }

@@ -34,4 +34,6 @@ private:
     QWidget* loadingOverlay = nullptr;
     QLabel* loadingLabel = nullptr;
     QLabel* errorLabel_ = nullptr;
+    
+    bool browserClosed_ = false;
 };

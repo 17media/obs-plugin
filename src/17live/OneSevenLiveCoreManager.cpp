@@ -1649,6 +1649,12 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             // Fix for crash when reopening floating dock: destroy it when closed if floating
             if (!visible && chatDock && chatDock->isFloating()) {
                 obs_log(LOG_INFO, "Destroying floating chatDock via deleteLater");
+                OneSevenLiveChatWidget* widget =
+                    qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
+                if (widget) {
+                    obs_log(LOG_INFO, "Shutting down chat widget before destruction");
+                    widget->shutdown();
+                }
                 chatDock->deleteLater();
             }
         });
