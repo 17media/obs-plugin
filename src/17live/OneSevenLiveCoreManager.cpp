@@ -18,6 +18,7 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
+#include <QList>
 #include <nlohmann/json.hpp>
 #include <thread>
 
@@ -1263,6 +1264,30 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
         // Apply the saved dock layout
         mainWindow->restoreState(dockState);
 
+        QTimer::singleShot(0, this, [this]() {
+            QList<QDockWidget*> docks;
+            QList<int> sizes;
+            if (streamingDock) {
+                docks << streamingDock;
+                sizes << 600;
+            }
+            if (liveListDock) {
+                docks << liveListDock;
+                sizes << 400;
+            }
+            if (multiRtmpDock) {
+                docks << multiRtmpDock;
+                sizes << 400;
+            }
+            if (previewDock) {
+                docks << previewDock;
+                sizes << 480;
+            }
+            if (!docks.isEmpty() && mainWindow) {
+                mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
+            }
+        });
+
         // Update menu visibility status after restoration
         if (menuManager) {
             menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
@@ -1445,14 +1470,14 @@ void OneSevenLiveCoreManager::createStreamingDock() {
 
     streamingDock->setMaximumWidth(600);
     streamingDock->resize(450, 600);
+    streamingDock->setMinimumHeight(400);
 
     streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
 
     // Only restore state during startup, otherwise set floating and center
     if (isStartupRestore) {
-        // During startup restoration, the state will be restored by initialize() method
-        streamingDock->setVisible(true);
+        
     } else {
         // First time creation or manual creation - set floating and center
         streamingDock->setFloating(true);
@@ -1570,8 +1595,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
         // Only restore state during startup, otherwise set floating and center
         if (isStartupRestore) {
-            // During startup restoration, the state will be restored by initialize() method
-            liveListDock->setVisible(true);
+            
         } else {
             // First time creation or manual creation - set floating and center
             liveListDock->setFloating(true);
@@ -1964,8 +1988,7 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
 
     // Only restore state during startup, otherwise set floating and center
     if (isStartupRestore) {
-        // During startup restoration, the state will be restored by initialize() method
-        multiRtmpDock->setVisible(true);
+        
     } else {
         // First time creation or manual creation - set floating and center
         multiRtmpDock->setFloating(true);
@@ -2035,8 +2058,7 @@ void OneSevenLiveCoreManager::createPreviewDock() {
 
     // Only restore state during startup, otherwise set floating and center
     if (isStartupRestore) {
-        // During startup restoration, the state will be restored by initialize() method
-        previewDock->setVisible(true);
+        
     } else {
         // First time creation or manual creation - set floating and center
         previewDock->setFloating(true);
