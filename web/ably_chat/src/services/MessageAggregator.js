@@ -411,7 +411,7 @@ export class MessageAggregator extends EventEmitter {
           const ts = (chat && (chat.sendTime || chat.timestamp)) || (parsed.timestamp || Date.now());
           const unified = {
             id,
-            platform: '17live',
+            platform: chat.platform || '17live',
             timestamp: ts,
             content: fromJS(chat),
             aggregatedAt: Date.now(),
@@ -447,7 +447,13 @@ export class MessageAggregator extends EventEmitter {
       // Persist all platforms' chats merged under the same roomId (assumed same user)
       const chats = tail
         .filter((m) => m && m.content)
-        .map((m) => (typeof m.content.get === 'function' ? m.content.toJS() : m.content));
+        .map((m) => {
+          const content = typeof m.content.get === 'function' ? m.content.toJS() : m.content;
+          return {
+            ...content,
+            platform: m.platform
+          };
+        });
       const bundle = {
         roomId: this.currentRoomId || '',
         timestamp: Date.now(),
