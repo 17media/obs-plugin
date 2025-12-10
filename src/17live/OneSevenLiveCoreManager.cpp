@@ -1614,6 +1614,8 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         chatDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
         chatDock->setObjectName("OneSevenLiveChatDock");
         chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        chatDock->setAttribute(Qt::WA_DeleteOnClose, false);
+        chatDock->installEventFilter(this);
         
         // Create the chat widget and set it as the dock's widget
         OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(chatDock, chatUrl);
@@ -1624,8 +1626,12 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         if (isStartupRestore) {
             chatDock->setVisible(true);
         } else {
+            QByteArray savedState = configManager ? configManager->getDockState() : QByteArray();
             obs_log(LOG_INFO, "Setting chatDock to floating mode");
             chatDock->setFloating(true);
+            if (savedState.isEmpty()) {
+                chatDock->resize(400, 600);
+            }
             chatDock->setVisible(true);
             
             // Center the dock
@@ -1651,28 +1657,11 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             chatDockVisible = visible;
             if (visible)
                 flushChatEventQueue();
-
-            // Fix for crash when reopening floating dock: destroy it when closed if floating
-            if (!visible && chatDock && chatDock->isFloating()) {
-                obs_log(LOG_INFO, "Destroying floating chatDock via deleteLater");
-                OneSevenLiveChatWidget* widget =
-                    qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
-                if (widget) {
-                    obs_log(LOG_INFO, "Shutting down chat widget before destruction");
-                    widget->shutdown();
-                }
-                chatDock->deleteLater();
-            }
         });
     } else {
         obs_log(LOG_INFO, "Toggling existing chatDock visibility. Current: %s", chatDock->isVisible() ? "visible" : "hidden");
         chatDock->setVisible(!chatDock->isVisible());
         if (chatDock->isVisible()) {
-            OneSevenLiveChatWidget* widget =
-                qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
-            if (widget) {
-                widget->setUrl(chatUrl);
-            }
             chatDock->raise();
             chatDock->activateWindow();
         }
@@ -1687,6 +1676,16 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     }
 }
 
+bool OneSevenLiveCoreManager::eventFilter(QObject* obj, QEvent* event) {
+    if (obj == chatDock) {
+        if (event->type() == QEvent::Close) {
+            event->ignore();
+            chatDock->hide();
+            return true;
+        }
+    }
+    return QObject::eventFilter(obj, event);
+}
 void OneSevenLiveCoreManager::loadGifts() {
     if (giftsLoading_.load()) {
         obs_log(LOG_INFO, "Gifts are already loading, skipping request");

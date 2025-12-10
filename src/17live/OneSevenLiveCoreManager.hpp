@@ -197,6 +197,9 @@ private:
     std::atomic<bool> loggingIn{false};
     std::atomic<bool> pendingLogout{false};
 
+protected:
+    bool eventFilter(QObject* obj, QEvent* event) override;
+
    private:
     // Private constructor, ensure instance can only be obtained through getInstance method
     explicit OneSevenLiveCoreManager(QMainWindow* mainWindow);

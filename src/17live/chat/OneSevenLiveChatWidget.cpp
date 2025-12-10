@@ -126,9 +126,6 @@ void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
     
     if (cefWidget_) {
         cefWidget_->setVisible(true);
-        QTimer::singleShot(100, this, [this]() {
-            if (cefWidget_) cefWidget_->reloadPage();
-        });
     }
     if (loadingOverlay && loadingOverlay->isVisible()) {
         loadingOverlay->raise();
