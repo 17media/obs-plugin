@@ -1094,6 +1094,7 @@ void OneSevenLiveStreamingDock::updateTagsFromList() {
 }
 
 void OneSevenLiveStreamingDock::onSaveConfigClicked() {
+    if (!streamManager) return;
     OneSevenLiveRtmpRequest request;
     if (!gatherRtmpRequest(request)) {
         obs_log(LOG_ERROR, "Failed to gather rtmp request");
@@ -1143,6 +1144,8 @@ void OneSevenLiveStreamingDock::onCreateLiveClicked() {
 void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "createLiveWithRequest");
 
+    if (!streamManager) return;
+
     if (streamManager && streamManager->isRoomInfoLoading()) {
         // loading roomInfo is in progress, waiting for it to finish
         obs_log(LOG_INFO, "Waiting for loading to complete before creating live");
@@ -1182,6 +1185,8 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
 void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &info) {
     obs_log(LOG_INFO, "editLiveWithInfo");
 
+    if (!streamManager) return;
+
     if (streamManager && streamManager->isRoomInfoLoading()) {
         // loading roomInfo is in progress, waiting for it to finish
         obs_log(LOG_INFO, "Waiting for loading to complete before editing live info");
@@ -1210,6 +1215,8 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
 
 void OneSevenLiveStreamingDock::startCreateLiveSequence(const OneSevenLiveRtmpRequest &request_) {
     obs_log(LOG_INFO, "startCreateLiveSequence (Async)");
+
+    if (!streamManager) return;
 
     // Disable button to prevent double click
     createLiveButton->setEnabled(false);
@@ -1342,6 +1349,8 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
 void OneSevenLiveStreamingDock::startLive(bool startStream) {
     obs_log(LOG_INFO, "Starting live stream");
 
+    if (!streamManager) return;
+
     if (startStream) {
         // Start streaming (server-side)
         createLiveButton->setEnabled(false);
@@ -1372,6 +1381,8 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
 
 void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
     obs_log(LOG_INFO, "onDeleteLiveClicked");
+
+    if (!streamManager) return;
 
     // Add confirmation dialog
     QMessageBox msgBox;
@@ -1722,6 +1733,8 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
 
 void OneSevenLiveStreamingDock::changeEvent(qint64 eventID) {
     obs_log(LOG_INFO, "Changing event to: %lld", eventID);
+
+    if (!streamManager) return;
 
     // Check if we're in cooldown
     if (isEventInCooldown()) {

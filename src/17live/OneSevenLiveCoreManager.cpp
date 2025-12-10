@@ -276,11 +276,13 @@ bool OneSevenLiveCoreManager::initialize() {
     updateManager = new OneSevenLiveUpdateManager(this);
 
     // Connect update manager signals
+    QPointer<OneSevenLiveCoreManager> self = this;
     QObject::connect(
         updateManager, &OneSevenLiveUpdateManager::updateAvailable, this,
-        [this](const QString& latestVersion, const QJsonArray& assets) {
+        [self](const QString& latestVersion, const QJsonArray& assets) {
+            if (!self) return;
             UNUSED_PARAMETER(assets);
-            QMessageBox msgBox(mainWindow);
+            QMessageBox msgBox(self->mainWindow);
             msgBox.setWindowTitle(obs_module_text("Update.NewVersionFound"));
             msgBox.setText(
                 QString(obs_module_text("Update.NewVersionFound.Message")).arg(latestVersion));
@@ -290,53 +292,17 @@ bool OneSevenLiveCoreManager::initialize() {
             if (msgBox.exec() == QMessageBox::Yes) {
                 // open download page obs_module_text("Menu.CheckUpdate.Url")
                 QDesktopServices::openUrl(QUrl(obs_module_text("Menu.CheckUpdate.Url")));
-
-                // QString systemInfo = updateManager->getSystemInfo();
-                // QString downloadUrl;
-                // QString fileName;
-
-                // for (QJsonValue assetValue : assets) {
-                //     QJsonObject asset = assetValue.toObject();
-                //     QString assetName = asset["name"].toString();
-
-                //     obs_log(LOG_INFO, "Asset name: %s", assetName.toStdString().c_str());
-                //     obs_log(LOG_INFO, "systemInfo: %s", systemInfo.toStdString().c_str());
-
-                //     if (systemInfo.contains("macOS")) {
-                //         if (systemInfo.contains("arm64") &&
-                //         assetName.contains("macAppleSilicon")) {
-                //             downloadUrl = asset["browser_download_url"].toString();
-                //             fileName = assetName;
-                //             break;
-                //         } else if (systemInfo.contains("x86_64") &&
-                //         assetName.contains("macIntel")) {
-                //             downloadUrl = asset["browser_download_url"].toString();
-                //             fileName = assetName;
-                //             break;
-                //         }
-                //     } else if (systemInfo.contains("Windows") && assetName.contains("windows")) {
-                //         downloadUrl = asset["browser_download_url"].toString();
-                //         fileName = assetName;
-                //         break;
-                //     }
-                // }
-
-                // if (downloadUrl.isEmpty()) {
-                //     QMessageBox::warning(mainWindow, obs_module_text("Update.DownloadFailed"),
-                //                          obs_module_text("Update.DownloadFailed.NoPackage"));
-                //     return;
-                // }
-
-                // updateManager->downloadUpdate(downloadUrl, fileName);
             }
         });
 
     QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateNotAvailable, this,
-                     [this]() { obs_log(LOG_INFO, "Update check: no new version available."); });
+                     [self]() { 
+                        if (self) obs_log(LOG_INFO, "Update check: no new version available."); 
+                     });
 
     QObject::connect(updateManager, &OneSevenLiveUpdateManager::updateCheckFailed, this,
-                     [this](const QString& error) {
-                         obs_log(LOG_WARNING, "Update check failed: %s",
+                     [self](const QString& error) {
+                         if (self) obs_log(LOG_WARNING, "Update check failed: %s",
                                  error.toUtf8().constData());
                      });
 
@@ -744,8 +710,11 @@ void OneSevenLiveCoreManager::connectAblyChat(const QString& roomId, const QStri
     ablyChatClient->setRoomId(roomId);
     if (!token.isEmpty())
         ablyChatClient->setAblyToken(token);
-    ablyChatClient->setAuthCallback([this](const QString& rid, nlohmann::json& out) {
-        auto* api = this->getApiWrapper();
+        
+    QPointer<OneSevenLiveCoreManager> self = this;
+    ablyChatClient->setAuthCallback([self](const QString& rid, nlohmann::json& out) {
+        if (!self) return false;
+        auto* api = self->getApiWrapper();
         if (!api)
             return false;
         return api->GetAblyToken(rid.toStdString(), out);
@@ -882,6 +851,7 @@ void OneSevenLiveCoreManager::disconnectTwitchChatClient() {
 }
 
 bool OneSevenLiveCoreManager::handleLoginClicked() {
+    m_cancelFlag.store(false);
     OneSevenLiveLoginDialog dialog(mainWindow, getApiWrapper());
 
     // Connect login success signal to main window slot function
@@ -898,8 +868,12 @@ void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& lo
         obs_log(LOG_ERROR, "Failed to save login data");
         return;
     }
+    
+    QPointer<OneSevenLiveCoreManager> self = this;
     QMetaObject::invokeMethod(
-        this, [this, loginData]() { handleLoginStateChanged(true, loginData); },
+        this, [self, loginData]() { 
+            if (self) self->handleLoginStateChanged(true, loginData); 
+        },
         Qt::QueuedConnection);
 }
 
@@ -916,6 +890,9 @@ void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn,
 
 void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData& loginData) {
     obs_log(LOG_INFO, "performLoginOperations");
+    loggingIn.store(true);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
 
     // if apiWrappers token is empty or not equal to loginData.accessToken.toStdString(), update it
     if (apiWrapper->getToken().empty() ||
@@ -928,10 +905,14 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
         std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
     if (!streamManager) {
         obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
+        loggingIn.store(false);
         return;
     }
 
-    QTimer::singleShot(0, this, [this]() { loadGifts(); });
+    QPointer<OneSevenLiveCoreManager> self = this;
+    QTimer::singleShot(0, this, [self]() { 
+        if (self) self->loadGifts(); 
+    });
 
     // Update menu with user info
     QString username = loginData.userInfo.displayName;
@@ -940,60 +921,40 @@ void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData
     }
     menuManager->updateLoginStatus(true, username);
 
-    QTimer::singleShot(0, this, [this, loginData]() { load17LiveConfig(loginData); });
+    QTimer::singleShot(0, this, [self, loginData]() { 
+        if (self) self->load17LiveConfig(loginData); 
+    });
 
     // Restore dock states if this is during startup and there are saved states
     if (isStartupRestore) {
-        QTimer::singleShot(0, this, [this]() {
-            restoreDockStatesOnLogin();
-            isStartupRestore = false;
+        QTimer::singleShot(0, this, [self]() {
+            if (self) {
+                self->restoreDockStatesOnLogin();
+                self->isStartupRestore = false;
+            }
         });
     }
 
-    QTimer::singleShot(0, this, [this]() {
-        qint64 rid = 0;
-        if (streamManager)
-            rid = streamManager->getRoomID();
-        if (rid > 0)
-            connectAblyChat(QString::number(rid), QString());
+    QTimer::singleShot(0, this, [self]() {
+        if (!self) return;
+        self->createYouTubeChatClient();
+        self->createTwitchChatClient();
+        self->setConnection();
     });
 
-    // Create chat clients on login
-    createYouTubeChatClient();
-    createTwitchChatClient();
-
-    setConnection();
-
-    // Connect Ably chat based on current room ID and fetched token
-    if (streamManager && apiWrapper) {
-        const qint64 rid = streamManager->getRoomID();
-        if (rid > 0) {
-            // Cancel any pending requests first
-            m_cancelFlag.store(false);
-            
-            nlohmann::json ablyResp;
-            QString token;
-            if (apiWrapper->GetAblyToken(std::to_string(rid), ablyResp)) {
-                if (ablyResp.contains("token") && ablyResp["token"].is_string()) {
-                    token = QString::fromStdString(ablyResp["token"].get<std::string>());
-                    QString masked =
-                        token.length() >= 12 ? token.left(6) + "..." + token.right(6) : token;
-                    obs_log(LOG_INFO,
-                            "[17Live Core] Fetched Ably token for room %lld token(masked)=%s",
-                            (long long) rid, masked.toUtf8().constData());
-                } else {
-                    obs_log(LOG_WARNING,
-                            "[17Live Core] Ably token response missing 'token' field for room %lld", (long long) rid);
-                }
-            } else {
-                obs_log(LOG_WARNING, "[17Live Core] Failed to fetch Ably token for room %lld",
-                        (long long) rid);
+    QTimer::singleShot(0, this, [self]() {
+        if (!self) return;
+        if (self->streamManager && self->apiWrapper) {
+            const qint64 rid = self->streamManager->getRoomID();
+            if (rid > 0) {
+                self->m_cancelFlag.store(false);
+                self->connectAblyChat(QString::number(rid), QString());
             }
-            connectAblyChat(QString::number(rid), token);
         }
-    }
+    });
 
     // discovery is managed by YouTubeChatClient
+    loggingIn.store(false);
 }
 
 void OneSevenLiveCoreManager::setConnection() {
@@ -1081,12 +1042,20 @@ void OneSevenLiveCoreManager::setConnection() {
                 }
                 streamCheckTimer->start(30000);  // 30 seconds
             } else {
-                // Stop timer when not streaming
                 if (streamCheckTimer) {
                     streamCheckTimer->stop();
                     streamCheckTimer->deleteLater();
                     streamCheckTimer = nullptr;
                     streamCheckInFlight.store(false);
+                }
+                if (pendingLogout.load()) {
+                    pendingLogout.store(false);
+                    QPointer<OneSevenLiveCoreManager> self = this;
+                    QMetaObject::invokeMethod(
+                        this, [self]() {
+                            if (self) self->handleLoginStateChanged(false);
+                        },
+                        Qt::QueuedConnection);
                 }
             }
         });
@@ -1094,9 +1063,26 @@ void OneSevenLiveCoreManager::setConnection() {
 
 void OneSevenLiveCoreManager::performLogoutOperations() {
     obs_log(LOG_INFO, "performLogoutOperations");
+    loggingOut.store(true);
+    m_cancelFlag.store(true);
 
-    // Close all dock windows
+    destroyYouTubeChatClient();
+    destroyTwitchChatClient();
+    destroyAblyChatClient();
+
+    if (streamCheckTimer) {
+        streamCheckTimer->stop();
+        streamCheckTimer->deleteLater();
+        streamCheckTimer = nullptr;
+        streamCheckInFlight.store(false);
+    }
+
     closeAllDocks();
+
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+
+    streamManager.reset();
 
     // Reset login status in menu
     menuManager->updateLoginStatus(false, "");
@@ -1124,10 +1110,14 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
         youtubeAuth->stopAutoRefresh();
     }
 
+    if (ytChatDiscoverTimer) {
+        ytChatDiscoverTimer->stop();
+        ytChatDiscoverTimer->deleteLater();
+        ytChatDiscoverTimer = nullptr;
+    }
+
     // Destroy chat clients on logout
-    destroyYouTubeChatClient();
-    destroyTwitchChatClient();
-    destroyAblyChatClient();
+    loggingOut.store(false);
 }
 
 void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
@@ -1189,8 +1179,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         streamingVisible = streamingDock->isVisible();
         streamingDock->disconnect(this);
         streamingDock->close();
-        streamingDock->deleteLater();
-        streamingDock = nullptr;
+        delete streamingDock;
     }
     configManager->setDockVisibility("streaming", streamingVisible);
 
@@ -1199,8 +1188,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         liveListVisible = liveListDock->isVisible();
         liveListDock->disconnect(this);
         liveListDock->close();
-        liveListDock->deleteLater();
-        liveListDock = nullptr;
+        delete liveListDock;
     }
     configManager->setDockVisibility("liveList", liveListVisible);
 
@@ -1209,8 +1197,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         rockZoneVisible = rockZoneDock->isVisible();
         rockZoneDock->disconnect(this);
         rockZoneDock->close();
-        rockZoneDock->deleteLater();
-        rockZoneDock = nullptr;
+        delete rockZoneDock;
     }
     configManager->setDockVisibility("rockZone", rockZoneVisible);
 
@@ -1219,8 +1206,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         chatRoomVisible = chatDock->isVisible();
         chatDock->disconnect(this);
         chatDock->close();
-        chatDock->deleteLater();
-        chatDock = nullptr;
+        delete chatDock;
     }
     configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
@@ -1229,8 +1215,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         multiRtmpVisible = multiRtmpDock->isVisible();
         multiRtmpDock->disconnect(this);
         multiRtmpDock->close();
-        multiRtmpDock->deleteLater();
-        multiRtmpDock = nullptr;
+        delete multiRtmpDock;
     }
     configManager->setDockVisibility("multiRtmp", multiRtmpVisible);
 
@@ -1239,8 +1224,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         previewDockVisible = previewDock->isVisible();
         previewDock->disconnect(this);
         previewDock->close();
-        previewDock->deleteLater();
-        previewDock = nullptr;
+        delete previewDock;
     }
     configManager->setDockVisibility("previewDock", previewDockVisible);
 
@@ -1262,25 +1246,36 @@ void OneSevenLiveCoreManager::handleLogoutClicked() {
         QPushButton* cancelButton =
             msgBox->addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
         msgBox->setDefaultButton(cancelButton);
-        connect(msgBox, &QMessageBox::finished, this, [this, msgBox, confirmButton](int) {
+        
+        QPointer<OneSevenLiveCoreManager> self = this;
+        connect(msgBox, &QMessageBox::finished, this, [self, msgBox, confirmButton](int) {
             if (msgBox->clickedButton() != confirmButton) {
                 msgBox->deleteLater();
                 return;
             }
-            QMetaObject::invokeMethod(
-                this,
-                [this]() {
-                    closeLive(false);
-                    handleLoginStateChanged(false);
-                },
-                Qt::QueuedConnection);
+            if (self) {
+                QMetaObject::invokeMethod(
+                    self,
+                    [self]() {
+                        if (self) {
+                            self->pendingLogout.store(true);
+                            self->closeLive(false);
+                        }
+                    },
+                    Qt::QueuedConnection);
+            }
             msgBox->deleteLater();
         });
         msgBox->open();
         return;
     }
+    
+    QPointer<OneSevenLiveCoreManager> self = this;
     QMetaObject::invokeMethod(
-        this, [this]() { handleLoginStateChanged(false); }, Qt::QueuedConnection);
+        this, [self]() { 
+            if (self) self->handleLoginStateChanged(false); 
+        }, 
+        Qt::QueuedConnection);
 }
 
 void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {

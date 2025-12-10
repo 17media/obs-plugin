@@ -16,6 +16,7 @@ public:
 
     void setUrl(const QString& url);
     void reload();
+    void shutdown();
 
 protected:
     void showEvent(QShowEvent* event) override;

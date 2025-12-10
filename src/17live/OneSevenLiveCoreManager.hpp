@@ -193,6 +193,9 @@ public:
 private:
     std::atomic<bool> giftsLoading_{false};
     std::atomic<bool> m_cancelFlag{false};
+    std::atomic<bool> loggingOut{false};
+    std::atomic<bool> loggingIn{false};
+    std::atomic<bool> pendingLogout{false};
 
    private:
     // Private constructor, ensure instance can only be obtained through getInstance method

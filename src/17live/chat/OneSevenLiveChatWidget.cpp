@@ -77,6 +77,12 @@ OneSevenLiveChatWidget::~OneSevenLiveChatWidget() {
     }
 }
 
+void OneSevenLiveChatWidget::shutdown() {
+    if (cefWidget_) {
+        cefWidget_->closeBrowser();
+    }
+}
+
 void OneSevenLiveChatWidget::setUrl(const QString& url) {
     chatUrl_ = url;
     if (cefWidget_) {
@@ -95,7 +101,7 @@ void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
     
     if (cefWidget_) {
         cefWidget_->setVisible(true);
-        QTimer::singleShot(100, [this]() {
+        QTimer::singleShot(100, this, [this]() {
             if (cefWidget_) cefWidget_->reloadPage();
         });
     }
