@@ -1628,25 +1628,33 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         }
 
         connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(visible, streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
+            if (menuManager) {
+                menuManager->updateDockVisibility(
+                    visible, streamingDock && streamingDock->isVisible(),
+                    liveListDock && liveListDock->isVisible(),
+                    rockZoneDock && rockZoneDock->isVisible(),
+                    multiRtmpDock && multiRtmpDock->isVisible(),
+                    previewDock && previewDock->isVisible());
+            }
             chatDockVisible = visible;
             if (visible)
                 flushChatEventQueue();
+
+            // Fix for crash when reopening floating dock: destroy it when closed if floating
+            if (!visible && chatDock && chatDock->isFloating()) {
+                chatDock->deleteLater();
+            }
         });
     } else {
         chatDock->setVisible(!chatDock->isVisible());
         if (chatDock->isVisible()) {
-             OneSevenLiveChatWidget* widget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
-             if (widget) {
-                 widget->setUrl(chatUrl);
-                 widget->reload();
-             }
-             chatDock->raise();
-             chatDock->activateWindow();
+            OneSevenLiveChatWidget* widget =
+                qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
+            if (widget) {
+                widget->setUrl(chatUrl);
+            }
+            chatDock->raise();
+            chatDock->activateWindow();
         }
     }
     
