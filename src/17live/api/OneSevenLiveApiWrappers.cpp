@@ -21,6 +21,9 @@ namespace {
                                          const std::string &defaultValue = "") {
         return j.contains(key) && j[key].is_string() ? j[key].get<std::string>() : defaultValue;
     }
+    static int safeGetJsonInt(const Json &j, const std::string &key, int defaultValue = 0) {
+        return j.contains(key) && j[key].is_number_integer() ? j[key].get<int>() : defaultValue;
+    }
 
     // Safe error message handler for JSON responses
     static QString buildErrorMessage(const Json &json_resp,
@@ -29,14 +32,14 @@ namespace {
             return QString::fromStdString(defaultError);
         }
 
-        std::string errorCode = safeGetJsonString(json_resp, "errorCode", "UNKNOWN_ERROR");
-        if (errorCode == "39") {
-            return QString::fromStdString(obs_module_text("Api.Error.39"));
-        }
+        int errorCode = safeGetJsonInt(json_resp, "errorCode", -1);
 
         std::string errorMessage = safeGetJsonString(json_resp, "errorMessage", defaultError);
 
-        return QString::fromStdString(errorCode + " " + errorMessage);
+        if (errorCode < 0) {
+            return QString::fromStdString(std::string("UNKNOWN_ERROR ") + errorMessage);
+        }
+        return QString::fromStdString(std::to_string(errorCode) + " " + errorMessage);
     }
 }  // namespace
 
@@ -540,6 +543,18 @@ bool OneSevenLiveApiWrappers::CreateRtmp(const OneSevenLiveRtmpRequest &request,
     Json json_out;
 
     if (!InsertCommand(url, "application/json", "", postData.c_str(), json_out)) {
+        if (json_out.contains("errorCode")) {
+            obs_log(LOG_ERROR, "CreateRtmp error: %s", json_out.dump().c_str());
+            int errorCode = safeGetJsonInt(json_out, "errorCode", -1);
+            if (errorCode == 39) {
+                setLastErrorMessage(QString::fromStdString(obs_module_text("Api.Error.39")));
+            } else if (errorCode == 35) {
+                setLastErrorMessage(QString::fromStdString(obs_module_text("Api.Error.35")));
+            } else {
+                setLastErrorMessage(QString::fromStdString(obs_module_text("Api.Error.Generic")).arg(buildErrorMessage(json_out, "CreateRtmp failed")));
+            }
+        }
+    
         return false;
     }
 
@@ -1104,11 +1119,14 @@ bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request,
     // Check if errorCode field exists
     if (json_out.contains("errorCode")) {
         obs_log(LOG_ERROR, "PokeAll error: %s", json_out.dump().c_str());
-        // Pre-convert error strings to avoid repeated conversions
-        const std::string errorCodeStr = json_out["errorCode"].get<std::string>();
-        const std::string errorMessageStr = json_out["errorMessage"].get<std::string>();
-        setLastErrorMessage(QString::fromStdString(errorCodeStr) + " " +
-                            QString::fromStdString(errorMessageStr));
+        int errorCode = safeGetJsonInt(json_out, "errorCode", -1);
+        std::string errorMessageStr = safeGetJsonString(json_out, "errorMessage", "");
+        if (errorCode < 0) {
+            setLastErrorMessage(QString::fromStdString(std::string("UNKNOWN_ERROR ") + errorMessageStr));
+        } else {
+            setLastErrorMessage(QString::number(errorCode) + " " +
+                                QString::fromStdString(errorMessageStr));
+        }
         return false;
     }
 
