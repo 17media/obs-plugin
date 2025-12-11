@@ -446,6 +446,25 @@ void OneSevenLiveWebsocketServer::onConnection(websocketpp::connection_hdl hdl) 
     }
 }
 
+void OneSevenLiveWebsocketServer::closeAllClients() {
+    if (!running_ || !server_) {
+        return;
+    }
+    std::vector<websocketpp::connection_hdl> hdls;
+    {
+        std::lock_guard<std::mutex> lock(clients_mutex_);
+        for (auto& pair : clients_) {
+            hdls.push_back(pair.second);
+        }
+    }
+    for (auto& hdl : hdls) {
+        try {
+            server_->close(hdl, websocketpp::close::status::normal, "Logout");
+        } catch (...) {
+        }
+    }
+}
+
 void OneSevenLiveWebsocketServer::onClose(websocketpp::connection_hdl hdl) {
     std::string clientId;
 

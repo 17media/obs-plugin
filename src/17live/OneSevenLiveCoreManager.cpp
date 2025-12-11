@@ -657,6 +657,7 @@ void OneSevenLiveCoreManager::destroyYouTubeChatClient() {
 
 void OneSevenLiveCoreManager::destroyTwitchChatClient() {
     if (twitchChatClient) {
+        twitchChatClient->leaveAllChannels();
         twitchChatClient->disconnectFromChat();
         twitchChatClient.reset();
     }
@@ -1123,6 +1124,13 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
     loggingOut.store(true);
     m_cancelFlag.store(true);
 
+    {
+        auto* ws = getWebsocketServer();
+        if (ws && ws->is_running()) {
+            ws->closeAllClients();
+        }
+    }
+
     // destroyYouTubeChatClient();
     destroyTwitchChatClient();
     destroyAblyChatClient();
@@ -1171,6 +1179,12 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
         ytChatDiscoverTimer->stop();
         ytChatDiscoverTimer->deleteLater();
         ytChatDiscoverTimer = nullptr;
+    }
+
+    chatDockClientId.clear();
+    chatEventQueue.clear();
+    if (apiWrapper) {
+        apiWrapper->setToken(std::string());
     }
 
     // Destroy chat clients on logout

@@ -38,6 +38,7 @@ class OneSevenLiveWebsocketServer {
     // Message broadcasting
     void broadcastMessage(const std::string& message);
     void sendMessageToClient(const std::string& clientId, const std::string& message);
+    void closeAllClients();
 
     // Client management
     size_t getConnectedClientsCount() const;
