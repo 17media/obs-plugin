@@ -1512,8 +1512,10 @@ void OneSevenLiveStreamingDock::updateLiveButton(bool isLive) {
         createLiveButton->setStyleSheet("background-color: #215EBC; color: white;");
         disconnect(createLiveButton, &QPushButton::clicked, this,
                    &OneSevenLiveStreamingDock::onCreateLiveClicked);
+        disconnect(createLiveButton, &QPushButton::clicked, this,
+                   &OneSevenLiveStreamingDock::onDeleteLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this,
-                &OneSevenLiveStreamingDock::onDeleteLiveClicked);
+                &OneSevenLiveStreamingDock::onDeleteLiveClicked, Qt::UniqueConnection);
     } else {
         // change text to "Start Live"
         createLiveButton->setText(obs_module_text("Live.Settings.StartLive"));
@@ -1521,8 +1523,10 @@ void OneSevenLiveStreamingDock::updateLiveButton(bool isLive) {
         createLiveButton->setStyleSheet("background-color: red; color: white;");
         disconnect(createLiveButton, &QPushButton::clicked, this,
                    &OneSevenLiveStreamingDock::onDeleteLiveClicked);
+        disconnect(createLiveButton, &QPushButton::clicked, this,
+                   &OneSevenLiveStreamingDock::onCreateLiveClicked);
         connect(createLiveButton, &QPushButton::clicked, this,
-                &OneSevenLiveStreamingDock::onCreateLiveClicked);
+                &OneSevenLiveStreamingDock::onCreateLiveClicked, Qt::UniqueConnection);
     }
 }
 
