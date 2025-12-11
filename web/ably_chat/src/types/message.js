@@ -6,7 +6,6 @@
 export const Platform = {
   ALL: 'all',
   SEVENTEEN_LIVE: '17live',
-  YOUTUBE: 'youtube',
   TWITCH: 'twitch'
 };
 
@@ -49,7 +48,6 @@ export class UnifiedMessage {
   getPlatformIcon() {
     const iconMap = {
       [Platform.SEVENTEEN_LIVE]: '/images/17live.svg',
-      [Platform.YOUTUBE]: '/images/youtube.svg',
       [Platform.TWITCH]: '/images/twitch.svg'
     };
     return iconMap[this.platform] || '/images/17live.svg';

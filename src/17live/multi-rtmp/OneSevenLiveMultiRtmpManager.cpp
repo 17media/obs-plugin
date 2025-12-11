@@ -208,9 +208,9 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
         const std::string platform = cfg.streamName;
         if (cm && cm->initialize()) {
             if (platform == "YouTube") {
-                (void) cm->clearYouTubeAccessToken();
-                (void) cm->clearYouTubeRefreshToken();
-                obs_log(LOG_INFO, "[MultiRTMP-Manager] Cleared YouTube tokens on delete: %s",
+                // (void) cm->clearYouTubeAccessToken();
+                // (void) cm->clearYouTubeRefreshToken();
+                obs_log(LOG_INFO, "[MultiRTMP-Manager] YouTube tokens retention on delete: %s",
                         streamId.c_str());
             } else if (platform == "Twitch") {
                 (void) cm->clearTwitchTokens();
@@ -223,12 +223,12 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
         auto& core = OneSevenLiveCoreManager::getInstance();
         if (QThread::currentThread() == core.thread()) {
             if (platform == "YouTube") {
-                if (core.getYouTubeAuth()) {
-                    core.getYouTubeAuth()->clearToken();
-                }
-                core.stopYouTubeChatPolling();
-                core.destroyYouTubeChatClient();
-                obs_log(LOG_INFO, "[MultiRTMP-Manager] Interrupted YouTube connections and cleared in-memory token: %s",
+                // if (core.getYouTubeAuth()) {
+                //     core.getYouTubeAuth()->clearToken();
+                // }
+                // core.stopYouTubeChatPolling();
+                // core.destroyYouTubeChatClient();
+                obs_log(LOG_INFO, "[MultiRTMP-Manager] Skipped YouTube interruption due to temporary disable: %s",
                         streamId.c_str());
             } else if (platform == "Twitch") {
                 if (core.getTwitchAuth()) {
@@ -244,12 +244,12 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
                 &core,
                 [platform, streamId, &core]() {
                     if (platform == std::string("YouTube")) {
-                        if (core.getYouTubeAuth()) {
-                            core.getYouTubeAuth()->clearToken();
-                        }
-                        core.stopYouTubeChatPolling();
-                        core.destroyYouTubeChatClient();
-                        obs_log(LOG_INFO, "[MultiRTMP-Manager] Interrupted YouTube connections and cleared in-memory token: %s",
+                        // if (core.getYouTubeAuth()) {
+                        //     core.getYouTubeAuth()->clearToken();
+                        // }
+                        // core.stopYouTubeChatPolling();
+                        // core.destroyYouTubeChatClient();
+                        obs_log(LOG_INFO, "[MultiRTMP-Manager] Skipped YouTube interruption due to temporary disable: %s",
                                 streamId.c_str());
                     } else if (platform == std::string("Twitch")) {
                         if (core.getTwitchAuth()) {

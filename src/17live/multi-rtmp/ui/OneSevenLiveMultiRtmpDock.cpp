@@ -342,6 +342,10 @@ void OneSevenLiveMultiRtmpDock::refreshStreamList() {
             const auto& config = configs[i];
 
             try {
+                std::string n = config.streamName;
+                std::transform(n.begin(), n.end(), n.begin(), ::tolower);
+                if (n == std::string("youtube"))
+                    continue;
                 m_streamListWidget->addStream(config);
 
                 // Update with current status and stats
@@ -572,19 +576,18 @@ void OneSevenLiveMultiRtmpDock::updateButtonStates() {
     }
 
     // Hide Add Stream when both YouTube and Twitch exist
-    bool hasYouTube = false;
-    bool hasTwitch = false;
+    size_t nonYouTubeCount = 0;
     if (!OneSevenLiveCoreManager::getInstance().isShuttingDown() && ensureManagerInitialized()) {
         auto configs = m_manager->getAllStreamConfigs();
         for (const auto& cfg : configs) {
-            if (cfg.streamName == "YouTube")
-                hasYouTube = true;
-            else if (cfg.streamName == "Twitch")
-                hasTwitch = true;
+            std::string n = cfg.streamName;
+            std::transform(n.begin(), n.end(), n.begin(), ::tolower);
+            if (n != std::string("youtube"))
+                ++nonYouTubeCount;
         }
     }
     if (m_addStreamButton)
-        m_addStreamButton->setVisible(!(hasYouTube && hasTwitch));
+        m_addStreamButton->setVisible(nonYouTubeCount == 0);
 }
 
 void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConfig& config) {

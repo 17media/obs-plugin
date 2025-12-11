@@ -226,8 +226,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
         m_streamNameCombo->addItem(QString::fromStdString(m_config->streamName));
         m_streamNameCombo->setEnabled(false);
     } else {
-        if (!hasYouTube)
-            m_streamNameCombo->addItem("YouTube");
+        // if (!hasYouTube)
+        //     m_streamNameCombo->addItem("YouTube");
         if (!hasTwitch)
             m_streamNameCombo->addItem("Twitch");
     }

@@ -1,7 +1,6 @@
 import { EventEmitter } from 'events';
 import { fromJS } from 'immutable';
 import { OneSevenLivePlatform } from '../platforms/17live/core/OneSevenLivePlatform';
-import { YouTubePlatform } from '../platforms/youtube/core/YouTubePlatform';
 import { TwitchPlatform } from '../platforms/twitch/core/TwitchPlatform';
 import { sendWSMessage } from './WSSender';
 
@@ -43,7 +42,6 @@ export class MessageAggregator extends EventEmitter {
     // Platform handler mapping
     this.platformHandlers = {
       '17live': OneSevenLivePlatform,
-      'youtube': YouTubePlatform,
       'twitch': TwitchPlatform
     };
     

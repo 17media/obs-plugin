@@ -1034,66 +1034,11 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
         };
 
         if (contains_ci(platform, "youtube")) {
-            auto& core = OneSevenLiveCoreManager::getInstance();
-            auto* ytAuth = core.getYouTubeAuth();
-            if (!ytAuth || !ytAuth->hasValidToken()) {
-                MULTI_RTMP_STREAM_LOG_WARNING("YouTube auth not available; cannot resolve for %s",
-                                              streamId.c_str());
-                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                   "AuthInvalid:YouTube");
-                return;
-            }
-            OneSevenLiveYouTubeClient* api = core.getYouTubeApiClient();
-            if (!api) {
-                core.createYouTubeChatClient();
-                api = core.getYouTubeApiClient();
-            }
-            if (!api || !api->hasValidAuth()) {
-                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                   "AuthInvalid:YouTube");
-                return;
-            }
-            auto connPtr = std::make_shared<QMetaObject::Connection>();
-            *connPtr = QObject::connect(api, &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
-                                        [this, streamId, connPtr](const YouTubeLiveStreamListResponse& resp) {
-                                            QObject::disconnect(*connPtr);
-                                            QString resolvedServer;
-                                            QString resolvedKey;
-                                            for (const auto& item : resp.items) {
-                                                QString server = item.cdn.ingestionInfo.rtmpsIngestionAddress;
-                                                if (server.isEmpty())
-                                                    server = item.cdn.ingestionInfo.ingestionAddress;
-                                                QString key = item.cdn.ingestionInfo.streamName;
-                                                if (!server.isEmpty() && !key.isEmpty()) {
-                                                    resolvedServer = server;
-                                                    resolvedKey = key;
-                                                    break;
-                                                }
-                                            }
-                                            if (!resolvedServer.isEmpty() && !resolvedKey.isEmpty()) {
-                                                finalizeServiceSetupAfterResolve(streamId, resolvedServer.toUtf8().constData(),
-                                                                                 resolvedKey.toUtf8().constData());
-                                            } else {
-                                                MULTI_RTMP_STREAM_LOG_WARNING(
-                                                    "YouTube resolve returned empty server/key for %s", streamId.c_str());
-                                                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                                                                   "MissingServerKey:YouTube");
-                                            }
-                                        });
-            auto errConnPtr = std::make_shared<QMetaObject::Connection>();
-            *errConnPtr = QObject::connect(api, &OneSevenLiveYouTubeClient::errorOccurred,
-                                           [this, streamId, errConnPtr](const QString& err) {
-                                               QObject::disconnect(*errConnPtr);
-                                               QString e = err.toLower();
-                                               bool isNet = e.contains("tls") || e.contains("ssl") || e.contains("timeout") ||
-                                                            e.contains("connection") || e.contains("recv") ||
-                                                            e.contains("reset") || e.contains("handshake") ||
-                                                            e.contains("network");
-                                               std::string msg = std::string(isNet ? "NetworkError:YouTube:" : "APIError:YouTube:") +
-                                                                 err.toUtf8().constData();
-                                               updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE, msg.c_str());
-                                           });
-            api->getMyLiveStreams();
+            MULTI_RTMP_STREAM_LOG_INFO("YouTube platform disabled; skipping server/key resolution for %s",
+                                       streamId.c_str());
+            updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                               "Disabled:YouTube");
+            return;
         } else if (contains_ci(platform, "twitch")) {
             auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
             OneSevenLiveTwitchClient* client = nullptr;

@@ -144,7 +144,6 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
   const platformDefs = [
     { id: 'all', name: t('platforms.all') },
     { id: '17live', name: t('platforms.17live') },
-    { id: 'youtube', name: t('platforms.youtube') },
     { id: 'twitch', name: t('platforms.twitch') },
   ];
 
@@ -194,9 +193,6 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
       // Keep them disconnected in UI; only 17live is connected by default.
       try {
         const statusMap = messageAggregator.getPlatformsStatus?.();
-        if (!statusMap || !statusMap['youtube']) {
-          await messageAggregator.addPlatform('youtube', {});
-        }
         if (!statusMap || !statusMap['twitch']) {
           await messageAggregator.addPlatform('twitch', {});
         }
@@ -208,10 +204,9 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
       // Connect 17live only; youtube and twitch remain disconnected but instances exist.
       await connectPlatform('17live', {});
 
-      // Explicitly mark youtube and twitch as disconnected for status display, without connecting them.
+      // Explicitly mark twitch as disconnected for status display, without connecting it.
       setPlatformsStatus(prev => ({
         ...prev,
-        youtube: { ...(prev.youtube || {}), status: 'disconnected' },
         twitch: { ...(prev.twitch || {}), status: 'disconnected' },
       }));
 
