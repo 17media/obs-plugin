@@ -1275,6 +1275,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         streamingDock->disconnect(this);
         streamingDock->close();
         delete streamingDock;
+        streamingDock = nullptr;
     }
     configManager->setDockVisibility("streaming", streamingVisible);
 
@@ -1284,6 +1285,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         liveListDock->disconnect(this);
         liveListDock->close();
         delete liveListDock;
+        liveListDock = nullptr;
     }
     configManager->setDockVisibility("liveList", liveListVisible);
 
@@ -1293,6 +1295,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         rockZoneDock->disconnect(this);
         rockZoneDock->close();
         delete rockZoneDock;
+        rockZoneDock = nullptr;
     }
     configManager->setDockVisibility("rockZone", rockZoneVisible);
 
@@ -1308,6 +1311,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         }
         chatDock->close();
         delete chatDock;
+        chatDock = nullptr;
     }
     configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
@@ -1317,6 +1321,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         multiRtmpDock->disconnect(this);
         multiRtmpDock->close();
         delete multiRtmpDock;
+        multiRtmpDock = nullptr;
     }
     configManager->setDockVisibility("multiRtmp", multiRtmpVisible);
 
@@ -1326,6 +1331,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
         previewDock->disconnect(this);
         previewDock->close();
         delete previewDock;
+        previewDock = nullptr;
     }
     configManager->setDockVisibility("previewDock", previewDockVisible);
 
