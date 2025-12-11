@@ -742,9 +742,7 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
                             if (sm) {
                                 caption = sm->getCurrentStreamRequest().caption;
                             }
-                            if (!caption.isEmpty()) {
-                                core.orchestrateYouTubeBroadcast(caption);
-                            }
+                            core.orchestrateYouTubeBroadcast(caption.isEmpty() ? QString("Live") : caption);
                         }
                     }, Qt::QueuedConnection);
                 }
