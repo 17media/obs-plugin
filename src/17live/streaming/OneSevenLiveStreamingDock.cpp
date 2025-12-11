@@ -1049,8 +1049,9 @@ void OneSevenLiveStreamingDock::updateTagsFromList() {
     // Clear existing tag display
     QLayoutItem *child;
     while ((child = tagsLayout->takeAt(0)) != nullptr) {
-        if (child->widget()) {
-            child->widget()->deleteLater();
+        if (QWidget *w = child->widget()) {
+            w->setParent(nullptr);
+            delete w;
         }
         delete child;
     }
