@@ -463,6 +463,15 @@ void OneSevenLiveMultiRtmpDock::onStartAllClicked() {
 
 void OneSevenLiveMultiRtmpDock::onStopAllClicked() {
     if (ensureManagerInitialized()) {
+        {
+            auto& core = OneSevenLiveCoreManager::getInstance();
+            OneSevenLiveStreamManager* streamMgr = core.getStreamManager();
+            if (streamMgr &&
+                streamMgr->getCurrentStreamingStatus() != OneSevenLiveStreamingStatus::NotStarted) {
+                QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                         obs_module_text("MultiRTMP.Stop.InfoTip17LIVE"));
+            }
+        }
         m_stopAllButton->setEnabled(false);
 
         QMessageBox::StandardButton ret = QMessageBox::question(

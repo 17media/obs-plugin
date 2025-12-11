@@ -31,6 +31,7 @@
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
                                                     OneSevenLiveStreamManager *streamManager_,
@@ -1400,6 +1401,18 @@ void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
     if (msgBox.clickedButton() != confirmButton) {
         // User cancelled the operation
         return;
+    }
+
+    // check other live streams
+    bool multiActive = false;
+    if (OneSevenLiveMultiRtmpManager::peekInstance() &&
+        OneSevenLiveMultiRtmpManager::peekInstance()->isInitialized()) {
+        auto ids = OneSevenLiveMultiRtmpManager::peekInstance()->getActiveStreamIds();
+        multiActive = !ids.empty();
+    }
+    if (multiActive) {
+        QMessageBox::information(this, obs_module_text("Live.Common.Notice"),
+                                 obs_module_text("MultiRTMP.CloseLive.InfoTip"));
     }
 
     // Stop streaming

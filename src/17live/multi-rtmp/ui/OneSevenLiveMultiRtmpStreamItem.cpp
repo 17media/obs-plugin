@@ -272,6 +272,15 @@ bool OneSevenLiveMultiRtmpStreamItem::isError() const {
 
 void OneSevenLiveMultiRtmpStreamItem::onStartStopClicked() {
     if (isActive() || isConnecting()) {
+        {
+            auto& core = OneSevenLiveCoreManager::getInstance();
+            OneSevenLiveStreamManager* streamMgr = core.getStreamManager();
+            if (streamMgr &&
+                streamMgr->getCurrentStreamingStatus() != OneSevenLiveStreamingStatus::NotStarted) {
+                QMessageBox::information(nullptr, obs_module_text("Live.Common.Notice"),
+                                         obs_module_text("MultiRTMP.Stop.InfoTip17LIVE"));
+            }
+        }
         emit stopRequested(m_config.id);
     } else {
         // Pre-check 17LIVE streaming status before starting MultiRTMP
