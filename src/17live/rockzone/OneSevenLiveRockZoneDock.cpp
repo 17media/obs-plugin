@@ -474,6 +474,17 @@ void OneSevenLiveRockZoneDock::clearArmyNameCache() {
     cachedArmyNameResponse = OneSevenLiveArmyNameResponse();
 }
 
+void OneSevenLiveRockZoneDock::clearUserList() {
+    if (userList) {
+        userList->clear();
+        userList->setVisible(false);
+    }
+    userItemMap.clear();
+    if (emptyListLabel) {
+        emptyListLabel->setVisible(true);
+    }
+}
+
 void OneSevenLiveRockZoneDock::onPokeAllClicked() {
     if (!apiWrapper) {
         return;

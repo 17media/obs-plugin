@@ -1539,6 +1539,21 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         rockZoneDock->move(x, y);
     }
 
+    if (streamManager) {
+        connect(streamManager.get(), &OneSevenLiveStreamManager::streamStatusChanged, this,
+                [this](OneSevenLiveStreamingStatus status) {
+                    if (status == OneSevenLiveStreamingStatus::NotStarted && rockZoneDock) {
+                        rockZoneDock->clearUserList();
+                    }
+                });
+        connect(streamManager.get(), &OneSevenLiveStreamManager::obsStreamStopped, this,
+                [this](int, const QString&) {
+                    if (rockZoneDock) {
+                        rockZoneDock->clearUserList();
+                    }
+                });
+    }
+
     if (rockZoneDockFirstLoad) {
         // When dock is closed, uncheck menu item status
         connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {

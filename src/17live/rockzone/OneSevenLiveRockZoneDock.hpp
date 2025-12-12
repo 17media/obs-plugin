@@ -28,6 +28,7 @@ class OneSevenLiveRockZoneDock : public QDockWidget {
 
     void refreshUserList();
     void clearArmyNameCache();
+    void clearUserList();
 
    protected:
     void resizeEvent(QResizeEvent* event) override;
