@@ -112,6 +112,30 @@ try {
             Move-Item $InstallerName (Join-Path $OutputDir $InstallerName) -Force
             Write-Host "✓ Installer moved to: $(Join-Path $OutputDir $InstallerName)" -ForegroundColor Green
         }
+
+        # Package non-installer zip from rundir contents
+        Write-Host "Packaging non-installer zip..." -ForegroundColor Yellow
+        $ZipFolderName = "17liveOBSPlugin-windows-$VersionTag"
+        $StagingRoot = Join-Path $OutputDir $ZipFolderName
+        if (Test-Path $StagingRoot) {
+            Remove-Item $StagingRoot -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $StagingRoot -Force | Out-Null
+
+        # Copy the contents of rundir into the staging root (no extra nested directory)
+        if (!(Test-Path $BuildDir -PathType Container)) {
+            Write-Error "BuildDir not found for zip packaging: $BuildDir"
+            exit 1
+        }
+        Copy-Item -Path "$BuildDir\*" -Destination $StagingRoot -Recurse -Force
+
+        $ZipName = "17liveOBSPlugin-windows-$VersionTag-non-installer.zip"
+        $ZipPath = Join-Path $OutputDir $ZipName
+        if (Test-Path $ZipPath) {
+            Remove-Item $ZipPath -Force
+        }
+        Compress-Archive -Path $StagingRoot -DestinationPath $ZipPath
+        Write-Host "✓ Non-installer zip created: $ZipPath" -ForegroundColor Green
     } else {
         Write-Error "NSIS build failed with exit code: $($Process.ExitCode)"
         exit 1
