@@ -24,6 +24,15 @@ OneSevenLiveAuthDialog::OneSevenLiveAuthDialog(const QString& url, QWidget* pare
 
 OneSevenLiveAuthDialog::~OneSevenLiveAuthDialog() {
     obs_log(LOG_INFO, "OneSevenLiveAuthDialog: destructor");
+    int panel_version = obs_browser_qcef_version();
+    if (cefWidget_ && panel_version >= 2) {
+        cefWidget_->closeBrowser();
+    }
+    if (panelCookies_) {
+        panelCookies_->FlushStore();
+        delete panelCookies_;
+        panelCookies_ = nullptr;
+    }
 }
 
 void OneSevenLiveAuthDialog::setupUi() {
@@ -38,8 +47,10 @@ void OneSevenLiveAuthDialog::setupUi() {
     cef_ = obs_browser_init_panel();
     if (cef_) {
         cef_->init_browser();
+        cef_->wait_for_browser_init();
+        panelCookies_ = cef_->create_cookie_manager("onesevenlive-auth", false);
         // Initialize with about:blank; real URL set via setUrl()
-        cefWidget_ = cef_->create_widget(this, "about:blank");
+        cefWidget_ = cef_->create_widget(this, "about:blank", panelCookies_);
         if (cefWidget_) {
             cefWidget_->show();
 
@@ -47,6 +58,10 @@ void OneSevenLiveAuthDialog::setupUi() {
             // but the underlying implementation (obs-browser panel) does.
             connect(cefWidget_, SIGNAL(urlChanged(const QString&)), this,
                     SIGNAL(urlChanged(const QString&)));
+            int panel_version = obs_browser_qcef_version();
+            if (panel_version >= 1) {
+                cefWidget_->allowAllPopups(true);
+            }
         }
     } else {
         obs_log(LOG_ERROR, "OneSevenLiveAuthDialog: Failed to initialize obs-browser panel");
@@ -68,16 +83,34 @@ void OneSevenLiveAuthDialog::setUrl(const QString& url) {
 
 void OneSevenLiveAuthDialog::accept() {
     if (cefWidget_) {
+        int panel_version = obs_browser_qcef_version();
+        if (panel_version >= 2) {
+            cefWidget_->closeBrowser();
+        }
         delete cefWidget_;
         cefWidget_ = nullptr;
+    }
+    if (panelCookies_) {
+        panelCookies_->FlushStore();
+        delete panelCookies_;
+        panelCookies_ = nullptr;
     }
     QDialog::accept();
 }
 
 void OneSevenLiveAuthDialog::reject() {
     if (cefWidget_) {
+        int panel_version = obs_browser_qcef_version();
+        if (panel_version >= 2) {
+            cefWidget_->closeBrowser();
+        }
         delete cefWidget_;
         cefWidget_ = nullptr;
+    }
+    if (panelCookies_) {
+        panelCookies_->FlushStore();
+        delete panelCookies_;
+        panelCookies_ = nullptr;
     }
     QDialog::reject();
 }

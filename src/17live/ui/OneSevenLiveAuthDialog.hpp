@@ -6,6 +6,7 @@
 class QCefView;
 struct QCef;
 class QCefWidget;
+struct QCefCookieManager;
 
 /**
  * Authorization dialog using embedded CEF view.
@@ -37,4 +38,5 @@ class OneSevenLiveAuthDialog : public QDialog {
     void setupUi();
     QCef* cef_ = nullptr;
     QCefWidget* cefWidget_ = nullptr;
+    QCefCookieManager* panelCookies_ = nullptr;
 };
