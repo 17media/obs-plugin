@@ -1266,24 +1266,39 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
 
             QList<QDockWidget*> docks;
             QList<int> sizes;
-            if (streamingDock) { docks << streamingDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (liveListDock) { docks << liveListDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (rockZoneDock) { docks << rockZoneDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (multiRtmpDock) { docks << multiRtmpDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (previewDock) { docks << previewDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (chatDock) { docks << chatDock; sizes << INITIAL_DOCK_HEIGHT; }
+            if (streamingDock) {
+                docks << streamingDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (liveListDock) {
+                docks << liveListDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (rockZoneDock) {
+                docks << rockZoneDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (multiRtmpDock) {
+                docks << multiRtmpDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (previewDock) {
+                docks << previewDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (chatDock) {
+                docks << chatDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
             if (!docks.isEmpty())
                 mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
         });
 
         // Update menu visibility status after restoration
         if (menuManager) {
-            menuManager->updateDockVisibility(isDockOpen(chatDock),
-                                              isDockOpen(streamingDock),
-                                              isDockOpen(liveListDock),
-                                              isDockOpen(rockZoneDock),
-                                              isDockOpen(multiRtmpDock),
-                                              isDockOpen(previewDock));
+            menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                              isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                              isDockOpen(multiRtmpDock), isDockOpen(previewDock));
         }
     }
 }
@@ -1441,10 +1456,9 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(
-            isDockOpen(chatDock), isDockOpen(streamingDock),
-            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -1483,17 +1497,35 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         int y =
             mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
         streamingDock->move(x, y);
-        
+
 #ifdef Q_OS_WIN
         QTimer::singleShot(0, this, [this]() {
             QList<QDockWidget*> docks;
             QList<int> sizes;
-            if (streamingDock) { docks << streamingDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (liveListDock) { docks << liveListDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (rockZoneDock) { docks << rockZoneDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (multiRtmpDock) { docks << multiRtmpDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (previewDock) { docks << previewDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (chatDock) { docks << chatDock; sizes << INITIAL_DOCK_HEIGHT; }
+            if (streamingDock) {
+                docks << streamingDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (liveListDock) {
+                docks << liveListDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (rockZoneDock) {
+                docks << rockZoneDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (multiRtmpDock) {
+                docks << multiRtmpDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (previewDock) {
+                docks << previewDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (chatDock) {
+                docks << chatDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
             if (!docks.isEmpty() && mainWindow) {
                 mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
             }
@@ -1508,12 +1540,10 @@ void OneSevenLiveCoreManager::createStreamingDock() {
             }
         });
 
-        connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        connect(streamingDock, &QDockWidget::visibilityChanged, this, [this]() {
             menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                              isDockOpen(liveListDock),
-                                              isDockOpen(rockZoneDock),
-                                              isDockOpen(multiRtmpDock),
-                                              isDockOpen(previewDock));
+                                              isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                              isDockOpen(multiRtmpDock), isDockOpen(previewDock));
         });
 
         streamingDockFirstLoad = false;
@@ -1531,10 +1561,9 @@ void OneSevenLiveCoreManager::handleRockZoneClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(
-            isDockOpen(chatDock), isDockOpen(streamingDock),
-            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -1574,17 +1603,35 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - rockZoneDock->width()) / 2;
         int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - rockZoneDock->height()) / 2;
         rockZoneDock->move(x, y);
-        
+
 #ifdef Q_OS_WIN
         QTimer::singleShot(0, this, [this]() {
             QList<QDockWidget*> docks;
             QList<int> sizes;
-            if (rockZoneDock) { docks << rockZoneDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (streamingDock) { docks << streamingDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (liveListDock) { docks << liveListDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (multiRtmpDock) { docks << multiRtmpDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (previewDock) { docks << previewDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (chatDock) { docks << chatDock; sizes << INITIAL_DOCK_HEIGHT; }
+            if (rockZoneDock) {
+                docks << rockZoneDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (streamingDock) {
+                docks << streamingDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (liveListDock) {
+                docks << liveListDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (multiRtmpDock) {
+                docks << multiRtmpDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (previewDock) {
+                docks << previewDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (chatDock) {
+                docks << chatDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
             if (!docks.isEmpty() && mainWindow) {
                 mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
             }
@@ -1609,12 +1656,10 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
 
     if (rockZoneDockFirstLoad) {
         // When dock is closed, uncheck menu item status
-        connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(isDockOpen(chatDock),
-                                              isDockOpen(streamingDock),
+        connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this]() {
+            menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
                                               isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                              isDockOpen(multiRtmpDock),
-                                              isDockOpen(previewDock));
+                                              isDockOpen(multiRtmpDock), isDockOpen(previewDock));
         });
 
         rockZoneDockFirstLoad = false;
@@ -1647,17 +1692,35 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
             int y =
                 mainWindowGeometry.y() + (mainWindowGeometry.height() - liveListDock->height()) / 2;
             liveListDock->move(x, y);
-            
+
 #ifdef Q_OS_WIN
             QTimer::singleShot(0, this, [this]() {
                 QList<QDockWidget*> docks;
                 QList<int> sizes;
-                if (liveListDock) { docks << liveListDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (streamingDock) { docks << streamingDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (rockZoneDock) { docks << rockZoneDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (multiRtmpDock) { docks << multiRtmpDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (previewDock) { docks << previewDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (chatDock) { docks << chatDock; sizes << INITIAL_DOCK_HEIGHT; }
+                if (liveListDock) {
+                    docks << liveListDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (streamingDock) {
+                    docks << streamingDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (rockZoneDock) {
+                    docks << rockZoneDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (multiRtmpDock) {
+                    docks << multiRtmpDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (previewDock) {
+                    docks << previewDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (chatDock) {
+                    docks << chatDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
                 if (!docks.isEmpty() && mainWindow) {
                     mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
                 }
@@ -1730,13 +1793,10 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
                 });
 
         // When dock is closed, uncheck menu item status
-        connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(isDockOpen(chatDock),
-                                              isDockOpen(streamingDock),
-                                              isDockOpen(liveListDock),
-                                              isDockOpen(rockZoneDock),
-                                              isDockOpen(multiRtmpDock),
-                                              isDockOpen(previewDock));
+        connect(liveListDock, &QDockWidget::visibilityChanged, this, [this]() {
+            menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                              isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                              isDockOpen(multiRtmpDock), isDockOpen(previewDock));
         });
     } else {
         liveListDock->toggleViewAction()->trigger();
@@ -1744,10 +1804,9 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(
-            isDockOpen(chatDock), isDockOpen(streamingDock),
-            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -1825,17 +1884,35 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatDock->width()) / 2;
             int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatDock->height()) / 2;
             chatDock->move(x, y);
-            
+
 #ifdef Q_OS_WIN
             QTimer::singleShot(0, this, [this]() {
                 QList<QDockWidget*> docks;
                 QList<int> sizes;
-                if (chatDock) { docks << chatDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (streamingDock) { docks << streamingDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (rockZoneDock) { docks << rockZoneDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (liveListDock) { docks << liveListDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (multiRtmpDock) { docks << multiRtmpDock; sizes << INITIAL_DOCK_HEIGHT; }
-                if (previewDock) { docks << previewDock; sizes << INITIAL_DOCK_HEIGHT; }
+                if (chatDock) {
+                    docks << chatDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (streamingDock) {
+                    docks << streamingDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (rockZoneDock) {
+                    docks << rockZoneDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (liveListDock) {
+                    docks << liveListDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (multiRtmpDock) {
+                    docks << multiRtmpDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
+                if (previewDock) {
+                    docks << previewDock;
+                    sizes << INITIAL_DOCK_HEIGHT;
+                }
                 if (!docks.isEmpty() && mainWindow) {
                     mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
                 }
@@ -1849,12 +1926,9 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
                     (chatDock && chatDock->isFloating()) ? "true" : "false");
 
             if (menuManager) {
-                menuManager->updateDockVisibility(isDockOpen(chatDock),
-                                                  isDockOpen(streamingDock),
-                                                  isDockOpen(liveListDock),
-                                                  isDockOpen(rockZoneDock),
-                                                  isDockOpen(multiRtmpDock),
-                                                  isDockOpen(previewDock));
+                menuManager->updateDockVisibility(
+                    isDockOpen(chatDock), isDockOpen(streamingDock), isDockOpen(liveListDock),
+                    isDockOpen(rockZoneDock), isDockOpen(multiRtmpDock), isDockOpen(previewDock));
             }
             chatDockVisible = visible;
             if (visible)
@@ -1868,10 +1942,9 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
 
     // Update visibility status for menu
     if (menuManager) {
-        menuManager->updateDockVisibility(
-            isDockOpen(chatDock), isDockOpen(streamingDock),
-            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -2030,10 +2103,9 @@ void OneSevenLiveCoreManager::handleMultiRtmpClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(
-            isDockOpen(chatDock), isDockOpen(streamingDock),
-            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -2071,17 +2143,35 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
         int y =
             mainWindowGeometry.y() + (mainWindowGeometry.height() - multiRtmpDock->height()) / 2;
         multiRtmpDock->move(x, y);
-        
+
 #ifdef Q_OS_WIN
         QTimer::singleShot(0, this, [this]() {
             QList<QDockWidget*> docks;
             QList<int> sizes;
-            if (multiRtmpDock) { docks << multiRtmpDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (streamingDock) { docks << streamingDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (rockZoneDock) { docks << rockZoneDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (liveListDock) { docks << liveListDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (previewDock) { docks << previewDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (chatDock) { docks << chatDock; sizes << INITIAL_DOCK_HEIGHT; }
+            if (multiRtmpDock) {
+                docks << multiRtmpDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (streamingDock) {
+                docks << streamingDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (rockZoneDock) {
+                docks << rockZoneDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (liveListDock) {
+                docks << liveListDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (previewDock) {
+                docks << previewDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (chatDock) {
+                docks << chatDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
             if (!docks.isEmpty() && mainWindow) {
                 mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
             }
@@ -2091,14 +2181,11 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
 
     if (multiRtmpDockFirstLoad) {
         // Connect visibility change signal to update menu status
-        connect(multiRtmpDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        connect(multiRtmpDock, &QDockWidget::visibilityChanged, this, [this]() {
             if (menuManager) {
-                menuManager->updateDockVisibility(isDockOpen(chatDock),
-                                                  isDockOpen(streamingDock),
-                                                  isDockOpen(liveListDock),
-                                                  isDockOpen(rockZoneDock),
-                                                  isDockOpen(multiRtmpDock),
-                                                  isDockOpen(previewDock));
+                menuManager->updateDockVisibility(
+                    isDockOpen(chatDock), isDockOpen(streamingDock), isDockOpen(liveListDock),
+                    isDockOpen(rockZoneDock), isDockOpen(multiRtmpDock), isDockOpen(previewDock));
             }
         });
 
@@ -2117,10 +2204,9 @@ void OneSevenLiveCoreManager::handlePreviewDockClicked() {
 
     // Update menu item checked status
     if (menuManager) {
-        menuManager->updateDockVisibility(
-            isDockOpen(chatDock), isDockOpen(streamingDock),
-            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -2156,17 +2242,35 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - previewDock->width()) / 2;
         int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - previewDock->height()) / 2;
         previewDock->move(x, y);
-        
+
 #ifdef Q_OS_WIN
         QTimer::singleShot(0, this, [this]() {
             QList<QDockWidget*> docks;
             QList<int> sizes;
-            if (previewDock) { docks << previewDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (streamingDock) { docks << streamingDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (rockZoneDock) { docks << rockZoneDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (liveListDock) { docks << liveListDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (multiRtmpDock) { docks << multiRtmpDock; sizes << INITIAL_DOCK_HEIGHT; }
-            if (chatDock) { docks << chatDock; sizes << INITIAL_DOCK_HEIGHT; }
+            if (previewDock) {
+                docks << previewDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (streamingDock) {
+                docks << streamingDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (rockZoneDock) {
+                docks << rockZoneDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (liveListDock) {
+                docks << liveListDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (multiRtmpDock) {
+                docks << multiRtmpDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
+            if (chatDock) {
+                docks << chatDock;
+                sizes << INITIAL_DOCK_HEIGHT;
+            }
             if (!docks.isEmpty() && mainWindow) {
                 mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
             }
@@ -2176,14 +2280,11 @@ void OneSevenLiveCoreManager::createPreviewDock() {
 
     if (previewDockFirstLoad) {
         // Connect visibility change signal to update menu status
-        connect(previewDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        connect(previewDock, &QDockWidget::visibilityChanged, this, [this]() {
             if (menuManager) {
                 menuManager->updateDockVisibility(
-                    isDockOpen(chatDock), isDockOpen(streamingDock),
-                    isDockOpen(liveListDock),
-                    isDockOpen(rockZoneDock),
-                    isDockOpen(multiRtmpDock),
-                    isDockOpen(previewDock));
+                    isDockOpen(chatDock), isDockOpen(streamingDock), isDockOpen(liveListDock),
+                    isDockOpen(rockZoneDock), isDockOpen(multiRtmpDock), isDockOpen(previewDock));
             }
         });
 
