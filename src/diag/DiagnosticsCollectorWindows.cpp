@@ -71,8 +71,6 @@ namespace seventeen {
                               return std::filesystem::last_write_time(a) >
                                      std::filesystem::last_write_time(b);
                           });
-                if (files.size() > 5)
-                    files.resize(5);
                 std::string tempDir = generateTempDirectory();
 
                 for (const auto& file : files) {

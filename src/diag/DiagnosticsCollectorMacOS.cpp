@@ -38,17 +38,12 @@ namespace seventeen {
             std::string obsLogDir = getOBSLogDirectory();
 
             if (std::filesystem::exists(obsLogDir)) {
-                // Collect .txt logs and pick latest 5
                 auto files = getFilesInDirectory(obsLogDir, "*.txt");
-                // Sort by modification time desc
                 std::sort(files.begin(), files.end(),
                           [](const std::string& a, const std::string& b) {
                               return std::filesystem::last_write_time(a) >
                                      std::filesystem::last_write_time(b);
                           });
-                if (files.size() > 5)
-                    files.resize(5);
-
                 std::string tempDir = generateTempDirectory();
                 double total = files.size();
                 for (size_t i = 0; i < files.size(); ++i) {
