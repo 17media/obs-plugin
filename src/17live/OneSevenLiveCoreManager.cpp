@@ -1253,27 +1253,19 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
         mainWindow->restoreState(dockState);
 
         QTimer::singleShot(0, this, [this]() {
+            if (!mainWindow)
+                return;
+
             QList<QDockWidget*> docks;
             QList<int> sizes;
-            if (streamingDock) {
-                docks << streamingDock;
-                sizes << 600;
-            }
-            if (liveListDock) {
-                docks << liveListDock;
-                sizes << 400;
-            }
-            if (multiRtmpDock) {
-                docks << multiRtmpDock;
-                sizes << 400;
-            }
-            if (previewDock) {
-                docks << previewDock;
-                sizes << 480;
-            }
-            if (!docks.isEmpty() && mainWindow) {
+            if (streamingDock) { docks << streamingDock; sizes << 300; }
+            if (liveListDock) { docks << liveListDock; sizes << 400; }
+            if (rockZoneDock) { docks << rockZoneDock; sizes << 400; }
+            if (multiRtmpDock) { docks << multiRtmpDock; sizes << 400; }
+            if (previewDock) { docks << previewDock; sizes << 480; }
+            if (chatDock) { docks << chatDock; sizes << 500; }
+            if (!docks.isEmpty())
                 mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
-            }
         });
 
         // Update menu visibility status after restoration
@@ -1465,8 +1457,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
     streamingDock->setObjectName("OneSevenLiveStreamingDock");
 
     streamingDock->setMaximumWidth(600);
-    streamingDock->resize(450, 600);
-    streamingDock->setMinimumHeight(400);
+    streamingDock->resize(450, 300);
 
     streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
@@ -1489,7 +1480,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         QTimer::singleShot(0, this, [this]() {
             QList<QDockWidget*> docks;
             QList<int> sizes;
-            if (streamingDock) { docks << streamingDock; sizes << 600; }
+            if (streamingDock) { docks << streamingDock; sizes << 300; }
             if (liveListDock) { docks << liveListDock; sizes << 400; }
             if (rockZoneDock) { docks << rockZoneDock; sizes << 400; }
             if (multiRtmpDock) { docks << multiRtmpDock; sizes << 400; }
@@ -1555,7 +1546,6 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
     rockZoneDock->setObjectName("OneSevenLiveRockZoneDock");
 
     rockZoneDock->setMinimumWidth(300);
-    rockZoneDock->setMinimumHeight(400);
 
     rockZoneDock->resize(370, 500);
 
@@ -1582,7 +1572,7 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
             QList<QDockWidget*> docks;
             QList<int> sizes;
             if (rockZoneDock) { docks << rockZoneDock; sizes << 400; }
-            if (streamingDock) { docks << streamingDock; sizes << 600; }
+            if (streamingDock) { docks << streamingDock; sizes << 300; }
             if (liveListDock) { docks << liveListDock; sizes << 400; }
             if (multiRtmpDock) { docks << multiRtmpDock; sizes << 400; }
             if (previewDock) { docks << previewDock; sizes << 480; }
@@ -1630,7 +1620,6 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
         liveListDock = new OneSevenLiveStreamListDock(mainWindow, configManager.get(), status);
         liveListDock->setObjectName("OneSevenLiveStreamListDock");
         liveListDock->setMinimumWidth(300);
-        liveListDock->setMinimumHeight(400);
 
         liveListDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, liveListDock);
@@ -1655,7 +1644,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
                 QList<QDockWidget*> docks;
                 QList<int> sizes;
                 if (liveListDock) { docks << liveListDock; sizes << 400; }
-                if (streamingDock) { docks << streamingDock; sizes << 600; }
+                if (streamingDock) { docks << streamingDock; sizes << 300; }
                 if (rockZoneDock) { docks << rockZoneDock; sizes << 400; }
                 if (multiRtmpDock) { docks << multiRtmpDock; sizes << 400; }
                 if (previewDock) { docks << previewDock; sizes << 480; }
@@ -1801,7 +1790,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
         chatDock->setAttribute(Qt::WA_DeleteOnClose, false);
         chatDock->installEventFilter(this);
-        chatDock->setMinimumSize(300, 400);
+        chatDock->setMinimumWidth(300);
 
         // Create the chat widget and set it as the dock's widget
         OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(chatDock, chatUrl);
@@ -1832,7 +1821,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
                 QList<QDockWidget*> docks;
                 QList<int> sizes;
                 if (chatDock) { docks << chatDock; sizes << 500; }
-                if (streamingDock) { docks << streamingDock; sizes << 600; }
+                if (streamingDock) { docks << streamingDock; sizes << 300; }
                 if (rockZoneDock) { docks << rockZoneDock; sizes << 400; }
                 if (liveListDock) { docks << liveListDock; sizes << 400; }
                 if (multiRtmpDock) { docks << multiRtmpDock; sizes << 400; }
@@ -2082,7 +2071,7 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
             QList<QDockWidget*> docks;
             QList<int> sizes;
             if (multiRtmpDock) { docks << multiRtmpDock; sizes << 400; }
-            if (streamingDock) { docks << streamingDock; sizes << 600; }
+            if (streamingDock) { docks << streamingDock; sizes << 300; }
             if (rockZoneDock) { docks << rockZoneDock; sizes << 400; }
             if (liveListDock) { docks << liveListDock; sizes << 400; }
             if (previewDock) { docks << previewDock; sizes << 480; }
@@ -2166,7 +2155,7 @@ void OneSevenLiveCoreManager::createPreviewDock() {
             QList<QDockWidget*> docks;
             QList<int> sizes;
             if (previewDock) { docks << previewDock; sizes << 480; }
-            if (streamingDock) { docks << streamingDock; sizes << 600; }
+            if (streamingDock) { docks << streamingDock; sizes << 300; }
             if (rockZoneDock) { docks << rockZoneDock; sizes << 400; }
             if (liveListDock) { docks << liveListDock; sizes << 400; }
             if (multiRtmpDock) { docks << multiRtmpDock; sizes << 400; }
