@@ -1193,6 +1193,9 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
     //     youtubeAuth->clearToken();
     //     youtubeAuth->stopAutoRefresh();
     // }
+    if (apiWrapper) {
+        apiWrapper->shutdown();
+    }
 
     if (ytChatDiscoverTimer) {
         ytChatDiscoverTimer->stop();

@@ -42,6 +42,7 @@ class OneSevenLiveApiWrappers : public QObject {
    public:
     OneSevenLiveApiWrappers();
     OneSevenLiveApiWrappers(std::string token_);
+    ~OneSevenLiveApiWrappers();
 
     bool Login(const QString &username, const QString &password, OneSevenLiveLoginData &loginData);
 
@@ -134,6 +135,8 @@ class OneSevenLiveApiWrappers : public QObject {
     void setCancelFlag(std::atomic<bool> *flag) {
         m_cancelFlag = flag;
     }
+
+    void shutdown();
 
    protected:
     std::string refresh_token;

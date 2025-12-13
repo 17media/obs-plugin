@@ -114,6 +114,11 @@ OneSevenLiveApiWrappers::OneSevenLiveApiWrappers(std::string token_) : token(tok
     initializeApiWrapper();
 }
 
+OneSevenLiveApiWrappers::~OneSevenLiveApiWrappers() {
+    obs_log(LOG_INFO, "OneSevenLiveApiWrappers destructor");
+    shutdown();
+}
+
 void OneSevenLiveApiWrappers::initializeApiWrapper() {
     currentOS = GetCurrentOS();
     currentOSVersion = GetCurrentOSVersion();
@@ -140,6 +145,12 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
                                                bool token_required,
                                                const std::vector<std::string> extraHeaders) {
     long httpStatusCode = 0;
+
+    if (m_cancelFlag && *m_cancelFlag) {
+        if (error_code)
+            *error_code = 499;
+        return false;
+    }
 
 #ifdef _DEBUG
     obs_log(LOG_DEBUG, "17Live API command URL: %s", url);
@@ -196,6 +207,10 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
     if (error_code)
         *error_code = httpStatusCode;
 
+    if (m_cancelFlag && *m_cancelFlag) {
+        return false;
+    }
+
     if (!success || output.empty()) {
         if (!error.empty())
             obs_log(LOG_WARNING, "17Live API request failed: %s [url: %s]", error.c_str(), url);
@@ -230,6 +245,16 @@ bool OneSevenLiveApiWrappers::UpdateAccessToken() {
     obs_log(LOG_INFO, "Updating access token");
     // TODO: implement
     return false;
+}
+
+void OneSevenLiveApiWrappers::shutdown() {
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        lastErrorMessage.clear();
+    }
+    if (m_cancelFlag) {
+        *m_cancelFlag = true;
+    }
 }
 
 bool OneSevenLiveApiWrappers::InsertCommand(const char *url, const char *content_type,
