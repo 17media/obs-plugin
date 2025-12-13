@@ -134,13 +134,11 @@ void OneSevenLiveRockViewerItem::reloadAvatar() {
                                framePixmap->scaled(canvas.size(), Qt::IgnoreAspectRatio,
                                                    Qt::SmoothTransformation));
 
-            // Draw mLevel icon (12x12) at bottom-right with padding to avoid edge clipping
             if (*levelReady && !levelPixmap->isNull()) {
-                const int badgeW = 12;
-                const int badgeH = 12;
-                const int pad = 2;
-                const int x = canvas.width() - badgeW - pad;
-                const int y = canvas.height() - badgeH - pad;
+                const int badgeW = 18;
+                const int badgeH = 18;
+                const int x = 5;
+                const int y = 5;
                 painter.drawPixmap(x, y,
                                    levelPixmap->scaled(badgeW, badgeH, Qt::IgnoreAspectRatio,
                                                        Qt::SmoothTransformation));
@@ -151,11 +149,10 @@ void OneSevenLiveRockViewerItem::reloadAvatar() {
         if (!(*frameReady) && *levelReady && !levelPixmap->isNull()) {
             QPainter painter(&canvas);
             painter.setRenderHint(QPainter::Antialiasing);
-            const int badgeW = 12;
-            const int badgeH = 12;
-            const int pad = 2;
-            const int x = canvas.width() - badgeW - pad;
-            const int y = canvas.height() - badgeH - pad;
+            const int badgeW = 18;
+            const int badgeH = 18;
+            const int x = 5;
+            const int y = 5;
             painter.drawPixmap(x, y,
                                levelPixmap->scaled(badgeW, badgeH, Qt::IgnoreAspectRatio,
                                                    Qt::SmoothTransformation));
