@@ -74,7 +74,7 @@ QString OneSevenLiveUtility::displayOpenID(const OneSevenLiveRockZoneViewer &vie
 }
 
 QString OneSevenLiveUtility::checkingLevelBadgeResource(const OneSevenLiveRockZoneViewer &viewer) {
-    const int lv = viewer.displayUser.checkinLevel;
+    const int lv = viewer.userAttr.checkinLevel;
     switch (lv) {
     case 0:
     case 1:
