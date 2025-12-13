@@ -1498,39 +1498,6 @@ void OneSevenLiveCoreManager::createStreamingDock() {
             mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
         streamingDock->move(x, y);
 
-#ifdef Q_OS_WIN
-        QTimer::singleShot(0, this, [this]() {
-            QList<QDockWidget*> docks;
-            QList<int> sizes;
-            if (streamingDock) {
-                docks << streamingDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (liveListDock) {
-                docks << liveListDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (rockZoneDock) {
-                docks << rockZoneDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (multiRtmpDock) {
-                docks << multiRtmpDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (previewDock) {
-                docks << previewDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (chatDock) {
-                docks << chatDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (!docks.isEmpty() && mainWindow) {
-                mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
-            }
-        });
-#endif
     }
 
     if (streamingDockFirstLoad) {
@@ -1604,39 +1571,6 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - rockZoneDock->height()) / 2;
         rockZoneDock->move(x, y);
 
-#ifdef Q_OS_WIN
-        QTimer::singleShot(0, this, [this]() {
-            QList<QDockWidget*> docks;
-            QList<int> sizes;
-            if (rockZoneDock) {
-                docks << rockZoneDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (streamingDock) {
-                docks << streamingDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (liveListDock) {
-                docks << liveListDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (multiRtmpDock) {
-                docks << multiRtmpDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (previewDock) {
-                docks << previewDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (chatDock) {
-                docks << chatDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (!docks.isEmpty() && mainWindow) {
-                mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
-            }
-        });
-#endif
     }
 
     if (streamManager) {
@@ -1693,39 +1627,6 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
                 mainWindowGeometry.y() + (mainWindowGeometry.height() - liveListDock->height()) / 2;
             liveListDock->move(x, y);
 
-#ifdef Q_OS_WIN
-            QTimer::singleShot(0, this, [this]() {
-                QList<QDockWidget*> docks;
-                QList<int> sizes;
-                if (liveListDock) {
-                    docks << liveListDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (streamingDock) {
-                    docks << streamingDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (rockZoneDock) {
-                    docks << rockZoneDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (multiRtmpDock) {
-                    docks << multiRtmpDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (previewDock) {
-                    docks << previewDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (chatDock) {
-                    docks << chatDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (!docks.isEmpty() && mainWindow) {
-                    mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
-                }
-            });
-#endif
         }
 
         connect(liveListDock, &OneSevenLiveStreamListDock::startLiveClicked, this,
@@ -1885,39 +1786,6 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatDock->height()) / 2;
             chatDock->move(x, y);
 
-#ifdef Q_OS_WIN
-            QTimer::singleShot(0, this, [this]() {
-                QList<QDockWidget*> docks;
-                QList<int> sizes;
-                if (chatDock) {
-                    docks << chatDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (streamingDock) {
-                    docks << streamingDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (rockZoneDock) {
-                    docks << rockZoneDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (liveListDock) {
-                    docks << liveListDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (multiRtmpDock) {
-                    docks << multiRtmpDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (previewDock) {
-                    docks << previewDock;
-                    sizes << INITIAL_DOCK_HEIGHT;
-                }
-                if (!docks.isEmpty() && mainWindow) {
-                    mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
-                }
-            });
-#endif
         }
 
         connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
@@ -2144,39 +2012,6 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
             mainWindowGeometry.y() + (mainWindowGeometry.height() - multiRtmpDock->height()) / 2;
         multiRtmpDock->move(x, y);
 
-#ifdef Q_OS_WIN
-        QTimer::singleShot(0, this, [this]() {
-            QList<QDockWidget*> docks;
-            QList<int> sizes;
-            if (multiRtmpDock) {
-                docks << multiRtmpDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (streamingDock) {
-                docks << streamingDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (rockZoneDock) {
-                docks << rockZoneDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (liveListDock) {
-                docks << liveListDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (previewDock) {
-                docks << previewDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (chatDock) {
-                docks << chatDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (!docks.isEmpty() && mainWindow) {
-                mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
-            }
-        });
-#endif
     }
 
     if (multiRtmpDockFirstLoad) {
@@ -2243,39 +2078,6 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - previewDock->height()) / 2;
         previewDock->move(x, y);
 
-#ifdef Q_OS_WIN
-        QTimer::singleShot(0, this, [this]() {
-            QList<QDockWidget*> docks;
-            QList<int> sizes;
-            if (previewDock) {
-                docks << previewDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (streamingDock) {
-                docks << streamingDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (rockZoneDock) {
-                docks << rockZoneDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (liveListDock) {
-                docks << liveListDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (multiRtmpDock) {
-                docks << multiRtmpDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (chatDock) {
-                docks << chatDock;
-                sizes << INITIAL_DOCK_HEIGHT;
-            }
-            if (!docks.isEmpty() && mainWindow) {
-                mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
-            }
-        });
-#endif
     }
 
     if (previewDockFirstLoad) {
