@@ -3,6 +3,7 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
+#include <QAction>
 #include <QApplication>
 #include <QDesktopServices>
 #include <QDockWidget>
@@ -55,6 +56,10 @@
 
 using Json = nlohmann::json;
 using namespace std;
+
+static bool isDockOpen(QDockWidget* dock) {
+    return dock && dock->toggleViewAction() && dock->toggleViewAction()->isChecked();
+}
 
 // Initialize static member variables
 OneSevenLiveCoreManager* OneSevenLiveCoreManager::instance = nullptr;
@@ -1270,12 +1275,12 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
 
         // Update menu visibility status after restoration
         if (menuManager) {
-            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                              streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
+            menuManager->updateDockVisibility(isDockOpen(chatDock),
+                                              isDockOpen(streamingDock),
+                                              isDockOpen(liveListDock),
+                                              isDockOpen(rockZoneDock),
+                                              isDockOpen(multiRtmpDock),
+                                              isDockOpen(previewDock));
         }
     }
 }
@@ -1285,7 +1290,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
 
     bool streamingVisible = false;
     if (streamingDock) {
-        streamingVisible = streamingDock->isVisible();
+        streamingVisible = isDockOpen(streamingDock);
         streamingDock->disconnect(this);
         streamingDock->close();
         delete streamingDock;
@@ -1295,7 +1300,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
 
     bool liveListVisible = false;
     if (liveListDock) {
-        liveListVisible = liveListDock->isVisible();
+        liveListVisible = isDockOpen(liveListDock);
         liveListDock->disconnect(this);
         liveListDock->close();
         delete liveListDock;
@@ -1305,7 +1310,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
 
     bool rockZoneVisible = false;
     if (rockZoneDock) {
-        rockZoneVisible = rockZoneDock->isVisible();
+        rockZoneVisible = isDockOpen(rockZoneDock);
         rockZoneDock->disconnect(this);
         rockZoneDock->close();
         delete rockZoneDock;
@@ -1315,7 +1320,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
 
     bool chatRoomVisible = false;
     if (chatDock) {
-        chatRoomVisible = chatDock->isVisible();
+        chatRoomVisible = isDockOpen(chatDock);
         chatDock->disconnect(this);
         OneSevenLiveChatWidget* widget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
         if (widget) {
@@ -1330,7 +1335,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
 
     bool multiRtmpVisible = false;
     if (multiRtmpDock) {
-        multiRtmpVisible = multiRtmpDock->isVisible();
+        multiRtmpVisible = isDockOpen(multiRtmpDock);
         multiRtmpDock->disconnect(this);
         multiRtmpDock->close();
         delete multiRtmpDock;
@@ -1340,7 +1345,7 @@ void OneSevenLiveCoreManager::closeAllDocks() {
 
     bool previewDockVisible = false;
     if (previewDock) {
-        previewDockVisible = previewDock->isVisible();
+        previewDockVisible = isDockOpen(previewDock);
         previewDock->disconnect(this);
         previewDock->close();
         delete previewDock;
@@ -1428,15 +1433,15 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
     if (!streamingDock) {
         createStreamingDock();
     } else {
-        streamingDock->setVisible(!streamingDock->isVisible());
+        streamingDock->toggleViewAction()->trigger();
     }
 
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+            isDockOpen(chatDock), isDockOpen(streamingDock),
+            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -1501,11 +1506,11 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         });
 
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(), visible,
-                                              liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
+            menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                              isDockOpen(liveListDock),
+                                              isDockOpen(rockZoneDock),
+                                              isDockOpen(multiRtmpDock),
+                                              isDockOpen(previewDock));
         });
 
         streamingDockFirstLoad = false;
@@ -1518,15 +1523,15 @@ void OneSevenLiveCoreManager::handleRockZoneClicked() {
     if (!rockZoneDock) {
         createRockZoneDock();
     } else {
-        rockZoneDock->setVisible(!rockZoneDock->isVisible());
+        rockZoneDock->toggleViewAction()->trigger();
     }
 
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+            isDockOpen(chatDock), isDockOpen(streamingDock),
+            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -1602,11 +1607,11 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
     if (rockZoneDockFirstLoad) {
         // When dock is closed, uncheck menu item status
         connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                              streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(), visible,
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
+            menuManager->updateDockVisibility(isDockOpen(chatDock),
+                                              isDockOpen(streamingDock),
+                                              isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                              isDockOpen(multiRtmpDock),
+                                              isDockOpen(previewDock));
         });
 
         rockZoneDockFirstLoad = false;
@@ -1722,22 +1727,23 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
         // When dock is closed, uncheck menu item status
         connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                              streamingDock && streamingDock->isVisible(), visible,
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
+            menuManager->updateDockVisibility(isDockOpen(chatDock),
+                                              isDockOpen(streamingDock),
+                                              isDockOpen(liveListDock),
+                                              isDockOpen(rockZoneDock),
+                                              isDockOpen(multiRtmpDock),
+                                              isDockOpen(previewDock));
         });
     } else {
-        liveListDock->setVisible(!liveListDock->isVisible());
+        liveListDock->toggleViewAction()->trigger();
     }
 
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+            isDockOpen(chatDock), isDockOpen(streamingDock),
+            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -1839,12 +1845,12 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
                     (chatDock && chatDock->isFloating()) ? "true" : "false");
 
             if (menuManager) {
-                menuManager->updateDockVisibility(visible,
-                                                  streamingDock && streamingDock->isVisible(),
-                                                  liveListDock && liveListDock->isVisible(),
-                                                  rockZoneDock && rockZoneDock->isVisible(),
-                                                  multiRtmpDock && multiRtmpDock->isVisible(),
-                                                  previewDock && previewDock->isVisible());
+                menuManager->updateDockVisibility(isDockOpen(chatDock),
+                                                  isDockOpen(streamingDock),
+                                                  isDockOpen(liveListDock),
+                                                  isDockOpen(rockZoneDock),
+                                                  isDockOpen(multiRtmpDock),
+                                                  isDockOpen(previewDock));
             }
             chatDockVisible = visible;
             if (visible)
@@ -1853,19 +1859,15 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     } else {
         obs_log(LOG_INFO, "Toggling existing chatDock visibility. Current: %s",
                 chatDock->isVisible() ? "visible" : "hidden");
-        chatDock->setVisible(!chatDock->isVisible());
-        if (chatDock->isVisible()) {
-            chatDock->raise();
-            chatDock->activateWindow();
-        }
+        chatDock->toggleViewAction()->trigger();
     }
 
     // Update visibility status for menu
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+            isDockOpen(chatDock), isDockOpen(streamingDock),
+            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -2019,15 +2021,15 @@ void OneSevenLiveCoreManager::handleMultiRtmpClicked() {
     if (!multiRtmpDock) {
         createMultiRtmpDock();
     } else {
-        multiRtmpDock->setVisible(!multiRtmpDock->isVisible());
+        multiRtmpDock->toggleViewAction()->trigger();
     }
 
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+            isDockOpen(chatDock), isDockOpen(streamingDock),
+            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -2087,11 +2089,12 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
         // Connect visibility change signal to update menu status
         connect(multiRtmpDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (menuManager) {
-                menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                                  streamingDock && streamingDock->isVisible(),
-                                                  liveListDock && liveListDock->isVisible(),
-                                                  rockZoneDock && rockZoneDock->isVisible(),
-                                                  visible, previewDock && previewDock->isVisible());
+                menuManager->updateDockVisibility(isDockOpen(chatDock),
+                                                  isDockOpen(streamingDock),
+                                                  isDockOpen(liveListDock),
+                                                  isDockOpen(rockZoneDock),
+                                                  isDockOpen(multiRtmpDock),
+                                                  isDockOpen(previewDock));
             }
         });
 
@@ -2105,15 +2108,15 @@ void OneSevenLiveCoreManager::handlePreviewDockClicked() {
     if (!previewDock) {
         createPreviewDock();
     } else {
-        previewDock->setVisible(!previewDock->isVisible());
+        previewDock->toggleViewAction()->trigger();
     }
 
     // Update menu item checked status
     if (menuManager) {
         menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+            isDockOpen(chatDock), isDockOpen(streamingDock),
+            isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+            isDockOpen(multiRtmpDock), isDockOpen(previewDock));
     }
 }
 
@@ -2172,10 +2175,11 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         connect(previewDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (menuManager) {
                 menuManager->updateDockVisibility(
-                    chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-                    liveListDock && liveListDock->isVisible(),
-                    rockZoneDock && rockZoneDock->isVisible(),
-                    multiRtmpDock && multiRtmpDock->isVisible(), visible);
+                    isDockOpen(chatDock), isDockOpen(streamingDock),
+                    isDockOpen(liveListDock),
+                    isDockOpen(rockZoneDock),
+                    isDockOpen(multiRtmpDock),
+                    isDockOpen(previewDock));
             }
         });
 
