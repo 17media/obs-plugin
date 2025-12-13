@@ -634,20 +634,14 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
     auto newBytes = obs_output_get_total_bytes(output);
     auto newFrames = obs_output_get_total_frames(output);
 
-    // Validate OBS data - ensure we have valid values
-    if (newBytes == 0 && newFrames == 0) {
-        // OBS might not have started collecting stats yet, keep previous values
-        return;
-    }
+    // Always track duration while active
+    m_stats.duration = duration_cast<std::chrono::milliseconds>(now - m_startTime);
 
     // Calculate time interval with minimum threshold to avoid division by very small numbers
     auto interval = duration_cast<duration<double>>(now - m_lastStatsTime).count();
     const double MIN_INTERVAL = 0.1;  // Minimum 100ms interval
 
-    if (interval >= MIN_INTERVAL && m_lastStatsTime != m_startTime) {
-        // Calculate duration since start
-        m_stats.duration = duration_cast<std::chrono::milliseconds>(now - m_startTime);
-
+    if (interval >= MIN_INTERVAL) {
         // Calculate bitrate with validation
         if (newBytes >= m_lastTotalBytes) {  // Use >= to handle equal case
             auto byteDiff = newBytes - m_lastTotalBytes;
