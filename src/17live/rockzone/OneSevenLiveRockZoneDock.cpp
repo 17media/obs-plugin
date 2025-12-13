@@ -428,8 +428,15 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             QListWidgetItem* item = it.value();
                             int row = userList->row(item);
                             if (row >= 0) {
+                                QWidget* w = userList->itemWidget(item);
+                                if (w) {
+                                    userList->removeItemWidget(item);
+                                    delete w;
+                                }
                                 QListWidgetItem* removed = userList->takeItem(row);
-                                delete removed;
+                                if (removed) {
+                                    delete removed;
+                                }
                             }
                             it = userItemMap.erase(it);
                         } else {
@@ -446,6 +453,16 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
 
                     // Safety: if list should be empty but has items, clear it to prevent ghost items
                     if (isEmpty && userList && userList->count() > 0) {
+                        int count = userList->count();
+                        for (int i = 0; i < count; ++i) {
+                            QListWidgetItem* item = userList->item(i);
+                            if (!item) continue;
+                            QWidget* w = userList->itemWidget(item);
+                            if (w) {
+                                userList->removeItemWidget(item);
+                                delete w;
+                            }
+                        }
                         userList->clear();
                         userItemMap.clear();
                     }
@@ -474,6 +491,16 @@ void OneSevenLiveRockZoneDock::clearArmyNameCache() {
 
 void OneSevenLiveRockZoneDock::clearUserList() {
     if (userList) {
+        int count = userList->count();
+        for (int i = 0; i < count; ++i) {
+            QListWidgetItem* item = userList->item(i);
+            if (!item) continue;
+            QWidget* w = userList->itemWidget(item);
+            if (w) {
+                userList->removeItemWidget(item);
+                delete w;
+            }
+        }
         userList->clear();
         userList->setVisible(false);
     }
