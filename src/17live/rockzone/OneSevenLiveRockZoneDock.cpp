@@ -473,6 +473,10 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     // Show error message
                     obs_log(LOG_ERROR, "Failed to refresh rock viewers list: %s",
                             apiWrapper->getLastErrorMessage().toStdString().c_str());
+                    if (userList)
+                        userList->setVisible(false);
+                    if (emptyListLabel)
+                        emptyListLabel->setVisible(true);
                 }
             },
             Qt::QueuedConnection);
