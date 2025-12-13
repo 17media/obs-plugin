@@ -51,7 +51,8 @@ OneSevenLiveMultiRtmpStreamItem::OneSevenLiveMultiRtmpStreamItem(
       m_statsTimer(nullptr),
       m_manager(nullptr),
       m_lastTotalBytes(0),
-      m_lastTotalFrames(0) {
+      m_lastTotalFrames(0),
+      m_smoothedFPS(0.0) {
     setFrameStyle(QFrame::StyledPanel | QFrame::Raised);
     setLineWidth(1);
     setMidLineWidth(0);
@@ -239,6 +240,7 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatus(
         m_lastStatsTime = m_startTime;
         m_lastTotalBytes = 0;
         m_lastTotalFrames = 0;
+        m_smoothedFPS = 0.0;
         m_stats.duration = std::chrono::milliseconds(0);
     }
 
@@ -615,6 +617,7 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
         // Reset stats when not active to prevent stale data
         m_stats.currentBitrate = 0.0;
         m_stats.currentFPS = 0;
+        m_smoothedFPS = 0.0;
         m_stats.duration = std::chrono::milliseconds(0);
         return;
     }
@@ -625,6 +628,7 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
         // Reset stats when output is not available
         m_stats.currentBitrate = 0.0;
         m_stats.currentFPS = 0;
+        m_smoothedFPS = 0.0;
         return;
     }
 
@@ -635,9 +639,6 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
     auto newFrames = obs_output_get_total_frames(output);
 
     // Always track duration while active
-    if (m_stats.duration.count() == 0 && (newBytes > 0 || newFrames > 0)) {
-        m_startTime = now;
-    }
     m_stats.duration = duration_cast<std::chrono::milliseconds>(now - m_startTime);
 
     // Calculate time interval with minimum threshold to avoid division by very small numbers
@@ -648,19 +649,17 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
         // Calculate bitrate with validation
         if (newBytes >= m_lastTotalBytes) {  // Use >= to handle equal case
             auto byteDiff = newBytes - m_lastTotalBytes;
-            if (byteDiff > 0) {
-                double newBitrate = (byteDiff * 8.0) / (interval * 1000.0);  // Convert to Kbps
+            double newBitrate = (byteDiff * 8.0) / (interval * 1000.0);  // Convert to Kbps
 
-                // Apply reasonable bounds (0 to 100 Mbps)
-                if (newBitrate >= 0.0 && newBitrate <= 100000.0) {
-                    // Apply simple smoothing to reduce flickering
-                    const double SMOOTHING_FACTOR = 0.15;
-                    if (m_stats.currentBitrate > 0.0) {
-                        m_stats.currentBitrate = m_stats.currentBitrate * (1.0 - SMOOTHING_FACTOR) +
-                                                 newBitrate * SMOOTHING_FACTOR;
-                    } else {
-                        m_stats.currentBitrate = newBitrate;
-                    }
+            // Apply reasonable bounds (0 to 100 Mbps)
+            if (newBitrate >= 0.0 && newBitrate <= 100000.0) {
+                // Apply simple smoothing to reduce flickering
+                const double SMOOTHING_FACTOR = 0.3;
+                if (m_stats.currentBitrate > 0.0) {
+                    m_stats.currentBitrate = m_stats.currentBitrate * (1.0 - SMOOTHING_FACTOR) +
+                                             newBitrate * SMOOTHING_FACTOR;
+                } else {
+                    m_stats.currentBitrate = newBitrate;
                 }
             }
         } else {
@@ -669,27 +668,26 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
             m_lastTotalBytes = newBytes;
             m_lastTotalFrames = newFrames;
             m_lastStatsTime = now;
+            m_smoothedFPS = 0.0;
             return;
         }
 
         // Calculate frame rate with validation
         if (newFrames >= static_cast<int>(m_lastTotalFrames)) {  // Use >= to handle equal case
             auto frameDiff = newFrames - m_lastTotalFrames;
-            if (frameDiff > 0) {
-                double newFPS = static_cast<double>(frameDiff) / interval;
+            double newFPS = static_cast<double>(frameDiff) / interval;
 
-                // Apply reasonable bounds (0 to 120 FPS)
-                if (newFPS >= 0.0 && newFPS <= 120.0) {
-                    // Apply simple smoothing to reduce flickering
-                    const double SMOOTHING_FACTOR = 0.2;
-                    if (m_stats.currentFPS > 0) {
-                        double smoothedFPS = m_stats.currentFPS * (1.0 - SMOOTHING_FACTOR) +
-                                             newFPS * SMOOTHING_FACTOR;
-                        m_stats.currentFPS = static_cast<int>(std::round(smoothedFPS));
-                    } else {
-                        m_stats.currentFPS = static_cast<int>(std::round(newFPS));
-                    }
+            // Apply reasonable bounds (0 to 120 FPS)
+            if (newFPS >= 0.0 && newFPS <= 120.0) {
+                // Apply simple smoothing to reduce flickering using double precision state
+                const double SMOOTHING_FACTOR = 0.3;
+                if (m_smoothedFPS > 0.0) {
+                    m_smoothedFPS =
+                        m_smoothedFPS * (1.0 - SMOOTHING_FACTOR) + newFPS * SMOOTHING_FACTOR;
+                } else {
+                    m_smoothedFPS = newFPS;
                 }
+                m_stats.currentFPS = static_cast<int>(std::round(m_smoothedFPS));
             }
         } else {
             // Handle case where frames decreased (shouldn't happen normally)
@@ -697,6 +695,7 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
             m_lastTotalBytes = newBytes;
             m_lastTotalFrames = newFrames;
             m_lastStatsTime = now;
+            m_smoothedFPS = 0.0;
             return;
         }
 
@@ -708,10 +707,8 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
         if (droppedFrames <= static_cast<uint32_t>(newFrames)) {  // Sanity check
             m_stats.droppedFrames = droppedFrames;
         }
-    }
 
-    // Update tracking variables only if we have valid data
-    if (newBytes >= m_lastTotalBytes && newFrames >= static_cast<int>(m_lastTotalFrames)) {
+        // Update tracking variables
         m_lastTotalBytes = newBytes;
         m_lastTotalFrames = newFrames;
         m_lastStatsTime = now;
