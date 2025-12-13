@@ -135,8 +135,8 @@ void OneSevenLiveRockViewerItem::reloadAvatar() {
                                                    Qt::SmoothTransformation));
 
             if (*levelReady && !levelPixmap->isNull()) {
-                const int badgeW = 36;
-                const int badgeH = 36;
+                const int badgeW = 24;
+                const int badgeH = 24;
                 const int x = canvas.width() - badgeW;
                 const int y = canvas.height() - badgeH;
                 painter.drawPixmap(x, y,
@@ -149,8 +149,8 @@ void OneSevenLiveRockViewerItem::reloadAvatar() {
         if (!(*frameReady) && *levelReady && !levelPixmap->isNull()) {
             QPainter painter(&canvas);
             painter.setRenderHint(QPainter::Antialiasing);
-            const int badgeW = 36;
-            const int badgeH = 36;
+            const int badgeW = 24;
+            const int badgeH = 24;
             const int x = canvas.width() - badgeW;
             const int y = canvas.height() - badgeH;
             painter.drawPixmap(x, y,
