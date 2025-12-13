@@ -635,11 +635,14 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
     auto newFrames = obs_output_get_total_frames(output);
 
     // Always track duration while active
+    if (m_stats.duration.count() == 0 && (newBytes > 0 || newFrames > 0)) {
+        m_startTime = now;
+    }
     m_stats.duration = duration_cast<std::chrono::milliseconds>(now - m_startTime);
 
     // Calculate time interval with minimum threshold to avoid division by very small numbers
     auto interval = duration_cast<duration<double>>(now - m_lastStatsTime).count();
-    const double MIN_INTERVAL = 0.1;  // Minimum 100ms interval
+    const double MIN_INTERVAL = 0.5;  // Minimum 500ms interval to reduce jitter
 
     if (interval >= MIN_INTERVAL) {
         // Calculate bitrate with validation
@@ -651,7 +654,7 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
                 // Apply reasonable bounds (0 to 100 Mbps)
                 if (newBitrate >= 0.0 && newBitrate <= 100000.0) {
                     // Apply simple smoothing to reduce flickering
-                    const double SMOOTHING_FACTOR = 0.3;
+                    const double SMOOTHING_FACTOR = 0.15;
                     if (m_stats.currentBitrate > 0.0) {
                         m_stats.currentBitrate = m_stats.currentBitrate * (1.0 - SMOOTHING_FACTOR) +
                                                  newBitrate * SMOOTHING_FACTOR;
@@ -678,7 +681,7 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
                 // Apply reasonable bounds (0 to 120 FPS)
                 if (newFPS >= 0.0 && newFPS <= 120.0) {
                     // Apply simple smoothing to reduce flickering
-                    const double SMOOTHING_FACTOR = 0.3;
+                    const double SMOOTHING_FACTOR = 0.2;
                     if (m_stats.currentFPS > 0) {
                         double smoothedFPS = m_stats.currentFPS * (1.0 - SMOOTHING_FACTOR) +
                                              newFPS * SMOOTHING_FACTOR;
