@@ -117,13 +117,14 @@ void OneSevenLiveRockZoneDock::setupUi() {
     userList->setWordWrap(true);
     userList->setSpacing(1);
     mainLayout->addWidget(userList);
+    userList->setVisible(false);
 
     // Create empty list placeholder
     emptyListLabel = new QLabel(obs_module_text("RockZone.EmptyList"), container);
     emptyListLabel->setAlignment(Qt::AlignCenter);
     emptyListLabel->setStyleSheet("QLabel { color: #999999; font-size: 14px; }");
     emptyListLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    emptyListLabel->setVisible(false);
+    emptyListLabel->setVisible(true);
     mainLayout->addWidget(emptyListLabel);
 
     // Create bottom button
