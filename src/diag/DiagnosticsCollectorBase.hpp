@@ -62,7 +62,7 @@ namespace seventeen {
            private:
             ProgressCallback m_progressCallback;
             std::string m_lastError;
-            
+
             double m_currentBaseProgress = 0.0;
             double m_currentStageScale = 1.0;
 

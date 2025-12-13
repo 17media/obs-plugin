@@ -191,7 +191,7 @@ class OneSevenLiveYouTubeClient : public QObject {
     // State
     QString m_accessToken;
     QString m_apiKey;
-    int m_timeoutMs = 30000; // Default timeout
+    int m_timeoutMs = 30000;  // Default timeout
     bool m_hasValidAuth = false;
 
     // Request context

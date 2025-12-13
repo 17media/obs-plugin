@@ -8,13 +8,13 @@ class OneSevenLiveStreamListItem : public QWidget {
     Q_OBJECT
 
    public:
-        QLabel* titleLabel = nullptr;
-        QLabel* contentLabel = nullptr;
-        QLabel* timestampLabel = nullptr;
-        QPushButton* editButton = nullptr;
-        QPushButton* deleteButton = nullptr;
+    QLabel* titleLabel = nullptr;
+    QLabel* contentLabel = nullptr;
+    QLabel* timestampLabel = nullptr;
+    QPushButton* editButton = nullptr;
+    QPushButton* deleteButton = nullptr;
 
-        OneSevenLiveStreamListItem(const QString& title, const QString& content,
+    OneSevenLiveStreamListItem(const QString& title, const QString& content,
                                const QString& timestamp, QWidget* parent = nullptr);
 
    signals:

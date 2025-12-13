@@ -185,7 +185,7 @@ namespace seventeen {
                 m_collectButton->setEnabled(false);
                 m_progressBar->setVisible(true);
                 m_progressBar->setValue(0);
-                m_statusTextEdit->clear(); // Clear previous status
+                m_statusTextEdit->clear();  // Clear previous status
 
                 DiagnosticConfig config = getCurrentConfig();
                 config.outputDirectory = m_outputPath.toStdString();

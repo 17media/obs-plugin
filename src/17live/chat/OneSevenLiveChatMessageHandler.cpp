@@ -117,9 +117,9 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
         auto& core = OneSevenLiveCoreManager::getInstance();
 
         auto hasVFF = [](const std::optional<nlohmann::json>& g) -> bool {
-            return g && g->contains("vffURL") && g->contains("vffJson") && (*g)["vffURL"].is_string() &&
-                   !(*g)["vffURL"].get<std::string>().empty() && (*g)["vffJson"].is_string() &&
-                   !(*g)["vffJson"].get<std::string>().empty();
+            return g && g->contains("vffURL") && g->contains("vffJson") &&
+                   (*g)["vffURL"].is_string() && !(*g)["vffURL"].get<std::string>().empty() &&
+                   (*g)["vffJson"].is_string() && !(*g)["vffJson"].get<std::string>().empty();
         };
 
         auto sendById = [&](const std::string& id, bool attachComposite) {
@@ -134,14 +134,16 @@ void OneSevenLiveChatMessageHandler::handleGiftPlayback(const nlohmann::json& de
             playData["vffJson"] = (*gift)["vffJson"].get<std::string>();
             if (attachComposite) {
                 try {
-                    if (gm.contains("giftMetas") && gm["giftMetas"].is_array() && !gm["giftMetas"].empty()) {
+                    if (gm.contains("giftMetas") && gm["giftMetas"].is_array() &&
+                        !gm["giftMetas"].empty()) {
                         const auto& meta0 = gm["giftMetas"][0];
                         if (meta0.contains("composite") && meta0["composite"].is_array()) {
                             nlohmann::json compositeObj = nlohmann::json::object();
                             for (const auto& item : meta0["composite"]) {
-                                if (item.contains("tag") && item.contains("imageURL") && item["tag"].is_string() &&
-                                    item["imageURL"].is_string()) {
-                                    compositeObj[item["tag"].get<std::string>()] = item["imageURL"].get<std::string>();
+                                if (item.contains("tag") && item.contains("imageURL") &&
+                                    item["tag"].is_string() && item["imageURL"].is_string()) {
+                                    compositeObj[item["tag"].get<std::string>()] =
+                                        item["imageURL"].get<std::string>();
                                 }
                             }
                             if (!compositeObj.empty())

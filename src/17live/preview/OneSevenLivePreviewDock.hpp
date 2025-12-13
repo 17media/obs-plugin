@@ -1,10 +1,10 @@
 #pragma once
 
 #include <QDockWidget>
+#include <QLabel>
 #include <QPointer>
 #include <QResizeEvent>
 #include <QString>
-#include <QLabel>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLivePreviewWidget.hpp"
@@ -42,7 +42,7 @@ class OneSevenLivePreviewDock : public QDockWidget {
     bool initialized = false;
     QString overlayUrl_;
 
-private slots:
+   private slots:
     void onGiftsLoaded();
     void onDisplayCreated(bool created);
 };

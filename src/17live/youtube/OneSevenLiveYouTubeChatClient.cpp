@@ -21,8 +21,8 @@
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL =
     "https://www.googleapis.com/youtube/v3";
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_VERSION = "v3";
-const int OneSevenLiveYouTubeChatClient::DEFAULT_POLLING_INTERVAL = 5000;        // 5 seconds
-const int OneSevenLiveYouTubeChatClient::MIN_POLLING_INTERVAL = 10000;           
+const int OneSevenLiveYouTubeChatClient::DEFAULT_POLLING_INTERVAL = 5000;  // 5 seconds
+const int OneSevenLiveYouTubeChatClient::MIN_POLLING_INTERVAL = 10000;
 const int OneSevenLiveYouTubeChatClient::MAX_EXPONENTIAL_BACKOFF_DELAY = 32000;  // 32 seconds max
 const int OneSevenLiveYouTubeChatClient::STATUS_BROADCAST_INTERVAL = 10;
 const int OneSevenLiveYouTubeChatClient::MAX_QUICK_RETRIES = 5;
@@ -354,10 +354,7 @@ void OneSevenLiveYouTubeChatClient::makeChatRequest(const QString& endpoint) {
     std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
     RemoteTextThread* thread =
         new RemoteTextThread(endpoint.toStdString(), std::move(headers), "application/json",
-                             std::string(),
-                             m_timeoutMs / 1000,
-                             false,
-                             cancelFlag);
+                             std::string(), m_timeoutMs / 1000, false, cancelFlag);
 
     m_currentOperation = "getChatMessages";
 
@@ -429,9 +426,10 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
                     ereason = e0.value("reason", std::string());
                 }
                 if (ecode || !emsg.empty() || !estatus.empty() || !ereason.empty()) {
-                    obs_log(LOG_WARNING,
-                            "YouTube Chat API Error details: code=%d message=%s status=%s reason=%s",
-                            ecode, emsg.c_str(), estatus.c_str(), ereason.c_str());
+                    obs_log(
+                        LOG_WARNING,
+                        "YouTube Chat API Error details: code=%d message=%s status=%s reason=%s",
+                        ecode, emsg.c_str(), estatus.c_str(), ereason.c_str());
                 }
             } catch (...) {
             }

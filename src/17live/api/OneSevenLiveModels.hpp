@@ -340,8 +340,8 @@ struct OneSevenLiveRoomInfo {
     QList<OneSevenLiveEventInfo> eventList;
     OneSevenLiveArchiveConfig archiveConfig;  // Add archive configuration
     QString archiveID;                        // Add archive ID
-    bool hideGameMarquee = false;                     // Add game marquee hide flag
-    bool enableOBSGroupCall = false;                  // Add OBS group call enable flag
+    bool hideGameMarquee = false;             // Add game marquee hide flag
+    bool enableOBSGroupCall = false;          // Add OBS group call enable flag
     QStringList subtabs;
     QList<OneSevenLiveHashtag> lastUsedHashtags;
 };
@@ -613,8 +613,8 @@ struct OneSevenLiveI18nToken {
 
 // Army subscription level struct
 struct OneSevenLiveArmySubscriptionLevel {
-    int rank = 0;                         // Level ranking
-    int subscribersAmount = 0;            // Number of subscribers
+    int rank = 0;                     // Level ranking
+    int subscribersAmount = 0;        // Number of subscribers
     OneSevenLiveI18nToken i18nToken;  // Internationalization token
 };
 

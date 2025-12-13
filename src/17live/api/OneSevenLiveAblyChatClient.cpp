@@ -5,9 +5,9 @@
 
 #include <QDateTime>
 #include <QMetaObject>
+#include <QPointer>
 #include <QTimer>
 #include <QUrl>
-#include <QPointer>
 #include <optional>
 #include <thread>
 
@@ -84,7 +84,7 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                     }
                     if (needRefresh) {
                         refreshToken([this](bool success) {
-                            (void)success;
+                            (void) success;
                             scheduleReconnect();
                         });
                     } else {
@@ -194,7 +194,7 @@ bool OneSevenLiveAblyChatClient::connect() {
                 cancelReconnect();
                 tryConnectWithFallbackHosts();
             } else {
-                 obs_log(LOG_ERROR, "Failed to fetch Ably token during connect");
+                obs_log(LOG_ERROR, "Failed to fetch Ably token during connect");
             }
         });
     } else {
@@ -244,7 +244,7 @@ void OneSevenLiveAblyChatClient::attachChannel() {
     nlohmann::json attachMsg;
     attachMsg["action"] = 10;  // ATTACH
     attachMsg["channel"] = m_roomId.toStdString();
-    
+
     // Only log error if send fails or logic fails; success is noisy
     // obs_log(LOG_INFO, "[Ably] send %s", attachMsg.dump().c_str());
     m_wsClient->sendText(QString::fromStdString(attachMsg.dump()));
@@ -337,8 +337,9 @@ void OneSevenLiveAblyChatClient::scheduleReconnect() {
             if (m_closing)
                 return;
             refreshToken([this](bool success) {
-                (void)success;
-                if (m_closing) return;
+                (void) success;
+                if (m_closing)
+                    return;
                 m_hostIndex = 0;
                 tryConnectWithFallbackHosts();
             });
@@ -361,7 +362,8 @@ void OneSevenLiveAblyChatClient::cancelReconnect() {
 
 void OneSevenLiveAblyChatClient::refreshToken(std::function<void(bool)> callback) {
     if (m_roomId.isEmpty()) {
-        if (callback) callback(false);
+        if (callback)
+            callback(false);
         return;
     }
 
@@ -377,7 +379,8 @@ void OneSevenLiveAblyChatClient::scheduleTokenRefresh(qint64 expiresEpochMs, qin
             if (m_closing)
                 return;
             refreshToken([this](bool success) {
-                if (m_closing) return;
+                if (m_closing)
+                    return;
                 if (success) {
                     if (isConnected()) {
                         sendAuth();
@@ -434,54 +437,63 @@ void OneSevenLiveAblyChatClient::sendConnect() {
 void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callback) {
     QString rid = m_roomId;
     // Capture required resources by value to ensure thread safety if 'this' is destroyed
-    // Note: apiWrapper is still a pointer, but capturing it avoids accessing 'this->' inside the thread
-    // The caller (OneSevenLiveCoreManager) owns apiWrapper, so its lifetime usually exceeds this operation
+    // Note: apiWrapper is still a pointer, but capturing it avoids accessing 'this->' inside the
+    // thread The caller (OneSevenLiveCoreManager) owns apiWrapper, so its lifetime usually exceeds
+    // this operation
     auto authCb = m_authCallback;
     auto* api = OneSevenLiveCoreManager::getInstance().getApiWrapper();
 
     // Use QPointer to track object validity
     QPointer<OneSevenLiveAblyChatClient> self(this);
-    
+
     std::thread([self, rid, callback, authCb, api]() {
         nlohmann::json resp;
         bool success = false;
-        
+
         if (authCb) {
             success = authCb(rid, resp);
         } else if (api) {
-             success = api->GetAblyToken(rid.toStdString(), resp);
+            success = api->GetAblyToken(rid.toStdString(), resp);
         }
-        
-        // If object is destroyed, don't invoke callback
-        if (!self) return;
 
-        QMetaObject::invokeMethod(self, [self, success, resp, callback]() {
-            if (!self) return;
-            
-            if (success) {
-                if (resp.contains("token") && resp["token"].is_string()) {
-                    self->m_token = QString::fromStdString(resp["token"].get<std::string>());
-                } else {
-                    obs_log(LOG_ERROR, "Got Ably token response error: %s", resp.dump().c_str());
-                }
-                
-                if (!self->m_token.isEmpty()) {
-                    qint64 expiresMs = 0, issuedMs = 0, ttlMs = 0;
-                    if (resp.contains("expires") && resp["expires"].is_number_integer())
-                        expiresMs = resp["expires"].get<long long>();
-                    if (resp.contains("issued") && resp["issued"].is_number_integer())
-                        issuedMs = resp["issued"].get<long long>();
-                    if (resp.contains("ttl") && resp["ttl"].is_number_integer())
-                        ttlMs = resp["ttl"].get<long long>();
-                    if (resp.contains("expiresIn") && resp["expiresIn"].is_number_integer())
-                        ttlMs = resp["expiresIn"].get<long long>();
-                    self->scheduleTokenRefresh(expiresMs, issuedMs, ttlMs);
-                    
-                    if (callback) callback(true);
+        // If object is destroyed, don't invoke callback
+        if (!self)
+            return;
+
+        QMetaObject::invokeMethod(
+            self,
+            [self, success, resp, callback]() {
+                if (!self)
                     return;
+
+                if (success) {
+                    if (resp.contains("token") && resp["token"].is_string()) {
+                        self->m_token = QString::fromStdString(resp["token"].get<std::string>());
+                    } else {
+                        obs_log(LOG_ERROR, "Got Ably token response error: %s",
+                                resp.dump().c_str());
+                    }
+
+                    if (!self->m_token.isEmpty()) {
+                        qint64 expiresMs = 0, issuedMs = 0, ttlMs = 0;
+                        if (resp.contains("expires") && resp["expires"].is_number_integer())
+                            expiresMs = resp["expires"].get<long long>();
+                        if (resp.contains("issued") && resp["issued"].is_number_integer())
+                            issuedMs = resp["issued"].get<long long>();
+                        if (resp.contains("ttl") && resp["ttl"].is_number_integer())
+                            ttlMs = resp["ttl"].get<long long>();
+                        if (resp.contains("expiresIn") && resp["expiresIn"].is_number_integer())
+                            ttlMs = resp["expiresIn"].get<long long>();
+                        self->scheduleTokenRefresh(expiresMs, issuedMs, ttlMs);
+
+                        if (callback)
+                            callback(true);
+                        return;
+                    }
                 }
-            }
-            if (callback) callback(false);
-        }, Qt::QueuedConnection);
+                if (callback)
+                    callback(false);
+            },
+            Qt::QueuedConnection);
     }).detach();
 }

@@ -3,10 +3,14 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
+#include <QAction>
+#include <QCoreApplication>
 #include <QDateTime>
+#include <QEventLoop>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QIcon>
+#include <QMainWindow>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -15,10 +19,6 @@
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
-#include <QCoreApplication>
-#include <QEventLoop>
-#include <QMainWindow>
-#include <QAction>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
@@ -27,16 +27,16 @@
 #include "OneSevenLiveStreamingDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "moc_OneSevenLiveStreamingDock.cpp"
+#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "plugin-support.h"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
-#include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 
 OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
-                                                    OneSevenLiveStreamManager *streamManager_,
-                                                    OneSevenLiveApiWrappers *apiWrappers_,
-                                                    OneSevenLiveConfigManager *configManager_)
+                                                     OneSevenLiveStreamManager *streamManager_,
+                                                     OneSevenLiveApiWrappers *apiWrappers_,
+                                                     OneSevenLiveConfigManager *configManager_)
     : QDockWidget(obs_module_text("Live.Settings"), parent),
       streamManager(streamManager_),
       apiWrapper(apiWrappers_),
@@ -57,22 +57,25 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
     // Instead, we rely on StreamManager to monitor OBS signals or use a timer/status check.
     // However, StreamManager already has some status monitoring.
     // Let's add a signal from StreamManager when OBS stream stops unexpectedly.
-    
-    connect(streamManager, &OneSevenLiveStreamManager::obsStreamStopped, this, [this](int code, const QString& lastError) {
-         obs_log(LOG_WARNING, "OBS stream stopped unexpectedly with code %d: %s", code, lastError.toStdString().c_str());
-         // If this was an unexpected stop (network error etc), we might want to reflect that in UI
-         // For now, just ensure our internal status is updated if it wasn't already
-         if (streamManager->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::Streaming) {
-             // If we were streaming, but OBS stopped, we should probably consider it as stopped or trying to reconnect?
-             // OBS has its own reconnection logic. 
-             // If OBS completely gives up (e.g. after max retries), it stops.
-             // We should sync our status to NotStarted in that case.
-             streamManager->stopStream(false); 
-         }
-    });
+
+    connect(streamManager, &OneSevenLiveStreamManager::obsStreamStopped, this,
+            [this](int code, const QString &lastError) {
+                obs_log(LOG_WARNING, "OBS stream stopped unexpectedly with code %d: %s", code,
+                        lastError.toStdString().c_str());
+                // If this was an unexpected stop (network error etc), we might want to reflect that
+                // in UI For now, just ensure our internal status is updated if it wasn't already
+                if (streamManager->getCurrentStreamingStatus() ==
+                    OneSevenLiveStreamingStatus::Streaming) {
+                    // If we were streaming, but OBS stopped, we should probably consider it as
+                    // stopped or trying to reconnect? OBS has its own reconnection logic. If OBS
+                    // completely gives up (e.g. after max retries), it stops. We should sync our
+                    // status to NotStarted in that case.
+                    streamManager->stopStream(false);
+                }
+            });
 
     connect(streamManager, &OneSevenLiveStreamManager::createRtmpFinished, this,
-            [this](bool success, const QString& error) {
+            [this](bool success, const QString &error) {
                 createLiveButton->setEnabled(true);
 
                 if (success) {
@@ -80,13 +83,14 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
                     startLive();
                 } else {
                     QString msg = error;
-                    if (msg.isEmpty()) msg = obs_module_text("Live.Create.Failed");
+                    if (msg.isEmpty())
+                        msg = obs_module_text("Live.Create.Failed");
                     QMessageBox::warning(this, obs_module_text("Live.Create.Title"), msg);
                 }
             });
 
     connect(streamManager, &OneSevenLiveStreamManager::startStreamFinished, this,
-            [this](bool success, const QString& error) {
+            [this](bool success, const QString &error) {
                 createLiveButton->setEnabled(true);
 
                 if (success) {
@@ -95,7 +99,7 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
                     msgBox.setWindowTitle(obs_module_text("Live.Settings.StartStreaming"));
                     msgBox.setText(obs_module_text("Live.Settings.StartStreaming.Tip"));
 
-                    QPushButton* yesButton = msgBox.addButton(obs_module_text("Live.Settings.Yes"),
+                    QPushButton *yesButton = msgBox.addButton(obs_module_text("Live.Settings.Yes"),
                                                               QMessageBox::YesRole);
                     msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
                     msgBox.setDefaultButton(yesButton);
@@ -106,13 +110,14 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
                     }
                 } else {
                     QString msg = error;
-                    if (msg.isEmpty()) msg = obs_module_text("Live.Start.Failed");
+                    if (msg.isEmpty())
+                        msg = obs_module_text("Live.Start.Failed");
                     QMessageBox::warning(this, obs_module_text("Live.Settings.Error"), msg);
                 }
             });
 
     connect(streamManager, &OneSevenLiveStreamManager::changeEventFinished, this,
-            [this](bool success, const QString& error) {
+            [this](bool success, const QString &error) {
                 if (success) {
                     startEventCooldown();
                 } else {
@@ -1096,7 +1101,8 @@ void OneSevenLiveStreamingDock::updateTagsFromList() {
 }
 
 void OneSevenLiveStreamingDock::onSaveConfigClicked() {
-    if (!streamManager) return;
+    if (!streamManager)
+        return;
     OneSevenLiveRtmpRequest request;
     if (!gatherRtmpRequest(request)) {
         obs_log(LOG_ERROR, "Failed to gather rtmp request");
@@ -1146,7 +1152,8 @@ void OneSevenLiveStreamingDock::onCreateLiveClicked() {
 void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequest &request) {
     obs_log(LOG_INFO, "createLiveWithRequest");
 
-    if (!streamManager) return;
+    if (!streamManager)
+        return;
 
     if (streamManager && streamManager->isRoomInfoLoading()) {
         // loading roomInfo is in progress, waiting for it to finish
@@ -1187,7 +1194,8 @@ void OneSevenLiveStreamingDock::createLiveWithRequest(const OneSevenLiveRtmpRequ
 void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &info) {
     obs_log(LOG_INFO, "editLiveWithInfo");
 
-    if (!streamManager) return;
+    if (!streamManager)
+        return;
 
     if (streamManager && streamManager->isRoomInfoLoading()) {
         // loading roomInfo is in progress, waiting for it to finish
@@ -1218,7 +1226,8 @@ void OneSevenLiveStreamingDock::editLiveWithInfo(const OneSevenLiveStreamInfo &i
 void OneSevenLiveStreamingDock::startCreateLiveSequence(const OneSevenLiveRtmpRequest &request_) {
     obs_log(LOG_INFO, "startCreateLiveSequence (Async)");
 
-    if (!streamManager) return;
+    if (!streamManager)
+        return;
 
     // Disable button to prevent double click
     createLiveButton->setEnabled(false);
@@ -1247,7 +1256,7 @@ void OneSevenLiveStreamingDock::startCreateLiveSequence(const OneSevenLiveRtmpRe
         if (api) {
             selfInfoSuccess = api->GetSelfInfo(loginData);
             if (!selfInfoSuccess) {
-                 errorMsg = api->getLastErrorMessage();
+                errorMsg = api->getLastErrorMessage();
             }
 
             if (selfInfoSuccess &&
@@ -1261,10 +1270,11 @@ void OneSevenLiveStreamingDock::startCreateLiveSequence(const OneSevenLiveRtmpRe
         if (self) {
             QMetaObject::invokeMethod(
                 self,
-                [self, selfInfoSuccess, configSuccess, loginData, configJson, requestCopy, errorMsg]() {
+                [self, selfInfoSuccess, configSuccess, loginData, configJson, requestCopy,
+                 errorMsg]() {
                     if (self) {
-                        self->handleCreateLiveChecks(loginData, configJson, selfInfoSuccess, errorMsg,
-                                                    requestCopy);
+                        self->handleCreateLiveChecks(loginData, configJson, selfInfoSuccess,
+                                                     errorMsg, requestCopy);
                     }
                 },
                 Qt::QueuedConnection);
@@ -1285,7 +1295,7 @@ void OneSevenLiveStreamingDock::handleCreateLiveChecks(const OneSevenLiveLoginDa
                              obs_module_text("Live.Create.GetSelfInfoFailed"));
         return;
     }
-    
+
     // check current region changed?
     std::string currentRegion;
     configManager->getConfigValue("Region", currentRegion);
@@ -1300,10 +1310,10 @@ void OneSevenLiveStreamingDock::handleCreateLiveChecks(const OneSevenLiveLoginDa
 
         // Save configuration
         if (!configJson.empty()) {
-             configManager->setConfig(configJson);
-             obs_log(LOG_INFO, "Config loaded successfully");
+            configManager->setConfig(configJson);
+            obs_log(LOG_INFO, "Config loaded successfully");
         } else {
-             obs_log(LOG_ERROR, "Failed to load config from API (or it was empty)");
+            obs_log(LOG_ERROR, "Failed to load config from API (or it was empty)");
         }
 
         OneSevenLiveConfig newConfig;
@@ -1351,7 +1361,8 @@ void OneSevenLiveStreamingDock::createLive(const OneSevenLiveRtmpRequest &reques
 void OneSevenLiveStreamingDock::startLive(bool startStream) {
     obs_log(LOG_INFO, "Starting live stream");
 
-    if (!streamManager) return;
+    if (!streamManager)
+        return;
 
     if (startStream) {
         // Start streaming (server-side)
@@ -1384,7 +1395,8 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
 void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
     obs_log(LOG_INFO, "onDeleteLiveClicked");
 
-    if (!streamManager) return;
+    if (!streamManager)
+        return;
 
     // Add confirmation dialog
     QMessageBox msgBox;
@@ -1752,7 +1764,8 @@ void OneSevenLiveStreamingDock::onEventChanged(int index) {
 void OneSevenLiveStreamingDock::changeEvent(qint64 eventID) {
     obs_log(LOG_INFO, "Changing event to: %lld", eventID);
 
-    if (!streamManager) return;
+    if (!streamManager)
+        return;
 
     // Check if we're in cooldown
     if (isEventInCooldown()) {

@@ -48,7 +48,7 @@ class OneSevenLiveAblyChatClient : public QObject {
     void cancelTokenRefresh();
     void sendAuth();
     void sendConnect();
-    
+
     void fetchTokenAsync(std::function<void(bool)> callback);
 
     QString m_roomId;

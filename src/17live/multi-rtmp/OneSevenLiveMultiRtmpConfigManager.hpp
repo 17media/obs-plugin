@@ -4,8 +4,8 @@
 
 #include <functional>
 #include <memory>
-#include <string>
 #include <mutex>
+#include <string>
 
 #include "OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"

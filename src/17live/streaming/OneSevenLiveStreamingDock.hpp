@@ -8,11 +8,11 @@
 #include <QLineEdit>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QTimer>
-#include <QPointer>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <atomic>
@@ -30,9 +30,9 @@ class OneSevenLiveStreamingDock : public QDockWidget {
 
    public:
     explicit OneSevenLiveStreamingDock(QWidget *parent = nullptr,
-                                    OneSevenLiveStreamManager *streamManager = nullptr,
-                                    OneSevenLiveApiWrappers *apiWrappers = nullptr,
-                                    OneSevenLiveConfigManager *configManager = nullptr);
+                                       OneSevenLiveStreamManager *streamManager = nullptr,
+                                       OneSevenLiveApiWrappers *apiWrappers = nullptr,
+                                       OneSevenLiveConfigManager *configManager = nullptr);
     ~OneSevenLiveStreamingDock();
 
     void updateLiveStatus(OneSevenLiveStreamingStatus status);
@@ -85,7 +85,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QPushButton *addTagButton = nullptr;
     QWidget *tagsContainer = nullptr;   // Container for displaying tags
     QHBoxLayout *tagsLayout = nullptr;  // Layout for tag container
-    QList<QString> tagsList;  // Store current tag list
+    QList<QString> tagsList;            // Store current tag list
 
     // Streaming format
     QRadioButton *landscapeStreamRadio = nullptr;
@@ -169,9 +169,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void startLive(bool startStream = true);
     void startCreateLiveSequence(const OneSevenLiveRtmpRequest &request);
     void handleCreateLiveChecks(const OneSevenLiveLoginData &loginData,
-                                const nlohmann::json &configJson,
-                                bool success, const QString &error,
-                                const OneSevenLiveRtmpRequest &request_);
+                                const nlohmann::json &configJson, bool success,
+                                const QString &error, const OneSevenLiveRtmpRequest &request_);
 
     // Tag-related functions
     void addTag(const QString &tag);

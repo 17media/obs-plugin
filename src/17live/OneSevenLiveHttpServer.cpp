@@ -84,10 +84,10 @@ OneSevenLiveHttpServer::~OneSevenLiveHttpServer() {
 
     // Additional safety check: ensure thread has completely finished
     if (server_thread_ && server_thread_->joinable()) {
-        obs_log(
-            LOG_WARNING,
-            "[%s] Thread still joinable in destructor, forcing thread termination "
-            "wait", name_.c_str());
+        obs_log(LOG_WARNING,
+                "[%s] Thread still joinable in destructor, forcing thread termination "
+                "wait",
+                name_.c_str());
         server_thread_->join();
     }
 
@@ -102,8 +102,7 @@ bool OneSevenLiveHttpServer::start() {
 
     // Ensure base_dir_ exists
     if (!std::filesystem::exists(base_dir_) || !std::filesystem::is_directory(base_dir_)) {
-        obs_log(LOG_ERROR,
-                "[%s] Base directory '%s' does not exist or is not a directory.",
+        obs_log(LOG_ERROR, "[%s] Base directory '%s' does not exist or is not a directory.",
                 name_.c_str(), base_dir_.c_str());
         return false;
     }
@@ -417,8 +416,11 @@ bool OneSevenLiveHttpServer::start() {
                 } else if (action == ACTION_GETGIFTS) {
                     if (!configManager->loadGifts(apiResult)) {
                         if (coreManager.isGiftsLoading()) {
-                            obs_log(LOG_INFO, "[%s] Gifts loading in progress, returning wait response", name_.c_str());
-                            const nlohmann::json response = {{"success", false}, {"error", "Gifts loading"}};
+                            obs_log(LOG_INFO,
+                                    "[%s] Gifts loading in progress, returning wait response",
+                                    name_.c_str());
+                            const nlohmann::json response = {{"success", false},
+                                                             {"error", "Gifts loading"}};
                             res.set_content(response.dump(), "application/json");
                             return;
                         }
@@ -432,26 +434,29 @@ bool OneSevenLiveHttpServer::start() {
                     }
                 } else if (action == ACTION_GETGIFT) {
                     if (coreManager.isGiftsLoading()) {
-                        obs_log(LOG_INFO, "[%s] Gifts loading in progress, returning wait response", name_.c_str());
-                        const nlohmann::json response = {{"success", false}, {"error", "Gifts loading"}};
+                        obs_log(LOG_INFO, "[%s] Gifts loading in progress, returning wait response",
+                                name_.c_str());
+                        const nlohmann::json response = {{"success", false},
+                                                         {"error", "Gifts loading"}};
                         res.set_content(response.dump(), "application/json");
                         return;
                     }
                     std::string giftID;
                     if (requestJson.contains("giftID") && requestJson["giftID"].is_string())
                         giftID = requestJson["giftID"].get<std::string>();
-                    
+
                     std::optional<nlohmann::json> gift;
                     if (!giftID.empty()) {
                         gift = OneSevenLiveCoreManager::getInstance().getGiftByID(giftID);
                     }
-                        
+
                     if (gift) {
                         apiResult = *gift;
                         success = true;
                     } else {
                         obs_log(LOG_WARNING, "Gift not found. giftID=%s", giftID.c_str());
-                        const nlohmann::json errorResponse = {{"success", false}, {"error", "Gift not found"}};
+                        const nlohmann::json errorResponse = {{"success", false},
+                                                              {"error", "Gift not found"}};
                         res.set_content(errorResponse.dump(), "application/json");
                         return;
                     }

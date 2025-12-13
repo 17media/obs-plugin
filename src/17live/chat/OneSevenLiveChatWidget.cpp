@@ -1,24 +1,23 @@
 #include "OneSevenLiveChatWidget.hpp"
-#include "cef_panel.hpp"
-#include "../OneSevenLiveCoreManager.hpp"
 
-#include <QVBoxLayout>
-#include <QLabel>
-#include <QTimer>
-#include <QShowEvent>
 #include <QHideEvent>
+#include <QLabel>
 #include <QResizeEvent>
+#include <QShowEvent>
+#include <QTimer>
+#include <QVBoxLayout>
 
+#include "../OneSevenLiveCoreManager.hpp"
+#include "cef_panel.hpp"
 #include "plugin-support.h"
 
 OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& chatUrl)
     : QWidget(parent), chatUrl_(chatUrl) {
-    
     obs_log(LOG_INFO, "OneSevenLiveChatWidget constructed");
 
     // Making this a native window often helps with embedding native child windows (CEF)
     this->setAttribute(Qt::WA_NativeWindow);
-    
+
     static QCef* globalCef = nullptr;
     if (!globalCef) {
         globalCef = obs_browser_init_panel();
@@ -61,7 +60,7 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
     // Loading overlay
     loadingOverlay = new QWidget(this);
     loadingOverlay->setStyleSheet("background-color: rgba(0, 0, 0, 180);");
-    
+
     QVBoxLayout* overlayLayout = new QVBoxLayout(loadingOverlay);
     overlayLayout->setAlignment(Qt::AlignCenter);
 
@@ -123,7 +122,7 @@ void OneSevenLiveChatWidget::reload() {
 void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
     obs_log(LOG_INFO, "OneSevenLiveChatWidget showEvent");
     QWidget::showEvent(event);
-    
+
     if (cefWidget_) {
         cefWidget_->setVisible(true);
     }

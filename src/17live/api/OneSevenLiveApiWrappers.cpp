@@ -21,6 +21,7 @@ namespace {
                                          const std::string &defaultValue = "") {
         return j.contains(key) && j[key].is_string() ? j[key].get<std::string>() : defaultValue;
     }
+
     static int safeGetJsonInt(const Json &j, const std::string &key, int defaultValue = 0) {
         return j.contains(key) && j[key].is_number_integer() ? j[key].get<int>() : defaultValue;
     }
@@ -198,7 +199,7 @@ bool OneSevenLiveApiWrappers::TryInsertCommand(const char *url, const char *cont
     if (!success || output.empty()) {
         if (!error.empty())
             obs_log(LOG_WARNING, "17Live API request failed: %s [url: %s]", error.c_str(), url);
-        
+
         // Ensure json_out is populated with error information if available
         if (!output.empty()) {
             try {
@@ -551,10 +552,11 @@ bool OneSevenLiveApiWrappers::CreateRtmp(const OneSevenLiveRtmpRequest &request,
             } else if (errorCode == 35) {
                 setLastErrorMessage(QString::fromStdString(obs_module_text("Api.Error.35")));
             } else {
-                setLastErrorMessage(QString::fromStdString(obs_module_text("Api.Error.Generic")).arg(buildErrorMessage(json_out, "CreateRtmp failed")));
+                setLastErrorMessage(QString::fromStdString(obs_module_text("Api.Error.Generic"))
+                                        .arg(buildErrorMessage(json_out, "CreateRtmp failed")));
             }
         }
-    
+
         return false;
     }
 
@@ -1122,7 +1124,8 @@ bool OneSevenLiveApiWrappers::PokeAll(const OneSevenLivePokeAllRequest &request,
         int errorCode = safeGetJsonInt(json_out, "errorCode", -1);
         std::string errorMessageStr = safeGetJsonString(json_out, "errorMessage", "");
         if (errorCode < 0) {
-            setLastErrorMessage(QString::fromStdString(std::string("UNKNOWN_ERROR ") + errorMessageStr));
+            setLastErrorMessage(
+                QString::fromStdString(std::string("UNKNOWN_ERROR ") + errorMessageStr));
         } else {
             setLastErrorMessage(QString::number(errorCode) + " " +
                                 QString::fromStdString(errorMessageStr));

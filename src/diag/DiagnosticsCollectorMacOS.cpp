@@ -49,7 +49,7 @@ namespace seventeen {
                 for (size_t i = 0; i < files.size(); ++i) {
                     const auto& file = files[i];
                     std::string fileName = std::filesystem::path(file).filename().string();
-                    reportSubProgress("Collecting OBS log: " + fileName, (double)i / total);
+                    reportSubProgress("Collecting OBS log: " + fileName, (double) i / total);
                     std::string destPath = std::filesystem::path(tempDir) / ("obs_" + fileName);
                     if (copyWithSizeLimit(file, destPath)) {
                         logFiles.push_back(destPath);
@@ -100,7 +100,7 @@ namespace seventeen {
             for (size_t i = 0; i < files.size(); ++i) {
                 const auto& file = files[i];
                 std::string fileName = std::filesystem::path(file).filename().string();
-                reportSubProgress("Collecting plugin log: " + fileName, (double)i / total);
+                reportSubProgress("Collecting plugin log: " + fileName, (double) i / total);
                 std::string destPath = std::filesystem::path(tempDir) / ("plugin_" + fileName);
                 if (copyWithSizeLimit(file, destPath)) {
                     logFiles.push_back(destPath);
@@ -139,17 +139,18 @@ namespace seventeen {
                                                   std::string("/Library/Logs/DiagnosticReports")};
 
             auto now = std::chrono::system_clock::now();
-            auto cutoff = now - std::chrono::hours(24 * 30); // 30 days
+            auto cutoff = now - std::chrono::hours(24 * 30);  // 30 days
             auto cutoff_fs = std::filesystem::file_time_type::clock::now() -
                              (std::chrono::system_clock::now() - cutoff);
 
             std::string tempDir = generateTempDirectory();
-            
+
             // Temporary vector to store valid crash files with their modification times
             struct CrashFileEntry {
                 std::filesystem::path path;
                 std::filesystem::file_time_type mtime;
             };
+
             std::vector<CrashFileEntry> foundCrashes;
 
             for (const auto& dir : crashDirs) {
@@ -160,14 +161,14 @@ namespace seventeen {
                     for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
                         if (!entry.is_regular_file())
                             continue;
-                        
+
                         auto name = entry.path().filename().string();
                         // Check for .crash or .ips extensions
-                        bool isCrashFile = (entry.path().extension() == ".crash" || 
-                                          entry.path().extension() == ".ips");
+                        bool isCrashFile = (entry.path().extension() == ".crash" ||
+                                            entry.path().extension() == ".ips");
                         // Check for obs or OBS prefix (without underscore)
                         bool isOBS = (name.rfind("obs", 0) == 0 || name.rfind("OBS", 0) == 0);
-                        
+
                         if (isCrashFile && isOBS) {
                             try {
                                 auto mtime = std::filesystem::last_write_time(entry.path());
@@ -185,10 +186,9 @@ namespace seventeen {
             }
 
             // Sort by modification time descending
-            std::sort(foundCrashes.begin(), foundCrashes.end(), 
-                [](const CrashFileEntry& a, const CrashFileEntry& b) {
-                    return a.mtime > b.mtime;
-                });
+            std::sort(
+                foundCrashes.begin(), foundCrashes.end(),
+                [](const CrashFileEntry& a, const CrashFileEntry& b) { return a.mtime > b.mtime; });
 
             // Keep top 5 latest
             if (foundCrashes.size() > 5) {
@@ -200,9 +200,8 @@ namespace seventeen {
             for (size_t i = 0; i < foundCrashes.size(); ++i) {
                 const auto& entry = foundCrashes[i];
                 std::string fileName = entry.path.filename().string();
-                reportSubProgress("Collecting crash info: " + fileName, (double)i / total);
-                std::string destPath = std::filesystem::path(tempDir) / 
-                                     ("crash_" + fileName);
+                reportSubProgress("Collecting crash info: " + fileName, (double) i / total);
+                std::string destPath = std::filesystem::path(tempDir) / ("crash_" + fileName);
                 if (copyWithSizeLimit(entry.path.string(), destPath)) {
                     crashFiles.push_back(destPath);
                 }
@@ -274,17 +273,18 @@ namespace seventeen {
                             filesToCopy.push_back(entry.path());
                         }
                     }
-                } catch (...) {}
+                } catch (...) {
+                }
 
                 double total = filesToCopy.size();
                 for (size_t i = 0; i < filesToCopy.size(); ++i) {
                     const auto& srcPath = filesToCopy[i];
-                    std::filesystem::path rel =
-                        std::filesystem::relative(srcPath, pluginConfigDir);
+                    std::filesystem::path rel = std::filesystem::relative(srcPath, pluginConfigDir);
                     std::filesystem::path destPath =
                         std::filesystem::path(tempDir) / "plugin_config" / rel;
-                    
-                    reportSubProgress("Collecting config: " + srcPath.filename().string(), (double)i / total);
+
+                    reportSubProgress("Collecting config: " + srcPath.filename().string(),
+                                      (double) i / total);
 
                     if (copyFile(srcPath.string(), destPath.string())) {
                         configFiles.push_back(destPath.string());
@@ -380,15 +380,15 @@ namespace seventeen {
                     if (!std::filesystem::exists(file)) {
                         continue;
                     }
-                    
+
                     std::string relativePath;
                     std::string category = determineCategory(file);
-                    
+
                     std::filesystem::path destPath;
                     std::filesystem::path fileName = std::filesystem::path(file).filename();
-                    
-                    reportSubProgress("Archiving: " + fileName.string(), (double)i / total);
-                    
+
+                    reportSubProgress("Archiving: " + fileName.string(), (double) i / total);
+
                     if (category == "ROOT") {
                         destPath = std::filesystem::path(stagingDir) / fileName;
                         relativePath = fileName.string();
@@ -406,19 +406,21 @@ namespace seventeen {
                     if (category == "crash_reports") {
                         try {
                             auto fileSize = std::filesystem::file_size(file);
-                            if (fileSize > 2 * 1024 * 1024) { // 2MB
+                            if (fileSize > 2 * 1024 * 1024) {  // 2MB
                                 isLargeCrash = true;
                             }
-                        } catch (...) {}
+                        } catch (...) {
+                        }
                     }
 
                     if (isLargeCrash) {
                         indexLines.push_back(relativePath + " (文件过大，未采集)");
                     } else {
                         try {
-                            std::filesystem::copy_file(file, destPath,
-                                                    std::filesystem::copy_options::overwrite_existing);
-                            collectedFiles.push_back(file); // Keep track of what we actually copied
+                            std::filesystem::copy_file(
+                                file, destPath, std::filesystem::copy_options::overwrite_existing);
+                            collectedFiles.push_back(
+                                file);  // Keep track of what we actually copied
                             indexLines.push_back(relativePath);
                         } catch (const std::exception& e) {
                             setLastError(std::string("Failed to copy file: ") + e.what());
@@ -426,10 +428,11 @@ namespace seventeen {
                         }
                     }
                 }
-                
+
                 // Generate index.txt
                 try {
-                    std::filesystem::path indexPath = std::filesystem::path(stagingDir) / "index.txt";
+                    std::filesystem::path indexPath =
+                        std::filesystem::path(stagingDir) / "index.txt";
                     std::ofstream indexFile(indexPath);
                     if (indexFile.is_open()) {
                         indexFile << "Diagnostics Package Content Index\n";
@@ -457,7 +460,7 @@ namespace seventeen {
             std::string zipCommand =
                 "cd \"" + parentDir + "\" && zip -r \"" + outputPath + "\" \"" + baseName + "\"";
             std::string result = executeCommand(zipCommand);
-            (void)result; // Suppress unused variable warning
+            (void) result;  // Suppress unused variable warning
 
             return std::filesystem::exists(outputPath) &&
                    std::filesystem::file_size(outputPath) > 0;
@@ -488,8 +491,6 @@ namespace seventeen {
         std::string DiagnosticsCollectorMacOS::getOBSLogDirectory() const {
             return getHomeDirectory() + "/Library/Application Support/obs-studio/logs";
         }
-
-
 
         std::string DiagnosticsCollectorMacOS::getPluginLogDirectory() const {
             // Prefer OBS plugin_config path; fallback to legacy ~/.17Live/logs

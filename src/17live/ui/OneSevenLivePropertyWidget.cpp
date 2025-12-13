@@ -8,8 +8,8 @@
 #include <QIntValidator>
 #include <QLabel>
 #include <QLineEdit>
-#include <QTimer>
 #include <QPointer>
+#include <QTimer>
 
 #include "OneSevenLiveLineEditWithEye.hpp"
 #include "OneSevenLivePropertyRefreshHandler.hpp"
@@ -39,7 +39,8 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         QPointer<QCheckBox> safeCb(cb);
         QPointer<OneSevenLivePropertyWidget> safeThis(this);
         QTimer::singleShot(0, [this, safeCb, safeThis]() {
-            if (!safeCb || !safeThis) return;
+            if (!safeCb || !safeThis)
+                return;
 
             if (safeThis && safeThis->m_refreshHandler) {
                 QObject::connect(safeCb, &QCheckBox::stateChanged, [safeThis]() {
@@ -90,11 +91,12 @@ OneSevenLivePropertyWidget::OneSevenLivePropertyWidget(
         auto cb = new QComboBox(this);
         cb->setEditable(false);
         cb->setInsertPolicy(QComboBox::NoInsert);
-        
+
         QPointer<QComboBox> safeCb(cb);
         QPointer<OneSevenLivePropertyWidget> safeThis(this);
         QTimer::singleShot(0, [safeCb, safeThis]() {
-            if (!safeCb || !safeThis) return;
+            if (!safeCb || !safeThis)
+                return;
 
             if (safeThis && safeThis->m_refreshHandler) {
                 QObject::connect(safeCb, &QComboBox::currentIndexChanged, [safeThis]() {
@@ -131,7 +133,7 @@ OneSevenLivePropertyWidget::~OneSevenLivePropertyWidget() {
     if (label) {
         disconnect(label, nullptr, nullptr, nullptr);
     }
-    
+
     ctrl = nullptr;
     label = nullptr;
     container = nullptr;

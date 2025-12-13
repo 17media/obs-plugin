@@ -31,9 +31,9 @@ void OneSevenLiveAuthDialog::setupUi() {
     setModal(true);
     resize(800, 600);
 
-    // QDialog is typically already a native window. 
-    // Explicitly setting WA_NativeWindow might be redundant or cause issues with child native widgets.
-    // setAttribute(Qt::WA_NativeWindow);
+    // QDialog is typically already a native window.
+    // Explicitly setting WA_NativeWindow might be redundant or cause issues with child native
+    // widgets. setAttribute(Qt::WA_NativeWindow);
 
     cef_ = obs_browser_init_panel();
     if (cef_) {

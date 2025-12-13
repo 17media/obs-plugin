@@ -8,6 +8,7 @@
 #endif
 #include <graphics/graphics.h>
 
+#include <QDir>
 #include <QFont>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -19,7 +20,6 @@
 #include <QTimer>
 #include <QWindow>
 #include <cmath>
-#include <QDir>
 
 #include "moc_OneSevenLivePreviewWidget.cpp"
 #include "utility/Common.hpp"
@@ -408,7 +408,8 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
     // Only create browser source if we have valid configuration or an overlay URL
     if (!browserConfig.isValid && overlayUrl_.isEmpty()) {
         obs_log(LOG_INFO,
-                "No valid browser source configuration and no overlay URL, skipping browser source creation");
+                "No valid browser source configuration and no overlay URL, skipping browser source "
+                "creation");
         return;
     }
 
@@ -421,9 +422,9 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
     } else if (browserConfig.isValid) {
         effectiveUrl = browserConfig.url;
     } else {
-        effectiveUrl = "about:blank"; // Should not happen given check above
+        effectiveUrl = "about:blank";  // Should not happen given check above
     }
-    
+
     // obs_log(LOG_INFO, "Using overlay URL: %s", effectiveUrl.toUtf8().constData());
     obs_data_set_string(settings.get(), "url", effectiveUrl.toUtf8().constData());
     obs_data_set_int(settings.get(), "width", browserConfig.isValid ? browserConfig.width : 1920);

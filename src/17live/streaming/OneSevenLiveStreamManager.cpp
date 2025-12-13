@@ -3,14 +3,14 @@
 #include <obs-frontend-api.h>
 #include <obs.h>
 
-#include <QMessageBox>
-#include <QRegularExpression>
-#include <QRegularExpressionMatch>
 #include <QCoreApplication>
 #include <QEventLoop>
+#include <QMessageBox>
+#include <QPointer>
+#include <QRegularExpression>
+#include <QRegularExpressionMatch>
 #include <QThread>
 #include <QTimer>
-#include <QPointer>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveConfigManager.hpp"
@@ -19,24 +19,25 @@
 #include "moc_OneSevenLiveStreamManager.cpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
+#include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
-#include "websocket/OneSevenLiveWebsocketServer.hpp"
 
 // Static callback for OBS frontend events to ensure safe registration/removal
 static void ObsFrontendEventCallback(enum obs_frontend_event event, void* private_data) {
     OneSevenLiveStreamManager* manager = static_cast<OneSevenLiveStreamManager*>(private_data);
-    if (!manager) return;
+    if (!manager)
+        return;
 
     if (event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
-         obs_output_t* output = obs_frontend_get_streaming_output();
-         if (output) {
-             const char* err = obs_output_get_last_error(output);
-             manager->handleObsStreamStopped(0, err ? QString(err) : QString());
-             obs_output_release(output);
-         } else {
-             manager->handleObsStreamStopped(0, QString());
-         }
+        obs_output_t* output = obs_frontend_get_streaming_output();
+        if (output) {
+            const char* err = obs_output_get_last_error(output);
+            manager->handleObsStreamStopped(0, err ? QString(err) : QString());
+            obs_output_release(output);
+        } else {
+            manager->handleObsStreamStopped(0, QString());
+        }
     }
 }
 
@@ -167,87 +168,94 @@ void OneSevenLiveStreamManager::startStreamWithWebAsync() {
     }
 
     QString provider = GetProviderNameByIndex(roomInfo.rtmpUrls[0].provider);
-    
+
     auto* api = this->apiWrapper;
     QPointer<OneSevenLiveStreamManager> self = this;
     std::string providerStr = provider.toStdString();
 
     ScheduleOBSTask([self, api, providerStr]() {
-        if (!self) return;
+        if (!self)
+            return;
 
         OneSevenLiveRtmpResponse rtmpResponse;
         bool success = false;
-        
+
         if (api) {
             success = api->GetRtmpByProvider(providerStr, rtmpResponse);
         }
-        
+
         if (self) {
-            QMetaObject::invokeMethod(self, [self, success, rtmpResponse, providerStr]() {
-                if (success) {
-                    OneSevenLiveRtmpResponse resp = rtmpResponse;
-                    resp.liveStreamID = QString::number(self->roomInfo.liveStreamID);
-                    self->configureStreamingService(resp);
+            QMetaObject::invokeMethod(
+                self,
+                [self, success, rtmpResponse, providerStr]() {
+                    if (success) {
+                        OneSevenLiveRtmpResponse resp = rtmpResponse;
+                        resp.liveStreamID = QString::number(self->roomInfo.liveStreamID);
+                        self->configureStreamingService(resp);
 
-                    self->currentLiveStreamID = resp.liveStreamID.toStdString();
+                        self->currentLiveStreamID = resp.liveStreamID.toStdString();
 
-                    OneSevenLiveRtmpRequest request;
-                    request.userID = QString::fromStdString(self->currentUserID);
-                    request.caption = self->roomInfo.caption;
-                    request.device = "OBS";
-                    
-                    qint64 selectedEventId = 0;
-                    for (const auto& evt : self->roomInfo.eventList) {
-                        if (evt.type == 2) {
-                            selectedEventId = evt.ID;
-                            break;
+                        OneSevenLiveRtmpRequest request;
+                        request.userID = QString::fromStdString(self->currentUserID);
+                        request.caption = self->roomInfo.caption;
+                        request.device = "OBS";
+
+                        qint64 selectedEventId = 0;
+                        for (const auto& evt : self->roomInfo.eventList) {
+                            if (evt.type == 2) {
+                                selectedEventId = evt.ID;
+                                break;
+                            }
                         }
+                        request.eventID = selectedEventId;
+
+                        QStringList tags;
+                        for (const auto& t : self->roomInfo.lastUsedHashtags) {
+                            tags << t.text;
+                        }
+                        request.hashtags = tags;
+
+                        request.landscape = self->roomInfo.landscape;
+                        request.streamerType = self->roomInfo.streamerType;
+                        request.subtabID = (self->roomInfo.subtabs.size() > 0)
+                                               ? self->roomInfo.subtabs[0]
+                                               : QString();
+                        request.archiveConfig = self->roomInfo.archiveConfig;
+
+                        OneSevenLiveVliverInfo vl;
+                        vl.vliverModel =
+                            self->configStreamer.lastStreamState.vliverInfo.vliverModel;
+                        request.vliverInfo = vl;
+
+                        OneSevenLiveArmy army{};
+                        army.enable = false;
+                        army.requiredArmyRank = 0;
+                        army.showOnHotPage = false;
+                        army.armyOnlyPN = false;
+                        request.armyOnly = army;
+
+                        request.enableOBSGroupCall = self->roomInfo.enableOBSGroupCall;
+
+                        self->currentStreamRequest = request;
+                        self->currentStreamResponse = resp;
+                        OneSevenLiveStreamInfo info;
+                        info.request = request;
+                        info.categoryName = QString();
+                        info.createdAt = QDateTime::currentDateTime();
+                        info.streamUuid = resp.streamID;
+                        self->currentLiveStreamInfo = info;
+
+                        self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                                          nlohmann::json{{"status", "connected"}});
+
+                        emit self->webStreamSettingsLoaded(true);
+                    } else {
+                        obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s",
+                                providerStr.c_str());
+                        emit self->webStreamSettingsLoaded(false);
                     }
-                    request.eventID = selectedEventId;
-
-                    QStringList tags;
-                    for (const auto& t : self->roomInfo.lastUsedHashtags) {
-                        tags << t.text;
-                    }
-                    request.hashtags = tags;
-
-                    request.landscape = self->roomInfo.landscape;
-                    request.streamerType = self->roomInfo.streamerType;
-                    request.subtabID = (self->roomInfo.subtabs.size() > 0) ? self->roomInfo.subtabs[0] : QString();
-                    request.archiveConfig = self->roomInfo.archiveConfig;
-
-                    OneSevenLiveVliverInfo vl;
-                    vl.vliverModel = self->configStreamer.lastStreamState.vliverInfo.vliverModel;
-                    request.vliverInfo = vl;
-
-                    OneSevenLiveArmy army{};
-                    army.enable = false;
-                    army.requiredArmyRank = 0;
-                    army.showOnHotPage = false;
-                    army.armyOnlyPN = false;
-                    request.armyOnly = army;
-
-                    request.enableOBSGroupCall = self->roomInfo.enableOBSGroupCall;
-
-                    self->currentStreamRequest = request;
-                    self->currentStreamResponse = resp;
-                    OneSevenLiveStreamInfo info;
-                    info.request = request;
-                    info.categoryName = QString();
-                    info.createdAt = QDateTime::currentDateTime();
-                    info.streamUuid = resp.streamID;
-                    self->currentLiveStreamInfo = info;
-
-                    self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                                nlohmann::json{{"status", "connected"}});
-
-                    emit self->webStreamSettingsLoaded(true);
-                } else {
-                    obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s",
-                            providerStr.c_str());
-                    emit self->webStreamSettingsLoaded(false);
-                }
-            }, Qt::QueuedConnection);
+                },
+                Qt::QueuedConnection);
         }
     });
 }
@@ -306,7 +314,8 @@ void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& r
     QPointer<OneSevenLiveStreamManager> self = this;
 
     ScheduleOBSTask([self, modifiedRequest, api]() {
-        if (!self) return;
+        if (!self)
+            return;
 
         OneSevenLiveRtmpResponse response;
         bool success = false;
@@ -322,35 +331,39 @@ void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& r
         }
 
         if (self) {
-            QMetaObject::invokeMethod(self, [self, success, errorMsg, modifiedRequest, response]() {
-                if (success) {
-                    self->currentLiveStreamID = response.liveStreamID.toStdString();
-                    self->currentStreamRequest = modifiedRequest;
-                    self->currentStreamResponse = response;
+            QMetaObject::invokeMethod(
+                self,
+                [self, success, errorMsg, modifiedRequest, response]() {
+                    if (success) {
+                        self->currentLiveStreamID = response.liveStreamID.toStdString();
+                        self->currentStreamRequest = modifiedRequest;
+                        self->currentStreamResponse = response;
 
-                    OneSevenLiveStreamInfo info;
-                    info.request = modifiedRequest;
-                    info.categoryName = QString();
-                    info.createdAt = QDateTime::currentDateTime();
-                    info.streamUuid = response.streamID;
-                    self->currentLiveStreamInfo = info;
+                        OneSevenLiveStreamInfo info;
+                        info.request = modifiedRequest;
+                        info.categoryName = QString();
+                        info.createdAt = QDateTime::currentDateTime();
+                        info.streamUuid = response.streamID;
+                        self->currentLiveStreamInfo = info;
 
-                    self->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
+                        self->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
 
-                    self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                                nlohmann::json{{"status", "connected"}});
+                        self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                                          nlohmann::json{{"status", "connected"}});
 
-                    obs_log(LOG_INFO, "Live stream created successfully (Async). LiveStreamID: %s",
-                            self->currentLiveStreamID.c_str());
-                    
-                    emit self->createRtmpFinished(true, QString());
-                } else {
-                    obs_log(LOG_ERROR, "Failed to create stream (Async). Error: %s",
-                            errorMsg.toStdString().c_str());
-                    emit self->errorOccurred(errorMsg, "createLiveStream");
-                    emit self->createRtmpFinished(false, errorMsg);
-                }
-            }, Qt::QueuedConnection);
+                        obs_log(LOG_INFO,
+                                "Live stream created successfully (Async). LiveStreamID: %s",
+                                self->currentLiveStreamID.c_str());
+
+                        emit self->createRtmpFinished(true, QString());
+                    } else {
+                        obs_log(LOG_ERROR, "Failed to create stream (Async). Error: %s",
+                                errorMsg.toStdString().c_str());
+                        emit self->errorOccurred(errorMsg, "createLiveStream");
+                        emit self->createRtmpFinished(false, errorMsg);
+                    }
+                },
+                Qt::QueuedConnection);
         }
     });
 }
@@ -402,7 +415,8 @@ void OneSevenLiveStreamManager::startStreamAsync() {
     QPointer<OneSevenLiveStreamManager> self = this;
 
     ScheduleOBSTask([self, lid, uid, autoRecord, api]() {
-        if (!self) return;
+        if (!self)
+            return;
 
         bool success = false;
         QString errorMsg;
@@ -414,7 +428,8 @@ void OneSevenLiveStreamManager::startStreamAsync() {
             } else if (autoRecord) {
                 if (!api->EnableStreamArchive(lid, 1)) {
                     QString archiveError = api->getLastErrorMessage();
-                    obs_log(LOG_ERROR, "Failed to enable archive (Async). Error: %s", archiveError.toStdString().c_str());
+                    obs_log(LOG_ERROR, "Failed to enable archive (Async). Error: %s",
+                            archiveError.toStdString().c_str());
                     success = false;
                     errorMsg = archiveError;
                 }
@@ -424,22 +439,25 @@ void OneSevenLiveStreamManager::startStreamAsync() {
         }
 
         if (self) {
-            QMetaObject::invokeMethod(self, [self, success, errorMsg]() {
-                if (success) {
-                    self->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
+            QMetaObject::invokeMethod(
+                self,
+                [self, success, errorMsg]() {
+                    if (success) {
+                        self->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
 
-                    self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                                nlohmann::json{{"status", "connected"}});
+                        self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
+                                          nlohmann::json{{"status", "connected"}});
 
-                    obs_log(LOG_INFO, "Streaming started successfully (Async)");
-                    emit self->startStreamFinished(true, QString());
-                } else {
-                    obs_log(LOG_ERROR, "Failed to start stream (Async). Error: %s",
-                            errorMsg.toStdString().c_str());
-                    emit self->errorOccurred(errorMsg, "startStream");
-                    emit self->startStreamFinished(false, errorMsg);
-                }
-            }, Qt::QueuedConnection);
+                        obs_log(LOG_INFO, "Streaming started successfully (Async)");
+                        emit self->startStreamFinished(true, QString());
+                    } else {
+                        obs_log(LOG_ERROR, "Failed to start stream (Async). Error: %s",
+                                errorMsg.toStdString().c_str());
+                        emit self->errorOccurred(errorMsg, "startStream");
+                        emit self->startStreamFinished(false, errorMsg);
+                    }
+                },
+                Qt::QueuedConnection);
         }
     });
 }
@@ -451,7 +469,8 @@ void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRe
     QPointer<OneSevenLiveStreamManager> self = this;
 
     ScheduleOBSTask([self, request, api]() {
-        if (!self) return;
+        if (!self)
+            return;
 
         bool success = false;
         QString errorMsg;
@@ -466,16 +485,20 @@ void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRe
         }
 
         if (self) {
-            QMetaObject::invokeMethod(self, [self, success, errorMsg, request]() {
-                if (success) {
-                    obs_log(LOG_INFO, "Successfully changed event (Async) to: %lld", request.eventID);
-                    emit self->changeEventFinished(true, QString());
-                } else {
-                    obs_log(LOG_ERROR, "Failed to change event (Async) to: %lld, error: %s", request.eventID,
-                            errorMsg.toStdString().c_str());
-                    emit self->changeEventFinished(false, errorMsg);
-                }
-            }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                self,
+                [self, success, errorMsg, request]() {
+                    if (success) {
+                        obs_log(LOG_INFO, "Successfully changed event (Async) to: %lld",
+                                request.eventID);
+                        emit self->changeEventFinished(true, QString());
+                    } else {
+                        obs_log(LOG_ERROR, "Failed to change event (Async) to: %lld, error: %s",
+                                request.eventID, errorMsg.toStdString().c_str());
+                        emit self->changeEventFinished(false, errorMsg);
+                    }
+                },
+                Qt::QueuedConnection);
         }
     });
 }
@@ -544,7 +567,8 @@ void OneSevenLiveStreamManager::startOBSStreaming() {
     }
     obs_audio_info ainfo{};
     if (obs_get_audio_info(&ainfo)) {
-        obs_log(LOG_INFO, "OBS audio: rate=%u speakers=%d", ainfo.samples_per_sec, (int) ainfo.speakers);
+        obs_log(LOG_INFO, "OBS audio: rate=%u speakers=%d", ainfo.samples_per_sec,
+                (int) ainfo.speakers);
     }
 
     obs_service_t* svc = obs_frontend_get_streaming_service();
@@ -560,12 +584,13 @@ void OneSevenLiveStreamManager::startOBSStreaming() {
         int max_v_bitrate = 0, max_a_bitrate = 0;
         obs_service_get_max_bitrate(svc, &max_v_bitrate, &max_a_bitrate);
         obs_log(LOG_INFO, "OBS service: type=%s proto=%s server=%s key_len=%zu token_len=%zu",
-                stype ? stype : "", proto ? proto : "", server ? server : "",
-                key ? strlen(key) : 0, token ? strlen(token) : 0);
+                stype ? stype : "", proto ? proto : "", server ? server : "", key ? strlen(key) : 0,
+                token ? strlen(token) : 0);
         if (svc_vcodecs) {
             std::string vlist;
             for (size_t i = 0; svc_vcodecs[i]; ++i) {
-                if (!vlist.empty()) vlist += ",";
+                if (!vlist.empty())
+                    vlist += ",";
                 vlist += svc_vcodecs[i];
             }
             obs_log(LOG_INFO, "OBS service supported video codecs: %s", vlist.c_str());
@@ -573,19 +598,22 @@ void OneSevenLiveStreamManager::startOBSStreaming() {
         if (svc_acodecs) {
             std::string alist;
             for (size_t i = 0; svc_acodecs[i]; ++i) {
-                if (!alist.empty()) alist += ",";
+                if (!alist.empty())
+                    alist += ",";
                 alist += svc_acodecs[i];
             }
             obs_log(LOG_INFO, "OBS service supported audio codecs: %s", alist.c_str());
         }
-        obs_log(LOG_INFO, "OBS service max bitrate: video=%d audio=%d", max_v_bitrate, max_a_bitrate);
+        obs_log(LOG_INFO, "OBS service max bitrate: video=%d audio=%d", max_v_bitrate,
+                max_a_bitrate);
     }
 
     obs_frontend_streaming_start();
     if (!m_streamLogTimer) {
         m_streamLogTimer = new QTimer(this);
         m_streamLogTimer->setSingleShot(true);
-        connect(m_streamLogTimer, &QTimer::timeout, this, &OneSevenLiveStreamManager::logCurrentObsOutputInfo);
+        connect(m_streamLogTimer, &QTimer::timeout, this,
+                &OneSevenLiveStreamManager::logCurrentObsOutputInfo);
     }
     m_streamLogTimer->start(200);
 }
@@ -616,18 +644,21 @@ void OneSevenLiveStreamManager::logCurrentObsOutputInfo() {
     const char* out_v_supported = obs_output_get_supported_video_codecs(out);
     const char* out_a_supported = obs_output_get_supported_audio_codecs(out);
     obs_log(LOG_INFO,
-            "OBS output: id=%s size=%ux%u video_encoder=%s codec=%s bitrate=%d scaled=%ux%u fps_div=%u audio_encoder=%s codec=%s bitrate=%d rate=%u mixer=%zu",
+            "OBS output: id=%s size=%ux%u video_encoder=%s codec=%s bitrate=%d scaled=%ux%u "
+            "fps_div=%u audio_encoder=%s codec=%s bitrate=%d rate=%u mixer=%zu",
             oid ? oid : "", ow, oh, v_id ? v_id : "", v_codec ? v_codec : "", v_bitrate, v_scaled_w,
-            v_scaled_h, v_fps_div, a_id ? a_id : "", a_codec ? a_codec : "", a_bitrate, a_rate, a_mixer);
+            v_scaled_h, v_fps_div, a_id ? a_id : "", a_codec ? a_codec : "", a_bitrate, a_rate,
+            a_mixer);
     obs_log(LOG_INFO, "OBS output supported codecs: video=%s audio=%s",
             out_v_supported ? out_v_supported : "", out_a_supported ? out_a_supported : "");
 }
 
 void OneSevenLiveStreamManager::stopOBSStreaming() {
     obs_log(LOG_INFO, "Stopping OBS streaming");
-    auto &core = OneSevenLiveCoreManager::getInstance();
+    auto& core = OneSevenLiveCoreManager::getInstance();
     if (QThread::currentThread() != core.thread()) {
-        QMetaObject::invokeMethod(&core, [this]() { this->stopOBSStreaming(); }, Qt::BlockingQueuedConnection);
+        QMetaObject::invokeMethod(
+            &core, [this]() { this->stopOBSStreaming(); }, Qt::BlockingQueuedConnection);
         return;
     }
     if (!obs_frontend_streaming_active()) {
@@ -866,9 +897,9 @@ void OneSevenLiveStreamManager::configureStreamingSettings(
 
 void OneSevenLiveStreamManager::handleObsStreamStopped(int code, const QString& lastError) {
     // This is called from OBS callback thread, so we need to invoke on main thread
-    QMetaObject::invokeMethod(this, [this, code, lastError]() {
-        emit obsStreamStopped(code, lastError);
-    }, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        this, [this, code, lastError]() { emit obsStreamStopped(code, lastError); },
+        Qt::QueuedConnection);
 }
 
 const OneSevenLiveRtmpResponse& OneSevenLiveStreamManager::getCurrentStreamResponse() const {
@@ -900,7 +931,8 @@ void OneSevenLiveStreamManager::loadRoomInfo() {
     QPointer<OneSevenLiveStreamManager> self = this;
 
     ScheduleOBSTask([self, api, cm, rid]() {
-        if (!self) return;
+        if (!self)
+            return;
 
         OneSevenLiveRoomInfo localRoomInfo;
         OneSevenLiveConfigStreamer localConfigStreamer;
@@ -909,13 +941,13 @@ void OneSevenLiveStreamManager::loadRoomInfo() {
 
         OneSevenLiveLoadRoomInfoWorker worker(api, cm);
         worker.setDataStructures(&localRoomInfo, &localConfigStreamer, &localUserInfo,
-                                    &localLevels);
+                                 &localLevels);
 
         OneSevenLiveLoadRoomInfoWorker::LoadResult result =
             worker.loadRoomInfo(static_cast<std::int64_t>(rid));
 
         if (self) {
-             QMetaObject::invokeMethod(
+            QMetaObject::invokeMethod(
                 self,
                 [self, result, localRoomInfo, localConfigStreamer, localUserInfo, localLevels]() {
                     self->roomInfo = localRoomInfo;
@@ -932,8 +964,8 @@ void OneSevenLiveStreamManager::loadRoomInfo() {
 }
 
 void OneSevenLiveStreamManager::wsBroadcast(const QString& type, const nlohmann::json& payload) {
-    auto &core = OneSevenLiveCoreManager::getInstance();
-    if (auto *ws = core.getWebsocketServer()) {
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    if (auto* ws = core.getWebsocketServer()) {
         WsMessage msg;
         msg.type = type.toStdString();
         msg.payload = payload;

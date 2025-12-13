@@ -131,7 +131,7 @@ class OneSevenLiveApiWrappers : public QObject {
      * @brief Set the cancel flag for network requests
      * @param flag Pointer to atomic bool flag
      */
-    void setCancelFlag(std::atomic<bool>* flag) {
+    void setCancelFlag(std::atomic<bool> *flag) {
         m_cancelFlag = flag;
     }
 
@@ -141,7 +141,7 @@ class OneSevenLiveApiWrappers : public QObject {
     bool implicit = false;
     uint64_t expire_time = 0;
     int currentScopeVer = 0;
-    std::atomic<bool>* m_cancelFlag = nullptr;
+    std::atomic<bool> *m_cancelFlag = nullptr;
 
    private:
     QString lastErrorMessage;

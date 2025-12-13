@@ -2,7 +2,6 @@
 
 #include <obs-module.h>
 #include <plugin-support.h>
-#include "OneSevenLiveCoreManager.hpp"
 #include <util/config-file.h>
 
 #include <QDir>
@@ -12,6 +11,8 @@
 #include <iomanip>
 #include <random>
 #include <sstream>
+
+#include "OneSevenLiveCoreManager.hpp"
 
 OneSevenLiveMultiRtmpConfigManager::OneSevenLiveMultiRtmpConfigManager() {
     obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] ConfigManager initialized");
@@ -45,8 +46,7 @@ OneSevenLiveMultiRtmpConfigManager::OneSevenLiveMultiRtmpConfigManager() {
 
 OneSevenLiveMultiRtmpConfigManager::~OneSevenLiveMultiRtmpConfigManager() {
     if (OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
-        obs_log(LOG_INFO,
-                "[MultiRTMP-ConfigManager] Skipping save on destruction during shutdown");
+        obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Skipping save on destruction during shutdown");
     } else {
         saveConfiguration();
     }

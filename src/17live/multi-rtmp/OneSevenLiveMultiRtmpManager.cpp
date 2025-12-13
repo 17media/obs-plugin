@@ -1,13 +1,13 @@
 #include "OneSevenLiveMultiRtmpManager.hpp"
 
 #include <QMessageBox>
-#include <QTimer>
 #include <QThread>
+#include <QTimer>
 #include <algorithm>
 #include <exception>
 
-#include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveCoreManager.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
@@ -228,15 +228,19 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
                 // }
                 // core.stopYouTubeChatPolling();
                 // core.destroyYouTubeChatClient();
-                obs_log(LOG_INFO, "[MultiRTMP-Manager] Skipped YouTube interruption due to temporary disable: %s",
-                        streamId.c_str());
+                obs_log(
+                    LOG_INFO,
+                    "[MultiRTMP-Manager] Skipped YouTube interruption due to temporary disable: %s",
+                    streamId.c_str());
             } else if (platform == "Twitch") {
                 if (core.getTwitchAuth()) {
                     core.getTwitchAuth()->clearTokens();
                 }
                 core.disconnectTwitchChatClient();
                 core.destroyTwitchChatClient();
-                obs_log(LOG_INFO, "[MultiRTMP-Manager] Interrupted Twitch connections and cleared in-memory tokens: %s",
+                obs_log(LOG_INFO,
+                        "[MultiRTMP-Manager] Interrupted Twitch connections and cleared in-memory "
+                        "tokens: %s",
                         streamId.c_str());
             }
         } else {
@@ -249,7 +253,9 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
                         // }
                         // core.stopYouTubeChatPolling();
                         // core.destroyYouTubeChatClient();
-                        obs_log(LOG_INFO, "[MultiRTMP-Manager] Skipped YouTube interruption due to temporary disable: %s",
+                        obs_log(LOG_INFO,
+                                "[MultiRTMP-Manager] Skipped YouTube interruption due to temporary "
+                                "disable: %s",
                                 streamId.c_str());
                     } else if (platform == std::string("Twitch")) {
                         if (core.getTwitchAuth()) {
@@ -257,7 +263,9 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
                         }
                         core.disconnectTwitchChatClient();
                         core.destroyTwitchChatClient();
-                        obs_log(LOG_INFO, "[MultiRTMP-Manager] Interrupted Twitch connections and cleared in-memory tokens: %s",
+                        obs_log(LOG_INFO,
+                                "[MultiRTMP-Manager] Interrupted Twitch connections and cleared "
+                                "in-memory tokens: %s",
                                 streamId.c_str());
                     }
                 },
@@ -382,18 +390,22 @@ bool OneSevenLiveMultiRtmpManager::stopStream(const std::string& streamId) {
     if (QThread::currentThread() == core.thread()) {
         stopped = m_streamController->stopOutput(streamId);
     } else {
-        QMetaObject::invokeMethod(&core, [this, &streamId, &stopped]() {
-            stopped = m_streamController->stopOutput(streamId);
-        }, Qt::BlockingQueuedConnection);
+        QMetaObject::invokeMethod(
+            &core,
+            [this, &streamId, &stopped]() { stopped = m_streamController->stopOutput(streamId); },
+            Qt::BlockingQueuedConnection);
     }
 
     OneSevenLiveMultiRtmpConfig cfg = getStreamConfig(streamId);
     if (!cfg.id.empty() && cfg.streamName == std::string("YouTube")) {
-        QMetaObject::invokeMethod(&core, []() {
-            OneSevenLiveCoreManager& c = OneSevenLiveCoreManager::getInstance();
-            c.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                                          nlohmann::json{{"status", "break"}});
-        }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            &core,
+            []() {
+                OneSevenLiveCoreManager& c = OneSevenLiveCoreManager::getInstance();
+                c.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
+                                              nlohmann::json{{"status", "break"}});
+            },
+            Qt::QueuedConnection);
     }
     return stopped;
 }
@@ -422,9 +434,9 @@ bool OneSevenLiveMultiRtmpManager::stopAllStreams() {
     if (QThread::currentThread() == core.thread()) {
         stopped = m_streamController->stopAllOutputs();
     } else {
-        QMetaObject::invokeMethod(&core, [this, &stopped]() {
-            stopped = m_streamController->stopAllOutputs();
-        }, Qt::BlockingQueuedConnection);
+        QMetaObject::invokeMethod(
+            &core, [this, &stopped]() { stopped = m_streamController->stopAllOutputs(); },
+            Qt::BlockingQueuedConnection);
     }
 
     auto configs = getAllStreamConfigs();
@@ -432,11 +444,14 @@ bool OneSevenLiveMultiRtmpManager::stopAllStreams() {
         return c.streamName == std::string("YouTube");
     });
     if (hadYouTube) {
-        QMetaObject::invokeMethod(&core, []() {
-            OneSevenLiveCoreManager& c = OneSevenLiveCoreManager::getInstance();
-            c.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                                          nlohmann::json{{"status", "break"}});
-        }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            &core,
+            []() {
+                OneSevenLiveCoreManager& c = OneSevenLiveCoreManager::getInstance();
+                c.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
+                                              nlohmann::json{{"status", "break"}});
+            },
+            Qt::QueuedConnection);
     }
     return stopped;
 }
@@ -599,9 +614,10 @@ bool OneSevenLiveMultiRtmpManager::destroyStreamOutput(const std::string& stream
         return m_streamController->destroyOutput(streamId);
     } else {
         bool result = false;
-        QMetaObject::invokeMethod(&core, [this, &streamId, &result]() {
-            result = m_streamController->destroyOutput(streamId);
-        }, Qt::BlockingQueuedConnection);
+        QMetaObject::invokeMethod(
+            &core,
+            [this, &streamId, &result]() { result = m_streamController->destroyOutput(streamId); },
+            Qt::BlockingQueuedConnection);
         return result;
     }
 }
@@ -614,9 +630,9 @@ void OneSevenLiveMultiRtmpManager::destroyAllStreamOutputs() {
     if (QThread::currentThread() == core.thread()) {
         m_streamController->destroyAllOutputs();
     } else {
-        QMetaObject::invokeMethod(&core, [this]() {
-            m_streamController->destroyAllOutputs();
-        }, Qt::BlockingQueuedConnection);
+        QMetaObject::invokeMethod(
+            &core, [this]() { m_streamController->destroyAllOutputs(); },
+            Qt::BlockingQueuedConnection);
     }
 }
 

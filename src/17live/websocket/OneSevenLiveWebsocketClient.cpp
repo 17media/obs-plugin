@@ -1,4 +1,5 @@
 #include "OneSevenLiveWebsocketClient.hpp"
+
 #include <QPointer>
 
 #ifdef _WIN32
@@ -26,14 +27,19 @@ struct TLSHandles {
     HINTERNET hConnect{nullptr};
     HINTERNET hRequest{nullptr};
     HINTERNET hWebSocket{nullptr};
+
     ~TLSHandles() {
         if (hWebSocket) {
-            WinHttpWebSocketShutdown(hWebSocket, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr, 0);
+            WinHttpWebSocketShutdown(hWebSocket, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr,
+                                     0);
             WinHttpCloseHandle(hWebSocket);
         }
-        if (hRequest) WinHttpCloseHandle(hRequest);
-        if (hConnect) WinHttpCloseHandle(hConnect);
-        if (hSession) WinHttpCloseHandle(hSession);
+        if (hRequest)
+            WinHttpCloseHandle(hRequest);
+        if (hConnect)
+            WinHttpCloseHandle(hConnect);
+        if (hSession)
+            WinHttpCloseHandle(hSession);
     }
 };
 #else
@@ -121,12 +127,13 @@ void OneSevenLiveWebsocketClient::disconnect() {
 void OneSevenLiveWebsocketClient::disconnectAsync() {
     running.store(false);
     if (tls) {
-        #ifdef _WIN32
+#ifdef _WIN32
         if (tls->hWebSocket)
-            WinHttpWebSocketShutdown(tls->hWebSocket, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr, 0);
-        #else
+            WinHttpWebSocketShutdown(tls->hWebSocket, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS,
+                                     nullptr, 0);
+#else
         mbedtls_ssl_close_notify(&tls->ssl);
-        #endif
+#endif
     }
     // Do not join here to avoid blocking UI; thread will exit and self-clean
 }
@@ -150,13 +157,14 @@ void OneSevenLiveWebsocketClient::stopThread() {
     running.store(false);
     // Proactively signal TLS to close to unblock any pending reads
     if (tls) {
-        #ifdef _WIN32
+#ifdef _WIN32
         if (tls->hWebSocket)
-            WinHttpWebSocketShutdown(tls->hWebSocket, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr, 0);
-        #else
+            WinHttpWebSocketShutdown(tls->hWebSocket, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS,
+                                     nullptr, 0);
+#else
         mbedtls_ssl_close_notify(&tls->ssl);
         mbedtls_net_free(&tls->server_fd);
-        #endif
+#endif
     }
     try {
         if (th.joinable()) {
@@ -167,34 +175,42 @@ void OneSevenLiveWebsocketClient::stopThread() {
     }
     cleanupTLS();
     if (connected.load()) {
-        // If we are stopping (e.g. destruction or explicit disconnect), 
+        // If we are stopping (e.g. destruction or explicit disconnect),
         // we should not invoke async callbacks if the object might be destroyed soon.
         // However, standard disconnect() calls might expect a callback.
-        // To be safe in destruction scenarios, we should avoid QueuedConnection if we can't guarantee lifetime,
-        // but since we don't know if this is destruction or just stop, we rely on the caller to manage lifetime
-        // OR we can use QPointer in the lambda capture if we inherited from QObject (which we do).
-        
-        // Better yet: invokeMethod with Qt::DirectConnection if we are in the same thread? 
+        // To be safe in destruction scenarios, we should avoid QueuedConnection if we can't
+        // guarantee lifetime, but since we don't know if this is destruction or just stop, we rely
+        // on the caller to manage lifetime OR we can use QPointer in the lambda capture if we
+        // inherited from QObject (which we do).
+
+        // Better yet: invokeMethod with Qt::DirectConnection if we are in the same thread?
         // No, stopThread can be called from any thread.
         // Let's use QPointer protection pattern here too.
-        
+
         QPointer<OneSevenLiveWebsocketClient> self(this);
-        QMetaObject::invokeMethod(this, [self]() { 
-            if (self && self->onClose) self->onClose(); 
-        }, Qt::QueuedConnection);
-        
+        QMetaObject::invokeMethod(
+            this,
+            [self]() {
+                if (self && self->onClose)
+                    self->onClose();
+            },
+            Qt::QueuedConnection);
+
         connected.store(false);
     }
 }
 
 #ifdef _WIN32
-void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString& port, const QString& path) {
+void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString& port,
+                                             const QString& path) {
     tls = std::make_unique<TLSHandles>();
     std::wstring ua = L"obs-17live/1.0";
-    tls->hSession = WinHttpOpen(ua.c_str(), WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    tls->hSession = WinHttpOpen(ua.c_str(), WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+                                WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!tls->hSession) {
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("winhttp_open"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this, [this]() { onError("winhttp_open"); }, Qt::QueuedConnection);
         stopThread();
         return;
     }
@@ -203,23 +219,34 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     tls->hConnect = WinHttpConnect(tls->hSession, whost.c_str(), (INTERNET_PORT) p, 0);
     if (!tls->hConnect) {
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("winhttp_connect"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this, [this]() { onError("winhttp_connect"); }, Qt::QueuedConnection);
         stopThread();
         return;
     }
     std::wstring wpath = path.toStdWString();
-    tls->hRequest = WinHttpOpenRequest(tls->hConnect, L"GET", wpath.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+    tls->hRequest =
+        WinHttpOpenRequest(tls->hConnect, L"GET", wpath.c_str(), nullptr, WINHTTP_NO_REFERER,
+                           WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
     if (!tls->hRequest) {
         DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_openreq ") + std::to_string(ec)); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this,
+                [this, ec]() { onError(std::string("winhttp_openreq ") + std::to_string(ec)); },
+                Qt::QueuedConnection);
         stopThread();
         return;
     }
     if (!WinHttpSetOption(tls->hRequest, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, nullptr, 0)) {
         DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_setopt_upgrade ") + std::to_string(ec)); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this,
+                [this, ec]() {
+                    onError(std::string("winhttp_setopt_upgrade ") + std::to_string(ec));
+                },
+                Qt::QueuedConnection);
         stopThread();
         return;
     }
@@ -231,32 +258,44 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     std::wstring hdr = L"Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ";
     hdr += QString::fromStdString(wsKey).toStdWString();
     hdr += L"\r\nSec-WebSocket-Version: 13\r\nOrigin: https://www.twitch.tv\r\n";
-    if (!WinHttpAddRequestHeaders(tls->hRequest, hdr.c_str(), (DWORD) hdr.size(), WINHTTP_ADDREQ_FLAG_ADD)) {
+    if (!WinHttpAddRequestHeaders(tls->hRequest, hdr.c_str(), (DWORD) hdr.size(),
+                                  WINHTTP_ADDREQ_FLAG_ADD)) {
         DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_addhdr ") + std::to_string(ec)); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this,
+                [this, ec]() { onError(std::string("winhttp_addhdr ") + std::to_string(ec)); },
+                Qt::QueuedConnection);
         stopThread();
         return;
     }
-    if (!WinHttpSendRequest(tls->hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+    if (!WinHttpSendRequest(tls->hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+                            WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
         DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_send ") + std::to_string(ec)); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this, [this, ec]() { onError(std::string("winhttp_send ") + std::to_string(ec)); },
+                Qt::QueuedConnection);
         stopThread();
         return;
     }
     if (!WinHttpReceiveResponse(tls->hRequest, nullptr)) {
         DWORD ec = GetLastError();
         if (onError)
-            QMetaObject::invokeMethod(this, [this, ec]() { onError(std::string("winhttp_resp ") + std::to_string(ec)); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this, [this, ec]() { onError(std::string("winhttp_resp ") + std::to_string(ec)); },
+                Qt::QueuedConnection);
         stopThread();
         return;
     }
     DWORD status = 0;
     DWORD len = sizeof(status);
-    if (!WinHttpQueryHeaders(tls->hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status, &len, WINHTTP_NO_HEADER_INDEX)) {
+    if (!WinHttpQueryHeaders(tls->hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                             WINHTTP_HEADER_NAME_BY_INDEX, &status, &len,
+                             WINHTTP_NO_HEADER_INDEX)) {
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("winhttp_status"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this, [this]() { onError("winhttp_status"); }, Qt::QueuedConnection);
         stopThread();
         return;
     }
@@ -269,7 +308,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     tls->hWebSocket = WinHttpWebSocketCompleteUpgrade(tls->hRequest, 0);
     if (!tls->hWebSocket) {
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("ws_complete"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this, [this]() { onError("ws_complete"); }, Qt::QueuedConnection);
         stopThread();
         return;
     }
@@ -280,20 +320,25 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     while (running.load()) {
         DWORD rd = 0;
         WINHTTP_WEB_SOCKET_BUFFER_TYPE tp = WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE;
-        DWORD r = WinHttpWebSocketReceive(tls->hWebSocket, buf.data(), (DWORD) buf.size(), &rd, &tp);
+        DWORD r =
+            WinHttpWebSocketReceive(tls->hWebSocket, buf.data(), (DWORD) buf.size(), &rd, &tp);
         if (r == ERROR_SUCCESS) {
             if (tp == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE) {
                 std::string payload(buf.data(), buf.data() + rd);
                 if (onMessage)
-                    QMetaObject::invokeMethod(this, [this, payload]() { onMessage(payload); }, Qt::QueuedConnection);
-            } else if (tp == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE || tp == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE || tp == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) {
+                    QMetaObject::invokeMethod(
+                        this, [this, payload]() { onMessage(payload); }, Qt::QueuedConnection);
+            } else if (tp == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE ||
+                       tp == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE ||
+                       tp == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) {
                 // Ignore non-text frames or fragments for now
             } else if (tp == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) {
                 break;
             }
         } else {
             if (onError)
-                QMetaObject::invokeMethod(this, [this]() { onError("ws_recv"); }, Qt::QueuedConnection);
+                QMetaObject::invokeMethod(
+                    this, [this]() { onError("ws_recv"); }, Qt::QueuedConnection);
             break;
         }
     }
@@ -301,6 +346,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
 }
 #else
 #include <sys/select.h>
+
 void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString& port,
                                              const QString& path) {
     tls = std::make_unique<TLSHandles>();
@@ -359,7 +405,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 FD_SET(fd, &fds);
                 struct timeval tv;
                 tv.tv_sec = 0;
-                tv.tv_usec = 100000; // 100ms
+                tv.tv_usec = 100000;  // 100ms
                 select(fd + 1, (ret == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
                        (ret == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
             } else {
@@ -368,7 +414,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             continue;
         }
         if (onError)
-            QMetaObject::invokeMethod(this, [this]() { onError("tls_handshake"); }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                this, [this]() { onError("tls_handshake"); }, Qt::QueuedConnection);
         running.store(false);
         return;
     }
@@ -415,7 +462,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 FD_SET(fd, &fds);
                 struct timeval tv;
                 tv.tv_sec = 0;
-                tv.tv_usec = 100000; // 100ms
+                tv.tv_usec = 100000;  // 100ms
                 select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
                        (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
             } else {
@@ -451,7 +498,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 size_t read_bytes = 0;
                 while (read_bytes < 2) {
                     r = mbedtls_ssl_read(&tls->ssl, ext + read_bytes, 2 - read_bytes);
-                    if (r > 0) read_bytes += r;
+                    if (r > 0)
+                        read_bytes += r;
                     else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) {
                         int fd = tls->server_fd.fd;
                         if (fd >= 0) {
@@ -460,21 +508,24 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                             FD_SET(fd, &fds);
                             struct timeval tv;
                             tv.tv_sec = 0;
-                            tv.tv_usec = 100000; // 100ms
+                            tv.tv_usec = 100000;  // 100ms
                             select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
                                    (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
                         }
                         continue;
-                    } else break;
+                    } else
+                        break;
                 }
-                if (read_bytes != 2) break;
+                if (read_bytes != 2)
+                    break;
                 len = (ext[0] << 8) | ext[1];
             } else if (len == 127) {
                 unsigned char ext[8];
                 size_t read_bytes = 0;
                 while (read_bytes < 8) {
                     r = mbedtls_ssl_read(&tls->ssl, ext + read_bytes, 8 - read_bytes);
-                    if (r > 0) read_bytes += r;
+                    if (r > 0)
+                        read_bytes += r;
                     else if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) {
                         int fd = tls->server_fd.fd;
                         if (fd >= 0) {
@@ -483,14 +534,16 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                             FD_SET(fd, &fds);
                             struct timeval tv;
                             tv.tv_sec = 0;
-                            tv.tv_usec = 100000; // 100ms
+                            tv.tv_usec = 100000;  // 100ms
                             select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
                                    (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
                         }
                         continue;
-                    } else break;
+                    } else
+                        break;
                 }
-                if (read_bytes != 8) break;
+                if (read_bytes != 8)
+                    break;
                 len = 0;
                 for (int i = 0; i < 8; i++)
                     len = (len << 8) | ext[i];
@@ -511,7 +564,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                             FD_SET(fd, &fds);
                             struct timeval tv;
                             tv.tv_sec = 0;
-                            tv.tv_usec = 100000; // 100ms
+                            tv.tv_usec = 100000;  // 100ms
                             select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
                                    (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
                         }
@@ -536,8 +589,9 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                                 reason.assign(payload.data() + 2, payload.size() - 2);
                         }
                         if (code != 1000) {
-                            obs_log(LOG_INFO, "[Websocket Client] Close received: code=%d reason=%s",
-                                    code, reason.c_str());
+                            obs_log(LOG_INFO,
+                                    "[Websocket Client] Close received: code=%d reason=%s", code,
+                                    reason.c_str());
                         }
                         if (code != 1000 && onError) {
                             std::string msg =
@@ -577,7 +631,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 FD_SET(fd, &fds);
                 struct timeval tv;
                 tv.tv_sec = 0;
-                tv.tv_usec = 100000; // 100ms
+                tv.tv_usec = 100000;  // 100ms
                 select(fd + 1, (r == MBEDTLS_ERR_SSL_WANT_READ) ? &fds : NULL,
                        (r == MBEDTLS_ERR_SSL_WANT_WRITE) ? &fds : NULL, NULL, &tv);
             }
@@ -591,7 +645,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             break;
         }
     }
-    
+
     if (connected.load()) {
         if (onClose)
             QMetaObject::invokeMethod(this, [this]() { onClose(); }, Qt::QueuedConnection);
@@ -619,7 +673,8 @@ void OneSevenLiveWebsocketClient::sendText(const QString& text) {
 #ifdef _WIN32
     if (!tls || !tls->hWebSocket)
         return;
-    WinHttpWebSocketSend(tls->hWebSocket, WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE, (void*) m.data(), (DWORD) m.size());
+    WinHttpWebSocketSend(tls->hWebSocket, WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE,
+                         (void*) m.data(), (DWORD) m.size());
 #else
     std::string f;
     f.push_back((char) 0x81);

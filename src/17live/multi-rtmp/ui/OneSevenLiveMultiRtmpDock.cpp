@@ -3,8 +3,8 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QMetaObject>
-#include <QStyle>
 #include <QPointer>
+#include <QStyle>
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveMultiRtmpConfigDialog.hpp"
@@ -246,7 +246,8 @@ void OneSevenLiveMultiRtmpDock::setupManagerCallbacks() {
             if (!self)
                 return;
             QMetaObject::invokeMethod(
-                self, [self, streamId, status]() {
+                self,
+                [self, streamId, status]() {
                     if (!self)
                         return;
                     self->updateStreamStatus(streamId, status);
@@ -259,7 +260,8 @@ void OneSevenLiveMultiRtmpDock::setupManagerCallbacks() {
             if (!self)
                 return;
             QMetaObject::invokeMethod(
-                self, [self, streamId, stats]() {
+                self,
+                [self, streamId, stats]() {
                     if (!self)
                         return;
                     self->updateStreamStats(streamId, stats);
@@ -267,28 +269,32 @@ void OneSevenLiveMultiRtmpDock::setupManagerCallbacks() {
                 Qt::QueuedConnection);
         });
 
-    m_manager->setConfigChangeCallback([self](const std::string& streamId,
-                                              const OneSevenLiveMultiRtmpConfig& config) {
-        Q_UNUSED(config);
-        if (!self)
-            return;
-        QMetaObject::invokeMethod(
-            self, [self, streamId]() {
-                if (!self)
-                    return;
-                self->onStreamConfigChanged(streamId);
-            }, Qt::QueuedConnection);
-    });
+    m_manager->setConfigChangeCallback(
+        [self](const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
+            Q_UNUSED(config);
+            if (!self)
+                return;
+            QMetaObject::invokeMethod(
+                self,
+                [self, streamId]() {
+                    if (!self)
+                        return;
+                    self->onStreamConfigChanged(streamId);
+                },
+                Qt::QueuedConnection);
+        });
 
     m_manager->setConfigDeleteCallback([self](const std::string& streamId) {
         if (!self)
             return;
         QMetaObject::invokeMethod(
-            self, [self, streamId]() {
+            self,
+            [self, streamId]() {
                 if (!self)
                     return;
                 self->onStreamDeleted(streamId);
-            }, Qt::QueuedConnection);
+            },
+            Qt::QueuedConnection);
     });
 }
 

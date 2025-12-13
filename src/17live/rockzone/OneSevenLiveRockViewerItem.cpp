@@ -104,7 +104,8 @@ void OneSevenLiveRockViewerItem::setupAvatar() {
 }
 
 void OneSevenLiveRockViewerItem::reloadAvatar() {
-    if (!avatarLabel) return;
+    if (!avatarLabel)
+        return;
 
     // Keep pixmaps across async loads
     auto avatarReady = QSharedPointer<bool>::create(false);
@@ -381,20 +382,24 @@ QHBoxLayout *OneSevenLiveRockViewerItem::setupPointsRow() {
     return pointsLayout;
 }
 
-void OneSevenLiveRockViewerItem::updateData(const OneSevenLiveRockZoneViewer &newUser,
-                                            const OneSevenLiveArmyNameResponse &newArmyNameResponse) {
+void OneSevenLiveRockViewerItem::updateData(
+    const OneSevenLiveRockZoneViewer &newUser,
+    const OneSevenLiveArmyNameResponse &newArmyNameResponse) {
     const auto &oldUser = this->user;
 
     bool avatarChanged = (newUser.displayUser.picture != oldUser.displayUser.picture) ||
-                         (OneSevenLiveUtility::avatarFrameResource(newUser) != OneSevenLiveUtility::avatarFrameResource(oldUser)) ||
-                         (OneSevenLiveUtility::mLevelBadgeResource(newUser) != OneSevenLiveUtility::mLevelBadgeResource(oldUser));
-                         
+                         (OneSevenLiveUtility::avatarFrameResource(newUser) !=
+                          OneSevenLiveUtility::avatarFrameResource(oldUser)) ||
+                         (OneSevenLiveUtility::mLevelBadgeResource(newUser) !=
+                          OneSevenLiveUtility::mLevelBadgeResource(oldUser));
+
     bool nameChanged = (newUser.displayUser.displayName != oldUser.displayUser.displayName) ||
-                       (OneSevenLiveUtility::checkingLevelBadgeResource(newUser) != OneSevenLiveUtility::checkingLevelBadgeResource(oldUser));
-                       
+                       (OneSevenLiveUtility::checkingLevelBadgeResource(newUser) !=
+                        OneSevenLiveUtility::checkingLevelBadgeResource(oldUser));
+
     bool pointsChanged = (newUser.userAttr.sentPoint != oldUser.userAttr.sentPoint);
-    
-    bool badgesChanged = (newUser.badgeTypes != oldUser.badgeTypes) || 
+
+    bool badgesChanged = (newUser.badgeTypes != oldUser.badgeTypes) ||
                          (newUser.armyInfo.rank != oldUser.armyInfo.rank);
 
     this->user = newUser;
@@ -403,11 +408,11 @@ void OneSevenLiveRockViewerItem::updateData(const OneSevenLiveRockZoneViewer &ne
     if (avatarChanged) {
         reloadAvatar();
     }
-    
+
     if (nameChanged) {
         updateNameRow();
     }
-    
+
     if (pointsChanged) {
         QLocale locale;
         std::string currentLang = GetCurrentLanguage();
@@ -419,18 +424,20 @@ void OneSevenLiveRockViewerItem::updateData(const OneSevenLiveRockZoneViewer &ne
             locale = QLocale(QLocale::English, QLocale::UnitedStates);
         }
         QString formattedPoints = locale.toString(user.userAttr.sentPoint);
-        if (pointsLabel) pointsLabel->setText(formattedPoints);
+        if (pointsLabel)
+            pointsLabel->setText(formattedPoints);
     }
-    
+
     if (badgesChanged) {
         updateBadges();
     }
-    
+
     updateGeometry();
 }
 
 void OneSevenLiveRockViewerItem::updateNameRow() {
-    if (!nameRowLayout) return;
+    if (!nameRowLayout)
+        return;
 
     // Clear existing items
     QLayoutItem *child;
@@ -473,9 +480,9 @@ void OneSevenLiveRockViewerItem::updateNameRow() {
 }
 
 void OneSevenLiveRockViewerItem::updateBadges() {
-    // If badge row didn't exist but now might, we have a problem because we need to insert it into rightLayout
-    // But rightLayout is available.
-    
+    // If badge row didn't exist but now might, we have a problem because we need to insert it into
+    // rightLayout But rightLayout is available.
+
     if (badgeRowLayout) {
         // Clear existing
         QLayoutItem *child;
@@ -485,21 +492,22 @@ void OneSevenLiveRockViewerItem::updateBadges() {
             }
             delete child;
         }
-        
+
         // Check if we still need badges
-        // If not, we should ideally remove the layout, but keeping an empty layout is okay-ish (just extra spacing)
-        // Or we can delete badgeRowLayout and set to nullptr.
-        
+        // If not, we should ideally remove the layout, but keeping an empty layout is okay-ish
+        // (just extra spacing) Or we can delete badgeRowLayout and set to nullptr.
+
         // Let's see setupBadgeRow logic.
         bool hasBadges = false;
         for (int t : user.badgeTypes) {
-            const QString labelText = OneSevenLiveUtility::badgeLabel(t, user.armyInfo.rank, &armyNameResponse);
+            const QString labelText =
+                OneSevenLiveUtility::badgeLabel(t, user.armyInfo.rank, &armyNameResponse);
             if (!labelText.isEmpty()) {
                 hasBadges = true;
                 break;
             }
         }
-        
+
         if (!hasBadges) {
             // Remove layout from rightLayout
             rightLayout->removeItem(badgeRowLayout);
@@ -507,7 +515,7 @@ void OneSevenLiveRockViewerItem::updateBadges() {
             badgeRowLayout = nullptr;
             return;
         }
-        
+
         // Rebuild
         for (int t : user.badgeTypes) {
             const QString labelText =
@@ -515,7 +523,7 @@ void OneSevenLiveRockViewerItem::updateBadges() {
             if (labelText.isEmpty()) {
                 continue;
             }
-            
+
             QWidget *badge = new QWidget(this);
             QHBoxLayout *badgeLayout = new QHBoxLayout(badge);
             badgeLayout->setContentsMargins(0, 0, 0, 0);
@@ -552,7 +560,7 @@ void OneSevenLiveRockViewerItem::updateBadges() {
             badgeLayout->addWidget(rightImg);
             badgeRowLayout->addWidget(badge, 0, Qt::AlignLeft);
         }
-        
+
     } else {
         // Create new if needed
         badgeRowLayout = setupBadgeRow();

@@ -21,7 +21,8 @@ const QString OneSevenLiveYouTubeAuth::YT_AUTH_URL_TEMPLATE =
     "https://accounts.google.com/o/oauth2/v2/"
     "auth?scope=%1&response_type=code&state=%2&redirect_uri=%3&client_id=%4";
 const QString OneSevenLiveYouTubeAuth::YT_SCOPE =
-    "https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl";
+    "https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.readonly "
+    "https://www.googleapis.com/auth/youtube.force-ssl";
 const QString OneSevenLiveYouTubeAuth::YT_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const QString OneSevenLiveYouTubeAuth::PLATFORM = "YouTube";
 
@@ -359,8 +360,9 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync() {
             .toStdString();
 
     std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
-    auto* thread = new RemoteTextThread(YT_TOKEN_URL.toUtf8().constData(),
-                                        "application/x-www-form-urlencoded", postData, 0, false, cancelFlag);
+    auto* thread =
+        new RemoteTextThread(YT_TOKEN_URL.toUtf8().constData(), "application/x-www-form-urlencoded",
+                             postData, 0, false, cancelFlag);
     QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     QObject::connect(
         thread, &RemoteTextThread::Result, this,

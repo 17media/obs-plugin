@@ -603,7 +603,7 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthorizeClicked() {
             &OneSevenLiveMultiRtmpConfigDialog::onAuthUrlChanged);
 
     m_authDialog->exec();
-    
+
     // Explicitly delete the dialog
     delete m_authDialog;
     m_authDialog = nullptr;
@@ -634,7 +634,8 @@ void OneSevenLiveMultiRtmpConfigDialog::onAuthorizationFailed(const QString& err
 
     // Close auth dialog if it's open
     if (m_authDialog) {
-        // Just reject/close the dialog. Deletion is handled in onAuthorizeClicked after exec() returns.
+        // Just reject/close the dialog. Deletion is handled in onAuthorizeClicked after exec()
+        // returns.
         m_authDialog->reject();
     } else {
         // If dialog is not open (unlikely in this flow), show error immediately

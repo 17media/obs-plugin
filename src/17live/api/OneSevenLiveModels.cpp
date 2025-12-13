@@ -2929,7 +2929,7 @@ QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
                       }
                       // For ranks 1-4, higher rank number comes first (4 > 3 > 2 > 1)
                       if (a.armyInfo.rank != b.armyInfo.rank) {
-                        return a.armyInfo.rank > b.armyInfo.rank;
+                          return a.armyInfo.rank > b.armyInfo.rank;
                       }
                   } else if (a.type == 3 && b.type != 3) {
                       return true;  // Army viewers have highest priority
@@ -2960,7 +2960,7 @@ QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
                   bool bIsVIP = b.displayUser.isVIP;
                   if (aIsVIP && bIsVIP) {
                       if (a.displayUser.mLevel != b.displayUser.mLevel) {
-                        return a.displayUser.mLevel > b.displayUser.mLevel;
+                          return a.displayUser.mLevel > b.displayUser.mLevel;
                       }
                   } else if (aIsVIP && !bIsVIP) {
                       return true;
@@ -2973,7 +2973,7 @@ QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
                   int bGloryLevel = b.userAttr.gloryroadInfo.level;
                   if (aGloryLevel > 0 && bGloryLevel > 0) {
                       if (aGloryLevel != bGloryLevel) {
-                        return aGloryLevel > bGloryLevel;
+                          return aGloryLevel > bGloryLevel;
                       }
                   } else if (aGloryLevel > 0 && bGloryLevel <= 0) {
                       return true;

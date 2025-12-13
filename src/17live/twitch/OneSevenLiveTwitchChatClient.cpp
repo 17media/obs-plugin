@@ -92,15 +92,21 @@ void OneSevenLiveTwitchChatClient::connectToChat(const QString& username,
         obs_log(LOG_INFO, "[Twitch Chat Client] Skipping connect: shutting down");
         return;
     }
-    if (m_connected) { obs_log(LOG_INFO, "[Twitch Chat Client] Already connected to Twitch chat"); return; }
-    if (m_connecting) { obs_log(LOG_INFO, "[Twitch Chat Client] Connect in progress, skip new request"); return; }
+    if (m_connected) {
+        obs_log(LOG_INFO, "[Twitch Chat Client] Already connected to Twitch chat");
+        return;
+    }
+    if (m_connecting) {
+        obs_log(LOG_INFO, "[Twitch Chat Client] Connect in progress, skip new request");
+        return;
+    }
 
     m_username = username;
     m_oauthToken = oauthToken;
     m_reconnectAttempts = 0;
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
-    obs_log(LOG_INFO, "[Twitch Chat Client] Twitch chat connect requested: isLive=%d username=%s", isLive ? 1 : 0,
-            username.toUtf8().constData());
+    obs_log(LOG_INFO, "[Twitch Chat Client] Twitch chat connect requested: isLive=%d username=%s",
+            isLive ? 1 : 0, username.toUtf8().constData());
     obs_log(LOG_INFO, "[Twitch Chat Client] Connecting to Twitch chat server: %s",
             TWITCH_IRC_SERVER.toUtf8().constData());
     m_connecting = true;
@@ -250,7 +256,9 @@ void OneSevenLiveTwitchChatClient::onWebSocketOpen() {
     auto& core = OneSevenLiveCoreManager::getInstance();
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
     const char* st = (m_connected && isLive) ? "connected" : "break";
-    obs_log(LOG_INFO, "Broadcast EventTwitchChatConnected on open: username=%s status=%s isLive=%d m_connected=%d",
+    obs_log(LOG_INFO,
+            "Broadcast EventTwitchChatConnected on open: username=%s status=%s isLive=%d "
+            "m_connected=%d",
             m_username.toUtf8().constData(), st, isLive ? 1 : 0, m_connected ? 1 : 0);
     core.enqueueOrBroadcastChatEvent(
         QString::fromUtf8(ws::EventTwitchChatConnected),
@@ -272,14 +280,17 @@ void OneSevenLiveTwitchChatClient::onWebSocketClose() {
     auto& core = OneSevenLiveCoreManager::getInstance();
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
     const char* st = (m_connected && isLive) ? "connected" : "break";
-    obs_log(LOG_INFO, "Broadcast EventTwitchChatConnected on close: username=%s status=%s isLive=%d m_connected=%d",
+    obs_log(LOG_INFO,
+            "Broadcast EventTwitchChatConnected on close: username=%s status=%s isLive=%d "
+            "m_connected=%d",
             m_username.toUtf8().constData(), st, isLive ? 1 : 0, m_connected ? 1 : 0);
     if (!OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
         core.enqueueOrBroadcastChatEvent(
             QString::fromUtf8(ws::EventTwitchChatConnected),
             nlohmann::json{{"username", m_username.toStdString()}, {"status", st}});
     } else {
-        obs_log(LOG_INFO, "[Twitch Chat Client] Suppress EventTwitchChatConnected on close due to shutdown");
+        obs_log(LOG_INFO,
+                "[Twitch Chat Client] Suppress EventTwitchChatConnected on close due to shutdown");
     }
 
     if (m_autoReconnect && !OneSevenLiveCoreManager::getInstance().isShuttingDown()) {
@@ -532,8 +543,10 @@ void OneSevenLiveTwitchChatClient::onStatusTimer() {
     const bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("Twitch");
     if (!isLive && m_connected) {
         disconnectWebSocket();
-    } else if (isLive && !m_connected && !m_connecting && !m_username.isEmpty() && !m_oauthToken.isEmpty()) {
-        obs_log(LOG_INFO, "[Twitch Chat Client] StatusTimer: attempting connect as live=%d username=%s",
+    } else if (isLive && !m_connected && !m_connecting && !m_username.isEmpty() &&
+               !m_oauthToken.isEmpty()) {
+        obs_log(LOG_INFO,
+                "[Twitch Chat Client] StatusTimer: attempting connect as live=%d username=%s",
                 isLive ? 1 : 0, m_username.toUtf8().constData());
         connectToChat(m_username, m_oauthToken);
     }

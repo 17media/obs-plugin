@@ -163,7 +163,7 @@ class OneSevenLiveCoreManager : public QObject {
     void refreshRockZoneUserList();
     std::optional<nlohmann::json> getGiftByID(const std::string& giftID) const;
     void enqueueOrBroadcastChatEvent(const QString& type, const nlohmann::json& payload);
-    
+
     void setConnection();
 
     // Chat tracking external calls
@@ -181,25 +181,27 @@ class OneSevenLiveCoreManager : public QObject {
     bool isGiftsLoaded() const;
     bool isGiftsLoading() const;
 
-signals:
+   signals:
     void giftsLoaded();
 
-public:
+   public:
     // Disable copy constructor and assignment operator
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
 
     // Accessor for cancellation flag
-    std::atomic<bool>* getCancelFlag() { return &m_cancelFlag; }
+    std::atomic<bool>* getCancelFlag() {
+        return &m_cancelFlag;
+    }
 
-private:
+   private:
     std::atomic<bool> giftsLoading_{false};
     std::atomic<bool> m_cancelFlag{false};
     std::atomic<bool> loggingOut{false};
     std::atomic<bool> loggingIn{false};
     std::atomic<bool> pendingLogout{false};
 
-protected:
+   protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
 
    private:
@@ -219,7 +221,7 @@ protected:
     QMainWindow* mainWindow = nullptr;
 
     // Configuration storage
-    
+
     // Initialization flag
     bool initialized = false;
     bool shuttingDown = false;

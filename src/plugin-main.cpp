@@ -21,20 +21,19 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
+#include <plugin-support.h>
 #include <util/platform.h>
 #include <util/threading.h>
 
+#include <QCoreApplication>
+#include <QEventLoop>
 #include <QLabel>
 #include <QMainWindow>
 #include <QStatusBar>
-#include <QTimer>
-#include <QCoreApplication>
-#include <QEventLoop>
 #include <QThread>
+#include <QTimer>
 #include <thread>
 #include <util/util.hpp>
-
-#include <plugin-support.h>
 
 #include "17live/OneSevenLiveCoreManager.hpp"
 #include "17live/utility/Common.hpp"
@@ -46,7 +45,7 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 bool obs_module_load(void) {
     obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
-    
+
     InitThreadPool();
 
     return true;
@@ -118,17 +117,17 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
             auto& manager = OneSevenLiveCoreManager::getInstance();
             manager.setShuttingDown(true);
             manager.shutdown();
-            
+
             // Wait for all background tasks to complete BEFORE destroying the manager
             // This ensures tasks don't access destroyed members (like apiWrapper or m_cancelFlag)
             DestroyThreadPool();
-            
+
             OneSevenLiveCoreManager::destroyInstance();
-            
-            // Force process deferred deletions (like QDockWidget::deleteLater) 
+
+            // Force process deferred deletions (like QDockWidget::deleteLater)
             // to ensure widgets are destroyed before the plugin library is unloaded
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-            
+
             obs_log(LOG_INFO, "OneSevenLiveCoreManager resources released");
         } catch (const std::exception& e) {
             obs_log(LOG_ERROR, "OneSevenLiveCoreManager resource release exception: %s", e.what());

@@ -94,11 +94,12 @@ OneSevenLiveLoadRoomInfoWorker::LoadResult OneSevenLiveLoadRoomInfoWorker::loadR
         // landscape: false
         // streamerType: 0
         // archiveConfig
-            // autoRecording: true
-            // autoPublish: false
-            // clipPermission: 0
+        // autoRecording: true
+        // autoPublish: false
+        // clipPermission: 0
         if (!result.roomInfoSuccess) {
-            obs_log(LOG_WARNING, "OneSevenLiveLoadRoomInfoWorker: GetRoomInfo failed, setting default values");
+            obs_log(LOG_WARNING,
+                    "OneSevenLiveLoadRoomInfoWorker: GetRoomInfo failed, setting default values");
             m_roomInfo->landscape = false;
             m_roomInfo->streamerType = 0;
             m_roomInfo->archiveConfig = OneSevenLiveArchiveConfig();

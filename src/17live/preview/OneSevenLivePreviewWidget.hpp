@@ -15,7 +15,8 @@ class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
 
    public:
-    explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr, const QString& overlayUrl = QString());
+    explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr,
+                                       const QString& overlayUrl = QString());
     ~OneSevenLivePreviewWidget();
 
     /**
@@ -46,7 +47,7 @@ class OneSevenLivePreviewWidget : public QWidget {
    private slots:
     void refreshVideo();
 
-signals:
+   signals:
     void displayCreated(bool created);
 
    private:

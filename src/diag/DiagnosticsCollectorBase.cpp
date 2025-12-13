@@ -29,7 +29,7 @@ namespace seventeen {
                 // Add 1 for the archive step
                 double progressStep = 1.0 / (config.categories.size() + 1);
                 double currentProgress = 0.0;
-                
+
                 m_currentStageScale = progressStep;
 
                 for (const auto& category : config.categories) {
@@ -213,9 +213,11 @@ namespace seventeen {
             }
         }
 
-        void DiagnosticsCollectorBase::reportSubProgress(const std::string& detail, double subProgress) {
+        void DiagnosticsCollectorBase::reportSubProgress(const std::string& detail,
+                                                         double subProgress) {
             double totalProgress = m_currentBaseProgress + (subProgress * m_currentStageScale);
-            if (totalProgress > 1.0) totalProgress = 1.0;
+            if (totalProgress > 1.0)
+                totalProgress = 1.0;
             reportProgress(detail, totalProgress);
         }
 

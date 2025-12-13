@@ -3,11 +3,11 @@
 #include <obs-module.h>
 
 #include <QCloseEvent>
+#include <QLabel>
 #include <QShowEvent>
+#include <QSizePolicy>
 #include <QTimer>
 #include <QVBoxLayout>
-#include <QLabel>
-#include <QSizePolicy>
 
 #include "../../plugin-support.h"
 #include "../streaming/OneSevenLiveStreamManager.hpp"
@@ -52,8 +52,8 @@ void OneSevenLivePreviewDock::setupUi() {
     icon->setPixmap(QPixmap(":/resources/alert-white.svg")
                         .scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
-    notificationLabel = new QLabel(
-        QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), container);
+    notificationLabel =
+        new QLabel(QString::fromUtf8(obs_module_text("PreviewDock.Tip.AnimationOnly")), container);
     notificationLabel->setWordWrap(true);
     notificationLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     notificationLabel->setStyleSheet("color: white; font-size: 14px;");

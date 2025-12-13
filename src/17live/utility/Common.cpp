@@ -21,20 +21,23 @@
 #include <sstream>  // For std::stringstream (Linux)
 #endif
 
-#include "plugin-support.h"
-
-#include <QThreadPool>
 #include <QRunnable>
+#include <QThreadPool>
+
+#include "plugin-support.h"
 
 // Helper class for QThreadPool
 class TaskRunnable : public QRunnable {
-public:
+   public:
     std::function<void()> m_task;
+
     TaskRunnable(std::function<void()> task) : m_task(task) {
         setAutoDelete(true);
     }
+
     void run() override {
-        if (m_task) m_task();
+        if (m_task)
+            m_task();
     }
 };
 
@@ -51,8 +54,8 @@ void InitThreadPool() {
 void DestroyThreadPool() {
     if (s_threadPool) {
         obs_log(LOG_INFO, "Destroying ThreadPool - waiting for tasks...");
-        s_threadPool->clear(); // Clear pending tasks
-        s_threadPool->waitForDone(); // Wait for running tasks
+        s_threadPool->clear();        // Clear pending tasks
+        s_threadPool->waitForDone();  // Wait for running tasks
         delete s_threadPool;
         s_threadPool = nullptr;
         obs_log(LOG_INFO, "ThreadPool destroyed");

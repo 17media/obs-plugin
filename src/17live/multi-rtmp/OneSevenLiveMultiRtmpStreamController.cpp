@@ -4,27 +4,27 @@
 #include <obs-module.h>
 #include <util/config-file.h>
 
+#include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QEventLoop>
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QString>
 #include <QTimer>
-#include <QCoreApplication>
-#include <QMetaObject>
-#include <QElapsedTimer>
 #include <chrono>
 #include <thread>
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "twitch/OneSevenLiveTwitchClient.hpp"
 #include "utility/Common.hpp"
-#include "youtube/OneSevenLiveYouTubeAuth.hpp"
-#include "youtube/OneSevenLiveYouTubeClient.hpp"
-#include "youtube/OneSevenLiveYouTubeChatClient.hpp"
 #include "utility/RemoteTextThread.hpp"
-#include "streaming/OneSevenLiveStreamManager.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
+#include "youtube/OneSevenLiveYouTubeChatClient.hpp"
+#include "youtube/OneSevenLiveYouTubeClient.hpp"
 
 OneSevenLiveMultiRtmpStreamController::OneSevenLiveMultiRtmpStreamController() {
     MULTI_RTMP_STREAM_LOG_INFO("Creating MultiRTMP Stream Controller");
@@ -152,10 +152,13 @@ bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::strin
     // Setup connect timeout timer
     if (streamOutput->connectTimeoutTimer) {
         QTimer* t = streamOutput->connectTimeoutTimer;
-        QMetaObject::invokeMethod(t, [t]() {
-            t->stop();
-            t->deleteLater();
-        }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            t,
+            [t]() {
+                t->stop();
+                t->deleteLater();
+            },
+            Qt::QueuedConnection);
         streamOutput->connectTimeoutTimer = nullptr;
     }
     streamOutput->connectTimeoutTimer = new QTimer(QCoreApplication::instance());
@@ -175,9 +178,10 @@ bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::strin
             }
         }
     });
-    QMetaObject::invokeMethod(streamOutput->connectTimeoutTimer, [timer=streamOutput->connectTimeoutTimer]() {
-        timer->start(CONNECT_TIMEOUT_MS);
-    }, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        streamOutput->connectTimeoutTimer,
+        [timer = streamOutput->connectTimeoutTimer]() { timer->start(CONNECT_TIMEOUT_MS); },
+        Qt::QueuedConnection);
 
     MULTI_RTMP_STREAM_LOG_INFO("startOutputInternal completed for stream: %s", streamId.c_str());
     return true;
@@ -206,10 +210,13 @@ bool OneSevenLiveMultiRtmpStreamController::stopOutputInternal(const std::string
     // Cancel pending connect timeout and async resolution if any
     if (streamOutput->connectTimeoutTimer) {
         QTimer* t = streamOutput->connectTimeoutTimer;
-        QMetaObject::invokeMethod(t, [t]() {
-            t->stop();
-            t->deleteLater();
-        }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            t,
+            [t]() {
+                t->stop();
+                t->deleteLater();
+            },
+            Qt::QueuedConnection);
         streamOutput->connectTimeoutTimer = nullptr;
     }
     auto pendIt = m_pendingTwitchClients.find(streamId);
@@ -246,30 +253,33 @@ bool OneSevenLiveMultiRtmpStreamController::destroyOutput(const std::string& str
 
     if (streamOutput->connectTimeoutTimer) {
         QTimer* t = streamOutput->connectTimeoutTimer;
-        QMetaObject::invokeMethod(t, [t]() {
-            t->stop();
-            t->deleteLater();
-        }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            t,
+            [t]() {
+                t->stop();
+                t->deleteLater();
+            },
+            Qt::QueuedConnection);
         streamOutput->connectTimeoutTimer = nullptr;
     }
 
     if (streamOutput->output && obs_output_active(streamOutput->output)) {
         obs_output_stop(streamOutput->output);
-        QElapsedTimer t; t.start();
+        QElapsedTimer t;
+        t.start();
         while (obs_output_active(streamOutput->output) && t.elapsed() < 5000) {
             QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
         }
     }
 
-    
-    
     if (streamOutput->output) {
         signal_handler_t* handler = obs_output_get_signal_handler(streamOutput->output);
         if (handler) {
             signal_handler_disconnect(handler, "start", outputStartCallback, this);
             signal_handler_disconnect(handler, "stop", outputStopCallback, this);
             signal_handler_disconnect(handler, "reconnect", outputReconnectCallback, this);
-            signal_handler_disconnect(handler, "reconnect_success", outputReconnectSuccessCallback, this);
+            signal_handler_disconnect(handler, "reconnect_success", outputReconnectSuccessCallback,
+                                      this);
         }
     }
     if (streamOutput->output) {
@@ -338,15 +348,19 @@ void OneSevenLiveMultiRtmpStreamController::destroyAllOutputs() {
     for (auto& [streamId, streamOutput] : m_streamOutputs) {
         if (streamOutput->connectTimeoutTimer) {
             QTimer* t = streamOutput->connectTimeoutTimer;
-            QMetaObject::invokeMethod(t, [t]() {
-                t->stop();
-                t->deleteLater();
-            }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                t,
+                [t]() {
+                    t->stop();
+                    t->deleteLater();
+                },
+                Qt::QueuedConnection);
             streamOutput->connectTimeoutTimer = nullptr;
         }
         if (streamOutput->output && obs_output_active(streamOutput->output)) {
             obs_output_stop(streamOutput->output);
-            QElapsedTimer t; t.start();
+            QElapsedTimer t;
+            t.start();
             while (obs_output_active(streamOutput->output) && t.elapsed() < 5000) {
                 QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
             }
@@ -357,7 +371,8 @@ void OneSevenLiveMultiRtmpStreamController::destroyAllOutputs() {
                 signal_handler_disconnect(handler, "start", outputStartCallback, this);
                 signal_handler_disconnect(handler, "stop", outputStopCallback, this);
                 signal_handler_disconnect(handler, "reconnect", outputReconnectCallback, this);
-                signal_handler_disconnect(handler, "reconnect_success", outputReconnectSuccessCallback, this);
+                signal_handler_disconnect(handler, "reconnect_success",
+                                          outputReconnectSuccessCallback, this);
             }
         }
         if (streamOutput->output) {
@@ -437,13 +452,15 @@ std::vector<std::string> OneSevenLiveMultiRtmpStreamController::getAllStreamIds(
 }
 
 obs_encoder_t* OneSevenLiveMultiRtmpStreamController::getSharedVideoEncoder() {
-    MULTI_RTMP_STREAM_LOG_INFO("Shared video encoder disabled; using dedicated encoders per output");
+    MULTI_RTMP_STREAM_LOG_INFO(
+        "Shared video encoder disabled; using dedicated encoders per output");
     return nullptr;
 }
 
 obs_encoder_t* OneSevenLiveMultiRtmpStreamController::getSharedAudioEncoder(int mixerId) {
     (void) mixerId;
-    MULTI_RTMP_STREAM_LOG_INFO("Shared audio encoder disabled; using dedicated encoders per output");
+    MULTI_RTMP_STREAM_LOG_INFO(
+        "Shared audio encoder disabled; using dedicated encoders per output");
     return nullptr;
 }
 
@@ -564,19 +581,20 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
     {
         ObsDataPtr videoSettings{createVideoEncoderSettings(config)};
         if (!videoSettings) {
-            MULTI_RTMP_STREAM_LOG_ERROR(
-                "Failed to create video encoder settings for stream: %s", streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create video encoder settings for stream: %s",
+                                        streamId.c_str());
             return false;
         }
-        const char* videoEncoderId = config.videoConfig.has_value() && !config.videoConfig->encoderId.empty()
-                                         ? config.videoConfig->encoderId.c_str()
-                                         : getObsDefaultVideoEncoderId();
+        const char* videoEncoderId =
+            config.videoConfig.has_value() && !config.videoConfig->encoderId.empty()
+                ? config.videoConfig->encoderId.c_str()
+                : getObsDefaultVideoEncoderId();
         streamOutput->videoEncoder = obs_video_encoder_create(
             videoEncoderId, getVideoEncoderName(streamId).c_str(), videoSettings.get(), nullptr);
         videoSettings.reset();
         if (!streamOutput->videoEncoder) {
-            MULTI_RTMP_STREAM_LOG_ERROR(
-                "Failed to create video encoder for stream: %s", streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create video encoder for stream: %s",
+                                        streamId.c_str());
             return false;
         }
     }
@@ -585,19 +603,20 @@ bool OneSevenLiveMultiRtmpStreamController::createEncoders(
     {
         ObsDataPtr audioSettings{createAudioEncoderSettings(config)};
         if (!audioSettings) {
-            MULTI_RTMP_STREAM_LOG_ERROR(
-                "Failed to create audio encoder settings for stream: %s", streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create audio encoder settings for stream: %s",
+                                        streamId.c_str());
             return false;
         }
-        const char* audioEncoderId = (config.audioConfig.has_value() && !config.audioConfig->encoderId.empty())
-                                         ? config.audioConfig->encoderId.c_str()
-                                         : AUDIO_ENCODER_ID;
+        const char* audioEncoderId =
+            (config.audioConfig.has_value() && !config.audioConfig->encoderId.empty())
+                ? config.audioConfig->encoderId.c_str()
+                : AUDIO_ENCODER_ID;
         streamOutput->audioEncoder = obs_audio_encoder_create(
             audioEncoderId, getAudioEncoderName(streamId).c_str(), audioSettings.get(), 0, nullptr);
         audioSettings.reset();
         if (!streamOutput->audioEncoder) {
-            MULTI_RTMP_STREAM_LOG_ERROR(
-                "Failed to create audio encoder for stream: %s", streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_ERROR("Failed to create audio encoder for stream: %s",
+                                        streamId.c_str());
             return false;
         }
     }
@@ -716,10 +735,13 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
             MULTI_RTMP_STREAM_LOG_INFO("Found matching stream in callback: %s", streamId.c_str());
             if (streamOutput->connectTimeoutTimer) {
                 QTimer* t = streamOutput->connectTimeoutTimer;
-                QMetaObject::invokeMethod(t, [t]() {
-                    t->stop();
-                    t->deleteLater();
-                }, Qt::QueuedConnection);
+                QMetaObject::invokeMethod(
+                    t,
+                    [t]() {
+                        t->stop();
+                        t->deleteLater();
+                    },
+                    Qt::QueuedConnection);
                 streamOutput->connectTimeoutTimer = nullptr;
             }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STREAMING);
@@ -728,23 +750,27 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
                 std::transform(platform.begin(), platform.end(), platform.begin(), ::tolower);
                 if (platform.find("twitch") != std::string::npos) {
                     auto& core = OneSevenLiveCoreManager::getInstance();
-                    QMetaObject::invokeMethod(&core, [&core]() {
-                        core.connectTwitchChatClient(QString());
-                    }, Qt::QueuedConnection);
+                    QMetaObject::invokeMethod(
+                        &core, [&core]() { core.connectTwitchChatClient(QString()); },
+                        Qt::QueuedConnection);
                 }
                 if (platform.find("youtube") != std::string::npos) {
                     auto& core = OneSevenLiveCoreManager::getInstance();
-                    QMetaObject::invokeMethod(&core, [&core]() {
-                        auto* ytAuth = core.getYouTubeAuth();
-                        if (ytAuth && ytAuth->hasValidToken()) {
-                            QString caption;
-                            auto* sm = core.getStreamManager();
-                            if (sm) {
-                                caption = sm->getCurrentStreamRequest().caption;
+                    QMetaObject::invokeMethod(
+                        &core,
+                        [&core]() {
+                            auto* ytAuth = core.getYouTubeAuth();
+                            if (ytAuth && ytAuth->hasValidToken()) {
+                                QString caption;
+                                auto* sm = core.getStreamManager();
+                                if (sm) {
+                                    caption = sm->getCurrentStreamRequest().caption;
+                                }
+                                core.orchestrateYouTubeBroadcast(caption.isEmpty() ? QString("Live")
+                                                                                   : caption);
                             }
-                            core.orchestrateYouTubeBroadcast(caption.isEmpty() ? QString("Live") : caption);
-                        }
-                    }, Qt::QueuedConnection);
+                        },
+                        Qt::QueuedConnection);
                 }
             }
             MULTI_RTMP_STREAM_LOG_INFO("Stream started: %s", streamId.c_str());
@@ -805,15 +831,14 @@ void OneSevenLiveMultiRtmpStreamController::outputStopCallback(void* data, calld
                 std::transform(platform.begin(), platform.end(), platform.begin(), ::tolower);
                 if (platform.find("twitch") != std::string::npos) {
                     auto& core = OneSevenLiveCoreManager::getInstance();
-                    QMetaObject::invokeMethod(&core, [&core]() {
-                        core.disconnectTwitchChatClient();
-                    }, Qt::QueuedConnection);
+                    QMetaObject::invokeMethod(
+                        &core, [&core]() { core.disconnectTwitchChatClient(); },
+                        Qt::QueuedConnection);
                 }
                 if (platform.find("youtube") != std::string::npos) {
                     auto& core = OneSevenLiveCoreManager::getInstance();
-                    QMetaObject::invokeMethod(&core, [&core]() {
-                        core.stopYouTubeChatPolling();
-                    }, Qt::QueuedConnection);
+                    QMetaObject::invokeMethod(
+                        &core, [&core]() { core.stopYouTubeChatPolling(); }, Qt::QueuedConnection);
                 }
             }
             MULTI_RTMP_STREAM_LOG_INFO("Stream stopped: %s", streamId.c_str());
@@ -831,10 +856,13 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectCallback(void* data, 
         if (streamOutput->output == output) {
             if (streamOutput->connectTimeoutTimer) {
                 QTimer* t = streamOutput->connectTimeoutTimer;
-                QMetaObject::invokeMethod(t, [t]() {
-                    t->stop();
-                    t->deleteLater();
-                }, Qt::QueuedConnection);
+                QMetaObject::invokeMethod(
+                    t,
+                    [t]() {
+                        t->stop();
+                        t->deleteLater();
+                    },
+                    Qt::QueuedConnection);
                 streamOutput->connectTimeoutTimer = nullptr;
             }
             controller->updateStreamStatus(streamId,
@@ -855,10 +883,13 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectSuccessCallback(void*
         if (streamOutput->output == output) {
             if (streamOutput->connectTimeoutTimer) {
                 QTimer* t = streamOutput->connectTimeoutTimer;
-                QMetaObject::invokeMethod(t, [t]() {
-                    t->stop();
-                    t->deleteLater();
-                }, Qt::QueuedConnection);
+                QMetaObject::invokeMethod(
+                    t,
+                    [t]() {
+                        t->stop();
+                        t->deleteLater();
+                    },
+                    Qt::QueuedConnection);
                 streamOutput->connectTimeoutTimer = nullptr;
             }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STREAMING);
@@ -1034,8 +1065,9 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
         };
 
         if (contains_ci(platform, "youtube")) {
-            MULTI_RTMP_STREAM_LOG_INFO("YouTube platform disabled; skipping server/key resolution for %s",
-                                       streamId.c_str());
+            MULTI_RTMP_STREAM_LOG_INFO(
+                "YouTube platform disabled; skipping server/key resolution for %s",
+                streamId.c_str());
             updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
                                "Disabled:YouTube");
             return;
@@ -1090,7 +1122,8 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                         timeout->stop();
                     std::string serverUrl = getRecommendedTwitchServer();
                     if (serverUrl.empty()) {
-                        serverUrl = OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER.toUtf8().constData();
+                        serverUrl =
+                            OneSevenLiveTwitchClient::TWITCH_RTMP_SERVER.toUtf8().constData();
                     }
                     finalizeServiceSetupAfterResolve(streamId, serverUrl.c_str(),
                                                      keyVal.toUtf8().constData());
@@ -1308,11 +1341,13 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::getObsDefaultAudioEncoderSett
 }
 
 #include "utility/Common.hpp"
+
 std::string OneSevenLiveMultiRtmpStreamController::getRecommendedTwitchServer() const {
     std::string best;
     ObsDataPtr settings{obs_data_create()};
     obs_data_set_string(settings.get(), "service", "Twitch");
-    obs_service_t* svc = obs_service_create(SERVICE_ID, "temp_twitch_service", settings.get(), nullptr);
+    obs_service_t* svc =
+        obs_service_create(SERVICE_ID, "temp_twitch_service", settings.get(), nullptr);
     settings.reset();
     if (!svc)
         return best;
@@ -1339,6 +1374,7 @@ std::string OneSevenLiveMultiRtmpStreamController::getRecommendedTwitchServer() 
     obs_service_release(svc);
     return best;
 }
+
 // removed global stop aggregation; rely on manager to orchestrate destroy after stop
 void OneSevenLiveMultiRtmpStreamController::beginShutdown() {
     m_shuttingDown.store(true);

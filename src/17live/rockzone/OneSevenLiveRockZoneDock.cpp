@@ -168,10 +168,9 @@ void OneSevenLiveRockZoneDock::createConnections() {
 void OneSevenLiveRockZoneDock::updateUserItem(
     QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user,
     const OneSevenLiveArmyNameResponse& armyNameResponse) {
-    
     // Create a mutable copy to apply fallback logic if needed
     OneSevenLiveRockZoneViewer displayUser = user;
-    
+
     // Fallback: If display name is empty, try to use giftRankOne info
     if (displayUser.displayUser.displayName.trimmed().isEmpty() &&
         !displayUser.giftRankOne.displayName.trimmed().isEmpty()) {
@@ -185,7 +184,8 @@ void OneSevenLiveRockZoneDock::updateUserItem(
         qobject_cast<OneSevenLiveRockViewerItem*>(userList->itemWidget(item));
 
     if (!w) {
-        w = new OneSevenLiveRockViewerItem(displayUser, apiWrapper, configManager, armyNameResponse, this);
+        w = new OneSevenLiveRockViewerItem(displayUser, apiWrapper, configManager, armyNameResponse,
+                                           this);
         item->setSizeHint(w->sizeHint());
         userList->setItemWidget(item, w);
 
@@ -263,7 +263,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
         // Execute API call in new thread
         Json jsonResponse;
         bool success = false;
-        
+
         // Try to load mock data first
         // QFile mockFile("/Users/zhuyu/workspace/mk/17live/dev/obs-17live/temp/rock3.json");
         // if (mockFile.exists() && mockFile.open(QIODevice::ReadOnly)) {
@@ -313,21 +313,21 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         QString uid;
                         QString displayName;
                         QString picture;
-                        
+
                         // Determine user info based on type
-                        if (user.type == 3) { // Army
+                        if (user.type == 3) {  // Army
                             uid = user.armyInfo.user.userID;
                             displayName = user.armyInfo.user.displayName;
                             picture = user.armyInfo.user.picture;
-                        } else if (user.type == 2) { // Guardian
-                             uid = user.guardian.owner.userID;
-                             displayName = user.guardian.owner.displayName;
-                             picture = user.guardian.owner.picture;
-                        } else if (user.type == 1) { // GiftRankOne
+                        } else if (user.type == 2) {  // Guardian
+                            uid = user.guardian.owner.userID;
+                            displayName = user.guardian.owner.displayName;
+                            picture = user.guardian.owner.picture;
+                        } else if (user.type == 1) {  // GiftRankOne
                             uid = user.giftRankOne.userID;
                             displayName = user.giftRankOne.displayName;
                             picture = user.giftRankOne.picture;
-                        } else { // Type 0 or others
+                        } else {  // Type 0 or others
                             uid = user.displayUser.userID;
                             displayName = user.displayUser.displayName;
                             picture = user.displayUser.picture;
@@ -340,17 +340,17 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             obs_log(LOG_INFO, "Skipping viewer: matches current user");
                             continue;
                         }
-                        
+
                         if (user.anonymousInfo.isInvisible) {
                             obs_log(LOG_INFO, "Skipping viewer: isInvisible is true");
                             continue;
                         }
-                        
+
                         if (user.userAttr.sentPoint <= 0) {
                             obs_log(LOG_INFO, "Skipping viewer: sentPoint <= 0");
                             continue;
                         }
-                        
+
                         if (displayName.trimmed().isEmpty()) {
                             continue;
                         }
@@ -362,12 +362,12 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                             }
                         } else {
                             OneSevenLiveRockZoneViewer base = user;
-                            
+
                             // Force populate displayUser with the extracted info
                             base.displayUser.userID = uid;
                             base.displayUser.displayName = displayName;
                             base.displayUser.picture = picture;
-                            
+
                             base.badgeTypes.clear();
                             base.badgeTypes.append(user.type);
                             viewersList.push_back(base);
@@ -399,7 +399,7 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                         if (userItemMap.contains(uid)) {
                             // Existing user
                             item = userItemMap.value(uid);
-                            
+
                             // Move item to correct position if needed
                             int currentRow = userList->row(item);
                             if (currentRow != i && currentRow >= 0) {
@@ -409,7 +409,8 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                                     userList->insertItem(i, item);
                                 }
                             }
-                            // Update existing item or recreate widget if it was destroyed by takeItem
+                            // Update existing item or recreate widget if it was destroyed by
+                            // takeItem
                             updateUserItem(item, user, armyNameResponse);
                         } else {
                             // New user
@@ -451,12 +452,14 @@ void OneSevenLiveRockZoneDock::refreshUserList() {
                     if (emptyListLabel)
                         emptyListLabel->setVisible(isEmpty);
 
-                    // Safety: if list should be empty but has items, clear it to prevent ghost items
+                    // Safety: if list should be empty but has items, clear it to prevent ghost
+                    // items
                     if (isEmpty && userList && userList->count() > 0) {
                         int count = userList->count();
                         for (int i = 0; i < count; ++i) {
                             QListWidgetItem* item = userList->item(i);
-                            if (!item) continue;
+                            if (!item)
+                                continue;
                             QWidget* w = userList->itemWidget(item);
                             if (w) {
                                 userList->removeItemWidget(item);
@@ -494,7 +497,8 @@ void OneSevenLiveRockZoneDock::clearUserList() {
         int count = userList->count();
         for (int i = 0; i < count; ++i) {
             QListWidgetItem* item = userList->item(i);
-            if (!item) continue;
+            if (!item)
+                continue;
             QWidget* w = userList->itemWidget(item);
             if (w) {
                 userList->removeItemWidget(item);

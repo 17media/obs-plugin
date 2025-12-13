@@ -302,13 +302,13 @@ namespace seventeen {
                 for (const auto& file : files) {
                     if (!std::filesystem::exists(file))
                         continue;
-                    
+
                     std::string relativePath;
                     std::string category = determineCategory(file);
-                    
+
                     std::filesystem::path destPath;
                     std::filesystem::path fileName = std::filesystem::path(file).filename();
-                    
+
                     if (category == "ROOT") {
                         destPath = std::filesystem::path(stagingDir) / fileName;
                         relativePath = fileName.string();
@@ -326,18 +326,19 @@ namespace seventeen {
                     if (category == "crash_reports") {
                         try {
                             auto fileSize = std::filesystem::file_size(file);
-                            if (fileSize > 2 * 1024 * 1024) { // 2MB
+                            if (fileSize > 2 * 1024 * 1024) {  // 2MB
                                 isLargeCrash = true;
                             }
-                        } catch (...) {}
+                        } catch (...) {
+                        }
                     }
 
                     if (isLargeCrash) {
                         indexLines.push_back(relativePath + " (文件过大，未采集)");
                     } else {
                         try {
-                            std::filesystem::copy_file(file, destPath,
-                                                    std::filesystem::copy_options::overwrite_existing);
+                            std::filesystem::copy_file(
+                                file, destPath, std::filesystem::copy_options::overwrite_existing);
                             collectedFiles.push_back(file);
                             indexLines.push_back(relativePath);
                         } catch (const std::exception& e) {
@@ -346,14 +347,16 @@ namespace seventeen {
                         }
                     }
                 }
-                
+
                 // Generate index.txt
                 try {
-                    std::filesystem::path indexPath = std::filesystem::path(stagingDir) / "index.txt";
+                    std::filesystem::path indexPath =
+                        std::filesystem::path(stagingDir) / "index.txt";
                     std::ofstream indexFile(indexPath);
                     if (indexFile.is_open()) {
                         indexFile << "Diagnostics Package Content Index\n";
-                        indexFile << "Generated on: " << executePowerShellCommand("Get-Date") << "\n";
+                        indexFile << "Generated on: " << executePowerShellCommand("Get-Date")
+                                  << "\n";
                         indexFile << "========================================\n\n";
                         for (const auto& line : indexLines) {
                             indexFile << line << "\n";
@@ -372,7 +375,8 @@ namespace seventeen {
             std::string zipCommand = "Compress-Archive -LiteralPath '" + stagingDir +
                                      "' -DestinationPath '" + outputPath + "' -Force";
             std::string result = executePowerShellCommand(zipCommand);
-            if (std::filesystem::exists(outputPath) && std::filesystem::is_regular_file(outputPath) &&
+            if (std::filesystem::exists(outputPath) &&
+                std::filesystem::is_regular_file(outputPath) &&
                 std::filesystem::file_size(outputPath) > 0) {
                 return true;
             }
@@ -412,7 +416,8 @@ namespace seventeen {
             auto run = [&](const char* exe) -> std::string {
                 std::string full = std::string(exe) +
                                    " -NoProfile -NonInteractive -WindowStyle Hidden -NoLogo "
-                                   "-Command \"" + command + "\" 2>&1";
+                                   "-Command \"" +
+                                   command + "\" 2>&1";
                 FILE* pipe = _popen(full.c_str(), "r");
                 if (!pipe) {
                     return std::string();

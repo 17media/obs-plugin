@@ -611,7 +611,8 @@ void OneSevenLiveCustomEventDialog::fetchCustomEventAsync() {
         if (apiWrapper) {
             ok = apiWrapper->GetCustomEvent(userID, customEvent);
             if (!ok) {
-                obs_log(LOG_ERROR, "Failed to get custom event: %s", apiWrapper->getLastErrorMessage().toUtf8().constData());
+                obs_log(LOG_ERROR, "Failed to get custom event: %s",
+                        apiWrapper->getLastErrorMessage().toUtf8().constData());
             }
         }
 
