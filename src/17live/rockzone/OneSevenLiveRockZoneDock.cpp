@@ -38,8 +38,6 @@ OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
     connect(cooldownTimer, &QTimer::timeout, this,
             &OneSevenLiveRockZoneDock::onCooldownTimerTimeout);
 
-    refreshUserList();
-
     connect(this, &QDockWidget::topLevelChanged, this,
             &OneSevenLiveRockZoneDock::handleTopLevelChanged);
 
