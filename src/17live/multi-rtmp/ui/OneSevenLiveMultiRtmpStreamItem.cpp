@@ -404,8 +404,7 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatsDisplay() {
     bool showStats = isConnected || isConnPhase || hasRecentStats;
 
     if (showStats) {
-        const uint64_t durationSeconds =
-            static_cast<uint64_t>(m_stats.duration.count() / 1000);
+        const uint64_t durationSeconds = static_cast<uint64_t>(m_stats.duration.count());
         QString duration = formatDuration(durationSeconds);
         QString bitrate = formatBitrate(static_cast<uint64_t>(m_stats.currentBitrate * 1000));
         QString fps = formatFrameRate(m_stats.currentFPS);
