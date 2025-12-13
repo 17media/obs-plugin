@@ -239,6 +239,7 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatus(
         m_lastStatsTime = m_startTime;
         m_lastTotalBytes = 0;
         m_lastTotalFrames = 0;
+        m_stats.duration = std::chrono::milliseconds(0);
     }
 
     m_status = status;
@@ -401,7 +402,9 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatsDisplay() {
     bool showStats = isConnected || isConnPhase || hasRecentStats;
 
     if (showStats) {
-        QString duration = formatDuration(static_cast<uint64_t>(m_stats.duration.count()));
+        const uint64_t durationSeconds =
+            static_cast<uint64_t>(m_stats.duration.count() / 1000);
+        QString duration = formatDuration(durationSeconds);
         QString bitrate = formatBitrate(static_cast<uint64_t>(m_stats.currentBitrate * 1000));
         QString fps = formatFrameRate(m_stats.currentFPS);
 
@@ -612,6 +615,7 @@ void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
         // Reset stats when not active to prevent stale data
         m_stats.currentBitrate = 0.0;
         m_stats.currentFPS = 0;
+        m_stats.duration = std::chrono::milliseconds(0);
         return;
     }
 
