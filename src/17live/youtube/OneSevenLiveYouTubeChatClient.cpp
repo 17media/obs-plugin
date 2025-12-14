@@ -30,6 +30,9 @@ const int OneSevenLiveYouTubeChatClient::STATUS_BROADCAST_INTERVAL = 10;
 const int OneSevenLiveYouTubeChatClient::MAX_QUICK_RETRIES = 5;
 const int OneSevenLiveYouTubeChatClient::LONG_RETRY_DELAY = 600;
 const int OneSevenLiveYouTubeChatClient::MAX_NO_MESSAGE_QUICK_POLLS = 5;
+const int OneSevenLiveYouTubeChatClient::EMPTY_CHAT_BACKOFF_BASE_MS = 10000;
+const int OneSevenLiveYouTubeChatClient::EMPTY_CHAT_BACKOFF_INCREMENT_MS = 5000;
+const int OneSevenLiveYouTubeChatClient::EMPTY_CHAT_BACKOFF_MAX_MS = 30000;
 
 // Helper: convert YouTubeChatMessage to JSON for websocket payload
 static nlohmann::json toJson(const YouTubeChatMessage& msg) {
@@ -78,7 +81,10 @@ OneSevenLiveYouTubeChatClient::OneSevenLiveYouTubeChatClient(QObject* parent)
       m_exponentialBackoffDelay(m_retryDelayMs),
       m_pollingTimer(new QTimer(this)),
       m_statusTimer(new QTimer(this)),
-      m_reconnectTimer(new QTimer(this)) {
+      m_reconnectTimer(new QTimer(this)),
+      m_emptyChatBackoffBaseMs(EMPTY_CHAT_BACKOFF_BASE_MS),
+      m_emptyChatBackoffIncrementMs(EMPTY_CHAT_BACKOFF_INCREMENT_MS),
+      m_emptyChatBackoffMaxMs(EMPTY_CHAT_BACKOFF_MAX_MS) {
     connect(m_pollingTimer, &QTimer::timeout, this,
             &OneSevenLiveYouTubeChatClient::onPollingTimeout);
     m_pollingTimer->setSingleShot(true);  // Single shot timer for controlled polling
@@ -147,6 +153,39 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId) 
     if (!m_statusTimer->isActive())
         m_statusTimer->start();
     obs_log(LOG_INFO, "YouTube chat connected");
+    {
+        auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        if (cm) {
+            std::string v;
+            if (cm->getConfigValue("YouTubeEmptyChatBackoffBaseSec", v) && !v.empty()) {
+                try {
+                    int sec = std::stoi(v);
+                    int ms = sec * 1000;
+                    m_emptyChatBackoffBaseMs = qMax(10000, qMin(ms, 60000));
+                } catch (...) {
+                }
+            }
+            if (cm->getConfigValue("YouTubeEmptyChatBackoffIncrementSec", v) && !v.empty()) {
+                try {
+                    int sec = std::stoi(v);
+                    int ms = sec * 1000;
+                    m_emptyChatBackoffIncrementMs = qMax(0, qMin(ms, 60000));
+                } catch (...) {
+                }
+            }
+            if (cm->getConfigValue("YouTubeEmptyChatBackoffMaxSec", v) && !v.empty()) {
+                try {
+                    int sec = std::stoi(v);
+                    int ms = sec * 1000;
+                    m_emptyChatBackoffMaxMs = qMax(MIN_POLLING_INTERVAL, qMin(ms, 60000));
+                } catch (...) {
+                }
+            }
+            if (m_emptyChatBackoffBaseMs > m_emptyChatBackoffMaxMs) {
+                m_emptyChatBackoffBaseMs = m_emptyChatBackoffMaxMs;
+            }
+        }
+    }
 
     // Start first request immediately
     fetchChatMessages();
@@ -297,7 +336,7 @@ void OneSevenLiveYouTubeChatClient::handleApiError(const QString& error, const Q
     case 403:
         detailedError = "Access forbidden - insufficient permissions or quota exceeded";
         if (error.contains("quotaExceeded") || error.contains("rateLimitExceeded")) {
-            handleRateLimit(60000);  // 1 minute for quota issues
+            handleRateLimit(0);
             return;
         }
         break;
@@ -489,7 +528,9 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
             }
         }
         handleApiError(error, m_currentOperation, httpStatus);
-        scheduleReconnect();
+        if (!m_isRateLimited) {
+            scheduleReconnect();
+        }
         return;
     }
 
@@ -532,10 +573,13 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
 
         if (chatResponse.items.isEmpty()) {
             m_noMessageStreak++;
-            int interval = m_noMessageStreak <= MAX_NO_MESSAGE_QUICK_POLLS
-                               ? qMin(chatResponse.pollingIntervalMillis, DEFAULT_POLLING_INTERVAL)
-                               : chatResponse.pollingIntervalMillis;
-            scheduleNextPoll(interval);
+            int streak = m_noMessageStreak;
+            int baseMs = m_emptyChatBackoffBaseMs;
+            int incMs = m_emptyChatBackoffIncrementMs;
+            int maxMs = m_emptyChatBackoffMaxMs;
+            int candidate = baseMs + incMs * qMax(0, streak - 1);
+            int intervalMs = qMin(candidate, maxMs);
+            scheduleNextPoll(intervalMs);
         } else {
             m_noMessageStreak = 0;
             scheduleNextPoll(chatResponse.pollingIntervalMillis);
