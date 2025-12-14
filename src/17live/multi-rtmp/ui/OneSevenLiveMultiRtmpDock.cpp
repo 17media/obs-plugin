@@ -296,6 +296,8 @@ void OneSevenLiveMultiRtmpDock::setupManagerCallbacks() {
             },
             Qt::QueuedConnection);
     });
+
+    m_manager->startStatsMonitoring();
 }
 
 void OneSevenLiveMultiRtmpDock::showEvent(QShowEvent* event) {

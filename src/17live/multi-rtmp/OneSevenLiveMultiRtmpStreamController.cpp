@@ -744,6 +744,9 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
                     Qt::QueuedConnection);
                 streamOutput->connectTimeoutTimer = nullptr;
             }
+            if (streamOutput->startTime.time_since_epoch().count() == 0) {
+                streamOutput->startTime = std::chrono::steady_clock::now();
+            }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STREAMING);
             {
                 std::string platform = streamOutput->config.streamName;
