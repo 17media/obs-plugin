@@ -196,6 +196,7 @@ bool OneSevenLiveCoreManager::initialize() {
                     }
                     if (youtubeChatClient) {
                         youtubeChatClient->setAccessToken(token);
+                        youtubeChatClient->startDiscovery();
                     }
                 }
             });
