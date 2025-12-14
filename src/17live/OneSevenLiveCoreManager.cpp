@@ -187,6 +187,18 @@ bool OneSevenLiveCoreManager::initialize() {
     // Instantiate auth handlers
     twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
     youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
+    connect(youtubeAuth.get(), &OneSevenLiveYouTubeAuth::authorizationCompleted, this,
+            [this](const QString& token) {
+                if (!token.isEmpty()) {
+                    if (youtubeApiClient) {
+                        youtubeApiClient->setAccessToken(token);
+                        youtubeApiClient->retryLastRequest();
+                    }
+                    if (youtubeChatClient) {
+                        youtubeChatClient->setAccessToken(token);
+                    }
+                }
+            });
 
     // Load tokens from config and schedule checks/refreshes
     {
@@ -1862,9 +1874,9 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         }
 
         connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            obs_log(LOG_INFO, "chatDock visibility changed: %s, isFloating: %s",
-                    visible ? "true" : "false",
-                    (chatDock && chatDock->isFloating()) ? "true" : "false");
+            // obs_log(LOG_INFO, "chatDock visibility changed: %s, isFloating: %s",
+            //         visible ? "true" : "false",
+            //         (chatDock && chatDock->isFloating()) ? "true" : "false");
 
             if (menuManager) {
                 menuManager->updateDockVisibility(

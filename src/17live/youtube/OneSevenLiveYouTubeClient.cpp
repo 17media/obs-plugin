@@ -5,10 +5,12 @@
 #include <QRegularExpression>
 #include <QUrlQuery>
 #include <nlohmann/json.hpp>
+#include <QTimer>
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
 #include "utility/RemoteTextThread.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
 
 const QString OneSevenLiveYouTubeClient::YOUTUBE_API_BASE_URL =
     "https://www.googleapis.com/youtube/v3";
@@ -125,9 +127,6 @@ void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStat
     if (!broadcastStatus.isEmpty()) {
         params["broadcastStatus"] = broadcastStatus;
     }
-    if (m_hasValidAuth && !m_accessToken.isEmpty()) {
-        params["access_token"] = m_accessToken;
-    }
 
     QString endpoint = buildApiUrl("liveBroadcasts", params);
     m_currentOperation = "getMyLiveBroadcasts";
@@ -158,7 +157,7 @@ void OneSevenLiveYouTubeClient::setApiKey(const QString& apiKey) {
 
 void OneSevenLiveYouTubeClient::setTimeout(int timeoutMs) {
     m_timeoutMs = timeoutMs;
-    obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
+    // obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
 }
 
 void OneSevenLiveYouTubeClient::createLiveBroadcast(const QString& title,
@@ -418,6 +417,10 @@ void OneSevenLiveYouTubeClient::handleApiError(const QString& error, const QStri
     case 401:
         detailedError = "Authentication failed - invalid or expired token";
         m_hasValidAuth = false;
+        if (auto* auth = OneSevenLiveCoreManager::getInstance().getYouTubeAuth()) {
+            QTimer::singleShot(0, auth, &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
+        }
+        m_retryPending = true;
         break;
     case 403:
         detailedError = "Access forbidden - insufficient permissions";
@@ -434,6 +437,15 @@ void OneSevenLiveYouTubeClient::handleApiError(const QString& error, const QStri
     }
 
     emit errorOccurred(detailedError, operation);
+}
+
+void OneSevenLiveYouTubeClient::retryLastRequest() {
+    if (!m_retryPending)
+        return;
+    if (!m_hasValidAuth || m_lastEndpoint.isEmpty() || m_lastMethod.isEmpty())
+        return;
+    m_retryPending = false;
+    makeApiRequest(m_lastEndpoint, m_lastMethod, m_lastBody);
 }
 
 YouTubeLiveStream OneSevenLiveYouTubeClient::parseLiveStream(const nlohmann::json& json) const {
@@ -564,6 +576,9 @@ YouTubeLiveBroadcastSnippet OneSevenLiveYouTubeClient::parseLiveBroadcastSnippet
     snippet.channelId = QString::fromStdString(json.value("channelId", ""));
     snippet.scheduledStartTime = QString::fromStdString(json.value("scheduledStartTime", ""));
     snippet.actualStartTime = QString::fromStdString(json.value("actualStartTime", ""));
+    if (json.contains("actualEndTime") && json["actualEndTime"].is_string()) {
+        snippet.actualEndTime = QString::fromStdString(json["actualEndTime"].get<std::string>());
+    }
     snippet.liveChatId = QString::fromStdString(json.value("liveChatId", ""));
     return snippet;
 }

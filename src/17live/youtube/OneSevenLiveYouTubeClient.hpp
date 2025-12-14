@@ -87,6 +87,7 @@ struct YouTubeLiveBroadcastSnippet {
     QString channelId;
     QString scheduledStartTime;
     QString actualStartTime;
+    QString actualEndTime;
 
     YouTubeLiveBroadcastSnippet() {}
 };
@@ -140,6 +141,7 @@ class OneSevenLiveYouTubeClient : public QObject {
     // Configuration
     void setApiKey(const QString& apiKey);
     void setTimeout(int timeoutMs);
+    void retryLastRequest();
 
    signals:
     void myLiveStreamsReceived(const YouTubeLiveStreamListResponse& response);
@@ -193,6 +195,7 @@ class OneSevenLiveYouTubeClient : public QObject {
     QString m_apiKey;
     int m_timeoutMs = 30000;  // Default timeout
     bool m_hasValidAuth = false;
+    bool m_retryPending = false;
 
     // Request context
     QString m_currentOperation;

@@ -567,8 +567,8 @@ void OneSevenLiveTwitchChatClient::onStatusTimer() {
 }
 
 void OneSevenLiveTwitchChatClient::connectWebSocket() {
-    obs_log(LOG_INFO, "[Twitch Chat Client] Connecting to Twitch chat server: %s",
-            TWITCH_IRC_SERVER.toUtf8().constData());
+    // obs_log(LOG_INFO, "[Twitch Chat Client] Connecting to Twitch chat server: %s",
+    //         TWITCH_IRC_SERVER.toUtf8().constData());
     m_client = std::make_unique<OneSevenLiveWebsocketClient>(this);
     m_client->setOpenCallback([this]() { onWebSocketOpen(); });
     m_client->setMessageCallback([this](const std::string& m) { onWebSocketMessage(m); });

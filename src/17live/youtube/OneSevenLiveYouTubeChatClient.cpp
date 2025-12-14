@@ -17,12 +17,14 @@
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
+#include "OneSevenLiveConfigManager.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
 
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL =
     "https://www.googleapis.com/youtube/v3";
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_VERSION = "v3";
 const int OneSevenLiveYouTubeChatClient::DEFAULT_POLLING_INTERVAL = 5000;  // 5 seconds
-const int OneSevenLiveYouTubeChatClient::MIN_POLLING_INTERVAL = 10000;
+const int OneSevenLiveYouTubeChatClient::MIN_POLLING_INTERVAL = 5000;
 const int OneSevenLiveYouTubeChatClient::MAX_EXPONENTIAL_BACKOFF_DELAY = 32000;  // 32 seconds max
 const int OneSevenLiveYouTubeChatClient::STATUS_BROADCAST_INTERVAL = 10;
 const int OneSevenLiveYouTubeChatClient::MAX_QUICK_RETRIES = 5;
@@ -118,6 +120,10 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId) 
         return;
     }
 
+    if (m_isPolling && liveChatId == m_liveChatId) {
+        obs_log(LOG_INFO, "Chat polling already running for same chatId; ignoring restart");
+        return;
+    }
     if (m_isPolling) {
         obs_log(LOG_INFO, "Chat polling already running, stopping first");
         stopChatPolling();
@@ -181,7 +187,7 @@ void OneSevenLiveYouTubeChatClient::setApiKey(const QString& apiKey) {
 
 void OneSevenLiveYouTubeChatClient::setTimeout(int timeoutMs) {
     m_timeoutMs = timeoutMs;
-    obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
+    // obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
 }
 
 void OneSevenLiveYouTubeChatClient::setMaxRetries(int maxRetries) {
@@ -282,10 +288,11 @@ void OneSevenLiveYouTubeChatClient::handleApiError(const QString& error, const Q
     case 401:
         detailedError = "Authentication failed - invalid or expired token";
         m_hasValidAuth = false;
-        if (m_apiKey.isEmpty()) {
-            stopChatPolling();
-            return;
+        if (auto* auth = OneSevenLiveCoreManager::getInstance().getYouTubeAuth()) {
+            QTimer::singleShot(0, auth, &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
         }
+        scheduleReconnect();
+        return;
         break;
     case 403:
         detailedError = "Access forbidden - insufficient permissions or quota exceeded";
@@ -309,7 +316,8 @@ void OneSevenLiveYouTubeChatClient::handleApiError(const QString& error, const Q
     emit errorOccurred(detailedError, operation);
 
     // For non-rate-limit errors, continue with normal polling interval
-    if (m_isPolling && httpStatus != 429 && !error.contains("quotaExceeded")) {
+    if (m_isPolling && httpStatus != 429 && httpStatus != 403 && httpStatus != 401 &&
+        !error.contains("quotaExceeded")) {
         scheduleNextPoll(m_currentPollingInterval);
     }
 }
@@ -328,6 +336,16 @@ QString OneSevenLiveYouTubeChatClient::buildChatMessagesUrl(const QString& liveC
 
     if (!m_apiKey.isEmpty()) {
         query.addQueryItem("key", m_apiKey);
+    }
+
+    {
+        auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        if (cm) {
+            std::string openId;
+            if (cm->getConfigValue("UserID", openId) && !openId.empty()) {
+                query.addQueryItem("quotaUser", QString::fromStdString(openId));
+            }
+        }
     }
 
     return url + "?" + query.toString();
@@ -368,6 +386,8 @@ void OneSevenLiveYouTubeChatClient::onBroadcastsReceived(
     const YouTubeLiveBroadcastListResponse& resp) {
     QString discovered;
     for (const auto& b : resp.items) {
+        if (!b.snippet.actualEndTime.isEmpty())
+            continue;  // Skip ended broadcasts
         if (!b.snippet.liveChatId.isEmpty()) {
             discovered = b.snippet.liveChatId;
             break;
@@ -383,9 +403,7 @@ void OneSevenLiveYouTubeChatClient::onBroadcastsReceived(
     }
     if (!m_liveChatId.isEmpty() && discovered == m_liveChatId) {
         if (!isPolling()) {
-            OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-                QString::fromUtf8(ws::EventYouTubeChatConnected),
-                nlohmann::json{{"status", "break"}});
+            startChatPolling(discovered);
         }
         return;
     }
@@ -411,28 +429,24 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
 
         obs_log(LOG_WARNING, "YouTube Chat API Error context: op=%s endpoint=%s",
                 m_currentOperation.toUtf8().constData(), m_lastEndpoint.toUtf8().constData());
-        if (!response.isEmpty()) {
-            obs_log(LOG_WARNING, "YouTube Chat API Error response: %s",
-                    response.toUtf8().constData());
-            try {
-                auto j = nlohmann::json::parse(response.toStdString());
-                auto ej = j.contains("error") ? j["error"] : nlohmann::json{};
-                std::string emsg = ej.value("message", std::string());
-                std::string estatus = ej.value("status", std::string());
-                int ecode = ej.value("code", 0);
-                std::string ereason;
-                if (ej.contains("errors") && ej["errors"].is_array() && !ej["errors"].empty()) {
-                    auto e0 = ej["errors"][0];
-                    ereason = e0.value("reason", std::string());
-                }
-                if (ecode || !emsg.empty() || !estatus.empty() || !ereason.empty()) {
-                    obs_log(
-                        LOG_WARNING,
-                        "YouTube Chat API Error details: code=%d message=%s status=%s reason=%s",
-                        ecode, emsg.c_str(), estatus.c_str(), ereason.c_str());
-                }
-            } catch (...) {
+        obs_log(LOG_WARNING, "YouTube Chat API Error response: %s",
+                response.isEmpty() ? "<empty>" : response.toUtf8().constData());
+        try {
+            auto j = nlohmann::json::parse(response.toStdString());
+            auto ej = j.contains("error") ? j["error"] : nlohmann::json{};
+            std::string emsg = ej.value("message", std::string());
+            std::string estatus = ej.value("status", std::string());
+            int ecode = ej.value("code", 0);
+            std::string ereason;
+            if (ej.contains("errors") && ej["errors"].is_array() && !ej["errors"].empty()) {
+                auto e0 = ej["errors"][0];
+                ereason = e0.value("reason", std::string());
             }
+            if (ecode || !emsg.empty() || !estatus.empty() || !ereason.empty()) {
+                obs_log(LOG_WARNING, "YouTube Chat API Error details: code=%d message=%s status=%s reason=%s",
+                        ecode, emsg.c_str(), estatus.c_str(), ereason.c_str());
+            }
+        } catch (...) {
         }
 
         bool chatEnded = false;

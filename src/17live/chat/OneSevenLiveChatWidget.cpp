@@ -129,7 +129,7 @@ void OneSevenLiveChatWidget::reload() {
 }
 
 void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
-    obs_log(LOG_INFO, "OneSevenLiveChatWidget showEvent");
+    // obs_log(LOG_INFO, "OneSevenLiveChatWidget showEvent");
     QWidget::showEvent(event);
 
     if (cefWidget_) {
@@ -141,7 +141,7 @@ void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
 }
 
 void OneSevenLiveChatWidget::hideEvent(QHideEvent* event) {
-    obs_log(LOG_INFO, "OneSevenLiveChatWidget hideEvent");
+    // obs_log(LOG_INFO, "OneSevenLiveChatWidget hideEvent");
     QWidget::hideEvent(event);
     if (cefWidget_) {
         cefWidget_->setVisible(false);
