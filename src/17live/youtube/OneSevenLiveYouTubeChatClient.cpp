@@ -468,6 +468,12 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
             emit errorOccurred("liveChatEnded", m_currentOperation);
             return;
         }
+        if (httpStatus == 403 || httpStatus == 404) {
+            if (m_apiClient && m_apiClient->hasValidAuth()) {
+                obs_log(LOG_INFO, "YouTube chat 403/404, triggering liveChatId discovery");
+                startDiscovery();
+            }
+        }
         handleApiError(error, m_currentOperation, httpStatus);
         scheduleReconnect();
         return;

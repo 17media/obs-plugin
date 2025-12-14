@@ -1165,13 +1165,64 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
         };
 
         if (contains_ci(platform, "youtube")) {
-            MULTI_RTMP_STREAM_LOG_INFO(
-                "YouTube platform disabled; skipping server/key resolution for %s",
-                streamId.c_str());
-            updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                               "Disabled:YouTube");
-            return;
-        } else if (contains_ci(platform, "twitch")) {
+            auto& core = OneSevenLiveCoreManager::getInstance();
+            auto* ytAuth = core.getYouTubeAuth();
+            if (!ytAuth || !ytAuth->hasValidToken()) {
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "AuthInvalid:YouTube");
+                return;
+            }
+            core.createYouTubeChatClient();
+            OneSevenLiveYouTubeClient* yt = core.getYouTubeApiClient();
+            if (!yt) {
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "APIUnavailable:YouTube");
+                return;
+            }
+            yt->setAccessToken(ytAuth->getAccessToken());
+            yt->setTimeout(12000);
+            auto connStreamsPtr = std::make_shared<QMetaObject::Connection>();
+            *connStreamsPtr = QObject::connect(
+                yt, &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
+                [this, streamId, connStreamsPtr](const YouTubeLiveStreamListResponse& resp) {
+                    QObject::disconnect(*connStreamsPtr);
+                    QString chosen;
+                    QString serverUrl;
+                    QString keyVal;
+                    for (const auto& s : resp.items) {
+                        if (!s.id.isEmpty()) {
+                            if (s.snippet.isDefaultStream ||
+                                s.status.streamStatus.compare("active", Qt::CaseInsensitive) == 0) {
+                                chosen = s.id;
+                                break;
+                            }
+                            if (chosen.isEmpty()) {
+                                chosen = s.id;
+                            }
+                        }
+                    }
+                    if (!chosen.isEmpty()) {
+                        for (const auto& s : resp.items) {
+                            if (s.id == chosen) {
+                                const auto& info = s.cdn.ingestionInfo;
+                                serverUrl = !info.rtmpsIngestionAddress.isEmpty()
+                                                ? info.rtmpsIngestionAddress
+                                                : info.ingestionAddress;
+                                keyVal = info.streamName;
+                                break;
+                            }
+                        }
+                    }
+                    if (!serverUrl.isEmpty() && !keyVal.isEmpty()) {
+                        finalizeServiceSetupAfterResolve(streamId, serverUrl.toUtf8().constData(),
+                                                         keyVal.toUtf8().constData());
+                        return;
+                    }
+                    updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                       "ResolveFailed:YouTube");
+                });
+            yt->getMyLiveStreams();
+            } else if (contains_ci(platform, "twitch")) {
             auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
             OneSevenLiveTwitchClient* client = nullptr;
             if (twAuth) {

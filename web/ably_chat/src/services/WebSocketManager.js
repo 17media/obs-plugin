@@ -174,6 +174,24 @@ class WebSocketManager extends EventEmitter {
             }
           })
           .catch(() => {});
+      } else if (type === 'youtube_chat_connected' || type === 'youtube_chat_message') {
+        const ensure = () => {
+          const platform = messageAggregator.platforms?.get('youtube');
+          if (!platform) return messageAggregator.addPlatform('youtube', {}).then(() => messageAggregator.platforms.get('youtube'));
+          return Promise.resolve(platform);
+        };
+        ensure()
+          .then((platform) => {
+            if (!platform) return;
+            if (type === 'youtube_chat_connected') {
+              if (typeof platform.handleWsMessage === 'function') {
+                platform.handleWsMessage({ type, payload });
+              }
+            } else if (type === 'youtube_chat_message') {
+              routeTo('youtube', () => payload);
+            }
+          })
+          .catch(() => {});
       }
     };
 
