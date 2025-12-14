@@ -148,6 +148,9 @@ bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::strin
 
     // Update status
     updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::CONNECTING);
+    if (streamOutput->startTime.time_since_epoch().count() == 0) {
+        streamOutput->startTime = std::chrono::steady_clock::now();
+    }
 
     // Setup connect timeout timer
     if (streamOutput->connectTimeoutTimer) {
@@ -907,7 +910,11 @@ void OneSevenLiveMultiRtmpStreamController::statsMonitoringThread() {
         {
             std::lock_guard<std::mutex> lock(m_outputsMutex);
             for (auto& [streamId, streamOutput] : m_streamOutputs) {
-                if (streamOutput->output && obs_output_active(streamOutput->output)) {
+                if (streamOutput->output &&
+                    (streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::CONNECTING ||
+                     streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::STREAMING ||
+                     streamOutput->status.state ==
+                         OneSevenLiveMultiRtmpStreamStatus::RECONNECTING)) {
                     collectStreamStats(streamId, *streamOutput);
 
                     if (m_statsCallback) {
