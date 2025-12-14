@@ -926,24 +926,114 @@ void OneSevenLiveMultiRtmpStreamController::collectStreamStats(const std::string
         return;
     }
 
-    // Update duration
     auto now = std::chrono::steady_clock::now();
     streamOutput.stats.duration = now - streamOutput.startTime;
 
-    // Get output statistics
-    streamOutput.stats.totalFrames =
-        static_cast<int>(obs_output_get_total_frames(streamOutput.output));
+    uint64_t totalBytes = obs_output_get_total_bytes(streamOutput.output);
+    uint64_t totalFrames =
+        static_cast<uint64_t>(obs_output_get_total_frames(streamOutput.output));
+
+    streamOutput.stats.totalFrames = static_cast<int>(totalFrames);
     streamOutput.stats.droppedFrames =
         static_cast<int>(obs_output_get_frames_dropped(streamOutput.output));
 
-    // Calculate bitrate and FPS (these would need to be implemented based on OBS API)
-    // For now, we'll use placeholder values
-    streamOutput.stats.currentBitrate = 0.0;  // Would need actual implementation
-    streamOutput.stats.currentFPS = 0;        // Would need actual implementation
+    if (streamOutput.lastStatsTime.time_since_epoch().count() == 0) {
+        streamOutput.lastStatsTime = now;
+        streamOutput.lastBytes = totalBytes;
+        streamOutput.lastFrames = totalFrames;
+        streamOutput.stats.currentBitrate = 0.0;
+        streamOutput.stats.currentFPS = 0;
+        return;
+    }
+
+    using namespace std::chrono;
+
+    double interval =
+        duration_cast<duration<double>>(now - streamOutput.lastStatsTime).count();
+    if (interval <= 0.0) {
+        return;
+    }
+
+    double currentBitrate = streamOutput.stats.currentBitrate;
+    double currentFPS = static_cast<double>(streamOutput.stats.currentFPS);
+
+    if (totalBytes >= streamOutput.lastBytes) {
+        uint64_t byteDiff = totalBytes - streamOutput.lastBytes;
+        double instantBitrateKbps = (byteDiff * 8.0) / (interval * 1000.0);
+
+        if (instantBitrateKbps < 0.0 || instantBitrateKbps > 100000.0) {
+            instantBitrateKbps = 0.0;
+        }
+
+        if (currentBitrate > 0.0 && instantBitrateKbps > 0.0) {
+            double maxUp = currentBitrate * 1.5;
+            double maxDown = currentBitrate * 0.5;
+            if (instantBitrateKbps > maxUp) {
+                instantBitrateKbps = maxUp;
+            } else if (instantBitrateKbps < maxDown) {
+                instantBitrateKbps = maxDown;
+            }
+        }
+
+        const double alphaBitrate = 0.2;
+        if (streamOutput.smoothedBitrateKbps <= 0.0) {
+            streamOutput.smoothedBitrateKbps = instantBitrateKbps;
+        } else {
+            streamOutput.smoothedBitrateKbps =
+                streamOutput.smoothedBitrateKbps * (1.0 - alphaBitrate) +
+                instantBitrateKbps * alphaBitrate;
+        }
+
+        streamOutput.stats.currentBitrate =
+            streamOutput.smoothedBitrateKbps > 0.0 ? streamOutput.smoothedBitrateKbps : 0.0;
+    } else {
+        streamOutput.lastBytes = totalBytes;
+    }
+
+    if (totalFrames >= streamOutput.lastFrames) {
+        uint64_t frameDiff = totalFrames - streamOutput.lastFrames;
+        double instantFPS = interval > 0.0 ? static_cast<double>(frameDiff) / interval : 0.0;
+
+        if (instantFPS < 0.0 || instantFPS > 120.0) {
+            instantFPS = 0.0;
+        }
+
+        if (currentFPS > 0.0 && instantFPS > 0.0) {
+            double maxUp = currentFPS * 1.5;
+            double maxDown = currentFPS * 0.5;
+            if (instantFPS > maxUp) {
+                instantFPS = maxUp;
+            } else if (instantFPS < maxDown) {
+                instantFPS = maxDown;
+            }
+        }
+
+        const double alphaFPS = 0.3;
+        if (streamOutput.smoothedFPS <= 0.0) {
+            streamOutput.smoothedFPS = instantFPS;
+        } else {
+            streamOutput.smoothedFPS =
+                streamOutput.smoothedFPS * (1.0 - alphaFPS) + instantFPS * alphaFPS;
+        }
+
+        if (streamOutput.smoothedFPS > 0.0) {
+            streamOutput.stats.currentFPS =
+                static_cast<int>(std::round(streamOutput.smoothedFPS));
+        } else {
+            streamOutput.stats.currentFPS = 0;
+        }
+    } else {
+        streamOutput.lastFrames = totalFrames;
+    }
+
+    streamOutput.lastStatsTime = now;
+    streamOutput.lastBytes = totalBytes;
+    streamOutput.lastFrames = totalFrames;
+
     streamOutput.stats.cpuUsage = 0.0;        // Would need actual implementation
 
     if (streamOutput.stats.totalFrames > 0) {
-        streamOutput.stats.averageBitrate = streamOutput.stats.currentBitrate;  // Simplified
+        streamOutput.stats.averageBitrate = streamOutput.stats.currentBitrate;
     }
 }
 

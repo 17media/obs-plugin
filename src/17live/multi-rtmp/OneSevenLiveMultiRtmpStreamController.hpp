@@ -83,6 +83,11 @@ class OneSevenLiveMultiRtmpStreamController {
         OneSevenLiveMultiRtmpStreamStatus status;
         OneSevenLiveMultiRtmpStreamStats stats;
         std::chrono::steady_clock::time_point startTime;
+        std::chrono::steady_clock::time_point lastStatsTime;
+        uint64_t lastBytes = 0;
+        uint64_t lastFrames = 0;
+        double smoothedBitrateKbps = 0.0;
+        double smoothedFPS = 0.0;
         QTimer* connectTimeoutTimer = nullptr;
     };
 
