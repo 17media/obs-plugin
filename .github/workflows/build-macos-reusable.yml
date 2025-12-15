@@ -62,8 +62,9 @@ jobs:
         with:
           path: |
             web/ably_chat/node_modules
+            web/ably_client/node_modules
             ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json', 'web/ably_client/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -84,6 +85,14 @@ jobs:
             npm install
           else
             echo "Skipping npm install (dependencies restored from cache)"
+          fi
+          npm run build
+
+      - name: Install and Build Ably Client
+        working-directory: web/ably_client
+        run: |
+          if [ "${{ steps.npm-cache.outputs.cache-hit }}" != "true" ]; then
+            npm install
           fi
           npm run build
 
@@ -127,8 +136,12 @@ jobs:
           fi
 
       - name: CMake Configure
+        env:
+          YOUTUBE_API_CLIENT_ID: ${{ vars.YOUTUBE_API_CLIENT_ID }}
+          YOUTUBE_API_CLIENT_SECRET: ${{ vars.YOUTUBE_API_CLIENT_SECRET }}
+          TWITCH_API_CLIENT_ID: ${{ vars.TWITCH_API_CLIENT_ID }}
         run: |
-          CMAKE_ARGS="-DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
+          CMAKE_ARGS="-DYOUTUBE_API_CLIENT_ID=\"$YOUTUBE_API_CLIENT_ID\" -DYOUTUBE_API_CLIENT_SECRET=\"$YOUTUBE_API_CLIENT_SECRET\" -DTWITCH_API_CLIENT_ID=\"$TWITCH_API_CLIENT_ID\" -DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
           
           # Add architecture parameter if specified
           if [ -n "${{ inputs.cmake_arch }}" ]; then

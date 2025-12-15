@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "description": "Configuration for 17Live Preview Dock Widget",
+  "browser_source": {
+    "enabled": true,
+    "url": "https://17.live",
+    "width": 640,
+    "height": 480,
+    "css": "body { background: transparent; }",
+    "shutdown": false,
+    "restart_when_active": false,
+    "fps": 30,
+    "reroute_audio": false
+  },
+  "preview_settings": {
+    "show_browser_overlay": true,
+    "overlay_opacity": 0.8,
+    "auto_refresh_interval": 0,
+    "enable_interaction": false
+  },
+  "ui_settings": {
+    "dock_title": "Preview Window",
+    "default_width": 640,
+    "default_height": 480,
+    "resizable": true,
+    "floating": false
+  }
+}

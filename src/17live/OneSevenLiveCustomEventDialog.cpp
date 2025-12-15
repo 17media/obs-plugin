@@ -6,9 +6,12 @@
 #include <plugin-support.h>
 
 // Qt includes
+#include <QAbstractTextDocumentLayout>
 #include <QApplication>
+#include <QCalendarWidget>
 #include <QDate>
 #include <QDateTime>
+#include <QFontMetrics>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -24,41 +27,41 @@
 #include <QStyleFactory>
 #include <QTabWidget>
 #include <QTextCharFormat>
+#include <QTextEdit>
+#include <QTextFrame>
+#include <QTextLayout>
+#include <QTextOption>
 #include <QThread>
 #include <QToolTip>
 #include <QVBoxLayout>
-#include <QFontMetrics>
-#include <QTextLayout>
-#include <QTextOption>
 #include <QVector>
-#include <QTextEdit>
-#include <QAbstractTextDocumentLayout>
-#include <QTextFrame>
-#include <QCalendarWidget>
 
 // Project includes
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "utility/Common.hpp"
-#include "utility/RemoteTextThread.hpp"
 #include "utility/CustomCalendarWidget.hpp"
+#include "utility/RemoteTextThread.hpp"
 
-// Static helper: insert zero-width spaces into CJK or other no-space text to enable line breaks with WrapAnywhere
+// Static helper: insert zero-width spaces into CJK or other no-space text to enable line breaks
+// with WrapAnywhere
 static QString insertZeroWidthSpaces(const QString& s) {
     QString out;
     out.reserve(s.size() * 2);
     for (int i = 0; i < s.size(); ++i) {
         const QChar ch = s.at(i);
         out.append(ch);
-        // Avoid inserting zero-width spaces after whitespace, and do not insert after the last character
+        // Avoid inserting zero-width spaces after whitespace, and do not insert after the last
+        // character
         if (i < s.size() - 1 && !ch.isSpace()) {
-            out.append(QChar(0x200B)); // ZERO WIDTH SPACE
+            out.append(QChar(0x200B));  // ZERO WIDTH SPACE
         }
     }
     return out;
 }
 
-// Static helper: limit text to at most two lines (single wrap); overflow is elided at the end of the second line
+// Static helper: limit text to at most two lines (single wrap); overflow is elided at the end of
+// the second line
 static QString elideTextToTwoLines(const QString& text, const QFont& font, int widthPx) {
     if (text.isEmpty() || widthPx <= 0)
         return text;
@@ -70,8 +73,8 @@ static QString elideTextToTwoLines(const QString& text, const QFont& font, int w
     layout.setTextOption(opt);
 
     layout.beginLayout();
-    int firstEnd = 0;      // End index of the first line (length from start to end)
-    int secondStart = 0;   // Start index of the second line
+    int firstEnd = 0;     // End index of the first line (length from start to end)
+    int secondStart = 0;  // Start index of the second line
     int processedChars = 0;
     int linesCount = 0;
     qreal y = 0.0;
@@ -131,7 +134,6 @@ OneSevenLiveCustomEventDialog::OneSevenLiveCustomEventDialog(
     setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 
     fetchCustomEventAsync();
-    loadGiftTabsAsync();
 
     // Ensure all widgets are properly initialized
     update();
@@ -240,7 +242,7 @@ void OneSevenLiveCustomEventDialog::setupEventDateSection() {
     calendar->setGridVisible(true);
     calendar->setSelectedDate(today);
     dateEdit->setCalendarWidget(calendar);
-    
+
     // Create form layout for date section
     QFormLayout* dateFormLayout = new QFormLayout();
     dateFormLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
@@ -608,16 +610,19 @@ void OneSevenLiveCustomEventDialog::fetchCustomEventAsync() {
         bool ok = false;
         if (apiWrapper) {
             ok = apiWrapper->GetCustomEvent(userID, customEvent);
+            if (!ok) {
+                obs_log(LOG_ERROR, "Failed to get custom event: %s",
+                        apiWrapper->getLastErrorMessage().toUtf8().constData());
+            }
         }
 
         QMetaObject::invokeMethod(
             this,
             [this, ok, thread]() {
                 // Update UI on main thread
-                if (!ok) {
-                    obs_log(LOG_ERROR, "Failed to get custom event");
-                } else {
-                    obs_log(LOG_INFO, "id=%s, customEvent.status = %d",
+                // update UI whatever the result is
+                {
+                    obs_log(LOG_INFO, "customEvent.eventID=%s, customEvent.status = %d",
                             customEvent.eventID.toStdString().c_str(), customEvent.status);
 
                     // Populate fields
@@ -1002,7 +1007,8 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
     // Clear existing gift buttons for this tab
     QLayoutItem* item;
     while ((item = giftsLayout->takeAt(0)) != nullptr) {
-        delete item->widget();
+        if (item->widget())
+            item->widget()->deleteLater();
         delete item;
     }
 
@@ -1071,7 +1077,9 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
         nameEdit->setFrameStyle(QFrame::NoFrame);
         nameEdit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         nameEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        nameEdit->setStyleSheet("color: white; font-size: 12px; background: transparent; padding: 2px 0 0 0; margin: 0; border: none;");
+        nameEdit->setStyleSheet(
+            "color: white; font-size: 12px; background: transparent; padding: 2px 0 0 0; margin: "
+            "0; border: none;");
         nameEdit->setContentsMargins(0, 0, 0, 0);
         nameEdit->setFixedWidth(80);
         // Height will be set dynamically below based on document height
@@ -1091,13 +1099,15 @@ void OneSevenLiveCustomEventDialog::populateGiftTab(const OneSevenLiveGiftTab& g
             // Compute dynamic height from document layout (max two lines from elide), then add 5px
             qreal docHeight = nameEdit->document()->documentLayout()->documentSize().height();
             int lineH = QFontMetrics(nameEdit->font()).lineSpacing();
-            int minH = lineH;            // at least 1 line
-            int maxH = lineH * 2;        // at most 2 lines
+            int minH = lineH;      // at least 1 line
+            int maxH = lineH * 2;  // at most 2 lines
             int h = qRound(docHeight);
-            if (h < minH) h = minH;
-            if (h > maxH) h = maxH;
+            if (h < minH)
+                h = minH;
+            if (h > maxH)
+                h = maxH;
             nameEdit->setFixedHeight(h + 5);
-         }
+        }
 
         // Create price label
         QLabel* pointLabel = new QLabel(QString::number(gift.point));

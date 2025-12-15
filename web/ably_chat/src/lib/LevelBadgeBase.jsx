@@ -7,7 +7,7 @@ import { normalizeLevel } from './utils';
 
 export const LevelBadgeWrapper = styled.span.attrs(props => ({
     style: {
-        background: LEVEL_COLORS[`LEVEL_${props.normalizedLevel}`],
+        background: LEVEL_COLORS[`LEVEL_${props.$normalizedLevel}`],
     },
 }))`
   display: inline-flex;
@@ -21,7 +21,7 @@ export const LevelBadgeWrapper = styled.span.attrs(props => ({
 
 const LevelBadgeBase = ({ level, className }) => (
     <LevelBadgeWrapper
-        normalizedLevel={normalizeLevel(level)}
+        $normalizedLevel={normalizeLevel(level)}
         className={className}
     >
         {level}

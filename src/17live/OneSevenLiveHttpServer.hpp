@@ -3,24 +3,34 @@
 
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 #include "../../deps/cpp-httplib/httplib.h"
 
 class OneSevenLiveHttpServer {
    public:
     OneSevenLiveHttpServer(const std::string& host, int port = 0,
-                           const std::string& base_dir_relative_to_module_data = "html");
+                           const std::string& base_dir_relative_to_module_data = "html",
+                           const std::string& name = "17Live HTTP Server");
     ~OneSevenLiveHttpServer();
 
     bool start();
     void stop();
+    void stopAsync();
     bool is_running() const;
     int getPort() const;
+
+    void addGetHandler(const std::string& pattern,
+                       std::function<void(const httplib::Request&, httplib::Response&)> handler);
+    void addPostHandler(const std::string& pattern,
+                        std::function<void(const httplib::Request&, httplib::Response&)> handler);
+    void setEnableDefaultApi(bool enable);
 
    private:
     std::string get_mime_type(const std::string& file_path) const;
@@ -39,6 +49,15 @@ class OneSevenLiveHttpServer {
     std::string base_dir_;
     std::unique_ptr<std::thread> server_thread_;
     bool running_ = false;
+    std::atomic<bool> stopping_{false};
+
+    std::vector<
+        std::pair<std::string, std::function<void(const httplib::Request&, httplib::Response&)>>>
+        extra_get_;
+    std::vector<
+        std::pair<std::string, std::function<void(const httplib::Request&, httplib::Response&)>>>
+        extra_post_;
+    bool enable_default_api_ = true;
 
     // Security-related member variables
     static constexpr size_t MAX_REQUEST_SIZE = 1024 * 1024;  // 1MB
@@ -49,6 +68,7 @@ class OneSevenLiveHttpServer {
     std::unordered_map<std::string, std::vector<std::chrono::steady_clock::time_point>>
         rate_limit_map_;
     std::string csrf_token_;
+    std::string name_;
 };
 
 #endif  // ONESEVENLIVEHTTPSERVER_HPP

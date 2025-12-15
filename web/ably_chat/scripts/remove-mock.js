@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-// 获取构建输出目录
+// Get build output directory
 const buildDir = path.join(__dirname, '../../../data/html/chat');
 const mockDir = path.join(buildDir, 'mock');
 

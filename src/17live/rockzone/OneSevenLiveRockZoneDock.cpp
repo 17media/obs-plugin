@@ -1,0 +1,579 @@
+#include "OneSevenLiveRockZoneDock.hpp"
+
+#include <obs-frontend-api.h>
+#include <obs-module.h>
+
+#include <QFile>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QHash>
+#include <QLabel>
+#include <QMessageBox>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPointer>
+#include <QSharedPointer>
+#include <QTimer>
+#include <QVBoxLayout>
+
+#include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveRockViewerItem.hpp"
+#include "OneSevenLiveUserDialog.hpp"
+#include "api/OneSevenLiveApiWrappers.hpp"
+#include "plugin-support.h"
+#include "utility/RemoteTextThread.hpp"
+
+OneSevenLiveRockZoneDock::OneSevenLiveRockZoneDock(QWidget* parent,
+                                                   OneSevenLiveApiWrappers* apiWrapper_,
+                                                   OneSevenLiveConfigManager* configManager_)
+    : QDockWidget(obs_module_text("RockZone.Title"), parent),
+      apiWrapper(apiWrapper_),
+      configManager(configManager_) {
+    setupUi();
+    createConnections();
+
+    // Initialize cooldown timer
+    cooldownTimer = new QTimer(this);
+    cooldownTimer->setInterval(1000);  // 1 second
+    connect(cooldownTimer, &QTimer::timeout, this,
+            &OneSevenLiveRockZoneDock::onCooldownTimerTimeout);
+
+    connect(this, &QDockWidget::topLevelChanged, this,
+            &OneSevenLiveRockZoneDock::handleTopLevelChanged);
+
+    connect(userList, &QObject::destroyed, this, [this]() { userItemMap.clear(); });
+}
+
+OneSevenLiveRockZoneDock::~OneSevenLiveRockZoneDock() {
+    if (userDialog) {
+        userDialog->deleteLater();
+        userDialog = nullptr;
+    }
+}
+
+void OneSevenLiveRockZoneDock::setupUi() {
+    QWidget* container = new QWidget(this);
+    container->setObjectName("container");
+    container->setStyleSheet(
+        "QWidget#container {"
+        "    background-color: #000000;"
+        "    border: none;"
+        "    font-family: 'Inter';"
+        "    color: #FFFFFF;"
+        "    font-style: normal;"
+        "}");
+    QVBoxLayout* mainLayout = new QVBoxLayout(container);
+    mainLayout->setContentsMargins(10, 10, 10, 10);
+    mainLayout->setSpacing(10);
+
+    // Create hint bar
+    {
+        QHBoxLayout* hintLayout = new QHBoxLayout();
+        hintLayout->setContentsMargins(0, 10, 0, 10);
+        hintLayout->setSpacing(8);
+        hintLayout->setAlignment(Qt::AlignHCenter);
+
+        QLabel* icon = new QLabel(container);
+        icon->setFixedSize(20, 20);
+        icon->setPixmap(QPixmap(":/resources/exclaimark.svg")
+                            .scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+        QLabel* hintText = new QLabel(obs_module_text("RockZone.Hint"), container);
+        hintText->setStyleSheet("color: #FFFFFF; font-size: 14px;");
+
+        // Add leading stretch to center contents
+        hintLayout->addStretch();
+        hintLayout->addWidget(icon);
+        hintLayout->addWidget(hintText);
+        hintLayout->addStretch();
+
+        QWidget* hintContainer = new QWidget(container);
+        hintContainer->setLayout(hintLayout);
+        mainLayout->addWidget(hintContainer);
+    }
+
+    // Create user list
+    userList = new QListWidget();
+    userList->setStyleSheet(
+        "QListWidget {"
+        "   background-color: transparent;"
+        "   border: none;"
+        "}"
+        "QListWidget::item {"
+        "   background-color: #000000;"
+        "   border-radius: 0px;"
+        // "   padding: 10px;"
+        "   margin: 0px;"
+        "}"
+        "QListWidget::item:selected {"
+        "   background-color: #3a3a4a;"
+        "   border: 1px solid #5a5a6a;"
+        "   color: white;"
+        "}"
+        "QListWidget::item:hover:!selected {"
+        "    background-color: #1a1a1a;"
+        "}");
+    userList->setResizeMode(QListWidget::Adjust);
+    userList->setWordWrap(true);
+    userList->setSpacing(1);
+    mainLayout->addWidget(userList);
+
+    // Create empty list placeholder
+    emptyListLabel = new QLabel(obs_module_text("RockZone.EmptyList"), container);
+    emptyListLabel->setAlignment(Qt::AlignCenter);
+    emptyListLabel->setStyleSheet("QLabel { color: #999999; font-size: 14px; }");
+    emptyListLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    emptyListLabel->setVisible(false);
+    mainLayout->addWidget(emptyListLabel);
+
+    // Create bottom button
+    pokeAllButton = new QPushButton(obs_module_text("RockZone.PokeAll"));
+    pokeAllButton->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #FF0001;"
+        "    color: white;"
+        "    border-radius: 2px;"
+        "    padding: 8px;"
+        "   font-weight: 600;"
+        "   font-size: 16px;"
+        "   line-height: 24px;"
+        "}"
+        "QPushButton:disabled {"
+        "    background-color: #808080;"
+        "    color: #C0C0C0;"
+        "}");
+    pokeAllButton->setMaximumWidth(250);
+    pokeAllButton->setMinimumWidth(150);
+    pokeAllButton->setFixedHeight(40);
+    pokeAllButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    mainLayout->addWidget(pokeAllButton, 0, Qt::AlignHCenter);
+
+    // Save original button text
+    originalButtonText = pokeAllButton->text();
+
+    // Set dock size constraints to allow width adjustment with maximum width of 450
+    // Minimum width adjusted to 320px to accommodate 280px RockViewerItem + margins
+    setMaximumWidth(450);
+    setMinimumWidth(320);
+    container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    setWidget(container);
+}
+
+void OneSevenLiveRockZoneDock::createConnections() {
+    connect(pokeAllButton, &QPushButton::clicked, this,
+            &OneSevenLiveRockZoneDock::onPokeAllClicked);
+}
+
+void OneSevenLiveRockZoneDock::updateUserItem(
+    QListWidgetItem* item, const OneSevenLiveRockZoneViewer& user,
+    const OneSevenLiveArmyNameResponse& armyNameResponse) {
+    // Create a mutable copy to apply fallback logic if needed
+    OneSevenLiveRockZoneViewer displayUser = user;
+
+    // Fallback: If display name is empty, try to use giftRankOne info
+    if (displayUser.displayUser.displayName.trimmed().isEmpty() &&
+        !displayUser.giftRankOne.displayName.trimmed().isEmpty()) {
+        displayUser.displayUser.displayName = displayUser.giftRankOne.displayName;
+        if (displayUser.displayUser.picture.isEmpty()) {
+            displayUser.displayUser.picture = displayUser.giftRankOne.picture;
+        }
+    }
+
+    OneSevenLiveRockViewerItem* w =
+        qobject_cast<OneSevenLiveRockViewerItem*>(userList->itemWidget(item));
+
+    if (!w) {
+        w = new OneSevenLiveRockViewerItem(displayUser, apiWrapper, configManager, armyNameResponse,
+                                           this);
+        item->setSizeHint(w->sizeHint());
+        userList->setItemWidget(item, w);
+
+        connect(w, &OneSevenLiveRockViewerItem::clicked, this,
+                [this](const OneSevenLiveRockZoneViewer& viewer) {
+                    obs_log(LOG_INFO, "OneSevenLiveRockZoneDock::userClicked %s",
+                            viewer.displayUser.displayName.toStdString().c_str());
+                    if (!userDialog) {
+                        obs_log(LOG_INFO, "Creating user dialog");
+                        userDialog = new OneSevenLiveUserDialog(this, apiWrapper, configManager);
+                    }
+
+                    userDialog->setAttribute(Qt::WA_DeleteOnClose);
+                    userDialog->setUserInfo(viewer);
+                    userDialog->show();
+                });
+    } else {
+        w->updateData(displayUser, armyNameResponse);
+    }
+}
+
+void OneSevenLiveRockZoneDock::resizeEvent(QResizeEvent* event) {
+    QDockWidget::resizeEvent(event);
+
+    if (!userList)
+        return;
+
+    // Store count to avoid issues if list is modified during iteration
+    int itemCount = userList->count();
+
+    for (int i = 0; i < itemCount; ++i) {
+        // Double-check count hasn't changed during iteration
+        if (i >= userList->count())
+            break;
+
+        QListWidgetItem* item = userList->item(i);
+        if (!item)
+            continue;  // Skip null items
+
+        QWidget* widget = userList->itemWidget(item);
+        if (widget) {
+            widget->resize(userList->viewport()->width(), widget->height());
+            item->setSizeHint(widget->sizeHint());
+        }
+    }
+}
+
+void OneSevenLiveRockZoneDock::refreshUserList() {
+    if (!apiWrapper)
+        return;
+    std::string roomID;
+    configManager->getConfigValue("RoomID", roomID);
+
+    std::string userID;
+    configManager->getConfigValue("UserID", userID);
+
+    // Create new thread for API call to avoid UI blocking
+    QThread* thread = new QThread;
+    QObject* worker = new QObject;
+    worker->moveToThread(thread);
+
+    connect(this, &QObject::destroyed, thread, &QThread::quit);
+    connect(thread, &QThread::started, worker, [this, worker, thread, roomID, userID]() {
+        if (!apiWrapper) {
+            QMetaObject::invokeMethod(
+                this,
+                [this]() {
+                    obs_log(LOG_ERROR, "[RockZone] apiWrapper unavailable, abort refresh");
+                },
+                Qt::QueuedConnection);
+            thread->quit();
+            worker->deleteLater();
+            return;
+        }
+        // Execute API call in new thread
+        Json jsonResponse;
+        bool success = false;
+
+        // Try to load mock data first
+        // QFile mockFile("/Users/zhuyu/workspace/mk/17live/dev/obs-17live/temp/rock3.json");
+        // if (mockFile.exists() && mockFile.open(QIODevice::ReadOnly)) {
+        //     try {
+        //         QByteArray data = mockFile.readAll();
+        //         jsonResponse = Json::parse(data.toStdString());
+        //         success = true;
+        //         obs_log(LOG_INFO, "Loaded mock rock viewers data");
+        //     } catch (...) {
+        //         obs_log(LOG_ERROR, "Failed to parse mock rock viewers data");
+        //     }
+        //     mockFile.close();
+        // }
+
+        if (!success) {
+            success = apiWrapper->GetRockViewers(roomID, jsonResponse);
+        }
+
+        Json response = jsonResponse;
+
+        OneSevenLiveArmyNameResponse armyNameResponse;
+
+        // Only call GetArmyName if not cached
+        {
+            QMutexLocker locker(&armyNameMutex);
+            if (!armyNameCached) {
+                apiWrapper->GetArmyName(userID, armyNameResponse);
+                cachedArmyNameResponse = armyNameResponse;
+                armyNameCached = true;
+            } else {
+                armyNameResponse = cachedArmyNameResponse;
+            }
+        }
+
+        // Use Qt::QueuedConnection to ensure UI updates happen on the main thread
+        QMetaObject::invokeMethod(
+            this,
+            [this, success, response, armyNameResponse, userID]() {
+                if (success) {
+                    QList<OneSevenLiveRockZoneViewer> users;
+                    JsonToOneSevenLiveRockViewers(response, users);
+
+                    // Merge viewers by userID and collect their types into badgeTypes
+                    QHash<QString, int> idIndex;  // userID -> index in viewersList
+                    viewersList.clear();
+                    for (const auto& user : users) {
+                        QString uid;
+                        QString displayName;
+                        QString picture;
+
+                        // Determine user info based on type
+                        if (user.type == 3) {  // Army
+                            uid = user.armyInfo.user.userID;
+                            displayName = user.armyInfo.user.displayName;
+                            picture = user.armyInfo.user.picture;
+                        } else if (user.type == 2) {  // Guardian
+                            uid = user.guardian.owner.userID;
+                            displayName = user.guardian.owner.displayName;
+                            picture = user.guardian.owner.picture;
+                        } else if (user.type == 1) {  // GiftRankOne
+                            uid = user.giftRankOne.userID;
+                            displayName = user.giftRankOne.displayName;
+                            picture = user.giftRankOne.picture;
+                        } else {  // Type 0 or others
+                            uid = user.displayUser.userID;
+                            displayName = user.displayUser.displayName;
+                            picture = user.displayUser.picture;
+                        }
+
+                        if (uid.isEmpty()) {
+                            continue;
+                        }
+                        if (uid == QString::fromStdString(userID)) {
+                            obs_log(LOG_INFO, "Skipping viewer: matches current user");
+                            continue;
+                        }
+
+                        if (user.anonymousInfo.isInvisible) {
+                            obs_log(LOG_INFO, "Skipping viewer: isInvisible is true");
+                            continue;
+                        }
+
+                        if (user.userAttr.sentPoint <= 0) {
+                            obs_log(LOG_INFO, "Skipping viewer: sentPoint <= 0");
+                            continue;
+                        }
+
+                        if (displayName.trimmed().isEmpty()) {
+                            continue;
+                        }
+
+                        if (idIndex.contains(uid)) {
+                            auto& existing = viewersList[idIndex.value(uid)];
+                            if (!existing.badgeTypes.contains(user.type)) {
+                                existing.badgeTypes.append(user.type);
+                            }
+                        } else {
+                            OneSevenLiveRockZoneViewer base = user;
+
+                            // Force populate displayUser with the extracted info
+                            base.displayUser.userID = uid;
+                            base.displayUser.displayName = displayName;
+                            base.displayUser.picture = picture;
+
+                            base.badgeTypes.clear();
+                            base.badgeTypes.append(user.type);
+                            viewersList.push_back(base);
+                            idIndex.insert(uid, viewersList.size() - 1);
+                        }
+                    }
+
+                    QList<OneSevenLiveRockZoneViewer> sortedViewersList =
+                        SortOneSevenLiveRockZoneViewers(viewersList);
+
+                    // Update UI
+                    // userList->setVisible(true);
+
+                    // --- Incremental Update Section ---
+                    QSet<QString> newUserIDs;
+
+                    // Limit to first 50 viewers to improve performance
+                    if (sortedViewersList.size() > 50) {
+                        sortedViewersList = sortedViewersList.mid(0, 50);
+                    }
+
+                    // First pass: update existing items and create new ones
+                    for (int i = 0; i < sortedViewersList.size(); ++i) {
+                        const auto& user = sortedViewersList[i];
+                        QString uid = user.displayUser.userID;
+                        newUserIDs.insert(uid);
+
+                        QListWidgetItem* item = nullptr;
+                        if (userItemMap.contains(uid)) {
+                            // Existing user
+                            item = userItemMap.value(uid);
+
+                            // Move item to correct position if needed
+                            int currentRow = userList->row(item);
+                            if (currentRow != i && currentRow >= 0) {
+                                // Use a more atomic operation to avoid temporary null items
+                                QListWidgetItem* takenItem = userList->takeItem(currentRow);
+                                if (takenItem == item) {
+                                    userList->insertItem(i, item);
+                                }
+                            }
+                            // Update existing item or recreate widget if it was destroyed by
+                            // takeItem
+                            updateUserItem(item, user, armyNameResponse);
+                        } else {
+                            // New user
+                            item = new QListWidgetItem();
+                            // Must insert item BEFORE setting widget, otherwise setItemWidget fails
+                            userList->insertItem(i, item);
+                            updateUserItem(item, user, armyNameResponse);
+                            userItemMap.insert(uid, item);
+                        }
+                    }
+
+                    // Remove users that no longer exist
+                    auto it = userItemMap.begin();
+                    while (it != userItemMap.end()) {
+                        if (!newUserIDs.contains(it.key())) {
+                            QListWidgetItem* item = it.value();
+                            int row = userList->row(item);
+                            if (row >= 0) {
+                                QWidget* w = userList->itemWidget(item);
+                                if (w) {
+                                    userList->removeItemWidget(item);
+                                    delete w;
+                                }
+                                QListWidgetItem* removed = userList->takeItem(row);
+                                if (removed) {
+                                    delete removed;
+                                }
+                            }
+                            it = userItemMap.erase(it);
+                        } else {
+                            ++it;
+                        }
+                    }
+
+                    // Update empty state visibility
+                    bool isEmpty = sortedViewersList.isEmpty();
+                    if (userList)
+                        userList->setVisible(!isEmpty);
+                    if (emptyListLabel)
+                        emptyListLabel->setVisible(isEmpty);
+
+                    // Safety: if list should be empty but has items, clear it to prevent ghost
+                    // items
+                    if (isEmpty && userList && userList->count() > 0) {
+                        int count = userList->count();
+                        for (int i = 0; i < count; ++i) {
+                            QListWidgetItem* item = userList->item(i);
+                            if (!item)
+                                continue;
+                            QWidget* w = userList->itemWidget(item);
+                            if (w) {
+                                userList->removeItemWidget(item);
+                                delete w;
+                            }
+                        }
+                        userList->clear();
+                        userItemMap.clear();
+                    }
+                } else {
+                    // Show error message
+                    obs_log(LOG_ERROR, "Failed to refresh rock viewers list: %s",
+                            apiWrapper->getLastErrorMessage().toStdString().c_str());
+                }
+            },
+            Qt::QueuedConnection);
+
+        // Clean up after completion
+        thread->quit();
+        worker->deleteLater();
+    });
+
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
+    thread->start();
+}
+
+void OneSevenLiveRockZoneDock::clearArmyNameCache() {
+    QMutexLocker locker(&armyNameMutex);
+    armyNameCached = false;
+    cachedArmyNameResponse = OneSevenLiveArmyNameResponse();
+}
+
+void OneSevenLiveRockZoneDock::clearUserList() {
+    if (userList) {
+        int count = userList->count();
+        for (int i = 0; i < count; ++i) {
+            QListWidgetItem* item = userList->item(i);
+            if (!item)
+                continue;
+            QWidget* w = userList->itemWidget(item);
+            if (w) {
+                userList->removeItemWidget(item);
+                delete w;
+            }
+        }
+        userList->clear();
+        userList->setVisible(false);
+    }
+    userItemMap.clear();
+    if (emptyListLabel) {
+        emptyListLabel->setVisible(true);
+    }
+}
+
+void OneSevenLiveRockZoneDock::onPokeAllClicked() {
+    if (!apiWrapper) {
+        return;
+    }
+
+    // Check if button is already in cooldown
+    if (!pokeAllButton->isEnabled()) {
+        return;
+    }
+
+    std::string roomID;
+    configManager->getConfigValue("RoomID", roomID);
+
+    // Create poke request
+    OneSevenLivePokeAllRequest request;
+    OneSevenLivePokeResponse response;
+    request.liveStreamID = QString::fromStdString(roomID);
+    request.receiverGroup = 2;
+
+    // Send request
+    bool success = apiWrapper->PokeAll(request, response);
+
+    if (success) {
+        // Start cooldown timer
+        cooldownSeconds = 20;
+        pokeAllButton->setEnabled(false);
+        pokeAllButton->setText(QString("0:%1").arg(cooldownSeconds, 2, 10, QChar('0')));
+        cooldownTimer->start();
+    } else {
+        obs_log(LOG_WARNING, "PokeAll failed %s",
+                apiWrapper->getLastErrorMessage().toStdString().c_str());
+    }
+}
+
+void OneSevenLiveRockZoneDock::handleTopLevelChanged(bool topLevel) {
+    if (!topLevel) {
+        // Docked state
+        adjustSize();
+        // May need to force update layout or child widget sizes
+        for (int i = 0; i < userList->count(); ++i) {
+            QListWidgetItem* item = userList->item(i);
+            QWidget* itemWidget = userList->itemWidget(item);
+            if (itemWidget) {
+                itemWidget->adjustSize();
+                item->setSizeHint(itemWidget->sizeHint());
+            }
+        }
+    }
+}
+
+void OneSevenLiveRockZoneDock::onCooldownTimerTimeout() {
+    cooldownSeconds--;
+
+    if (cooldownSeconds <= 0) {
+        // Cooldown finished
+        cooldownTimer->stop();
+        pokeAllButton->setEnabled(true);
+        pokeAllButton->setText(originalButtonText);
+    } else {
+        // Update countdown display
+        pokeAllButton->setText(QString("0:%1").arg(cooldownSeconds, 2, 10, QChar('0')));
+    }
+}

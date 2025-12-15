@@ -20,6 +20,7 @@
 #define ACTION_GETABLYTOKEN "getAblyToken"
 #define ACTION_GETGIFTTABS "getGiftTabs"
 #define ACTION_GETGIFTS "getGifts"
+#define ACTION_GETGIFT "getGift"
 #define ACTION_GETROOMINFO "getRoomInfo"
 
 #define MAX_CONSECUTIVE_FAILURES 10  // Maximum consecutive failure count
@@ -126,12 +127,21 @@ class OneSevenLiveApiWrappers : public QObject {
         return token;
     }
 
+    /**
+     * @brief Set the cancel flag for network requests
+     * @param flag Pointer to atomic bool flag
+     */
+    void setCancelFlag(std::atomic<bool> *flag) {
+        m_cancelFlag = flag;
+    }
+
    protected:
     std::string refresh_token;
     std::string token;
     bool implicit = false;
     uint64_t expire_time = 0;
     int currentScopeVer = 0;
+    std::atomic<bool> *m_cancelFlag = nullptr;
 
    private:
     QString lastErrorMessage;
@@ -146,4 +156,5 @@ class OneSevenLiveApiWrappers : public QObject {
     // Thread-safe helper methods for error message management
     void setLastErrorMessage(const QString &message);
     void clearLastErrorMessage();
+    void initializeApiWrapper();
 };

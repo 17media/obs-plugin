@@ -3,9 +3,24 @@
     "AI_COHOST": "AI 助理",
     "GIVE_GIFT": "送給主播",
     "GIVE_LUCKYBAG_GIFT": "打開了 {luckyBagName}，送出 {giftName} ({point})",
+    "GIVE_GIFT_DEFAULT": "送了一個禮物 ({point})",
     "EMPTY_CHAT_MESSAGE": "觀眾留言會出現在這裡，和大家互動吧！",
     "POKE_ONE": "主播戳了 {receiverName}",
     "POKE_BACK": "回戳了主播",
     "POKE_ALL": "主播戳了 所有觀眾"
+  },
+  "PlatformSelector": {
+    "label": "平台選擇",
+    "platforms": {
+      "all": "全部",
+      "17live": "17live",
+      "youtube": "YouTube",
+      "twitch": "Twitch"
+    },
+    "status": {
+      "connected": "已連線",
+      "disconnected": "未連線",
+      "format": "{status}"
+    }
   }
 }

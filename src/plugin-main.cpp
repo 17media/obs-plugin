@@ -21,23 +21,22 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
+#include <plugin-support.h>
 #include <util/platform.h>
 #include <util/threading.h>
 
+#include <QCoreApplication>
+#include <QEventLoop>
 #include <QLabel>
 #include <QMainWindow>
 #include <QStatusBar>
+#include <QThread>
+#include <QTimer>
 #include <thread>
 #include <util/util.hpp>
 
-#if defined(__APPLE__)
-#include "include/wrapper/cef_library_loader.h"
-#endif
-
-#include <plugin-support.h>
-
-#include "17live/CefDummy.hpp"
 #include "17live/OneSevenLiveCoreManager.hpp"
+#include "17live/utility/Common.hpp"
 
 using namespace std;
 
@@ -47,20 +46,27 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 bool obs_module_load(void) {
     obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
 
-#if defined(__APPLE__)
-    /* Load CEF at runtime as required on macOS */
-    CefScopedLibraryLoader library_loader;
-    if (!library_loader.LoadInMain()) {
-        obs_log(LOG_ERROR, "Failed to load CEF library");
-        return false;
-    }
-#endif
-
-    cef_view_load();  // Initialize CEF view functionality
-
-    obs_log(LOG_INFO, "[%s] loaded successfully (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
+    InitThreadPool();
 
     return true;
+}
+
+static void schedule_init_core_impl(QMainWindow* mainWindow, bool* isRunningPtr) {
+    try {
+        auto& manager = OneSevenLiveCoreManager::getInstance(mainWindow);
+        if (!manager.initialize()) {
+            obs_log(LOG_ERROR, "OneSevenLiveCoreManager initialization failed");
+            if (isRunningPtr)
+                *isRunningPtr = false;
+            return;
+        }
+        obs_log(LOG_INFO, "OneSevenLiveCoreManager initialized successfully");
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "OneSevenLiveCoreManager initialization exception: %s", e.what());
+        if (isRunningPtr)
+            *isRunningPtr = false;
+        return;
+    }
 }
 
 void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] void* data) {
@@ -89,19 +95,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
         mainWindow->statusBar()->addWidget(label);
 
         // Initialize OneSevenLiveCoreManager
-        try {
-            auto& manager = OneSevenLiveCoreManager::getInstance(mainWindow);
-            if (!manager.initialize()) {
-                obs_log(LOG_ERROR, "OneSevenLiveCoreManager initialization failed");
-                isRunning = false;
-                return;
-            }
-            obs_log(LOG_INFO, "OneSevenLiveCoreManager initialized successfully");
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "OneSevenLiveCoreManager initialization exception: %s", e.what());
-            isRunning = false;
-            return;
-        }
+        schedule_init_core_impl(mainWindow, &isRunning);
 
         obs_log(LOG_INFO, "[obs-17live]: init done");
         break;
@@ -121,13 +115,23 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
         // Release OneSevenLiveCoreManager resources
         try {
             auto& manager = OneSevenLiveCoreManager::getInstance();
+            manager.setShuttingDown(true);
             manager.shutdown();
+
+            // Wait for all background tasks to complete BEFORE destroying the manager
+            // This ensures tasks don't access destroyed members (like apiWrapper or m_cancelFlag)
+            DestroyThreadPool();
+
+            OneSevenLiveCoreManager::destroyInstance();
+
+            // Force process deferred deletions (like QDockWidget::deleteLater)
+            // to ensure widgets are destroyed before the plugin library is unloaded
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+
             obs_log(LOG_INFO, "OneSevenLiveCoreManager resources released");
         } catch (const std::exception& e) {
             obs_log(LOG_ERROR, "OneSevenLiveCoreManager resource release exception: %s", e.what());
         }
-
-        cef_view_unload();
 
         obs_log(LOG_INFO, "shutdown complete");
         break;
@@ -142,5 +146,7 @@ MODULE_EXPORT void obs_module_post_load(void) {
 }
 
 void obs_module_unload(void) {
+    // Ensure thread pool is destroyed on unload as well
+    DestroyThreadPool();
     obs_log(LOG_INFO, "[obs-17live] plugin unloaded");
 }

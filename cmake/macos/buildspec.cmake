@@ -18,9 +18,7 @@ function(_check_dependencies_macos)
   set(qt6_destination "obs-deps-qt6-VERSION-ARCH")
   set(obs-studio_filename "VERSION.tar.gz")
   set(obs-studio_destination "obs-studio-VERSION")
-  set(cef_filename "cef_binary_VERSION_macos_ARCH_REVISION.tar.xz")
-  set(cef_destination "cef_binary_VERSION_macos_ARCH")
-  set(dependencies_list prebuilt qt6 cef obs-studio)
+  set(dependencies_list prebuilt qt6 obs-studio)
 
   _check_dependencies()
 

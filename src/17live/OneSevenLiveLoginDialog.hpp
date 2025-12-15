@@ -29,18 +29,16 @@ class OneSevenLiveLoginDialog : public QDialog {
     void loginSuccess(const OneSevenLiveLoginData& loginData);
 
    private:
-    QLabel* titleLabel;
-    QLineEdit* usernameEdit;
-    QLineEdit* passwordEdit;
-    QPushButton* showPasswordButton;
-    QPushButton* loginButton;
-    QLabel* errorLabel;
-    QWidget* errorContainer;
-    QLabel* forgotPasswordLabel;
-    QLabel* registerLabel;
-    QLabel* disclaimerLabel;
-    QLabel* passwordLabel;
-    QPushButton* passwordQuestionButton;
-    QLabel* forgotPasswordLinkLabel;
-    OneSevenLiveApiWrappers* apiWrapper;
+    QLineEdit* usernameEdit = nullptr;
+    QLineEdit* passwordEdit = nullptr;
+    QPushButton* showPasswordButton = nullptr;
+    QPushButton* loginButton = nullptr;
+    QLabel* errorLabel = nullptr;
+    QWidget* errorContainer = nullptr;
+    QLabel* registerLabel = nullptr;
+    QLabel* disclaimerLabel = nullptr;
+    QLabel* passwordLabel = nullptr;
+    QPushButton* passwordQuestionButton = nullptr;
+    QLabel* forgotPasswordLinkLabel = nullptr;
+    OneSevenLiveApiWrappers* apiWrapper = nullptr;
 };
