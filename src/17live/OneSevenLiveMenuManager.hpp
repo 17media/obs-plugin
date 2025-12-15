@@ -28,7 +28,8 @@ class OneSevenLiveMenuManager : public QObject {
 
     // Update dock window visibility status
     void updateDockVisibility(bool chatRoomVisible, bool broadcastVisible, bool liveListVisible,
-                              bool rockZoneVisible = false);
+                              bool rockZoneVisible = false, bool multiRtmpVisible = false,
+                              bool previewDockVisible = false);
 
     // Update menu item enable status
     void updateMenuItemsEnabled();
@@ -39,28 +40,36 @@ class OneSevenLiveMenuManager : public QObject {
     void streamingClicked();
     void liveListClicked();
     void rockZoneClicked();
+    void multiRtmpClicked();
+    void previewDockClicked();
     void helpClicked();
     void loginClicked();
     void logoutClicked();
     void checkUpdateClicked();
+    void diagnosticsClicked();
 
    private:
-    QMainWindow* mainWindow;
-    QMenu* menu;
-    QMenu* dockSubMenu;
-    QAction* chatRoomAction;
-    QAction* settingsAction;
-    QAction* broadcastAction;
-    QAction* liveListAction;
-    QAction* rockZoneAction;
-    QAction* helpAction;
-    QAction* checkUpdateAction;
-    QAction* loginAction;
-    bool isLoggedIn;
+    QMainWindow* mainWindow = nullptr;
+    QMenu* menu = nullptr;
+    QMenu* dockSubMenu = nullptr;
+    QAction* chatRoomAction = nullptr;
+    QAction* settingsAction = nullptr;
+    QAction* broadcastAction = nullptr;
+    QAction* liveListAction = nullptr;
+    QAction* rockZoneAction = nullptr;
+    QAction* multiRtmpAction = nullptr;
+    QAction* previewDockAction = nullptr;
+    QAction* helpAction = nullptr;
+    QAction* checkUpdateAction = nullptr;
+    QAction* diagnosticsAction = nullptr;
+    QAction* loginAction = nullptr;
+    bool isLoggedIn = false;
 
     // Dock window visibility status
-    bool isChatRoomVisible;
-    bool isBroadcastVisible;
-    bool isLiveListVisible;
-    bool isRockZoneVisible;
+    bool isChatRoomVisible = false;
+    bool isBroadcastVisible = false;
+    bool isLiveListVisible = false;
+    bool isRockZoneVisible = false;
+    bool isMultiRtmpVisible = false;
+    bool isPreviewDockVisible = false;
 };

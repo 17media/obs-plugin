@@ -1,5 +1,6 @@
 #include "Common.hpp"
 
+#include <obs-module.h>
 #include <obs.h>
 
 #include <algorithm>
@@ -20,7 +21,57 @@
 #include <sstream>  // For std::stringstream (Linux)
 #endif
 
+#include <QRunnable>
+#include <QThreadPool>
+
 #include "plugin-support.h"
+
+// Helper class for QThreadPool
+class TaskRunnable : public QRunnable {
+   public:
+    std::function<void()> m_task;
+
+    TaskRunnable(std::function<void()> task) : m_task(task) {
+        setAutoDelete(true);
+    }
+
+    void run() override {
+        if (m_task)
+            m_task();
+    }
+};
+
+static QThreadPool* s_threadPool = nullptr;
+
+void InitThreadPool() {
+    if (!s_threadPool) {
+        s_threadPool = new QThreadPool();
+        // Set max thread count if needed, or leave default
+        obs_log(LOG_INFO, "ThreadPool initialized");
+    }
+}
+
+void DestroyThreadPool() {
+    if (s_threadPool) {
+        obs_log(LOG_INFO, "Destroying ThreadPool - waiting for tasks...");
+        s_threadPool->clear();        // Clear pending tasks
+        s_threadPool->waitForDone();  // Wait for running tasks
+        delete s_threadPool;
+        s_threadPool = nullptr;
+        obs_log(LOG_INFO, "ThreadPool destroyed");
+    }
+}
+
+void ScheduleOBSTask(std::function<void()> task) {
+    if (s_threadPool) {
+        s_threadPool->start(new TaskRunnable(task));
+    } else {
+        // Fallback to global if not initialized (e.g. early init or unit tests),
+        // but warn about it
+        // obs_log(LOG_WARNING, "ScheduleOBSTask called without local ThreadPool, using global");
+        QThreadPool::globalInstance()->start(new TaskRunnable(task));
+    }
+}
 
 std::string GetCurrentLanguage() {
     const char* locale = obs_get_locale();
@@ -222,4 +273,33 @@ std::string GetCurrentPlatformUUID() {
 #else
     return "Unsupported OS for UUID";
 #endif
+}
+
+obs_data_t* ObsDataFromJson(nlohmann::json j) {
+    obs_data_t* r = nullptr;
+
+    if (j.type() == nlohmann::json::value_t::null) {
+        r = obs_data_create();
+        obs_log(LOG_DEBUG, "[ObsDataFromJson] Created empty obs_data_t for null JSON");
+    } else {
+        auto jstr = j.dump();
+        r = obs_data_create_from_json(jstr.c_str());
+        if (!r) {
+            obs_log(LOG_ERROR, "[ObsDataFromJson] Failed to create obs_data_t from JSON: %s",
+                    jstr.c_str());
+            return nullptr;
+        }
+        obs_log(LOG_DEBUG, "[ObsDataFromJson] Created obs_data_t from JSON: %s", jstr.c_str());
+    }
+
+    // DO NOT release here - caller is responsible for managing the returned pointer
+    return r;
+}
+
+std::string get_obs_module_data_path_str() {
+    const char* path = obs_get_module_data_path(obs_current_module());
+    if (!path) {
+        return "";
+    }
+    return std::string(path);
 }

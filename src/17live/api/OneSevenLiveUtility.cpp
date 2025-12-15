@@ -74,7 +74,7 @@ QString OneSevenLiveUtility::displayOpenID(const OneSevenLiveRockZoneViewer &vie
 }
 
 QString OneSevenLiveUtility::checkingLevelBadgeResource(const OneSevenLiveRockZoneViewer &viewer) {
-    const int lv = viewer.displayUser.checkinLevel;
+    const int lv = viewer.userAttr.checkinLevel;
     switch (lv) {
     case 0:
     case 1:
@@ -96,15 +96,6 @@ QString OneSevenLiveUtility::checkingLevelBadgeResource(const OneSevenLiveRockZo
     default:
         return QString();
     }
-}
-
-static inline bool isZh(const QString &locale) {
-    return locale.startsWith("zh", Qt::CaseInsensitive);
-}
-
-static inline bool isJa(const QString &locale) {
-    return locale.startsWith("ja", Qt::CaseInsensitive) ||
-           locale.startsWith("jp", Qt::CaseInsensitive);
 }
 
 QString OneSevenLiveUtility::badgeLabel(int badgeType, int rank,

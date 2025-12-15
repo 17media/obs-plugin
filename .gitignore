@@ -130,3 +130,5 @@ __pycache__/
 .ipynb_checkpoints/
 .trae/
 .obspluginrc.json
+
+output/

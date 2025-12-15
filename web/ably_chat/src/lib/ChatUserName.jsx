@@ -11,7 +11,7 @@ import IconWrapper from './IconWrapper';
 import StreamerPicture from './StreamerPicture';
 
 export const NameWrapper = styled.span`
-  color: ${props => props.nameColor || mapLevelToTextColor(props.level)};
+  color: ${props => props.$nameColor || mapLevelToTextColor(props.$level)};
   cursor: pointer;
 `;
 
@@ -29,8 +29,8 @@ const ChatUserName = ({
         </IconWrapper>
     ) : (
         <NameWrapper
-            level={normalizeLevel(level)}
-            nameColor={nameColor}
+            $level={normalizeLevel(level)}
+            $nameColor={nameColor}
         >
             {openID || displayName}
         </NameWrapper>

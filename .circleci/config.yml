@@ -165,7 +165,7 @@ jobs:
       - run:
           name: CMake Configure
           command: |
-            CMAKE_ARGS="-DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
+            CMAKE_ARGS="-DYOUTUBE_API_CLIENT_ID=\"$YOUTUBE_API_CLIENT_ID\" -DYOUTUBE_API_CLIENT_SECRET=\"$YOUTUBE_API_CLIENT_SECRET\" -DTWITCH_API_CLIENT_ID=\"$TWITCH_API_CLIENT_ID\" -DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
             
             # Add architecture parameter if specified
             if [ -n "<< parameters.cmake_arch >>" ]; then
@@ -424,7 +424,7 @@ jobs:
       - run:
           name: CMake Configure
           command: |
-            cmake --preset windows-x64 -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
+            cmake --preset windows-x64 -DYOUTUBE_API_CLIENT_ID="$env:YOUTUBE_API_CLIENT_ID" -DYOUTUBE_API_CLIENT_SECRET="$env:YOUTUBE_API_CLIENT_SECRET" -DTWITCH_API_CLIENT_ID="$env:TWITCH_API_CLIENT_ID" -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
       
       # Build the project
       - run:
@@ -467,10 +467,13 @@ jobs:
             
             # Move the generated installer from output directory to root directory for artifact upload
             $installerPattern = "17liveOBSPlugin-windows-v*.exe"
+            $zipPattern = "17liveOBSPlugin-windows-v*-non-installer.zip"
             if (Test-Path "output") {
               $installerFile = Get-ChildItem -Path "output" -Name $installerPattern | Select-Object -First 1
+              $zipFile = Get-ChildItem -Path "output" -Name $zipPattern | Select-Object -First 1
             } else {
               $installerFile = $null
+              $zipFile = $null
             }
             if ($installerFile) {
               Move-Item "output/$installerFile" "../../$installerFile"
@@ -481,6 +484,16 @@ jobs:
               Write-Host "Installer built successfully: $installerFile"
             } else {
               Write-Error "Installer file not found in output directory after build"
+              exit 1
+            }
+            if ($zipFile) {
+              Move-Item "output/$zipFile" "../../$zipFile"
+              echo "NON_INSTALLER_NAME=$zipFile" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+              [Environment]::SetEnvironmentVariable("NON_INSTALLER_NAME", $zipFile, "Machine")
+              $env:NON_INSTALLER_NAME = $zipFile
+              Write-Host "Non-installer zip built successfully: $zipFile"
+            } else {
+              Write-Error "Non-installer zip file not found in output directory after build"
               exit 1
             }
       
@@ -507,6 +520,12 @@ jobs:
               $artifactPath = Join-Path "artifacts" $expectedName
               Copy-Item $env:INSTALLER_NAME $artifactPath -Force
             }
+            if ($env:NON_INSTALLER_NAME -and (Test-Path $env:NON_INSTALLER_NAME)) {
+              New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+              # Keep the exact filename produced (already contains version and -non-installer suffix)
+              $zipArtifactPath = Join-Path "artifacts" $env:NON_INSTALLER_NAME
+              Copy-Item $env:NON_INSTALLER_NAME $zipArtifactPath -Force
+            }
       - store_artifacts:
           path: artifacts
           destination: packages
@@ -523,21 +542,32 @@ workflows:
   # Tag-based build workflow - supports both production and stage builds
   tag-build:
     jobs:
+      # - build-macos:
+      #     name: build-macos-apple-silicon
+      #     arch_name: "macAppleSilicon"
+      #     cmake_arch: ""
+      #     filters:
+      #       tags:
+      #         only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
+      #       branches:
+      #         ignore: /.*/
+      #     context:
+      #       - macos-signing
+      # - build-macos:
+      #     name: build-macos-intel
+      #     arch_name: "macIntel"
+      #     cmake_arch: "x86_64"
+      #     filters:
+      #       tags:
+      #         only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
+      #       branches:
+      #         ignore: /.*/
+      #     context:
+      #       - macos-signing
       - build-macos:
-          name: build-macos-apple-silicon
-          arch_name: "macAppleSilicon"
-          cmake_arch: ""
-          filters:
-            tags:
-              only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
-            branches:
-              ignore: /.*/
-          context:
-            - macos-signing
-      - build-macos:
-          name: build-macos-intel
-          arch_name: "macIntel"
-          cmake_arch: "x86_64"
+          name: build-macos-universal
+          arch_name: "mac-universal"
+          # cmake_arch: "arm64;x86_64"
           filters:
             tags:
               only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
@@ -559,18 +589,26 @@ workflows:
     jobs:
       - hold:
           type: approval
+      # - build-macos:
+      #     name: build-macos-apple-silicon
+      #     arch_name: "macAppleSilicon"
+      #     cmake_arch: ""
+      #     requires:
+      #       - hold
+      #     context:
+      #       - macos-signing
+      # - build-macos:
+      #     name: build-macos-intel
+      #     arch_name: "macIntel"
+      #     cmake_arch: "x86_64"
+      #     requires:
+      #       - hold
+      #     context:
+      #       - macos-signing
       - build-macos:
-          name: build-macos-apple-silicon
-          arch_name: "macAppleSilicon"
-          cmake_arch: ""
-          requires:
-            - hold
-          context:
-            - macos-signing
-      - build-macos:
-          name: build-macos-intel
-          arch_name: "macIntel"
-          cmake_arch: "x86_64"
+          name: build-macos-universal
+          arch_name: "mac-universal"
+          # cmake_arch: "arm64;x86_64"
           requires:
             - hold
           context:

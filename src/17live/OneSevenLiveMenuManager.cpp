@@ -14,9 +14,11 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
       isChatRoomVisible(false),
       isBroadcastVisible(false),
       isLiveListVisible(false),
-      isRockZoneVisible(false) {
+      isRockZoneVisible(false),
+      isMultiRtmpVisible(false),
+      isPreviewDockVisible(false) {
     // Create 17Live menu
-    menu = mainWindow->menuBar()->addMenu(obs_module_text("17Live"));
+    menu = mainWindow->menuBar()->addMenu(obs_module_text("17LIVE"));
 
     // Add submenu for dock menu
     dockSubMenu = new QMenu(obs_module_text("Menu.Dock"));
@@ -29,11 +31,17 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     broadcastAction = dockSubMenu->addAction(obs_module_text("Menu.Broadcast"));
     connect(broadcastAction, &QAction::triggered, this, [this]() { emit streamingClicked(); });
 
-    // rockZoneAction = dockSubMenu->addAction(obs_module_text("Menu.RockZone"));
-    // connect(rockZoneAction, &QAction::triggered, this, [this]() { emit rockZoneClicked(); });
+    rockZoneAction = dockSubMenu->addAction(obs_module_text("Menu.RockZone"));
+    connect(rockZoneAction, &QAction::triggered, this, [this]() { emit rockZoneClicked(); });
 
     liveListAction = dockSubMenu->addAction(obs_module_text("Menu.LiveList"));
     connect(liveListAction, &QAction::triggered, this, [this]() { emit liveListClicked(); });
+
+    multiRtmpAction = dockSubMenu->addAction(obs_module_text("MultiRTMP.Dock.Title"));
+    connect(multiRtmpAction, &QAction::triggered, this, [this]() { emit multiRtmpClicked(); });
+
+    previewDockAction = dockSubMenu->addAction(obs_module_text("Menu.PreviewDock"));
+    connect(previewDockAction, &QAction::triggered, this, [this]() { emit previewDockClicked(); });
 
     menu->addSeparator();
 
@@ -50,6 +58,10 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     checkUpdateAction = menu->addAction(obs_module_text("Menu.CheckUpdate"));
     connect(checkUpdateAction, &QAction::triggered, this, &OneSevenLiveMenuManager::checkUpdate);
 
+    // Create diagnostics menu item
+    diagnosticsAction = menu->addAction(obs_module_text("Menu.Diagnostics"));
+    connect(diagnosticsAction, &QAction::triggered, this, [this]() { emit diagnosticsClicked(); });
+
     menu->addSeparator();
 
     // Create login menu item
@@ -63,11 +75,15 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     chatRoomAction->setCheckable(true);
     broadcastAction->setCheckable(true);
     liveListAction->setCheckable(true);
-    // rockZoneAction->setCheckable(true);
+    rockZoneAction->setCheckable(true);
+    multiRtmpAction->setCheckable(true);
+    previewDockAction->setCheckable(true);
     chatRoomAction->setChecked(false);
     broadcastAction->setChecked(false);
     liveListAction->setChecked(false);
-    // rockZoneAction->setChecked(false);
+    rockZoneAction->setChecked(false);
+    multiRtmpAction->setChecked(false);
+    previewDockAction->setChecked(false);
 }
 
 OneSevenLiveMenuManager::~OneSevenLiveMenuManager() {}
@@ -109,12 +125,15 @@ void OneSevenLiveMenuManager::checkUpdate() {
 }
 
 void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible,
-                                                   bool liveListVisible, bool rockZoneVisible) {
+                                                   bool liveListVisible, bool rockZoneVisible,
+                                                   bool multiRtmpVisible, bool previewDockVisible) {
     // Update visibility status variables
     isChatRoomVisible = chatRoomVisible;
     isBroadcastVisible = broadcastVisible;
     isLiveListVisible = liveListVisible;
     isRockZoneVisible = rockZoneVisible;
+    isMultiRtmpVisible = multiRtmpVisible;
+    isPreviewDockVisible = previewDockVisible;
 
     // Update menu item checked status
     if (chatRoomAction) {
@@ -132,10 +151,20 @@ void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool br
         liveListAction->setChecked(isLiveListVisible);
     }
 
-    // if (rockZoneAction) {
-    //     rockZoneAction->setCheckable(true);
-    //     rockZoneAction->setChecked(isRockZoneVisible);
-    // }
+    if (rockZoneAction) {
+        rockZoneAction->setCheckable(true);
+        rockZoneAction->setChecked(isRockZoneVisible);
+    }
+
+    if (multiRtmpAction) {
+        multiRtmpAction->setCheckable(true);
+        multiRtmpAction->setChecked(isMultiRtmpVisible);
+    }
+
+    if (previewDockAction) {
+        previewDockAction->setCheckable(true);
+        previewDockAction->setChecked(isPreviewDockVisible);
+    }
 }
 
 void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
@@ -143,17 +172,20 @@ void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
     chatRoomAction->setEnabled(isLoggedIn);
     broadcastAction->setEnabled(isLoggedIn);
     liveListAction->setEnabled(isLoggedIn);
-    // rockZoneAction->setEnabled(isLoggedIn);
+    rockZoneAction->setEnabled(isLoggedIn);
+    multiRtmpAction->setEnabled(isLoggedIn);
+    previewDockAction->setEnabled(isLoggedIn);
+    // Diagnostics action is always enabled regardless of login status
 }
 
 void OneSevenLiveMenuManager::cleanup() {
     if (dockSubMenu) {
-        delete dockSubMenu;
+        dockSubMenu->deleteLater();
         dockSubMenu = nullptr;
     }
 
     if (menu) {
-        delete menu;
+        menu->deleteLater();
         menu = nullptr;
     }
 
@@ -163,4 +195,5 @@ void OneSevenLiveMenuManager::cleanup() {
     helpAction = nullptr;
     loginAction = nullptr;
     checkUpdateAction = nullptr;
+    diagnosticsAction = nullptr;
 }

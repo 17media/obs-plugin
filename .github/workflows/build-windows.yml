@@ -1,10 +1,12 @@
 name: Build OBS 17Live Plugin - Windows
 
 on:
-  # push:
-  #   tags:
-  #     - 'v*.*.*'        # Production builds (e.g., v1.0.0)
-  #     - 'v*.*.*-stage'   # Stage builds (e.g., v1.0.0-stage)
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*.*'
+      - 'v*.*.*-stage'
+      - 'v*.*.*.*-stage'
   workflow_dispatch:
     inputs:
       environment:
@@ -16,7 +18,7 @@ on:
           - stage
           - production
       version:
-        description: "Version number (e.g., 1.0.0)"
+        description: "Version number (e.g., 1.0.0 or 1.1.4.1)"
         required: false
         default: "0.0.0"
         type: string
@@ -60,8 +62,9 @@ jobs:
         with:
           path: |
             web/ably_chat/node_modules
+            web/ably_client/node_modules
             ~\AppData\Roaming\npm-cache
-          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('web/ably_chat/package-lock.json', 'web/ably_client/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -85,6 +88,13 @@ jobs:
           } else {
             Write-Host "Skipping npm install (dependencies restored from cache)"
           }
+          npm run build
+
+      - name: Install and Build Ably Client
+        shell: pwsh
+        run: |
+          cd web/ably_client
+          if ("${{ steps.npm-cache.outputs.cache-hit }}" -ne "true") { npm install }
           npm run build
       
       - name: Set ENV and Version
@@ -136,10 +146,13 @@ jobs:
       
       - name: CMake Configure
         shell: pwsh
-        run: |
-          cmake --preset windows-x64 -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
         env:
+          YOUTUBE_API_CLIENT_ID: ${{ vars.YOUTUBE_API_CLIENT_ID }}
+          YOUTUBE_API_CLIENT_SECRET: ${{ vars.YOUTUBE_API_CLIENT_SECRET }}
+          TWITCH_API_CLIENT_ID: ${{ vars.TWITCH_API_CLIENT_ID }}
           ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
+        run: |
+          cmake --preset windows-x64 -DYOUTUBE_API_CLIENT_ID="$env:YOUTUBE_API_CLIENT_ID" -DYOUTUBE_API_CLIENT_SECRET="$env:YOUTUBE_API_CLIENT_SECRET" -DTWITCH_API_CLIENT_ID="$env:TWITCH_API_CLIENT_ID" -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
       
       - name: Build Project
         shell: pwsh

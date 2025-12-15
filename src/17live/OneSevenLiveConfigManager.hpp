@@ -43,6 +43,9 @@ class OneSevenLiveConfigManager {
 
     bool getConfigValue(const std::string &key, std::string &value);
 
+    // Get current room ID
+    qint64 getRoomID();
+
     bool saveLiveConfig(const OneSevenLiveStreamInfo &streamInfo);
     bool loadAllLiveConfig(std::vector<OneSevenLiveStreamInfo> &streamInfo);
     bool saveAllLiveConfig(const std::vector<OneSevenLiveStreamInfo> &streamInfo);
@@ -61,6 +64,30 @@ class OneSevenLiveConfigManager {
 
     bool saveGifts(const json &gifts);
     bool loadGifts(json &gifts);
+
+    // Twitch token management
+    bool setTwitchTokens(const QString &accessToken, qint64 fetchedAtEpochSec);
+    bool getTwitchTokens(QString &accessToken, qint64 &fetchedAtEpochSec);
+    bool clearTwitchTokens();
+
+    // YouTube token management
+    bool setYouTubeAccessToken(const QString &accessToken, int expiresInSec,
+                               qint64 fetchedAtEpochSec);
+    bool getYouTubeAccessToken(QString &accessToken, int &expiresInSec, qint64 &fetchedAtEpochSec);
+    bool clearYouTubeAccessToken();
+
+    bool setYouTubeRefreshToken(const QString &refreshToken, int expiresInSec,
+                                qint64 fetchedAtEpochSec);
+    bool getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec,
+                                qint64 &fetchedAtEpochSec);
+    bool clearYouTubeRefreshToken();
+
+    // Twitch user information management
+    bool setTwitchUserInfo(const QString &userId, const QString &login, const QString &displayName,
+                           const QString &profileImageUrl, const QString &email, int viewCount);
+    bool getTwitchUserInfo(QString &userId, QString &login, QString &displayName,
+                           QString &profileImageUrl, QString &email, int &viewCount);
+    bool clearTwitchUserInfo();
 
    private:
     bool initialized = false;

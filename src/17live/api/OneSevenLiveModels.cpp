@@ -121,8 +121,9 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
 
             if (userInfoJson.contains("lastUsedHashtags") &&
                 userInfoJson["lastUsedHashtags"].is_array()) {
-                    // Parse last used hashtags
-                JsonToOneSevenLiveHashtags(userInfoJson["lastUsedHashtags"], loginData.userInfo.lastUsedHashtags);
+                // Parse last used hashtags
+                JsonToOneSevenLiveHashtags(userInfoJson["lastUsedHashtags"],
+                                           loginData.userInfo.lastUsedHashtags);
             }
 
             if (userInfoJson.contains("levelBadges") && userInfoJson["levelBadges"].is_array()) {
@@ -135,7 +136,8 @@ bool JsonToOneSevenLiveLoginData(const Json &json, OneSevenLiveLoginData &loginD
             // Object attributes - monthlyVIPBadges
             // Note: This assumes QVariantMap can be built directly from JSON object, actual
             // implementation may need adjustment
-            if (userInfoJson["monthlyVIPBadges"].is_object()) {
+            if (userInfoJson.contains("monthlyVIPBadges") &&
+                userInfoJson["monthlyVIPBadges"].is_object()) {
                 // Need to handle monthlyVIPBadges based on actual situation
                 // Simple example:
                 // const auto& badges = userInfoJson["monthlyVIPBadges"].object_items();
@@ -425,7 +427,7 @@ bool JsonToOneSevenLiveArmyInfo(const nlohmann::json &json, OneSevenLiveArmyInfo
         return false;
     }
 
-    if (json["user"].is_object()) {
+    if (json.contains("user") && json["user"].is_object()) {
         JsonToOneSevenLiveArmyInfoUser(json["user"], armyInfo.user);
     }
 
@@ -522,7 +524,7 @@ bool JsonToOneSevenLiveUserAttr(const nlohmann::json &json, OneSevenLiveUserAttr
         userAttr.gloryroadMode = json["gloryroadMode"].get<int>();
     }
 
-    if (json["gloryroadInfo"].is_object()) {
+    if (json.contains("gloryroadInfo") && json["gloryroadInfo"].is_object()) {
         JsonToOneSevenLiveGloryroadInfo(json["gloryroadInfo"], userAttr.gloryroadInfo);
     }
 
@@ -619,7 +621,7 @@ bool JsonToOneSevenLiveDisplayUser(const nlohmann::json &json,
         displayUser.fgColor = QString::fromStdString(json["fgColor"].get<std::string>());
     }
 
-    if (json["gloryroadInfo"].is_object()) {
+    if (json.contains("gloryroadInfo") && json["gloryroadInfo"].is_object()) {
         JsonToOneSevenLiveGloryroadInfo(json["gloryroadInfo"], displayUser.gloryroadInfo);
     }
 
@@ -772,6 +774,73 @@ bool OneSevenLiveGiftRankOneToJson(const OneSevenLiveGiftRankOne &giftRankOne,
     return true;
 }
 
+bool JsonToOneSevenLiveGuardianOwner(const nlohmann::json &json, OneSevenLiveGuardianOwner &owner) {
+    if (json.contains("userID") && json["userID"].is_string()) {
+        owner.userID = QString::fromStdString(json["userID"].get<std::string>());
+    }
+    if (json.contains("displayName") && json["displayName"].is_string()) {
+        owner.displayName = QString::fromStdString(json["displayName"].get<std::string>());
+    }
+    if (json.contains("picture") && json["picture"].is_string()) {
+        owner.picture = QString::fromStdString(json["picture"].get<std::string>());
+    }
+    if (json.contains("name") && json["name"].is_string()) {
+        owner.name = QString::fromStdString(json["name"].get<std::string>());
+    }
+    if (json.contains("level") && json["level"].is_number()) {
+        owner.level = json["level"].get<int>();
+    }
+    if (json.contains("openID") && json["openID"].is_string()) {
+        owner.openID = QString::fromStdString(json["openID"].get<std::string>());
+    }
+    if (json.contains("region") && json["region"].is_string()) {
+        owner.region = QString::fromStdString(json["region"].get<std::string>());
+    }
+    if (json.contains("gloryroadMode") && json["gloryroadMode"].is_number()) {
+        owner.gloryroadMode = json["gloryroadMode"].get<int>();
+    }
+    return true;
+}
+
+bool OneSevenLiveGuardianOwnerToJson(const OneSevenLiveGuardianOwner &owner, nlohmann::json &json) {
+    json = {
+        {"userID", owner.userID.toStdString()},
+        {"displayName", owner.displayName.toStdString()},
+        {"picture", owner.picture.toStdString()},
+        {"name", owner.name.toStdString()},
+        {"level", owner.level},
+        {"openID", owner.openID.toStdString()},
+        {"region", owner.region.toStdString()},
+        {"gloryroadMode", owner.gloryroadMode},
+    };
+    return true;
+}
+
+bool JsonToOneSevenLiveGuardian(const nlohmann::json &json, OneSevenLiveGuardian &guardian) {
+    if (json.contains("owner") && json["owner"].is_object()) {
+        JsonToOneSevenLiveGuardianOwner(json["owner"], guardian.owner);
+    }
+    if (json.contains("bidPrice") && json["bidPrice"].is_number()) {
+        guardian.bidPrice = json["bidPrice"].get<int>();
+    }
+    if (json.contains("expireTime") && json["expireTime"].is_number()) {
+        guardian.expireTime = json["expireTime"].get<qint64>();
+    }
+    return true;
+}
+
+bool OneSevenLiveGuardianToJson(const OneSevenLiveGuardian &guardian, nlohmann::json &json) {
+    nlohmann::json ownerJson;
+    OneSevenLiveGuardianOwnerToJson(guardian.owner, ownerJson);
+
+    json = {
+        {"owner", ownerJson},
+        {"bidPrice", guardian.bidPrice},
+        {"expireTime", static_cast<long long>(guardian.expireTime)},
+    };
+    return true;
+}
+
 // Convert JSON to OneSevenLiveRockZoneViewer
 bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json,
                                       OneSevenLiveRockZoneViewer &viewer) {
@@ -811,6 +880,10 @@ bool JsonToOneSevenLiveRockZoneViewer(const nlohmann::json &json,
         JsonToOneSevenLiveGiftRankOne(json["giftRankOne"], viewer.giftRankOne);
     }
 
+    if (json.contains("guardian") && json["guardian"].is_object()) {
+        JsonToOneSevenLiveGuardian(json["guardian"], viewer.guardian);
+    }
+
     return true;
 }
 
@@ -835,6 +908,9 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer,
     nlohmann::json giftRankOneJson;
     OneSevenLiveGiftRankOneToJson(viewer.giftRankOne, giftRankOneJson);
 
+    nlohmann::json guardianJson;
+    OneSevenLiveGuardianToJson(viewer.guardian, guardianJson);
+
     json = nlohmann::json{
         {"type", viewer.type},
         {"armyInfo", armyInfoJson},
@@ -844,6 +920,7 @@ bool OneSevenLiveRockZoneViewerToJson(const OneSevenLiveRockZoneViewer &viewer,
         {"armyLevel", viewer.armyLevel},
         {"displayUser", displayUserJson},
         {"giftRankOne", giftRankOneJson},
+        {"guardian", guardianJson},
     };
 
     return true;
@@ -1789,7 +1866,7 @@ bool JsonToOneSevenLiveConfigStreamer(const nlohmann::json &json,
 
     try {
         // Parse event section
-        if (json["event"].is_object()) {
+        if (json.contains("event") && json["event"].is_object()) {
             JsonToOneSevenLiveEventSection(json["event"], response.event);
         }
 
@@ -2833,4 +2910,106 @@ bool OneSevenLivePokeAllRequestToJson(const OneSevenLivePokeAllRequest &request,
     };
 
     return true;
+}
+
+// Sort viewers according to priority rules
+QList<OneSevenLiveRockZoneViewer> SortOneSevenLiveRockZoneViewers(
+    QList<OneSevenLiveRockZoneViewer> &viewers) {
+    std::sort(viewers.begin(), viewers.end(),
+              [](const OneSevenLiveRockZoneViewer &a, const OneSevenLiveRockZoneViewer &b) {
+                  // Priority 1: Army viewers (type = 3) - sort by rank (special rule: rank 5 is
+                  // lowest, 1-4 from high to low)
+                  if (a.type == 3 && b.type == 3) {
+                      // Special handling: rank 5 is the lowest rank, should be at the end
+                      if (a.armyInfo.rank == 5 && b.armyInfo.rank != 5) {
+                          return false;  // rank 5 goes to the end
+                      }
+                      if (a.armyInfo.rank != 5 && b.armyInfo.rank == 5) {
+                          return true;  // rank 5 goes to the end
+                      }
+                      // For ranks 1-4, higher rank number comes first (4 > 3 > 2 > 1)
+                      if (a.armyInfo.rank != b.armyInfo.rank) {
+                          return a.armyInfo.rank > b.armyInfo.rank;
+                      }
+                  } else if (a.type == 3 && b.type != 3) {
+                      return true;  // Army viewers have highest priority
+                  } else if (a.type != 3 && b.type == 3) {
+                      return false;
+                  }
+
+                  // Priority 2: Guardian Knights (type = 2)
+                  if (a.type == 2 && b.type == 2) {
+                      // Same priority, fall through to next check
+                  } else if (a.type == 2 && b.type != 2) {
+                      return true;
+                  } else if (a.type != 2 && b.type == 2) {
+                      return false;
+                  }
+
+                  // Priority 3: Top gifters this session (type = 1)
+                  if (a.type == 1 && b.type == 1) {
+                      // Same priority, fall through to next check
+                  } else if (a.type == 1 && b.type != 1) {
+                      return true;
+                  } else if (a.type != 1 && b.type == 1) {
+                      return false;
+                  }
+
+                  // Priority 4: VIP members - sort by VIP level (higher level first)
+                  bool aIsVIP = a.displayUser.isVIP;
+                  bool bIsVIP = b.displayUser.isVIP;
+                  if (aIsVIP && bIsVIP) {
+                      if (a.displayUser.mLevel != b.displayUser.mLevel) {
+                          return a.displayUser.mLevel > b.displayUser.mLevel;
+                      }
+                  } else if (aIsVIP && !bIsVIP) {
+                      return true;
+                  } else if (!aIsVIP && bIsVIP) {
+                      return false;
+                  }
+
+                  // Priority 5: Glory road users - sort by glory level (higher level first)
+                  int aGloryLevel = a.userAttr.gloryroadInfo.level;
+                  int bGloryLevel = b.userAttr.gloryroadInfo.level;
+                  if (aGloryLevel > 0 && bGloryLevel > 0) {
+                      if (aGloryLevel != bGloryLevel) {
+                          return aGloryLevel > bGloryLevel;
+                      }
+                  } else if (aGloryLevel > 0 && bGloryLevel <= 0) {
+                      return true;
+                  } else if (aGloryLevel <= 0 && bGloryLevel > 0) {
+                      return false;
+                  }
+
+                  // Priority 6: Check-in users - sort by check-in level (higher level first)
+                  int aCheckinLevel = a.displayUser.checkinLevel;
+                  int bCheckinLevel = b.displayUser.checkinLevel;
+                  if (aCheckinLevel > 0 && bCheckinLevel > 0) {
+                      if (aCheckinLevel != bCheckinLevel) {
+                          return aCheckinLevel > bCheckinLevel;
+                      }
+                  } else if (aCheckinLevel > 0 && bCheckinLevel <= 0) {
+                      return true;
+                  } else if (aCheckinLevel <= 0 && bCheckinLevel > 0) {
+                      return false;
+                  }
+
+                  // Priority 7: Other gifters - sort by sent points (higher points first)
+                  int aSentPoint = a.userAttr.sentPoint;
+                  int bSentPoint = b.userAttr.sentPoint;
+                  if (aSentPoint > 0 && bSentPoint > 0) {
+                      if (aSentPoint != bSentPoint) {
+                          return aSentPoint > bSentPoint;
+                      }
+                  } else if (aSentPoint > 0 && bSentPoint <= 0) {
+                      return true;
+                  } else if (aSentPoint <= 0 && bSentPoint > 0) {
+                      return false;
+                  }
+
+                  // Priority 8: Other users - sort by user level (higher level first)
+                  return a.userAttr.level > b.userAttr.level;
+              });
+
+    return viewers;
 }

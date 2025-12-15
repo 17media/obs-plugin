@@ -15,8 +15,8 @@ import {
 export const LevelIconWrapper = styled(SVG).attrs(props => ({
     style: {
         background: props.isIcon
-            ? mapLevelToIconBackground(props.normalizedLevel)
-            : LEVEL_COLORS[`LEVEL_${props.normalizedLevel}`],
+            ? mapLevelToIconBackground(props.$normalizedLevel)
+            : LEVEL_COLORS[`LEVEL_${props.$normalizedLevel}`],
     },
 }))`
   display: inline-flex;
@@ -95,7 +95,7 @@ class LevelIcon extends PureComponent {
                 className={className}
                 key={src}
                 src={src || defaultSVG}
-                normalizedLevel={normalizeLevel(level)}
+                $normalizedLevel={normalizeLevel(level)}
                 isIcon={isIcon}
             />
         );

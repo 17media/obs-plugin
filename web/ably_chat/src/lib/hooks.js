@@ -7,13 +7,13 @@ import React, {
     useState,
 } from 'react';
 
-import { isImmutable } from 'immutable-v4';
+// Immutable v3 does not provide isImmutable; use generic toJS detection instead
 
 import BadgeImage from './BadgeImage';
 
 
 const transformImmutable = item => {
-    if (isImmutable(item)) {
+    if (item && typeof item.toJS === 'function') {
         return item.toJS();
     }
     return item;

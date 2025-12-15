@@ -1,7 +1,43 @@
 import padStart from 'lodash/padStart';
 import isArray from 'lodash/isArray';
 import range from 'lodash/range';
-import { rgba } from 'polished';
+// Local rgba helper to avoid polished dependency
+const rgba = (input, alpha = 1) => {
+    if (typeof input !== 'string') return input;
+    const trim = input.trim();
+    // If already rgba, return as is
+    if (trim.startsWith('rgba(')) return trim;
+    // rgb(r,g,b) -> rgba(r,g,b,a)
+    if (trim.startsWith('rgb(')) {
+        const nums = trim
+            .slice(4, -1)
+            .split(',')
+            .map(v => parseInt(v.trim(), 10));
+        if (nums.length === 3) {
+            const [r, g, b] = nums;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+        return trim;
+    }
+    // #rrggbb or #rgb
+    if (trim.startsWith('#')) {
+        let r, g, b;
+        if (trim.length === 7) {
+            r = parseInt(trim.slice(1, 3), 16);
+            g = parseInt(trim.slice(3, 5), 16);
+            b = parseInt(trim.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        } else if (trim.length === 4) {
+            r = parseInt(trim[1] + trim[1], 16);
+            g = parseInt(trim[2] + trim[2], 16);
+            b = parseInt(trim[3] + trim[3], 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+        return trim;
+    }
+    // Fallback: return original string
+    return trim;
+};
 
 import {
     CDN_URL,
@@ -461,7 +497,13 @@ export const getUserType = (
         streamerInfo
 ) => {
     // this order is important (streamer -> guardian -> vip -> normal)
-    if (streamerInfo && user.userID === streamerInfo.get('userID')) {
+    const streamerId = streamerInfo
+        ? (typeof streamerInfo.get === 'function'
+            ? streamerInfo.get('userID')
+            : streamerInfo.userID)
+        : undefined;
+
+    if (streamerId && user?.userID === streamerId) {
         return USER_STREAMER;
     } else if (user.isGuardian) {
         return USER_GUARDIAN;
