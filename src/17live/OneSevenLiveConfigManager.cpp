@@ -555,19 +555,19 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
 
         const std::string configJson = configData.dump();
 
-        // Save to configuration file
         const std::string configJsonPath = configPath + "/config_17live.json";
-        std::ofstream file(configJsonPath);
-        if (!file.is_open()) {
+        const QString configJsonPathQt = QString::fromStdString(configJsonPath);
+
+        QFile file(configJsonPathQt);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             obs_log(LOG_ERROR, "Failed to open config file for writing: %s",
                     configJsonPath.c_str());
             return false;
         }
 
-        file << configJson;
-
-        // Check if write operation was successful
-        if (file.fail()) {
+        QByteArray data = QByteArray::fromStdString(configJson);
+        qint64 written = file.write(data);
+        if (written != data.size()) {
             obs_log(LOG_ERROR, "Failed to write config data to file: %s", configJsonPath.c_str());
             file.close();
             return false;
@@ -575,10 +575,9 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
 
         file.close();
 
-        // Verify file was closed successfully
-        if (file.fail()) {
-            obs_log(LOG_ERROR, "Failed to close config file: %s", configJsonPath.c_str());
-            return false;
+        OneSevenLiveConfig parsedConfig;
+        if (JsonToOneSevenLiveConfig(configData, parsedConfig)) {
+            currentConfig = parsedConfig;
         }
 
         obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());

@@ -113,7 +113,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QHBoxLayout *customEventHeaderLayout = nullptr;
     QLabel *customEventLabel = nullptr;
     QPushButton *customEventToggleButton = nullptr;
-    OneSevenLiveCustomEventDialog *customEventDialog = nullptr;
+    QPointer<OneSevenLiveCustomEventDialog> customEventDialog = nullptr;
 
     // Party Live
     QWidget *GroupCallContainer = nullptr;
