@@ -10,6 +10,8 @@
 #include "OneSevenLiveMultiRtmpConfigDialog.hpp"
 #include "OneSevenLiveMultiRtmpListWidget.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
+#include "youtube/ui/OneSevenLiveYouTubeBroadcastDialog.hpp"
+#include "OneSevenLiveConfigManager.hpp"
 
 OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
     : QDockWidget(obs_module_text("MultiRTMP.Dock.Title"), parent),
@@ -169,9 +171,33 @@ void OneSevenLiveMultiRtmpDock::setupConnections() {
         connect(m_streamListWidget, &OneSevenLiveMultiRtmpListWidget::streamStartRequested, this,
                 [this](const std::string& streamId) {
                     if (m_manager) {
-                        m_manager->startStream(streamId);
-                        // Force immediate button state update to ensure UI responsiveness
-                        updateButtonStates();
+                        auto config = m_manager->getStreamConfig(streamId);
+                        if (config.streamName == "YouTube") {
+                            OneSevenLiveYouTubeBroadcastDialog dialog(this);
+                            if (dialog.exec() == QDialog::Accepted) {
+                                auto* cfgMgr =
+                                    OneSevenLiveCoreManager::getInstance().getConfigManager();
+                                if (cfgMgr) {
+                                    cfgMgr->setYouTubeBroadcastInfo(dialog.getBroadcastId(),
+                                                                    dialog.getLiveChatId());
+                                }
+
+                                std::string url = dialog.getIngestionUrl().toStdString();
+                                std::string key = dialog.getStreamKey().toStdString();
+
+                                if (!url.empty() && !key.empty()) {
+                                    config.serviceSettings["server"] = url;
+                                    config.serviceSettings["key"] = key;
+                                    m_manager->updateStreamConfig(streamId, config);
+                                }
+
+                                m_manager->startStream(streamId);
+                                updateButtonStates();
+                            }
+                        } else {
+                            m_manager->startStream(streamId);
+                            updateButtonStates();
+                        }
                     }
                 });
 

@@ -742,13 +742,18 @@ void OneSevenLiveCoreManager::orchestrateYouTubeBroadcast(const QString& title) 
                          this, [this, title, checkConn, decide](const YouTubeLiveBroadcastListResponse& resp) {
                              QObject::disconnect(*checkConn);
                              QString chatIdFound;
+                             QString broadcastIdFound;
                              for (const auto& b : resp.items) {
                                  if (!b.snippet.liveChatId.isEmpty()) {
                                      chatIdFound = b.snippet.liveChatId;
+                                     broadcastIdFound = b.id;
                                      break;
                                  }
                              }
                              if (!chatIdFound.isEmpty()) {
+                                 if (configManager) {
+                                     configManager->setYouTubeBroadcastInfo(broadcastIdFound, chatIdFound);
+                                 }
                                  startYouTubeChatPolling(chatIdFound);
                                  return;
                              }

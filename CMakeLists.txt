@@ -215,6 +215,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/youtube/OneSevenLiveYouTubeAuth.cpp
   src/17live/youtube/OneSevenLiveYouTubeChatClient.cpp
   src/17live/youtube/OneSevenLiveYouTubeClient.cpp
+  src/17live/youtube/ui/OneSevenLiveYouTubeBroadcastDialog.cpp
   src/diag/DiagnosticsCollectorFactory.cpp
   src/diag/DiagnosticsCollectorBase.cpp
   src/diag/PrivacyFilter.cpp

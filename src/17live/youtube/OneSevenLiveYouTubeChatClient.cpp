@@ -424,11 +424,13 @@ void OneSevenLiveYouTubeChatClient::makeChatRequest(const QString& endpoint) {
 void OneSevenLiveYouTubeChatClient::onBroadcastsReceived(
     const YouTubeLiveBroadcastListResponse& resp) {
     QString discovered;
+    QString broadcastId;
     for (const auto& b : resp.items) {
         if (!b.snippet.actualEndTime.isEmpty())
             continue;  // Skip ended broadcasts
         if (!b.snippet.liveChatId.isEmpty()) {
             discovered = b.snippet.liveChatId;
+            broadcastId = b.id;
             break;
         }
     }
@@ -439,6 +441,12 @@ void OneSevenLiveYouTubeChatClient::onBroadcastsReceived(
                 nlohmann::json{{"status", "break"}});
         }
         return;
+    }
+    if (!broadcastId.isEmpty()) {
+        auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        if (cm) {
+            cm->setYouTubeBroadcastInfo(broadcastId, discovered);
+        }
     }
     if (!m_liveChatId.isEmpty() && discovered == m_liveChatId) {
         if (!isPolling()) {
