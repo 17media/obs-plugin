@@ -3,6 +3,7 @@
 #include <QMessageBox>
 #include <QHeaderView>
 #include <obs-module.h>
+#include "plugin-support.h"
 
 OneSevenLiveYouTubeBroadcastDialog::OneSevenLiveYouTubeBroadcastDialog(QWidget* parent)
     : QDialog(parent), m_isCreating(false) {
@@ -93,15 +94,26 @@ void OneSevenLiveYouTubeBroadcastDialog::setupConnections() {
         connect(m_client, &OneSevenLiveYouTubeClient::liveBroadcastCreated, this, &OneSevenLiveYouTubeBroadcastDialog::onBroadcastCreated);
         connect(m_client, &OneSevenLiveYouTubeClient::liveStreamCreated, this, &OneSevenLiveYouTubeBroadcastDialog::onStreamCreated);
         connect(m_client, &OneSevenLiveYouTubeClient::liveBroadcastBound, this, &OneSevenLiveYouTubeBroadcastDialog::onBroadcastBound);
+        connect(m_client, &OneSevenLiveYouTubeClient::liveBroadcastReceived, this, &OneSevenLiveYouTubeBroadcastDialog::onSingleBroadcastReceived);
+        connect(m_client, &OneSevenLiveYouTubeClient::liveBroadcastTransitioned, this, &OneSevenLiveYouTubeBroadcastDialog::onBroadcastTransitioned);
         connect(m_client, &OneSevenLiveYouTubeClient::errorOccurred, this, &OneSevenLiveYouTubeBroadcastDialog::onError);
+        connect(m_client, &OneSevenLiveYouTubeClient::requestCompleted, this,
+                [this](const QString& op) {
+                    obs_log(LOG_INFO, "[YouTube-Dialog] requestCompleted op=%s",
+                            op.toUtf8().constData());
+                });
     }
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::loadBroadcasts() {
     if (!m_client) return;
+    obs_log(LOG_INFO, "[YouTube-Dialog] loadBroadcasts hasClient=%s hasAuth=%s",
+            m_client ? "true" : "false",
+            (m_client && m_client->hasValidAuth()) ? "true" : "false");
     m_broadcastList->clear();
     m_broadcastList->addItem("Loading...");
-    m_client->getMyLiveBroadcasts("all");
+    obs_log(LOG_INFO, "[YouTube-Dialog] Calling getMyLiveBroadcasts status=all");
+    m_client->getMyLiveBroadcasts("active");
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onRefreshClicked() {
@@ -109,6 +121,7 @@ void OneSevenLiveYouTubeBroadcastDialog::onRefreshClicked() {
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onCreateNewClicked() {
+    obs_log(LOG_INFO, "[YouTube-Dialog] onCreateNewClicked()");
     m_titleEdit->clear();
     m_stackedWidget->setCurrentWidget(m_createPage);
 }
@@ -118,11 +131,23 @@ void OneSevenLiveYouTubeBroadcastDialog::onBackClicked() {
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onBroadcastsReceived(const YouTubeLiveBroadcastListResponse& response) {
+    obs_log(LOG_INFO, "[YouTube-Dialog] onBroadcastsReceived items=%d", response.items.size());
     if (m_broadcastList->count() > 0 && m_broadcastList->item(0)->text() == "Loading...") {
         m_broadcastList->clear();
     }
 
+    if (response.items.isEmpty()) {
+        obs_log(LOG_WARNING, "[YouTube-Dialog] No broadcasts returned for current user");
+    }
+
     for (const auto& broadcast : response.items) {
+        obs_log(LOG_INFO,
+                "[YouTube-Dialog] broadcast id=%s title=%s status=%s scheduled=%s chatId=%s",
+                broadcast.id.toUtf8().constData(),
+                broadcast.snippet.title.toUtf8().constData(),
+                broadcast.status.lifeCycleStatus.toUtf8().constData(),
+                broadcast.snippet.scheduledStartTime.toUtf8().constData(),
+                broadcast.snippet.liveChatId.toUtf8().constData());
         // Filter out completed broadcasts as they cannot be reused
         if (broadcast.status.lifeCycleStatus == "complete" || broadcast.status.lifeCycleStatus == "completed") {
             continue;
@@ -158,8 +183,10 @@ void OneSevenLiveYouTubeBroadcastDialog::onSelectClicked() {
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onCreateConfirmClicked() {
+    obs_log(LOG_INFO, "[YouTube-Dialog] onCreateConfirmClicked()");
     QString title = m_titleEdit->text();
     if (title.isEmpty()) {
+        obs_log(LOG_WARNING, "[YouTube-Dialog] Empty title; abort create");
         QMessageBox::warning(this, "Error", "Title cannot be empty");
         return;
     }
@@ -169,18 +196,39 @@ void OneSevenLiveYouTubeBroadcastDialog::onCreateConfirmClicked() {
     m_confirmCreateButton->setEnabled(false);
     m_confirmCreateButton->setText("Creating...");
     
+    obs_log(LOG_INFO, "[YouTube-Dialog] Request createLiveBroadcast title=%s privacy=%s",
+            title.toUtf8().constData(), m_privacyCombo->currentText().toUtf8().constData());
     m_client->createLiveBroadcast(title, m_privacyCombo->currentText());
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onBroadcastCreated(const QString& broadcastId) {
-    if (!m_isCreating) return;
-    
+    obs_log(LOG_INFO, "[YouTube-Dialog] onBroadcastCreated id=%s",
+            broadcastId.toUtf8().constData());
+    if (!m_isCreating)
+        return;
+
+    if (broadcastId.isEmpty()) {
+        obs_log(LOG_ERROR,
+                "[YouTube-Dialog] onBroadcastCreated received empty id; aborting creation flow");
+        m_isCreating = false;
+        if (m_confirmCreateButton) {
+            m_confirmCreateButton->setEnabled(true);
+            m_confirmCreateButton->setText("Create & Start");
+        }
+        QMessageBox::critical(this, "Error",
+                              "Failed to create YouTube broadcast (no id returned)");
+        return;
+    }
+
     m_pendingBroadcastId = broadcastId;
     // Now we need a stream. Check if we have any streams.
+    obs_log(LOG_INFO, "[YouTube-Dialog] Fetch my live streams after create");
     m_client->getMyLiveStreams();
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStreamListResponse& response) {
+    obs_log(LOG_INFO, "[YouTube-Dialog] onStreamsReceived count=%d isCreating=%s",
+            response.items.size(), m_isCreating ? "true" : "false");
     m_availableStreams = response.items;
     
     if (m_isCreating) {
@@ -193,6 +241,9 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
         QString streamId;
         
         for (const auto& s : m_availableStreams) {
+            obs_log(LOG_INFO, "[YouTube-Dialog] stream id=%s title=%s isDefault=%s",
+                    s.id.toUtf8().constData(), s.snippet.title.toUtf8().constData(),
+                    s.snippet.isDefaultStream ? "true" : "false");
             if (s.snippet.isDefaultStream) {
                 streamId = s.id;
                 // Save ingestion info
@@ -205,9 +256,13 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
         
         if (found) {
             // Bind to default stream
+            obs_log(LOG_INFO, "[YouTube-Dialog] Bind broadcast=%s to default stream=%s",
+                    m_pendingBroadcastId.toUtf8().constData(), streamId.toUtf8().constData());
             m_client->bindLiveBroadcast(m_pendingBroadcastId, streamId);
         } else {
             // Create a new stream
+            obs_log(LOG_INFO, "[YouTube-Dialog] No default stream found; createLiveStream title=%s",
+                    m_selectedTitle.toUtf8().constData());
             m_client->createLiveStream(m_selectedTitle);
         }
     } else {
@@ -217,6 +272,7 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
         
         if (m_availableStreams.isEmpty()) {
             // Create one
+             obs_log(LOG_INFO, "[YouTube-Dialog] No streams available; create default stream for selection flow");
              m_client->createLiveStream("Default Stream");
              return;
         }
@@ -226,41 +282,107 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
         m_ingestionUrl = s.cdn.ingestionInfo.ingestionAddress;
         m_streamKey = s.cdn.ingestionInfo.streamName;
         
+        obs_log(LOG_INFO, "[YouTube-Dialog] Bind selected broadcast=%s to stream=%s",
+                m_selectedBroadcastId.toUtf8().constData(), s.id.toUtf8().constData());
         m_client->bindLiveBroadcast(m_selectedBroadcastId, s.id);
     }
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onStreamCreated(const YouTubeLiveStream& stream) {
+    obs_log(LOG_INFO, "[YouTube-Dialog] onStreamCreated id=%s title=%s",
+            stream.id.toUtf8().constData(), stream.snippet.title.toUtf8().constData());
+
+    if (stream.id.isEmpty()) {
+        obs_log(LOG_ERROR,
+                "[YouTube-Dialog] onStreamCreated received stream with empty id; aborting bind");
+        if (m_isCreating) {
+            m_isCreating = false;
+            if (m_confirmCreateButton) {
+                m_confirmCreateButton->setEnabled(true);
+                m_confirmCreateButton->setText("Create & Start");
+            }
+            QMessageBox::critical(this, "Error",
+                                  "Failed to create YouTube stream (no id returned)");
+        }
+        return;
+    }
+
+    if (m_isCreating && m_pendingBroadcastId.isEmpty()) {
+        obs_log(LOG_ERROR,
+                "[YouTube-Dialog] onStreamCreated but pending broadcast id is empty; aborting bind");
+        m_isCreating = false;
+        if (m_confirmCreateButton) {
+            m_confirmCreateButton->setEnabled(true);
+            m_confirmCreateButton->setText("Create & Start");
+        }
+        QMessageBox::critical(this, "Error",
+                              "YouTube broadcast id is empty; cannot bind stream.");
+        return;
+    }
+
     // Save ingestion info
     m_ingestionUrl = stream.cdn.ingestionInfo.ingestionAddress;
     m_streamKey = stream.cdn.ingestionInfo.streamName;
     
     if (m_isCreating) {
+        obs_log(LOG_INFO, "[YouTube-Dialog] Bind newly created stream=%s to broadcast=%s",
+                stream.id.toUtf8().constData(), m_pendingBroadcastId.toUtf8().constData());
         m_client->bindLiveBroadcast(m_pendingBroadcastId, stream.id);
     } else {
+        obs_log(LOG_INFO, "[YouTube-Dialog] Bind newly created stream=%s to selected broadcast=%s",
+                stream.id.toUtf8().constData(), m_selectedBroadcastId.toUtf8().constData());
         m_client->bindLiveBroadcast(m_selectedBroadcastId, stream.id);
     }
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onBroadcastBound(const QString& broadcastId, const QString& streamId) {
+    obs_log(LOG_INFO, "[YouTube-Dialog] onBroadcastBound broadcast=%s stream=%s isCreating=%s",
+            broadcastId.toUtf8().constData(), streamId.toUtf8().constData(), m_isCreating ? "true" : "false");
     UNUSED_PARAMETER(streamId);
     if (m_isCreating) {
-        // We need to fetch the broadcast again to get the Live Chat ID?
-        // Or did create return it? 
-        // createLiveBroadcast only returns ID in the signal (based on current impl).
-        // We need to fetch it to get chat ID.
+        obs_log(LOG_INFO, "[YouTube-Dialog] Fetch broadcast details after bind to get liveChatId");
         m_client->getLiveBroadcastById(broadcastId);
-        
-        // Actually, we can just finish here and let the caller fetch details if needed, 
-        // but we promised to return liveChatId.
-        // So let's fetch.
     } else {
         // Selection flow finished binding.
+        obs_log(LOG_INFO, "[YouTube-Dialog] Selection flow bound; closing dialog");
         accept();
     }
 }
 
+void OneSevenLiveYouTubeBroadcastDialog::onSingleBroadcastReceived(const YouTubeLiveBroadcast& broadcast) {
+    obs_log(LOG_INFO, "[YouTube-Dialog] onSingleBroadcastReceived id=%s chatId=%s status=%s",
+            broadcast.id.toUtf8().constData(), broadcast.snippet.liveChatId.toUtf8().constData(),
+            broadcast.status.lifeCycleStatus.toUtf8().constData());
+    if (!m_isCreating) {
+        obs_log(LOG_DEBUG, "[YouTube-Dialog] Ignore single broadcast because not creating");
+        return;
+    }
+    m_selectedBroadcastId = broadcast.id;
+    m_selectedLiveChatId = broadcast.snippet.liveChatId;
+    m_isCreating = false;
+    m_confirmCreateButton->setEnabled(true);
+    m_confirmCreateButton->setText("Create & Start");
+    QString lifeStatus = broadcast.status.lifeCycleStatus;
+    if (m_client && !lifeStatus.isEmpty() &&
+        lifeStatus.compare("complete", Qt::CaseInsensitive) != 0) {
+        obs_log(LOG_INFO,
+                "[YouTube-Dialog] Request transitionLiveBroadcast id=%s currentStatus=%s target=live",
+                broadcast.id.toUtf8().constData(), lifeStatus.toUtf8().constData());
+        m_client->transitionLiveBroadcast(broadcast.id, QString("live"));
+    }
+    obs_log(LOG_INFO, "[YouTube-Dialog] Creation flow finished; closing dialog");
+    accept();
+}
+
+void OneSevenLiveYouTubeBroadcastDialog::onBroadcastTransitioned(const QString& broadcastId,
+                                                                 const QString& status) {
+    obs_log(LOG_INFO, "[YouTube-Dialog] onBroadcastTransitioned id=%s status=%s",
+            broadcastId.toUtf8().constData(), status.toUtf8().constData());
+}
+
 void OneSevenLiveYouTubeBroadcastDialog::processSelection(const QString& broadcastId, const QString& title, const QString& chatId) {
+    obs_log(LOG_INFO, "[YouTube-Dialog] processSelection broadcast=%s title=%s chatId=%s",
+            broadcastId.toUtf8().constData(), title.toUtf8().constData(), chatId.toUtf8().constData());
     m_selectedBroadcastId = broadcastId;
     m_selectedTitle = title;
     m_selectedLiveChatId = chatId;
@@ -268,10 +390,14 @@ void OneSevenLiveYouTubeBroadcastDialog::processSelection(const QString& broadca
     
     // We need to ensure it's bound and get stream key.
     // Fetch streams to find a candidate to bind.
+    obs_log(LOG_INFO, "[YouTube-Dialog] Fetch my live streams for selection flow");
     m_client->getMyLiveStreams();
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onError(const QString& error, const QString& operation) {
+    obs_log(LOG_ERROR, "[YouTube-Dialog] onError op=%s error=%s isCreating=%s",
+            operation.toUtf8().constData(), error.toUtf8().constData(),
+            m_isCreating ? "true" : "false");
     QMessageBox::critical(this, "Error", QString("Operation %1 failed: %2").arg(operation).arg(error));
     if (m_isCreating) {
         m_confirmCreateButton->setEnabled(true);

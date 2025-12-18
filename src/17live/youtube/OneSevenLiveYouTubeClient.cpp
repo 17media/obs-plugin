@@ -6,6 +6,7 @@
 #include <QUrlQuery>
 #include <nlohmann/json.hpp>
 #include <QTimer>
+#include <QDateTime>
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
@@ -47,6 +48,7 @@ void OneSevenLiveYouTubeClient::getMyLiveStreams() {
     params["part"] = "snippet,cdn,status,contentDetails";
 
     QString endpoint = buildApiUrl("liveStreams", params);
+    m_currentOperation = "getLiveStreams";
     makeApiRequest(endpoint);
 }
 
@@ -66,6 +68,7 @@ void OneSevenLiveYouTubeClient::getLiveStreamById(const QString& streamId) {
     params["part"] = "snippet,cdn,status,contentDetails";
 
     QString endpoint = buildApiUrl("liveStreams", params);
+    m_currentOperation = "getLiveStreams";
     makeApiRequest(endpoint);
 }
 
@@ -87,13 +90,22 @@ void OneSevenLiveYouTubeClient::createLiveStream(const QString& title, const QSt
         snippet["description"] = description.toStdString();
     }
     requestBody["snippet"] = snippet;
+    nlohmann::json cdn;
+    cdn["ingestionType"] = "rtmp";
+    cdn["resolution"] = "variable";
+    cdn["frameRate"] = "variable";
+    requestBody["cdn"] = cdn;
+    nlohmann::json contentDetails;
+    contentDetails["isReusable"] = true;
+    requestBody["contentDetails"] = contentDetails;
 
     QString body = QString::fromStdString(requestBody.dump());
 
     QMap<QString, QString> params;
-    params["part"] = "snippet,cdn,status";
+    params["part"] = "snippet,cdn,status,contentDetails";
 
     QString endpoint = buildApiUrl("liveStreams", params);
+    m_currentOperation = "createLiveStream";
     makeApiRequest(endpoint, "POST", body);
 }
 
@@ -112,6 +124,7 @@ void OneSevenLiveYouTubeClient::deleteLiveStream(const QString& streamId) {
     params["id"] = streamId;
 
     QString endpoint = buildApiUrl("liveStreams", params);
+    m_currentOperation = "deleteLiveStream";
     makeApiRequest(endpoint, "DELETE");
 }
 
@@ -122,13 +135,16 @@ void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStat
     }
 
     QMap<QString, QString> params;
-    params["mine"] = "true";
-    params["part"] = "snippet";
+    // params["mine"] = "true";
+    params["part"] = "snippet,status";
     if (!broadcastStatus.isEmpty()) {
         params["broadcastStatus"] = broadcastStatus;
     }
 
     QString endpoint = buildApiUrl("liveBroadcasts", params);
+    obs_log(LOG_INFO, "YouTube getMyLiveBroadcasts request_url=%s status=%s",
+            endpoint.toUtf8().constData(),
+            (broadcastStatus.isEmpty() ? "all(default)" : broadcastStatus.toUtf8().constData()));
     m_currentOperation = "getMyLiveBroadcasts";
     makeApiRequest(endpoint);
 }
@@ -169,6 +185,12 @@ void OneSevenLiveYouTubeClient::createLiveBroadcast(const QString& title,
     nlohmann::json req;
     nlohmann::json sn;
     sn["title"] = title.toStdString();
+    {
+        QDateTime startUtc = QDateTime::currentDateTimeUtc().addSecs(60);
+        QString scheduled =
+            startUtc.toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+        sn["scheduledStartTime"] = scheduled.toStdString();
+    }
     req["snippet"] = sn;
     nlohmann::json cd;
     nlohmann::json mon;
@@ -190,6 +212,10 @@ void OneSevenLiveYouTubeClient::bindLiveBroadcast(const QString& broadcastId,
                                                   const QString& streamId) {
     if (!m_hasValidAuth) {
         emit errorOccurred("No valid authentication token", "bindLiveBroadcast");
+        return;
+    }
+    if (broadcastId.isEmpty() || streamId.isEmpty()) {
+        emit errorOccurred("Broadcast ID or stream ID cannot be empty", "bindLiveBroadcast");
         return;
     }
     m_lastBroadcastId = broadcastId;
@@ -332,6 +358,22 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
 
     // Assume success when error is empty
     {
+        if (m_currentOperation == "bindLiveBroadcast") {
+            obs_log(LOG_INFO, "YouTube bindLiveBroadcast success: endpoint=%s response_len=%d",
+                    m_lastEndpoint.toUtf8().constData(), response.size());
+            if (!response.isEmpty()) {
+                obs_log(LOG_INFO, "YouTube bindLiveBroadcast response: %s",
+                        response.toUtf8().constData());
+            } else {
+                obs_log(LOG_INFO, "YouTube bindLiveBroadcast response is empty");
+            }
+            emit liveBroadcastBound(m_lastBroadcastId, m_lastStreamId);
+            QMetaObject::invokeMethod(
+                this, [this]() { emit requestCompleted(QString("bindLiveBroadcast")); },
+                Qt::QueuedConnection);
+            return;
+        }
+
         nlohmann::json json;
         try {
             json = nlohmann::json::parse(response.toStdString());
@@ -342,7 +384,7 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
         }
 
         // Determine the operation based on URL
-        if (m_currentOperation == "getLiveStreams") {
+        if (m_currentOperation == "getLiveStreams" || m_currentOperation == "createLiveStream") {
             if (json.contains("items")) {
                 // This is a GET request for stream(s)
                 YouTubeLiveStreamListResponse streamList = parseLiveStreamListResponse(json);
@@ -353,6 +395,12 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
             } else {
                 // This might be a POST request (create)
                 YouTubeLiveStream stream = parseLiveStream(json);
+                if (stream.id.isEmpty()) {
+                    obs_log(LOG_WARNING,
+                            "YouTube createLiveStream returned stream with empty id. Raw response: "
+                            "%s",
+                            response.toUtf8().constData());
+                }
                 emit liveStreamCreated(stream);
                 QMetaObject::invokeMethod(
                     this, [this]() { emit requestCompleted(QString("createLiveStream")); },
@@ -385,14 +433,14 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                 }
             } catch (...) {
             }
+            if (id.isEmpty()) {
+                obs_log(LOG_WARNING,
+                        "YouTube createLiveBroadcast returned no id. Raw response: %s",
+                        response.toUtf8().constData());
+            }
             emit liveBroadcastCreated(id);
             QMetaObject::invokeMethod(
                 this, [this]() { emit requestCompleted(QString("createLiveBroadcast")); },
-                Qt::QueuedConnection);
-        } else if (m_currentOperation == "bindLiveBroadcast") {
-            emit liveBroadcastBound(m_lastBroadcastId, m_lastStreamId);
-            QMetaObject::invokeMethod(
-                this, [this]() { emit requestCompleted(QString("bindLiveBroadcast")); },
                 Qt::QueuedConnection);
         } else if (m_currentOperation == "transitionLiveBroadcast") {
             emit liveBroadcastTransitioned(m_lastBroadcastId, m_lastTransitionStatus);

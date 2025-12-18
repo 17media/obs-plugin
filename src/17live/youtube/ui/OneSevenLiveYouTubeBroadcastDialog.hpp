@@ -40,6 +40,8 @@ private slots:
     void onBroadcastCreated(const QString& broadcastId);
     void onStreamCreated(const YouTubeLiveStream& stream);
     void onBroadcastBound(const QString& broadcastId, const QString& streamId);
+    void onSingleBroadcastReceived(const YouTubeLiveBroadcast& broadcast);
+    void onBroadcastTransitioned(const QString& broadcastId, const QString& status);
     void onError(const QString& error, const QString& operation);
 
 private:
