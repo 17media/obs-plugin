@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QStackedWidget>
 #include <QDateTime>
 #include <memory>
@@ -48,7 +49,8 @@ private:
     void setupUI();
     void setupConnections();
     void loadBroadcasts();
-    void createNewBroadcast(const QString& title, const QString& privacy);
+    void fetchNextBroadcastBatch();
+    void createNewBroadcast(const QString& title, const QString& privacy, const QString& latency, bool autoStart, bool autoStop, bool dvr, bool scheduleLater);
     void processSelection(const QString& broadcastId, const QString& title, const QString& chatId);
     void bindAndFinish(const QString& broadcastId, const QString& streamId);
 
@@ -66,11 +68,18 @@ private:
     QWidget* m_createPage;
     QLineEdit* m_titleEdit;
     QComboBox* m_privacyCombo;
+    QComboBox* m_latencyCombo;
+    QCheckBox* m_autoStartCheck;
+    QCheckBox* m_autoStopCheck;
+    QCheckBox* m_dvrCheck;
+    QCheckBox* m_scheduleCheck;
     QPushButton* m_confirmCreateButton;
     QPushButton* m_backButton;
 
     // Data
     OneSevenLiveYouTubeClient* m_client;
+    QStringList m_loadingStatuses;
+    QString m_currentLoadingStatus;
     QString m_selectedBroadcastId;
     QString m_selectedLiveChatId;
     QString m_selectedTitle;
@@ -83,5 +92,6 @@ private:
     // Temp data during creation/binding
     QString m_pendingBroadcastId;
     bool m_isCreating;
+    bool m_autoStartEnabled;
     QVector<YouTubeLiveStream> m_availableStreams;
 };

@@ -61,6 +61,30 @@ void OneSevenLiveYouTubeBroadcastDialog::setupUI() {
     m_privacyCombo = new QComboBox();
     m_privacyCombo->addItems({"public", "unlisted", "private"});
     formLayout->addWidget(m_privacyCombo);
+
+    formLayout->addWidget(new QLabel("Latency:"));
+    m_latencyCombo = new QComboBox();
+    m_latencyCombo->addItem("Normal", "normal");
+    m_latencyCombo->addItem("Low", "low");
+    m_latencyCombo->addItem("Ultra Low", "ultraLow");
+    formLayout->addWidget(m_latencyCombo);
+
+    m_autoStartCheck = new QCheckBox("Auto-start");
+    m_autoStartCheck->setToolTip("Automatically start broadcast when stream data is received");
+    m_autoStartCheck->setChecked(true);
+    formLayout->addWidget(m_autoStartCheck);
+
+    m_autoStopCheck = new QCheckBox("Auto-stop");
+    m_autoStopCheck->setToolTip("Automatically stop broadcast when stream stops");
+    m_autoStopCheck->setChecked(true);
+    formLayout->addWidget(m_autoStopCheck);
+
+    m_dvrCheck = new QCheckBox("Enable DVR");
+    m_dvrCheck->setChecked(true);
+    formLayout->addWidget(m_dvrCheck);
+
+    m_scheduleCheck = new QCheckBox("Schedule for later");
+    formLayout->addWidget(m_scheduleCheck);
     
     createLayout->addLayout(formLayout);
     createLayout->addStretch();
@@ -112,8 +136,28 @@ void OneSevenLiveYouTubeBroadcastDialog::loadBroadcasts() {
             (m_client && m_client->hasValidAuth()) ? "true" : "false");
     m_broadcastList->clear();
     m_broadcastList->addItem("Loading...");
-    obs_log(LOG_INFO, "[YouTube-Dialog] Calling getMyLiveBroadcasts status=all");
-    m_client->getMyLiveBroadcasts("active");
+    
+    // Load both active and upcoming broadcasts
+    m_loadingStatuses.clear();
+    m_loadingStatuses << "active" << "upcoming";
+    fetchNextBroadcastBatch();
+}
+
+void OneSevenLiveYouTubeBroadcastDialog::fetchNextBroadcastBatch() {
+    if (m_loadingStatuses.isEmpty()) {
+        obs_log(LOG_INFO, "[YouTube-Dialog] All broadcast batches loaded");
+        if (m_broadcastList->count() == 0) {
+            m_broadcastList->addItem("No broadcasts found");
+        } else if (m_broadcastList->count() > 0 && m_broadcastList->item(0)->text() == "Loading...") {
+            // Remove loading item if it's the only one left and we failed to find anything
+            delete m_broadcastList->takeItem(0);
+        }
+        return;
+    }
+
+    m_currentLoadingStatus = m_loadingStatuses.first();
+    obs_log(LOG_INFO, "[YouTube-Dialog] Fetching broadcasts status=%s", m_currentLoadingStatus.toUtf8().constData());
+    m_client->getMyLiveBroadcasts(m_currentLoadingStatus);
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onRefreshClicked() {
@@ -131,23 +175,20 @@ void OneSevenLiveYouTubeBroadcastDialog::onBackClicked() {
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onBroadcastsReceived(const YouTubeLiveBroadcastListResponse& response) {
-    obs_log(LOG_INFO, "[YouTube-Dialog] onBroadcastsReceived items=%d", response.items.size());
+    obs_log(LOG_INFO, "[YouTube-Dialog] onBroadcastsReceived items=%d status=%s", 
+            response.items.size(), m_currentLoadingStatus.toUtf8().constData());
+    
+    // Clear "Loading..." item if it exists
     if (m_broadcastList->count() > 0 && m_broadcastList->item(0)->text() == "Loading...") {
-        m_broadcastList->clear();
+        delete m_broadcastList->takeItem(0);
     }
 
     if (response.items.isEmpty()) {
-        obs_log(LOG_WARNING, "[YouTube-Dialog] No broadcasts returned for current user");
+        obs_log(LOG_WARNING, "[YouTube-Dialog] No broadcasts returned for status=%s", m_currentLoadingStatus.toUtf8().constData());
     }
 
     for (const auto& broadcast : response.items) {
-        obs_log(LOG_INFO,
-                "[YouTube-Dialog] broadcast id=%s title=%s status=%s scheduled=%s chatId=%s",
-                broadcast.id.toUtf8().constData(),
-                broadcast.snippet.title.toUtf8().constData(),
-                broadcast.status.lifeCycleStatus.toUtf8().constData(),
-                broadcast.snippet.scheduledStartTime.toUtf8().constData(),
-                broadcast.snippet.liveChatId.toUtf8().constData());
+        // ... (logging)
         // Filter out completed broadcasts as they cannot be reused
         if (broadcast.status.lifeCycleStatus == "complete" || broadcast.status.lifeCycleStatus == "completed") {
             continue;
@@ -165,9 +206,17 @@ void OneSevenLiveYouTubeBroadcastDialog::onBroadcastsReceived(const YouTubeLiveB
         m_broadcastList->addItem(item);
     }
     
-    // If we only fetched one type, maybe fetch the other?
-    // For now, let's just stop here to avoid complexity of chaining.
-    // NOTE: Ideally we should fetch 'upcoming' too.
+    // Handle pagination
+    if (!response.nextPageToken.isEmpty()) {
+        obs_log(LOG_INFO, "[YouTube-Dialog] Fetching next page for status=%s", m_currentLoadingStatus.toUtf8().constData());
+        m_client->getMyLiveBroadcasts(m_currentLoadingStatus, response.nextPageToken);
+    } else {
+        // Finished current status, move to next
+        if (!m_loadingStatuses.isEmpty()) {
+            m_loadingStatuses.removeFirst();
+        }
+        fetchNextBroadcastBatch();
+    }
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onSelectClicked() {
@@ -193,12 +242,20 @@ void OneSevenLiveYouTubeBroadcastDialog::onCreateConfirmClicked() {
     
     m_isCreating = true;
     m_selectedTitle = title;
+    m_autoStartEnabled = m_autoStartCheck->isChecked();
     m_confirmCreateButton->setEnabled(false);
     m_confirmCreateButton->setText("Creating...");
     
-    obs_log(LOG_INFO, "[YouTube-Dialog] Request createLiveBroadcast title=%s privacy=%s",
-            title.toUtf8().constData(), m_privacyCombo->currentText().toUtf8().constData());
-    m_client->createLiveBroadcast(title, m_privacyCombo->currentText());
+    QString privacy = m_privacyCombo->currentText();
+    QString latency = m_latencyCombo->currentData().toString();
+    bool autoStart = m_autoStartCheck->isChecked();
+    bool autoStop = m_autoStopCheck->isChecked();
+    bool dvr = m_dvrCheck->isChecked();
+    bool scheduleLater = m_scheduleCheck->isChecked();
+
+    obs_log(LOG_INFO, "[YouTube-Dialog] Request createLiveBroadcast title=%s privacy=%s latency=%s autoStart=%d",
+            title.toUtf8().constData(), privacy.toUtf8().constData(), latency.toUtf8().constData(), autoStart);
+    m_client->createLiveBroadcast(title, privacy, latency, autoStart, autoStop, dvr, scheduleLater);
 }
 
 void OneSevenLiveYouTubeBroadcastDialog::onBroadcastCreated(const QString& broadcastId) {
@@ -362,15 +419,8 @@ void OneSevenLiveYouTubeBroadcastDialog::onSingleBroadcastReceived(const YouTube
     m_isCreating = false;
     m_confirmCreateButton->setEnabled(true);
     m_confirmCreateButton->setText("Create & Start");
-    QString lifeStatus = broadcast.status.lifeCycleStatus;
-    if (m_client && !lifeStatus.isEmpty() &&
-        lifeStatus.compare("complete", Qt::CaseInsensitive) != 0) {
-        obs_log(LOG_INFO,
-                "[YouTube-Dialog] Request transitionLiveBroadcast id=%s currentStatus=%s target=live",
-                broadcast.id.toUtf8().constData(), lifeStatus.toUtf8().constData());
-        m_client->transitionLiveBroadcast(broadcast.id, QString("live"));
-    }
-    obs_log(LOG_INFO, "[YouTube-Dialog] Creation flow finished; closing dialog");
+    
+    obs_log(LOG_INFO, "[YouTube-Dialog] Creation flow finished; closing dialog. AutoStart=%d", m_autoStartEnabled);
     accept();
 }
 

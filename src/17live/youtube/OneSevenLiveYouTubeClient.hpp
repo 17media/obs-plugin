@@ -111,6 +111,7 @@ struct YouTubeLiveBroadcast {
 struct YouTubeLiveBroadcastListResponse {
     QString kind;
     QString etag;
+    QString nextPageToken;
     QVector<YouTubeLiveBroadcast> items;
 
     YouTubeLiveBroadcastListResponse() : kind("youtube#liveBroadcastListResponse") {}
@@ -132,11 +133,16 @@ class OneSevenLiveYouTubeClient : public QObject {
     void getLiveStreamById(const QString& streamId);
     void createLiveStream(const QString& title, const QString& description = QString());
     void deleteLiveStream(const QString& streamId);
-    void getMyLiveBroadcasts(const QString& broadcastStatus = QString());
+    void getMyLiveBroadcasts(const QString& broadcastStatus = QString(), const QString& pageToken = QString());
     void getLiveBroadcastById(const QString& broadcastId);
-    void createLiveBroadcast(const QString& title, const QString& privacyStatus = "public");
+    void createLiveBroadcast(const QString& title, const QString& privacyStatus = "public",
+                             const QString& latency = "normal", bool autoStart = false,
+                             bool autoStop = false, bool dvr = true, bool scheduleLater = false);
     void bindLiveBroadcast(const QString& broadcastId, const QString& streamId);
     void transitionLiveBroadcast(const QString& broadcastId, const QString& status);
+    void startBroadcast(const QString& broadcastId);
+    void stopBroadcast(const QString& broadcastId);
+    void resetBroadcast(const QString& broadcastId);
 
     // Configuration
     void setApiKey(const QString& apiKey);
@@ -202,4 +208,5 @@ class OneSevenLiveYouTubeClient : public QObject {
     QString m_lastEndpoint;
     QString m_lastMethod;
     QString m_lastBody;
+    nlohmann::json m_tempBroadcastJson;
 };
