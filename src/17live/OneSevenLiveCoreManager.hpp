@@ -171,7 +171,6 @@ class OneSevenLiveCoreManager : public QObject {
     void stopYouTubeChatPolling();
     void connectTwitchChatClient(const QString& channel = QString());
     void disconnectTwitchChatClient();
-    void orchestrateYouTubeBroadcast(const QString& title);
 
     bool handleLoginClicked();
 

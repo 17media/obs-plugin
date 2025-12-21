@@ -16,6 +16,7 @@
 #include <thread>
 
 #include "OneSevenLiveCoreManager.hpp"
+#include "OneSevenLiveConfigManager.hpp"
 #include "plugin-support.h"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
@@ -765,15 +766,13 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
                     QMetaObject::invokeMethod(
                         &core,
                         [&core]() {
-                            auto* ytAuth = core.getYouTubeAuth();
-                            if (ytAuth && ytAuth->hasValidToken()) {
-                                QString caption;
-                                auto* sm = core.getStreamManager();
-                                if (sm) {
-                                    caption = sm->getCurrentStreamRequest().caption;
-                                }
-                                core.orchestrateYouTubeBroadcast(caption.isEmpty() ? QString("Live")
-                                                                                   : caption);
+                            auto* cfg = core.getConfigManager();
+                            if (!cfg)
+                                return;
+                            QString bid;
+                            QString chat;
+                            if (cfg->getYouTubeBroadcastInfo(bid, chat) && !chat.isEmpty()) {
+                                core.startYouTubeChatPolling(chat);
                             }
                         },
                         Qt::QueuedConnection);

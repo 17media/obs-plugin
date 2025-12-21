@@ -303,8 +303,9 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
                     s.snippet.isDefaultStream ? "true" : "false");
             if (s.snippet.isDefaultStream) {
                 streamId = s.id;
-                // Save ingestion info
-                m_ingestionUrl = s.cdn.ingestionInfo.ingestionAddress;
+                m_ingestionUrl = s.cdn.ingestionInfo.rtmpsIngestionAddress.isEmpty()
+                                     ? s.cdn.ingestionInfo.ingestionAddress
+                                     : s.cdn.ingestionInfo.rtmpsIngestionAddress;
                 m_streamKey = s.cdn.ingestionInfo.streamName;
                 found = true;
                 break;
@@ -336,7 +337,9 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
         
         // Pick first one
         auto s = m_availableStreams.first();
-        m_ingestionUrl = s.cdn.ingestionInfo.ingestionAddress;
+        m_ingestionUrl = s.cdn.ingestionInfo.rtmpsIngestionAddress.isEmpty()
+                             ? s.cdn.ingestionInfo.ingestionAddress
+                             : s.cdn.ingestionInfo.rtmpsIngestionAddress;
         m_streamKey = s.cdn.ingestionInfo.streamName;
         
         obs_log(LOG_INFO, "[YouTube-Dialog] Bind selected broadcast=%s to stream=%s",
@@ -377,8 +380,9 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamCreated(const YouTubeLiveStream
         return;
     }
 
-    // Save ingestion info
-    m_ingestionUrl = stream.cdn.ingestionInfo.ingestionAddress;
+    m_ingestionUrl = stream.cdn.ingestionInfo.rtmpsIngestionAddress.isEmpty()
+                         ? stream.cdn.ingestionInfo.ingestionAddress
+                         : stream.cdn.ingestionInfo.rtmpsIngestionAddress;
     m_streamKey = stream.cdn.ingestionInfo.streamName;
     
     if (m_isCreating) {
@@ -397,11 +401,14 @@ void OneSevenLiveYouTubeBroadcastDialog::onBroadcastBound(const QString& broadca
             broadcastId.toUtf8().constData(), streamId.toUtf8().constData(), m_isCreating ? "true" : "false");
     UNUSED_PARAMETER(streamId);
     if (m_isCreating) {
+        m_client->startBroadcast(broadcastId);
         obs_log(LOG_INFO, "[YouTube-Dialog] Fetch broadcast details after bind to get liveChatId");
         m_client->getLiveBroadcastById(broadcastId);
     } else {
-        // Selection flow finished binding.
-        obs_log(LOG_INFO, "[YouTube-Dialog] Selection flow bound; closing dialog");
+        m_client->startBroadcast(broadcastId);
+        auto& core = OneSevenLiveCoreManager::getInstance();
+        core.startYouTubeChatPolling(m_selectedLiveChatId);
+        obs_log(LOG_INFO, "[YouTube-Dialog] Selection flow bound; startBroadcast + start chat; closing dialog");
         accept();
     }
 }
@@ -419,6 +426,8 @@ void OneSevenLiveYouTubeBroadcastDialog::onSingleBroadcastReceived(const YouTube
     m_isCreating = false;
     m_confirmCreateButton->setEnabled(true);
     m_confirmCreateButton->setText("Create & Start");
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    core.startYouTubeChatPolling(m_selectedLiveChatId);
     
     obs_log(LOG_INFO, "[YouTube-Dialog] Creation flow finished; closing dialog. AutoStart=%d", m_autoStartEnabled);
     accept();

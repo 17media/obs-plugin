@@ -461,6 +461,40 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                 // This is a GET request for stream(s)
                 YouTubeLiveStreamListResponse streamList = parseLiveStreamListResponse(json);
                 emit myLiveStreamsReceived(streamList);
+                if (m_waitingStreamActiveForStart) {
+                    bool active = false;
+                    for (const auto& s : streamList.items) {
+                        if (s.id == m_boundStreamIdForStart) {
+                            active = (s.status.streamStatus.compare("active", Qt::CaseInsensitive) == 0);
+                            break;
+                        }
+                    }
+                    if (active) {
+                        m_waitingStreamActiveForStart = false;
+                        if (m_streamActivePollTimer && m_streamActivePollTimer->isActive())
+                            m_streamActivePollTimer->stop();
+                        transitionLiveBroadcast(m_pendingStartBroadcastId, "live");
+                        return;
+                    } else {
+                        m_streamActivePollAttempts++;
+                        if (m_streamActivePollAttempts >= 30) {
+                            m_waitingStreamActiveForStart = false;
+                            if (m_streamActivePollTimer && m_streamActivePollTimer->isActive())
+                                m_streamActivePollTimer->stop();
+                            transitionLiveBroadcast(m_pendingStartBroadcastId, "live");
+                            return;
+                        }
+                        if (!m_streamActivePollTimer) {
+                            m_streamActivePollTimer = new QTimer(this);
+                            m_streamActivePollTimer->setSingleShot(true);
+                            connect(m_streamActivePollTimer, &QTimer::timeout, this, [this]() {
+                                if (!m_boundStreamIdForStart.isEmpty())
+                                    getLiveStreamById(m_boundStreamIdForStart);
+                            });
+                        }
+                        m_streamActivePollTimer->start(1000);
+                    }
+                }
                 QMetaObject::invokeMethod(
                     this, [this]() { emit requestCompleted(QString("getLiveStreams")); },
                     Qt::QueuedConnection);
@@ -524,6 +558,16 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                 if (json.contains("items") && json["items"].is_array() && !json["items"].empty()) {
                     auto broadcast = json["items"][0];
                     QString id = QString::fromStdString(broadcast["id"].get<std::string>());
+                    QString boundStreamId;
+                    try {
+                        if (broadcast.contains("contentDetails") &&
+                            broadcast["contentDetails"].contains("boundStreamId") &&
+                            broadcast["contentDetails"]["boundStreamId"].is_string()) {
+                            boundStreamId = QString::fromStdString(
+                                broadcast["contentDetails"]["boundStreamId"].get<std::string>());
+                        }
+                    } catch (...) {
+                    }
                     
                     if (m_currentOperation == "startBroadcast") {
                         std::string status = broadcast["status"]["lifeCycleStatus"].get<std::string>();
@@ -554,7 +598,10 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                             makeApiRequest(endpoint, "PUT", body);
                             return;
                         }
-                        
+                        if (!boundStreamId.isEmpty()) {
+                            beginWaitStreamActiveAndTransition(id, boundStreamId);
+                            return;
+                        }
                         transitionLiveBroadcast(id, "live");
                         return;
                     } else if (m_currentOperation == "resetBroadcast") {
@@ -574,6 +621,20 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                 emit errorOccurred("Failed to parse broadcast details", m_currentOperation);
             }
         } else if (m_currentOperation == "resetBroadcastForStart") {
+             try {
+                 QString boundStreamId;
+                 if (m_tempBroadcastJson.contains("contentDetails") &&
+                     m_tempBroadcastJson["contentDetails"].contains("boundStreamId") &&
+                     m_tempBroadcastJson["contentDetails"]["boundStreamId"].is_string()) {
+                     boundStreamId = QString::fromStdString(
+                         m_tempBroadcastJson["contentDetails"]["boundStreamId"].get<std::string>());
+                 }
+                 if (!boundStreamId.isEmpty()) {
+                     beginWaitStreamActiveAndTransition(m_lastBroadcastId, boundStreamId);
+                     return;
+                 }
+             } catch (...) {
+             }
              transitionLiveBroadcast(m_lastBroadcastId, "live");
              return;
         } else if (m_currentOperation == "resetBroadcastExec") {
@@ -617,6 +678,15 @@ void OneSevenLiveYouTubeClient::handleApiError(const QString& error, const QStri
     }
 
     emit errorOccurred(detailedError, operation);
+}
+
+void OneSevenLiveYouTubeClient::beginWaitStreamActiveAndTransition(const QString& broadcastId,
+                                                                   const QString& streamId) {
+    m_pendingStartBroadcastId = broadcastId;
+    m_boundStreamIdForStart = streamId;
+    m_waitingStreamActiveForStart = true;
+    m_streamActivePollAttempts = 0;
+    getLiveStreamById(streamId);
 }
 
 void OneSevenLiveYouTubeClient::retryLastRequest() {
@@ -806,6 +876,7 @@ void OneSevenLiveYouTubeClient::startBroadcast(const QString& broadcastId) {
         emit errorOccurred("No valid authentication token", "startBroadcast");
         return;
     }
+    m_lastBroadcastId = broadcastId;
     m_currentOperation = "startBroadcast";
     QMap<QString, QString> params;
     params["id"] = broadcastId;

@@ -9,6 +9,7 @@
 
 // Forward declarations
 class RemoteTextThread;
+class QTimer;
 
 struct YouTubeLiveStreamSnippet {
     QString publishedAt;
@@ -167,11 +168,17 @@ class OneSevenLiveYouTubeClient : public QObject {
     void onApiRequestError(const QString& response, const QString& error);
 
    private:
+    void beginWaitStreamActiveAndTransition(const QString& broadcastId, const QString& streamId);
     void makeApiRequest(const QString& endpoint, const QString& method = "GET",
                         const QString& body = QString());
     QString m_lastBroadcastId;
     QString m_lastStreamId;
     QString m_lastTransitionStatus;
+    QTimer* m_streamActivePollTimer{nullptr};
+    bool m_waitingStreamActiveForStart{false};
+    QString m_pendingStartBroadcastId;
+    QString m_boundStreamIdForStart;
+    int m_streamActivePollAttempts{0};
     QString buildApiUrl(const QString& endpoint, const QMap<QString, QString>& params) const;
 
     // JSON parsing

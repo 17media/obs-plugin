@@ -120,12 +120,6 @@ void OneSevenLiveYouTubeChatClient::startChatPolling(const QString& liveChatId) 
         return;
     }
 
-    bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
-    if (!isLive) {
-        obs_log(LOG_INFO, "YouTube stream not live; skipping chat polling start");
-        return;
-    }
-
     if (m_isPolling && liveChatId == m_liveChatId) {
         obs_log(LOG_INFO, "Chat polling already running for same chatId; ignoring restart");
         return;
@@ -301,11 +295,6 @@ void OneSevenLiveYouTubeChatClient::fetchChatMessages() {
     }
 
     if (!m_hasValidAuth && m_apiKey.isEmpty()) {
-        return;
-    }
-
-    bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
-    if (!isLive) {
         return;
     }
 
@@ -647,26 +636,16 @@ void OneSevenLiveYouTubeChatClient::onPollingTimeout() {
 
 void OneSevenLiveYouTubeChatClient::onStatusTimer() {
     auto& core = OneSevenLiveCoreManager::getInstance();
-    bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
-    const char* status = (m_isPolling && isLive) ? "connected" : "break";
+    const char* status = m_isPolling ? "connected" : "break";
     core.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
                                      nlohmann::json{{"status", status}});
 
-    if (!isLive && m_isPolling) {
-        stopChatPolling();
-    }
+    if (!m_isPolling && m_statusTimer->isActive())
+        m_statusTimer->stop();
 }
 
 void OneSevenLiveYouTubeChatClient::scheduleReconnect() {
     if (!m_liveChatId.isEmpty()) {
-        bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
-        if (!isLive) {
-            m_reconnectAttempts = 0;
-            m_isPolling = false;
-            wsBroadcast(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                        nlohmann::json{{"status", "break"}});
-            return;
-        }
         if (m_reconnectAttempts < MAX_QUICK_RETRIES) {
             int delayMs = qMin(m_exponentialBackoffDelay, 5000);
             m_reconnectAttempts++;
@@ -687,9 +666,6 @@ void OneSevenLiveYouTubeChatClient::scheduleReconnect() {
 
 void OneSevenLiveYouTubeChatClient::doReconnect() {
     if (m_liveChatId.isEmpty())
-        return;
-    bool isLive = OneSevenLiveMultiRtmpManager::getInstance()->isPlatformStreaming("YouTube");
-    if (!isLive)
         return;
     startChatPolling(m_liveChatId);
 }
