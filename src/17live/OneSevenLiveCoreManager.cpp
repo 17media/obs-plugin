@@ -726,6 +726,14 @@ void OneSevenLiveCoreManager::stopYouTubeChatPolling() {
 
 void OneSevenLiveCoreManager::orchestrateYouTubeBroadcast(const QString& title) {
     createYouTubeChatClient();
+    if (configManager) {
+        QString bid;
+        QString chat;
+        if (configManager->getYouTubeBroadcastInfo(bid, chat) && !chat.isEmpty()) {
+            startYouTubeChatPolling(chat);
+            return;
+        }
+    }
     if (!youtubeApiClient || !youtubeApiClient->hasValidAuth()) {
         return;
     }

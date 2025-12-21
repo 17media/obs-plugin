@@ -255,13 +255,34 @@ void OneSevenLiveYouTubeChatClient::startDiscovery() {
         m_discoverTimer = new QTimer(this);
         m_discoverTimer->setInterval(60000);
         connect(m_discoverTimer, &QTimer::timeout, this, [this]() {
-            if (m_apiClient && m_apiClient->hasValidAuth())
+            if (m_apiClient && m_apiClient->hasValidAuth()) {
+                auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager();
+                if (cm) {
+                    QString bid;
+                    QString chat;
+                    if (cm->getYouTubeBroadcastInfo(bid, chat) && !bid.isEmpty()) {
+                        m_apiClient->getLiveBroadcastById(bid);
+                        return;
+                    }
+                }
                 m_apiClient->getMyLiveBroadcasts();
+            }
         });
     }
     if (m_apiClient->hasValidAuth()) {
         if (!m_discoverTimer->isActive())
             m_discoverTimer->start();
+        {
+            auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager();
+            if (cm) {
+                QString bid;
+                QString chat;
+                if (cm->getYouTubeBroadcastInfo(bid, chat) && !bid.isEmpty()) {
+                    m_apiClient->getLiveBroadcastById(bid);
+                    return;
+                }
+            }
+        }
         m_apiClient->getMyLiveBroadcasts();
     } else {
         if (m_discoverTimer->isActive())
@@ -425,13 +446,29 @@ void OneSevenLiveYouTubeChatClient::onBroadcastsReceived(
     const YouTubeLiveBroadcastListResponse& resp) {
     QString discovered;
     QString broadcastId;
-    for (const auto& b : resp.items) {
-        if (!b.snippet.actualEndTime.isEmpty())
-            continue;  // Skip ended broadcasts
-        if (!b.snippet.liveChatId.isEmpty()) {
-            discovered = b.snippet.liveChatId;
-            broadcastId = b.id;
-            break;
+    {
+        auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        QString savedBid;
+        QString savedChat;
+        if (cm && cm->getYouTubeBroadcastInfo(savedBid, savedChat) && !savedBid.isEmpty()) {
+            for (const auto& b : resp.items) {
+                if (b.id == savedBid && !b.snippet.liveChatId.isEmpty()) {
+                    discovered = b.snippet.liveChatId;
+                    broadcastId = b.id;
+                    break;
+                }
+            }
+        }
+    }
+    if (discovered.isEmpty()) {
+        for (const auto& b : resp.items) {
+            if (!b.snippet.actualEndTime.isEmpty())
+                continue;
+            if (!b.snippet.liveChatId.isEmpty()) {
+                discovered = b.snippet.liveChatId;
+                broadcastId = b.id;
+                break;
+            }
         }
     }
     if (discovered.isEmpty()) {
