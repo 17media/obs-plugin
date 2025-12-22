@@ -189,6 +189,11 @@ void OneSevenLiveMultiRtmpDock::setupConnections() {
                                     config.serviceSettings["server"] = url;
                                     config.serviceSettings["key"] = key;
                                     m_manager->updateStreamConfig(streamId, config);
+                                    obs_log(LOG_INFO, "GET server & key --------------------------------");
+                                    obs_log(LOG_INFO, "YouTube broadcastId: %s", dialog.getBroadcastId().toStdString().c_str());
+                                    obs_log(LOG_INFO, "YouTube liveChatId: %s", dialog.getLiveChatId().toStdString().c_str());
+                                    obs_log(LOG_INFO, "YouTube server: %s", url.c_str());
+                                    obs_log(LOG_INFO, "YouTube key: %s", key.c_str());
                                 }
 
                                 m_manager->startStream(streamId);

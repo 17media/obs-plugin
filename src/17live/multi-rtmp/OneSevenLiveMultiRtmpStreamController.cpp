@@ -1078,6 +1078,10 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
     const std::string platform = config.streamName;
     if (platform == "YouTube") {
         obs_data_set_string(settings, "service", "YouTube - RTMPS");
+        // log out server & key to check if it's correct
+        obs_log(LOG_INFO, "USE server & key --------------------------------");
+        obs_log(LOG_INFO, "YouTube server: %s", obs_data_get_string(settings, "server"));
+        obs_log(LOG_INFO, "YouTube key: %s", obs_data_get_string(settings, "key"));
     } else if (platform == "Twitch") {
         obs_data_set_string(settings, "service", "Twitch");
     }
@@ -1143,6 +1147,7 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createAudioEncoderSettings(
 
 void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
     const std::string& streamId, const OneSevenLiveMultiRtmpConfig& config) {
+        obs_log(LOG_INFO, "resolvePlatformServerKeyAsync (non-blocking)");
     QTimer::singleShot(0, [this, streamId, config]() {
         std::string platform;
         try {
@@ -1311,6 +1316,7 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
 
 void OneSevenLiveMultiRtmpStreamController::finalizeServiceSetupAfterResolve(
     const std::string& streamId, const std::string& server, const std::string& key) {
+        obs_log(LOG_INFO, "finalizeServiceSetupAfterResolve (non-blocking)");
     auto it = m_streamOutputs.find(streamId);
     if (it == m_streamOutputs.end()) {
         MULTI_RTMP_STREAM_LOG_ERROR("StreamOutput missing during finalize for: %s",

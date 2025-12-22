@@ -6,7 +6,7 @@
 #include "plugin-support.h"
 
 OneSevenLiveYouTubeBroadcastDialog::OneSevenLiveYouTubeBroadcastDialog(QWidget* parent)
-    : QDialog(parent), m_isCreating(false) {
+    : QDialog(parent), m_isCreating(false), m_selectionWithBoundStream(false) {
     setWindowTitle("YouTube Broadcast Manager");
     resize(600, 400);
 
@@ -203,6 +203,7 @@ void OneSevenLiveYouTubeBroadcastDialog::onBroadcastsReceived(const YouTubeLiveB
         item->setData(Qt::UserRole, broadcast.id);
         item->setData(Qt::UserRole + 1, broadcast.snippet.liveChatId);
         item->setData(Qt::UserRole + 2, broadcast.snippet.title);
+        item->setData(Qt::UserRole + 3, broadcast.contentDetails.boundStreamId);
         m_broadcastList->addItem(item);
     }
     
@@ -287,6 +288,32 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
     obs_log(LOG_INFO, "[YouTube-Dialog] onStreamsReceived count=%d isCreating=%s",
             response.items.size(), m_isCreating ? "true" : "false");
     m_availableStreams = response.items;
+    
+    if (m_selectionWithBoundStream) {
+        bool found = false;
+        YouTubeLiveStream target;
+        for (const auto& s : m_availableStreams) {
+            if (s.id == m_selectedBoundStreamId) {
+                target = s;
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            m_ingestionUrl = target.cdn.ingestionInfo.rtmpsIngestionAddress.isEmpty()
+                                 ? target.cdn.ingestionInfo.ingestionAddress
+                                 : target.cdn.ingestionInfo.rtmpsIngestionAddress;
+            m_streamKey = target.cdn.ingestionInfo.streamName;
+            m_client->startBroadcast(m_selectedBroadcastId, m_selectedBoundStreamId);
+            auto& core = OneSevenLiveCoreManager::getInstance();
+            core.startYouTubeChatPolling(m_selectedLiveChatId);
+            obs_log(LOG_INFO, "[YouTube-Dialog] Selection flow reuse bound stream; startBroadcast + start chat; closing dialog");
+            accept();
+            return;
+        }
+        obs_log(LOG_WARNING, "[YouTube-Dialog] Bound stream id not found in received list; fallback to normal selection");
+        m_selectionWithBoundStream = false;
+    }
     
     if (m_isCreating) {
         // We are in creation flow.
@@ -399,13 +426,12 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamCreated(const YouTubeLiveStream
 void OneSevenLiveYouTubeBroadcastDialog::onBroadcastBound(const QString& broadcastId, const QString& streamId) {
     obs_log(LOG_INFO, "[YouTube-Dialog] onBroadcastBound broadcast=%s stream=%s isCreating=%s",
             broadcastId.toUtf8().constData(), streamId.toUtf8().constData(), m_isCreating ? "true" : "false");
-    UNUSED_PARAMETER(streamId);
     if (m_isCreating) {
-        m_client->startBroadcast(broadcastId);
+        m_client->startBroadcast(broadcastId, streamId);
         obs_log(LOG_INFO, "[YouTube-Dialog] Fetch broadcast details after bind to get liveChatId");
         m_client->getLiveBroadcastById(broadcastId);
     } else {
-        m_client->startBroadcast(broadcastId);
+        m_client->startBroadcast(broadcastId, streamId);
         auto& core = OneSevenLiveCoreManager::getInstance();
         core.startYouTubeChatPolling(m_selectedLiveChatId);
         obs_log(LOG_INFO, "[YouTube-Dialog] Selection flow bound; startBroadcast + start chat; closing dialog");
@@ -447,8 +473,19 @@ void OneSevenLiveYouTubeBroadcastDialog::processSelection(const QString& broadca
     m_selectedLiveChatId = chatId;
     m_isCreating = false;
     
-    // We need to ensure it's bound and get stream key.
-    // Fetch streams to find a candidate to bind.
+    auto items = m_broadcastList->selectedItems();
+    QString boundId;
+    if (!items.isEmpty()) {
+        boundId = items.first()->data(Qt::UserRole + 3).toString();
+    }
+    if (!boundId.isEmpty()) {
+        m_selectionWithBoundStream = true;
+        m_selectedBoundStreamId = boundId;
+        obs_log(LOG_INFO, "[YouTube-Dialog] Broadcast already bound to stream=%s; reuse ingestion info",
+                boundId.toUtf8().constData());
+        m_client->getLiveStreamById(boundId);
+        return;
+    }
     obs_log(LOG_INFO, "[YouTube-Dialog] Fetch my live streams for selection flow");
     m_client->getMyLiveStreams();
 }

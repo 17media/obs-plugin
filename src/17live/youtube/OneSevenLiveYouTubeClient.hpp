@@ -99,12 +99,18 @@ struct YouTubeLiveBroadcastStatus {
     YouTubeLiveBroadcastStatus() {}
 };
 
+struct YouTubeLiveBroadcastContentDetails {
+    QString boundStreamId;
+    bool enableMonitorStream = false;
+};
+
 struct YouTubeLiveBroadcast {
     QString kind;
     QString etag;
     QString id;
     YouTubeLiveBroadcastSnippet snippet;
     YouTubeLiveBroadcastStatus status;
+    YouTubeLiveBroadcastContentDetails contentDetails;
 
     YouTubeLiveBroadcast() : kind("youtube#liveBroadcast") {}
 };
@@ -142,6 +148,7 @@ class OneSevenLiveYouTubeClient : public QObject {
     void bindLiveBroadcast(const QString& broadcastId, const QString& streamId);
     void transitionLiveBroadcast(const QString& broadcastId, const QString& status);
     void startBroadcast(const QString& broadcastId);
+    void startBroadcast(const QString& broadcastId, const QString& boundStreamId);
     void stopBroadcast(const QString& broadcastId);
     void resetBroadcast(const QString& broadcastId);
 
@@ -179,6 +186,7 @@ class OneSevenLiveYouTubeClient : public QObject {
     QString m_pendingStartBroadcastId;
     QString m_boundStreamIdForStart;
     int m_streamActivePollAttempts{0};
+    QString m_boundStreamIdOverrideForStart;
     QString buildApiUrl(const QString& endpoint, const QMap<QString, QString>& params) const;
 
     // JSON parsing
@@ -192,6 +200,7 @@ class OneSevenLiveYouTubeClient : public QObject {
     YouTubeLiveStreamListResponse parseLiveStreamListResponse(const nlohmann::json& json) const;
     YouTubeLiveBroadcastSnippet parseLiveBroadcastSnippet(const nlohmann::json& json) const;
     YouTubeLiveBroadcastStatus parseLiveBroadcastStatus(const nlohmann::json& json) const;
+    YouTubeLiveBroadcastContentDetails parseLiveBroadcastContentDetails(const nlohmann::json& json) const;
     YouTubeLiveBroadcast parseLiveBroadcast(const nlohmann::json& json) const;
     YouTubeLiveBroadcastListResponse parseLiveBroadcastListResponse(
         const nlohmann::json& json) const;
