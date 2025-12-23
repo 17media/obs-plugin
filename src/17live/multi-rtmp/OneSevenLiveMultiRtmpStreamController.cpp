@@ -1063,6 +1063,10 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
     const std::string platform = config.streamName;
     if (platform == "YouTube") {
         obs_data_set_string(settings, "service", "YouTube - RTMPS");
+        // log out server & key to check if it's correct
+        obs_log(LOG_INFO, "USE server & key --------------------------------");
+        obs_log(LOG_INFO, "YouTube server: %s", obs_data_get_string(settings, "server"));
+        obs_log(LOG_INFO, "YouTube key: %s", obs_data_get_string(settings, "key"));
     } else if (platform == "Twitch") {
         obs_data_set_string(settings, "service", "Twitch");
     }

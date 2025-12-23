@@ -94,4 +94,6 @@ private:
     bool m_isCreating;
     bool m_autoStartEnabled;
     QVector<YouTubeLiveStream> m_availableStreams;
+    bool m_selectionWithBoundStream;
+    QString m_selectedBoundStreamId;
 };
