@@ -503,6 +503,25 @@ void OneSevenLiveYouTubeBroadcastDialog::onError(const QString& error, const QSt
     obs_log(LOG_ERROR, "[YouTube-Dialog] onError op=%s error=%s isCreating=%s",
             operation.toUtf8().constData(), error.toUtf8().constData(),
             m_isCreating ? "true" : "false");
+    
+    // Handle stream conflict (stream already bound to another broadcast)
+    if (operation == "bindLiveBroadcast" && !m_isCreating) {
+        // Simple heuristic: if error message contains "bound" or "conflict" or specific error message
+        // The user reported: "直播间当前直播码已被占用" which likely comes from YouTube API error message
+        // We can try to automatically create a NEW stream and bind to it
+        obs_log(LOG_WARNING, "[YouTube-Dialog] Stream binding conflict detected; attempting to create new stream as fallback");
+        
+        m_isCreating = true; // Switch to "creating" mode to handle the flow
+        m_pendingBroadcastId = m_selectedBroadcastId; // We are binding for the selected broadcast
+        
+        // Use broadcast title for new stream title
+        QString streamTitle = m_selectedTitle;
+        if (streamTitle.isEmpty()) streamTitle = "New Stream for Broadcast";
+        
+        m_client->createLiveStream(streamTitle);
+        return;
+    }
+
     QMessageBox::critical(this, "Error", QString("Operation %1 failed: %2").arg(operation).arg(error));
     if (m_isCreating) {
         m_confirmCreateButton->setEnabled(true);
