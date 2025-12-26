@@ -35,9 +35,9 @@ void OneSevenLiveYouTubeBroadcastDialog::setupUI() {
     listLayout->addWidget(m_broadcastList);
 
     auto btnLayout = new QHBoxLayout();
-    m_refreshButton = new QPushButton("Refresh");
-    m_createButton = new QPushButton("Create New Broadcast");
-    m_selectButton = new QPushButton("Select & Start Streaming");
+    m_refreshButton = new QPushButton(obs_module_text("YouTube.Broadcast.Refresh"));
+    m_createButton = new QPushButton(obs_module_text("YouTube.Broadcast.CreateNew"));
+    m_selectButton = new QPushButton(obs_module_text("YouTube.Broadcast.SelectAndStart"));
     m_selectButton->setEnabled(false);
 
     btnLayout->addWidget(m_refreshButton);
