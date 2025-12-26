@@ -362,16 +362,25 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
              return;
         }
         
-        // Pick first one
-        auto s = m_availableStreams.first();
-        m_ingestionUrl = s.cdn.ingestionInfo.rtmpsIngestionAddress.isEmpty()
-                             ? s.cdn.ingestionInfo.ingestionAddress
-                             : s.cdn.ingestionInfo.rtmpsIngestionAddress;
-        m_streamKey = s.cdn.ingestionInfo.streamName;
+        // Prefer default stream if available
+        YouTubeLiveStream targetStream = m_availableStreams.first();
+        for (const auto& s : m_availableStreams) {
+            if (s.snippet.isDefaultStream) {
+                targetStream = s;
+                obs_log(LOG_INFO, "[YouTube-Dialog] Found default stream=%s", s.id.toUtf8().constData());
+                break;
+            }
+        }
         
-        obs_log(LOG_INFO, "[YouTube-Dialog] Bind selected broadcast=%s to stream=%s",
-                m_selectedBroadcastId.toUtf8().constData(), s.id.toUtf8().constData());
-        m_client->bindLiveBroadcast(m_selectedBroadcastId, s.id);
+        m_ingestionUrl = targetStream.cdn.ingestionInfo.rtmpsIngestionAddress.isEmpty()
+                             ? targetStream.cdn.ingestionInfo.ingestionAddress
+                             : targetStream.cdn.ingestionInfo.rtmpsIngestionAddress;
+        m_streamKey = targetStream.cdn.ingestionInfo.streamName;
+        
+        obs_log(LOG_INFO, "[YouTube-Dialog] Bind selected broadcast=%s to stream=%s (key=%s)",
+                m_selectedBroadcastId.toUtf8().constData(), targetStream.id.toUtf8().constData(),
+                m_streamKey.toUtf8().constData());
+        m_client->bindLiveBroadcast(m_selectedBroadcastId, targetStream.id);
     }
 }
 
