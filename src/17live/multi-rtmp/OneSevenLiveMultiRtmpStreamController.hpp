@@ -15,7 +15,9 @@
 #include "OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
 
-
+// Forward declarations for async platform resolution
+class OneSevenLiveYouTubeClient;
+class OneSevenLiveTwitchClient;
 
 /**
  * Stream Controller for Multi-RTMP functionality
@@ -122,12 +124,19 @@ class OneSevenLiveMultiRtmpStreamController {
     std::string getServiceName(const std::string& streamId) const;
     std::string getVideoEncoderName(const std::string& streamId) const;
     std::string getAudioEncoderName(const std::string& streamId) const;
+    // Select best Twitch server from OBS service list
+    std::string getRecommendedTwitchServer() const;
 
     obs_data_t* createServiceSettings(const OneSevenLiveMultiRtmpConfig& config) const;
     obs_data_t* createOutputSettings(const OneSevenLiveMultiRtmpConfig& config) const;
     obs_data_t* createVideoEncoderSettings(const OneSevenLiveMultiRtmpConfig& config) const;
-
     obs_data_t* createAudioEncoderSettings(const OneSevenLiveMultiRtmpConfig& config) const;
+
+    // Async platform resolution
+    void resolvePlatformServerKeyAsync(const std::string& streamId,
+                                       const OneSevenLiveMultiRtmpConfig& config);
+    void finalizeServiceSetupAfterResolve(const std::string& streamId, const std::string& server,
+                                          const std::string& key);
 
     // Helper methods for getting OBS default encoder settings
     obs_data_t* getObsDefaultVideoEncoderSettings() const;
@@ -138,7 +147,8 @@ class OneSevenLiveMultiRtmpStreamController {
     std::map<std::string, std::unique_ptr<StreamOutput>> m_streamOutputs;
     mutable std::mutex m_outputsMutex;
 
-
+    // Pending async resolution clients per stream (Twitch only)
+    std::map<std::string, std::unique_ptr<OneSevenLiveTwitchClient>> m_pendingTwitchClients;
 
     // Shared encoders
     obs_encoder_t* m_sharedVideoEncoder = nullptr;
