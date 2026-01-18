@@ -323,6 +323,8 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
         
         bool found = false;
         QString streamId;
+        bool hasTitleDefaultCandidate = false;
+        YouTubeLiveStream titleDefaultCandidate;
         
         for (const auto& s : m_availableStreams) {
             obs_log(LOG_INFO, "[YouTube-Dialog] stream id=%s title=%s isDefault=%s",
@@ -337,6 +339,20 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
                 found = true;
                 break;
             }
+            if (!hasTitleDefaultCandidate && s.snippet.title == "Default stream key") {
+                titleDefaultCandidate = s;
+                hasTitleDefaultCandidate = true;
+            }
+        }
+
+        if (!found && hasTitleDefaultCandidate) {
+            const auto& s = titleDefaultCandidate;
+            streamId = s.id;
+            m_ingestionUrl = s.cdn.ingestionInfo.rtmpsIngestionAddress.isEmpty()
+                                 ? s.cdn.ingestionInfo.ingestionAddress
+                                 : s.cdn.ingestionInfo.rtmpsIngestionAddress;
+            m_streamKey = s.cdn.ingestionInfo.streamName;
+            found = true;
         }
         
         if (found) {
@@ -364,12 +380,23 @@ void OneSevenLiveYouTubeBroadcastDialog::onStreamsReceived(const YouTubeLiveStre
         
         // Prefer default stream if available
         YouTubeLiveStream targetStream = m_availableStreams.first();
+        bool hasTitleDefaultCandidateSel = false;
+        YouTubeLiveStream titleDefaultCandidateSel;
         for (const auto& s : m_availableStreams) {
             if (s.snippet.isDefaultStream) {
                 targetStream = s;
                 obs_log(LOG_INFO, "[YouTube-Dialog] Found default stream=%s", s.id.toUtf8().constData());
                 break;
             }
+            if (!hasTitleDefaultCandidateSel && s.snippet.title == "Default stream key") {
+                titleDefaultCandidateSel = s;
+                hasTitleDefaultCandidateSel = true;
+            }
+        }
+        if (!targetStream.snippet.isDefaultStream && hasTitleDefaultCandidateSel) {
+            targetStream = titleDefaultCandidateSel;
+            obs_log(LOG_INFO, "[YouTube-Dialog] Fallback to title Default stream key stream=%s",
+                    targetStream.id.toUtf8().constData());
         }
         
         m_ingestionUrl = targetStream.cdn.ingestionInfo.rtmpsIngestionAddress.isEmpty()
