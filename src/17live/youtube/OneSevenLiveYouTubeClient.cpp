@@ -351,9 +351,22 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
     }
 
     std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
+    // For critical operations like transitioning broadcast state (stop), 
+    // we don't want the shutdown cancel flag to abort the request.
+    if (m_currentOperation == "transitionLiveBroadcast") {
+        cancelFlag = nullptr;
+    }
+
+    std::string requestBody = body.toStdString();
+    // RemoteTextThread defaults to GET if postData is empty. 
+    // We must provide an empty JSON object to force POST/PUT for empty bodies.
+    if (requestBody.empty() && (method == "POST" || method == "PUT")) {
+        requestBody = "{}";
+    }
+
     RemoteTextThread* thread = new RemoteTextThread(
         endpoint.toStdString(), std::move(headers), "application/json",
-        method == "POST" || method == "PUT" ? body.toStdString() : std::string(),
+        requestBody,
         m_timeoutMs / 1000, false, cancelFlag);
 
     if (m_currentOperation.isEmpty()) {

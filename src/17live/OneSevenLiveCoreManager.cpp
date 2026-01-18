@@ -434,10 +434,36 @@ void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& logi
 }
 
 void OneSevenLiveCoreManager::shutdown() {
-    m_cancelFlag.store(true);
     if (!initialized) {
         return;
     }
+
+    // Stop YouTube streams in MultiRTMP Manager first to ensure "complete" transition
+    {
+        auto* multiMgr = OneSevenLiveMultiRtmpManager::peekInstance();
+        if (multiMgr && multiMgr->isInitialized()) {
+            bool stoppedYouTube = false;
+            auto activeStreams = multiMgr->getActiveStreamIds();
+            for (const auto& streamId : activeStreams) {
+                auto cfg = multiMgr->getStreamConfig(streamId);
+                if (cfg.streamName == "YouTube") {
+                    multiMgr->stopStream(streamId);
+                    stoppedYouTube = true;
+                }
+            }
+
+            if (stoppedYouTube) {
+                // Give some time for the API request to be dispatched
+                QElapsedTimer t;
+                t.start();
+                while (t.elapsed() < 1000) {
+                    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+                }
+            }
+        }
+    }
+
+    m_cancelFlag.store(true);
 
     if (obs_frontend_streaming_active()) {
         if (streamManager) {
