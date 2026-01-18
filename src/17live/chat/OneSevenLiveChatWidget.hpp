@@ -2,8 +2,8 @@
 
 #include <obs-module.h>
 
-#include <QWidget>
 #include <QPointer>
+#include <QWidget>
 
 class QLabel;
 class QCefWidget;

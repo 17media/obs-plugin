@@ -15,8 +15,8 @@
 #include <chrono>
 #include <thread>
 
-#include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveConfigManager.hpp"
+#include "OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
@@ -939,8 +939,7 @@ void OneSevenLiveMultiRtmpStreamController::collectStreamStats(const std::string
     streamOutput.stats.duration = now - streamOutput.startTime;
 
     uint64_t totalBytes = obs_output_get_total_bytes(streamOutput.output);
-    uint64_t totalFrames =
-        static_cast<uint64_t>(obs_output_get_total_frames(streamOutput.output));
+    uint64_t totalFrames = static_cast<uint64_t>(obs_output_get_total_frames(streamOutput.output));
 
     streamOutput.stats.totalFrames = static_cast<int>(totalFrames);
     streamOutput.stats.droppedFrames =
@@ -957,8 +956,7 @@ void OneSevenLiveMultiRtmpStreamController::collectStreamStats(const std::string
 
     using namespace std::chrono;
 
-    double interval =
-        duration_cast<duration<double>>(now - streamOutput.lastStatsTime).count();
+    double interval = duration_cast<duration<double>>(now - streamOutput.lastStatsTime).count();
     if (interval <= 0.0) {
         return;
     }
@@ -1026,8 +1024,7 @@ void OneSevenLiveMultiRtmpStreamController::collectStreamStats(const std::string
         }
 
         if (streamOutput.smoothedFPS > 0.0) {
-            streamOutput.stats.currentFPS =
-                static_cast<int>(std::round(streamOutput.smoothedFPS));
+            streamOutput.stats.currentFPS = static_cast<int>(std::round(streamOutput.smoothedFPS));
         } else {
             streamOutput.stats.currentFPS = 0;
         }
@@ -1039,7 +1036,7 @@ void OneSevenLiveMultiRtmpStreamController::collectStreamStats(const std::string
     streamOutput.lastBytes = totalBytes;
     streamOutput.lastFrames = totalFrames;
 
-    streamOutput.stats.cpuUsage = 0.0;        // Would need actual implementation
+    streamOutput.stats.cpuUsage = 0.0;  // Would need actual implementation
 
     if (streamOutput.stats.totalFrames > 0) {
         streamOutput.stats.averageBitrate = streamOutput.stats.currentBitrate;
@@ -1225,7 +1222,7 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
                                        "ResolveFailed:YouTube");
                 });
             yt->getMyLiveStreams();
-            } else if (contains_ci(platform, "twitch")) {
+        } else if (contains_ci(platform, "twitch")) {
             auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
             OneSevenLiveTwitchClient* client = nullptr;
             if (twAuth) {

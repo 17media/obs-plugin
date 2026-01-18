@@ -1119,8 +1119,7 @@ bool OneSevenLiveConfigManager::setYouTubeBroadcastInfo(const QString &broadcast
     return true;
 }
 
-bool OneSevenLiveConfigManager::getYouTubeBroadcastInfo(QString &broadcastId,
-                                                        QString &liveChatId) {
+bool OneSevenLiveConfigManager::getYouTubeBroadcastInfo(QString &broadcastId, QString &liveChatId) {
     if (!initialized) {
         return false;
     }

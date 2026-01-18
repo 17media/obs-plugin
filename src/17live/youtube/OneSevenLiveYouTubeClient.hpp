@@ -140,7 +140,8 @@ class OneSevenLiveYouTubeClient : public QObject {
     void getLiveStreamById(const QString& streamId);
     void createLiveStream(const QString& title, const QString& description = QString());
     void deleteLiveStream(const QString& streamId);
-    void getMyLiveBroadcasts(const QString& broadcastStatus = QString(), const QString& pageToken = QString());
+    void getMyLiveBroadcasts(const QString& broadcastStatus = QString(),
+                             const QString& pageToken = QString());
     void getLiveBroadcastById(const QString& broadcastId);
     void createLiveBroadcast(const QString& title, const QString& privacyStatus = "public",
                              const QString& latency = "normal", bool autoStart = false,
@@ -200,7 +201,8 @@ class OneSevenLiveYouTubeClient : public QObject {
     YouTubeLiveStreamListResponse parseLiveStreamListResponse(const nlohmann::json& json) const;
     YouTubeLiveBroadcastSnippet parseLiveBroadcastSnippet(const nlohmann::json& json) const;
     YouTubeLiveBroadcastStatus parseLiveBroadcastStatus(const nlohmann::json& json) const;
-    YouTubeLiveBroadcastContentDetails parseLiveBroadcastContentDetails(const nlohmann::json& json) const;
+    YouTubeLiveBroadcastContentDetails parseLiveBroadcastContentDetails(
+        const nlohmann::json& json) const;
     YouTubeLiveBroadcast parseLiveBroadcast(const nlohmann::json& json) const;
     YouTubeLiveBroadcastListResponse parseLiveBroadcastListResponse(
         const nlohmann::json& json) const;

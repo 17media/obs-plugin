@@ -225,9 +225,9 @@ bool OneSevenLiveCoreManager::initialize() {
         QString ytRefresh;
         int ytRefreshExpiresIn{0};
         qint64 ytRefreshFetchedAt{0};
-        const bool hasRefresh =
-            configManager->getYouTubeRefreshToken(ytRefresh, ytRefreshExpiresIn,
-                                                  ytRefreshFetchedAt) && !ytRefresh.isEmpty();
+        const bool hasRefresh = configManager->getYouTubeRefreshToken(ytRefresh, ytRefreshExpiresIn,
+                                                                      ytRefreshFetchedAt) &&
+                                !ytRefresh.isEmpty();
 
         const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
 
@@ -749,7 +749,6 @@ void OneSevenLiveCoreManager::stopYouTubeChatPolling() {
         youtubeChatClient->stopChatPolling();
     }
 }
-
 
 void OneSevenLiveCoreManager::connectTwitchChatClient(const QString& channel) {
     if (!twitchChatClient) {
@@ -1366,7 +1365,6 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         int y =
             mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
         streamingDock->move(x, y);
-
     }
 
     if (streamingDockFirstLoad) {
@@ -1439,7 +1437,6 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - rockZoneDock->width()) / 2;
         int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - rockZoneDock->height()) / 2;
         rockZoneDock->move(x, y);
-
     }
 
     if (streamManager) {
@@ -1495,7 +1492,6 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
             int y =
                 mainWindowGeometry.y() + (mainWindowGeometry.height() - liveListDock->height()) / 2;
             liveListDock->move(x, y);
-
         }
 
         connect(liveListDock, &OneSevenLiveStreamListDock::startLiveClicked, this,
@@ -1654,7 +1650,6 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatDock->width()) / 2;
             int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatDock->height()) / 2;
             chatDock->move(x, y);
-
         }
 
         connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
@@ -1880,7 +1875,6 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
         int y =
             mainWindowGeometry.y() + (mainWindowGeometry.height() - multiRtmpDock->height()) / 2;
         multiRtmpDock->move(x, y);
-
     }
 
     if (multiRtmpDockFirstLoad) {
@@ -1946,7 +1940,6 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - previewDock->width()) / 2;
         int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - previewDock->height()) / 2;
         previewDock->move(x, y);
-
     }
 
     if (previewDockFirstLoad) {

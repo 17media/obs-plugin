@@ -8,6 +8,7 @@
 #include <QUrlQuery>
 #include <nlohmann/json.hpp>
 
+#include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveYouTubeClient.hpp"
 #include "api/OneSevenLiveModels.hpp"
@@ -17,7 +18,6 @@
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
-#include "OneSevenLiveConfigManager.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
 
 const QString OneSevenLiveYouTubeChatClient::YOUTUBE_API_BASE_URL =
@@ -516,7 +516,8 @@ void OneSevenLiveYouTubeChatClient::onChatRequestFinished(const QString& respons
                 ereason = e0.value("reason", std::string());
             }
             if (ecode || !emsg.empty() || !estatus.empty() || !ereason.empty()) {
-                obs_log(LOG_WARNING, "YouTube Chat API Error details: code=%d message=%s status=%s reason=%s",
+                obs_log(LOG_WARNING,
+                        "YouTube Chat API Error details: code=%d message=%s status=%s reason=%s",
                         ecode, emsg.c_str(), estatus.c_str(), ereason.c_str());
             }
         } catch (...) {

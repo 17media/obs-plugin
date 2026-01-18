@@ -337,7 +337,8 @@ void OneSevenLiveTwitchChatClient::attemptReconnect() {
 void OneSevenLiveTwitchChatClient::sendRawMessage(const QString& message) {
     if (m_connected && m_client && m_client->isConnected()) {
         sendWebSocketMessage(message.toStdString());
-        int level = (message.startsWith("PING ") || message.startsWith("PONG ")) ? LOG_DEBUG : LOG_INFO;
+        int level =
+            (message.startsWith("PING ") || message.startsWith("PONG ")) ? LOG_DEBUG : LOG_INFO;
         obs_log(level, "IRC ->: %s", message.toUtf8().constData());
     }
 }

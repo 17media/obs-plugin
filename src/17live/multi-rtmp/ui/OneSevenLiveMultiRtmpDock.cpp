@@ -6,12 +6,12 @@
 #include <QPointer>
 #include <QStyle>
 
+#include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveMultiRtmpConfigDialog.hpp"
 #include "OneSevenLiveMultiRtmpListWidget.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "youtube/ui/OneSevenLiveYouTubeBroadcastDialog.hpp"
-#include "OneSevenLiveConfigManager.hpp"
 
 OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
     : QDockWidget(obs_module_text("MultiRTMP.Dock.Title"), parent),
@@ -189,9 +189,12 @@ void OneSevenLiveMultiRtmpDock::setupConnections() {
                                     config.serviceSettings["server"] = url;
                                     config.serviceSettings["key"] = key;
                                     m_manager->updateStreamConfig(streamId, config);
-                                    obs_log(LOG_INFO, "GET server & key --------------------------------");
-                                    obs_log(LOG_INFO, "YouTube broadcastId: %s", dialog.getBroadcastId().toStdString().c_str());
-                                    obs_log(LOG_INFO, "YouTube liveChatId: %s", dialog.getLiveChatId().toStdString().c_str());
+                                    obs_log(LOG_INFO,
+                                            "GET server & key --------------------------------");
+                                    obs_log(LOG_INFO, "YouTube broadcastId: %s",
+                                            dialog.getBroadcastId().toStdString().c_str());
+                                    obs_log(LOG_INFO, "YouTube liveChatId: %s",
+                                            dialog.getLiveChatId().toStdString().c_str());
                                     obs_log(LOG_INFO, "YouTube server: %s", url.c_str());
                                     obs_log(LOG_INFO, "YouTube key: %s", key.c_str());
                                 }

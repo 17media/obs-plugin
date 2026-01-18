@@ -12,13 +12,12 @@
 #include <thread>
 
 #include "../OneSevenLiveCoreManager.hpp"
-#include "streaming/OneSevenLiveStreamManager.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
 #include "plugin-support.h"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
-#include "streaming/OneSevenLiveStreamManager.hpp"
 
 OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
     : QObject(parent), m_wsClient(std::make_unique<OneSevenLiveWebsocketClient>()) {

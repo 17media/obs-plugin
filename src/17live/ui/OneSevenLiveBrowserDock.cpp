@@ -128,4 +128,3 @@ void OneSevenLiveBrowserDock::closeEvent(QCloseEvent* event) {
 void OneSevenLiveBrowserDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
 }
-

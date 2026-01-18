@@ -40,4 +40,3 @@ class OneSevenLiveBrowserDock : public QDockWidget {
     bool browserClosed_ = false;
     QString currentUrl_;
 };
-

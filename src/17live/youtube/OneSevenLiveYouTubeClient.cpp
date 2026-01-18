@@ -2,11 +2,11 @@
 
 #include <obs-module.h>
 
+#include <QDateTime>
 #include <QRegularExpression>
+#include <QTimer>
 #include <QUrlQuery>
 #include <nlohmann/json.hpp>
-#include <QTimer>
-#include <QDateTime>
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
@@ -16,7 +16,7 @@
 static nlohmann::json prepareResetBody(const nlohmann::json& broadcast) {
     nlohmann::json data;
     data["id"] = broadcast["id"];
-    
+
     if (broadcast.contains("snippet")) {
         auto snippet = broadcast["snippet"];
         nlohmann::json newSnippet;
@@ -27,7 +27,7 @@ static nlohmann::json prepareResetBody(const nlohmann::json& broadcast) {
             newSnippet["scheduledEndTime"] = snippet["scheduledEndTime"];
         data["snippet"] = newSnippet;
     }
-    
+
     if (broadcast.contains("status")) {
         auto status = broadcast["status"];
         nlohmann::json newStatus;
@@ -38,31 +38,30 @@ static nlohmann::json prepareResetBody(const nlohmann::json& broadcast) {
             newStatus["selfDeclaredMadeForKids"] = status["selfDeclaredMadeForKids"];
         data["status"] = newStatus;
     }
-    
+
     if (broadcast.contains("contentDetails")) {
         auto cd = broadcast["contentDetails"];
         nlohmann::json newCd;
-        
+
         nlohmann::json mon;
         mon["enableMonitorStream"] = false;
-        if (cd.contains("monitorStream") && cd["monitorStream"].contains("broadcastStreamDelayMs")) {
+        if (cd.contains("monitorStream") &&
+            cd["monitorStream"].contains("broadcastStreamDelayMs")) {
             mon["broadcastStreamDelayMs"] = cd["monitorStream"]["broadcastStreamDelayMs"];
         }
         newCd["monitorStream"] = mon;
-        
+
         const char* copyFields[] = {
-            "enableAutoStart", "enableAutoStop", "enableClosedCaptions", 
-            "enableDvr", "enableContentEncryption", "enableEmbed", 
-            "recordFromStart", "startWithSlate"
-        };
-        
+            "enableAutoStart",         "enableAutoStop", "enableClosedCaptions", "enableDvr",
+            "enableContentEncryption", "enableEmbed",    "recordFromStart",      "startWithSlate"};
+
         for (const char* field : copyFields) {
             if (cd.contains(field))
                 newCd[field] = cd[field];
         }
         data["contentDetails"] = newCd;
     }
-    
+
     return data;
 }
 
@@ -181,7 +180,8 @@ void OneSevenLiveYouTubeClient::deleteLiveStream(const QString& streamId) {
     makeApiRequest(endpoint, "DELETE");
 }
 
-void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStatus, const QString& pageToken) {
+void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStatus,
+                                                    const QString& pageToken) {
     if (!m_hasValidAuth) {
         emit errorOccurred("No valid authentication token", "getMyLiveBroadcasts");
         return;
@@ -238,7 +238,8 @@ void OneSevenLiveYouTubeClient::setTimeout(int timeoutMs) {
     // obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
 }
 
-void OneSevenLiveYouTubeClient::createLiveBroadcast(const QString& title, const QString& privacyStatus,
+void OneSevenLiveYouTubeClient::createLiveBroadcast(const QString& title,
+                                                    const QString& privacyStatus,
                                                     const QString& latency, bool autoStart,
                                                     bool autoStop, bool dvr, bool scheduleLater) {
     if (!m_hasValidAuth) {
@@ -251,12 +252,11 @@ void OneSevenLiveYouTubeClient::createLiveBroadcast(const QString& title, const 
     {
         QDateTime startUtc = QDateTime::currentDateTimeUtc();
         if (scheduleLater) {
-             startUtc = startUtc.addSecs(3600);
+            startUtc = startUtc.addSecs(3600);
         } else {
-             startUtc = startUtc.addSecs(60);
+            startUtc = startUtc.addSecs(60);
         }
-        QString scheduled =
-            startUtc.toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+        QString scheduled = startUtc.toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'"));
         sn["scheduledStartTime"] = scheduled.toStdString();
     }
     req["snippet"] = sn;
@@ -351,23 +351,22 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
     }
 
     std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
-    // For critical operations like transitioning broadcast state (stop), 
+    // For critical operations like transitioning broadcast state (stop),
     // we don't want the shutdown cancel flag to abort the request.
     if (m_currentOperation == "transitionLiveBroadcast") {
         cancelFlag = nullptr;
     }
 
     std::string requestBody = body.toStdString();
-    // RemoteTextThread defaults to GET if postData is empty. 
+    // RemoteTextThread defaults to GET if postData is empty.
     // We must provide an empty JSON object to force POST/PUT for empty bodies.
     if (requestBody.empty() && (method == "POST" || method == "PUT")) {
         requestBody = "{}";
     }
 
-    RemoteTextThread* thread = new RemoteTextThread(
-        endpoint.toStdString(), std::move(headers), "application/json",
-        requestBody,
-        m_timeoutMs / 1000, false, cancelFlag);
+    RemoteTextThread* thread =
+        new RemoteTextThread(endpoint.toStdString(), std::move(headers), "application/json",
+                             requestBody, m_timeoutMs / 1000, false, cancelFlag);
 
     if (m_currentOperation.isEmpty()) {
         if (m_currentOperation.isEmpty()) {
@@ -478,7 +477,8 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                     bool active = false;
                     for (const auto& s : streamList.items) {
                         if (s.id == m_boundStreamIdForStart) {
-                            active = (s.status.streamStatus.compare("active", Qt::CaseInsensitive) == 0);
+                            active =
+                                (s.status.streamStatus.compare("active", Qt::CaseInsensitive) == 0);
                             break;
                         }
                     }
@@ -553,8 +553,7 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
             } catch (...) {
             }
             if (id.isEmpty()) {
-                obs_log(LOG_WARNING,
-                        "YouTube createLiveBroadcast returned no id. Raw response: %s",
+                obs_log(LOG_WARNING, "YouTube createLiveBroadcast returned no id. Raw response: %s",
                         response.toUtf8().constData());
             }
             emit liveBroadcastCreated(id);
@@ -566,7 +565,8 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
             QMetaObject::invokeMethod(
                 this, [this]() { emit requestCompleted(QString("transitionLiveBroadcast")); },
                 Qt::QueuedConnection);
-        } else if (m_currentOperation == "startBroadcast" || m_currentOperation == "resetBroadcast") {
+        } else if (m_currentOperation == "startBroadcast" ||
+                   m_currentOperation == "resetBroadcast") {
             try {
                 if (json.contains("items") && json["items"].is_array() && !json["items"].empty()) {
                     auto broadcast = json["items"][0];
@@ -581,24 +581,29 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                         }
                     } catch (...) {
                     }
-                    
+
                     if (m_currentOperation == "startBroadcast") {
-                        std::string status = broadcast["status"]["lifeCycleStatus"].get<std::string>();
+                        std::string status =
+                            broadcast["status"]["lifeCycleStatus"].get<std::string>();
                         if (status == "live" || status == "liveStarting") {
                             emit requestCompleted("startBroadcast");
                             return;
                         } else if (status == "testStarting") {
-                             emit errorOccurred("Broadcast is starting testing, please wait.", "startBroadcast");
-                             return;
+                            emit errorOccurred("Broadcast is starting testing, please wait.",
+                                               "startBroadcast");
+                            return;
                         }
-                        
+
                         bool monitorEnabled = false;
-                        if (broadcast.contains("contentDetails") && 
+                        if (broadcast.contains("contentDetails") &&
                             broadcast["contentDetails"].contains("monitorStream") &&
-                            broadcast["contentDetails"]["monitorStream"].contains("enableMonitorStream")) {
-                            monitorEnabled = broadcast["contentDetails"]["monitorStream"]["enableMonitorStream"].get<bool>();
+                            broadcast["contentDetails"]["monitorStream"].contains(
+                                "enableMonitorStream")) {
+                            monitorEnabled =
+                                broadcast["contentDetails"]["monitorStream"]["enableMonitorStream"]
+                                    .get<bool>();
                         }
-                        
+
                         if (status != "testing" && monitorEnabled) {
                             m_tempBroadcastJson = broadcast;
                             m_lastBroadcastId = id;
@@ -612,7 +617,9 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                             return;
                         }
                         {
-                            QString effectiveStreamId = !m_boundStreamIdForStart.isEmpty() ? m_boundStreamIdForStart : boundStreamId;
+                            QString effectiveStreamId = !m_boundStreamIdForStart.isEmpty()
+                                                            ? m_boundStreamIdForStart
+                                                            : boundStreamId;
                             if (!effectiveStreamId.isEmpty()) {
                                 beginWaitStreamActiveAndTransition(id, effectiveStreamId);
                                 return;
@@ -621,44 +628,46 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                         transitionLiveBroadcast(id, "live");
                         return;
                     } else if (m_currentOperation == "resetBroadcast") {
-                         m_tempBroadcastJson = broadcast;
-                         m_lastBroadcastId = id;
-                         nlohmann::json resetData = prepareResetBody(broadcast);
-                         QString body = QString::fromStdString(resetData.dump());
-                         QMap<QString, QString> params;
-                         params["part"] = "id,snippet,contentDetails,status";
-                         QString endpoint = buildApiUrl("liveBroadcasts", params);
-                         m_currentOperation = "resetBroadcastExec";
-                         makeApiRequest(endpoint, "PUT", body);
-                         return;
+                        m_tempBroadcastJson = broadcast;
+                        m_lastBroadcastId = id;
+                        nlohmann::json resetData = prepareResetBody(broadcast);
+                        QString body = QString::fromStdString(resetData.dump());
+                        QMap<QString, QString> params;
+                        params["part"] = "id,snippet,contentDetails,status";
+                        QString endpoint = buildApiUrl("liveBroadcasts", params);
+                        m_currentOperation = "resetBroadcastExec";
+                        makeApiRequest(endpoint, "PUT", body);
+                        return;
                     }
                 }
             } catch (...) {
                 emit errorOccurred("Failed to parse broadcast details", m_currentOperation);
             }
         } else if (m_currentOperation == "resetBroadcastForStart") {
-             try {
-                 QString boundStreamId;
-                 if (m_tempBroadcastJson.contains("contentDetails") &&
-                     m_tempBroadcastJson["contentDetails"].contains("boundStreamId") &&
-                     m_tempBroadcastJson["contentDetails"]["boundStreamId"].is_string()) {
-                     boundStreamId = QString::fromStdString(
-                         m_tempBroadcastJson["contentDetails"]["boundStreamId"].get<std::string>());
-                 }
-                 {
-                     QString effectiveStreamId = !m_boundStreamIdForStart.isEmpty() ? m_boundStreamIdForStart : boundStreamId;
-                     if (!effectiveStreamId.isEmpty()) {
-                         beginWaitStreamActiveAndTransition(m_lastBroadcastId, effectiveStreamId);
-                         return;
-                     }
-                 }
-             } catch (...) {
-             }
-             transitionLiveBroadcast(m_lastBroadcastId, "live");
-             return;
+            try {
+                QString boundStreamId;
+                if (m_tempBroadcastJson.contains("contentDetails") &&
+                    m_tempBroadcastJson["contentDetails"].contains("boundStreamId") &&
+                    m_tempBroadcastJson["contentDetails"]["boundStreamId"].is_string()) {
+                    boundStreamId = QString::fromStdString(
+                        m_tempBroadcastJson["contentDetails"]["boundStreamId"].get<std::string>());
+                }
+                {
+                    QString effectiveStreamId = !m_boundStreamIdForStart.isEmpty()
+                                                    ? m_boundStreamIdForStart
+                                                    : boundStreamId;
+                    if (!effectiveStreamId.isEmpty()) {
+                        beginWaitStreamActiveAndTransition(m_lastBroadcastId, effectiveStreamId);
+                        return;
+                    }
+                }
+            } catch (...) {
+            }
+            transitionLiveBroadcast(m_lastBroadcastId, "live");
+            return;
         } else if (m_currentOperation == "resetBroadcastExec") {
-             emit requestCompleted("resetBroadcast");
-             return;
+            emit requestCompleted("resetBroadcast");
+            return;
         }
     }
 }
@@ -925,7 +934,8 @@ void OneSevenLiveYouTubeClient::startBroadcast(const QString& broadcastId) {
     makeApiRequest(endpoint);
 }
 
-void OneSevenLiveYouTubeClient::startBroadcast(const QString& broadcastId, const QString& boundStreamId) {
+void OneSevenLiveYouTubeClient::startBroadcast(const QString& broadcastId,
+                                               const QString& boundStreamId) {
     if (!m_hasValidAuth) {
         emit errorOccurred("No valid authentication token", "startBroadcast");
         return;
