@@ -435,6 +435,9 @@ bool OneSevenLiveMultiRtmpManager::startAllStreams() {
 
     auto configs = getAllStreamConfigs();
     for (const auto& config : configs) {
+        if (config.streamName == "YouTube") {
+            continue;
+        }
         (void) startStream(config.id);
     }
 

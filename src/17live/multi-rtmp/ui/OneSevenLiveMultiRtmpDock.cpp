@@ -173,33 +173,7 @@ void OneSevenLiveMultiRtmpDock::setupConnections() {
                     if (m_manager) {
                         auto config = m_manager->getStreamConfig(streamId);
                         if (config.streamName == "YouTube") {
-                            OneSevenLiveYouTubeBroadcastDialog dialog(this);
-                            if (dialog.exec() == QDialog::Accepted) {
-                                auto* cfgMgr =
-                                    OneSevenLiveCoreManager::getInstance().getConfigManager();
-                                if (cfgMgr) {
-                                    cfgMgr->setYouTubeBroadcastInfo(dialog.getBroadcastId(),
-                                                                    dialog.getLiveChatId());
-                                }
-
-                                std::string url = dialog.getIngestionUrl().toStdString();
-                                std::string key = dialog.getStreamKey().toStdString();
-
-                                if (!url.empty() && !key.empty()) {
-                                    config.serviceSettings["server"] = url;
-                                    config.serviceSettings["key"] = key;
-                                    m_manager->updateStreamConfig(streamId, config);
-                                    obs_log(LOG_INFO,
-                                            "GET server & key --------------------------------");
-                                    obs_log(LOG_INFO, "YouTube broadcastId: %s",
-                                            dialog.getBroadcastId().toStdString().c_str());
-                                    obs_log(LOG_INFO, "YouTube liveChatId: %s",
-                                            dialog.getLiveChatId().toStdString().c_str());
-                                    obs_log(LOG_INFO, "YouTube server: %s", url.c_str());
-                                    obs_log(LOG_INFO, "YouTube key: %s", key.c_str());
-                                }
-
-                                m_manager->startStream(streamId);
+                            if (startYouTubeStream(streamId)) {
                                 updateButtonStates();
                             }
                         } else {
@@ -491,6 +465,28 @@ void OneSevenLiveMultiRtmpDock::onStartAllClicked() {
     if (ensureManagerInitialized()) {
         m_startAllButton->setEnabled(false);
 
+        // Check if we have YouTube stream config
+        std::string youtubeStreamId;
+        bool hasYouTube = false;
+        if (m_manager) {
+            auto configs = m_manager->getAllStreamConfigs();
+            for (const auto& cfg : configs) {
+                if (cfg.streamName == "YouTube") {
+                    youtubeStreamId = cfg.id;
+                    hasYouTube = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasYouTube) {
+            if (!startYouTubeStream(youtubeStreamId)) {
+                // User cancelled YouTube setup, abort Start All
+                m_startAllButton->setEnabled(true);
+                return;
+            }
+        }
+
         m_manager->startAllStreams();
 
         // Button states will be updated automatically through status callbacks
@@ -761,4 +757,33 @@ void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConf
     }
 
     obs_log(LOG_INFO, "[MultiRTMP-Dock] showConfigDialog() completed");
+}
+
+bool OneSevenLiveMultiRtmpDock::startYouTubeStream(const std::string& streamId) {
+    OneSevenLiveYouTubeBroadcastDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        auto* cfgMgr = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        if (cfgMgr) {
+            cfgMgr->setYouTubeBroadcastInfo(dialog.getBroadcastId(), dialog.getLiveChatId());
+        }
+
+        QString newUrl = dialog.getIngestionUrl();
+        QString newKey = dialog.getStreamKey();
+
+        if (!newUrl.isEmpty() && !newKey.isEmpty()) {
+            auto config = m_manager->getStreamConfig(streamId);
+            config.serviceSettings["server"] = newUrl.toStdString();
+            config.serviceSettings["key"] = newKey.toStdString();
+            m_manager->updateStreamConfig(streamId, config);
+
+            obs_log(LOG_INFO, "[MultiRTMP-Dock] Updated YouTube stream config with new ingestion info");
+            obs_log(LOG_INFO, "YouTube broadcastId: %s", dialog.getBroadcastId().toStdString().c_str());
+            obs_log(LOG_INFO, "YouTube liveChatId: %s", dialog.getLiveChatId().toStdString().c_str());
+        }
+
+        // Start YouTube stream explicitly
+        return m_manager->startStream(streamId);
+    }
+    
+    return false;
 }
