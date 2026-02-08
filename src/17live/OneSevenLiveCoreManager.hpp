@@ -342,6 +342,7 @@ class OneSevenLiveCoreManager : public QObject {
     std::deque<WsMessage> chatEventQueue;
     size_t chatQueueMaxSize{5000};
     std::string chatDockClientId;
+    std::mutex chatQueueMutex;
 
     void flushChatEventQueue();
     bool isChatDockClientConnected() const;

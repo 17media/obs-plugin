@@ -124,7 +124,10 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                     }
                 }
             }
+        } catch (const std::exception& e) {
+            obs_log(LOG_WARNING, "[Ably] JSON parse error: %s", e.what());
         } catch (...) {
+            obs_log(LOG_WARNING, "[Ably] Unknown JSON parse error");
         }
 
         OneSevenLiveChatMessageHandler handler;

@@ -378,7 +378,10 @@ void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId
     if (m.is(ws::TypeAction)) {
         const std::string actionType = m.payloadString("type");
         if (actionType == ws::ActionRegisterChatDock) {
-            chatDockClientId = clientId;
+            {
+                std::lock_guard<std::mutex> lock(chatQueueMutex);
+                chatDockClientId = clientId;
+            }
             obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
             flushChatEventQueue();
             return;
@@ -408,6 +411,7 @@ void OneSevenLiveCoreManager::handleWebsocketConnectionChanged(const std::string
         flushChatEventQueue();
     } else {
         obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
+        std::lock_guard<std::mutex> lock(chatQueueMutex);
         if (!chatDockClientId.empty() && chatDockClientId == clientId) {
             chatDockClientId.clear();
         }
@@ -672,6 +676,8 @@ void OneSevenLiveCoreManager::enqueueOrBroadcastChatEvent(const QString& type,
     obs_log(LOG_DEBUG, "Enqueueing chat event: %s payload: %s", type.toStdString().c_str(),
             payload.dump().c_str());
 
+    std::lock_guard<std::mutex> lock(chatQueueMutex);
+
     auto* ws = getWebsocketServer();
     if (ws && ws->is_running() && !chatDockClientId.empty()) {
         obs_log(LOG_DEBUG, "Sending chat event to chat dock client %s", chatDockClientId.c_str());
@@ -694,6 +700,9 @@ void OneSevenLiveCoreManager::flushChatEventQueue() {
     auto* ws = getWebsocketServer();
     if (!ws || !ws->is_running())
         return;
+    
+    std::lock_guard<std::mutex> lock(chatQueueMutex);
+
     if (chatDockClientId.empty())
         return;
     auto ids = ws->getConnectedClientIds();
@@ -1079,8 +1088,12 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
         ytChatDiscoverTimer = nullptr;
     }
 
-    chatDockClientId.clear();
-    chatEventQueue.clear();
+    {
+        std::lock_guard<std::mutex> lock(chatQueueMutex);
+        chatDockClientId.clear();
+        chatEventQueue.clear();
+    }
+    
     if (apiWrapper) {
         apiWrapper->setToken(std::string());
     }

@@ -121,6 +121,8 @@ export class OneSevenLivePlatform extends BasePlatform {
       const decoded = payload; // already decoded server-side
       this.processRawMessage(decoded).then(unifiedMessage => {
         if (unifiedMessage) this.enqueueMessage(unifiedMessage);
+      }).catch(err => {
+        console.error('Error processing 17Live message:', err);
       });
       return;
     }

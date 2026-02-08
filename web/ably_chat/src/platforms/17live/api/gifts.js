@@ -1,5 +1,7 @@
 // Used to store gift information
 let giftsMap = new Map();
+// Used to store pending requests for gift information to avoid duplicate requests
+let pendingRequests = new Map();
 
 async function loadMockGifts() {
     try {
@@ -71,6 +73,11 @@ export async function getGiftByID(giftID) {
         // console.log('Gift already loaded:', giftID);
         return giftsMap.get(giftID);
     }
+
+    // Check if there is a pending request for this giftID
+    if (pendingRequests.has(giftID)) {
+        return pendingRequests.get(giftID);
+    }
     
     // If not development environment, try to fetch from server
     if (process.env.NODE_ENV !== 'development') {
@@ -79,33 +86,41 @@ export async function getGiftByID(giftID) {
             action: 'getGift',
             giftID: giftID
         }
-        try {
-            const res = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(data)
-            });
 
-            if (!res.ok) {
-                console.warn(`Failed to fetch gift ${giftID}: ${res.status}`);
-                return null;
-            }
+        const promise = (async () => {
+            try {
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                });
 
-            const giftData = await res.json();
-            if (giftData && giftData.giftID) {
-                giftsMap.set(giftData.giftID, giftData);
-                console.log('Gift loaded from server:', giftData.giftID);
-                return giftData;
-            } else {
-                console.warn('Invalid gift data structure from server:', giftData);
+                if (!res.ok) {
+                    console.warn(`Failed to fetch gift ${giftID}: ${res.status}`);
+                    return null;
+                }
+
+                const giftData = await res.json();
+                if (giftData && giftData.giftID) {
+                    giftsMap.set(giftData.giftID, giftData);
+                    console.log('Gift loaded from server:', giftData.giftID);
+                    return giftData;
+                } else {
+                    console.warn('Invalid gift data structure from server:', giftData);
+                    return null;
+                }
+            } catch (err) {
+                console.error('Error loading gift from server:', err);
                 return null;
+            } finally {
+                pendingRequests.delete(giftID);
             }
-        } catch (err) {
-            console.error('Error loading gift from server:', err);
-            return null;
-        }
+        })();
+
+        pendingRequests.set(giftID, promise);
+        return promise;
     }
     
     return null;
