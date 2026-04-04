@@ -6,10 +6,12 @@
 #include <QPointer>
 #include <QStyle>
 
+#include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveMultiRtmpConfigDialog.hpp"
 #include "OneSevenLiveMultiRtmpListWidget.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
+#include "youtube/ui/OneSevenLiveYouTubeBroadcastDialog.hpp"
 
 OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
     : QDockWidget(obs_module_text("MultiRTMP.Dock.Title"), parent),
@@ -169,9 +171,15 @@ void OneSevenLiveMultiRtmpDock::setupConnections() {
         connect(m_streamListWidget, &OneSevenLiveMultiRtmpListWidget::streamStartRequested, this,
                 [this](const std::string& streamId) {
                     if (m_manager) {
-                        m_manager->startStream(streamId);
-                        // Force immediate button state update to ensure UI responsiveness
-                        updateButtonStates();
+                        auto config = m_manager->getStreamConfig(streamId);
+                        if (config.streamName == "YouTube") {
+                            if (startYouTubeStream(streamId)) {
+                                updateButtonStates();
+                            }
+                        } else {
+                            m_manager->startStream(streamId);
+                            updateButtonStates();
+                        }
                     }
                 });
 
@@ -296,6 +304,8 @@ void OneSevenLiveMultiRtmpDock::setupManagerCallbacks() {
             },
             Qt::QueuedConnection);
     });
+
+    m_manager->startStatsMonitoring();
 }
 
 void OneSevenLiveMultiRtmpDock::showEvent(QShowEvent* event) {
@@ -348,10 +358,6 @@ void OneSevenLiveMultiRtmpDock::refreshStreamList() {
             const auto& config = configs[i];
 
             try {
-                std::string n = config.streamName;
-                std::transform(n.begin(), n.end(), n.begin(), ::tolower);
-                if (n == std::string("youtube"))
-                    continue;
                 m_streamListWidget->addStream(config);
 
                 // Update with current status and stats
@@ -458,6 +464,28 @@ void OneSevenLiveMultiRtmpDock::onStartAllClicked() {
 
     if (ensureManagerInitialized()) {
         m_startAllButton->setEnabled(false);
+
+        // Check if we have YouTube stream config
+        std::string youtubeStreamId;
+        bool hasYouTube = false;
+        if (m_manager) {
+            auto configs = m_manager->getAllStreamConfigs();
+            for (const auto& cfg : configs) {
+                if (cfg.streamName == "YouTube") {
+                    youtubeStreamId = cfg.id;
+                    hasYouTube = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasYouTube) {
+            if (!startYouTubeStream(youtubeStreamId)) {
+                // User cancelled YouTube setup, abort Start All
+                m_startAllButton->setEnabled(true);
+                return;
+            }
+        }
 
         m_manager->startAllStreams();
 
@@ -581,19 +609,21 @@ void OneSevenLiveMultiRtmpDock::updateButtonStates() {
         m_stopAllButton->setText(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StopAll")));
     }
 
-    // Hide Add Stream when both YouTube and Twitch exist
-    size_t nonYouTubeCount = 0;
+    bool hasYouTube = false;
+    bool hasTwitch = false;
     if (!OneSevenLiveCoreManager::getInstance().isShuttingDown() && ensureManagerInitialized()) {
         auto configs = m_manager->getAllStreamConfigs();
         for (const auto& cfg : configs) {
             std::string n = cfg.streamName;
             std::transform(n.begin(), n.end(), n.begin(), ::tolower);
-            if (n != std::string("youtube"))
-                ++nonYouTubeCount;
+            if (n == std::string("youtube"))
+                hasYouTube = true;
+            else if (n == std::string("twitch"))
+                hasTwitch = true;
         }
     }
     if (m_addStreamButton)
-        m_addStreamButton->setVisible(nonYouTubeCount == 0);
+        m_addStreamButton->setVisible(!(hasYouTube && hasTwitch));
 }
 
 void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConfig& config) {
@@ -727,4 +757,33 @@ void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConf
     }
 
     obs_log(LOG_INFO, "[MultiRTMP-Dock] showConfigDialog() completed");
+}
+
+bool OneSevenLiveMultiRtmpDock::startYouTubeStream(const std::string& streamId) {
+    OneSevenLiveYouTubeBroadcastDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        auto* cfgMgr = OneSevenLiveCoreManager::getInstance().getConfigManager();
+        if (cfgMgr) {
+            cfgMgr->setYouTubeBroadcastInfo(dialog.getBroadcastId(), dialog.getLiveChatId());
+        }
+
+        QString newUrl = dialog.getIngestionUrl();
+        QString newKey = dialog.getStreamKey();
+
+        if (!newUrl.isEmpty() && !newKey.isEmpty()) {
+            auto config = m_manager->getStreamConfig(streamId);
+            config.serviceSettings["server"] = newUrl.toStdString();
+            config.serviceSettings["key"] = newKey.toStdString();
+            m_manager->updateStreamConfig(streamId, config);
+
+            obs_log(LOG_INFO, "[MultiRTMP-Dock] Updated YouTube stream config with new ingestion info");
+            obs_log(LOG_INFO, "YouTube broadcastId: %s", dialog.getBroadcastId().toStdString().c_str());
+            obs_log(LOG_INFO, "YouTube liveChatId: %s", dialog.getLiveChatId().toStdString().c_str());
+        }
+
+        // Start YouTube stream explicitly
+        return m_manager->startStream(streamId);
+    }
+    
+    return false;
 }

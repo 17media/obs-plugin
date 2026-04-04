@@ -15,6 +15,7 @@
 #include <chrono>
 #include <thread>
 
+#include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
 #include "streaming/OneSevenLiveStreamManager.hpp"
@@ -148,6 +149,9 @@ bool OneSevenLiveMultiRtmpStreamController::startOutputInternal(const std::strin
 
     // Update status
     updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::CONNECTING);
+    if (streamOutput->startTime.time_since_epoch().count() == 0) {
+        streamOutput->startTime = std::chrono::steady_clock::now();
+    }
 
     // Setup connect timeout timer
     if (streamOutput->connectTimeoutTimer) {
@@ -744,6 +748,9 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
                     Qt::QueuedConnection);
                 streamOutput->connectTimeoutTimer = nullptr;
             }
+            if (streamOutput->startTime.time_since_epoch().count() == 0) {
+                streamOutput->startTime = std::chrono::steady_clock::now();
+            }
             controller->updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::STREAMING);
             {
                 std::string platform = streamOutput->config.streamName;
@@ -759,15 +766,13 @@ void OneSevenLiveMultiRtmpStreamController::outputStartCallback(void* data, call
                     QMetaObject::invokeMethod(
                         &core,
                         [&core]() {
-                            auto* ytAuth = core.getYouTubeAuth();
-                            if (ytAuth && ytAuth->hasValidToken()) {
-                                QString caption;
-                                auto* sm = core.getStreamManager();
-                                if (sm) {
-                                    caption = sm->getCurrentStreamRequest().caption;
-                                }
-                                core.orchestrateYouTubeBroadcast(caption.isEmpty() ? QString("Live")
-                                                                                   : caption);
+                            auto* cfg = core.getConfigManager();
+                            if (!cfg)
+                                return;
+                            QString bid;
+                            QString chat;
+                            if (cfg->getYouTubeBroadcastInfo(bid, chat) && !chat.isEmpty()) {
+                                core.startYouTubeChatPolling(chat);
                             }
                         },
                         Qt::QueuedConnection);
@@ -904,7 +909,11 @@ void OneSevenLiveMultiRtmpStreamController::statsMonitoringThread() {
         {
             std::lock_guard<std::mutex> lock(m_outputsMutex);
             for (auto& [streamId, streamOutput] : m_streamOutputs) {
-                if (streamOutput->output && obs_output_active(streamOutput->output)) {
+                if (streamOutput->output &&
+                    (streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::CONNECTING ||
+                     streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::STREAMING ||
+                     streamOutput->status.state ==
+                         OneSevenLiveMultiRtmpStreamStatus::RECONNECTING)) {
                     collectStreamStats(streamId, *streamOutput);
 
                     if (m_statsCallback) {
@@ -926,24 +935,111 @@ void OneSevenLiveMultiRtmpStreamController::collectStreamStats(const std::string
         return;
     }
 
-    // Update duration
     auto now = std::chrono::steady_clock::now();
     streamOutput.stats.duration = now - streamOutput.startTime;
 
-    // Get output statistics
-    streamOutput.stats.totalFrames =
-        static_cast<int>(obs_output_get_total_frames(streamOutput.output));
+    uint64_t totalBytes = obs_output_get_total_bytes(streamOutput.output);
+    uint64_t totalFrames = static_cast<uint64_t>(obs_output_get_total_frames(streamOutput.output));
+
+    streamOutput.stats.totalFrames = static_cast<int>(totalFrames);
     streamOutput.stats.droppedFrames =
         static_cast<int>(obs_output_get_frames_dropped(streamOutput.output));
 
-    // Calculate bitrate and FPS (these would need to be implemented based on OBS API)
-    // For now, we'll use placeholder values
-    streamOutput.stats.currentBitrate = 0.0;  // Would need actual implementation
-    streamOutput.stats.currentFPS = 0;        // Would need actual implementation
-    streamOutput.stats.cpuUsage = 0.0;        // Would need actual implementation
+    if (streamOutput.lastStatsTime.time_since_epoch().count() == 0) {
+        streamOutput.lastStatsTime = now;
+        streamOutput.lastBytes = totalBytes;
+        streamOutput.lastFrames = totalFrames;
+        streamOutput.stats.currentBitrate = 0.0;
+        streamOutput.stats.currentFPS = 0;
+        return;
+    }
+
+    using namespace std::chrono;
+
+    double interval = duration_cast<duration<double>>(now - streamOutput.lastStatsTime).count();
+    if (interval <= 0.0) {
+        return;
+    }
+
+    double currentBitrate = streamOutput.stats.currentBitrate;
+    double currentFPS = static_cast<double>(streamOutput.stats.currentFPS);
+
+    if (totalBytes >= streamOutput.lastBytes) {
+        uint64_t byteDiff = totalBytes - streamOutput.lastBytes;
+        double instantBitrateKbps = (byteDiff * 8.0) / (interval * 1000.0);
+
+        if (instantBitrateKbps < 0.0 || instantBitrateKbps > 100000.0) {
+            instantBitrateKbps = 0.0;
+        }
+
+        if (currentBitrate > 0.0 && instantBitrateKbps > 0.0) {
+            double maxUp = currentBitrate * 1.5;
+            double maxDown = currentBitrate * 0.5;
+            if (instantBitrateKbps > maxUp) {
+                instantBitrateKbps = maxUp;
+            } else if (instantBitrateKbps < maxDown) {
+                instantBitrateKbps = maxDown;
+            }
+        }
+
+        const double alphaBitrate = 0.2;
+        if (streamOutput.smoothedBitrateKbps <= 0.0) {
+            streamOutput.smoothedBitrateKbps = instantBitrateKbps;
+        } else {
+            streamOutput.smoothedBitrateKbps =
+                streamOutput.smoothedBitrateKbps * (1.0 - alphaBitrate) +
+                instantBitrateKbps * alphaBitrate;
+        }
+
+        streamOutput.stats.currentBitrate =
+            streamOutput.smoothedBitrateKbps > 0.0 ? streamOutput.smoothedBitrateKbps : 0.0;
+    } else {
+        streamOutput.lastBytes = totalBytes;
+    }
+
+    if (totalFrames >= streamOutput.lastFrames) {
+        uint64_t frameDiff = totalFrames - streamOutput.lastFrames;
+        double instantFPS = interval > 0.0 ? static_cast<double>(frameDiff) / interval : 0.0;
+
+        if (instantFPS < 0.0 || instantFPS > 120.0) {
+            instantFPS = 0.0;
+        }
+
+        if (currentFPS > 0.0 && instantFPS > 0.0) {
+            double maxUp = currentFPS * 1.5;
+            double maxDown = currentFPS * 0.5;
+            if (instantFPS > maxUp) {
+                instantFPS = maxUp;
+            } else if (instantFPS < maxDown) {
+                instantFPS = maxDown;
+            }
+        }
+
+        const double alphaFPS = 0.3;
+        if (streamOutput.smoothedFPS <= 0.0) {
+            streamOutput.smoothedFPS = instantFPS;
+        } else {
+            streamOutput.smoothedFPS =
+                streamOutput.smoothedFPS * (1.0 - alphaFPS) + instantFPS * alphaFPS;
+        }
+
+        if (streamOutput.smoothedFPS > 0.0) {
+            streamOutput.stats.currentFPS = static_cast<int>(std::round(streamOutput.smoothedFPS));
+        } else {
+            streamOutput.stats.currentFPS = 0;
+        }
+    } else {
+        streamOutput.lastFrames = totalFrames;
+    }
+
+    streamOutput.lastStatsTime = now;
+    streamOutput.lastBytes = totalBytes;
+    streamOutput.lastFrames = totalFrames;
+
+    streamOutput.stats.cpuUsage = 0.0;  // Would need actual implementation
 
     if (streamOutput.stats.totalFrames > 0) {
-        streamOutput.stats.averageBitrate = streamOutput.stats.currentBitrate;  // Simplified
+        streamOutput.stats.averageBitrate = streamOutput.stats.currentBitrate;
     }
 }
 
@@ -979,6 +1075,10 @@ obs_data_t* OneSevenLiveMultiRtmpStreamController::createServiceSettings(
     const std::string platform = config.streamName;
     if (platform == "YouTube") {
         obs_data_set_string(settings, "service", "YouTube - RTMPS");
+        // log out server & key to check if it's correct
+        obs_log(LOG_INFO, "USE server & key --------------------------------");
+        obs_log(LOG_INFO, "YouTube server: %s", obs_data_get_string(settings, "server"));
+        obs_log(LOG_INFO, "YouTube key: %s", obs_data_get_string(settings, "key"));
     } else if (platform == "Twitch") {
         obs_data_set_string(settings, "service", "Twitch");
     }
@@ -1065,12 +1165,63 @@ void OneSevenLiveMultiRtmpStreamController::resolvePlatformServerKeyAsync(
         };
 
         if (contains_ci(platform, "youtube")) {
-            MULTI_RTMP_STREAM_LOG_INFO(
-                "YouTube platform disabled; skipping server/key resolution for %s",
-                streamId.c_str());
-            updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
-                               "Disabled:YouTube");
-            return;
+            auto& core = OneSevenLiveCoreManager::getInstance();
+            auto* ytAuth = core.getYouTubeAuth();
+            if (!ytAuth || !ytAuth->hasValidToken()) {
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "AuthInvalid:YouTube");
+                return;
+            }
+            core.createYouTubeChatClient();
+            OneSevenLiveYouTubeClient* yt = core.getYouTubeApiClient();
+            if (!yt) {
+                updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                   "APIUnavailable:YouTube");
+                return;
+            }
+            yt->setAccessToken(ytAuth->getAccessToken());
+            yt->setTimeout(12000);
+            auto connStreamsPtr = std::make_shared<QMetaObject::Connection>();
+            *connStreamsPtr = QObject::connect(
+                yt, &OneSevenLiveYouTubeClient::myLiveStreamsReceived,
+                [this, streamId, connStreamsPtr](const YouTubeLiveStreamListResponse& resp) {
+                    QObject::disconnect(*connStreamsPtr);
+                    QString chosen;
+                    QString serverUrl;
+                    QString keyVal;
+                    for (const auto& s : resp.items) {
+                        if (!s.id.isEmpty()) {
+                            if (s.snippet.isDefaultStream ||
+                                s.status.streamStatus.compare("active", Qt::CaseInsensitive) == 0) {
+                                chosen = s.id;
+                                break;
+                            }
+                            if (chosen.isEmpty()) {
+                                chosen = s.id;
+                            }
+                        }
+                    }
+                    if (!chosen.isEmpty()) {
+                        for (const auto& s : resp.items) {
+                            if (s.id == chosen) {
+                                const auto& info = s.cdn.ingestionInfo;
+                                serverUrl = !info.rtmpsIngestionAddress.isEmpty()
+                                                ? info.rtmpsIngestionAddress
+                                                : info.ingestionAddress;
+                                keyVal = info.streamName;
+                                break;
+                            }
+                        }
+                    }
+                    if (!serverUrl.isEmpty() && !keyVal.isEmpty()) {
+                        finalizeServiceSetupAfterResolve(streamId, serverUrl.toUtf8().constData(),
+                                                         keyVal.toUtf8().constData());
+                        return;
+                    }
+                    updateStreamStatus(streamId, OneSevenLiveMultiRtmpStreamStatus::ERROR_STATE,
+                                       "ResolveFailed:YouTube");
+                });
+            yt->getMyLiveStreams();
         } else if (contains_ci(platform, "twitch")) {
             auto* twAuth = OneSevenLiveCoreManager::getInstance().getTwitchAuth();
             OneSevenLiveTwitchClient* client = nullptr;

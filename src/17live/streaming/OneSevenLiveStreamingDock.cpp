@@ -977,29 +977,30 @@ void OneSevenLiveStreamingDock::onArmyOnlyCheckChanged(int state) {
 
 void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
     if (customEventDialog) {
-        // Hide dialog and update button icon to arrow-down
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
 
-        customEventDialog->close();
-        customEventDialog->deleteLater();
+        OneSevenLiveCustomEventDialog *dialog = customEventDialog;
         customEventDialog = nullptr;
-    } else {
-        // Open dialog first; dialog will fetch custom event asynchronously
-        customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
 
-        // Connect dialog close signal to reset button state
-        connect(customEventDialog, &QDialog::finished, this, [this]() {
+        if (dialog) {
+            dialog->close();
+            dialog->deleteLater();
+        }
+    } else {
+        OneSevenLiveCustomEventDialog *dialog =
+            new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
+        customEventDialog = dialog;
+
+        connect(dialog, &QDialog::finished, this, [this]() {
             customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
             customEventDialog = nullptr;
         });
 
-        // Update button icon to arrow-up when dialog is opened
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
 
-        // Show the dialog
-        customEventDialog->show();
-        customEventDialog->raise();
-        customEventDialog->activateWindow();
+        dialog->show();
+        dialog->raise();
+        dialog->activateWindow();
     }
 }
 

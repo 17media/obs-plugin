@@ -65,7 +65,8 @@ QString OneSevenLiveUtility::mLevelBadgeResource(const OneSevenLiveRockZoneViewe
     case 11:
         return res("bcc48ea8-606b-4e2d-ac46-230f68c23fd9.png");
     default:
-        return QString();
+        return res("bcc48ea8-606b-4e2d-ac46-230f68c23fd9.png");
+        // return QString();
     }
 }
 

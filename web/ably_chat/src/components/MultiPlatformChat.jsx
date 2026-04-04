@@ -154,6 +154,8 @@ export const MultiPlatformChat = () => {
         return '/images/17live.svg';
       case 'twitch':
         return '/images/twitch.svg';
+      case 'youtube':
+        return '/images/youtube.svg';
       default:
         return '/images/17live.svg';
     }

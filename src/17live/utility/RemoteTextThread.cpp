@@ -97,7 +97,7 @@ void RemoteTextThread::run() {
         curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING, "");
         curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error);
-        curl_easy_setopt(curl.get(), CURLOPT_FAILONERROR, 1L);
+        curl_easy_setopt(curl.get(), CURLOPT_FAILONERROR, 0L);
 
         if (isImageRequest) {
             curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, binary_write);

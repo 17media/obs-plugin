@@ -11,6 +11,7 @@
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
+#include "youtube/OneSevenLiveYouTubeClient.hpp"
 
 // Static member initialization
 OneSevenLiveMultiRtmpManager* OneSevenLiveMultiRtmpManager::s_instance = nullptr;
@@ -398,14 +399,30 @@ bool OneSevenLiveMultiRtmpManager::stopStream(const std::string& streamId) {
 
     OneSevenLiveMultiRtmpConfig cfg = getStreamConfig(streamId);
     if (!cfg.id.empty() && cfg.streamName == std::string("YouTube")) {
-        QMetaObject::invokeMethod(
-            &core,
-            []() {
-                OneSevenLiveCoreManager& c = OneSevenLiveCoreManager::getInstance();
-                c.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
-                                              nlohmann::json{{"status", "break"}});
-            },
-            Qt::QueuedConnection);
+        auto lambda = [&core, streamId]() {
+            OneSevenLiveCoreManager& c = OneSevenLiveCoreManager::getInstance();
+
+            auto* cfgMgr = c.getConfigManager();
+            if (cfgMgr) {
+                QString bid;
+                QString chat;
+                if (cfgMgr->getYouTubeBroadcastInfo(bid, chat) && !bid.isEmpty()) {
+                    auto* ytClient = c.getYouTubeApiClient();
+                    if (ytClient) {
+                        ytClient->stopBroadcast(bid);
+                    }
+                }
+            }
+
+            c.enqueueOrBroadcastChatEvent(QString::fromUtf8(ws::EventYouTubeChatConnected),
+                                          nlohmann::json{{"status", "break"}});
+        };
+
+        if (QThread::currentThread() == core.thread()) {
+            lambda();
+        } else {
+            QMetaObject::invokeMethod(&core, lambda, Qt::QueuedConnection);
+        }
     }
     return stopped;
 }
@@ -418,6 +435,9 @@ bool OneSevenLiveMultiRtmpManager::startAllStreams() {
 
     auto configs = getAllStreamConfigs();
     for (const auto& config : configs) {
+        if (config.streamName == "YouTube") {
+            continue;
+        }
         (void) startStream(config.id);
     }
 

@@ -14,6 +14,7 @@
 #include "../OneSevenLiveCoreManager.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
 #include "plugin-support.h"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
@@ -63,9 +64,17 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                         }
                     } catch (...) {
                     }
-                    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-                        QString::fromUtf8(ws::EventAblyChatConnected),
-                        nlohmann::json{{"status", "connected"}});
+                    auto* sm = OneSevenLiveCoreManager::getInstance().getStreamManager();
+                    bool isLive = false;
+                    if (sm) {
+                        auto st = sm->getCurrentStreamingStatus();
+                        isLive = (st != OneSevenLiveStreamingStatus::NotStarted);
+                    }
+                    if (isLive) {
+                        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+                            QString::fromUtf8(ws::EventAblyChatConnected),
+                            nlohmann::json{{"status", "connected"}});
+                    }
                     QTimer::singleShot(100, this, [this]() { attachChannel(); });
                 } else if (action == 11) {
                     m_attached = true;
@@ -115,7 +124,10 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                     }
                 }
             }
+        } catch (const std::exception& e) {
+            obs_log(LOG_WARNING, "[Ably] JSON parse error: %s", e.what());
         } catch (...) {
+            obs_log(LOG_WARNING, "[Ably] Unknown JSON parse error");
         }
 
         OneSevenLiveChatMessageHandler handler;

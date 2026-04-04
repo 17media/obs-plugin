@@ -2,6 +2,7 @@
 
 #include <obs-module.h>
 
+#include <QPointer>
 #include <QWidget>
 
 class QLabel;
@@ -29,7 +30,7 @@ class OneSevenLiveChatWidget : public QWidget {
 
    private:
     QString chatUrl_;
-    QCefWidget* cefWidget_ = nullptr;
+    QPointer<QCefWidget> cefWidget_ = nullptr;
     QCef* cef_ = nullptr;
 
     QWidget* loadingOverlay = nullptr;

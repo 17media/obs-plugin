@@ -337,7 +337,8 @@ void OneSevenLiveTwitchChatClient::attemptReconnect() {
 void OneSevenLiveTwitchChatClient::sendRawMessage(const QString& message) {
     if (m_connected && m_client && m_client->isConnected()) {
         sendWebSocketMessage(message.toStdString());
-        int level = message.startsWith("PING ") ? LOG_DEBUG : LOG_INFO;
+        int level =
+            (message.startsWith("PING ") || message.startsWith("PONG ")) ? LOG_DEBUG : LOG_INFO;
         obs_log(level, "IRC ->: %s", message.toUtf8().constData());
     }
 }
@@ -567,8 +568,8 @@ void OneSevenLiveTwitchChatClient::onStatusTimer() {
 }
 
 void OneSevenLiveTwitchChatClient::connectWebSocket() {
-    obs_log(LOG_INFO, "[Twitch Chat Client] Connecting to Twitch chat server: %s",
-            TWITCH_IRC_SERVER.toUtf8().constData());
+    // obs_log(LOG_INFO, "[Twitch Chat Client] Connecting to Twitch chat server: %s",
+    //         TWITCH_IRC_SERVER.toUtf8().constData());
     m_client = std::make_unique<OneSevenLiveWebsocketClient>(this);
     m_client->setOpenCallback([this]() { onWebSocketOpen(); });
     m_client->setMessageCallback([this](const std::string& m) { onWebSocketMessage(m); });

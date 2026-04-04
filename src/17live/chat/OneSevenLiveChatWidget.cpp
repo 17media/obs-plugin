@@ -24,6 +24,7 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
         if (globalCef) {
             if (!globalCef->initialized()) {
                 globalCef->init_browser();
+                globalCef->wait_for_browser_init();
             }
         }
     }
@@ -37,6 +38,7 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
             if (panel_version >= 1) {
                 cefWidget_->allowAllPopups(true);
             }
+            cefWidget_->setVisible(true);
         } else {
             obs_log(LOG_ERROR, "Failed to create QCefWidget");
             errorLabel_ = new QLabel("Failed to create CEF widget", this);
@@ -92,6 +94,10 @@ OneSevenLiveChatWidget::~OneSevenLiveChatWidget() {
             browserClosed_ = true;
         }
     }
+    if (cefWidget_) {
+        cefWidget_->deleteLater();
+        cefWidget_ = nullptr;
+    }
 }
 
 void OneSevenLiveChatWidget::shutdown() {
@@ -103,6 +109,9 @@ void OneSevenLiveChatWidget::shutdown() {
             cefWidget_->closeBrowser();
             browserClosed_ = true;
         }
+    }
+    if (cefWidget_) {
+        cefWidget_->setVisible(false);
     }
 }
 
@@ -120,7 +129,7 @@ void OneSevenLiveChatWidget::reload() {
 }
 
 void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
-    obs_log(LOG_INFO, "OneSevenLiveChatWidget showEvent");
+    // obs_log(LOG_INFO, "OneSevenLiveChatWidget showEvent");
     QWidget::showEvent(event);
 
     if (cefWidget_) {
@@ -132,7 +141,7 @@ void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
 }
 
 void OneSevenLiveChatWidget::hideEvent(QHideEvent* event) {
-    obs_log(LOG_INFO, "OneSevenLiveChatWidget hideEvent");
+    // obs_log(LOG_INFO, "OneSevenLiveChatWidget hideEvent");
     QWidget::hideEvent(event);
     if (cefWidget_) {
         cefWidget_->setVisible(false);

@@ -21,8 +21,10 @@ bool OneSevenLiveChatMessageHandler::handleRaw(const std::string& msg) {
                 if (!m.contains("data") || !m["data"].is_string())
                     continue;
                 nlohmann::json decoded;
-                if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded))
+                if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded)) {
+                    obs_log(LOG_WARNING, "Failed to decode/gunzip message data");
                     continue;
+                }
                 int type = decoded.contains("type") && decoded["type"].is_number_integer()
                                ? decoded["type"].get<int>()
                                : -1;
@@ -30,7 +32,11 @@ bool OneSevenLiveChatMessageHandler::handleRaw(const std::string& msg) {
             }
         }
         return true;
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "OneSevenLiveChatMessageHandler::handleRaw exception: %s", e.what());
+        return false;
     } catch (...) {
+        obs_log(LOG_ERROR, "OneSevenLiveChatMessageHandler::handleRaw unknown exception");
         return false;
     }
 }

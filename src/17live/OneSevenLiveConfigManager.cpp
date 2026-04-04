@@ -555,19 +555,19 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
 
         const std::string configJson = configData.dump();
 
-        // Save to configuration file
         const std::string configJsonPath = configPath + "/config_17live.json";
-        std::ofstream file(configJsonPath);
-        if (!file.is_open()) {
+        const QString configJsonPathQt = QString::fromStdString(configJsonPath);
+
+        QFile file(configJsonPathQt);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             obs_log(LOG_ERROR, "Failed to open config file for writing: %s",
                     configJsonPath.c_str());
             return false;
         }
 
-        file << configJson;
-
-        // Check if write operation was successful
-        if (file.fail()) {
+        QByteArray data = QByteArray::fromStdString(configJson);
+        qint64 written = file.write(data);
+        if (written != data.size()) {
             obs_log(LOG_ERROR, "Failed to write config data to file: %s", configJsonPath.c_str());
             file.close();
             return false;
@@ -575,10 +575,9 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
 
         file.close();
 
-        // Verify file was closed successfully
-        if (file.fail()) {
-            obs_log(LOG_ERROR, "Failed to close config file: %s", configJsonPath.c_str());
-            return false;
+        OneSevenLiveConfig parsedConfig;
+        if (JsonToOneSevenLiveConfig(configData, parsedConfig)) {
+            currentConfig = parsedConfig;
         }
 
         obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
@@ -1090,5 +1089,78 @@ bool OneSevenLiveConfigManager::setYouTubeRefreshToken(const QString &refreshTok
     }
 
     obs_log(LOG_INFO, "YouTube refresh token saved successfully");
+    return true;
+}
+
+bool OneSevenLiveConfigManager::setYouTubeBroadcastInfo(const QString &broadcastId,
+                                                        const QString &liveChatId) {
+    if (!initialized) {
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    std::string bid = broadcastId.toStdString();
+    std::string chatId = liveChatId.toStdString();
+
+    config_set_string(config, service, "YouTubeBroadcastId", bid.c_str());
+    config_set_string(config, service, "YouTubeLiveChatId", chatId.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save YouTube broadcast info");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube broadcast info saved");
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getYouTubeBroadcastInfo(QString &broadcastId, QString &liveChatId) {
+    if (!initialized) {
+        return false;
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    const char *bid = config_get_string(config, service, "YouTubeBroadcastId");
+    const char *chatId = config_get_string(config, service, "YouTubeLiveChatId");
+
+    if (!bid || !chatId) {
+        return false;
+    }
+
+    broadcastId = QString::fromUtf8(bid);
+    liveChatId = QString::fromUtf8(chatId);
+    return true;
+}
+
+bool OneSevenLiveConfigManager::clearYouTubeBroadcastInfo() {
+    if (!initialized) {
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        return false;
+    }
+
+    config_set_string(config, service, "YouTubeBroadcastId", "");
+    config_set_string(config, service, "YouTubeLiveChatId", "");
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to clear YouTube broadcast info");
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube broadcast info cleared");
     return true;
 }

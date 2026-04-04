@@ -145,6 +145,7 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
     { id: 'all', name: t('platforms.all') },
     { id: '17live', name: t('platforms.17live') },
     { id: 'twitch', name: t('platforms.twitch') },
+    { id: 'youtube', name: t('platforms.youtube') },
   ];
 
   const statusText = (platformId) => {
@@ -199,6 +200,9 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
         if (!statusMap || !statusMap['17live']) {
           await messageAggregator.addPlatform('17live', {});
         }
+        if (!statusMap || !statusMap['youtube']) {
+          await messageAggregator.addPlatform('youtube', {});
+        }
       } catch { }
 
       // Connect 17live only; youtube and twitch remain disconnected but instances exist.
@@ -208,6 +212,10 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
       setPlatformsStatus(prev => ({
         ...prev,
         twitch: { ...(prev.twitch || {}), status: 'disconnected' },
+      }));
+      setPlatformsStatus(prev => ({
+        ...prev,
+        youtube: { ...(prev.youtube || {}), status: 'disconnected' },
       }));
 
       updateSelection('all');

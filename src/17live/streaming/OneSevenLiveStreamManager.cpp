@@ -142,8 +142,7 @@ bool OneSevenLiveStreamManager::startStreamWithWeb() {
             info.streamUuid = rtmpResponse.streamID;
             currentLiveStreamInfo = info;
 
-            wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                        nlohmann::json{{"status", "connected"}});
+            // Do not signal connected here; wait until live starts
 
         } else {
             obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s",
@@ -245,8 +244,7 @@ void OneSevenLiveStreamManager::startStreamWithWebAsync() {
                         info.streamUuid = resp.streamID;
                         self->currentLiveStreamInfo = info;
 
-                        self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                                          nlohmann::json{{"status", "connected"}});
+                        // Do not signal connected here; wait until live starts
 
                         emit self->webStreamSettingsLoaded(true);
                     } else {

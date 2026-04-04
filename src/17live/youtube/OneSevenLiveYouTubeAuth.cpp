@@ -319,6 +319,7 @@ bool OneSevenLiveYouTubeAuth::refreshAccessToken() {
     }
     obs_log(LOG_INFO, "YouTube token refreshed: token_type=%s expires_in=%d",
             tokenType.toUtf8().constData(), expiresIn);
+    scheduleAutoRefresh(expiresIn, nowEpoch, 0, 0);
     // Notify listeners using existing signal for simplicity
     emit authorizationCompleted(m_accessToken);
     return true;
@@ -433,6 +434,8 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync() {
             }
             obs_log(LOG_INFO, "YouTube token refreshed: token_type=%s expires_in=%d",
                     tokenType.toUtf8().constData(), expiresIn);
+
+            scheduleAutoRefresh(expiresIn, nowEpoch, 0, 0);
             emit authorizationCompleted(m_accessToken);
         });
     thread->start();
