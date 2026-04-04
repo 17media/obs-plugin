@@ -159,6 +159,12 @@ target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
 # )
 
 # Configure plugin-support.c file
+foreach(_v IN ITEMS ONESEVENLIVE_API_URL YOUTUBE_API_CLIENT_ID YOUTUBE_API_CLIENT_SECRET TWITCH_API_CLIENT_ID)
+  if(NOT DEFINED ${_v} AND DEFINED ENV{${_v}})
+    set(${_v} "$ENV{${_v}}" CACHE STRING "")
+  endif()
+endforeach()
+
 configure_file(src/plugin-support.c.in src/plugin-support.c @ONLY)
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE

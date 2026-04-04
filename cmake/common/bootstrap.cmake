@@ -52,6 +52,10 @@ string(JSON _email GET ${buildspec} email)
 string(JSON _version GET ${buildspec} version)
 string(JSON _bundleId GET ${buildspec} platformConfig macos bundleId)
 
+if(DEFINED CMAKE_PROJECT_VERSION)
+  set(_version "${CMAKE_PROJECT_VERSION}")
+endif()
+
 set(PLUGIN_AUTHOR ${_author})
 set(PLUGIN_WEBSITE ${_website})
 set(PLUGIN_EMAIL ${_email})
