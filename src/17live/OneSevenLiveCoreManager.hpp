@@ -344,6 +344,12 @@ class OneSevenLiveCoreManager : public QObject {
     std::string chatDockClientId;
     std::mutex chatQueueMutex;
 
+    bool initLocalServers();
+    bool initConfigAndApi(bool& isLogin, OneSevenLiveLoginData& loginData);
+    void initAuthHandlers();
+    bool initMenuAndBaseUI();
+    void restoreRuntimeStateIfNeeded(bool isLogin, const OneSevenLiveLoginData& loginData);
+
     void syncMenuDockVisibility();
     void flushChatEventQueue();
     bool isChatDockClientConnected() const;

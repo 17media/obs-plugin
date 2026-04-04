@@ -144,16 +144,7 @@ OneSevenLiveCoreManager::~OneSevenLiveCoreManager() {
     }
 }
 
-bool OneSevenLiveCoreManager::initialize() {
-    // Prevent duplicate initialization
-    if (initialized) {
-        return true;
-    }
-
-    obs_log(LOG_INFO, "[17Live Core] Initializing OneSevenLiveCoreManager...");
-
-    m_cancelFlag.store(false);
-
+bool OneSevenLiveCoreManager::initLocalServers() {
     // Run network diagnostics to check API connectivity
     obs_log(LOG_INFO, "[17Live Core] Running startup network diagnostics...");
     NetworkDiagnostics::runStartupDiagnostics(ONESEVENLIVE_API_URL);
@@ -198,7 +189,10 @@ bool OneSevenLiveCoreManager::initialize() {
     websocketServer_->setConnectionCallback(
         std::bind(&OneSevenLiveCoreManager::handleWebsocketConnectionChanged, this,
                   std::placeholders::_1, std::placeholders::_2));
+    return true;
+}
 
+bool OneSevenLiveCoreManager::initConfigAndApi(bool& isLogin, OneSevenLiveLoginData& loginData) {
     // Initialize configuration manager
     configManager = std::make_unique<OneSevenLiveConfigManager>();
     if (!configManager) {
@@ -212,10 +206,8 @@ bool OneSevenLiveCoreManager::initialize() {
     }
 
     // Initialize API wrapper before creating stream manager
-    OneSevenLiveLoginData loginData;
     configManager->getLoginData(loginData);
-
-    bool isLogin = false;
+    isLogin = false;
 
     if (!loginData.jwtAccessToken.isEmpty()) {
         apiWrapper =
@@ -230,7 +222,10 @@ bool OneSevenLiveCoreManager::initialize() {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
         apiWrapper->setCancelFlag(&m_cancelFlag);
     }
+    return true;
+}
 
+void OneSevenLiveCoreManager::initAuthHandlers() {
     // Instantiate auth handlers
     twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
     youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
@@ -295,7 +290,9 @@ bool OneSevenLiveCoreManager::initialize() {
             }
         }
     }
+}
 
+bool OneSevenLiveCoreManager::initMenuAndBaseUI() {
     // Load gifts from saved config into memory map for fast lookup
     loadGiftsFromConfig();
 
@@ -379,16 +376,52 @@ bool OneSevenLiveCoreManager::initialize() {
     }
 
     QTimer::singleShot(0, updateManager, &OneSevenLiveUpdateManager::checkForUpdates);
+    return true;
+}
+
+void OneSevenLiveCoreManager::restoreRuntimeStateIfNeeded(bool isLogin,
+                                                           const OneSevenLiveLoginData& loginData) {
+    OneSevenLiveLoginData restoredLoginData = loginData;
 
     isStartupRestore = true;
 
     // Handle login state during initialization
     if (isLogin) {
-        configManager->getLoginData(loginData);
+        configManager->getLoginData(restoredLoginData);
 
         // Use the new centralized login state handler for logged in users
-        handleLoginStateChanged(true, loginData);
+        handleLoginStateChanged(true, restoredLoginData);
     }
+}
+
+bool OneSevenLiveCoreManager::initialize() {
+    // Prevent duplicate initialization
+    if (initialized) {
+        return true;
+    }
+
+    obs_log(LOG_INFO, "[17Live Core] Initializing OneSevenLiveCoreManager...");
+
+    m_cancelFlag.store(false);
+
+    bool isLogin = false;
+    OneSevenLiveLoginData loginData;
+
+    if (!initLocalServers()) {
+        return false;
+    }
+
+    if (!initConfigAndApi(isLogin, loginData)) {
+        return false;
+    }
+
+    initAuthHandlers();
+
+    if (!initMenuAndBaseUI()) {
+        return false;
+    }
+
+    restoreRuntimeStateIfNeeded(isLogin, loginData);
 
     initialized = true;
 
