@@ -776,14 +776,17 @@ bool OneSevenLiveMultiRtmpDock::startYouTubeStream(const std::string& streamId) 
             config.serviceSettings["key"] = newKey.toStdString();
             m_manager->updateStreamConfig(streamId, config);
 
-            obs_log(LOG_INFO, "[MultiRTMP-Dock] Updated YouTube stream config with new ingestion info");
-            obs_log(LOG_INFO, "YouTube broadcastId: %s", dialog.getBroadcastId().toStdString().c_str());
-            obs_log(LOG_INFO, "YouTube liveChatId: %s", dialog.getLiveChatId().toStdString().c_str());
+            obs_log(LOG_INFO,
+                    "[MultiRTMP-Dock] Updated YouTube stream config with new ingestion info");
+            obs_log(LOG_INFO, "YouTube broadcastId: %s",
+                    dialog.getBroadcastId().toStdString().c_str());
+            obs_log(LOG_INFO, "YouTube liveChatId: %s",
+                    dialog.getLiveChatId().toStdString().c_str());
         }
 
         // Start YouTube stream explicitly
         return m_manager->startStream(streamId);
     }
-    
+
     return false;
 }

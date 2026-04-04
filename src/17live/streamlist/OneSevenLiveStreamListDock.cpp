@@ -19,7 +19,6 @@
 #include <QVBoxLayout>
 #include <QVariant>
 
-#include "api/OneSevenLiveModels.hpp"
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveStreamListItem.hpp"
 #include "api/OneSevenLiveModels.hpp"

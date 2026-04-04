@@ -701,7 +701,7 @@ void OneSevenLiveCoreManager::flushChatEventQueue() {
     auto* ws = getWebsocketServer();
     if (!ws || !ws->is_running())
         return;
-    
+
     std::lock_guard<std::mutex> lock(chatQueueMutex);
 
     if (chatDockClientId.empty())
@@ -1094,7 +1094,7 @@ void OneSevenLiveCoreManager::performLogoutOperations() {
         chatDockClientId.clear();
         chatEventQueue.clear();
     }
-    
+
     if (apiWrapper) {
         apiWrapper->setToken(std::string());
     }
