@@ -20,6 +20,7 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QTimer>
+#include <functional>
 #include <nlohmann/json.hpp>
 #include <thread>
 
@@ -62,6 +63,52 @@ static const int INITIAL_DOCK_HEIGHT = 550;
 
 static bool isDockOpen(QDockWidget* dock) {
     return dock && dock->toggleViewAction() && dock->toggleViewAction()->isChecked();
+}
+
+static void centerDockOnMainWindow(QDockWidget* dock, QMainWindow* mainWindow) {
+    if (!dock || !mainWindow) {
+        return;
+    }
+    const QRect mainWindowGeometry = mainWindow->geometry();
+    const int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - dock->width()) / 2;
+    const int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - dock->height()) / 2;
+    dock->move(x, y);
+}
+
+static void showDockAsFloating(QDockWidget* dock, QMainWindow* mainWindow, bool isStartupRestore) {
+    if (!dock || isStartupRestore) {
+        return;
+    }
+    dock->setFloating(true);
+    dock->setVisible(true);
+    centerDockOnMainWindow(dock, mainWindow);
+}
+
+template <typename TDock>
+static bool closeAndDeleteDock(QPointer<TDock>& dock, QObject* owner) {
+    bool visible = false;
+    if (dock) {
+        visible = isDockOpen(dock);
+        dock->disconnect(owner);
+        dock->close();
+        delete dock;
+        dock = nullptr;
+    }
+    return visible;
+}
+
+template <typename TDock, typename TBeforeDelete>
+static bool closeAndDeleteDock(QPointer<TDock>& dock, QObject* owner, TBeforeDelete&& beforeDelete) {
+    bool visible = false;
+    if (dock) {
+        visible = isDockOpen(dock);
+        dock->disconnect(owner);
+        beforeDelete(dock.data());
+        dock->close();
+        delete dock;
+        dock = nullptr;
+    }
+    return visible;
 }
 
 // Initialize static member variables
@@ -1177,86 +1224,40 @@ void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
         });
 
         // Update menu visibility status after restoration
-        if (menuManager) {
-            menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                              isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                              isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-        }
+        syncMenuDockVisibility();
     }
 }
 
 void OneSevenLiveCoreManager::closeAllDocks() {
     obs_log(LOG_INFO, "closeAllDocks");
 
-    bool streamingVisible = false;
-    if (streamingDock) {
-        streamingVisible = isDockOpen(streamingDock);
-        streamingDock->disconnect(this);
-        streamingDock->close();
-        delete streamingDock;
-        streamingDock = nullptr;
-    }
+    const bool streamingVisible = closeAndDeleteDock(streamingDock, this);
     configManager->setDockVisibility("streaming", streamingVisible);
 
-    bool liveListVisible = false;
-    if (liveListDock) {
-        liveListVisible = isDockOpen(liveListDock);
-        liveListDock->disconnect(this);
-        liveListDock->close();
-        delete liveListDock;
-        liveListDock = nullptr;
-    }
+    const bool liveListVisible = closeAndDeleteDock(liveListDock, this);
     configManager->setDockVisibility("liveList", liveListVisible);
 
-    bool rockZoneVisible = false;
-    if (rockZoneDock) {
-        rockZoneVisible = isDockOpen(rockZoneDock);
-        rockZoneDock->disconnect(this);
-        rockZoneDock->close();
-        delete rockZoneDock;
-        rockZoneDock = nullptr;
-    }
+    const bool rockZoneVisible = closeAndDeleteDock(rockZoneDock, this);
     configManager->setDockVisibility("rockZone", rockZoneVisible);
 
-    bool chatRoomVisible = false;
-    if (chatDock) {
-        chatRoomVisible = isDockOpen(chatDock);
-        chatDock->disconnect(this);
-        OneSevenLiveChatWidget* widget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
-        if (widget) {
-            obs_log(LOG_INFO, "Shutting down chat widget in closeAllDocks");
-            widget->shutdown();
-        }
-        chatDock->close();
-        delete chatDock;
-        chatDock = nullptr;
-    }
+    const bool chatRoomVisible = closeAndDeleteDock(
+        chatDock, this, [](QDockWidget* dock) {
+            OneSevenLiveChatWidget* widget = qobject_cast<OneSevenLiveChatWidget*>(dock->widget());
+            if (widget) {
+                obs_log(LOG_INFO, "Shutting down chat widget in closeAllDocks");
+                widget->shutdown();
+            }
+        });
     configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
-    bool multiRtmpVisible = false;
-    if (multiRtmpDock) {
-        multiRtmpVisible = isDockOpen(multiRtmpDock);
-        multiRtmpDock->disconnect(this);
-        multiRtmpDock->close();
-        delete multiRtmpDock;
-        multiRtmpDock = nullptr;
-    }
+    const bool multiRtmpVisible = closeAndDeleteDock(multiRtmpDock, this);
     configManager->setDockVisibility("multiRtmp", multiRtmpVisible);
 
-    bool previewDockVisible = false;
-    if (previewDock) {
-        previewDockVisible = isDockOpen(previewDock);
-        previewDock->disconnect(this);
-        previewDock->close();
-        delete previewDock;
-        previewDock = nullptr;
-    }
+    const bool previewDockVisible = closeAndDeleteDock(previewDock, this);
     configManager->setDockVisibility("previewDock", previewDockVisible);
 
     // Update menu visibility status after closing all docks
-    if (menuManager) {
-        menuManager->updateDockVisibility(false, false, false, false, false, false);
-    }
+    syncMenuDockVisibility();
 }
 
 void OneSevenLiveCoreManager::handleLogoutClicked() {
@@ -1337,11 +1338,7 @@ void OneSevenLiveCoreManager::handleStreamingClicked() {
     }
 
     // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-    }
+    syncMenuDockVisibility();
 }
 
 void OneSevenLiveCoreManager::createStreamingDock() {
@@ -1367,19 +1364,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
 
     // Only restore state during startup, otherwise set floating and center
-    if (isStartupRestore) {
-    } else {
-        // First time creation or manual creation - set floating and center
-        streamingDock->setFloating(true);
-        streamingDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - streamingDock->width()) / 2;
-        int y =
-            mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
-        streamingDock->move(x, y);
-    }
+    showDockAsFloating(streamingDock, mainWindow, isStartupRestore);
 
     if (streamingDockFirstLoad) {
         connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this]() {
@@ -1389,9 +1374,7 @@ void OneSevenLiveCoreManager::createStreamingDock() {
         });
 
         connect(streamingDock, &QDockWidget::visibilityChanged, this, [this]() {
-            menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                              isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                              isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+            syncMenuDockVisibility();
         });
 
         streamingDockFirstLoad = false;
@@ -1408,11 +1391,7 @@ void OneSevenLiveCoreManager::handleRockZoneClicked() {
     }
 
     // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-    }
+    syncMenuDockVisibility();
 }
 
 void OneSevenLiveCoreManager::createRockZoneDock() {
@@ -1443,14 +1422,7 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
         rockZoneDock->setVisible(true);
     } else {
         // First time creation or manual creation - set floating and center
-        rockZoneDock->setFloating(true);
-        rockZoneDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - rockZoneDock->width()) / 2;
-        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - rockZoneDock->height()) / 2;
-        rockZoneDock->move(x, y);
+        showDockAsFloating(rockZoneDock, mainWindow, false);
     }
 
     if (streamManager) {
@@ -1471,9 +1443,7 @@ void OneSevenLiveCoreManager::createRockZoneDock() {
     if (rockZoneDockFirstLoad) {
         // When dock is closed, uncheck menu item status
         connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this]() {
-            menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                              isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                              isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+            syncMenuDockVisibility();
         });
 
         rockZoneDockFirstLoad = false;
@@ -1493,20 +1463,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
         mainWindow->addDockWidget(Qt::RightDockWidgetArea, liveListDock);
 
         // Only restore state during startup, otherwise set floating and center
-        if (isStartupRestore) {
-        } else {
-            // First time creation or manual creation - set floating and center
-            liveListDock->setFloating(true);
-            liveListDock->setVisible(true);
-
-            // Center the dock on the main window
-            QRect mainWindowGeometry = mainWindow->geometry();
-            int x =
-                mainWindowGeometry.x() + (mainWindowGeometry.width() - liveListDock->width()) / 2;
-            int y =
-                mainWindowGeometry.y() + (mainWindowGeometry.height() - liveListDock->height()) / 2;
-            liveListDock->move(x, y);
-        }
+        showDockAsFloating(liveListDock, mainWindow, isStartupRestore);
 
         connect(liveListDock, &OneSevenLiveStreamListDock::startLiveClicked, this,
                 [this](const OneSevenLiveRtmpRequest& request) {
@@ -1523,12 +1480,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
                     streamingDock->activateWindow();
 
                     // Move to center of main window
-                    QRect mainWindowGeometry = mainWindow->geometry();
-                    int x = mainWindowGeometry.x() +
-                            (mainWindowGeometry.width() - streamingDock->width()) / 2;
-                    int y = mainWindowGeometry.y() +
-                            (mainWindowGeometry.height() - streamingDock->height()) / 2;
-                    streamingDock->move(x, y);
+                    centerDockOnMainWindow(streamingDock, mainWindow);
 
                     streamingDock->createLiveWithRequest(request);
                 });
@@ -1550,12 +1502,7 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
                     streamingDock->activateWindow();
 
                     // Move to center of main window
-                    QRect mainWindowGeometry = mainWindow->geometry();
-                    int x = mainWindowGeometry.x() +
-                            (mainWindowGeometry.width() - streamingDock->width()) / 2;
-                    int y = mainWindowGeometry.y() +
-                            (mainWindowGeometry.height() - streamingDock->height()) / 2;
-                    streamingDock->move(x, y);
+                    centerDockOnMainWindow(streamingDock, mainWindow);
 
                     // Scroll to title edit box and focus on it
                     QTimer::singleShot(100, [this]() {
@@ -1574,20 +1521,14 @@ void OneSevenLiveCoreManager::handleLiveListClicked() {
 
         // When dock is closed, uncheck menu item status
         connect(liveListDock, &QDockWidget::visibilityChanged, this, [this]() {
-            menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                              isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                              isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+            syncMenuDockVisibility();
         });
     } else {
         liveListDock->toggleViewAction()->trigger();
     }
 
     // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-    }
+    syncMenuDockVisibility();
 }
 
 bool OneSevenLiveCoreManager::checkLoginStatus() {
@@ -1651,19 +1592,12 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             chatDock->setVisible(true);
         } else {
             obs_log(LOG_INFO, "Setting chatDock to floating mode");
-            chatDock->setFloating(true);
             bool hadChatStored =
                 configManager ? configManager->getDockVisibility("chatRoom") : false;
             if (!hadChatStored) {
                 chatDock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
             }
-            chatDock->setVisible(true);
-
-            // Center the dock
-            QRect mainWindowGeometry = mainWindow->geometry();
-            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatDock->width()) / 2;
-            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatDock->height()) / 2;
-            chatDock->move(x, y);
+            showDockAsFloating(chatDock, mainWindow, false);
         }
 
         connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
@@ -1671,11 +1605,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
             //         visible ? "true" : "false",
             //         (chatDock && chatDock->isFloating()) ? "true" : "false");
 
-            if (menuManager) {
-                menuManager->updateDockVisibility(
-                    isDockOpen(chatDock), isDockOpen(streamingDock), isDockOpen(liveListDock),
-                    isDockOpen(rockZoneDock), isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-            }
+            syncMenuDockVisibility();
             chatDockVisible = visible;
             if (visible)
                 flushChatEventQueue();
@@ -1687,11 +1617,7 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     }
 
     // Update visibility status for menu
-    if (menuManager) {
-        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-    }
+    syncMenuDockVisibility();
 }
 
 bool OneSevenLiveCoreManager::eventFilter(QObject* obj, QEvent* event) {
@@ -1848,11 +1774,7 @@ void OneSevenLiveCoreManager::handleMultiRtmpClicked() {
     }
 
     // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-    }
+    syncMenuDockVisibility();
 }
 
 void OneSevenLiveCoreManager::createMultiRtmpDock() {
@@ -1877,28 +1799,12 @@ void OneSevenLiveCoreManager::createMultiRtmpDock() {
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, multiRtmpDock);
 
     // Only restore state during startup, otherwise set floating and center
-    if (isStartupRestore) {
-    } else {
-        // First time creation or manual creation - set floating and center
-        multiRtmpDock->setFloating(true);
-        multiRtmpDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - multiRtmpDock->width()) / 2;
-        int y =
-            mainWindowGeometry.y() + (mainWindowGeometry.height() - multiRtmpDock->height()) / 2;
-        multiRtmpDock->move(x, y);
-    }
+    showDockAsFloating(multiRtmpDock, mainWindow, isStartupRestore);
 
     if (multiRtmpDockFirstLoad) {
         // Connect visibility change signal to update menu status
         connect(multiRtmpDock, &QDockWidget::visibilityChanged, this, [this]() {
-            if (menuManager) {
-                menuManager->updateDockVisibility(
-                    isDockOpen(chatDock), isDockOpen(streamingDock), isDockOpen(liveListDock),
-                    isDockOpen(rockZoneDock), isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-            }
+            syncMenuDockVisibility();
         });
 
         multiRtmpDockFirstLoad = false;
@@ -1915,11 +1821,7 @@ void OneSevenLiveCoreManager::handlePreviewDockClicked() {
     }
 
     // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
-                                          isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                          isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-    }
+    syncMenuDockVisibility();
 }
 
 void OneSevenLiveCoreManager::createPreviewDock() {
@@ -1943,27 +1845,12 @@ void OneSevenLiveCoreManager::createPreviewDock() {
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, previewDock);
 
     // Only restore state during startup, otherwise set floating and center
-    if (isStartupRestore) {
-    } else {
-        // First time creation or manual creation - set floating and center
-        previewDock->setFloating(true);
-        previewDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - previewDock->width()) / 2;
-        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - previewDock->height()) / 2;
-        previewDock->move(x, y);
-    }
+    showDockAsFloating(previewDock, mainWindow, isStartupRestore);
 
     if (previewDockFirstLoad) {
         // Connect visibility change signal to update menu status
         connect(previewDock, &QDockWidget::visibilityChanged, this, [this]() {
-            if (menuManager) {
-                menuManager->updateDockVisibility(
-                    isDockOpen(chatDock), isDockOpen(streamingDock), isDockOpen(liveListDock),
-                    isDockOpen(rockZoneDock), isDockOpen(multiRtmpDock), isDockOpen(previewDock));
-            }
+            syncMenuDockVisibility();
         });
 
         previewDockFirstLoad = false;
@@ -1976,4 +1863,13 @@ void OneSevenLiveCoreManager::setShuttingDown(bool v) {
 
 bool OneSevenLiveCoreManager::isShuttingDown() const {
     return shuttingDown;
+}
+
+void OneSevenLiveCoreManager::syncMenuDockVisibility() {
+    if (!menuManager) {
+        return;
+    }
+    menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
+                                      isDockOpen(liveListDock), isDockOpen(rockZoneDock),
+                                      isDockOpen(multiRtmpDock), isDockOpen(previewDock));
 }
