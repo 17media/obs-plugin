@@ -391,12 +391,9 @@ void OneSevenLiveCoreManager::stopStreamingSafely() {
             }
 
             if (stoppedYouTube) {
-                // Give some time for the API request to be dispatched
-                QElapsedTimer t;
-                t.start();
-                while (t.elapsed() < 1000) {
-                    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-                }
+                QEventLoop loop;
+                QTimer::singleShot(1000, &loop, &QEventLoop::quit);
+                loop.exec();
             }
         }
     }
@@ -409,11 +406,19 @@ void OneSevenLiveCoreManager::stopStreamingSafely() {
             // Don't sleep on main thread
             // std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
-        QElapsedTimer t;
-        t.start();
-        while (obs_frontend_streaming_active() && t.elapsed() < 5000) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-        }
+
+        QEventLoop loop;
+        QTimer poll;
+        poll.setInterval(50);
+        QObject::connect(&poll, &QTimer::timeout, &loop, [&loop]() {
+            if (!obs_frontend_streaming_active()) {
+                loop.quit();
+            }
+        });
+        poll.start();
+
+        QTimer::singleShot(5000, &loop, &QEventLoop::quit);
+        loop.exec();
     }
 }
 
