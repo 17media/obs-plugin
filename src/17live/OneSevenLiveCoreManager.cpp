@@ -517,12 +517,7 @@ void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& logi
     }
 }
 
-void OneSevenLiveCoreManager::shutdown() {
-    m_cancelFlag.store(true);
-    if (!initialized) {
-        return;
-    }
-
+void OneSevenLiveCoreManager::stopStreamingSafely() {
     // Stop YouTube streams in MultiRTMP Manager first to ensure "complete" transition
     {
         auto* multiMgr = OneSevenLiveMultiRtmpManager::peekInstance();
@@ -548,8 +543,6 @@ void OneSevenLiveCoreManager::shutdown() {
         }
     }
 
-    m_cancelFlag.store(true);
-
     if (obs_frontend_streaming_active()) {
         if (streamManager) {
             streamManager->stopOBSStreaming();
@@ -564,12 +557,16 @@ void OneSevenLiveCoreManager::shutdown() {
             QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
         }
     }
+}
 
+void OneSevenLiveCoreManager::saveAndCloseUI() {
     // Save dock state before closing any docks
     saveDockState();
 
     closeAllDocks();
+}
 
+void OneSevenLiveCoreManager::shutdownRtmpAndChat() {
     // After docks are closed and UI timers stopped, shutdown MultiRTMP manager
     {
         auto* multiMgr = OneSevenLiveMultiRtmpManager::peekInstance();
@@ -580,7 +577,9 @@ void OneSevenLiveCoreManager::shutdown() {
             // std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
     }
+}
 
+void OneSevenLiveCoreManager::shutdownLocalServers() {
     // Stop WebSocket server
     if (websocketServer_) {
         websocketServer_->stop();
@@ -593,7 +592,9 @@ void OneSevenLiveCoreManager::shutdown() {
         httpServer_->stop();
         obs_log(LOG_INFO, "[17Live Core] HTTP server stopped");
     }
+}
 
+void OneSevenLiveCoreManager::cleanupTimersAndFlags() {
     // Clean up menu manager resources
     if (menuManager) {
         menuManager->cleanup();
@@ -604,8 +605,23 @@ void OneSevenLiveCoreManager::shutdown() {
         ytChatDiscoverTimer->deleteLater();
         ytChatDiscoverTimer = nullptr;
     }
+}
+
+void OneSevenLiveCoreManager::shutdown() {
+    m_cancelFlag.store(true);
+    if (shuttingDown || !initialized) {
+        return;
+    }
+    shuttingDown = true;
+
+    stopStreamingSafely();
+    saveAndCloseUI();
+    shutdownRtmpAndChat();
+    shutdownLocalServers();
+    cleanupTimersAndFlags();
 
     initialized = false;
+    shuttingDown = false;
 }
 
 QMainWindow* OneSevenLiveCoreManager::getMainWindow() const {

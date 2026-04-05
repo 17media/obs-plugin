@@ -349,6 +349,11 @@ class OneSevenLiveCoreManager : public QObject {
     void initAuthHandlers();
     bool initMenuAndBaseUI();
     void restoreRuntimeStateIfNeeded(bool isLogin, const OneSevenLiveLoginData& loginData);
+    void stopStreamingSafely();
+    void saveAndCloseUI();
+    void shutdownRtmpAndChat();
+    void shutdownLocalServers();
+    void cleanupTimersAndFlags();
 
     void syncMenuDockVisibility();
     void flushChatEventQueue();
