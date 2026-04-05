@@ -10,7 +10,8 @@ npm install
 npm run build
 ```
 
-**Note: run `cmake --preset [macos|windows-x64]` every time you make changes to the chat room app.**
+**Note: run `cmake --build --preset [macos|windows-x64]` after rebuilding the chat room app so the
+plugin packaging picks up the latest web assets.**
 
 ## Windows x64
 
@@ -29,6 +30,7 @@ Then build the plugin:
 
 ```bash
 cmake --preset windows-x64
+cmake --build --preset windows-x64 --config RelWithDebInfo
 ```
 
 Then open the generated solution file `build_x64\obs-17live.sln` in Visual Studio. Build the plugin. 
@@ -48,15 +50,36 @@ Then build the plugin, architecture will be automatically detected:
 
 ```bash
 cmake --preset macos
+cmake --build --preset macos --config RelWithDebInfo
 ```
 
 Then open the generated Xcode project `build_macos/obs-17live.xcodeproj`. Build the plugin.
 
-## production build
+## CI / Release Packaging
 
-To enable API url for production
+- There are no `*-prod` presets. CI uses the same presets and injects environment-specific values
+  via `-D` arguments and GitHub Actions environment variables.
+- Key injected variables:
+  - `ONESEVENLIVE_API_URL` (GitHub Actions env/vars)
+  - `CMAKE_PROJECT_VERSION` (derived from git tag or workflow input)
+  - `YOUTUBE_API_CLIENT_ID`, `YOUTUBE_API_CLIENT_SECRET`, `TWITCH_API_CLIENT_ID` (vars)
 
 ```bash
-cmake --preset macos-prod
-cmake --preset windows-x64-prod
+cmake --preset macos \
+  -DYOUTUBE_API_CLIENT_ID="$YOUTUBE_API_CLIENT_ID" \
+  -DYOUTUBE_API_CLIENT_SECRET="$YOUTUBE_API_CLIENT_SECRET" \
+  -DTWITCH_API_CLIENT_ID="$TWITCH_API_CLIENT_ID" \
+  -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" \
+  -DCMAKE_PROJECT_VERSION="$VERSION"
+
+cmake --build --preset macos --config Release
+
+cmake --preset windows-x64 ^
+  -DYOUTUBE_API_CLIENT_ID="%YOUTUBE_API_CLIENT_ID%" ^
+  -DYOUTUBE_API_CLIENT_SECRET="%YOUTUBE_API_CLIENT_SECRET%" ^
+  -DTWITCH_API_CLIENT_ID="%TWITCH_API_CLIENT_ID%" ^
+  -DONESEVENLIVE_API_URL="%ONESEVENLIVE_API_URL%" ^
+  -DCMAKE_PROJECT_VERSION="%VERSION%"
+
+cmake --build --preset windows-x64 --config Release
 ```
