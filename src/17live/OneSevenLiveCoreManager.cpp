@@ -362,7 +362,8 @@ void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId
     // output m for debug
     // obs_log(LOG_INFO, "[17Live WebSocket Server] Message from %s: %s", clientId.c_str(),
     //         m.dump().c_str());
-    const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
+    auto* ws = getWebsocketServer();
+    const bool hasServer = (ws && ws->is_running());
     if (m.type.empty() || !hasServer) {
         return;
     }
@@ -1189,11 +1190,18 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
         return;
     }
 
+    auto* http = getHttpServer();
+    auto* ws = getWebsocketServer();
+    if (!http || !ws) {
+        obs_log(LOG_ERROR, "[17Live Core] Local servers not available for chat dock");
+        return;
+    }
+
     std::string locale = GetCurrentLocale();
-    QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
+    QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(ws->getPort());
     QString chatUrl =
         QString("http://localhost:%1/%2.html?roomID=%3&userID=%4&ws=%5")
-            .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
+            .arg(QString::number(http->getPort()), QString::fromStdString(locale),
                  QString::number(loginData.userInfo.roomID), loginData.userInfo.userID, wsUrl);
 
     obs_log(LOG_INFO, "Chat URL: %s", chatUrl.toStdString().c_str());
@@ -1467,10 +1475,17 @@ void OneSevenLiveCoreManager::createPreviewDock() {
         return;
     }
 
-    QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
+    auto* http = getHttpServer();
+    auto* ws = getWebsocketServer();
+    if (!http || !ws) {
+        obs_log(LOG_ERROR, "[17Live Core] Local servers not available for preview dock");
+        return;
+    }
+
+    QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(ws->getPort());
 
     QString cartoonUrl = QString("http://localhost:%1/vff/?ws=%2")
-                             .arg(QString::number(httpServer_->getPort()), wsUrl);
+                             .arg(QString::number(http->getPort()), wsUrl);
     obs_log(LOG_INFO, "cartoonUrl: %s", cartoonUrl.toStdString().c_str());
     // Create preview dock
     previewDock = new OneSevenLivePreviewDock(mainWindow, cartoonUrl);

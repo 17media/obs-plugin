@@ -1,9 +1,10 @@
 #include "LocalGatewayService.hpp"
 #include "../OneSevenLiveCoreManager.hpp"
 #include "../websocket/OneSevenLiveWebsocketServer.hpp"
-#include "../websocket/OneSevenLiveHttpServer.hpp"
+#include "../OneSevenLiveHttpServer.hpp"
 #include "../utility/NetworkDiagnostics.hpp"
 #include <obs-module.h>
+#include "plugin-support.h"
 
 LocalGatewayService::LocalGatewayService(OneSevenLiveCoreManager* coreManager, QObject* parent)
     : QObject(parent), coreManager_(coreManager) {}
