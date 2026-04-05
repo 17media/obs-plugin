@@ -8,7 +8,7 @@ class CoreRuntime {
     struct State {
         bool* initialized = nullptr;
         bool* shuttingDown = nullptr;
-        std::atomic<bool>* cancelFlag = nullptr;
+        std::function<void(bool)> setShutdownCancel;
     };
 
     struct Hooks {

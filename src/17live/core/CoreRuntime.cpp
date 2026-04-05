@@ -3,14 +3,14 @@
 CoreRuntime::CoreRuntime(State state, Hooks hooks) : state_(state), hooks_(std::move(hooks)) {}
 
 bool CoreRuntime::initialize() {
-    if (!state_.initialized || !state_.cancelFlag) {
+    if (!state_.initialized || !state_.setShutdownCancel) {
         return false;
     }
     if (*state_.initialized) {
         return true;
     }
 
-    state_.cancelFlag->store(false);
+    state_.setShutdownCancel(false);
 
     if (!hooks_.initLocalServers || !hooks_.initConfigAndApi || !hooks_.initMenuAndBaseUI ||
         !hooks_.initAuthHandlers || !hooks_.restoreRuntimeStateIfNeeded) {
@@ -36,11 +36,10 @@ bool CoreRuntime::initialize() {
 }
 
 void CoreRuntime::shutdown() {
-    if (!state_.initialized || !state_.shuttingDown || !state_.cancelFlag) {
+    if (!state_.initialized || !state_.shuttingDown || !state_.setShutdownCancel) {
         return;
     }
 
-    state_.cancelFlag->store(true);
     if (*state_.shuttingDown || !*state_.initialized) {
         return;
     }
@@ -49,6 +48,7 @@ void CoreRuntime::shutdown() {
     if (hooks_.stopStreamingSafely) {
         hooks_.stopStreamingSafely();
     }
+    state_.setShutdownCancel(true);
     if (hooks_.saveAndCloseUI) {
         hooks_.saveAndCloseUI();
     }

@@ -39,7 +39,7 @@ void AuthSessionService::setPendingLogout(bool pending) {
 }
 
 bool AuthSessionService::handleLoginClicked() {
-    coreManager_->m_cancelFlag.store(false);
+    coreManager_->setSessionCancel(false);
     OneSevenLiveLoginDialog dialog(coreManager_->mainWindow, coreManager_->getApiWrapper());
 
     // Connect login success signal to slot function
@@ -144,7 +144,7 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
         if (core->streamManager && core->apiWrapper) {
             const qint64 rid = core->streamManager->getRoomID();
             if (rid > 0) {
-                core->m_cancelFlag.store(false);
+                core->setSessionCancel(false);
                 core->connectAblyChat(QString::number(rid), QString());
             }
         }
@@ -155,7 +155,7 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
 
 void AuthSessionService::performLogoutOperations() {
     obs_log(LOG_INFO, "performLogoutOperations");
-    coreManager_->m_cancelFlag.store(true);
+    coreManager_->setSessionCancel(true);
 
     {
         auto* ws = coreManager_->getWebsocketServer();

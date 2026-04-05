@@ -93,7 +93,8 @@ OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
     localGatewayService_ = std::make_unique<LocalGatewayService>(this);
     chatBridgeService_ = std::make_unique<ChatBridgeService>(this);
 
-    CoreRuntime::State state{&initialized, &shuttingDown, &m_cancelFlag};
+    CoreRuntime::State state{&initialized, &shuttingDown,
+                             [this](bool v) { this->setShutdownCancel(v); }};
     CoreRuntime::Hooks hooks;
     hooks.initLocalServers = [this]() { return this->initLocalServers(); };
     hooks.initConfigAndApi = [this]() { return this->initConfigAndApi(); };
@@ -158,7 +159,7 @@ bool OneSevenLiveCoreManager::initConfigAndApi() {
     if (!initLoginData_.jwtAccessToken.isEmpty()) {
         apiWrapper =
             std::make_unique<OneSevenLiveApiWrappers>(initLoginData_.jwtAccessToken.toStdString());
-        apiWrapper->setCancelFlag(&m_cancelFlag);
+        apiWrapper->setCancelFlag(getCancelFlag());
 
         initIsLogin_ = authSessionService_->checkLoginStatus();
     }
@@ -166,7 +167,7 @@ bool OneSevenLiveCoreManager::initConfigAndApi() {
     // if not login, initialize apiWrapper without token
     if (!initIsLogin_) {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
-        apiWrapper->setCancelFlag(&m_cancelFlag);
+        apiWrapper->setCancelFlag(getCancelFlag());
     }
     return true;
 }

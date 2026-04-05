@@ -201,12 +201,32 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Accessor for cancellation flag
     std::atomic<bool>* getCancelFlag() {
-        return &m_cancelFlag;
+        return &cancelFlag_;
+    }
+
+    std::atomic<bool>* getShutdownCancelFlag() {
+        return &shutdownCancelFlag_;
+    }
+
+    std::atomic<bool>* getSessionCancelFlag() {
+        return &sessionCancelFlag_;
+    }
+
+    void setShutdownCancel(bool v) {
+        shutdownCancelFlag_.store(v);
+        cancelFlag_.store(v || sessionCancelFlag_.load());
+    }
+
+    void setSessionCancel(bool v) {
+        sessionCancelFlag_.store(v);
+        cancelFlag_.store(v || shutdownCancelFlag_.load());
     }
 
    private:
     std::atomic<bool> giftsLoading_{false};
-    std::atomic<bool> m_cancelFlag{false};
+    std::atomic<bool> cancelFlag_{false};
+    std::atomic<bool> shutdownCancelFlag_{false};
+    std::atomic<bool> sessionCancelFlag_{false};
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
