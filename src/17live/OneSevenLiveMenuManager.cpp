@@ -100,12 +100,14 @@ void OneSevenLiveMenuManager::updateLoginStatus(bool logged, QString username) {
     }
     loginAction->setText(text);
 
+    disconnect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
+    disconnect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogout);
     if (isLoggedIn) {
-        disconnect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
-        connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogout);
+        connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogout,
+                Qt::UniqueConnection);
     } else {
-        disconnect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogout);
-        connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
+        connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin,
+                Qt::UniqueConnection);
     }
 
     // Update menu item enabled status
