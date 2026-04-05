@@ -39,6 +39,18 @@ void AuthSessionService::setPendingLogout(bool pending) {
 }
 
 bool AuthSessionService::handleLoginClicked() {
+    const auto s = state_.load();
+    if (s != SessionState::Idle) {
+        obs_log(LOG_INFO, "Login click ignored due to session state=%d", static_cast<int>(s));
+        return false;
+    }
+
+    bool expected = false;
+    if (!loginDialogOpen_.compare_exchange_strong(expected, true)) {
+        obs_log(LOG_INFO, "Login click ignored due to login dialog open");
+        return false;
+    }
+
     coreManager_->setSessionCancel(false);
     OneSevenLiveLoginDialog dialog(coreManager_->mainWindow, coreManager_->getApiWrapper());
 
@@ -46,14 +58,24 @@ bool AuthSessionService::handleLoginClicked() {
     QObject::connect(&dialog, &OneSevenLiveLoginDialog::loginSuccess, this,
                      &AuthSessionService::handleLoginSuccess);
 
-    return dialog.exec() == QDialog::Accepted;
+    const bool ok = dialog.exec() == QDialog::Accepted;
+    loginDialogOpen_.store(false);
+    return ok;
 }
 
 void AuthSessionService::handleLoginSuccess(const OneSevenLiveLoginData& loginData) {
     obs_log(LOG_INFO, "handleLoginSuccess");
 
+    SessionState expected = SessionState::Idle;
+    if (!state_.compare_exchange_strong(expected, SessionState::LoggingIn)) {
+        obs_log(LOG_WARNING, "Login success ignored due to session state=%d",
+                static_cast<int>(expected));
+        return;
+    }
+
     if (!coreManager_->configManager->setLoginData(loginData)) {
         obs_log(LOG_ERROR, "Failed to save login data");
+        state_.store(SessionState::Idle);
         return;
     }
 
@@ -72,10 +94,21 @@ void AuthSessionService::handleLoginStateChanged(bool isLoggedIn,
     obs_log(LOG_INFO, "handleLoginStateChanged: %s", isLoggedIn ? "logged in" : "logged out");
 
     if (isLoggedIn) {
-        state_.store(SessionState::LoggingIn);
+        const auto s = state_.load();
+        if (s != SessionState::LoggingIn && s != SessionState::Idle) {
+            obs_log(LOG_WARNING, "Login state change ignored due to session state=%d",
+                    static_cast<int>(s));
+            return;
+        }
         performLoginOperations(loginData);
         state_.store(SessionState::LoggedIn);
     } else {
+        const auto s = state_.load();
+        if (s != SessionState::LoggedIn) {
+            obs_log(LOG_INFO, "Logout state change ignored due to session state=%d",
+                    static_cast<int>(s));
+            return;
+        }
         state_.store(SessionState::LoggingOut);
         performLogoutOperations();
         state_.store(SessionState::Idle);
@@ -310,7 +343,17 @@ void AuthSessionService::restoreDockStatesOnLogin() {
 void AuthSessionService::handleLogoutClicked() {
     obs_log(LOG_INFO, "handleLogoutClicked");
 
+    const auto s = state_.load();
+    if (s != SessionState::LoggedIn) {
+        obs_log(LOG_INFO, "Logout click ignored due to session state=%d", static_cast<int>(s));
+        return;
+    }
+
     if (coreManager_->status == OneSevenLiveStreamingStatus::Streaming) {
+        if (logoutConfirmBox_) {
+            obs_log(LOG_INFO, "Logout click ignored due to existing confirm dialog");
+            return;
+        }
         auto* msgBox = new QMessageBox(coreManager_->mainWindow);
         msgBox->setWindowTitle(obs_module_text("Logout.Warning.Title"));
         msgBox->setText(obs_module_text("Logout.Warning.Message"));
@@ -321,7 +364,12 @@ void AuthSessionService::handleLogoutClicked() {
         msgBox->setDefaultButton(cancelButton);
 
         QPointer<AuthSessionService> self = this;
-        connect(msgBox, &QMessageBox::finished, this, [self, msgBox, confirmButton](int) {
+        logoutConfirmBox_ = msgBox;
+        connect(msgBox, &QMessageBox::finished, this,
+                [self, msgBox, confirmButton](int) {
+                    if (self) {
+                        self->logoutConfirmBox_.clear();
+                    }
             if (msgBox->clickedButton() != confirmButton) {
                 msgBox->deleteLater();
                 return;
@@ -331,6 +379,9 @@ void AuthSessionService::handleLogoutClicked() {
                     self,
                     [self]() {
                         if (self) {
+                            if (self->isPendingLogout()) {
+                                return;
+                            }
                             self->setPendingLogout(true);
                             self->coreManager_->closeLive(false);
                         }

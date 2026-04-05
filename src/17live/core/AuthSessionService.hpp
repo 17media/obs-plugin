@@ -7,6 +7,7 @@
 #include "api/OneSevenLiveModels.hpp"
 
 class OneSevenLiveCoreManager;
+class QMessageBox;
 
 enum class SessionState {
     Idle,
@@ -42,4 +43,6 @@ private:
     OneSevenLiveCoreManager* coreManager_;
     std::atomic<SessionState> state_{SessionState::Idle};
     std::atomic<bool> pendingLogout_{false};
+    std::atomic<bool> loginDialogOpen_{false};
+    QPointer<QMessageBox> logoutConfirmBox_;
 };
