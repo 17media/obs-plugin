@@ -186,6 +186,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/core/DockOrchestrator.cpp
   src/17live/core/CoreRuntime.cpp
   src/17live/core/AuthSessionService.cpp
+  src/17live/core/LocalGatewayService.cpp
   src/17live/OneSevenLiveCoreManager.cpp
   src/17live/OneSevenLiveCustomEventDialog.cpp
   src/17live/OneSevenLiveHttpServer.cpp

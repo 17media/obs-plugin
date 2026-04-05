@@ -28,6 +28,8 @@ class QProgressDialog;
 
 class BrowserApp;
 
+class LocalGatewayService;
+
 // Forward declaration of OneSevenLiveMenuManager class
 class OneSevenLiveMenuManager;
 
@@ -156,6 +158,7 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveYouTubeClient* getYouTubeApiClient() const;
 
     AuthSessionService* getAuthSessionService() const;
+    LocalGatewayService* getLocalGatewayService() const;
 
     // Chat clients lifecycle
     void createYouTubeChatClient();
@@ -244,9 +247,9 @@ class OneSevenLiveCoreManager : public QObject {
     // Menu manager
     std::unique_ptr<OneSevenLiveMenuManager> menuManager;
 
-    std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
+    // std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
 
-    std::shared_ptr<OneSevenLiveWebsocketServer> websocketServer_;
+    // std::shared_ptr<OneSevenLiveWebsocketServer> websocketServer_;
 
     void closeAllDocks();
 
@@ -346,6 +349,7 @@ class OneSevenLiveCoreManager : public QObject {
     std::unique_ptr<CoreRuntime> runtime_;
     std::unique_ptr<DockOrchestrator> dockOrchestrator_;
     std::unique_ptr<AuthSessionService> authSessionService_;
+    std::unique_ptr<LocalGatewayService> localGatewayService_;
     bool initIsLogin_{false};
     OneSevenLiveLoginData initLoginData_;
 

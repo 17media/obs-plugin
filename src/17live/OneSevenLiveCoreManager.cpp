@@ -36,6 +36,7 @@
 #include "core/DockOrchestrator.hpp"
 #include "core/CoreRuntime.hpp"
 #include "core/AuthSessionService.hpp"
+#include "core/LocalGatewayService.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "plugin-support.h"
@@ -91,6 +92,7 @@ OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
     : mainWindow(mainWindow_), initialized(false), multiRtmpDockFirstLoad(true) {
     dockOrchestrator_ = std::make_unique<DockOrchestrator>();
     authSessionService_ = std::make_unique<AuthSessionService>(this);
+    localGatewayService_ = std::make_unique<LocalGatewayService>(this);
 
     CoreRuntime::State state{&initialized, &shuttingDown, &m_cancelFlag};
     CoreRuntime::Hooks hooks;
@@ -115,50 +117,21 @@ OneSevenLiveCoreManager::~OneSevenLiveCoreManager() {
 }
 
 bool OneSevenLiveCoreManager::initLocalServers() {
-    // Run network diagnostics to check API connectivity
-    obs_log(LOG_INFO, "[17Live Core] Running startup network diagnostics...");
-    NetworkDiagnostics::runStartupDiagnostics(ONESEVENLIVE_API_URL);
-
-    // Initialize and start HTTP server
-    // "html" is the path relative to obs_get_module_data_path()
-    httpServer_ =
-        std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat", "17Live HTTP Server");
-    if (!httpServer_) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to create HTTP server instance");
+    if (!localGatewayService_->initLocalServers()) {
         return false;
     }
 
-    if (!httpServer_->start()) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to start HTTP server");
-        // Decide whether to interrupt the entire initialization due to HTTP server startup
-        // failure based on requirements return false;
-    } else {
-        obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
+    auto ws = localGatewayService_->getWebsocketServer();
+    if (ws) {
+        // Set up WebSocket server callbacks
+        ws->setMessageCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketMessage,
+                                         this, std::placeholders::_1,
+                                         std::placeholders::_2));
+
+        ws->setConnectionCallback(
+            std::bind(&OneSevenLiveCoreManager::handleWebsocketConnectionChanged, this,
+                      std::placeholders::_1, std::placeholders::_2));
     }
-
-    // Initialize and start WebSocket server
-    websocketServer_ = std::make_shared<OneSevenLiveWebsocketServer>("localhost", 0);
-    if (!websocketServer_) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to create WebSocket server instance");
-        return false;
-    }
-
-    if (!websocketServer_->start()) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to start WebSocket server");
-        // Continue initialization even if WebSocket server fails
-    } else {
-        obs_log(LOG_INFO, "[17Live Core] WebSocket server started successfully on port %d",
-                websocketServer_->getPort());
-    }
-
-    // Set up WebSocket server callbacks
-    websocketServer_->setMessageCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketMessage,
-                                                   this, std::placeholders::_1,
-                                                   std::placeholders::_2));
-
-    websocketServer_->setConnectionCallback(
-        std::bind(&OneSevenLiveCoreManager::handleWebsocketConnectionChanged, this,
-                  std::placeholders::_1, std::placeholders::_2));
     return true;
 }
 
@@ -518,17 +491,8 @@ void OneSevenLiveCoreManager::shutdownRtmpAndChat() {
 }
 
 void OneSevenLiveCoreManager::shutdownLocalServers() {
-    // Stop WebSocket server
-    if (websocketServer_) {
-        websocketServer_->stop();
-        obs_log(LOG_INFO, "[17Live Core] WebSocket server stopped");
-    }
-
-    // Stop HTTP server
-    if (httpServer_) {
-        // Stop synchronous to ensure clean shutdown before destroying other resources
-        httpServer_->stop();
-        obs_log(LOG_INFO, "[17Live Core] HTTP server stopped");
+    if (localGatewayService_) {
+        localGatewayService_->shutdownLocalServers();
     }
 }
 
@@ -572,15 +536,19 @@ OneSevenLiveStreamManager* OneSevenLiveCoreManager::getStreamManager() const {
 }
 
 OneSevenLiveWebsocketServer* OneSevenLiveCoreManager::getWebsocketServer() const {
-    return websocketServer_.get();
+    return localGatewayService_ ? localGatewayService_->getWebsocketServer() : nullptr;
 }
 
 OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const {
-    return httpServer_.get();
+    return localGatewayService_ ? localGatewayService_->getHttpServer() : nullptr;
 }
 
 AuthSessionService* OneSevenLiveCoreManager::getAuthSessionService() const {
     return authSessionService_.get();
+}
+
+LocalGatewayService* OneSevenLiveCoreManager::getLocalGatewayService() const {
+    return localGatewayService_.get();
 }
 
 OneSevenLiveTwitchAuth* OneSevenLiveCoreManager::getTwitchAuth() const {
