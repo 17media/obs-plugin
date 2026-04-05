@@ -61,6 +61,7 @@ class OneSevenLiveTwitchChatClient;
 class OneSevenLiveYouTubeClient;
 class OneSevenLiveAblyChatClient;
 class CoreRuntime;
+class DockOrchestrator;
 
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
@@ -357,6 +358,7 @@ class OneSevenLiveCoreManager : public QObject {
     void cleanupTimersAndFlags();
 
     std::unique_ptr<CoreRuntime> runtime_;
+    std::unique_ptr<DockOrchestrator> dockOrchestrator_;
     bool initIsLogin_{false};
     OneSevenLiveLoginData initLoginData_;
 
