@@ -3,10 +3,9 @@
 #include <QDockWidget>
 #include <QPointer>
 #include <QString>
+#include <memory>
 
-struct QCef;
-class QCefWidget;
-struct QCefCookieManager;
+class CefWidgetHost;
 
 class OneSevenLiveBrowserDock : public QDockWidget {
     Q_OBJECT
@@ -34,9 +33,6 @@ class OneSevenLiveBrowserDock : public QDockWidget {
     void destroyBrowser(bool fullCleanup);
 
     QWidget* container_ = nullptr;
-    QPointer<QCefWidget> cefWidget_ = nullptr;
-    QCef* cef_ = nullptr;
-    QCefCookieManager* panelCookies_ = nullptr;
-    bool browserClosed_ = false;
+    std::unique_ptr<CefWidgetHost> cefHost_;
     QString currentUrl_;
 };

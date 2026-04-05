@@ -1,5 +1,6 @@
 #include "OneSevenLiveChatWidget.hpp"
 
+#include <QCloseEvent>
 #include <QHideEvent>
 #include <QLabel>
 #include <QResizeEvent>
@@ -8,54 +9,34 @@
 #include <QVBoxLayout>
 
 #include "../OneSevenLiveCoreManager.hpp"
-#include "cef_panel.hpp"
 #include "plugin-support.h"
+#include "../ui/cef/CefWidgetHost.hpp"
 
 OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& chatUrl)
     : QWidget(parent), chatUrl_(chatUrl) {
     obs_log(LOG_INFO, "OneSevenLiveChatWidget constructed");
 
-    // Making this a native window often helps with embedding native child windows (CEF)
     this->setAttribute(Qt::WA_NativeWindow);
 
-    static QCef* globalCef = nullptr;
-    if (!globalCef) {
-        globalCef = obs_browser_init_panel();
-        if (globalCef) {
-            if (!globalCef->initialized()) {
-                globalCef->init_browser();
-                globalCef->wait_for_browser_init();
-            }
-        }
-    }
-    cef_ = globalCef;
+    browserContainer_ = new QWidget(this);
+    browserContainer_->setContentsMargins(0, 0, 0, 0);
 
-    if (cef_) {
-        // cef_->init_browser(); // Already initialized globally
-        cefWidget_ = cef_->create_widget(this, chatUrl_.toStdString());
-        if (cefWidget_) {
-            int panel_version = obs_browser_qcef_version();
-            if (panel_version >= 1) {
-                cefWidget_->allowAllPopups(true);
-            }
-            cefWidget_->setVisible(true);
-        } else {
-            obs_log(LOG_ERROR, "Failed to create QCefWidget");
-            errorLabel_ = new QLabel("Failed to create CEF widget", this);
-            errorLabel_->setAlignment(Qt::AlignCenter);
-        }
-    } else {
-        obs_log(LOG_WARNING, "Browser panels unavailable (obs-browser missing or Wayland)");
-        errorLabel_ = new QLabel("Browser source not available", this);
-        errorLabel_->setAlignment(Qt::AlignCenter);
-    }
+    cefHost_ = std::make_unique<CefWidgetHost>();
 
     QVBoxLayout* rootLayout = new QVBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->setSpacing(0);
-    if (cefWidget_) {
-        rootLayout->addWidget(cefWidget_);
+    if (cefHost_->ensureCreated(browserContainer_, chatUrl_)) {
+        QVBoxLayout* browserLayout = new QVBoxLayout(browserContainer_);
+        browserLayout->setContentsMargins(0, 0, 0, 0);
+        browserLayout->setSpacing(0);
+        browserLayout->addWidget(cefHost_->widget());
+        rootLayout->addWidget(browserContainer_);
     } else if (errorLabel_) {
+        rootLayout->addWidget(errorLabel_);
+    } else {
+        errorLabel_ = new QLabel("Browser source not available", this);
+        errorLabel_->setAlignment(Qt::AlignCenter);
         rootLayout->addWidget(errorLabel_);
     }
 
@@ -86,45 +67,29 @@ OneSevenLiveChatWidget::OneSevenLiveChatWidget(QWidget* parent, const QString& c
 
 OneSevenLiveChatWidget::~OneSevenLiveChatWidget() {
     obs_log(LOG_INFO, "OneSevenLiveChatWidget destructor called");
-    if (cefWidget_ && !browserClosed_) {
-        int panel_version = obs_browser_qcef_version();
-        if (panel_version >= 2) {
-            obs_log(LOG_INFO, "Closing CEF browser in destructor");
-            cefWidget_->closeBrowser();
-            browserClosed_ = true;
-        }
+    if (cefHost_) {
+        cefHost_->release(true);
     }
-    if (cefWidget_) {
-        cefWidget_->deleteLater();
-        cefWidget_ = nullptr;
-    }
+    cefHost_.reset();
 }
 
 void OneSevenLiveChatWidget::shutdown() {
     obs_log(LOG_INFO, "OneSevenLiveChatWidget shutdown called");
-    if (cefWidget_ && !browserClosed_) {
-        int panel_version = obs_browser_qcef_version();
-        if (panel_version >= 2) {
-            obs_log(LOG_INFO, "Closing CEF browser in shutdown");
-            cefWidget_->closeBrowser();
-            browserClosed_ = true;
-        }
-    }
-    if (cefWidget_) {
-        cefWidget_->setVisible(false);
+    if (cefHost_) {
+        cefHost_->release(true);
     }
 }
 
 void OneSevenLiveChatWidget::setUrl(const QString& url) {
     chatUrl_ = url;
-    if (cefWidget_) {
-        cefWidget_->setURL(chatUrl_.toStdString());
+    if (cefHost_) {
+        cefHost_->setUrl(url);
     }
 }
 
 void OneSevenLiveChatWidget::reload() {
-    if (cefWidget_) {
-        cefWidget_->reloadPage();
+    if (cefHost_) {
+        cefHost_->reload();
     }
 }
 
@@ -132,8 +97,8 @@ void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
     // obs_log(LOG_INFO, "OneSevenLiveChatWidget showEvent");
     QWidget::showEvent(event);
 
-    if (cefWidget_) {
-        cefWidget_->setVisible(true);
+    if (cefHost_ && cefHost_->widget()) {
+        cefHost_->widget()->setVisible(true);
     }
     if (loadingOverlay && loadingOverlay->isVisible()) {
         loadingOverlay->raise();
@@ -143,8 +108,8 @@ void OneSevenLiveChatWidget::showEvent(QShowEvent* event) {
 void OneSevenLiveChatWidget::hideEvent(QHideEvent* event) {
     // obs_log(LOG_INFO, "OneSevenLiveChatWidget hideEvent");
     QWidget::hideEvent(event);
-    if (cefWidget_) {
-        cefWidget_->setVisible(false);
+    if (cefHost_ && cefHost_->widget()) {
+        cefHost_->widget()->setVisible(false);
     }
 }
 
@@ -156,6 +121,11 @@ void OneSevenLiveChatWidget::resizeEvent(QResizeEvent* event) {
     if (errorLabel_) {
         errorLabel_->setGeometry(contentsRect());
     }
+}
+
+void OneSevenLiveChatWidget::closeEvent(QCloseEvent* event) {
+    shutdown();
+    QWidget::closeEvent(event);
 }
 
 void OneSevenLiveChatWidget::onGiftsLoaded() {

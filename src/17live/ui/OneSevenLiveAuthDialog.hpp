@@ -2,11 +2,13 @@
 
 #include <QDialog>
 #include <QString>
+#include <memory>
 
 class QCefView;
 struct QCef;
 class QCefWidget;
 struct QCefCookieManager;
+class CefWidgetHost;
 
 /**
  * Authorization dialog using embedded CEF view.
@@ -36,7 +38,5 @@ class OneSevenLiveAuthDialog : public QDialog {
 
    private:
     void setupUi();
-    QCef* cef_ = nullptr;
-    QCefWidget* cefWidget_ = nullptr;
-    QCefCookieManager* panelCookies_ = nullptr;
+    std::unique_ptr<CefWidgetHost> cefHost_;
 };

@@ -1214,14 +1214,20 @@ void OneSevenLiveCoreManager::closeAllDocks() {
     const bool rockZoneVisible = DockOrchestrator::closeAndDeleteDock(rockZoneDock, this);
     configManager->setDockVisibility("rockZone", rockZoneVisible);
 
-    const bool chatRoomVisible = DockOrchestrator::closeAndDeleteDock(
-        chatDock, this, [](QDockWidget* dock) {
-            OneSevenLiveChatWidget* widget = qobject_cast<OneSevenLiveChatWidget*>(dock->widget());
-            if (widget) {
-                obs_log(LOG_INFO, "Shutting down chat widget in closeAllDocks");
-                widget->shutdown();
-            }
-        });
+    bool chatRoomVisible = false;
+    if (chatDock) {
+        chatRoomVisible = DockOrchestrator::isDockOpen(chatDock);
+        chatDock->disconnect(this);
+        if (auto* widget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget())) {
+            obs_log(LOG_INFO, "Shutting down chat widget in closeAllDocks");
+            widget->shutdown();
+            chatDock->setWidget(nullptr);
+            delete widget;
+        }
+        chatDock->close();
+        chatDock->deleteLater();
+        chatDock = nullptr;
+    }
     configManager->setDockVisibility("chatRoom", chatRoomVisible);
 
     const bool multiRtmpVisible = DockOrchestrator::closeAndDeleteDock(multiRtmpDock, this);
@@ -1585,6 +1591,14 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
                 flushChatEventQueue();
         });
     } else {
+        if (!chatDock->widget()) {
+            OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(chatDock, chatUrl);
+            chatDock->setWidget(chatWidget);
+        } else if (auto* chatWidget =
+                       qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget())) {
+            chatWidget->setUrl(chatUrl);
+        }
+
         obs_log(LOG_INFO, "Toggling existing chatDock visibility. Current: %s",
                 chatDock->isVisible() ? "visible" : "hidden");
         chatDock->toggleViewAction()->trigger();
@@ -1597,6 +1611,11 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
 bool OneSevenLiveCoreManager::eventFilter(QObject* obj, QEvent* event) {
     if (obj == chatDock) {
         if (event->type() == QEvent::Close) {
+            if (auto* chatWidget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget())) {
+                chatWidget->shutdown();
+                chatDock->setWidget(nullptr);
+                delete chatWidget;
+            }
             event->ignore();
             chatDock->hide();
             return true;

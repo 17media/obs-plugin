@@ -7,7 +7,7 @@
 #include <QVBoxLayout>
 
 #include "../../plugin-support.h"
-#include "../chat/cef_panel.hpp"
+#include "cef/CefWidgetHost.hpp"
 #include "moc_OneSevenLiveBrowserDock.cpp"
 
 OneSevenLiveBrowserDock::OneSevenLiveBrowserDock(QWidget* parent, const QString& title)
@@ -23,104 +23,81 @@ OneSevenLiveBrowserDock::OneSevenLiveBrowserDock(QWidget* parent, const QString&
     layout->setSpacing(0);
     setWidget(container_);
 
-    cef_ = obs_browser_init_panel();
-    if (cef_) {
-        if (!cef_->initialized()) {
-            cef_->init_browser();
-            cef_->wait_for_browser_init();
-        }
-        panelCookies_ = cef_->create_cookie_manager("onesevenlive-dock", false);
-    } else {
-        obs_log(LOG_WARNING, "OneSevenLiveBrowserDock: obs-browser panel unavailable");
-    }
+    cefHost_ = std::make_unique<CefWidgetHost>();
+    cefHost_->setCookieStorage("onesevenlive-dock", false);
 }
 
 OneSevenLiveBrowserDock::~OneSevenLiveBrowserDock() {
     destroyBrowser(true);
-    if (panelCookies_) {
-        panelCookies_->FlushStore();
-        delete panelCookies_;
-        panelCookies_ = nullptr;
-    }
+    cefHost_.reset();
 }
 
 void OneSevenLiveBrowserDock::createBrowser(const QString& url) {
-    if (!cef_)
+    if (!cefHost_ || !cefHost_->available())
         return;
     currentUrl_ = url;
-    if (cefWidget_) {
-        cefWidget_->setURL(url.toStdString());
+    if (cefHost_->widget()) {
+        cefHost_->setUrl(url);
         return;
     }
-    cefWidget_ = cef_->create_widget(container_, url.toStdString(), panelCookies_);
-    if (cefWidget_) {
-        int panel_version = obs_browser_qcef_version();
-        if (panel_version >= 1) {
-            cefWidget_->allowAllPopups(true);
-        }
-        container_->layout()->addWidget(cefWidget_);
-        connect(cefWidget_, SIGNAL(urlChanged(const QString&)), this,
+
+    if (cefHost_->ensureCreated(container_, url)) {
+        container_->layout()->addWidget(cefHost_->widget());
+        connect(cefHost_->widget(), SIGNAL(urlChanged(const QString&)), this,
                 SIGNAL(urlChanged(const QString&)));
-        cefWidget_->show();
+        cefHost_->widget()->show();
     } else {
         obs_log(LOG_ERROR, "OneSevenLiveBrowserDock: Failed to create QCefWidget");
     }
 }
 
 void OneSevenLiveBrowserDock::destroyBrowser(bool fullCleanup) {
-    if (!cefWidget_)
+    if (!cefHost_ || !cefHost_->widget())
         return;
-    int panel_version = obs_browser_qcef_version();
-    if (panel_version >= 2 && !browserClosed_) {
-        cefWidget_->closeBrowser();
-        browserClosed_ = true;
-    }
     if (fullCleanup) {
-        cefWidget_->deleteLater();
-        cefWidget_ = nullptr;
+        cefHost_->release(true);
     }
 }
 
 void OneSevenLiveBrowserDock::setUrl(const QString& url) {
-    if (!cefWidget_) {
+    if (!cefHost_ || !cefHost_->widget()) {
         createBrowser(url);
         return;
     }
-    cefWidget_->setURL(url.toStdString());
+    cefHost_->setUrl(url);
     currentUrl_ = url;
 }
 
 void OneSevenLiveBrowserDock::reload() {
-    if (cefWidget_) {
-        cefWidget_->reloadPage();
-    }
+    if (cefHost_)
+        cefHost_->reload();
 }
 
 void OneSevenLiveBrowserDock::setStartupScript(const QString& script) {
-    if (cefWidget_) {
-        cefWidget_->setStartupScript(script.toStdString());
-    }
+    if (cefHost_)
+        cefHost_->setStartupScript(script);
 }
 
 void OneSevenLiveBrowserDock::showEvent(QShowEvent* event) {
     QDockWidget::showEvent(event);
-    if (!cefWidget_ && !currentUrl_.isEmpty()) {
+    if ((!cefHost_ || !cefHost_->widget()) && !currentUrl_.isEmpty()) {
         createBrowser(currentUrl_);
     }
-    if (cefWidget_) {
-        cefWidget_->setVisible(true);
+    if (cefHost_ && cefHost_->widget()) {
+        cefHost_->widget()->setVisible(true);
     }
 }
 
 void OneSevenLiveBrowserDock::hideEvent(QHideEvent* event) {
     QDockWidget::hideEvent(event);
-    if (cefWidget_) {
-        cefWidget_->setVisible(false);
+    if (cefHost_ && cefHost_->widget()) {
+        cefHost_->widget()->setVisible(false);
     }
 }
 
 void OneSevenLiveBrowserDock::closeEvent(QCloseEvent* event) {
-    destroyBrowser(false);
+    // Match OBS YouTube dock style: close path detaches browser widget first.
+    destroyBrowser(true);
     emit dockClosed();
     QDockWidget::closeEvent(event);
 }

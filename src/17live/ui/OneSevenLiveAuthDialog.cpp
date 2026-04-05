@@ -1,38 +1,28 @@
-// OneSevenLiveAuthDialog: embed QCefView to show external URL and re-emit URL changes
 #include "OneSevenLiveAuthDialog.hpp"
 
 #include <obs-module.h>
 
 #include <QDialog>
 #include <QString>
-// #include <QVBoxLayout>
 
 #include "../../plugin-support.h"
-#include "../chat/cef_panel.hpp"
+#include "cef/CefWidgetHost.hpp"
 #include "moc_OneSevenLiveAuthDialog.cpp"
 
 OneSevenLiveAuthDialog::OneSevenLiveAuthDialog(QWidget* parent)
-    : QDialog(parent), cef_(nullptr), cefWidget_(nullptr) {
+    : QDialog(parent) {
     setupUi();
 }
 
 OneSevenLiveAuthDialog::OneSevenLiveAuthDialog(const QString& url, QWidget* parent)
-    : QDialog(parent), cef_(nullptr), cefWidget_(nullptr) {
+    : QDialog(parent) {
     setupUi();
     setUrl(url);
 }
 
 OneSevenLiveAuthDialog::~OneSevenLiveAuthDialog() {
     obs_log(LOG_INFO, "OneSevenLiveAuthDialog: destructor");
-    int panel_version = obs_browser_qcef_version();
-    if (cefWidget_ && panel_version >= 2) {
-        cefWidget_->closeBrowser();
-    }
-    if (panelCookies_) {
-        panelCookies_->FlushStore();
-        delete panelCookies_;
-        panelCookies_ = nullptr;
-    }
+    cefHost_.reset();
 }
 
 void OneSevenLiveAuthDialog::setupUi() {
@@ -40,77 +30,41 @@ void OneSevenLiveAuthDialog::setupUi() {
     setModal(true);
     resize(800, 600);
 
-    // QDialog is typically already a native window.
-    // Explicitly setting WA_NativeWindow might be redundant or cause issues with child native
-    // widgets. setAttribute(Qt::WA_NativeWindow);
-
-    cef_ = obs_browser_init_panel();
-    if (cef_) {
-        cef_->init_browser();
-        cef_->wait_for_browser_init();
-        panelCookies_ = cef_->create_cookie_manager("onesevenlive-auth", false);
-        // Initialize with about:blank; real URL set via setUrl()
-        cefWidget_ = cef_->create_widget(this, "about:blank", panelCookies_);
-        if (cefWidget_) {
-            cefWidget_->show();
-
-            // Connect urlChanged signal dynamically since QCefWidget interface doesn't expose it
-            // but the underlying implementation (obs-browser panel) does.
-            connect(cefWidget_, SIGNAL(urlChanged(const QString&)), this,
-                    SIGNAL(urlChanged(const QString&)));
-            int panel_version = obs_browser_qcef_version();
-            if (panel_version >= 1) {
-                cefWidget_->allowAllPopups(true);
-            }
+    cefHost_ = std::make_unique<CefWidgetHost>();
+    cefHost_->setCookieStorage("onesevenlive-auth", false);
+    if (cefHost_->ensureCreated(this, "about:blank")) {
+        if (auto* w = cefHost_->widget()) {
+            connect(w, SIGNAL(urlChanged(const QString&)), this, SIGNAL(urlChanged(const QString&)));
+            w->show();
         }
     } else {
-        obs_log(LOG_ERROR, "OneSevenLiveAuthDialog: Failed to initialize obs-browser panel");
+        obs_log(LOG_ERROR, "OneSevenLiveAuthDialog: Failed to create browser widget");
     }
 }
 
 void OneSevenLiveAuthDialog::resizeEvent(QResizeEvent* event) {
     QDialog::resizeEvent(event);
-    if (cefWidget_) {
-        cefWidget_->setGeometry(rect());
+    if (cefHost_ && cefHost_->widget()) {
+        cefHost_->widget()->setGeometry(rect());
     }
 }
 
 void OneSevenLiveAuthDialog::setUrl(const QString& url) {
-    if (cefWidget_) {
-        cefWidget_->setURL(url.toStdString());
+    if (cefHost_) {
+        cefHost_->setUrl(url);
     }
 }
 
 void OneSevenLiveAuthDialog::accept() {
-    if (cefWidget_) {
-        int panel_version = obs_browser_qcef_version();
-        if (panel_version >= 2) {
-            cefWidget_->closeBrowser();
-        }
-        delete cefWidget_;
-        cefWidget_ = nullptr;
-    }
-    if (panelCookies_) {
-        panelCookies_->FlushStore();
-        delete panelCookies_;
-        panelCookies_ = nullptr;
+    if (cefHost_) {
+        cefHost_->release(true);
     }
     QDialog::accept();
 }
 
 void OneSevenLiveAuthDialog::reject() {
-    if (cefWidget_) {
-        int panel_version = obs_browser_qcef_version();
-        if (panel_version >= 2) {
-            cefWidget_->closeBrowser();
-        }
-        delete cefWidget_;
-        cefWidget_ = nullptr;
-    }
-    if (panelCookies_) {
-        panelCookies_->FlushStore();
-        delete panelCookies_;
-        panelCookies_ = nullptr;
+    if (cefHost_) {
+        cefHost_->release(true);
     }
     QDialog::reject();
 }

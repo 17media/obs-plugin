@@ -115,8 +115,9 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
         // Release OneSevenLiveCoreManager resources
         try {
             auto& manager = OneSevenLiveCoreManager::getInstance();
-            manager.setShuttingDown(true);
             manager.shutdown();
+
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
 
             // Wait for all background tasks to complete BEFORE destroying the manager
             // This ensures tasks don't access destroyed members (like apiWrapper or m_cancelFlag)
@@ -127,6 +128,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
             // Force process deferred deletions (like QDockWidget::deleteLater)
             // to ensure widgets are destroyed before the plugin library is unloaded
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
 
             obs_log(LOG_INFO, "OneSevenLiveCoreManager resources released");
         } catch (const std::exception& e) {

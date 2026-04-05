@@ -4,10 +4,10 @@
 
 #include <QPointer>
 #include <QWidget>
+#include <memory>
 
 class QLabel;
-class QCefWidget;
-struct QCef;
+class CefWidgetHost;
 
 class OneSevenLiveChatWidget : public QWidget {
     Q_OBJECT
@@ -24,18 +24,17 @@ class OneSevenLiveChatWidget : public QWidget {
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
    private slots:
     void onGiftsLoaded();
 
    private:
     QString chatUrl_;
-    QPointer<QCefWidget> cefWidget_ = nullptr;
-    QCef* cef_ = nullptr;
+    QWidget* browserContainer_ = nullptr;
+    std::unique_ptr<CefWidgetHost> cefHost_;
 
     QWidget* loadingOverlay = nullptr;
     QLabel* loadingLabel = nullptr;
     QLabel* errorLabel_ = nullptr;
-
-    bool browserClosed_ = false;
 };
