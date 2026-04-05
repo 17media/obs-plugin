@@ -496,6 +496,76 @@ OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const {
     return localGatewayService_ ? localGatewayService_->getHttpServer() : nullptr;
 }
 
+QObject* OneSevenLiveCoreManager::getUiOwner() {
+    return this;
+}
+
+OneSevenLiveStreamingStatus OneSevenLiveCoreManager::getStreamingStatus() const {
+    return status;
+}
+
+bool OneSevenLiveCoreManager::getStartupRestore() const {
+    return isStartupRestore;
+}
+
+void OneSevenLiveCoreManager::setStartupRestore(bool v) {
+    isStartupRestore = v;
+}
+
+void OneSevenLiveCoreManager::requestFlushChatEventQueue() {
+    if (chatBridgeService_) {
+        chatBridgeService_->flushChatEventQueue();
+    }
+}
+
+OneSevenLiveStreamingDock* OneSevenLiveCoreManager::getStreamingDock() const {
+    return streamingDock.data();
+}
+
+void OneSevenLiveCoreManager::setStreamingDock(OneSevenLiveStreamingDock* dock) {
+    streamingDock = dock;
+}
+
+QDockWidget* OneSevenLiveCoreManager::getChatDock() const {
+    return chatDock.data();
+}
+
+void OneSevenLiveCoreManager::setChatDock(QDockWidget* dock) {
+    chatDock = dock;
+}
+
+OneSevenLiveStreamListDock* OneSevenLiveCoreManager::getLiveListDock() const {
+    return liveListDock.data();
+}
+
+void OneSevenLiveCoreManager::setLiveListDock(OneSevenLiveStreamListDock* dock) {
+    liveListDock = dock;
+}
+
+OneSevenLiveRockZoneDock* OneSevenLiveCoreManager::getRockZoneDock() const {
+    return rockZoneDock.data();
+}
+
+void OneSevenLiveCoreManager::setRockZoneDock(OneSevenLiveRockZoneDock* dock) {
+    rockZoneDock = dock;
+}
+
+OneSevenLiveMultiRtmpDock* OneSevenLiveCoreManager::getMultiRtmpDock() const {
+    return multiRtmpDock.data();
+}
+
+void OneSevenLiveCoreManager::setMultiRtmpDock(OneSevenLiveMultiRtmpDock* dock) {
+    multiRtmpDock = dock;
+}
+
+OneSevenLivePreviewDock* OneSevenLiveCoreManager::getPreviewDock() const {
+    return previewDock.data();
+}
+
+void OneSevenLiveCoreManager::setPreviewDock(OneSevenLivePreviewDock* dock) {
+    previewDock = dock;
+}
+
 AuthSessionService* OneSevenLiveCoreManager::getAuthSessionService() const {
     return authSessionService_.get();
 }

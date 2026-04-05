@@ -13,6 +13,7 @@
 #include <unordered_map>
 
 #include "api/OneSevenLiveModels.hpp"
+#include "core/OneSevenLiveCoreContext.hpp"
 #include "utility/NetworkDiagnostics.hpp"
 #include "websocket/WsMessage.hpp"
 
@@ -75,7 +76,7 @@ class AuthSessionService;
  * Responsible for plugin initialization, configuration management, resource allocation and other
  * core functions.
  */
-class OneSevenLiveCoreManager : public QObject {
+class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     Q_OBJECT
 
    public:
@@ -109,44 +110,44 @@ class OneSevenLiveCoreManager : public QObject {
      *
      * @return QMainWindow* Pointer to OBS main window
      */
-    QMainWindow* getMainWindow() const;
+    QMainWindow* getMainWindow() const override;
 
     /**
      * @brief Get menu manager
      *
      * @return OneSevenLiveMenuManager* Pointer to menu manager
      */
-    OneSevenLiveMenuManager* getMenuManager() const;
+    OneSevenLiveMenuManager* getMenuManager() const override;
 
     /**
      * @brief Get API wrapper
      *
      * @return OneSevenLiveApiWrappers* Pointer to API wrapper
      */
-    OneSevenLiveApiWrappers* getApiWrapper() const;
+    OneSevenLiveApiWrappers* getApiWrapper() const override;
 
-    OneSevenLiveConfigManager* getConfigManager() const;
+    OneSevenLiveConfigManager* getConfigManager() const override;
 
     /**
      * @brief Get stream manager
      *
      * @return OneSevenLiveStreamManager* Pointer to stream manager
      */
-    OneSevenLiveStreamManager* getStreamManager() const;
+    OneSevenLiveStreamManager* getStreamManager() const override;
 
     /**
      * @brief Get WebSocket server
      *
      * @return OneSevenLiveWebsocketServer* Pointer to WebSocket server
      */
-    OneSevenLiveWebsocketServer* getWebsocketServer() const;
+    OneSevenLiveWebsocketServer* getWebsocketServer() const override;
 
     /**
      * @brief Get HTTP server
      *
      * @return OneSevenLiveHttpServer* Pointer to HTTP server
      */
-    OneSevenLiveHttpServer* getHttpServer() const;
+    OneSevenLiveHttpServer* getHttpServer() const override;
 
     // Auth handlers accessors
     OneSevenLiveTwitchAuth* getTwitchAuth() const;
@@ -197,7 +198,6 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
 
     friend class AuthSessionService;
-    friend class DockOrchestrator;
 
     // Accessor for cancellation flag
     std::atomic<bool>* getCancelFlag() {
@@ -232,6 +232,24 @@ class OneSevenLiveCoreManager : public QObject {
     bool eventFilter(QObject* obj, QEvent* event) override;
 
    private:
+    QObject* getUiOwner() override;
+    OneSevenLiveStreamingStatus getStreamingStatus() const override;
+    bool getStartupRestore() const override;
+    void setStartupRestore(bool v) override;
+    void requestFlushChatEventQueue() override;
+    OneSevenLiveStreamingDock* getStreamingDock() const override;
+    void setStreamingDock(OneSevenLiveStreamingDock* dock) override;
+    QDockWidget* getChatDock() const override;
+    void setChatDock(QDockWidget* dock) override;
+    OneSevenLiveStreamListDock* getLiveListDock() const override;
+    void setLiveListDock(OneSevenLiveStreamListDock* dock) override;
+    OneSevenLiveRockZoneDock* getRockZoneDock() const override;
+    void setRockZoneDock(OneSevenLiveRockZoneDock* dock) override;
+    OneSevenLiveMultiRtmpDock* getMultiRtmpDock() const override;
+    void setMultiRtmpDock(OneSevenLiveMultiRtmpDock* dock) override;
+    OneSevenLivePreviewDock* getPreviewDock() const override;
+    void setPreviewDock(OneSevenLivePreviewDock* dock) override;
+
     // Private constructor, ensure instance can only be obtained through getInstance method
     explicit OneSevenLiveCoreManager(QMainWindow* mainWindow);
 

@@ -6,8 +6,8 @@
 
 #include <obs-module.h>
 
+#include "OneSevenLiveCoreContext.hpp"
 #include "../OneSevenLiveConfigManager.hpp"
-#include "../OneSevenLiveCoreManager.hpp"
 #include "../OneSevenLiveHttpServer.hpp"
 #include "../OneSevenLiveMenuManager.hpp"
 #include "../chat/OneSevenLiveChatWidget.hpp"
@@ -25,8 +25,7 @@
 static const int INITIAL_DOCK_WIDTH = 450;
 static const int INITIAL_DOCK_HEIGHT = 550;
 
-DockOrchestrator::DockOrchestrator(OneSevenLiveCoreManager* coreManager)
-    : coreManager_(coreManager) {}
+DockOrchestrator::DockOrchestrator(OneSevenLiveCoreContext* core) : core_(core) {}
 
 bool DockOrchestrator::isDockOpen(QDockWidget* dock) {
     return dock && dock->toggleViewAction() && dock->toggleViewAction()->isChecked();
@@ -66,62 +65,74 @@ void DockOrchestrator::syncMenuDockVisibility(OneSevenLiveMenuManager* menuManag
 }
 
 void DockOrchestrator::syncMenuDockVisibility() {
-    if (!coreManager_) {
+    if (!core_) {
         return;
     }
-    syncMenuDockVisibility(coreManager_->menuManager.get(), coreManager_->chatDock,
-                           coreManager_->streamingDock, coreManager_->liveListDock,
-                           coreManager_->rockZoneDock, coreManager_->multiRtmpDock,
-                           coreManager_->previewDock);
+    syncMenuDockVisibility(core_->getMenuManager(), core_->getChatDock(), core_->getStreamingDock(),
+                           core_->getLiveListDock(), core_->getRockZoneDock(),
+                           core_->getMultiRtmpDock(), core_->getPreviewDock());
 }
 
 void DockOrchestrator::closeAllDocks() {
-    if (!coreManager_) {
+    if (!core_) {
         return;
     }
-    auto* cfg = coreManager_->configManager.get();
+    auto* owner = core_->getUiOwner();
+    auto* cfg = core_->getConfigManager();
 
     obs_log(LOG_INFO, "closeAllDocks");
 
-    const bool streamingVisible = closeAndDeleteDock(coreManager_->streamingDock, coreManager_);
+    auto* streamingDock = core_->getStreamingDock();
+    const bool streamingVisible = closeAndDeleteDock(streamingDock, owner);
+    core_->setStreamingDock(streamingDock);
     if (cfg) {
         cfg->setDockVisibility("streaming", streamingVisible);
     }
 
-    const bool liveListVisible = closeAndDeleteDock(coreManager_->liveListDock, coreManager_);
+    auto* liveListDock = core_->getLiveListDock();
+    const bool liveListVisible = closeAndDeleteDock(liveListDock, owner);
+    core_->setLiveListDock(liveListDock);
     if (cfg) {
         cfg->setDockVisibility("liveList", liveListVisible);
     }
 
-    const bool rockZoneVisible = closeAndDeleteDock(coreManager_->rockZoneDock, coreManager_);
+    auto* rockZoneDock = core_->getRockZoneDock();
+    const bool rockZoneVisible = closeAndDeleteDock(rockZoneDock, owner);
+    core_->setRockZoneDock(rockZoneDock);
     if (cfg) {
         cfg->setDockVisibility("rockZone", rockZoneVisible);
     }
 
     bool chatRoomVisible = false;
-    if (coreManager_->chatDock) {
-        chatRoomVisible = isDockOpen(coreManager_->chatDock);
-        coreManager_->chatDock->disconnect(coreManager_);
-        if (auto* widget = qobject_cast<OneSevenLiveChatWidget*>(coreManager_->chatDock->widget())) {
+    auto* chatDock = core_->getChatDock();
+    if (chatDock) {
+        chatRoomVisible = isDockOpen(chatDock);
+        chatDock->disconnect(owner);
+        if (auto* widget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget())) {
             obs_log(LOG_INFO, "Shutting down chat widget in closeAllDocks");
             widget->shutdown();
-            coreManager_->chatDock->setWidget(nullptr);
+            chatDock->setWidget(nullptr);
             delete widget;
         }
-        coreManager_->chatDock->close();
-        coreManager_->chatDock->deleteLater();
-        coreManager_->chatDock = nullptr;
+        chatDock->close();
+        chatDock->deleteLater();
+        chatDock = nullptr;
+        core_->setChatDock(chatDock);
     }
     if (cfg) {
         cfg->setDockVisibility("chatRoom", chatRoomVisible);
     }
 
-    const bool multiRtmpVisible = closeAndDeleteDock(coreManager_->multiRtmpDock, coreManager_);
+    auto* multiRtmpDock = core_->getMultiRtmpDock();
+    const bool multiRtmpVisible = closeAndDeleteDock(multiRtmpDock, owner);
+    core_->setMultiRtmpDock(multiRtmpDock);
     if (cfg) {
         cfg->setDockVisibility("multiRtmp", multiRtmpVisible);
     }
 
-    const bool previewDockVisible = closeAndDeleteDock(coreManager_->previewDock, coreManager_);
+    auto* previewDock = core_->getPreviewDock();
+    const bool previewDockVisible = closeAndDeleteDock(previewDock, owner);
+    core_->setPreviewDock(previewDock);
     if (cfg) {
         cfg->setDockVisibility("previewDock", previewDockVisible);
     }
@@ -130,191 +141,199 @@ void DockOrchestrator::closeAllDocks() {
 }
 
 void DockOrchestrator::handleStreamingClicked() {
-    if (!coreManager_) {
+    if (!core_) {
         return;
     }
     obs_log(LOG_INFO, "handleStreamingClicked");
 
-    if (!coreManager_->streamingDock) {
+    if (!core_->getStreamingDock()) {
         createStreamingDock();
     } else {
-        coreManager_->streamingDock->toggleViewAction()->trigger();
+        core_->getStreamingDock()->toggleViewAction()->trigger();
     }
 
     syncMenuDockVisibility();
 }
 
 void DockOrchestrator::createStreamingDock() {
-    if (!coreManager_ || coreManager_->streamingDock) {
+    if (!core_ || core_->getStreamingDock()) {
         return;
     }
-    if (!coreManager_->mainWindow || !coreManager_->configManager) {
+    if (!core_->getMainWindow() || !core_->getConfigManager()) {
         return;
     }
 
     OneSevenLiveLoginData loginData;
-    if (!coreManager_->configManager->getLoginData(loginData)) {
+    if (!core_->getConfigManager()->getLoginData(loginData)) {
         obs_log(LOG_ERROR, "Failed to get login data");
         return;
     }
 
-    coreManager_->streamingDock =
-        new OneSevenLiveStreamingDock(coreManager_->mainWindow, coreManager_->streamManager.get(),
-                                      coreManager_->apiWrapper.get(), coreManager_->configManager.get());
-    coreManager_->streamingDock->setObjectName("OneSevenLiveStreamingDock");
+    auto* dock = new OneSevenLiveStreamingDock(core_->getMainWindow(), core_->getStreamManager(),
+                                               core_->getApiWrapper(), core_->getConfigManager());
+    core_->setStreamingDock(dock);
+    dock->setObjectName("OneSevenLiveStreamingDock");
 
-    coreManager_->streamingDock->setMaximumWidth(600);
-    coreManager_->streamingDock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
+    dock->setMaximumWidth(600);
+    dock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
 
-    coreManager_->streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    coreManager_->mainWindow->addDockWidget(Qt::RightDockWidgetArea, coreManager_->streamingDock);
+    dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);
 
-    showDockAsFloating(coreManager_->streamingDock, coreManager_->mainWindow, coreManager_->isStartupRestore);
+    showDockAsFloating(dock, core_->getMainWindow(), core_->getStartupRestore());
 
-    if (coreManager_->streamingDockFirstLoad) {
-        QObject::connect(coreManager_->streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved,
-                         coreManager_, [this]() {
-                             if (coreManager_ && coreManager_->liveListDock) {
-                                 coreManager_->liveListDock->refreshStreamList();
+    if (streamingDockFirstLoad_) {
+        QObject::connect(dock, &OneSevenLiveStreamingDock::streamInfoSaved, core_->getUiOwner(),
+                         [this]() {
+                             if (core_ && core_->getLiveListDock()) {
+                                 core_->getLiveListDock()->refreshStreamList();
                              }
                          });
 
-        QObject::connect(coreManager_->streamingDock, &QDockWidget::visibilityChanged, coreManager_,
-                         [this]() { syncMenuDockVisibility(); });
+        QObject::connect(dock, &QDockWidget::visibilityChanged, core_->getUiOwner(),
+                         [this]() { this->syncMenuDockVisibility(); });
 
-        coreManager_->streamingDockFirstLoad = false;
+        streamingDockFirstLoad_ = false;
     }
 }
 
 void DockOrchestrator::handleRockZoneClicked() {
-    if (!coreManager_) {
+    if (!core_) {
         return;
     }
     obs_log(LOG_INFO, "handleRockZoneClicked");
 
-    if (!coreManager_->rockZoneDock) {
+    if (!core_->getRockZoneDock()) {
         createRockZoneDock();
     } else {
-        coreManager_->rockZoneDock->toggleViewAction()->trigger();
+        core_->getRockZoneDock()->toggleViewAction()->trigger();
     }
 
     syncMenuDockVisibility();
 }
 
 void DockOrchestrator::createRockZoneDock() {
-    if (!coreManager_ || coreManager_->rockZoneDock) {
+    if (!core_ || core_->getRockZoneDock()) {
         return;
     }
-    if (!coreManager_->mainWindow || !coreManager_->configManager) {
+    if (!core_->getMainWindow() || !core_->getConfigManager()) {
         return;
     }
 
     OneSevenLiveLoginData loginData;
-    if (!coreManager_->configManager->getLoginData(loginData)) {
+    if (!core_->getConfigManager()->getLoginData(loginData)) {
         obs_log(LOG_ERROR, "Failed to get login data");
         return;
     }
 
-    coreManager_->rockZoneDock =
-        new OneSevenLiveRockZoneDock(coreManager_->mainWindow, coreManager_->apiWrapper.get(),
-                                     coreManager_->configManager.get());
-    coreManager_->rockZoneDock->setObjectName("OneSevenLiveRockZoneDock");
+    auto* dock = new OneSevenLiveRockZoneDock(core_->getMainWindow(), core_->getApiWrapper(),
+                                              core_->getConfigManager());
+    core_->setRockZoneDock(dock);
+    dock->setObjectName("OneSevenLiveRockZoneDock");
 
-    coreManager_->rockZoneDock->setMinimumWidth(300);
-    coreManager_->rockZoneDock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
+    dock->setMinimumWidth(300);
+    dock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
 
-    coreManager_->rockZoneDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    coreManager_->mainWindow->addDockWidget(Qt::RightDockWidgetArea, coreManager_->rockZoneDock);
+    dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);
 
-    if (coreManager_->isStartupRestore) {
-        coreManager_->rockZoneDock->setVisible(true);
+    if (core_->getStartupRestore()) {
+        dock->setVisible(true);
     } else {
-        showDockAsFloating(coreManager_->rockZoneDock, coreManager_->mainWindow, false);
+        showDockAsFloating(dock, core_->getMainWindow(), false);
     }
 
-    if (coreManager_->streamManager) {
-        QObject::connect(coreManager_->streamManager.get(), &OneSevenLiveStreamManager::streamStatusChanged,
-                         coreManager_, [this](OneSevenLiveStreamingStatus status) {
+    if (core_->getStreamManager()) {
+        QObject::connect(core_->getStreamManager(), &OneSevenLiveStreamManager::streamStatusChanged,
+                         core_->getUiOwner(), [this](OneSevenLiveStreamingStatus status) {
                              if (status == OneSevenLiveStreamingStatus::NotStarted &&
-                                 coreManager_ && coreManager_->rockZoneDock) {
-                                 coreManager_->rockZoneDock->clearUserList();
+                                 core_ && core_->getRockZoneDock()) {
+                                 core_->getRockZoneDock()->clearUserList();
                              }
                          });
-        QObject::connect(coreManager_->streamManager.get(), &OneSevenLiveStreamManager::obsStreamStopped,
-                         coreManager_, [this](int, const QString&) {
-                             if (coreManager_ && coreManager_->rockZoneDock) {
-                                 coreManager_->rockZoneDock->clearUserList();
+        QObject::connect(core_->getStreamManager(), &OneSevenLiveStreamManager::obsStreamStopped,
+                         core_->getUiOwner(), [this](int, const QString&) {
+                             if (core_ && core_->getRockZoneDock()) {
+                                 core_->getRockZoneDock()->clearUserList();
                              }
                          });
     }
 
-    if (coreManager_->rockZoneDockFirstLoad) {
-        QObject::connect(coreManager_->rockZoneDock, &QDockWidget::visibilityChanged, coreManager_,
-                         [this]() { syncMenuDockVisibility(); });
+    if (rockZoneDockFirstLoad_) {
+        QObject::connect(dock, &QDockWidget::visibilityChanged, core_->getUiOwner(),
+                         [this]() { this->syncMenuDockVisibility(); });
 
-        coreManager_->rockZoneDockFirstLoad = false;
+        rockZoneDockFirstLoad_ = false;
     }
 }
 
 void DockOrchestrator::handleLiveListClicked() {
-    if (!coreManager_) {
+    if (!core_) {
         return;
     }
-    if (!coreManager_->mainWindow || !coreManager_->configManager) {
+    if (!core_->getMainWindow() || !core_->getConfigManager()) {
         return;
     }
     obs_log(LOG_INFO, "handleLiveListClicked");
 
-    if (!coreManager_->liveListDock) {
-        coreManager_->liveListDock =
-            new OneSevenLiveStreamListDock(coreManager_->mainWindow, coreManager_->configManager.get(),
-                                           coreManager_->status);
-        coreManager_->liveListDock->setObjectName("OneSevenLiveStreamListDock");
-        coreManager_->liveListDock->setMinimumWidth(300);
-        coreManager_->liveListDock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
+    if (!core_->getLiveListDock()) {
+        auto* dock = new OneSevenLiveStreamListDock(core_->getMainWindow(), core_->getConfigManager(),
+                                                    core_->getStreamingStatus());
+        core_->setLiveListDock(dock);
+        dock->setObjectName("OneSevenLiveStreamListDock");
+        dock->setMinimumWidth(300);
+        dock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
 
-        coreManager_->liveListDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        coreManager_->mainWindow->addDockWidget(Qt::RightDockWidgetArea, coreManager_->liveListDock);
+        dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);
 
-        showDockAsFloating(coreManager_->liveListDock, coreManager_->mainWindow, coreManager_->isStartupRestore);
+        showDockAsFloating(dock, core_->getMainWindow(), core_->getStartupRestore());
 
-        QObject::connect(coreManager_->liveListDock, &OneSevenLiveStreamListDock::startLiveClicked,
-                         coreManager_, [this](const OneSevenLiveRtmpRequest& request) {
-                             if (!coreManager_) {
+        QObject::connect(dock, &OneSevenLiveStreamListDock::startLiveClicked, core_->getUiOwner(),
+                         [this](const OneSevenLiveRtmpRequest& request) {
+                             if (!core_) {
                                  return;
                              }
-                             if (!coreManager_->streamingDock) {
+                             if (!core_->getStreamingDock()) {
                                  createStreamingDock();
                              }
-                             coreManager_->streamingDock->setFloating(true);
-                             coreManager_->streamingDock->setVisible(true);
-                             coreManager_->streamingDock->raise();
-                             coreManager_->streamingDock->activateWindow();
-                             centerDockOnMainWindow(coreManager_->streamingDock, coreManager_->mainWindow);
-                             coreManager_->streamingDock->createLiveWithRequest(request);
+                             auto* streamingDock = core_->getStreamingDock();
+                             if (!streamingDock) {
+                                 return;
+                             }
+                             streamingDock->setFloating(true);
+                             streamingDock->setVisible(true);
+                             streamingDock->raise();
+                             streamingDock->activateWindow();
+                             centerDockOnMainWindow(streamingDock, core_->getMainWindow());
+                             streamingDock->createLiveWithRequest(request);
                          });
 
-        QObject::connect(coreManager_->liveListDock, &OneSevenLiveStreamListDock::editLiveClicked,
-                         coreManager_, [this](const OneSevenLiveStreamInfo& info) {
-                             if (!coreManager_) {
+        QObject::connect(dock, &OneSevenLiveStreamListDock::editLiveClicked, core_->getUiOwner(),
+                         [this](const OneSevenLiveStreamInfo& info) {
+                             if (!core_) {
                                  return;
                              }
-                             if (!coreManager_->streamingDock) {
+                             if (!core_->getStreamingDock()) {
                                  createStreamingDock();
                              }
-                             coreManager_->streamingDock->editLiveWithInfo(info);
-                             coreManager_->streamingDock->setFloating(true);
-                             coreManager_->streamingDock->setVisible(true);
-                             coreManager_->streamingDock->raise();
-                             coreManager_->streamingDock->activateWindow();
-                             centerDockOnMainWindow(coreManager_->streamingDock, coreManager_->mainWindow);
+                             auto* streamingDock = core_->getStreamingDock();
+                             if (!streamingDock) {
+                                 return;
+                             }
+                             streamingDock->editLiveWithInfo(info);
+                             streamingDock->setFloating(true);
+                             streamingDock->setVisible(true);
+                             streamingDock->raise();
+                             streamingDock->activateWindow();
+                             centerDockOnMainWindow(streamingDock, core_->getMainWindow());
 
-                             QTimer::singleShot(100, coreManager_, [this]() {
-                                 if (coreManager_ && coreManager_->streamingDock) {
+                             QTimer::singleShot(100, core_->getUiOwner(), [this]() {
+                                 if (core_ && core_->getStreamingDock()) {
                                      QScrollArea* scrollArea =
-                                         coreManager_->streamingDock->findChild<QScrollArea*>();
+                                         core_->getStreamingDock()->findChild<QScrollArea*>();
                                      QLineEdit* titleEdit =
-                                         coreManager_->streamingDock->findChild<QLineEdit*>("titleEdit");
+                                         core_->getStreamingDock()->findChild<QLineEdit*>("titleEdit");
                                      if (scrollArea && titleEdit) {
                                          scrollArea->ensureWidgetVisible(titleEdit);
                                          titleEdit->setFocus();
@@ -324,44 +343,43 @@ void DockOrchestrator::handleLiveListClicked() {
                              });
                          });
 
-        QObject::connect(coreManager_->liveListDock, &QDockWidget::visibilityChanged, coreManager_,
-                         [this]() { syncMenuDockVisibility(); });
+        QObject::connect(dock, &QDockWidget::visibilityChanged, core_->getUiOwner(),
+                         [this]() { this->syncMenuDockVisibility(); });
     } else {
-        coreManager_->liveListDock->toggleViewAction()->trigger();
+        core_->getLiveListDock()->toggleViewAction()->trigger();
     }
 
     syncMenuDockVisibility();
 }
 
 void DockOrchestrator::saveDockState() {
-    if (!coreManager_ || !coreManager_->initialized || !coreManager_->mainWindow ||
-        !coreManager_->configManager) {
+    if (!core_ || !core_->getMainWindow() || !core_->getConfigManager()) {
         return;
     }
 
-    QByteArray state = coreManager_->mainWindow->saveState();
-    coreManager_->configManager->setDockState(state);
+    QByteArray state = core_->getMainWindow()->saveState();
+    core_->getConfigManager()->setDockState(state);
 
     obs_log(LOG_INFO, "Dock state saved successfully");
 }
 
 void DockOrchestrator::handleChatRoomClicked() {
-    if (!coreManager_) {
+    if (!core_) {
         return;
     }
-    if (!coreManager_->mainWindow || !coreManager_->configManager) {
+    if (!core_->getMainWindow() || !core_->getConfigManager()) {
         return;
     }
     obs_log(LOG_INFO, "handleChatRoomClicked");
 
     OneSevenLiveLoginData loginData;
-    if (!coreManager_->configManager->getLoginData(loginData)) {
+    if (!core_->getConfigManager()->getLoginData(loginData)) {
         obs_log(LOG_ERROR, "Failed to get login data");
         return;
     }
 
-    auto* http = coreManager_->getHttpServer();
-    auto* ws = coreManager_->getWebsocketServer();
+    auto* http = core_->getHttpServer();
+    auto* ws = core_->getWebsocketServer();
     if (!http || !ws) {
         obs_log(LOG_ERROR, "[17Live Core] Local servers not available for chat dock");
         return;
@@ -376,129 +394,133 @@ void DockOrchestrator::handleChatRoomClicked() {
 
     obs_log(LOG_INFO, "Chat URL: %s", chatUrl.toStdString().c_str());
 
-    if (!coreManager_->chatDock) {
+    auto* owner = core_->getUiOwner();
+    auto* existingChatDock = core_->getChatDock();
+    if (!existingChatDock) {
         obs_log(LOG_INFO, "Creating new chatDock instance");
-        coreManager_->chatDock = new QDockWidget(obs_module_text("ChatRoom.Title"), coreManager_->mainWindow);
-        coreManager_->chatDock->setObjectName("OneSevenLiveChatDock");
-        coreManager_->chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        coreManager_->chatDock->setAttribute(Qt::WA_DeleteOnClose, false);
-        coreManager_->chatDock->installEventFilter(coreManager_);
-        coreManager_->chatDock->setMinimumWidth(300);
+        auto* dock = new QDockWidget(obs_module_text("ChatRoom.Title"), core_->getMainWindow());
+        core_->setChatDock(dock);
+        dock->setObjectName("OneSevenLiveChatDock");
+        dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+        dock->setAttribute(Qt::WA_DeleteOnClose, false);
+        dock->installEventFilter(owner);
+        dock->setMinimumWidth(300);
 
-        OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(coreManager_->chatDock, chatUrl);
-        coreManager_->chatDock->setWidget(chatWidget);
+        OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(dock, chatUrl);
+        dock->setWidget(chatWidget);
 
-        coreManager_->mainWindow->addDockWidget(Qt::RightDockWidgetArea, coreManager_->chatDock);
+        core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);
 
-        if (coreManager_->isStartupRestore) {
-            coreManager_->chatDock->setVisible(true);
+        if (core_->getStartupRestore()) {
+            dock->setVisible(true);
         } else {
             obs_log(LOG_INFO, "Setting chatDock to floating mode");
             bool hadChatStored =
-                coreManager_->configManager ? coreManager_->configManager->getDockVisibility("chatRoom") : false;
+                core_->getConfigManager() ? core_->getConfigManager()->getDockVisibility("chatRoom") : false;
             if (!hadChatStored) {
-                coreManager_->chatDock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
+                dock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
             }
-            showDockAsFloating(coreManager_->chatDock, coreManager_->mainWindow, false);
+            showDockAsFloating(dock, core_->getMainWindow(), false);
         }
 
-        QObject::connect(coreManager_->chatDock, &QDockWidget::visibilityChanged, coreManager_,
-                         [this](bool visible) {
-                             syncMenuDockVisibility();
-                             if (visible && coreManager_) {
-                                 coreManager_->flushChatEventQueue();
+        QObject::connect(dock, &QDockWidget::visibilityChanged, owner, [this](bool visible) {
+                             this->syncMenuDockVisibility();
+                             if (visible && core_) {
+                                 core_->requestFlushChatEventQueue();
                              }
                          });
     } else {
-        if (!coreManager_->chatDock->widget()) {
-            OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(coreManager_->chatDock, chatUrl);
-            coreManager_->chatDock->setWidget(chatWidget);
+        auto* dock = existingChatDock;
+        if (!dock->widget()) {
+            OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(dock, chatUrl);
+            dock->setWidget(chatWidget);
         } else if (auto* chatWidget =
-                       qobject_cast<OneSevenLiveChatWidget*>(coreManager_->chatDock->widget())) {
+                       qobject_cast<OneSevenLiveChatWidget*>(dock->widget())) {
             chatWidget->setUrl(chatUrl);
         }
 
         obs_log(LOG_INFO, "Toggling existing chatDock visibility. Current: %s",
-                coreManager_->chatDock->isVisible() ? "visible" : "hidden");
-        coreManager_->chatDock->toggleViewAction()->trigger();
+                dock->isVisible() ? "visible" : "hidden");
+        dock->toggleViewAction()->trigger();
     }
 
     syncMenuDockVisibility();
 }
 
 void DockOrchestrator::handleMultiRtmpClicked() {
-    if (!coreManager_) {
+    if (!core_) {
         return;
     }
     obs_log(LOG_INFO, "handleMultiRtmpClicked");
 
-    if (!coreManager_->multiRtmpDock) {
+    if (!core_->getMultiRtmpDock()) {
         createMultiRtmpDock();
     } else {
-        coreManager_->multiRtmpDock->toggleViewAction()->trigger();
+        core_->getMultiRtmpDock()->toggleViewAction()->trigger();
     }
 
     syncMenuDockVisibility();
 }
 
 void DockOrchestrator::createMultiRtmpDock() {
-    if (!coreManager_ || coreManager_->multiRtmpDock) {
+    if (!core_ || core_->getMultiRtmpDock()) {
         return;
     }
-    if (!coreManager_->mainWindow || !coreManager_->configManager) {
+    if (!core_->getMainWindow() || !core_->getConfigManager()) {
         return;
     }
 
     OneSevenLiveLoginData loginData;
-    if (!coreManager_->configManager->getLoginData(loginData)) {
+    if (!core_->getConfigManager()->getLoginData(loginData)) {
         obs_log(LOG_ERROR, "Failed to get login data");
         return;
     }
 
-    coreManager_->multiRtmpDock = new OneSevenLiveMultiRtmpDock(coreManager_->mainWindow);
-    coreManager_->multiRtmpDock->setObjectName("OneSevenLiveMultiRtmpDock");
+    auto* dock = new OneSevenLiveMultiRtmpDock(core_->getMainWindow());
+    core_->setMultiRtmpDock(dock);
+    dock->setObjectName("OneSevenLiveMultiRtmpDock");
 
-    coreManager_->multiRtmpDock->setMaximumWidth(600);
-    coreManager_->multiRtmpDock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
+    dock->setMaximumWidth(600);
+    dock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
 
-    coreManager_->multiRtmpDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    coreManager_->mainWindow->addDockWidget(Qt::RightDockWidgetArea, coreManager_->multiRtmpDock);
+    dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);
 
-    showDockAsFloating(coreManager_->multiRtmpDock, coreManager_->mainWindow, coreManager_->isStartupRestore);
+    showDockAsFloating(dock, core_->getMainWindow(), core_->getStartupRestore());
 
-    if (coreManager_->multiRtmpDockFirstLoad) {
-        QObject::connect(coreManager_->multiRtmpDock, &QDockWidget::visibilityChanged, coreManager_,
-                         [this]() { syncMenuDockVisibility(); });
+    if (multiRtmpDockFirstLoad_) {
+        QObject::connect(dock, &QDockWidget::visibilityChanged, core_->getUiOwner(),
+                         [this]() { this->syncMenuDockVisibility(); });
 
-        coreManager_->multiRtmpDockFirstLoad = false;
+        multiRtmpDockFirstLoad_ = false;
     }
 }
 
 void DockOrchestrator::handlePreviewDockClicked() {
-    if (!coreManager_) {
+    if (!core_) {
         return;
     }
     obs_log(LOG_INFO, "handlePreviewDockClicked");
 
-    if (!coreManager_->previewDock) {
+    if (!core_->getPreviewDock()) {
         createPreviewDock();
     } else {
-        coreManager_->previewDock->toggleViewAction()->trigger();
+        core_->getPreviewDock()->toggleViewAction()->trigger();
     }
 
     syncMenuDockVisibility();
 }
 
 void DockOrchestrator::createPreviewDock() {
-    if (!coreManager_ || coreManager_->previewDock) {
+    if (!core_ || core_->getPreviewDock()) {
         return;
     }
-    if (!coreManager_->mainWindow) {
+    if (!core_->getMainWindow()) {
         return;
     }
 
-    auto* http = coreManager_->getHttpServer();
-    auto* ws = coreManager_->getWebsocketServer();
+    auto* http = core_->getHttpServer();
+    auto* ws = core_->getWebsocketServer();
     if (!http || !ws) {
         obs_log(LOG_ERROR, "[17Live Core] Local servers not available for preview dock");
         return;
@@ -510,21 +532,22 @@ void DockOrchestrator::createPreviewDock() {
                              .arg(QString::number(http->getPort()), wsUrl);
     obs_log(LOG_INFO, "cartoonUrl: %s", cartoonUrl.toStdString().c_str());
 
-    coreManager_->previewDock = new OneSevenLivePreviewDock(coreManager_->mainWindow, cartoonUrl);
-    coreManager_->previewDock->setObjectName("OneSevenLivePreviewDock");
+    auto* dock = new OneSevenLivePreviewDock(core_->getMainWindow(), cartoonUrl);
+    core_->setPreviewDock(dock);
+    dock->setObjectName("OneSevenLivePreviewDock");
 
-    coreManager_->previewDock->setMaximumWidth(800);
-    coreManager_->previewDock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
+    dock->setMaximumWidth(800);
+    dock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
 
-    coreManager_->previewDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    coreManager_->mainWindow->addDockWidget(Qt::RightDockWidgetArea, coreManager_->previewDock);
+    dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);
 
-    showDockAsFloating(coreManager_->previewDock, coreManager_->mainWindow, coreManager_->isStartupRestore);
+    showDockAsFloating(dock, core_->getMainWindow(), core_->getStartupRestore());
 
-    if (coreManager_->previewDockFirstLoad) {
-        QObject::connect(coreManager_->previewDock, &QDockWidget::visibilityChanged, coreManager_,
-                         [this]() { syncMenuDockVisibility(); });
+    if (previewDockFirstLoad_) {
+        QObject::connect(dock, &QDockWidget::visibilityChanged, core_->getUiOwner(),
+                         [this]() { this->syncMenuDockVisibility(); });
 
-        coreManager_->previewDockFirstLoad = false;
+        previewDockFirstLoad_ = false;
     }
 }
