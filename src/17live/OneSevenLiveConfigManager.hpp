@@ -8,6 +8,7 @@
 #include <shared_mutex>
 
 #include "api/OneSevenLiveModels.hpp"
+#include "utility/Result.hpp"
 
 using json = nlohmann::json;
 
@@ -93,6 +94,8 @@ class OneSevenLiveConfigManager {
                            QString &profileImageUrl, QString &email, int &viewCount);
     bool clearTwitchUserInfo();
 
+    ResultError getLastError() const;
+
    private:
     bool initialized = false;
 
@@ -104,4 +107,10 @@ class OneSevenLiveConfigManager {
     mutable std::shared_mutex configMutex;
     // Current configuration
     OneSevenLiveConfig currentConfig;
+
+    mutable std::mutex errorMutex_;
+    ResultError lastError_;
+
+    void setLastError(ResultError error);
+    void clearLastError();
 };

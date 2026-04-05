@@ -250,8 +250,16 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
             if (isAuthorized && m_youtubeAuth) {
                 m_youtubeAuth->clearToken();
                 if (auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager()) {
-                    cm->clearYouTubeAccessToken();
-                    cm->clearYouTubeRefreshToken();
+                    if (!cm->clearYouTubeAccessToken()) {
+                        const auto err = cm->getLastError();
+                        obs_log(LOG_WARNING, "Failed to clear YouTube access token: %s %s",
+                                err.code.c_str(), err.message.c_str());
+                    }
+                    if (!cm->clearYouTubeRefreshToken()) {
+                        const auto err = cm->getLastError();
+                        obs_log(LOG_WARNING, "Failed to clear YouTube refresh token: %s %s",
+                                err.code.c_str(), err.message.c_str());
+                    }
                 }
             } else if (!isAuthorized) {
                 onAuthorizeClicked();
@@ -261,8 +269,16 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
             if (isAuthorized && m_twitchAuth) {
                 m_twitchAuth->clearTokens();
                 if (auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager()) {
-                    cm->clearTwitchTokens();
-                    cm->clearTwitchUserInfo();
+                    if (!cm->clearTwitchTokens()) {
+                        const auto err = cm->getLastError();
+                        obs_log(LOG_WARNING, "Failed to clear Twitch tokens: %s %s",
+                                err.code.c_str(), err.message.c_str());
+                    }
+                    if (!cm->clearTwitchUserInfo()) {
+                        const auto err = cm->getLastError();
+                        obs_log(LOG_WARNING, "Failed to clear Twitch user info: %s %s",
+                                err.code.c_str(), err.message.c_str());
+                    }
                 }
             } else if (!isAuthorized) {
                 onAuthorizeClicked();

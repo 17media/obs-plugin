@@ -320,7 +320,13 @@ bool OneSevenLiveCoreManager::initMenuAndBaseUI() {
 
     // Load meta data
     if (!LoadMetaData()) {
-        obs_log(LOG_ERROR, "Failed to load meta data");
+        const auto err = GetLastMetaError();
+        if (!err.code.empty() || !err.message.empty()) {
+            obs_log(LOG_ERROR, "Failed to load meta data: %s %s", err.code.c_str(),
+                    err.message.c_str());
+        } else {
+            obs_log(LOG_ERROR, "Failed to load meta data");
+        }
         return false;
     }
 
@@ -371,10 +377,17 @@ void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& logi
     Json configJson;
     if (apiWrapper->GetConfig(region, language, configJson)) {
         // Save configuration
-        configManager->setConfig(configJson);
-        obs_log(LOG_INFO, "Config loaded successfully");
+        if (!configManager->setConfig(configJson)) {
+            const auto err = configManager->getLastError();
+            obs_log(LOG_ERROR, "Failed to save config: %s %s", err.code.c_str(),
+                    err.message.c_str());
+            return;
+        }
+        obs_log(LOG_INFO, "Config saved successfully");
     } else {
-        obs_log(LOG_ERROR, "Failed to load config from API");
+        const auto err = apiWrapper->getLastError();
+        obs_log(LOG_ERROR, "Failed to load config from API: %s %s", err.code.c_str(),
+                err.message.c_str());
     }
 }
 
@@ -1013,7 +1026,11 @@ void OneSevenLiveCoreManager::loadGifts() {
                         return;
                     }
                     if (self->configManager) {
-                        self->configManager->saveGifts(apiResult);
+                        if (!self->configManager->saveGifts(apiResult)) {
+                            const auto err = self->configManager->getLastError();
+                            obs_log(LOG_WARNING, "Failed to save gifts: %s %s", err.code.c_str(),
+                                    err.message.c_str());
+                        }
                     }
                     self->buildGiftsMapFromJson(apiResult);
                 },
@@ -1029,6 +1046,10 @@ void OneSevenLiveCoreManager::loadGiftsFromConfig() {
     if (configManager->loadGifts(gifts)) {
         buildGiftsMapFromJson(gifts);
         obs_log(LOG_INFO, "Loaded gifts into memory map from config");
+    } else {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to load gifts from config: %s %s", err.code.c_str(),
+                err.message.c_str());
     }
 }
 

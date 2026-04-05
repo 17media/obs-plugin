@@ -214,8 +214,17 @@ bool OneSevenLiveMultiRtmpManager::removeStreamConfig(const std::string& streamI
                 obs_log(LOG_INFO, "[MultiRTMP-Manager] YouTube tokens retention on delete: %s",
                         streamId.c_str());
             } else if (platform == "Twitch") {
-                (void) cm->clearTwitchTokens();
-                (void) cm->clearTwitchUserInfo();
+                if (!cm->clearTwitchTokens()) {
+                    const auto err = cm->getLastError();
+                    obs_log(LOG_WARNING, "[MultiRTMP-Manager] Failed to clear Twitch tokens: %s %s",
+                            err.code.c_str(), err.message.c_str());
+                }
+                if (!cm->clearTwitchUserInfo()) {
+                    const auto err = cm->getLastError();
+                    obs_log(LOG_WARNING,
+                            "[MultiRTMP-Manager] Failed to clear Twitch user info: %s %s",
+                            err.code.c_str(), err.message.c_str());
+                }
                 obs_log(LOG_INFO, "[MultiRTMP-Manager] Cleared Twitch tokens on delete: %s",
                         streamId.c_str());
             }

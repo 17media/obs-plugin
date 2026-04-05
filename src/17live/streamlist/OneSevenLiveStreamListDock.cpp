@@ -341,7 +341,12 @@ void OneSevenLiveStreamListDock::refreshStreamList() {
     }
 
     std::vector<OneSevenLiveStreamInfo> streamInfoList;
-    configManager->loadAllLiveConfig(streamInfoList);
+    if (!configManager->loadAllLiveConfig(streamInfoList)) {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to load live list: %s %s", err.code.c_str(),
+                err.message.c_str());
+        streamInfoList.clear();
+    }
 
     if (streamInfoList.empty()) {
         // Show empty list hint and navigation button
@@ -389,7 +394,11 @@ void OneSevenLiveStreamListDock::refreshStreamList() {
                         info.request.caption.toStdString().c_str(),
                         info.streamUuid.toStdString().c_str());
 
-                configManager->removeLiveConfig(info.streamUuid.toStdString());
+                if (!configManager->removeLiveConfig(info.streamUuid.toStdString())) {
+                    const auto err = configManager->getLastError();
+                    obs_log(LOG_WARNING, "Failed to remove live config: %s %s", err.code.c_str(),
+                            err.message.c_str());
+                }
                 refreshStreamList();
             });
         }
@@ -423,7 +432,11 @@ void OneSevenLiveStreamListDock::onDeleteStreamClicked([[maybe_unused]] QListWid
     obs_log(LOG_INFO, "onDeleteStreamClicked %s %s", info.request.caption.toStdString().c_str(),
             info.streamUuid.toStdString().c_str());
 
-    configManager->removeLiveConfig(info.streamUuid.toStdString());
+    if (!configManager->removeLiveConfig(info.streamUuid.toStdString())) {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to remove live config: %s %s", err.code.c_str(),
+                err.message.c_str());
+    }
     refreshStreamList();
 }
 

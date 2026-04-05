@@ -180,12 +180,16 @@ bool OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
 
     const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
     if (!cfg->setYouTubeAccessToken(accessToken, expiresIn, nowEpoch)) {
-        obs_log(LOG_ERROR, "Failed to save YouTube access token");
+        const auto err = cfg->getLastError();
+        obs_log(LOG_ERROR, "Failed to save YouTube access token: %s %s", err.code.c_str(),
+                err.message.c_str());
         emit authorizationFailed("Failed to save YouTube access token");
         return false;
     }
     if (!cfg->setYouTubeRefreshToken(refreshToken, refreshTokenExpiresIn, nowEpoch)) {
-        obs_log(LOG_ERROR, "Failed to save YouTube refresh token");
+        const auto err = cfg->getLastError();
+        obs_log(LOG_ERROR, "Failed to save YouTube refresh token: %s %s", err.code.c_str(),
+                err.message.c_str());
         emit authorizationFailed("Failed to save YouTube refresh token");
         return false;
     }
@@ -229,7 +233,9 @@ bool OneSevenLiveYouTubeAuth::refreshAccessToken() {
         int rtExpiresIn = 0;
         qint64 rtFetched = 0;
         if (!cfg->getYouTubeRefreshToken(cfgRt, rtExpiresIn, rtFetched)) {
-            obs_log(LOG_ERROR, "No YouTube refresh token available in config");
+            const auto err = cfg->getLastError();
+            obs_log(LOG_ERROR, "No YouTube refresh token available in config: %s %s",
+                    err.code.c_str(), err.message.c_str());
             return false;
         }
         rt = cfgRt;
@@ -304,7 +310,9 @@ bool OneSevenLiveYouTubeAuth::refreshAccessToken() {
 
     const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
     if (!cfg->setYouTubeAccessToken(newAccessToken, expiresIn, nowEpoch)) {
-        obs_log(LOG_ERROR, "Failed to save refreshed YouTube access token");
+        const auto err = cfg->getLastError();
+        obs_log(LOG_ERROR, "Failed to save refreshed YouTube access token: %s %s", err.code.c_str(),
+                err.message.c_str());
         return false;
     }
 
@@ -338,7 +346,9 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync() {
         int rtExpiresIn = 0;
         qint64 rtFetched = 0;
         if (!cfg->getYouTubeRefreshToken(cfgRt, rtExpiresIn, rtFetched)) {
-            obs_log(LOG_ERROR, "No YouTube refresh token available in config");
+            const auto err = cfg->getLastError();
+            obs_log(LOG_ERROR, "No YouTube refresh token available in config: %s %s",
+                    err.code.c_str(), err.message.c_str());
             emit authorizationFailed("YouTube refresh token missing");
             return;
         }

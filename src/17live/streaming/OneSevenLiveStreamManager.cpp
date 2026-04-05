@@ -682,7 +682,9 @@ bool OneSevenLiveStreamManager::saveStreamConfiguration(const OneSevenLiveStream
     obs_log(LOG_INFO, "Saving stream configuration");
 
     if (!configManager->saveLiveConfig(streamInfo)) {
-        obs_log(LOG_ERROR, "Failed to save stream info");
+        const auto err = configManager->getLastError();
+        obs_log(LOG_ERROR, "Failed to save stream info: %s %s", err.code.c_str(),
+                err.message.c_str());
         emit errorOccurred("Failed to save stream configuration", "saveStreamConfiguration");
         return false;
     }

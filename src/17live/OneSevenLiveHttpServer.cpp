@@ -421,7 +421,11 @@ bool OneSevenLiveHttpServer::start() {
                         std::string language;
                         configManager->getConfigValue("Region", language);
                         success = apiWrapper->GetGifts(language, apiResult);
-                        configManager->saveGifts(apiResult);
+                        if (!configManager->saveGifts(apiResult)) {
+                            const auto err = configManager->getLastError();
+                            obs_log(LOG_WARNING, "[%s] Failed to save gifts: %s %s", name_.c_str(),
+                                    err.code.c_str(), err.message.c_str());
+                        }
                     } else {
                         success = true;
                     }

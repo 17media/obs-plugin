@@ -25,6 +25,7 @@
 #include <QThreadPool>
 
 #include "plugin-support.h"
+#include "Result.hpp"
 
 // Helper class for QThreadPool
 class TaskRunnable : public QRunnable {
@@ -107,6 +108,65 @@ std::string GetCurrentOS() {
 #endif
 }
 
+static Result<std::string> ExecuteCommandResult(const char* cmd) {
+    try {
+        std::array<char, 128> buffer;
+        std::string result;
+
+#ifdef _WIN32
+        FILE* pipe = _popen(cmd, "r");
+#else
+        FILE* pipe = popen(cmd, "r");
+#endif
+
+        if (!pipe) {
+            return Result<std::string>::Err(ResultError{.code = "IO.ExecFailed",
+                                                        .message = "Error executing command",
+                                                        .retryable = false,
+                                                        .detail = cmd});
+        }
+
+#ifdef _WIN32
+        while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
+#else
+        while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+#endif
+            result += buffer.data();
+        }
+
+#ifdef _WIN32
+        _pclose(pipe);
+#else
+        pclose(pipe);
+#endif
+
+        if (!result.empty() && result[result.length() - 1] == '\n') {
+            result.erase(result.length() - 1);
+        }
+        if (!result.empty() && result[result.length() - 1] == '\r') {
+            result.erase(result.length() - 1);
+        }
+
+        return Result<std::string>::Ok(std::move(result));
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[obs-17live]: ExecuteCommandAndGetOutput exception: %s", e.what());
+        return Result<std::string>::Err(ResultError{
+            .code = "State.Exception",
+            .message = "Exception occurred during command execution",
+            .retryable = false,
+            .detail = e.what(),
+        });
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: ExecuteCommandAndGetOutput unknown exception");
+        return Result<std::string>::Err(ResultError{
+            .code = "State.Exception",
+            .message = "Unknown exception occurred during command execution",
+            .retryable = false,
+            .detail = "",
+        });
+    }
+}
+
 std::string ExecuteCommandAndGetOutput(const char* cmd) {
     try {
         std::array<char, 128> buffer;
@@ -164,13 +224,24 @@ std::string GetCurrentOSVersion() {
     std::string version = "Unknown";
 
 #if defined(__APPLE__)  // For macOS, use sw_vers command
-    version = ExecuteCommandAndGetOutput("sw_vers -productVersion");
+    auto r = ExecuteCommandResult("sw_vers -productVersion");
+    if (r) {
+        version = r.takeValue();
+    }
 #elif defined(_WIN32)     // For Windows, use 'ver' command
     // For Windows, use 'ver' command.
     // A more robust way would be to use Windows API like GetVersionEx,
     // but 'ver' is simpler for this example.
     // The output of 'ver' might need parsing.
-    std::string verOutput = ExecuteCommandAndGetOutput("ver");
+    std::string verOutput;
+    {
+        auto r = ExecuteCommandResult("ver");
+        if (r) {
+            verOutput = r.takeValue();
+        } else {
+            verOutput.clear();
+        }
+    }
     // Example parsing: Microsoft Windows [Version 10.0.19042.985]
     // We might want to extract just "10.0.19042.985"
     size_t pos = verOutput.find("[");
@@ -217,7 +288,10 @@ std::string GetCurrentOSVersion() {
     }
     if (version == "Unknown" || version.empty()) {
         // Fallback to uname -r if /etc/os-release doesn't give a good version
-        version = ExecuteCommandAndGetOutput("uname -r");
+        auto r = ExecuteCommandResult("uname -r");
+        if (r) {
+            version = r.takeValue();
+        }
     }
 #endif
 
@@ -240,10 +314,22 @@ std::string trim(const std::string& str) {
 
 std::string GetCurrentPlatformUUID() {
 #if defined(__APPLE__)
-    return ExecuteCommandAndGetOutput(
+    auto r = ExecuteCommandResult(
         "ioreg -d2 -c IOPlatformExpertDevice | awk -F\\\" '/IOPlatformUUID/{print $(NF-1)}'");
+    if (r) {
+        return r.takeValue();
+    }
+    return "Mac UUID Not Found";
 #elif defined(_WIN32)
-    std::string uuidStr = ExecuteCommandAndGetOutput("wmic csproduct get uuid");
+    std::string uuidStr;
+    {
+        auto r = ExecuteCommandResult("wmic csproduct get uuid");
+        if (r) {
+            uuidStr = r.takeValue();
+        } else {
+            uuidStr.clear();
+        }
+    }
     // The output might contain extra lines, so we need to clean it up
     std::stringstream ss(uuidStr);
     std::string line;

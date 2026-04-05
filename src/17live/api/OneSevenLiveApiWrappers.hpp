@@ -5,6 +5,7 @@
 #include <mutex>
 #include <nlohmann/json.hpp>
 
+#include "../utility/Result.hpp"
 #include "OneSevenLiveModels.hpp"
 
 // for local http server proxy request
@@ -107,7 +108,12 @@ class OneSevenLiveApiWrappers : public QObject {
 
     QString getLastErrorMessage() const {
         std::lock_guard<std::mutex> lock(stateMutex);
-        return lastErrorMessage;
+        return QString::fromStdString(lastError_.message);
+    }
+
+    ResultError getLastError() const {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        return lastError_;
     }
 
     /**
@@ -147,7 +153,7 @@ class OneSevenLiveApiWrappers : public QObject {
     std::atomic<bool> *m_cancelFlag = nullptr;
 
    private:
-    QString lastErrorMessage;
+    ResultError lastError_;
 
     std::string currentOS;
     std::string currentOSVersion;
@@ -156,8 +162,7 @@ class OneSevenLiveApiWrappers : public QObject {
     // Mutex for thread-safe access to shared state
     mutable std::mutex stateMutex;
 
-    // Thread-safe helper methods for error message management
-    void setLastErrorMessage(const QString &message);
-    void clearLastErrorMessage();
+    void setLastError(ResultError error);
+    void clearLastError();
     void initializeApiWrapper();
 };

@@ -1299,11 +1299,20 @@ void OneSevenLiveStreamingDock::handleCreateLiveChecks(const OneSevenLiveLoginDa
 
     // check current region changed?
     std::string currentRegion;
-    configManager->getConfigValue("Region", currentRegion);
+    if (!configManager->getConfigValue("Region", currentRegion)) {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to read Region config: %s %s", err.code.c_str(),
+                err.message.c_str());
+        currentRegion.clear();
+    }
 
     // Check feature 207 to control createLiveButton state
     OneSevenLiveConfig currentConfig;
-    configManager->getConfig(currentConfig);
+    if (!configManager->getConfig(currentConfig)) {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to read current config: %s %s", err.code.c_str(),
+                err.message.c_str());
+    }
     bool currentIsFeature207Enabled = (currentConfig.addOns.features["207"] == 1);
 
     if (loginData.userInfo.region != QString::fromStdString(currentRegion)) {
@@ -1311,10 +1320,20 @@ void OneSevenLiveStreamingDock::handleCreateLiveChecks(const OneSevenLiveLoginDa
 
         // Save configuration
         if (!configJson.empty()) {
-            configManager->setConfig(configJson);
-            obs_log(LOG_INFO, "Config loaded successfully");
+            if (!configManager->setConfig(configJson)) {
+                const auto err = configManager->getLastError();
+                obs_log(LOG_ERROR, "Failed to save config: %s %s", err.code.c_str(),
+                        err.message.c_str());
+                QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                                     obs_module_text("Live.Create.Failed"));
+                return;
+            }
+            obs_log(LOG_INFO, "Config saved successfully");
         } else {
             obs_log(LOG_ERROR, "Failed to load config from API (or it was empty)");
+            QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                                 obs_module_text("Live.Create.Failed"));
+            return;
         }
 
         OneSevenLiveConfig newConfig;

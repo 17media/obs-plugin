@@ -188,8 +188,16 @@ void AuthSessionService::performLogoutOperations() {
     coreManager_->configManager->clearLoginData();
 
     // Clear third-party platform authorization data
-    coreManager_->configManager->clearTwitchTokens();
-    coreManager_->configManager->clearTwitchUserInfo();
+    if (!coreManager_->configManager->clearTwitchTokens()) {
+        const auto err = coreManager_->configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to clear Twitch tokens: %s %s", err.code.c_str(),
+                err.message.c_str());
+    }
+    if (!coreManager_->configManager->clearTwitchUserInfo()) {
+        const auto err = coreManager_->configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to clear Twitch user info: %s %s", err.code.c_str(),
+                err.message.c_str());
+    }
 
     // Clear streaming configuration
     coreManager_->configManager->clearStreamingInfo();
