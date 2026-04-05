@@ -33,6 +33,7 @@
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
 #include "chat/OneSevenLiveChatWidget.hpp"
+#include "core/CoreRuntime.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "plugin-support.h"
@@ -135,7 +136,21 @@ void OneSevenLiveCoreManager::destroyInstance() {
 }
 
 OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
-    : mainWindow(mainWindow_), initialized(false), multiRtmpDockFirstLoad(true) {}
+    : mainWindow(mainWindow_), initialized(false), multiRtmpDockFirstLoad(true) {
+    CoreRuntime::State state{&initialized, &shuttingDown, &m_cancelFlag};
+    CoreRuntime::Hooks hooks;
+    hooks.initLocalServers = [this]() { return this->initLocalServers(); };
+    hooks.initConfigAndApi = [this]() { return this->initConfigAndApi(); };
+    hooks.initAuthHandlers = [this]() { this->initAuthHandlers(); };
+    hooks.initMenuAndBaseUI = [this]() { return this->initMenuAndBaseUI(); };
+    hooks.restoreRuntimeStateIfNeeded = [this]() { this->restoreRuntimeStateIfNeeded(); };
+    hooks.stopStreamingSafely = [this]() { this->stopStreamingSafely(); };
+    hooks.saveAndCloseUI = [this]() { this->saveAndCloseUI(); };
+    hooks.shutdownRtmpAndChat = [this]() { this->shutdownRtmpAndChat(); };
+    hooks.shutdownLocalServers = [this]() { this->shutdownLocalServers(); };
+    hooks.cleanupTimersAndFlags = [this]() { this->cleanupTimersAndFlags(); };
+    runtime_ = std::make_unique<CoreRuntime>(state, std::move(hooks));
+}
 
 OneSevenLiveCoreManager::~OneSevenLiveCoreManager() {
     // Ensure shutdown is called before destruction
@@ -192,7 +207,7 @@ bool OneSevenLiveCoreManager::initLocalServers() {
     return true;
 }
 
-bool OneSevenLiveCoreManager::initConfigAndApi(bool& isLogin, OneSevenLiveLoginData& loginData) {
+bool OneSevenLiveCoreManager::initConfigAndApi() {
     // Initialize configuration manager
     configManager = std::make_unique<OneSevenLiveConfigManager>();
     if (!configManager) {
@@ -206,19 +221,19 @@ bool OneSevenLiveCoreManager::initConfigAndApi(bool& isLogin, OneSevenLiveLoginD
     }
 
     // Initialize API wrapper before creating stream manager
-    configManager->getLoginData(loginData);
-    isLogin = false;
+    configManager->getLoginData(initLoginData_);
+    initIsLogin_ = false;
 
-    if (!loginData.jwtAccessToken.isEmpty()) {
+    if (!initLoginData_.jwtAccessToken.isEmpty()) {
         apiWrapper =
-            std::make_unique<OneSevenLiveApiWrappers>(loginData.jwtAccessToken.toStdString());
+            std::make_unique<OneSevenLiveApiWrappers>(initLoginData_.jwtAccessToken.toStdString());
         apiWrapper->setCancelFlag(&m_cancelFlag);
 
-        isLogin = checkLoginStatus();
+        initIsLogin_ = checkLoginStatus();
     }
 
     // if not login, initialize apiWrapper without token
-    if (!isLogin) {
+    if (!initIsLogin_) {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
         apiWrapper->setCancelFlag(&m_cancelFlag);
     }
@@ -379,53 +394,21 @@ bool OneSevenLiveCoreManager::initMenuAndBaseUI() {
     return true;
 }
 
-void OneSevenLiveCoreManager::restoreRuntimeStateIfNeeded(bool isLogin,
-                                                           const OneSevenLiveLoginData& loginData) {
-    OneSevenLiveLoginData restoredLoginData = loginData;
-
+void OneSevenLiveCoreManager::restoreRuntimeStateIfNeeded() {
     isStartupRestore = true;
 
     // Handle login state during initialization
-    if (isLogin) {
-        configManager->getLoginData(restoredLoginData);
+    if (initIsLogin_) {
+        configManager->getLoginData(initLoginData_);
 
         // Use the new centralized login state handler for logged in users
-        handleLoginStateChanged(true, restoredLoginData);
+        handleLoginStateChanged(true, initLoginData_);
     }
 }
 
 bool OneSevenLiveCoreManager::initialize() {
-    // Prevent duplicate initialization
-    if (initialized) {
-        return true;
-    }
-
     obs_log(LOG_INFO, "[17Live Core] Initializing OneSevenLiveCoreManager...");
-
-    m_cancelFlag.store(false);
-
-    bool isLogin = false;
-    OneSevenLiveLoginData loginData;
-
-    if (!initLocalServers()) {
-        return false;
-    }
-
-    if (!initConfigAndApi(isLogin, loginData)) {
-        return false;
-    }
-
-    initAuthHandlers();
-
-    if (!initMenuAndBaseUI()) {
-        return false;
-    }
-
-    restoreRuntimeStateIfNeeded(isLogin, loginData);
-
-    initialized = true;
-
-    return true;
+    return runtime_ ? runtime_->initialize() : false;
 }
 
 void OneSevenLiveCoreManager::handleCheckUpdateClicked() {
@@ -608,20 +591,9 @@ void OneSevenLiveCoreManager::cleanupTimersAndFlags() {
 }
 
 void OneSevenLiveCoreManager::shutdown() {
-    m_cancelFlag.store(true);
-    if (shuttingDown || !initialized) {
-        return;
+    if (runtime_) {
+        runtime_->shutdown();
     }
-    shuttingDown = true;
-
-    stopStreamingSafely();
-    saveAndCloseUI();
-    shutdownRtmpAndChat();
-    shutdownLocalServers();
-    cleanupTimersAndFlags();
-
-    initialized = false;
-    shuttingDown = false;
 }
 
 QMainWindow* OneSevenLiveCoreManager::getMainWindow() const {

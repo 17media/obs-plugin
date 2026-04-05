@@ -60,6 +60,7 @@ class OneSevenLiveYouTubeChatClient;
 class OneSevenLiveTwitchChatClient;
 class OneSevenLiveYouTubeClient;
 class OneSevenLiveAblyChatClient;
+class CoreRuntime;
 
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
@@ -345,15 +346,19 @@ class OneSevenLiveCoreManager : public QObject {
     std::mutex chatQueueMutex;
 
     bool initLocalServers();
-    bool initConfigAndApi(bool& isLogin, OneSevenLiveLoginData& loginData);
+    bool initConfigAndApi();
     void initAuthHandlers();
     bool initMenuAndBaseUI();
-    void restoreRuntimeStateIfNeeded(bool isLogin, const OneSevenLiveLoginData& loginData);
+    void restoreRuntimeStateIfNeeded();
     void stopStreamingSafely();
     void saveAndCloseUI();
     void shutdownRtmpAndChat();
     void shutdownLocalServers();
     void cleanupTimersAndFlags();
+
+    std::unique_ptr<CoreRuntime> runtime_;
+    bool initIsLogin_{false};
+    OneSevenLiveLoginData initLoginData_;
 
     void syncMenuDockVisibility();
     void flushChatEventQueue();
