@@ -20,6 +20,10 @@ This checklist validates that the refactors around CoreRuntime/AuthSessionServic
 - Close Chat Room dock (dock should hide, not destroy).
 - Reopen Chat Room dock, verify it reconnects and continues receiving events.
 
+Local gateway + chat bridge behavior reference:
+
+- [local-gateway-chat-bridge.md](file:///Users/zhuyu/workspace/mk/17live/dev/obs-17live/docs/qa/local-gateway-chat-bridge.md)
+
 ## Dock Lifecycle
 
 - Toggle each dock from the menu:
@@ -54,10 +58,13 @@ This checklist validates that the refactors around CoreRuntime/AuthSessionServic
   - Verify events are delivered without noticeable delay.
 - Close OBS while chat events are flowing and confirm clean shutdown.
 
+- Disconnect → reconnect → flush:
+  - Close Chat Room dock or force WS disconnect, then trigger chat events (queue grows).
+  - Reconnect Chat Room dock and confirm register happens and queued events flush.
+
 ## Shutdown Idempotency
 
 - Close OBS immediately after startup (no login).
 - Close OBS after opening multiple docks.
 - Close OBS during login flow (login dialog open).
 - Close OBS while streaming (auto-close / manual close paths).
-
