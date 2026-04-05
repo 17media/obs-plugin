@@ -7,6 +7,7 @@ project(${_name} VERSION ${_version})
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" OFF)
 option(ENABLE_QT "Use Qt functionality" OFF)
 option(USE_STATIC_MSVC_RUNTIME "Use static MSVC runtime library (/MT) instead of dynamic (/MD)" ON)
+option(ENABLE_TESTS "Build unit tests" OFF)
 
 include(compilerconfig)
 include(defaults)
@@ -253,6 +254,21 @@ else()
 endif()
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+
+if(ENABLE_TESTS)
+  enable_testing()
+  add_executable(obs-17live-unit-tests
+    test/obs_17live_unit_tests.cpp
+    src/17live/core/CoreRuntime.cpp
+  )
+  target_include_directories(obs-17live-unit-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/17live
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps
+    ${NLOHMANN_JSON_INCLUDE_DIR}
+  )
+  add_test(NAME obs-17live-unit-tests COMMAND obs-17live-unit-tests)
+endif()
 
 # Windows-specific CEF configuration
 # if(OS_WINDOWS)

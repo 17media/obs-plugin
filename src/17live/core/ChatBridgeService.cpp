@@ -85,10 +85,7 @@ void ChatBridgeService::enqueueOrBroadcastChatEvent(const QString& type, const n
         return;
     }
 
-    chatEventQueue_.push_back(WsMessage{type.toStdString(), payload});
-    if (chatEventQueue_.size() > chatQueueMaxSize_) {
-        chatEventQueue_.pop_front();
-    }
+    chatEventQueue_.enqueue(WsMessage{type.toStdString(), payload});
     obs_log(LOG_DEBUG, "[ChatQueue] Enqueued chat event. queueSize=%zu", chatEventQueue_.size());
 }
 
@@ -107,9 +104,9 @@ void ChatBridgeService::flushChatEventQueue() {
     obs_log(LOG_INFO, "[ChatQueue] Flushing %zu events to chatDock client=%s", chatEventQueue_.size(),
             chatDockClientId_.c_str());
     while (!chatEventQueue_.empty()) {
-        const auto& m = chatEventQueue_.front();
+        const auto m = chatEventQueue_.front();
         ws->sendMessageToClient(chatDockClientId_, m.dump());
-        chatEventQueue_.pop_front();
+        chatEventQueue_.popFront();
     }
 }
 

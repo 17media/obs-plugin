@@ -1,6 +1,5 @@
 #pragma once
 
-#include <deque>
 #include <mutex>
 #include <string>
 
@@ -8,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 #include "../websocket/WsMessage.hpp"
+#include "WsMessageQueue.hpp"
 
 class OneSevenLiveCoreManager;
 
@@ -27,9 +27,7 @@ private:
     bool isChatDockClientConnectedLocked() const;
 
     OneSevenLiveCoreManager* coreManager_;
-    std::deque<WsMessage> chatEventQueue_;
-    size_t chatQueueMaxSize_{5000};
+    WsMessageQueue chatEventQueue_{5000};
     std::string chatDockClientId_;
     mutable std::mutex chatQueueMutex_;
 };
-
