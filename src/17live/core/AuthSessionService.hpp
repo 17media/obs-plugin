@@ -3,15 +3,27 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <atomic>
 #include "api/OneSevenLiveModels.hpp"
 
 class OneSevenLiveCoreManager;
+
+enum class SessionState {
+    Idle,
+    LoggingIn,
+    LoggedIn,
+    LoggingOut
+};
 
 class AuthSessionService : public QObject {
     Q_OBJECT
 public:
     explicit AuthSessionService(OneSevenLiveCoreManager* coreManager, QObject* parent = nullptr);
     ~AuthSessionService() override = default;
+
+    SessionState getState() const;
+    bool isPendingLogout() const;
+    void setPendingLogout(bool pending);
 
     bool checkLoginStatus();
     bool handleLoginClicked();
@@ -28,4 +40,6 @@ private:
     void restoreDockStatesOnLogin();
 
     OneSevenLiveCoreManager* coreManager_;
+    std::atomic<SessionState> state_{SessionState::Idle};
+    std::atomic<bool> pendingLogout_{false};
 };

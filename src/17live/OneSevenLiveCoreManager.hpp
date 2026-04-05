@@ -207,9 +207,6 @@ class OneSevenLiveCoreManager : public QObject {
    private:
     std::atomic<bool> giftsLoading_{false};
     std::atomic<bool> m_cancelFlag{false};
-    std::atomic<bool> loggingOut{false};
-    std::atomic<bool> loggingIn{false};
-    std::atomic<bool> pendingLogout{false};
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;

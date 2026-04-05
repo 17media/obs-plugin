@@ -334,6 +334,8 @@ void OneSevenLiveCoreManager::restoreRuntimeStateIfNeeded() {
 
         // Use the new centralized login state handler for logged in users
         authSessionService_->handleLoginStateChanged(true, initLoginData_);
+    } else {
+        authSessionService_->handleLoginStateChanged(false);
     }
 }
 
@@ -796,8 +798,8 @@ void OneSevenLiveCoreManager::setConnection() {
                     streamCheckTimer = nullptr;
                     streamCheckInFlight.store(false);
                 }
-                if (pendingLogout.load()) {
-                    pendingLogout.store(false);
+                if (authSessionService_->isPendingLogout()) {
+                    authSessionService_->setPendingLogout(false);
                     QPointer<AuthSessionService> auth = authSessionService_.get();
                     QMetaObject::invokeMethod(
                         this,

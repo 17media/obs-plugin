@@ -26,6 +26,18 @@
 AuthSessionService::AuthSessionService(OneSevenLiveCoreManager* coreManager, QObject* parent)
     : QObject(parent), coreManager_(coreManager) {}
 
+SessionState AuthSessionService::getState() const {
+    return state_.load();
+}
+
+bool AuthSessionService::isPendingLogout() const {
+    return pendingLogout_.load();
+}
+
+void AuthSessionService::setPendingLogout(bool pending) {
+    pendingLogout_.store(pending);
+}
+
 bool AuthSessionService::handleLoginClicked() {
     coreManager_->m_cancelFlag.store(false);
     OneSevenLiveLoginDialog dialog(coreManager_->mainWindow, coreManager_->getApiWrapper());
@@ -60,15 +72,18 @@ void AuthSessionService::handleLoginStateChanged(bool isLoggedIn,
     obs_log(LOG_INFO, "handleLoginStateChanged: %s", isLoggedIn ? "logged in" : "logged out");
 
     if (isLoggedIn) {
+        state_.store(SessionState::LoggingIn);
         performLoginOperations(loginData);
+        state_.store(SessionState::LoggedIn);
     } else {
+        state_.store(SessionState::LoggingOut);
         performLogoutOperations();
+        state_.store(SessionState::Idle);
     }
 }
 
 void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& loginData) {
     obs_log(LOG_INFO, "performLoginOperations");
-    coreManager_->loggingIn.store(true);
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
 
@@ -83,7 +98,6 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
         std::make_unique<OneSevenLiveStreamManager>(coreManager_->apiWrapper.get(), coreManager_->configManager.get(), coreManager_);
     if (!coreManager_->streamManager) {
         obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
-        coreManager_->loggingIn.store(false);
         return;
     }
 
@@ -137,12 +151,10 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
     });
 
     // discovery is managed by YouTubeChatClient
-    coreManager_->loggingIn.store(false);
 }
 
 void AuthSessionService::performLogoutOperations() {
     obs_log(LOG_INFO, "performLogoutOperations");
-    coreManager_->loggingOut.store(true);
     coreManager_->m_cancelFlag.store(true);
 
     {
@@ -205,8 +217,6 @@ void AuthSessionService::performLogoutOperations() {
     if (coreManager_->apiWrapper) {
         coreManager_->apiWrapper->setToken(std::string());
     }
-
-    coreManager_->loggingOut.store(false);
 }
 
 void AuthSessionService::restoreDockStatesOnLogin() {
@@ -313,7 +323,7 @@ void AuthSessionService::handleLogoutClicked() {
                     self,
                     [self]() {
                         if (self) {
-                            self->coreManager_->pendingLogout.store(true);
+                            self->setPendingLogout(true);
                             self->coreManager_->closeLive(false);
                         }
                     },
