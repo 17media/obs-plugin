@@ -63,6 +63,8 @@ class OneSevenLiveAblyChatClient;
 class CoreRuntime;
 class DockOrchestrator;
 
+class AuthSessionService;
+
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
  *
@@ -153,6 +155,8 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveAblyChatClient* getAblyChatClient() const;
     OneSevenLiveYouTubeClient* getYouTubeApiClient() const;
 
+    AuthSessionService* getAuthSessionService() const;
+
     // Chat clients lifecycle
     void createYouTubeChatClient();
     void createTwitchChatClient();
@@ -174,8 +178,6 @@ class OneSevenLiveCoreManager : public QObject {
     void connectTwitchChatClient(const QString& channel = QString());
     void disconnectTwitchChatClient();
 
-    bool handleLoginClicked();
-
     void setShuttingDown(bool v);
     bool isShuttingDown() const;
 
@@ -189,6 +191,8 @@ class OneSevenLiveCoreManager : public QObject {
     // Disable copy constructor and assignment operator
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
+
+    friend class AuthSessionService;
 
     // Accessor for cancellation flag
     std::atomic<bool>* getCancelFlag() {
@@ -244,25 +248,7 @@ class OneSevenLiveCoreManager : public QObject {
 
     std::shared_ptr<OneSevenLiveWebsocketServer> websocketServer_;
 
-    /**
-     * @brief Slot function to handle successful login
-     *
-     * @param userData User data returned after successful login
-     */
-    void handleLoginSuccess(const OneSevenLiveLoginData& userData);
-
-    void handleLogoutClicked();
-
-    // New login state management methods
-    void handleLoginStateChanged(bool isLoggedIn,
-                                 const OneSevenLiveLoginData& loginData = OneSevenLiveLoginData());
-    void performLoginOperations(const OneSevenLiveLoginData& loginData);
-    void performLogoutOperations();
-    void restoreDockStatesOnLogin();
     void closeAllDocks();
-
-    // Function to check if login status is valid
-    bool checkLoginStatus();
 
     // Streaming Dock load status
     bool streamingDockFirstLoad = true;
@@ -359,6 +345,7 @@ class OneSevenLiveCoreManager : public QObject {
 
     std::unique_ptr<CoreRuntime> runtime_;
     std::unique_ptr<DockOrchestrator> dockOrchestrator_;
+    std::unique_ptr<AuthSessionService> authSessionService_;
     bool initIsLogin_{false};
     OneSevenLiveLoginData initLoginData_;
 
