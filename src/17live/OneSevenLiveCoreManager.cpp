@@ -22,6 +22,7 @@
 #include <QTimer>
 #include <functional>
 #include <nlohmann/json.hpp>
+#include <mutex>
 #include <thread>
 
 #include "../diag/ui/DiagnosticsDialog.hpp"
@@ -65,25 +66,26 @@ using namespace std;
 
 // Initialize static member variables
 OneSevenLiveCoreManager* OneSevenLiveCoreManager::instance = nullptr;
-std::once_flag OneSevenLiveCoreManager::instanceOnceFlag;
+static std::mutex oneSevenLiveCoreManagerInstanceMutex;
 
 OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainWindow) {
-    // Use std::call_once for thread-safe singleton creation
-    std::call_once(instanceOnceFlag, [mainWindow]() {
+    std::lock_guard<std::mutex> lock(oneSevenLiveCoreManagerInstanceMutex);
+    if (!instance) {
         if (mainWindow == nullptr) {
-            throw std::runtime_error(
-                "mainWindow parameter must be provided on first call to getInstance");
+            mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+        }
+        if (mainWindow == nullptr) {
+            throw std::runtime_error("mainWindow parameter must be provided on first call to getInstance");
         }
         instance = new OneSevenLiveCoreManager(mainWindow);
-    });
+    }
     return *instance;
 }
 
 void OneSevenLiveCoreManager::destroyInstance() {
-    if (instance) {
-        delete instance;
-        instance = nullptr;
-    }
+    std::lock_guard<std::mutex> lock(oneSevenLiveCoreManagerInstanceMutex);
+    delete instance;
+    instance = nullptr;
 }
 
 OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)

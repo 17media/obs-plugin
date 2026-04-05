@@ -259,9 +259,6 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     // Singleton instance
     static OneSevenLiveCoreManager* instance;
 
-    // Once flag for thread-safe singleton creation using std::call_once
-    static std::once_flag instanceOnceFlag;
-
     // OBS main window
     QMainWindow* mainWindow = nullptr;
 
