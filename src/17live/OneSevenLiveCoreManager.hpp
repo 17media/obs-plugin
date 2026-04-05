@@ -197,6 +197,7 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
 
     friend class AuthSessionService;
+    friend class DockOrchestrator;
 
     // Accessor for cancellation flag
     std::atomic<bool>* getCancelFlag() {
@@ -326,8 +327,6 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Gifts lookup map: giftID (string) -> gift json
     std::unordered_map<std::string, nlohmann::json> giftsMap;
-
-    bool chatDockVisible{false};
 
     bool initLocalServers();
     bool initConfigAndApi();

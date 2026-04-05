@@ -6,9 +6,12 @@
 
 class QObject;
 class OneSevenLiveMenuManager;
+class OneSevenLiveCoreManager;
 
 class DockOrchestrator {
    public:
+    explicit DockOrchestrator(OneSevenLiveCoreManager* coreManager);
+
     static bool isDockOpen(QDockWidget* dock);
     static void centerDockOnMainWindow(QDockWidget* dock, QMainWindow* mainWindow);
     static void showDockAsFloating(QDockWidget* dock, QMainWindow* mainWindow, bool isStartupRestore);
@@ -45,4 +48,22 @@ class DockOrchestrator {
                                 QDockWidget* streamingDock, QDockWidget* liveListDock,
                                 QDockWidget* rockZoneDock, QDockWidget* multiRtmpDock,
                                 QDockWidget* previewDock) const;
+
+    void closeAllDocks();
+    void handleStreamingClicked();
+    void createStreamingDock();
+    void handleRockZoneClicked();
+    void createRockZoneDock();
+    void handleLiveListClicked();
+    void saveDockState();
+    void handleChatRoomClicked();
+    void handleMultiRtmpClicked();
+    void createMultiRtmpDock();
+    void handlePreviewDockClicked();
+    void createPreviewDock();
+
+    void syncMenuDockVisibility();
+
+   private:
+    OneSevenLiveCoreManager* coreManager_;
 };
