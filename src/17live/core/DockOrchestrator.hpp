@@ -2,7 +2,9 @@
 
 #include <QDockWidget>
 #include <QMainWindow>
+#include <QMetaObject>
 #include <QPointer>
+#include <QThread>
 
 class QObject;
 class OneSevenLiveMenuManager;
@@ -21,9 +23,21 @@ class DockOrchestrator {
         bool visible = false;
         if (dock) {
             visible = isDockOpen(dock);
-            dock->disconnect(owner);
-            dock->close();
-            delete dock;
+            auto* target = dock.data();
+            if (QThread::currentThread() == target->thread()) {
+                target->disconnect(owner);
+                target->close();
+                target->deleteLater();
+            } else {
+                QMetaObject::invokeMethod(
+                    target,
+                    [target, owner]() {
+                        target->disconnect(owner);
+                        target->close();
+                        target->deleteLater();
+                    },
+                    Qt::QueuedConnection);
+            }
             dock = nullptr;
         }
         return visible;
@@ -35,10 +49,23 @@ class DockOrchestrator {
         bool visible = false;
         if (dock) {
             visible = isDockOpen(dock);
-            dock->disconnect(owner);
-            beforeDelete(dock.data());
-            dock->close();
-            delete dock;
+            auto* target = dock.data();
+            if (QThread::currentThread() == target->thread()) {
+                target->disconnect(owner);
+                beforeDelete(target);
+                target->close();
+                target->deleteLater();
+            } else {
+                QMetaObject::invokeMethod(
+                    target,
+                    [target, owner, beforeDelete = std::forward<TBeforeDelete>(beforeDelete)]() mutable {
+                        target->disconnect(owner);
+                        beforeDelete(target);
+                        target->close();
+                        target->deleteLater();
+                    },
+                    Qt::QueuedConnection);
+            }
             dock = nullptr;
         }
         return visible;
