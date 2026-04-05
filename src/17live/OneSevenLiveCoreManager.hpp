@@ -29,6 +29,7 @@ class QProgressDialog;
 class BrowserApp;
 
 class LocalGatewayService;
+class ChatBridgeService;
 
 // Forward declaration of OneSevenLiveMenuManager class
 class OneSevenLiveMenuManager;
@@ -323,17 +324,10 @@ class OneSevenLiveCoreManager : public QObject {
     std::unique_ptr<OneSevenLiveYouTubeClient> youtubeApiClient;
     std::unique_ptr<OneSevenLiveAblyChatClient> ablyChatClient;
 
-    void handleWebsocketMessage(const std::string& clientId, const std::string& message);
-    void handleWebsocketConnectionChanged(const std::string& clientId, bool connected);
-
     // Gifts lookup map: giftID (string) -> gift json
     std::unordered_map<std::string, nlohmann::json> giftsMap;
 
     bool chatDockVisible{false};
-    std::deque<WsMessage> chatEventQueue;
-    size_t chatQueueMaxSize{5000};
-    std::string chatDockClientId;
-    std::mutex chatQueueMutex;
 
     bool initLocalServers();
     bool initConfigAndApi();
@@ -350,10 +344,10 @@ class OneSevenLiveCoreManager : public QObject {
     std::unique_ptr<DockOrchestrator> dockOrchestrator_;
     std::unique_ptr<AuthSessionService> authSessionService_;
     std::unique_ptr<LocalGatewayService> localGatewayService_;
+    std::unique_ptr<ChatBridgeService> chatBridgeService_;
     bool initIsLogin_{false};
     OneSevenLiveLoginData initLoginData_;
 
     void syncMenuDockVisibility();
     void flushChatEventQueue();
-    bool isChatDockClientConnected() const;
 };

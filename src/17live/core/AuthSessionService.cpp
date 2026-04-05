@@ -21,6 +21,7 @@
 #include "../websocket/OneSevenLiveWebsocketServer.hpp"
 #include "../twitch/OneSevenLiveTwitchAuth.hpp"
 #include "plugin-support.h"
+#include "ChatBridgeService.hpp"
 
 AuthSessionService::AuthSessionService(OneSevenLiveCoreManager* coreManager, QObject* parent)
     : QObject(parent), coreManager_(coreManager) {}
@@ -197,10 +198,8 @@ void AuthSessionService::performLogoutOperations() {
         coreManager_->ytChatDiscoverTimer = nullptr;
     }
 
-    {
-        std::lock_guard<std::mutex> lock(coreManager_->chatQueueMutex);
-        coreManager_->chatDockClientId.clear();
-        coreManager_->chatEventQueue.clear();
+    if (coreManager_->chatBridgeService_) {
+        coreManager_->chatBridgeService_->clear();
     }
 
     if (coreManager_->apiWrapper) {

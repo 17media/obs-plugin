@@ -36,6 +36,7 @@
 #include "core/DockOrchestrator.hpp"
 #include "core/CoreRuntime.hpp"
 #include "core/AuthSessionService.hpp"
+#include "core/ChatBridgeService.hpp"
 #include "core/LocalGatewayService.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
@@ -93,6 +94,7 @@ OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
     dockOrchestrator_ = std::make_unique<DockOrchestrator>();
     authSessionService_ = std::make_unique<AuthSessionService>(this);
     localGatewayService_ = std::make_unique<LocalGatewayService>(this);
+    chatBridgeService_ = std::make_unique<ChatBridgeService>(this);
 
     CoreRuntime::State state{&initialized, &shuttingDown, &m_cancelFlag};
     CoreRuntime::Hooks hooks;
@@ -123,14 +125,18 @@ bool OneSevenLiveCoreManager::initLocalServers() {
 
     auto ws = localGatewayService_->getWebsocketServer();
     if (ws) {
-        // Set up WebSocket server callbacks
-        ws->setMessageCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketMessage,
-                                         this, std::placeholders::_1,
-                                         std::placeholders::_2));
+        ws->setMessageCallback(
+            [this](const std::string& clientId, const std::string& message) {
+                if (chatBridgeService_) {
+                    chatBridgeService_->onWebsocketMessage(clientId, message);
+                }
+            });
 
-        ws->setConnectionCallback(
-            std::bind(&OneSevenLiveCoreManager::handleWebsocketConnectionChanged, this,
-                      std::placeholders::_1, std::placeholders::_2));
+        ws->setConnectionCallback([this](const std::string& clientId, bool connected) {
+            if (chatBridgeService_) {
+                chatBridgeService_->onWebsocketConnectionChanged(clientId, connected);
+            }
+        });
     }
     return true;
 }
@@ -349,65 +355,6 @@ void OneSevenLiveCoreManager::handleDiagnosticsClicked() {
     // Create and show the diagnostics dialog
     seventeen::diag::ui::DiagnosticsDialog dialog(mainWindow);
     dialog.exec();
-}
-
-void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId,
-                                                     const std::string& message) {
-    WsMessage m;
-    if (!WsMessage::parse(message, m)) {
-        obs_log(LOG_WARNING, "[17Live WebSocket Server] JSON parse error in message from %s",
-                clientId.c_str());
-        return;
-    }
-    // output m for debug
-    // obs_log(LOG_INFO, "[17Live WebSocket Server] Message from %s: %s", clientId.c_str(),
-    //         m.dump().c_str());
-    auto* ws = getWebsocketServer();
-    const bool hasServer = (ws && ws->is_running());
-    if (m.type.empty() || !hasServer) {
-        return;
-    }
-    if (m.is(ws::TypeAction)) {
-        const std::string actionType = m.payloadString("type");
-        if (actionType == ws::ActionRegisterChatDock) {
-            {
-                std::lock_guard<std::mutex> lock(chatQueueMutex);
-                chatDockClientId = clientId;
-            }
-            obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
-            flushChatEventQueue();
-            return;
-        }
-    } else if (m.is(ws::EventAblyChatMessage)) {
-        const std::string roomID = m.payloadString("roomID");
-        const std::string data = m.payloadString("data");
-        if (roomID.empty() || data.empty()) {
-            obs_log(LOG_WARNING,
-                    "[17Live WebSocket Server] Missing roomID or data in Ably message");
-            return;
-        }
-        // Process Ably chat message via unified handler
-        {
-            nlohmann::json wrapper;
-            wrapper["messages"] = nlohmann::json::array({nlohmann::json{{"data", data}}});
-            OneSevenLiveChatMessageHandler handler;
-            handler.handleRaw(wrapper.dump());
-        }
-    }
-}
-
-void OneSevenLiveCoreManager::handleWebsocketConnectionChanged(const std::string& clientId,
-                                                               bool connected) {
-    if (connected) {
-        obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
-        flushChatEventQueue();
-    } else {
-        obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
-        std::lock_guard<std::mutex> lock(chatQueueMutex);
-        if (!chatDockClientId.empty() && chatDockClientId == clientId) {
-            chatDockClientId.clear();
-        }
-    }
 }
 
 void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& loginData) {
@@ -670,55 +617,15 @@ void OneSevenLiveCoreManager::refreshRockZoneUserList() {
 
 void OneSevenLiveCoreManager::enqueueOrBroadcastChatEvent(const QString& type,
                                                           const nlohmann::json& payload) {
-    obs_log(LOG_DEBUG, "Enqueueing chat event: %s payload: %s", type.toStdString().c_str(),
-            payload.dump().c_str());
-
-    std::lock_guard<std::mutex> lock(chatQueueMutex);
-
-    auto* ws = getWebsocketServer();
-    if (ws && ws->is_running() && !chatDockClientId.empty()) {
-        obs_log(LOG_DEBUG, "Sending chat event to chat dock client %s", chatDockClientId.c_str());
-        auto ids = ws->getConnectedClientIds();
-        if (std::find(ids.begin(), ids.end(), chatDockClientId) != ids.end()) {
-            ws->sendMessageToClient(chatDockClientId,
-                                    WsMessage{type.toStdString(), payload}.dump());
-            return;
-        }
+    if (chatBridgeService_) {
+        chatBridgeService_->enqueueOrBroadcastChatEvent(type, payload);
     }
-    chatEventQueue.push_back(WsMessage{type.toStdString(), payload});
-    if (chatEventQueue.size() > chatQueueMaxSize) {
-        chatEventQueue.pop_front();
-    }
-    obs_log(LOG_DEBUG, "[ChatQueue] Enqueued type=%s size=%zu", type.toUtf8().constData(),
-            chatEventQueue.size());
 }
 
 void OneSevenLiveCoreManager::flushChatEventQueue() {
-    auto* ws = getWebsocketServer();
-    if (!ws || !ws->is_running())
-        return;
-
-    std::lock_guard<std::mutex> lock(chatQueueMutex);
-
-    if (chatDockClientId.empty())
-        return;
-    auto ids = ws->getConnectedClientIds();
-    if (std::find(ids.begin(), ids.end(), chatDockClientId) == ids.end())
-        return;
-    obs_log(LOG_DEBUG, "[ChatQueue] Flushing %zu events to ChatDock client %s",
-            chatEventQueue.size(), chatDockClientId.c_str());
-    while (!chatEventQueue.empty()) {
-        const auto& m = chatEventQueue.front();
-        // std::string payloadStr = m.payload.dump();
-        // if (payloadStr.size() > 512) {
-        //     payloadStr = payloadStr.substr(0, 512) + "...";
-        // }
-        // obs_log(LOG_INFO, "[ChatQueue] Flush item type=%s payload=%s", m.type.c_str(),
-        //         payloadStr.c_str());
-        ws->sendMessageToClient(chatDockClientId, m.dump());
-        chatEventQueue.pop_front();
+    if (chatBridgeService_) {
+        chatBridgeService_->flushChatEventQueue();
     }
-    obs_log(LOG_DEBUG, "[ChatQueue] Flush complete");
 }
 
 void OneSevenLiveCoreManager::destroyYouTubeChatClient() {
