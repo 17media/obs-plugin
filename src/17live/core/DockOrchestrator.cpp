@@ -79,17 +79,24 @@ void DockOrchestrator::closeAllDocks() {
     if (!coreManager_) {
         return;
     }
+    auto* cfg = coreManager_->configManager.get();
 
     obs_log(LOG_INFO, "closeAllDocks");
 
     const bool streamingVisible = closeAndDeleteDock(coreManager_->streamingDock, coreManager_);
-    coreManager_->configManager->setDockVisibility("streaming", streamingVisible);
+    if (cfg) {
+        cfg->setDockVisibility("streaming", streamingVisible);
+    }
 
     const bool liveListVisible = closeAndDeleteDock(coreManager_->liveListDock, coreManager_);
-    coreManager_->configManager->setDockVisibility("liveList", liveListVisible);
+    if (cfg) {
+        cfg->setDockVisibility("liveList", liveListVisible);
+    }
 
     const bool rockZoneVisible = closeAndDeleteDock(coreManager_->rockZoneDock, coreManager_);
-    coreManager_->configManager->setDockVisibility("rockZone", rockZoneVisible);
+    if (cfg) {
+        cfg->setDockVisibility("rockZone", rockZoneVisible);
+    }
 
     bool chatRoomVisible = false;
     if (coreManager_->chatDock) {
@@ -105,13 +112,19 @@ void DockOrchestrator::closeAllDocks() {
         coreManager_->chatDock->deleteLater();
         coreManager_->chatDock = nullptr;
     }
-    coreManager_->configManager->setDockVisibility("chatRoom", chatRoomVisible);
+    if (cfg) {
+        cfg->setDockVisibility("chatRoom", chatRoomVisible);
+    }
 
     const bool multiRtmpVisible = closeAndDeleteDock(coreManager_->multiRtmpDock, coreManager_);
-    coreManager_->configManager->setDockVisibility("multiRtmp", multiRtmpVisible);
+    if (cfg) {
+        cfg->setDockVisibility("multiRtmp", multiRtmpVisible);
+    }
 
     const bool previewDockVisible = closeAndDeleteDock(coreManager_->previewDock, coreManager_);
-    coreManager_->configManager->setDockVisibility("previewDock", previewDockVisible);
+    if (cfg) {
+        cfg->setDockVisibility("previewDock", previewDockVisible);
+    }
 
     syncMenuDockVisibility();
 }
@@ -133,6 +146,9 @@ void DockOrchestrator::handleStreamingClicked() {
 
 void DockOrchestrator::createStreamingDock() {
     if (!coreManager_ || coreManager_->streamingDock) {
+        return;
+    }
+    if (!coreManager_->mainWindow || !coreManager_->configManager) {
         return;
     }
 
@@ -189,6 +205,9 @@ void DockOrchestrator::createRockZoneDock() {
     if (!coreManager_ || coreManager_->rockZoneDock) {
         return;
     }
+    if (!coreManager_->mainWindow || !coreManager_->configManager) {
+        return;
+    }
 
     OneSevenLiveLoginData loginData;
     if (!coreManager_->configManager->getLoginData(loginData)) {
@@ -239,6 +258,9 @@ void DockOrchestrator::createRockZoneDock() {
 
 void DockOrchestrator::handleLiveListClicked() {
     if (!coreManager_) {
+        return;
+    }
+    if (!coreManager_->mainWindow || !coreManager_->configManager) {
         return;
     }
     obs_log(LOG_INFO, "handleLiveListClicked");
@@ -312,7 +334,8 @@ void DockOrchestrator::handleLiveListClicked() {
 }
 
 void DockOrchestrator::saveDockState() {
-    if (!coreManager_ || !coreManager_->initialized || !coreManager_->mainWindow || !coreManager_->configManager) {
+    if (!coreManager_ || !coreManager_->initialized || !coreManager_->mainWindow ||
+        !coreManager_->configManager) {
         return;
     }
 
@@ -324,6 +347,9 @@ void DockOrchestrator::saveDockState() {
 
 void DockOrchestrator::handleChatRoomClicked() {
     if (!coreManager_) {
+        return;
+    }
+    if (!coreManager_->mainWindow || !coreManager_->configManager) {
         return;
     }
     obs_log(LOG_INFO, "handleChatRoomClicked");
@@ -419,6 +445,9 @@ void DockOrchestrator::createMultiRtmpDock() {
     if (!coreManager_ || coreManager_->multiRtmpDock) {
         return;
     }
+    if (!coreManager_->mainWindow || !coreManager_->configManager) {
+        return;
+    }
 
     OneSevenLiveLoginData loginData;
     if (!coreManager_->configManager->getLoginData(loginData)) {
@@ -462,6 +491,9 @@ void DockOrchestrator::handlePreviewDockClicked() {
 
 void DockOrchestrator::createPreviewDock() {
     if (!coreManager_ || coreManager_->previewDock) {
+        return;
+    }
+    if (!coreManager_->mainWindow) {
         return;
     }
 
