@@ -11,6 +11,8 @@
 #include <sstream>
 #include <vector>
 
+#include <QString>
+
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
@@ -81,15 +83,6 @@ OneSevenLiveHttpServer::~OneSevenLiveHttpServer() {
 
     // Ensure server is completely stopped and thread properly terminated
     stop();
-
-    // Additional safety check: ensure thread has completely finished
-    if (server_thread_ && server_thread_->joinable()) {
-        obs_log(LOG_WARNING,
-                "[%s] Thread still joinable in destructor, forcing thread termination "
-                "wait",
-                name_.c_str());
-        server_thread_->join();
-    }
 
     obs_log(LOG_INFO, "[%s] HTTP server successfully destroyed", name_.c_str());
 }
@@ -528,8 +521,8 @@ bool OneSevenLiveHttpServer::start() {
         });
     }
 
-    // Start server in new thread to avoid blocking main thread
-    server_thread_ = std::make_unique<std::thread>([this]() {
+    // Start server in a Qt thread to align with OBS frontend (Qt) threading model
+    server_thread_ = QThread::create([this]() {
         try {
             if (port_ == 0) {
                 // Bind to any available port if port_ is 0
@@ -564,11 +557,9 @@ bool OneSevenLiveHttpServer::start() {
             running_ = false;
         }
     });
-
-    // Wait a bit to see if server can start successfully. This is not perfect, but can catch some
-    // immediate errors. A better approach would be to use condition variables or futures to wait
-    // for server to actually start listening.
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    server_thread_->setObjectName(QString("17live-http-%1").arg(QString::fromStdString(name_)));
+    QObject::connect(server_thread_, &QThread::finished, server_thread_, &QObject::deleteLater);
+    server_thread_->start();
 
     // listen failure will print logs within thread, but we assume it will start here
     // is_running() depends on svr_.is_running(), but listen is blocking, so svr_.is_running() may
@@ -608,36 +599,22 @@ void OneSevenLiveHttpServer::setEnableDefaultApi(bool enable) {
 }
 
 void OneSevenLiveHttpServer::stop() {
-    if (running_) {
-        obs_log(LOG_INFO, "[%s] Stopping server...", name_.c_str());
-        svr_.stop();  // Stop server listening
-        if (server_thread_ && server_thread_->joinable()) {
-            server_thread_->join();  // Wait for server thread to end
-        }
-        server_thread_.reset();
-        running_ = false;
-        obs_log(LOG_INFO, "[%s] Server stopped.", name_.c_str());
-    } else {
-        // obs_log(LOG_INFO, "[%s] Server not running or already stopped.", name_.c_str());
+    if (!running_ && !server_thread_) {
+        return;
     }
+
+    obs_log(LOG_INFO, "[%s] Stopping server...", name_.c_str());
+    svr_.stop();
+    if (server_thread_) {
+        server_thread_->wait(5000);
+        server_thread_ = nullptr;
+    }
+    running_ = false;
+    obs_log(LOG_INFO, "[%s] Server stopped.", name_.c_str());
 }
 
 void OneSevenLiveHttpServer::stopAsync() {
-    if (!running_ || stopping_.load()) {
-        return;
-    }
-    stopping_.store(true);
-    obs_log(LOG_INFO, "[%s] Stopping server...", name_.c_str());
-    svr_.stop();
-    std::thread([this]() {
-        if (server_thread_ && server_thread_->joinable()) {
-            server_thread_->join();
-        }
-        server_thread_.reset();
-        running_ = false;
-        stopping_.store(false);
-        obs_log(LOG_INFO, "[%s] Server stopped.", name_.c_str());
-    }).detach();
+    stop();
 }
 
 bool OneSevenLiveHttpServer::is_running() const {

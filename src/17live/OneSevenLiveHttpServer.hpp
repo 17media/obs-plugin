@@ -7,9 +7,11 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <vector>
+
+#include <QPointer>
+#include <QThread>
 
 #include "../../deps/cpp-httplib/httplib.h"
 
@@ -47,7 +49,7 @@ class OneSevenLiveHttpServer {
     std::string host_;
     int port_ = 0;  // Default to 0, meaning find an available port
     std::string base_dir_;
-    std::unique_ptr<std::thread> server_thread_;
+    QPointer<QThread> server_thread_;
     bool running_ = false;
     std::atomic<bool> stopping_{false};
 

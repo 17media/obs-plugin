@@ -3,14 +3,14 @@
 #include <obs-module.h>
 #include <obs.h>
 
-#include <QTimer>
 #include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <thread>
+#include <QPointer>
+#include <QTimer>
 
 #include "OneSevenLiveMultiRtmpModels.hpp"
 #include "plugin-support.h"
@@ -116,7 +116,6 @@ class OneSevenLiveMultiRtmpStreamController {
     static void outputReconnectSuccessCallback(void* data, calldata_t* cd);
 
     // Statistics monitoring
-    void statsMonitoringThread();
     void collectStreamStats(const std::string& streamId, StreamOutput& streamOutput);
 
     // Helper methods
@@ -161,8 +160,8 @@ class OneSevenLiveMultiRtmpStreamController {
 
     // Statistics monitoring
     std::atomic<bool> m_statsMonitoringActive{false};
-    std::thread m_statsThread;
-    std::mutex m_statsThreadMutex;
+    QPointer<QTimer> m_statsTimer;
+    std::mutex m_statsTimerMutex;
     std::atomic<bool> m_shuttingDown{false};
 
     // Constants

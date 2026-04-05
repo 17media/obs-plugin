@@ -13,7 +13,6 @@
 #include <QString>
 #include <QTimer>
 #include <chrono>
-#include <thread>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
@@ -509,27 +508,78 @@ void OneSevenLiveMultiRtmpStreamController::setStreamStatsCallback(StreamStatsCa
 }
 
 void OneSevenLiveMultiRtmpStreamController::startStatsMonitoring() {
-    std::lock_guard<std::mutex> lock(m_statsThreadMutex);
+    std::lock_guard<std::mutex> lock(m_statsTimerMutex);
 
-    if (m_statsMonitoringActive) {
+    if (m_statsMonitoringActive || m_statsTimer) {
         return;
     }
 
     m_statsMonitoringActive = true;
-    m_statsThread =
-        std::thread(&OneSevenLiveMultiRtmpStreamController::statsMonitoringThread, this);
+    QTimer* timer = new QTimer(QCoreApplication::instance());
+    timer->setInterval(STATS_UPDATE_INTERVAL_MS);
+    QObject::connect(timer, &QTimer::timeout, [this]() {
+        if (!m_statsMonitoringActive || m_shuttingDown.load()) {
+            return;
+        }
+
+        StreamStatsCallback cb;
+        {
+            std::lock_guard<std::mutex> lock(m_callbackMutex);
+            cb = m_statsCallback;
+        }
+
+        if (!cb) {
+            return;
+        }
+
+        std::vector<std::pair<std::string, OneSevenLiveMultiRtmpStreamStats>> updates;
+        {
+            std::lock_guard<std::mutex> lock(m_outputsMutex);
+            updates.reserve(m_streamOutputs.size());
+            for (auto& [streamId, streamOutput] : m_streamOutputs) {
+                if (streamOutput->output &&
+                    (streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::CONNECTING ||
+                     streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::STREAMING ||
+                     streamOutput->status.state ==
+                         OneSevenLiveMultiRtmpStreamStatus::RECONNECTING)) {
+                    collectStreamStats(streamId, *streamOutput);
+                    updates.emplace_back(streamId, streamOutput->stats);
+                }
+            }
+        }
+
+        for (const auto& [streamId, stats] : updates) {
+            cb(streamId, stats);
+        }
+    });
+    timer->start();
+    m_statsTimer = timer;
 
     MULTI_RTMP_STREAM_LOG_INFO("Statistics monitoring started");
 }
 
 void OneSevenLiveMultiRtmpStreamController::stopStatsMonitoring() {
+    QPointer<QTimer> timer;
     {
-        std::lock_guard<std::mutex> lock(m_statsThreadMutex);
+        std::lock_guard<std::mutex> lock(m_statsTimerMutex);
         m_statsMonitoringActive = false;
+        timer = m_statsTimer;
+        m_statsTimer = nullptr;
     }
 
-    if (m_statsThread.joinable()) {
-        m_statsThread.join();
+    if (timer) {
+        if (timer->thread() == QThread::currentThread()) {
+            timer->stop();
+            timer->deleteLater();
+        } else {
+            QMetaObject::invokeMethod(
+                timer,
+                [timer]() {
+                    timer->stop();
+                    timer->deleteLater();
+                },
+                Qt::QueuedConnection);
+        }
     }
 
     MULTI_RTMP_STREAM_LOG_INFO("Statistics monitoring stopped");
@@ -901,29 +951,6 @@ void OneSevenLiveMultiRtmpStreamController::outputReconnectSuccessCallback(void*
             MULTI_RTMP_STREAM_LOG_INFO("Stream reconnected successfully: %s", streamId.c_str());
             break;
         }
-    }
-}
-
-void OneSevenLiveMultiRtmpStreamController::statsMonitoringThread() {
-    while (m_statsMonitoringActive) {
-        {
-            std::lock_guard<std::mutex> lock(m_outputsMutex);
-            for (auto& [streamId, streamOutput] : m_streamOutputs) {
-                if (streamOutput->output &&
-                    (streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::CONNECTING ||
-                     streamOutput->status.state == OneSevenLiveMultiRtmpStreamStatus::STREAMING ||
-                     streamOutput->status.state ==
-                         OneSevenLiveMultiRtmpStreamStatus::RECONNECTING)) {
-                    collectStreamStats(streamId, *streamOutput);
-
-                    if (m_statsCallback) {
-                        m_statsCallback(streamId, streamOutput->stats);
-                    }
-                }
-            }
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(STATS_UPDATE_INTERVAL_MS));
     }
 }
 
@@ -1529,4 +1556,5 @@ std::string OneSevenLiveMultiRtmpStreamController::getRecommendedTwitchServer() 
 // removed global stop aggregation; rely on manager to orchestrate destroy after stop
 void OneSevenLiveMultiRtmpStreamController::beginShutdown() {
     m_shuttingDown.store(true);
+    stopStatsMonitoring();
 }

@@ -8,6 +8,8 @@
 #include <random>
 #include <sstream>
 
+#include <QString>
+
 // System headers for socket operations
 #ifdef _WIN32
 #include <winsock2.h>
@@ -30,14 +32,6 @@ OneSevenLiveWebsocketServer::~OneSevenLiveWebsocketServer() {
 
     // Ensure server is completely stopped and thread properly terminated
     stop();
-
-    // Additional safety check: ensure thread has completely finished
-    if (server_thread_ && server_thread_->joinable()) {
-        obs_log(LOG_WARNING,
-                "[17Live WebSocket Server] Thread still joinable in destructor, forcing thread "
-                "termination wait");
-        server_thread_->join();
-    }
 
     obs_log(LOG_INFO, "[17Live WebSocket Server] WebSocket server successfully destroyed");
 }
@@ -86,8 +80,8 @@ bool OneSevenLiveWebsocketServer::start() {
 
         server_->set_fail_handler([this](websocketpp::connection_hdl hdl) { onFail(hdl); });
 
-        // Start server in new thread to avoid blocking main thread
-        server_thread_ = std::make_unique<std::thread>([this, actual_port]() {
+        // Start server in a Qt thread to align with OBS frontend (Qt) threading model
+        server_thread_ = QThread::create([this, actual_port]() {
             try {
                 obs_log(LOG_INFO, "[17Live WebSocket Server] Starting server on %s:%d",
                         host_.c_str(), actual_port);
@@ -112,9 +106,9 @@ bool OneSevenLiveWebsocketServer::start() {
                 running_ = false;
             }
         });
-
-        // Wait a bit to see if server can start successfully
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        server_thread_->setObjectName(QString("17live-ws-server-%1").arg(actual_port));
+        QObject::connect(server_thread_, &QThread::finished, server_thread_, &QObject::deleteLater);
+        server_thread_->start();
 
         running_ = true;
         obs_log(LOG_INFO, "[17Live WebSocket Server] Server thread started successfully");
@@ -128,7 +122,7 @@ bool OneSevenLiveWebsocketServer::start() {
 }
 
 void OneSevenLiveWebsocketServer::stop() {
-    if (!running_) {
+    if (!running_ && !server_thread_) {
         return;
     }
 
@@ -158,8 +152,9 @@ void OneSevenLiveWebsocketServer::stop() {
     }
 
     // Wait for server thread to finish
-    if (server_thread_ && server_thread_->joinable()) {
-        server_thread_->join();
+    if (server_thread_) {
+        server_thread_->wait(5000);
+        server_thread_ = nullptr;
     }
 
     obs_log(LOG_INFO, "[17Live WebSocket Server] WebSocket server stopped");

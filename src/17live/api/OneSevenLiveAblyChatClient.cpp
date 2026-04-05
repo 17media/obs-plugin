@@ -6,10 +6,10 @@
 #include <QDateTime>
 #include <QMetaObject>
 #include <QPointer>
+#include <QThread>
 #include <QTimer>
 #include <QUrl>
 #include <optional>
-#include <thread>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
@@ -458,7 +458,7 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
     // Use QPointer to track object validity
     QPointer<OneSevenLiveAblyChatClient> self(this);
 
-    std::thread([self, rid, callback, authCb, api]() {
+    QThread* t = QThread::create([self, rid, callback, authCb, api]() {
         nlohmann::json resp;
         bool success = false;
 
@@ -507,5 +507,7 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
                     callback(false);
             },
             Qt::QueuedConnection);
-    }).detach();
+    });
+    QObject::connect(t, &QThread::finished, t, &QObject::deleteLater);
+    t->start();
 }
