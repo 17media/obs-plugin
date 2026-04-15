@@ -80,7 +80,7 @@ cmake --install build_macos --config Release --prefix "$PWD/dist-install"
 # CI also exports non-installer zip containing:
 #   obs-17live.plugin
 # copy this bundle directly into:
-#   /Library/Application Support/obs-studio/plugins
+#   ~/Library/Application Support/obs-studio/plugins
 
 cmake --preset windows-x64 ^
   -DYOUTUBE_API_CLIENT_ID="%YOUTUBE_API_CLIENT_ID%" ^

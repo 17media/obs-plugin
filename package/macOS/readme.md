@@ -1,8 +1,8 @@
 # package for macOS
 
-This project ships a system-wide `.pkg` (requires admin password) that installs the plugin into the OBS global plugin directory:
+This project ships a `.pkg` (requires admin password) that installs the plugin into the OBS user plugin directory:
 
-`/Library/Application Support/obs-studio/plugins`
+`~/Library/Application Support/obs-studio/plugins`
 
 That directory is shared by both the official OBS build and the Steam OBS build, so the same installer works for both.
 

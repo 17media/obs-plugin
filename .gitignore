@@ -69,6 +69,7 @@ ccache/
 .deps/
 
 dist/
+dist-install/
 data/html/
 
 # for web react app
