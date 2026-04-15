@@ -5,7 +5,7 @@
         hostArchitectures="arm64,x86_64"
         customize="never"
         allow-external-scripts="no" />
-    <domains enable_currentUserHome="false" enable_anywhere="false" enable_localSystem="true" />
+    <domains enable_currentUserHome="true" enable_anywhere="false" enable_localSystem="false" />
     <title>@CMAKE_PROJECT_NAME@</title>
     <choices-outline>
         <line choice="obs-plugin" />
@@ -29,6 +29,16 @@
                 return false;
             }
 
+            var legacyPluginPath = '/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin';
+            if (system.files.fileExistsAtPath(legacyPluginPath)) {
+                my.result.title = 'Legacy OBS.app installation detected';
+                my.result.message =
+                    'A previous version of this plugin was found inside the official OBS.app bundle:\\n' +
+                    legacyPluginPath + '\\n\\n' +
+                    'To avoid duplicate plugin loading, remove it by running the optional cleanup script, then restart OBS.\\n' +
+                    '(The installer will continue without removing it.)';
+                my.result.type = 'Warning';
+            }
+
         }
     </script>
-</installer-gui-script>

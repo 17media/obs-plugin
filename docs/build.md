@@ -59,7 +59,7 @@ Then open the generated Xcode project `build_macos/obs-17live.xcodeproj`. Build 
 
 - There are no `*-prod` presets. CI uses the same presets and injects environment-specific values
   via `-D` arguments and GitHub Actions environment variables.
-- The Steam version of OBS is essentially OBS Studio. To ensure compatibility with both the official and Steam versions, the installer no longer relies on OBS’s installation directory; instead, it installs into OBS’s global plugin directories (which OBS automatically scans).
+- The Steam version of OBS is essentially OBS Studio. To ensure compatibility with both the official and Steam versions, the installer no longer relies on OBS’s installation directory; instead, it installs into OBS’s user plugin directory (which OBS automatically scans).
 - Key injected variables:
   - `ONESEVENLIVE_API_URL` (GitHub Actions env/vars)
   - `CMAKE_PROJECT_VERSION` (derived from git tag or workflow input)
