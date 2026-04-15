@@ -113,28 +113,45 @@ try {
             Write-Host "✓ Installer moved to: $(Join-Path $OutputDir $InstallerName)" -ForegroundColor Green
         }
 
-        # Package non-installer zip from rundir contents
+        # Package non-installer zip with plugin directory layout.
+        # The zip root is "obs-17live", so users can extract and copy directly to:
+        # %ProgramData%\obs-studio\plugins
         Write-Host "Packaging non-installer zip..." -ForegroundColor Yellow
         $ZipFolderName = "17liveOBSPlugin-windows-$VersionTag"
         $StagingRoot = Join-Path $OutputDir $ZipFolderName
         if (Test-Path $StagingRoot) {
             Remove-Item $StagingRoot -Recurse -Force
         }
-        New-Item -ItemType Directory -Path $StagingRoot -Force | Out-Null
+        $PluginRoot = Join-Path $StagingRoot "obs-17live"
+        $PluginBinDir = Join-Path $PluginRoot "bin\64bit"
+        $PluginDataDir = Join-Path $PluginRoot "data"
+        New-Item -ItemType Directory -Path $PluginBinDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $PluginDataDir -Force | Out-Null
 
-        # Copy the contents of rundir into the staging root (no extra nested directory)
+        # Copy plugin binaries
         if (!(Test-Path $BuildDir -PathType Container)) {
             Write-Error "BuildDir not found for zip packaging: $BuildDir"
             exit 1
         }
-        Copy-Item -Path "$BuildDir\*" -Destination $StagingRoot -Recurse -Force
+        Copy-Item -Path (Join-Path $BuildDir "obs-17live.dll") -Destination $PluginBinDir -Force
+        if (Test-Path (Join-Path $BuildDir "obs-17live.pdb")) {
+            Copy-Item -Path (Join-Path $BuildDir "obs-17live.pdb") -Destination $PluginBinDir -Force
+        }
+
+        # Copy plugin data directory
+        $BuildDataDir = Join-Path $BuildDir "obs-17live"
+        if (!(Test-Path $BuildDataDir -PathType Container)) {
+            Write-Error "Plugin data directory not found for zip packaging: $BuildDataDir"
+            exit 1
+        }
+        Copy-Item -Path "$BuildDataDir\*" -Destination $PluginDataDir -Recurse -Force
 
         $ZipName = "17liveOBSPlugin-windows-$VersionTag-non-installer.zip"
         $ZipPath = Join-Path $OutputDir $ZipName
         if (Test-Path $ZipPath) {
             Remove-Item $ZipPath -Force
         }
-        Compress-Archive -Path $StagingRoot -DestinationPath $ZipPath
+        Compress-Archive -Path $PluginRoot -DestinationPath $ZipPath
         Write-Host "✓ Non-installer zip created: $ZipPath" -ForegroundColor Green
     } else {
         Write-Error "NSIS build failed with exit code: $($Process.ExitCode)"

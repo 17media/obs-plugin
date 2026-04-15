@@ -12,8 +12,14 @@ A plugin for OBS Studio that enables seamless integration with 17LIVE streaming 
 
 ## Installation
 
+The Steam version of OBS is also OBS Studio; this plugin is compatible with both the official and Steam editions by installing into OBS's plugin directory.
 1. Download the latest release of the plugin
-2. Extract the contents to your OBS plugins directory
+2. Install:
+   - macOS: run the `.pkg` (installs to `/Library/Application Support/obs-studio/plugins`, requires admin password)
+   - Windows: run the `.exe` (installs to `%ProgramData%\obs-studio\plugins`)
+   - non-installer zip:
+     - macOS: unzip and copy `obs-17live.plugin` to `/Library/Application Support/obs-studio/plugins`
+     - Windows: unzip and copy `obs-17live` to `%ProgramData%\obs-studio\plugins`
 3. Restart OBS Studio
 4. The plugin will appear under Tools menu as "17LIVE Settings"
 

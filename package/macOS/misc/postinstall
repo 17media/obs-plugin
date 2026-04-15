@@ -1,11 +1,15 @@
 #!/bin/bash
 
-PLUGINS_DIR="/Applications/OBS.app/Contents/PlugIns"
 PLUGIN_NAME="obs-17live.plugin"
 
+TARGET_VOLUME="$3"
+PLUGINS_DIR="${TARGET_VOLUME%/}/Library/Application Support/obs-studio/plugins"
+
 # Set plugin directory permissions
-chmod 755 "$PLUGINS_DIR"
-echo "Set permissions for plugin directory: $PLUGINS_DIR"
+if [ -d "$PLUGINS_DIR" ]; then
+  chmod 755 "$PLUGINS_DIR"
+  echo "Set permissions for plugin directory: $PLUGINS_DIR"
+fi
 
 # Set plugin file permissions
 if [ -d "$PLUGINS_DIR/$PLUGIN_NAME" ]; then

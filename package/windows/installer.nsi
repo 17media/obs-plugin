@@ -8,7 +8,6 @@
 !define PACKAGE_ID "OneSevenLive.ObsPlugin"
 !define PACKAGE_NAME "OneSevenLiveOBSPlugin"
 !define UPGRADE_CODE "b81d9705-e5b2-475f-8de8-4d02d297c073"
-!define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\obs-17live-plugin"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\17LiveOBSPlugin"
 !define PRODUCT_UNINST_ROOT_KEY "HKLM"
 
@@ -22,8 +21,7 @@ SetCompressor lzma
 ; General
 Name "${PRODUCT_NAME}"
 OutFile "17liveOBSPlugin-windows-v${PRODUCT_VERSION}.exe"
-InstallDir "C:\Program Files\obs-studio"
-InstallDirRegKey HKLM "Software\OBS Studio" ""
+InstallDir "$COMMONAPPDATA\obs-studio\plugins"
 ShowInstDetails show
 ShowUnInstDetails show
 RequestExecutionLevel admin
@@ -41,8 +39,6 @@ RequestExecutionLevel admin
 !insertmacro MUI_PAGE_LICENSE "..\..\LICENSE"
 
 ; Directory page
-!insertmacro MUI_PAGE_DIRECTORY
-
 ; Instfiles page
 !insertmacro MUI_PAGE_INSTFILES
 
@@ -51,7 +47,7 @@ RequestExecutionLevel admin
 ; !define MUI_FINISHPAGE_RUN_TEXT "Launch OBS Studio"
 ; !define MUI_FINISHPAGE_RUN "$INSTDIR\bin\64bit\obs64.exe"
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "View Release Notes"
-!define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\data\obs-plugins\obs-17live\README.txt"
+!define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\obs-17live\README.txt"
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller pages
@@ -77,50 +73,21 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductVersion" "${PRODUCT_VERSION}"
 
 ; Installer Sections
 Section "MainSection" SEC01
-  ; Check if OBS Studio exists in the selected installation directory
-  ; This supports both installed and portable versions of OBS Studio
-  
-  ; Check for OBS Studio executable in the selected directory
-  IfFileExists "$INSTDIR\bin\64bit\obs64.exe" obs_found_in_instdir check_registry
-  
-  check_registry:
-    ; If not found in selected directory, try to find from registry (for auto-detection)
-    ReadRegStr $0 HKLM "Software\OBS Studio" ""
-    StrCmp $0 "" try_wow6432 registry_found
-    
-    try_wow6432:
-      ; Try to read from WOW6432Node (32-bit apps on 64-bit system)
-      ReadRegStr $0 HKLM "Software\WOW6432Node\OBS Studio" ""
-      StrCmp $0 "" obs_not_found registry_found
-    
-    registry_found:
-      ; Update INSTDIR to the path found in registry
-      StrCpy $INSTDIR $0
-      IfFileExists "$INSTDIR\bin\64bit\obs64.exe" obs_found_in_registry obs_not_found
-    
-    obs_not_found:
-      MessageBox MB_YESNO|MB_ICONQUESTION "OBS Studio not found in the selected directory ($INSTDIR).$\n$\nThis plugin requires OBS Studio to be installed.$\nDo you want to continue anyway?" IDYES continue_install
-      Abort
-    
-    continue_install:
-    obs_found_in_instdir:
-    obs_found_in_registry:
-  
-  SetOutPath "$INSTDIR"
   SetOverwrite ifnewer
-  
-  ; Install plugin DLL and PDB files to obs-plugins\64bit
-  SetOutPath "$INSTDIR\obs-plugins\64bit"
+
+  ; Install to the OBS plugin directory under ProgramData.
+  ; This works for both the official OBS build and the Steam OBS build.
+  SetOutPath "$INSTDIR\obs-17live\bin\64bit"
   File "..\..\build_x64\rundir\Release\obs-17live.dll"
   File "..\..\build_x64\rundir\Release\obs-17live.pdb"
   
-  ; Install data directory to data\obs-plugins
-  SetOutPath "$INSTDIR\data\obs-plugins"
-  File /r "..\..\build_x64\rundir\Release\obs-17live"
+  ; Install data directory
+  SetOutPath "$INSTDIR\obs-17live\data"
+  File /r "..\..\build_x64\rundir\Release\obs-17live\*"
   
   ; Create README file
-  SetOutPath "$INSTDIR\data\obs-plugins\obs-17live"
-  FileOpen $0 "$INSTDIR\data\obs-plugins\obs-17live\README.txt" w
+  SetOutPath "$INSTDIR\obs-17live"
+  FileOpen $0 "$INSTDIR\obs-17live\README.txt" w
   FileWrite $0 "17Live OBS Plugin v${PRODUCT_VERSION}$\r$\n"
   FileWrite $0 "================================$\r$\n$\r$\n"
   FileWrite $0 "Thank you for installing the 17Live OBS Plugin!$\r$\n$\r$\n"
@@ -128,10 +95,6 @@ Section "MainSection" SEC01
   FileWrite $0 "For support and documentation, visit: ${PRODUCT_WEB_SITE}$\r$\n$\r$\n"
   FileWrite $0 "Installation completed successfully.$\r$\n"
   FileClose $0
-  
-  ; Create start menu shortcuts
-  CreateDirectory "$SMPROGRAMS\17Live OBS Plugin"
-  CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\17Live OBS Plugin.lnk" "$INSTDIR\bin\64bit\obs64.exe"
   
   ; Write registry entries
   WriteRegStr HKLM "Software\17Live\OBSPlugin" "InstallPath" "$INSTDIR"
@@ -143,6 +106,7 @@ Section "MainSection" SEC01
 SectionEnd
 
 Section -AdditionalIcons
+  CreateDirectory "$SMPROGRAMS\17Live OBS Plugin"
   WriteIniStr "$INSTDIR\17live.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
   CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "$INSTDIR\17live.url"
   CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk" "$INSTDIR\uninst.exe"
@@ -150,7 +114,6 @@ SectionEnd
 
 Section -Post
   WriteUninstaller "$INSTDIR\uninst.exe"
-  WriteRegStr HKLM "${PRODUCT_DIR_REGKEY}" "" "$INSTDIR\obs-17live-plugin.exe"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "${PRODUCT_NAME}"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\uninst.exe"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
@@ -161,29 +124,23 @@ Section -Post
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UpgradeCode" "${UPGRADE_CODE}"
   
   ; Calculate and write install size
-  ${GetSize} "$INSTDIR\obs-plugins\64bit" "/S=0K" $0 $1 $2
-  ${GetSize} "$INSTDIR\data\obs-plugins\obs-17live" "/S=0K" $3 $1 $2
-  IntOp $0 $0 + $3
+  ${GetSize} "$INSTDIR\obs-17live" "/S=0K" $0 $1 $2
   WriteRegDWORD ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "EstimatedSize" $0
 SectionEnd
 
 ; Uninstaller Section
 Section Uninstall
   ; Remove plugin files
-  Delete "$INSTDIR\obs-plugins\64bit\obs-17live.dll"
-  Delete "$INSTDIR\obs-plugins\64bit\obs-17live.pdb"
-  RMDir /r "$INSTDIR\data\obs-plugins\obs-17live"
+  RMDir /r "$INSTDIR\obs-17live"
   
   ; Remove shortcuts and registry entries
   Delete "$INSTDIR\17live.url"
   Delete "$INSTDIR\uninst.exe"
-  Delete "$SMPROGRAMS\17Live OBS Plugin\17Live OBS Plugin.lnk"
   Delete "$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk"
   Delete "$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
   RMDir "$SMPROGRAMS\17Live OBS Plugin"
   
   DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
-  DeleteRegKey HKLM "${PRODUCT_DIR_REGKEY}"
   DeleteRegKey HKLM "Software\17Live\OBSPlugin"
   
   SetAutoClose true

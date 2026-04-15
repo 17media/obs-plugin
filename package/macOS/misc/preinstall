@@ -1,0 +1,21 @@
+#!/bin/bash
+
+LEGACY_APP_PLUGIN="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin"
+
+if [ -d "$LEGACY_APP_PLUGIN" ]; then
+  rm -rf "$LEGACY_APP_PLUGIN"
+fi
+
+CONSOLE_USER="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null || true)"
+if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
+  USER_PLUGIN="$HOME/Library/Application Support/obs-studio/plugins/obs-17live.plugin"
+  USER_PLUGIN_PATH="/Users/$CONSOLE_USER/Library/Application Support/obs-studio/plugins/obs-17live.plugin"
+
+  if [ -d "$USER_PLUGIN_PATH" ]; then
+    rm -rf "$USER_PLUGIN_PATH"
+  elif [ -d "$USER_PLUGIN" ]; then
+    rm -rf "$USER_PLUGIN"
+  fi
+fi
+
+exit 0

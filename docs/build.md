@@ -59,6 +59,7 @@ Then open the generated Xcode project `build_macos/obs-17live.xcodeproj`. Build 
 
 - There are no `*-prod` presets. CI uses the same presets and injects environment-specific values
   via `-D` arguments and GitHub Actions environment variables.
+- The Steam version of OBS is essentially OBS Studio. To ensure compatibility with both the official and Steam versions, the installer no longer relies on OBS’s installation directory; instead, it installs into OBS’s global plugin directories (which OBS automatically scans).
 - Key injected variables:
   - `ONESEVENLIVE_API_URL` (GitHub Actions env/vars)
   - `CMAKE_PROJECT_VERSION` (derived from git tag or workflow input)
@@ -74,6 +75,13 @@ cmake --preset macos \
 
 cmake --build --preset macos --config Release
 
+cmake --install build_macos --config Release --prefix "$PWD/dist-install"
+# macOS pkg: dist-install/obs-17live.pkg
+# CI also exports non-installer zip containing:
+#   obs-17live.plugin
+# copy this bundle directly into:
+#   /Library/Application Support/obs-studio/plugins
+
 cmake --preset windows-x64 ^
   -DYOUTUBE_API_CLIENT_ID="%YOUTUBE_API_CLIENT_ID%" ^
   -DYOUTUBE_API_CLIENT_SECRET="%YOUTUBE_API_CLIENT_SECRET%" ^
@@ -82,4 +90,11 @@ cmake --preset windows-x64 ^
   -DCMAKE_PROJECT_VERSION="%VERSION%"
 
 cmake --build --preset windows-x64 --config Release
+# Windows installer is built from package/windows and installs into:
+# %ProgramData%\obs-studio\plugins\obs-17live
+# CI also exports non-installer zip containing:
+#   obs-17live/bin/64bit/obs-17live.dll
+#   obs-17live/data/...
+# copy the extracted obs-17live folder directly into:
+#   %ProgramData%\obs-studio\plugins
 ```

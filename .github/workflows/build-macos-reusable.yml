@@ -157,28 +157,41 @@ jobs:
       - name: Create pkg
         run: |
           PKG_NAME="17liveOBSPlugin-${{ inputs.arch_name }}-v${VERSION}${PKG_SUFFIX}.pkg"
-          
-          # Use sudo if specified
-          if [ "${{ inputs.use_sudo }}" == "true" ]; then
-            sudo pkgbuild --root build_macos/Release \
-                          --identifier com.17live.obsplugin \
-                          --version "$VERSION" \
-                          --install-location "/Applications/OBS.app/Contents/PlugIns" \
-                          --scripts package/macOS/misc \
-                          "$PKG_NAME"
-          else
-            pkgbuild --root build_macos/Release \
-                     --identifier com.17live.obsplugin \
-                     --version "$VERSION" \
-                     --install-location "/Applications/OBS.app/Contents/PlugIns" \
-                     --scripts package/macOS/misc \
-                     "$PKG_NAME"
+          ZIP_NAME="17liveOBSPlugin-${{ inputs.arch_name }}-v${VERSION}${PKG_SUFFIX}-non-installer.zip"
+
+          INSTALL_PREFIX="$PWD/dist-install"
+          rm -rf "$INSTALL_PREFIX"
+
+          cmake --install build_macos --config Release --prefix "$INSTALL_PREFIX"
+
+          PKG_SRC="$INSTALL_PREFIX/obs-17live.pkg"
+          if [ ! -f "$PKG_SRC" ]; then
+            echo "Expected pkg not found at: $PKG_SRC"
+            find "$INSTALL_PREFIX" -maxdepth 2 -type f -name "*.pkg" -print || true
+            exit 1
           fi
-          
+
+          mv "$PKG_SRC" "$PKG_NAME"
+
+          PLUGIN_BUNDLE="build_macos/rundir/Release/obs-17live.plugin"
+          if [ ! -d "$PLUGIN_BUNDLE" ]; then
+            echo "Expected plugin bundle not found at: $PLUGIN_BUNDLE"
+            find "build_macos/rundir/Release" -maxdepth 2 -name "*.plugin" -print || true
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$PLUGIN_BUNDLE" "$ZIP_NAME"
+
           echo "PKG_NAME=$PKG_NAME" >> $GITHUB_ENV
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
       - name: Upload pkg
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
           path: ${{ env.PKG_NAME }}
+
+      - name: Upload non-installer zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}-non-installer-zip
+          path: ${{ env.ZIP_NAME }}
