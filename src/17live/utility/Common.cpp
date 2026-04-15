@@ -120,10 +120,8 @@ static Result<std::string> ExecuteCommandResult(const char* cmd) {
 #endif
 
         if (!pipe) {
-            return Result<std::string>::Err(ResultError{.code = "IO.ExecFailed",
-                                                        .message = "Error executing command",
-                                                        .retryable = false,
-                                                        .detail = cmd});
+            return Result<std::string>::Err(
+                ResultError{"IO.ExecFailed", "Error executing command", false, cmd});
         }
 
 #ifdef _WIN32
@@ -150,20 +148,12 @@ static Result<std::string> ExecuteCommandResult(const char* cmd) {
         return Result<std::string>::Ok(std::move(result));
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "[obs-17live]: ExecuteCommandAndGetOutput exception: %s", e.what());
-        return Result<std::string>::Err(ResultError{
-            .code = "State.Exception",
-            .message = "Exception occurred during command execution",
-            .retryable = false,
-            .detail = e.what(),
-        });
+        return Result<std::string>::Err(
+            ResultError{"State.Exception", "Exception occurred during command execution", false, e.what()});
     } catch (...) {
         obs_log(LOG_ERROR, "[obs-17live]: ExecuteCommandAndGetOutput unknown exception");
-        return Result<std::string>::Err(ResultError{
-            .code = "State.Exception",
-            .message = "Unknown exception occurred during command execution",
-            .retryable = false,
-            .detail = "",
-        });
+        return Result<std::string>::Err(
+            ResultError{"State.Exception", "Unknown exception occurred during command execution", false, ""});
     }
 }
 
