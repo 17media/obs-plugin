@@ -184,7 +184,7 @@ jobs:
 
           echo "PKG_NAME=$PKG_NAME" >> $GITHUB_ENV
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-          ./package/macOS/build-uninstall-legacy-pkg.sh "$VERSION" "$UNINSTALL_PKG_NAME"
+          bash ./package/macOS/build-uninstall-legacy-pkg.sh "$VERSION" "$UNINSTALL_PKG_NAME"
           echo "UNINSTALL_PKG_NAME=$UNINSTALL_PKG_NAME" >> $GITHUB_ENV
 
       - name: Upload pkg

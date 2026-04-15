@@ -238,7 +238,7 @@ jobs:
               exit 1
             fi
             ditto -c -k --sequesterRsrc --keepParent "$PLUGIN_BUNDLE" "$ZIP_NAME"
-            ./package/macOS/build-uninstall-legacy-pkg.sh "$VERSION" "$UNINSTALL_PKG_NAME"
+            bash ./package/macOS/build-uninstall-legacy-pkg.sh "$VERSION" "$UNINSTALL_PKG_NAME"
             
             # Sign the package if certificate is available
             if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
