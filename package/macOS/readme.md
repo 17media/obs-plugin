@@ -16,6 +16,12 @@ Optional cleanup script:
 ./package/macOS/uninstall-legacy.sh
 ```
 
+Optional GUI uninstaller (pkg, requires admin password):
+
+```bash
+./package/macOS/build-uninstall-legacy-pkg.sh 1.0.0 obs-17live-uninstall-legacy.pkg
+```
+
 ```bash
 cd {project_base_path}
 
