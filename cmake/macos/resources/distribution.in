@@ -40,5 +40,7 @@
                 my.result.type = 'Warning';
             }
 
+            return true;
         }
     </script>
+</installer-gui-script>
