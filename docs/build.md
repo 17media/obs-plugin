@@ -37,6 +37,26 @@ Then open the generated solution file `build_x64\obs-17live.sln` in Visual Studi
 
 **Note: Debug builds are not supported by obs-studio. Use `Release` or `RelWithDebInfo`.**
 
+### Packaging (manual)
+
+To build the Windows installer (`.exe`) manually, you need NSIS installed (so `makensis.exe` is available).
+
+Build the plugin with `Release` (the installer script defaults to `build_x64\rundir\Release`):
+
+```powershell
+cmake --preset windows-x64
+cmake --build --preset windows-x64 --config Release
+
+pwsh -ExecutionPolicy Bypass -File package/windows/build-installer.ps1 -Version "v1.2.3"
+```
+
+Outputs:
+
+- `package/windows/output/17liveOBSPlugin-windows-v1.2.3.exe`
+- `package/windows/output/17liveOBSPlugin-windows-v1.2.3-non-installer.zip`
+
+If you built with `RelWithDebInfo` instead, pass `-BuildDir ..\..\build_x64\rundir\RelWithDebInfo`.
+
 ## macOS
 
 Firstly install prerequisites based on [Build Instructions For Mac](https://github.com/obsproject/obs-studio/wiki/Build-Instructions-For-Mac).
@@ -54,6 +74,32 @@ cmake --build --preset macos --config RelWithDebInfo
 ```
 
 Then open the generated Xcode project `build_macos/obs-17live.xcodeproj`. Build the plugin.
+
+### Packaging (manual)
+
+Build a `.pkg` (installer) and a `-non-installer.zip` locally:
+
+```bash
+CONFIG=Release
+
+cmake --build --preset macos --config "$CONFIG"
+
+INSTALL_PREFIX="$PWD/dist-install"
+rm -rf "$INSTALL_PREFIX"
+cmake --install build_macos --config "$CONFIG" --prefix "$INSTALL_PREFIX"
+
+# Output pkg:
+#   dist-install/obs-17live.pkg
+
+PLUGIN_BUNDLE="build_macos/rundir/$CONFIG/obs-17live.plugin"
+ditto -c -k --sequesterRsrc --keepParent "$PLUGIN_BUNDLE" "obs-17live-non-installer.zip"
+```
+
+The `.pkg` installs into:
+
+- `~/Library/Application Support/obs-studio/plugins`
+
+The zip contains `obs-17live.plugin`; extract and copy it into the same directory above.
 
 ## CI / Release Packaging
 
