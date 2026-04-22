@@ -22,8 +22,8 @@ SetCompressor lzma
 Name "${PRODUCT_NAME}"
 OutFile "17liveOBSPlugin-windows-v${PRODUCT_VERSION}.exe"
 InstallDir "$APPDATA\obs-studio\plugins"
-ShowInstDetails show
-ShowUnInstDetails show
+ShowInstDetails nevershow
+ShowUnInstDetails nevershow
 RequestExecutionLevel admin
 
 
@@ -36,7 +36,7 @@ RequestExecutionLevel admin
 !insertmacro MUI_PAGE_WELCOME
 
 ; License page
-!insertmacro MUI_PAGE_LICENSE "..\..\LICENSE"
+; !insertmacro MUI_PAGE_LICENSE "..\..\LICENSE"
 
 ; Directory page
 ; Instfiles page
@@ -46,8 +46,6 @@ RequestExecutionLevel admin
 ; Removed automatic OBS launch to avoid issues with incorrect OBS paths
 ; !define MUI_FINISHPAGE_RUN_TEXT "Launch OBS Studio"
 ; !define MUI_FINISHPAGE_RUN "$INSTDIR\bin\64bit\obs64.exe"
-!define MUI_FINISHPAGE_SHOWREADME_TEXT "View Release Notes"
-!define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\obs-17live\README.txt"
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller pages
