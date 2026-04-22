@@ -15,6 +15,15 @@ param(
     [string]$OutputDir = ".\output"
 )
 
+$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+
+if (![System.IO.Path]::IsPathRooted($BuildDir)) {
+    $BuildDir = Join-Path $ScriptDir $BuildDir
+}
+if (![System.IO.Path]::IsPathRooted($OutputDir)) {
+    $OutputDir = Join-Path $ScriptDir $OutputDir
+}
+
 # Function to check if a file exists
 function Test-FileExists {
     param([string]$Path)
@@ -65,7 +74,8 @@ if (!(Test-Path $OutputDir)) {
 }
 
 # Create temporary NSI file with version substitution
-$NSITemplate = Get-Content "installer.nsi" -Raw
+$InstallerNsiPath = Join-Path $ScriptDir "installer.nsi"
+$NSITemplate = Get-Content $InstallerNsiPath -Raw
 
 # Extract numeric version for NSIS
 # - remove any leading 'v'
@@ -88,7 +98,7 @@ $NSIContent = $NSITemplate -replace '!define PRODUCT_VERSION "1\.0\.0"', "!defin
 $VersionTag = if ($Version -match '^v') { $Version } else { "v$Version" }
 $NSIContent = $NSIContent -replace 'OutFile "17liveOBSPlugin-windows-v\$\{PRODUCT_VERSION\}\.exe"', "OutFile `"17liveOBSPlugin-windows-$VersionTag.exe`""
 
-$TempNSI = "installer_temp.nsi"
+$TempNSI = Join-Path $ScriptDir "installer_temp.nsi"
 $NSIContent | Out-File -FilePath $TempNSI -Encoding UTF8
 
 Write-Host "✓ Created temporary NSI file with NSIS version $CleanVersion (from $Version)" -ForegroundColor Green
@@ -101,15 +111,16 @@ $NSISArgs = @(
 )
 
 try {
-    $Process = Start-Process -FilePath $NSISPath -ArgumentList $NSISArgs -Wait -PassThru -NoNewWindow
+    $Process = Start-Process -FilePath $NSISPath -ArgumentList $NSISArgs -WorkingDirectory $ScriptDir -Wait -PassThru -NoNewWindow
     
     if ($Process.ExitCode -eq 0) {
         Write-Host "✓ NSIS installer built successfully!" -ForegroundColor Green
         
         # Move the installer to output directory
-        $InstallerName = "17liveOBSPlugin-windows-v$Version.exe"
-        if (Test-Path $InstallerName) {
-            Move-Item $InstallerName (Join-Path $OutputDir $InstallerName) -Force
+        $InstallerName = "17liveOBSPlugin-windows-$VersionTag.exe"
+        $InstallerSourcePath = Join-Path $ScriptDir $InstallerName
+        if (Test-Path $InstallerSourcePath) {
+            Move-Item $InstallerSourcePath (Join-Path $OutputDir $InstallerName) -Force
             Write-Host "✓ Installer moved to: $(Join-Path $OutputDir $InstallerName)" -ForegroundColor Green
         }
 
@@ -169,10 +180,10 @@ try {
 
 Write-Host ""
 Write-Host "Build completed successfully!" -ForegroundColor Green
-Write-Host "Installer location: $(Join-Path $OutputDir "17liveOBSPlugin-windows-v$Version.exe")" -ForegroundColor Cyan
+Write-Host "Installer location: $(Join-Path $OutputDir "17liveOBSPlugin-windows-$VersionTag.exe")" -ForegroundColor Cyan
 
 # Display file information
-$InstallerPath = Join-Path $OutputDir "17liveOBSPlugin-windows-$Version.exe"
+$InstallerPath = Join-Path $OutputDir "17liveOBSPlugin-windows-$VersionTag.exe"
 if (Test-Path $InstallerPath) {
     $FileInfo = Get-Item $InstallerPath
     Write-Host ""

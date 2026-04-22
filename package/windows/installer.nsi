@@ -21,7 +21,7 @@ SetCompressor lzma
 ; General
 Name "${PRODUCT_NAME}"
 OutFile "17liveOBSPlugin-windows-v${PRODUCT_VERSION}.exe"
-InstallDir "$COMMONAPPDATA\obs-studio\plugins"
+InstallDir "$APPDATA\obs-studio\plugins"
 ShowInstDetails show
 ShowUnInstDetails show
 RequestExecutionLevel admin
@@ -148,6 +148,8 @@ SectionEnd
 
 ; Installer Functions
 Function .onInit
+  SetShellVarContext all
+  StrCpy $INSTDIR "$APPDATA\obs-studio\plugins"
   !insertmacro MUI_LANGDLL_DISPLAY
   
   ; Check for existing installation
@@ -171,6 +173,7 @@ Function .onInit
 FunctionEnd
 
 Function un.onInit
+  SetShellVarContext all
   !insertmacro MUI_UNGETLANGUAGE
   MessageBox MB_ICONQUESTION|MB_YESNO|MB_DEFBUTTON2 "Are you sure you want to completely remove $(^Name) and all of its components?" IDYES +2
   Abort
