@@ -215,7 +215,6 @@ jobs:
             
             PKG_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
             ZIP_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}-non-installer.zip"
-            UNINSTALL_PKG_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}-uninstall-legacy.pkg"
 
             INSTALL_PREFIX="$PWD/dist-install"
             rm -rf "$INSTALL_PREFIX"
@@ -238,7 +237,6 @@ jobs:
               exit 1
             fi
             ditto -c -k --sequesterRsrc --keepParent "$PLUGIN_BUNDLE" "$ZIP_NAME"
-            bash ./package/macOS/build-uninstall-legacy-pkg.sh "$VERSION" "$UNINSTALL_PKG_NAME"
             
             # Sign the package if certificate is available
             if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
@@ -248,7 +246,6 @@ jobs:
             
             echo "PKG_NAME=$PKG_NAME" >> $BASH_ENV
             echo "ZIP_NAME=$ZIP_NAME" >> $BASH_ENV
-            echo "UNINSTALL_PKG_NAME=$UNINSTALL_PKG_NAME" >> $BASH_ENV
       
       # Store artifacts
       - run:
@@ -256,14 +253,11 @@ jobs:
           command: |
             ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
             ZIP_ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}-non-installer.zip"
-            UNINSTALL_PKG_ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}-uninstall-legacy.pkg"
             mkdir -p artifacts
             TARGET_PATH="artifacts/$ARTIFACT_NAME"
             cp "$PKG_NAME" "$TARGET_PATH"
             ZIP_TARGET_PATH="artifacts/$ZIP_ARTIFACT_NAME"
             cp "$ZIP_NAME" "$ZIP_TARGET_PATH"
-            UNINSTALL_TARGET_PATH="artifacts/$UNINSTALL_PKG_ARTIFACT_NAME"
-            cp "$UNINSTALL_PKG_NAME" "$UNINSTALL_TARGET_PATH"
       - store_artifacts:
           path: artifacts
           destination: packages

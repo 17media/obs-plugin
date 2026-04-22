@@ -35,7 +35,7 @@ cmake --build --preset windows-x64 --config RelWithDebInfo
 
 Then open the generated solution file `build_x64\obs-17live.sln` in Visual Studio. Build the plugin. 
 
-**Note: Release build is mandatory, because obs-studio does not support debug builds.**
+**Note: Debug builds are not supported by obs-studio. Use `Release` or `RelWithDebInfo`.**
 
 ## macOS
 
@@ -46,7 +46,7 @@ Firstly install prerequisites based on [Build Instructions For Mac](https://gith
 * CMake 3.30 (minimum: CMake 3.28)
 * CCache 4.8 or newer (Optional)
 
-Then build the plugin, architecture will be automatically detected:
+Then build the plugin (default preset builds a Universal binary):
 
 ```bash
 cmake --preset macos
@@ -98,3 +98,18 @@ cmake --build --preset windows-x64 --config Release
 # copy the extracted obs-17live folder directly into:
 #   %ProgramData%\obs-studio\plugins
 ```
+
+### Optional: macOS legacy uninstaller pkg (one-time)
+
+If you previously installed this plugin into the legacy location inside the OBS app bundle:
+
+- `/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin`
+
+You can generate a small `uninstall-legacy.pkg` that removes it and shows a completion dialog.
+
+```bash
+VERSION="0.0.0"
+bash ./package/macOS/build-uninstall-legacy-pkg.sh "$VERSION" "obs-17live-uninstall-legacy.pkg"
+```
+
+Then double-click `obs-17live-uninstall-legacy.pkg` to run it.

@@ -158,7 +158,6 @@ jobs:
         run: |
           PKG_NAME="17liveOBSPlugin-${{ inputs.arch_name }}-v${VERSION}${PKG_SUFFIX}.pkg"
           ZIP_NAME="17liveOBSPlugin-${{ inputs.arch_name }}-v${VERSION}${PKG_SUFFIX}-non-installer.zip"
-          UNINSTALL_PKG_NAME="17liveOBSPlugin-${{ inputs.arch_name }}-v${VERSION}${PKG_SUFFIX}-uninstall-legacy.pkg"
 
           INSTALL_PREFIX="$PWD/dist-install"
           rm -rf "$INSTALL_PREFIX"
@@ -184,8 +183,6 @@ jobs:
 
           echo "PKG_NAME=$PKG_NAME" >> $GITHUB_ENV
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-          bash ./package/macOS/build-uninstall-legacy-pkg.sh "$VERSION" "$UNINSTALL_PKG_NAME"
-          echo "UNINSTALL_PKG_NAME=$UNINSTALL_PKG_NAME" >> $GITHUB_ENV
 
       - name: Upload pkg
         uses: actions/upload-artifact@v4
@@ -198,9 +195,3 @@ jobs:
         with:
           name: ${{ inputs.artifact_name }}-non-installer-zip
           path: ${{ env.ZIP_NAME }}
-
-      - name: Upload legacy uninstaller pkg
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ inputs.artifact_name }}-uninstall-legacy-pkg
-          path: ${{ env.UNINSTALL_PKG_NAME }}
