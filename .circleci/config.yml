@@ -214,13 +214,29 @@ jobs:
             fi
             
             PKG_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
-            
-            sudo pkgbuild --root build_macos/Release \
-                     --identifier com.17live.obsplugin \
-                     --version "$VERSION" \
-                     --install-location "/Applications/OBS.app/Contents/PlugIns" \
-                     --scripts package/macOS/misc \
-                     "$PKG_NAME"
+            ZIP_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}-non-installer.zip"
+
+            INSTALL_PREFIX="$PWD/dist-install"
+            rm -rf "$INSTALL_PREFIX"
+
+            cmake --install build_macos --config Release --prefix "$INSTALL_PREFIX"
+
+            PKG_SRC="$INSTALL_PREFIX/obs-17live.pkg"
+            if [ ! -f "$PKG_SRC" ]; then
+              echo "Expected pkg not found at: $PKG_SRC"
+              find "$INSTALL_PREFIX" -maxdepth 2 -type f -name "*.pkg" -print || true
+              exit 1
+            fi
+
+            mv "$PKG_SRC" "$PKG_NAME"
+
+            PLUGIN_BUNDLE="build_macos/rundir/Release/obs-17live.plugin"
+            if [ ! -d "$PLUGIN_BUNDLE" ]; then
+              echo "Expected plugin bundle not found at: $PLUGIN_BUNDLE"
+              find "build_macos/rundir/Release" -maxdepth 2 -name "*.plugin" -print || true
+              exit 1
+            fi
+            ditto -c -k --sequesterRsrc --keepParent "$PLUGIN_BUNDLE" "$ZIP_NAME"
             
             # Sign the package if certificate is available
             if [ -n "$MACOS_CERTIFICATE_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ]; then
@@ -229,15 +245,19 @@ jobs:
             fi
             
             echo "PKG_NAME=$PKG_NAME" >> $BASH_ENV
+            echo "ZIP_NAME=$ZIP_NAME" >> $BASH_ENV
       
       # Store artifacts
       - run:
           name: Prepare Package for Artifact Storage
           command: |
             ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}.pkg"
+            ZIP_ARTIFACT_NAME="17liveOBSPlugin-<< parameters.arch_name >>-v${VERSION}${PKG_SUFFIX}-non-installer.zip"
             mkdir -p artifacts
             TARGET_PATH="artifacts/$ARTIFACT_NAME"
             cp "$PKG_NAME" "$TARGET_PATH"
+            ZIP_TARGET_PATH="artifacts/$ZIP_ARTIFACT_NAME"
+            cp "$ZIP_NAME" "$ZIP_TARGET_PATH"
       - store_artifacts:
           path: artifacts
           destination: packages

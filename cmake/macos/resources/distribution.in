@@ -28,6 +28,19 @@
                 my.result.type = 'Fatal';
                 return false;
             }
+
+            var legacyPluginPath = '/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin';
+            if (system.files.fileExistsAtPath(legacyPluginPath)) {
+                my.result.title = 'Legacy OBS.app installation detected';
+                my.result.message =
+                    'A previous version of this plugin was found inside the official OBS.app bundle:\\n' +
+                    legacyPluginPath + '\\n\\n' +
+                    'To avoid duplicate plugin loading, remove it by running the optional cleanup script, then restart OBS.\\n' +
+                    '(The installer will continue without removing it.)';
+                my.result.type = 'Warning';
+            }
+
+            return true;
         }
     </script>
 </installer-gui-script>

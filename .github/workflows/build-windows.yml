@@ -241,5 +241,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-x64-installer
-          path: "17liveOBSPlugin-windows-v*.exe"
+          path: |
+            17liveOBSPlugin-windows-v*.exe
+            17liveOBSPlugin-windows-v*-non-installer.zip
           retention-days: 30

@@ -14,10 +14,16 @@ endif()
 make_directory("$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp")
 
 execute_process(
+  COMMAND /bin/chmod +x "@CMAKE_SOURCE_DIR@/package/macOS/misc/postinstall"
+  COMMAND_ERROR_IS_FATAL ANY
+)
+
+execute_process(
   COMMAND /usr/bin/pkgbuild
     --identifier '@MACOS_BUNDLEID@'
     --version '@CMAKE_PROJECT_VERSION@'
     --root "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/package"
+    --scripts "@CMAKE_SOURCE_DIR@/package/macOS/misc"
     "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp/@CMAKE_PROJECT_NAME@.pkg"
     COMMAND_ERROR_IS_FATAL ANY
   )

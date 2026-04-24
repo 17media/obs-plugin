@@ -15,6 +15,15 @@ param(
     [string]$OutputDir = ".\output"
 )
 
+$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+
+if (![System.IO.Path]::IsPathRooted($BuildDir)) {
+    $BuildDir = Join-Path $ScriptDir $BuildDir
+}
+if (![System.IO.Path]::IsPathRooted($OutputDir)) {
+    $OutputDir = Join-Path $ScriptDir $OutputDir
+}
+
 # Function to check if a file exists
 function Test-FileExists {
     param([string]$Path)
@@ -65,7 +74,8 @@ if (!(Test-Path $OutputDir)) {
 }
 
 # Create temporary NSI file with version substitution
-$NSITemplate = Get-Content "installer.nsi" -Raw
+$InstallerNsiPath = Join-Path $ScriptDir "installer.nsi"
+$NSITemplate = Get-Content $InstallerNsiPath -Raw
 
 # Extract numeric version for NSIS
 # - remove any leading 'v'
@@ -88,7 +98,7 @@ $NSIContent = $NSITemplate -replace '!define PRODUCT_VERSION "1\.0\.0"', "!defin
 $VersionTag = if ($Version -match '^v') { $Version } else { "v$Version" }
 $NSIContent = $NSIContent -replace 'OutFile "17liveOBSPlugin-windows-v\$\{PRODUCT_VERSION\}\.exe"', "OutFile `"17liveOBSPlugin-windows-$VersionTag.exe`""
 
-$TempNSI = "installer_temp.nsi"
+$TempNSI = Join-Path $ScriptDir "installer_temp.nsi"
 $NSIContent | Out-File -FilePath $TempNSI -Encoding UTF8
 
 Write-Host "✓ Created temporary NSI file with NSIS version $CleanVersion (from $Version)" -ForegroundColor Green
@@ -101,40 +111,58 @@ $NSISArgs = @(
 )
 
 try {
-    $Process = Start-Process -FilePath $NSISPath -ArgumentList $NSISArgs -Wait -PassThru -NoNewWindow
+    $Process = Start-Process -FilePath $NSISPath -ArgumentList $NSISArgs -WorkingDirectory $ScriptDir -Wait -PassThru -NoNewWindow
     
     if ($Process.ExitCode -eq 0) {
         Write-Host "✓ NSIS installer built successfully!" -ForegroundColor Green
         
         # Move the installer to output directory
-        $InstallerName = "17liveOBSPlugin-windows-v$Version.exe"
-        if (Test-Path $InstallerName) {
-            Move-Item $InstallerName (Join-Path $OutputDir $InstallerName) -Force
+        $InstallerName = "17liveOBSPlugin-windows-$VersionTag.exe"
+        $InstallerSourcePath = Join-Path $ScriptDir $InstallerName
+        if (Test-Path $InstallerSourcePath) {
+            Move-Item $InstallerSourcePath (Join-Path $OutputDir $InstallerName) -Force
             Write-Host "✓ Installer moved to: $(Join-Path $OutputDir $InstallerName)" -ForegroundColor Green
         }
 
-        # Package non-installer zip from rundir contents
+        # Package non-installer zip with plugin directory layout.
+        # The zip root is "obs-17live", so users can extract and copy directly to:
+        # %ProgramData%\obs-studio\plugins
         Write-Host "Packaging non-installer zip..." -ForegroundColor Yellow
         $ZipFolderName = "17liveOBSPlugin-windows-$VersionTag"
         $StagingRoot = Join-Path $OutputDir $ZipFolderName
         if (Test-Path $StagingRoot) {
             Remove-Item $StagingRoot -Recurse -Force
         }
-        New-Item -ItemType Directory -Path $StagingRoot -Force | Out-Null
+        $PluginRoot = Join-Path $StagingRoot "obs-17live"
+        $PluginBinDir = Join-Path $PluginRoot "bin\64bit"
+        $PluginDataDir = Join-Path $PluginRoot "data"
+        New-Item -ItemType Directory -Path $PluginBinDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $PluginDataDir -Force | Out-Null
 
-        # Copy the contents of rundir into the staging root (no extra nested directory)
+        # Copy plugin binaries
         if (!(Test-Path $BuildDir -PathType Container)) {
             Write-Error "BuildDir not found for zip packaging: $BuildDir"
             exit 1
         }
-        Copy-Item -Path "$BuildDir\*" -Destination $StagingRoot -Recurse -Force
+        Copy-Item -Path (Join-Path $BuildDir "obs-17live.dll") -Destination $PluginBinDir -Force
+        if (Test-Path (Join-Path $BuildDir "obs-17live.pdb")) {
+            Copy-Item -Path (Join-Path $BuildDir "obs-17live.pdb") -Destination $PluginBinDir -Force
+        }
+
+        # Copy plugin data directory
+        $BuildDataDir = Join-Path $BuildDir "obs-17live"
+        if (!(Test-Path $BuildDataDir -PathType Container)) {
+            Write-Error "Plugin data directory not found for zip packaging: $BuildDataDir"
+            exit 1
+        }
+        Copy-Item -Path "$BuildDataDir\*" -Destination $PluginDataDir -Recurse -Force
 
         $ZipName = "17liveOBSPlugin-windows-$VersionTag-non-installer.zip"
         $ZipPath = Join-Path $OutputDir $ZipName
         if (Test-Path $ZipPath) {
             Remove-Item $ZipPath -Force
         }
-        Compress-Archive -Path $StagingRoot -DestinationPath $ZipPath
+        Compress-Archive -Path $PluginRoot -DestinationPath $ZipPath
         Write-Host "✓ Non-installer zip created: $ZipPath" -ForegroundColor Green
     } else {
         Write-Error "NSIS build failed with exit code: $($Process.ExitCode)"
@@ -152,10 +180,10 @@ try {
 
 Write-Host ""
 Write-Host "Build completed successfully!" -ForegroundColor Green
-Write-Host "Installer location: $(Join-Path $OutputDir "17liveOBSPlugin-windows-v$Version.exe")" -ForegroundColor Cyan
+Write-Host "Installer location: $(Join-Path $OutputDir "17liveOBSPlugin-windows-$VersionTag.exe")" -ForegroundColor Cyan
 
 # Display file information
-$InstallerPath = Join-Path $OutputDir "17liveOBSPlugin-windows-$Version.exe"
+$InstallerPath = Join-Path $OutputDir "17liveOBSPlugin-windows-$VersionTag.exe"
 if (Test-Path $InstallerPath) {
     $FileInfo = Get-Item $InstallerPath
     Write-Host ""

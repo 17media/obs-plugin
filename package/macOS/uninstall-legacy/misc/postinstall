@@ -1,0 +1,31 @@
+#!/bin/bash
+
+LEGACY_APP_PLUGIN="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin"
+
+REMOVED="0"
+if [ -d "$LEGACY_APP_PLUGIN" ]; then
+  rm -rf "$LEGACY_APP_PLUGIN"
+  REMOVED="1"
+fi
+
+TITLE="17LIVE OBS Plugin"
+if [ "$REMOVED" = "1" ]; then
+  MESSAGE="已完成：已移除旧版插件（官方 OBS.app 内安装）。\n\n请重新启动 OBS。"
+else
+  MESSAGE="未找到旧版插件（官方 OBS.app 内安装）。\n\n无需操作。"
+fi
+
+CONSOLE_USER="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null || true)"
+if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
+  CONSOLE_UID="$(/usr/bin/id -u "$CONSOLE_USER" 2>/dev/null || true)"
+else
+  CONSOLE_UID=""
+fi
+
+if [ -n "$CONSOLE_UID" ]; then
+  /bin/launchctl asuser "$CONSOLE_UID" /usr/bin/osascript -e "display dialog \"$MESSAGE\" with title \"$TITLE\" buttons {\"好\"} default button 1" >/dev/null 2>&1 || true
+else
+  /usr/bin/osascript -e "display dialog \"$MESSAGE\" with title \"$TITLE\" buttons {\"好\"} default button 1" >/dev/null 2>&1 || true
+fi
+
+exit 0
