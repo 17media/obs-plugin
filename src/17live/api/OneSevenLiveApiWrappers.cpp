@@ -99,6 +99,8 @@ const string ONESEVENLIVE_GET_CONFIG_URL = buildApiUrl("/api/v1/config");
 
 const string ONESEVENLIVE_GET_USERINFO_URL = buildApiUrl("/api/v1/users/%1/info?onLive=1");
 
+const string ONESEVENLIVE_GET_USER_NOTE_URL = buildApiUrl("/api/v1/users/%1/note");
+
 const string ONESEVENLIVE_CREATE_CUSTOMEVENT_URL = buildApiUrl("/api/v1/event/customEvent");
 
 const string ONESEVENLIVE_GET_CUSTOMEVENT_URL = buildApiUrl("/api/v1/event/customEventV2");
@@ -998,6 +1000,60 @@ bool OneSevenLiveApiWrappers::GetUserInfo(const std::string userID, const std::s
     }
 
     // obs_log(LOG_INFO, "GetUserInfo success");
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::GetUserNote(const std::string userID, OneSevenLiveUserNote &response) {
+    obs_log(LOG_INFO, "GetUserNote");
+
+    clearLastError();
+
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_USER_NOTE_URL).arg(userID.c_str());
+    QByteArray url = urlStr.toUtf8();
+
+    Json json_out_resp;
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true)) {
+        if (json_out_resp.contains("errorCode") && json_out_resp["errorCode"].is_number_integer() &&
+            json_out_resp["errorCode"].get<int>() == 35000) {
+            response = OneSevenLiveUserNote{};
+            clearLastError();
+            return true;
+        }
+
+        obs_log(LOG_ERROR, "GetUserNote error: %s", json_out_resp.dump().c_str());
+        setLastError(buildApiError(json_out_resp, "GetUserNote failed"));
+        return false;
+    }
+
+    if (!JsonToOneSevenLiveUserNote(json_out_resp, response)) {
+        obs_log(LOG_ERROR, "Failed to convert response to struct");
+        setLastError(makeError("State.MappingFailed", "Failed to convert response to struct", false,
+                               json_out_resp.dump()));
+        return false;
+    }
+
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::SetUserNote(const std::string userID, const QString &content) {
+    obs_log(LOG_INFO, "SetUserNote");
+
+    clearLastError();
+
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_USER_NOTE_URL).arg(userID.c_str());
+    QByteArray url = urlStr.toUtf8();
+
+    Json requestData = {{"content", content.toStdString()}};
+    const std::string postData = requestData.dump();
+
+    Json json_out_resp;
+    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out_resp, 0,
+                       true)) {
+        obs_log(LOG_ERROR, "SetUserNote error: %s", json_out_resp.dump().c_str());
+        setLastError(buildApiError(json_out_resp, "SetUserNote failed"));
+        return false;
+    }
+
     return true;
 }
 

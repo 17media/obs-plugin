@@ -198,6 +198,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/rockzone/OneSevenLiveRockViewerItem.cpp
   src/17live/rockzone/OneSevenLiveRockZoneDock.cpp
   src/17live/rockzone/OneSevenLiveUserDialog.cpp
+  src/17live/rockzone/OneSevenLiveUserMemoDialog.cpp
   src/17live/streaming/OneSevenLiveLoadRoomInfoWorker.cpp
   src/17live/streaming/OneSevenLiveStreamManager.cpp
   src/17live/streaming/OneSevenLiveStreamingDock.cpp

@@ -30,6 +30,7 @@ class OneSevenLiveUserDialog : public QDialog {
    private slots:
     void onPokeUserClicked();
     void onCloseClicked();
+    void onUserMemoClicked();
 
    protected:
     void mousePressEvent(QMouseEvent* event) override;
@@ -50,6 +51,7 @@ class OneSevenLiveUserDialog : public QDialog {
     QLabel* followersLabel;
     QLabel* followingLabel;
     QLabel* likesLabel;
+    QPushButton* userMemoButton;
     QPushButton* pokeButton;
     QPushButton* closeButton;
 

@@ -14,6 +14,7 @@
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
+#include "rockzone/OneSevenLiveUserMemoDialog.hpp"
 #include "utility/Common.hpp"
 #include "utility/RemoteTextThread.hpp"
 
@@ -74,7 +75,11 @@ void OneSevenLiveUserDialog::setupUi() {
     // Ensure ~10px spacing between avatar and username
     bodyLayout->addSpacing(10);
 
-    // Username (10px below avatar by explicit spacing)
+    QHBoxLayout* nameLayout = new QHBoxLayout();
+    nameLayout->setContentsMargins(0, 0, 0, 0);
+    nameLayout->setSpacing(6);
+    nameLayout->setAlignment(Qt::AlignHCenter);
+
     usernameLabel = new QLabel();
     usernameLabel->setAlignment(Qt::AlignCenter);
     usernameLabel->setStyleSheet(
@@ -83,7 +88,21 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-weight: bold;"
         "    font-size: 18px;"
         "}");
-    bodyLayout->addWidget(usernameLabel, 0, Qt::AlignHCenter);
+    nameLayout->addWidget(usernameLabel);
+
+    userMemoButton = new QPushButton();
+    userMemoButton->setFlat(true);
+    userMemoButton->setIcon(QIcon(":/resources/memo-edit.svg"));
+    userMemoButton->setIconSize(QSize(20, 20));
+    userMemoButton->setFixedSize(24, 24);
+    userMemoButton->setCursor(Qt::PointingHandCursor);
+    userMemoButton->setToolTip(obs_module_text("RockZone.UserMemo.Tooltip"));
+    userMemoButton->setStyleSheet(
+        "QPushButton { background: transparent; border: none; }"
+        "QPushButton:hover { background: rgba(255,255,255,0.08); border-radius: 4px; }");
+    nameLayout->addWidget(userMemoButton);
+
+    bodyLayout->addLayout(nameLayout);
 
     // User stats area
     bodyLayout->addSpacing(15);
@@ -211,6 +230,7 @@ void OneSevenLiveUserDialog::setupUi() {
 void OneSevenLiveUserDialog::createConnections() {
     connect(pokeButton, &QPushButton::clicked, this, &OneSevenLiveUserDialog::onPokeUserClicked);
     connect(closeButton, &QPushButton::clicked, this, &OneSevenLiveUserDialog::onCloseClicked);
+    connect(userMemoButton, &QPushButton::clicked, this, &OneSevenLiveUserDialog::onUserMemoClicked);
 }
 
 void OneSevenLiveUserDialog::setUserInfo(const OneSevenLiveRockZoneViewer& user) {
@@ -282,6 +302,15 @@ void OneSevenLiveUserDialog::onPokeUserClicked() {
 
 void OneSevenLiveUserDialog::onCloseClicked() {
     close();
+}
+
+void OneSevenLiveUserDialog::onUserMemoClicked() {
+    if (!apiWrapper || viewer.displayUser.userID.isEmpty()) {
+        return;
+    }
+
+    OneSevenLiveUserMemoDialog dialog(this, apiWrapper, viewer.displayUser.userID);
+    dialog.exec();
 }
 
 void OneSevenLiveUserDialog::mousePressEvent(QMouseEvent* event) {

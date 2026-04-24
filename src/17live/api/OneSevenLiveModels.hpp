@@ -134,6 +134,14 @@ struct OneSevenLiveUserInfo {
 
 bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo &userInfo);
 
+struct OneSevenLiveUserNote {
+    QString content;
+    qint64 createAt = 0;
+    qint64 updateAt = 0;
+};
+
+bool JsonToOneSevenLiveUserNote(const nlohmann::json &json, OneSevenLiveUserNote &userNote);
+
 struct OneSevenLiveAutoEnter {
     bool autoEnter = false;
     qint64 liveStreamID = 0;
