@@ -19,6 +19,7 @@ export const getChatProps = chat => {
         displayName: chat.get('displayName'),
         openID: chat.get('openID'),
         userID: chat.get('userID'),
+        picture: chat.get('picture'),
         content: chat.get('content'),
         level: chat.get('level'),
         levelBadges: chat.get('levelBadges'),

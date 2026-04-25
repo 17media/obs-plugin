@@ -233,7 +233,7 @@ export const MultiPlatformChat = () => {
           alt={message.platform}
         />
         <MessageContent>
-          <Chat {...safeChatProps} />
+          <Chat {...safeChatProps} platform={message.platform} />
         </MessageContent>
       </MessageItem>
     );

@@ -2,11 +2,14 @@
 
 #include <algorithm>
 #include <obs-module.h>
+#include <QMainWindow>
+#include <QMetaObject>
 #include "plugin-support.h"
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "../chat/OneSevenLiveChatMessageHandler.hpp"
 #include "../websocket/OneSevenLiveWebsocketServer.hpp"
+#include "rockzone/OneSevenLiveUserDialog.hpp"
 
 ChatBridgeService::ChatBridgeService(OneSevenLiveCoreManager* coreManager) : coreManager_(coreManager) {}
 
@@ -33,6 +36,52 @@ void ChatBridgeService::onWebsocketMessage(const std::string& clientId, const st
             }
             obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
             flushChatEventQueue();
+            return;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(chatQueueMutex_);
+            if (chatDockClientId_.empty() || chatDockClientId_ != clientId) {
+                return;
+            }
+        }
+
+        if (actionType == ws::ActionOpenUserDialog) {
+            const std::string userID = m.payloadString("userID");
+            if (userID.empty()) {
+                return;
+            }
+
+            std::string displayName = m.payloadString("displayName");
+            const std::string picture = m.payloadString("picture");
+            int level = 0;
+            if (m.payload.contains("level") && m.payload["level"].is_number()) {
+                level = m.payload["level"].get<int>();
+            }
+
+            QMainWindow* mainWindow = coreManager_ ? coreManager_->getMainWindow() : nullptr;
+            OneSevenLiveApiWrappers* apiWrapper = coreManager_ ? coreManager_->getApiWrapper() : nullptr;
+            OneSevenLiveConfigManager* configManager = coreManager_ ? coreManager_->getConfigManager() : nullptr;
+            if (!mainWindow || !apiWrapper || !configManager) {
+                return;
+            }
+
+            QMetaObject::invokeMethod(
+                mainWindow,
+                [mainWindow, apiWrapper, configManager, userID, displayName, picture, level]() {
+                    OneSevenLiveRockZoneViewer viewer;
+                    viewer.displayUser.userID = QString::fromStdString(userID);
+                    viewer.displayUser.displayName =
+                        QString::fromStdString(displayName.empty() ? userID : displayName);
+                    viewer.displayUser.picture = QString::fromStdString(picture);
+                    viewer.displayUser.level = level;
+
+                    auto* dialog = new OneSevenLiveUserDialog(mainWindow, apiWrapper, configManager);
+                    dialog->setAttribute(Qt::WA_DeleteOnClose);
+                    dialog->setUserInfo(viewer);
+                    dialog->show();
+                },
+                Qt::QueuedConnection);
             return;
         }
     } else if (m.is(ws::EventAblyChatMessage)) {

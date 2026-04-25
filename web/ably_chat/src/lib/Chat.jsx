@@ -83,9 +83,11 @@ const renderMessageContent = (
 const Chat = ({
     id,
     messageType,
+    platform,
     openID,
     displayName,
     userID,
+    picture,
     content,
     level,
     levelBadges: originalLevelBadges,
@@ -228,8 +230,10 @@ const Chat = ({
                         openID={openID || ''}
                         displayName={isAiCohost ? t('AI_COHOST') : displayName || ''}
                         streamerInfo={streamerInfo}
+                        platform={platform}
                         userID={userID}
                         roomID={roomID}
+                        picture={picture}
                         nameColor={hasUserDecoration ? nameColor : ''}
                     />
 
