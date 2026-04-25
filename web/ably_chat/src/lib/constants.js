@@ -194,8 +194,10 @@ export const mapCheckingLevelImage = {
 
 export const MsgType_COMMENT = 3; // General comment message
 export const MsgType_NEW_GIFT =13; // Gift animation message
+export const MsgType_REACT = 28; // React message
 export const MsgType_JOIN_ROOM = 18; // Audience join room message
 export const MsgType_NEW_LUCKYBAG = 32; // Random gift message
 export const MsgType_POKE = 47; // Poke message
 export const MsgType_ROCKZONE = 74; // Rock Zone message
+export const MsgType_LABOR_RECEIVE_REWARD = 79; // Labor receive reward message
 export const MsgType_AI_COHOST_MESSAGE = 120; // AI co-host message

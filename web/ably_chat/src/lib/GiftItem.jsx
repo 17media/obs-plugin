@@ -16,7 +16,7 @@ const GiftName = styled.span`
 `;
 
 const GiftPoint = styled.span`
-  color: #6b7280;
+  color: #FFFFFF;
   font-size: 0.875rem;
 `;
 
@@ -42,6 +42,8 @@ const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
   const name = giftInfo.get('name');
   const point = giftInfo.get('point');
   const icon = giftInfo.get('icon');
+  const isEventPointEnabled = giftInfo.get('isEventPointEnabled') || giftInfo.get('isEventPointEnbled');
+  const eventPoint = giftInfo.get('eventPoint');
 
   return (
     <GiftItemContainer>
@@ -57,6 +59,9 @@ const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
             {t('GIVE_GIFT')}
             <GiftName>{name}</GiftName>
             <GiftPoint> ({point}) </GiftPoint>
+            {isEventPointEnabled && typeof eventPoint !== 'undefined' && eventPoint !== null ? (
+              <GiftPoint>{t('EVENT_POINTS_SUFFIX', { eventPoint })}</GiftPoint>
+            ) : null}
           </>
         )
       }

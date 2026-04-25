@@ -9,10 +9,12 @@ import { fromJS } from 'immutable';
 import {
   MsgType_COMMENT,
   MsgType_NEW_GIFT,
+  MsgType_REACT,
   MsgType_JOIN_ROOM,
   MsgType_NEW_LUCKYBAG,
   MsgType_AI_COHOST_MESSAGE,
   MsgType_POKE,
+  MsgType_LABOR_RECEIVE_REWARD,
 } from '@/lib/constants';
 import { getGiftByID, getRoomInfo } from '../api';
 
@@ -164,6 +166,33 @@ export class OneSevenLivePlatform extends BasePlatform {
         messageType: msgType,
         streamerInfo,
       });
+    } else if (msgType === MsgType_LABOR_RECEIVE_REWARD) {
+      const rewardMsg = message?.laborReceiveRewardMsg || {};
+      const userInfo = rewardMsg?.userInfo || {};
+      return fromJS({
+        ...userInfo,
+        ...(typeof userInfo.level === 'undefined' && typeof rewardMsg.level !== 'undefined'
+          ? { level: rewardMsg.level }
+          : {}),
+        value: rewardMsg?.value,
+        id,
+        messageType: msgType,
+        streamerInfo,
+      });
+    } else if (msgType === MsgType_REACT) {
+      const reactMsg = message?.reactMsg || {};
+      if (reactMsg.type !== 2) return null;
+      const userInfo = reactMsg?.userInfo || reactMsg?.displayUser || {};
+      return fromJS({
+        ...userInfo,
+        ...(typeof userInfo.level === 'undefined' && typeof reactMsg.level !== 'undefined'
+          ? { level: reactMsg.level }
+          : {}),
+        reactType: reactMsg.type,
+        id,
+        messageType: msgType,
+        streamerInfo,
+      });
     }
 
     const { displayUser, barrage, ...restChat } = message?.commentMsg || {};
@@ -193,6 +222,10 @@ export class OneSevenLivePlatform extends BasePlatform {
         return this.processAICohostMessage(rawData);
       case MsgType_POKE:
         return this.processPokeMessage(rawData);
+      case MsgType_LABOR_RECEIVE_REWARD:
+        return this.processLaborReceiveRewardMessage(rawData);
+      case MsgType_REACT:
+        return this.processReactMessage(rawData);
       default:
         // console.warn('Unknown 17Live message type:', type);
         return null;
@@ -241,6 +274,29 @@ export class OneSevenLivePlatform extends BasePlatform {
   }
 
   async processPokeMessage(data) {
+    const content = await this.prepareIndexedChat(data);
+    return {
+      id: content.get('id'),
+      platform: this.platformId,
+      timestamp: Date.now(),
+      content,
+    };
+  }
+
+  async processLaborReceiveRewardMessage(data) {
+    const content = await this.prepareIndexedChat(data);
+    return {
+      id: content.get('id'),
+      platform: this.platformId,
+      timestamp: Date.now(),
+      content,
+    };
+  }
+
+  async processReactMessage(data) {
+    const reactType = data?.reactMsg?.type;
+    if (reactType !== 2) return null;
+
     const content = await this.prepareIndexedChat(data);
     return {
       id: content.get('id'),

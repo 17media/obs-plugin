@@ -16,6 +16,15 @@ async function loadMockGifts() {
             giftsData.gifts.forEach(gift => {
                 giftsMap.set(gift.giftID, gift);
             });
+            giftsMap.set('2502_tw_upgrade_a_lv0', {
+                ...(giftsMap.get('2502_tw_upgrade_a_lv0') || {}),
+                giftID: '2502_tw_upgrade_a_lv0',
+                name: (giftsMap.get('2502_tw_upgrade_a_lv0') || {}).name || '活動點數禮物',
+                point: (giftsMap.get('2502_tw_upgrade_a_lv0') || {}).point || 3,
+                icon: (giftsMap.get('2502_tw_upgrade_a_lv0') || {}).icon || 'go-sta/gift/2506_tw_uoe_1_17box/d17c1075-b335-4057-bd11-4447077b05dc.png',
+                isEventPointEnabled: true,
+                eventPoint: 450,
+            });
             // console.log('Gifts loaded from local JSON:', giftsMap.size);
         } else {
             console.error('Invalid gifts data structure in local JSON');

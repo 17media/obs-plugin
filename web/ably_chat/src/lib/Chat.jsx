@@ -15,6 +15,8 @@ import InnerWrapper from './InnerWrapper';
 import useComment from './hooks';
 import GiftItem from './GiftItem';
 import PokeItem from './PokeItem';
+import SnackItem from './SnackItem';
+import LikeItem from './LikeItem';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
@@ -28,8 +30,10 @@ import {
     USER_STREAMER,
     MsgType_COMMENT,
     MsgType_NEW_GIFT,
+    MsgType_REACT,
     MsgType_NEW_LUCKYBAG,
     MsgType_JOIN_ROOM,
+    MsgType_LABOR_RECEIVE_REWARD,
     MsgType_AI_COHOST_MESSAGE,
     MsgType_POKE,
 } from './constants';
@@ -46,7 +50,16 @@ const MultilineDesktop = styled(Multiline)`
     color: ${({ color }) => color};
 `;
 
-const renderMessageContent = (messageType, content, gift = null, giftPoint = null, luckyBag = null, pokeInfo = null, streamerInfo = null) => {
+const renderMessageContent = (
+    messageType,
+    content,
+    gift = null,
+    giftPoint = null,
+    luckyBag = null,
+    pokeInfo = null,
+    value = null,
+    streamerInfo = null
+) => {
     switch (messageType) {
         case MsgType_COMMENT:
         case MsgType_JOIN_ROOM:
@@ -55,6 +68,10 @@ const renderMessageContent = (messageType, content, gift = null, giftPoint = nul
         case MsgType_NEW_GIFT:
         case MsgType_NEW_LUCKYBAG:
             return <GiftItem messageType={messageType} giftInfo={gift} giftPoint={giftPoint} luckyBagInfo={luckyBag} />;
+        case MsgType_LABOR_RECEIVE_REWARD:
+            return <SnackItem value={value} />;
+        case MsgType_REACT:
+            return <LikeItem />;
         case MsgType_POKE:
             return <PokeItem pokeInfo={pokeInfo} streamerInfo={streamerInfo} />;
         default:
@@ -94,6 +111,7 @@ const Chat = ({
     luckyBag,
     pokeInfo,
     giftPoint,
+    value,
 }) => {
     const t = useTranslations('ChatPage');
 
@@ -239,7 +257,7 @@ const Chat = ({
                     <MultilineDesktop
                         color={hasUserDecoration ? textColor : userTypeColor}
                     >
-                        {renderMessageContent(messageType, content, gift, giftPoint, luckyBag, pokeInfo, streamerInfo)}
+                        {renderMessageContent(messageType, content, gift, giftPoint, luckyBag, pokeInfo, value, streamerInfo)}
                     </MultilineDesktop>
 
                     {/* Top right badge */}
