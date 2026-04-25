@@ -2,12 +2,10 @@ import React from 'react';
 import styled from 'styled-components';
 import GiftIcon from './GiftIcon'; // Assume GiftIcon.jsx is in the same directory
 import { useTranslations } from 'next-intl';
-import { MsgType_NEW_LUCKYBAG } from './constants';
+import { MsgType_NEW_GIFT, MsgType_NEW_LUCKYBAG } from './constants';
 
 const GiftItemContainer = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+  display: inline;
 `;
 
 const GiftName = styled.span`
@@ -48,20 +46,28 @@ const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
   return (
     <GiftItemContainer>
       {messageType === MsgType_NEW_LUCKYBAG ?
-        t('GIVE_LUCKYBAG_GIFT', {
-          giftName: name,
-          luckyBagName: luckyBagInfo.get('name'),
-          point
-        })
+        <>
+          {t('GIVE_LUCKYBAG_GIFT', {
+            giftName: name,
+            luckyBagName: luckyBagInfo.get('name'),
+            point
+          })}
+          {' '}
+        </>
         :
         (
           <>
             {t('GIVE_GIFT')}
+            {' '}
             <GiftName>{name}</GiftName>
-            <GiftPoint> ({point}) </GiftPoint>
+            <GiftPoint>{` (${point})`}</GiftPoint>
             {isEventPointEnabled && typeof eventPoint !== 'undefined' && eventPoint !== null ? (
-              <GiftPoint>{t('EVENT_POINTS_SUFFIX', { eventPoint })}</GiftPoint>
+              <GiftPoint>
+                {' '}
+                {t('EVENT_POINTS_SUFFIX', { eventPoint })}
+              </GiftPoint>
             ) : null}
+            {' '}
           </>
         )
       }
