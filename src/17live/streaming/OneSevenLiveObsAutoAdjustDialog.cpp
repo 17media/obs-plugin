@@ -3,9 +3,11 @@
 #include <obs-module.h>
 
 #include <QCheckBox>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QScreen>
 #include <QVBoxLayout>
 
 #include "plugin-support.h"
@@ -36,7 +38,7 @@ OneSevenLiveObsAutoAdjustDialog::OneSevenLiveObsAutoAdjustDialog(QWidget* parent
 }
 
 void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message, bool dontRemindDefault) {
-    setFixedSize(380, 320);
+    setFixedWidth(380);
 
     QVBoxLayout* rootLayout = new QVBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 0, 0);
@@ -53,8 +55,18 @@ void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message, bool
     messageLabel = new QLabel(message, card);
     messageLabel->setWordWrap(true);
     messageLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-    messageLabel->setStyleSheet("QLabel { color: white; font-size: 16px; line-height: 22px; }");
-    cardLayout->addWidget(messageLabel, 1);
+    messageLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    messageLabel->setStyleSheet(
+        "QLabel {"
+        "  font-family: 'Inter';"
+        "  font-style: normal;"
+        "  font-weight: 400;"
+        "  font-size: 14px;"
+        "  line-height: 150%;"
+        "  color: #FFFFFF;"
+        "}");
+    messageLabel->setFixedWidth(380 - 24 - 24);
+    cardLayout->addWidget(messageLabel, 0);
 
     QHBoxLayout* checkRow = new QHBoxLayout();
     checkRow->setContentsMargins(0, 0, 0, 0);
@@ -63,7 +75,14 @@ void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message, bool
     dontRemindCheck = new QCheckBox(obs_module_text("Live.Settings.AutoAdjust.DontRemind"), card);
     dontRemindCheck->setChecked(dontRemindDefault);
     dontRemindCheck->setStyleSheet(
-        "QCheckBox { color: white; font-size: 14px; }"
+        "QCheckBox {"
+        "  font-family: 'Inter';"
+        "  font-style: normal;"
+        "  font-weight: 400;"
+        "  font-size: 14px;"
+        "  line-height: 150%;"
+        "  color: #FFFFFF;"
+        "}"
         "QCheckBox::indicator { width: 18px; height: 18px; }"
         "QCheckBox::indicator:unchecked { background-color: transparent; border: 2px solid #6B6F7B; border-radius: 4px; }"
         "QCheckBox::indicator:checked { background-color: #1877F2; border: 2px solid #1877F2; border-radius: 4px; }");
@@ -97,6 +116,14 @@ void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message, bool
 
     connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
     connect(confirmButton, &QPushButton::clicked, this, &QDialog::accept);
+
+    const int screenMargin = 80;
+    const QRect screen = parentWidget() ? parentWidget()->screen()->availableGeometry()
+                                        : QGuiApplication::primaryScreen()->availableGeometry();
+    const int maxH = qMax(220, screen.height() - screenMargin);
+
+    const QSize desired = sizeHint();
+    setFixedHeight(qMin(desired.height(), maxH));
 }
 
 void OneSevenLiveObsAutoAdjustDialog::setupUiError(const QString& message) {
@@ -117,7 +144,15 @@ void OneSevenLiveObsAutoAdjustDialog::setupUiError(const QString& message) {
     messageLabel = new QLabel(message, card);
     messageLabel->setWordWrap(true);
     messageLabel->setAlignment(Qt::AlignCenter);
-    messageLabel->setStyleSheet("QLabel { color: white; font-size: 16px; line-height: 22px; }");
+    messageLabel->setStyleSheet(
+        "QLabel {"
+        "  font-family: 'Inter';"
+        "  font-style: normal;"
+        "  font-weight: 400;"
+        "  font-size: 14px;"
+        "  line-height: 150%;"
+        "  color: #FFFFFF;"
+        "}");
     cardLayout->addWidget(messageLabel, 1);
 
     confirmButton = new QPushButton(obs_module_text("Live.EventChange.Confirm.Confirm"), card);
@@ -159,4 +194,3 @@ void OneSevenLiveObsAutoAdjustDialog::mouseReleaseEvent(QMouseEvent* event) {
         event->accept();
     }
 }
-
