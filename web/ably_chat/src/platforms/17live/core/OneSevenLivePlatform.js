@@ -16,18 +16,6 @@ import {
 } from '@/lib/constants';
 import { getGiftByID, getRoomInfo } from '../api';
 
-// Dev-only mock messages (same as Ably.jsx)
-import giftdata from '@/../public/mock/chat_new_gift_2.json';
-import comment from '@/../public/mock/chat_message.json';
-import newjoin from '@/../public/mock/chat_new_join.json';
-import aicohost from '@/../public/mock/chat_ai_cohost.json';
-import pokeone from '@/../public/mock/chat_poke.json';
-import pokeall from '@/../public/mock/chat_poke_all.json';
-import pokeback0 from '@/../public/mock/chat_poke_back_0.json';
-import pokeback1 from '@/../public/mock/chat_poke_back_1.json';
-import pokeback2 from '@/../public/mock/chat_poke_back_2.json';
-import pokeback3 from '@/../public/mock/chat_poke_back_3.json';
-
 export class OneSevenLivePlatform extends BasePlatform {
   constructor() {
     super('17live', '17Live');
@@ -60,23 +48,10 @@ export class OneSevenLivePlatform extends BasePlatform {
       this.isConnected = true;
       this.emit('connected', { platform: this.platformId, roomID });
 
-      if (process.env.NODE_ENV === 'development') {
-        const raws = [
-          comment,
-          newjoin,
-          giftdata,
-          aicohost,
-          pokeone,
-          pokeall,
-          pokeback0,
-          pokeback1,
-          pokeback2,
-          pokeback3,
-        ];
-
-        const unifiedMessages = (await Promise.all(raws.map((m) => this.processRawMessage(m)))).filter(
-          Boolean
-        );
+      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+        const { loadDevMockMessages } = await import('./OneSevenLivePlatform.devMocks');
+        const raws = await loadDevMockMessages();
+        const unifiedMessages = (await Promise.all(raws.map((m) => this.processRawMessage(m)))).filter(Boolean);
         unifiedMessages.forEach((m) => this.enqueueMessage(m));
       }
       
