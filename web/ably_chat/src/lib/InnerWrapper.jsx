@@ -18,7 +18,7 @@ const InnerWrapper = styled.div`
   width: ${({ $isFullWidth }) => ($isFullWidth ? '100%' : 'fit-content')};
   padding: 5px 8px;
   ${({ $hasPaddingRight }) => $hasPaddingRight && 'padding-right: 30px;'}
-  line-height: 24px;
+  line-height: var(--chat-line-height, 24px);
   border-radius: ${({ $borderRadius }) => `${$borderRadius || 8}px`};
 
   ${({ $hasUserDecoration }) => $hasUserDecoration && userDecorationCss}

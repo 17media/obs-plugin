@@ -5,6 +5,10 @@
     "GIVE_LUCKYBAG_GIFT": "Opened {luckyBagName} and sent {giftName} ({point})",
     "GIVE_GIFT_DEFAULT": "Sent a gift ({point})",
     "EMPTY_CHAT_MESSAGE": "Audience comments will show up here. Have fun with your viewers!",
+    "FONT_SIZE_LABEL": "Font size",
+    "FONT_SIZE_LARGE": "Large",
+    "FONT_SIZE_MEDIUM": "Medium",
+    "FONT_SIZE_SMALL": "Small",
     "POKE_ONE": "Streamer pokes {receiverName}",
     "POKE_BACK": "pokes back",
     "POKE_ALL": "Streamer pokes All"

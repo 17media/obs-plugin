@@ -4,6 +4,7 @@ let giftsMap = new Map();
 let pendingRequests = new Map();
 
 async function loadMockGifts() {
+    if (typeof window === 'undefined') return;
     try {
         // In development environment, read gift information from local JSON file
         const response = await fetch('/mock/get_gifts_response.json');
@@ -24,12 +25,13 @@ async function loadMockGifts() {
     }
 }
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     loadMockGifts();
 }
 
 export async function getGifts() {
     if (process.env.NODE_ENV === 'development') {
+        if (typeof window === 'undefined') return;
         await loadMockGifts();
     } else {
         const url = `/lapi`;

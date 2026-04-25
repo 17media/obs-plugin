@@ -5,6 +5,10 @@
     "GIVE_LUCKYBAG_GIFT": "{luckyBagName} を開けて、{giftName}（{point}）を贈りました",
     "GIVE_GIFT_DEFAULT": "ギフトを贈りました ({point})",
     "EMPTY_CHAT_MESSAGE": "リスナーのコメントはここに表示されます。",
+    "FONT_SIZE_LABEL": "文字サイズ",
+    "FONT_SIZE_LARGE": "大",
+    "FONT_SIZE_MEDIUM": "中",
+    "FONT_SIZE_SMALL": "小",
     "POKE_ONE": "ライバーが {receiverName} にPokeしました",
     "POKE_BACK": "がPokeを返しました",
     "POKE_ALL": "ライバーが 全て にPokeしました"
