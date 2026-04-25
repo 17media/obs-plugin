@@ -43,6 +43,7 @@ class OneSevenLiveConfigManager {
     void clearStreamingPullUrl();
 
     bool getConfigValue(const std::string &key, std::string &value);
+    bool setConfigValue(const std::string &key, const std::string &value);
 
     // Get current room ID
     qint64 getRoomID();

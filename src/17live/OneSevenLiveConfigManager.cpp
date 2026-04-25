@@ -143,6 +143,31 @@ bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::stri
     return true;
 }
 
+bool OneSevenLiveConfigManager::setConfigValue(const std::string &key, const std::string &value) {
+    if (!initialized) {
+        setLastError(
+            ResultError{"State.NotInitialized", "Config manager not initialized", false, key});
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false, key});
+        return false;
+    }
+
+    config_set_string(config, service, key.c_str(), value.c_str());
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save config value: %s", key.c_str());
+        setLastError(ResultError{"IO.SaveFailed", "Failed to save config value", false, key});
+        return false;
+    }
+
+    clearLastError();
+    return true;
+}
+
 qint64 OneSevenLiveConfigManager::getRoomID() {
     if (!initialized) {
         return 0;

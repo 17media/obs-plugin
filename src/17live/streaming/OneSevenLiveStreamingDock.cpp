@@ -2,6 +2,8 @@
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
+#include <util/config-file.h>
+#include <graphics/vec2.h>
 
 #include <QAction>
 #include <QCoreApplication>
@@ -10,6 +12,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QIcon>
+#include <QHash>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPushButton>
@@ -29,9 +32,211 @@
 #include "moc_OneSevenLiveStreamingDock.cpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "plugin-support.h"
+#include "streaming/OneSevenLiveObsAutoAdjustDialog.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
+
+namespace {
+    constexpr uint32_t kPortraitBaseWidth = 1080;
+    constexpr uint32_t kPortraitBaseHeight = 1920;
+    constexpr uint32_t kPortraitOutputWidth = 720;
+    constexpr uint32_t kPortraitOutputHeight = 1280;
+
+    constexpr uint32_t kLandscapeBaseWidth = 1920;
+    constexpr uint32_t kLandscapeBaseHeight = 1080;
+    constexpr uint32_t kLandscapeOutputWidth = 1280;
+    constexpr uint32_t kLandscapeOutputHeight = 720;
+    constexpr int kSuggestedVideoBitrateKbps = 2500;
+    constexpr const char* kConfigKeyAutoAdjustDontRemind = "ObsAutoAdjustDontRemind";
+
+    static bool isAdvancedOutputMode(config_t* cfg) {
+        if (!cfg) {
+            return false;
+        }
+        const char* mode = config_get_string(cfg, "Output", "Mode");
+        if (!mode) {
+            return false;
+        }
+        return QString::fromUtf8(mode).compare("Advanced", Qt::CaseInsensitive) == 0;
+    }
+
+    static int getCurrentVideoBitrateKbpsFromProfile(config_t* cfg) {
+        if (!cfg) {
+            return 0;
+        }
+        if (isAdvancedOutputMode(cfg)) {
+            return config_get_int(cfg, "AdvOut", "FFVBitrate");
+        }
+        return static_cast<int>(config_get_uint(cfg, "SimpleOutput", "VBitrate"));
+    }
+
+    static bool isVideoOutputSource(obs_source_t* src) {
+        if (!src) {
+            return false;
+        }
+        const uint32_t flags = obs_source_get_output_flags(src);
+        return (flags & OBS_SOURCE_VIDEO) != 0;
+    }
+
+    static bool isSceneItemEligibleForAutoFit(obs_sceneitem_t* item) {
+        if (!item) {
+            return false;
+        }
+        if (!obs_sceneitem_visible(item)) {
+            return false;
+        }
+        if (obs_sceneitem_locked(item)) {
+            return false;
+        }
+        return true;
+    }
+
+    static int applyFitToAllSceneItemsToCanvas(uint32_t canvasW, uint32_t canvasH);
+
+    static bool fitPrimaryVisualItemToCurrentCanvas() {
+        obs_video_info ovi{};
+        if (!obs_get_video_info(&ovi)) {
+            return false;
+        }
+        if (ovi.base_width == 0 || ovi.base_height == 0) {
+            return false;
+        }
+        const int count = applyFitToAllSceneItemsToCanvas(ovi.base_width, ovi.base_height);
+        return count > 0;
+    }
+
+    static int applyFitToAllSceneItemsToCanvas(uint32_t canvasW, uint32_t canvasH) {
+        obs_source_t* sceneSource = obs_frontend_get_current_scene();
+        if (!sceneSource) {
+            return 0;
+        }
+
+        obs_scene_t* scene = obs_scene_from_source(sceneSource);
+        if (!scene) {
+            obs_source_release(sceneSource);
+            return 0;
+        }
+
+        struct Ctx {
+            uint32_t canvasW = 0;
+            uint32_t canvasH = 0;
+            int applied = 0;
+        } ctx;
+        ctx.canvasW = canvasW;
+        ctx.canvasH = canvasH;
+
+        obs_scene_enum_items(
+            scene,
+            [](obs_scene_t*, obs_sceneitem_t* item, void* param) -> bool {
+                auto* ctx = static_cast<Ctx*>(param);
+                if (obs_sceneitem_is_group(item)) {
+                    obs_sceneitem_group_enum_items(item, [](obs_scene_t*, obs_sceneitem_t* child, void* p) -> bool {
+                        auto* ctx = static_cast<Ctx*>(p);
+                        if (!isSceneItemEligibleForAutoFit(child)) {
+                            return true;
+                        }
+
+                        obs_transform_info itemInfo;
+                        vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+                        vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+                        itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+                        itemInfo.rot = 0.0f;
+                        vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
+                        itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+                        itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+                        itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(child);
+                        obs_sceneitem_set_info2(child, &itemInfo);
+
+                        ctx->applied++;
+                        return true;
+                    }, ctx);
+                    return true;
+                }
+
+                if (!isSceneItemEligibleForAutoFit(item)) {
+                    return true;
+                }
+
+                obs_transform_info itemInfo;
+                vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+                vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+                itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+                itemInfo.rot = 0.0f;
+                vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
+                itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+                itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+                itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(item);
+                obs_sceneitem_set_info2(item, &itemInfo);
+
+                ctx->applied++;
+                return true;
+            },
+            &ctx);
+
+        obs_source_release(sceneSource);
+        return ctx.applied;
+    }
+
+    static bool applyObsProfileVideoSettings(uint32_t baseW, uint32_t baseH, uint32_t outW,
+                                             uint32_t outH, int bitrateKbps) {
+        config_t* cfg = obs_frontend_get_profile_config();
+        if (!cfg) {
+            return false;
+        }
+
+        config_set_uint(cfg, "Video", "BaseCX", baseW);
+        config_set_uint(cfg, "Video", "BaseCY", baseH);
+        config_set_uint(cfg, "Video", "OutputCX", outW);
+        config_set_uint(cfg, "Video", "OutputCY", outH);
+
+        if (isAdvancedOutputMode(cfg)) {
+            config_set_int(cfg, "AdvOut", "FFVBitrate", bitrateKbps);
+        } else {
+            config_set_uint(cfg, "SimpleOutput", "VBitrate", static_cast<uint32_t>(bitrateKbps));
+        }
+
+        if (config_save(cfg) < 0) {
+            return false;
+        }
+
+        obs_frontend_reset_video();
+
+        obs_video_info ovi{};
+        if (!obs_get_video_info(&ovi)) {
+            return false;
+        }
+
+        const bool ok = (ovi.base_width == baseW && ovi.base_height == baseH &&
+                         ovi.output_width == outW && ovi.output_height == outH);
+#if 0
+        obs_log(LOG_INFO,
+                "[obs-17live] Schedule FitToScreen retries: target base=%ux%u out=%ux%u bitrate=%d "
+                "applied base=%ux%u out=%ux%u",
+                baseW, baseH, outW, outH, bitrateKbps, ovi.base_width, ovi.base_height,
+                ovi.output_width, ovi.output_height);
+
+        auto schedule = [](int delayMs) {
+            QTimer::singleShot(delayMs, [delayMs]() {
+                obs_log(LOG_INFO, "[obs-17live] FitToScreen retry tick: %dms", delayMs);
+                fitPrimaryVisualItemToCurrentCanvas();
+            });
+        };
+
+        schedule(0);
+        schedule(150);
+        schedule(350);
+        schedule(700);
+        schedule(1200);
+        schedule(10000);
+#endif
+
+        if (ovi.base_width != 0 && ovi.base_height != 0) {
+            applyFitToAllSceneItemsToCanvas(ovi.base_width, ovi.base_height);
+        }
+        return ok;
+    }
+}  // namespace
 
 OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
                                                      OneSevenLiveStreamManager *streamManager_,
@@ -924,6 +1129,15 @@ void OneSevenLiveStreamingDock::createConnections() {
     connect(createLiveButton, &QPushButton::clicked, this,
             &OneSevenLiveStreamingDock::onCreateLiveClicked);
 
+    connect(portraitStreamRadio, &QRadioButton::clicked, this, [this]() {
+        obsAutoAdjustPromptShown = false;
+        maybePromptObsAutoAdjust(true);
+    });
+    connect(landscapeStreamRadio, &QRadioButton::clicked, this, [this]() {
+        obsAutoAdjustPromptShown = false;
+        maybePromptObsAutoAdjust(true);
+    });
+
     // Army-only viewing collapse/expand button
     connect(armyOnlyToggleButton, &QPushButton::clicked, this,
             &OneSevenLiveStreamingDock::onArmyOnlyToggleClicked);
@@ -1139,6 +1353,7 @@ void OneSevenLiveStreamingDock::onSaveConfigClicked() {
 
 void OneSevenLiveStreamingDock::onCreateLiveClicked() {
     obs_log(LOG_INFO, "onCreateLiveClicked");
+    obsAutoAdjustPromptShown = false;
 
     // Create live stream
     OneSevenLiveRtmpRequest request;
@@ -1147,6 +1362,7 @@ void OneSevenLiveStreamingDock::onCreateLiveClicked() {
         return;
     }
 
+    maybePromptObsAutoAdjust(false);
     startCreateLiveSequence(request);
 }
 
@@ -1412,6 +1628,97 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
     }
 }
 
+void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) {
+    if (obsAutoAdjustPromptShown) {
+        return;
+    }
+    obsAutoAdjustPromptShown = true;
+
+    if (!portraitStreamRadio || !landscapeStreamRadio) {
+        return;
+    }
+
+    const bool isLandscape = landscapeStreamRadio->isChecked();
+    const uint32_t targetBaseW = isLandscape ? kLandscapeBaseWidth : kPortraitBaseWidth;
+    const uint32_t targetBaseH = isLandscape ? kLandscapeBaseHeight : kPortraitBaseHeight;
+    const uint32_t targetOutW = isLandscape ? kLandscapeOutputWidth : kPortraitOutputWidth;
+    const uint32_t targetOutH = isLandscape ? kLandscapeOutputHeight : kPortraitOutputHeight;
+
+    obs_video_info vinfo{};
+    if (!obs_get_video_info(&vinfo)) {
+        return;
+    }
+
+    const bool currentBaseIsLandscape = vinfo.base_width > vinfo.base_height;
+    const bool currentBaseIsPortrait = vinfo.base_height > vinfo.base_width;
+    const bool outputMatches = vinfo.output_width == targetOutW && vinfo.output_height == targetOutH;
+    const bool baseOrientationMatches = isLandscape ? currentBaseIsLandscape : currentBaseIsPortrait;
+    const bool resolutionMismatch = !(baseOrientationMatches && outputMatches);
+
+    config_t* cfg = obs_frontend_get_profile_config();
+    const int currentBitrate = getCurrentVideoBitrateKbpsFromProfile(cfg);
+    const bool bitrateMismatch = currentBitrate != 0 && currentBitrate != kSuggestedVideoBitrateKbps;
+
+    if (!resolutionMismatch && !bitrateMismatch) {
+        return;
+    }
+
+    bool dontRemind = false;
+    if (configManager) {
+        std::string v;
+        if (configManager->getConfigValue(kConfigKeyAutoAdjustDontRemind, v)) {
+            dontRemind = v == "true";
+        }
+    }
+
+    if (dontRemind) {
+        return;
+    }
+
+    if (allowSilentApply) {
+        const bool ok = applyObsProfileVideoSettings(targetBaseW, targetBaseH, targetOutW, targetOutH,
+                                                     kSuggestedVideoBitrateKbps);
+        if (!ok) {
+            OneSevenLiveObsAutoAdjustDialog::ShowError(
+                this, obs_module_text("Live.Settings.AutoAdjust.Error"));
+        }
+        return;
+    }
+
+    const QString portraitName = obs_module_text("Live.Settings.Layout.Portrait");
+    const QString landscapeName = obs_module_text("Live.Settings.Layout.Landscape");
+    const QString portraitRes =
+        QString("%1 x %2")
+            .arg(QString::number(kPortraitOutputWidth), QString::number(kPortraitOutputHeight));
+    const QString landscapeRes =
+        QString("%1 x %2")
+            .arg(QString::number(kLandscapeOutputWidth), QString::number(kLandscapeOutputHeight));
+    const QString confirmText = obs_module_text("Live.EventChange.Confirm.Confirm");
+    const QString cancelText = obs_module_text("Live.EventChange.Confirm.Cancel");
+
+    const QString message = QString(obs_module_text("Live.Settings.AutoAdjust.Prompt"))
+                                .arg(portraitName, portraitRes, landscapeName, landscapeRes,
+                                     QString::number(kSuggestedVideoBitrateKbps), confirmText,
+                                     cancelText);
+
+    const auto result = OneSevenLiveObsAutoAdjustDialog::ShowPrompt(this, message, false);
+    if (configManager && result.dontRemind) {
+        configManager->setConfigValue(kConfigKeyAutoAdjustDontRemind,
+                                      result.dontRemind ? "true" : "false");
+    }
+
+    if (!result.confirmed) {
+        return;
+    }
+
+    const bool ok = applyObsProfileVideoSettings(targetBaseW, targetBaseH, targetOutW, targetOutH,
+                                                 kSuggestedVideoBitrateKbps);
+    if (!ok) {
+        OneSevenLiveObsAutoAdjustDialog::ShowError(
+            this, obs_module_text("Live.Settings.AutoAdjust.Error"));
+    }
+}
+
 void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
     obs_log(LOG_INFO, "onDeleteLiveClicked");
 
@@ -1571,6 +1878,7 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
 
     if (status == OneSevenLiveStreamingStatus::NotStarted) {
+        obsAutoAdjustPromptShown = false;
         if (eventCooldownTimer && eventCooldownTimer->isActive()) {
             eventCooldownTimer->stop();
             eventCooldownRemaining = 0;

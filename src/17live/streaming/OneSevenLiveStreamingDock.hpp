@@ -47,6 +47,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void updateRequiredArmyRankSelections();
     void updateUIValues();
     void handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult &result);
+    void maybePromptObsAutoAdjust(bool allowSilentApply);
 
     /**
      * @brief Change event during streaming
@@ -192,6 +193,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     QString originalCategoryText = "";  // Original category text before cooldown
     int previousEventIndex = -1;        // Store previous event index for confirmation dialog
     static constexpr int DEFAULT_COOLDOWN_DURATION = 300;  // 5 minutes
+
+    bool obsAutoAdjustPromptShown = false;
 
    protected:
     void showEvent(QShowEvent *event) override;
