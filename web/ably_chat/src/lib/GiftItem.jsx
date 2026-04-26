@@ -14,7 +14,6 @@ const GiftName = styled.span`
 `;
 
 const GiftPoint = styled.span`
-  color: #FFFFFF;
   font-size: 0.875rem;
 `;
 
