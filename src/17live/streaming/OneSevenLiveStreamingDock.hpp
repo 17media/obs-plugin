@@ -47,6 +47,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void updateRequiredArmyRankSelections();
     void updateUIValues();
     void handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult &result);
+    bool ensureStreamingAudioEncoderForGroupCall();
 
     /**
      * @brief Change event during streaming
