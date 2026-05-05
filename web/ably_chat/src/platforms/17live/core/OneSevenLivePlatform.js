@@ -76,6 +76,7 @@ export class OneSevenLivePlatform extends BasePlatform {
         }
 
         const enterRaws = await loadDevEnterAnimationMessages();
+        console.log('enter raws: ', enterRaws);
         if (enterRaws && enterRaws.length) {
           this.devEnterAnimationIndex = 0;
           if (this.devEnterAnimationTimer) {

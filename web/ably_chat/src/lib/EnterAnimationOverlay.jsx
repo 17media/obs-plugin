@@ -7,7 +7,7 @@ const Wrapper = styled.div`
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: 16px;
+  bottom: 48px;
   display: flex;
   justify-content: flex-start;
   pointer-events: none;
@@ -44,6 +44,8 @@ const Avatar = styled.div`
   height: 33px;
   border-radius: 50%;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
   background-color: rgba(255, 255, 255, 0.2);
   background-size: cover;
   background-position: center;
@@ -51,8 +53,8 @@ const Avatar = styled.div`
 `;
 
 const BadgeIcon = styled.img`
-  width: 33px;
-  height: 33px;
+  width: ${(p) => p.$size || '33px'};
+  height: ${(p) => p.$size || '33px'};
   object-fit: contain;
   flex-shrink: 0;
 `;
@@ -60,15 +62,23 @@ const BadgeIcon = styled.img`
 const Text = styled.div`
   display: inline-flex;
   align-items: center;
-  font-size: 18px;
-  line-height: 33px;
+  font-size: ${(p) => p.$fontSize || '18px'};
+  line-height: ${(p) => p.$lineHeight || '33px'};
+  color: ${(p) => p.$color || 'inherit'};
   white-space: nowrap;
   flex-shrink: 0;
+`;
+
+const AvatarBadgeGroup = styled.div`
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
 `;
 
 const Marquee = styled.div`
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   height: 33px;
   padding: 0 2px;
   border-radius: 999px;
@@ -76,6 +86,9 @@ const Marquee = styled.div`
   max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-left: -5px;
+  position: relative;
+  z-index: 2;
 `;
 
 const AniImage = styled.img`
@@ -94,9 +107,9 @@ const BadgeContainer = styled.div`
 
 const AniLayer = styled.div`
   position: absolute;
-  left: 50%;
+  left: 0;
   bottom: calc(100% + 4px);
-  transform: translateX(-50%);
+  transform: none;
 `;
 
 function normalizeAssetSrc(raw) {
@@ -110,7 +123,8 @@ function getBadgeRenderConfig(animationId) {
     bg: '#ffffff',
     border: 'rgba(0, 0, 0, 0.18)',
     textColor: '#000000',
-    marqueeBg: 'transparent',
+    marqueeBg: '#ffffff',
+    marqueeTextColor: '#000000',
     badgeIconSrc: '',
   };
 
@@ -121,6 +135,7 @@ function getBadgeRenderConfig(animationId) {
       border: 'rgba(0, 0, 0, 0.12)',
       textColor: '#ffffff',
       marqueeBg: 'rgb(255, 138, 212)',
+      marqueeTextColor: '#ffffff',
     };
   }
   if (animationId === 2) {
@@ -129,6 +144,7 @@ function getBadgeRenderConfig(animationId) {
       bg: 'linear-gradient(90deg, rgb(240, 6, 197), rgb(245, 72, 125))',
       border: 'rgba(0, 0, 0, 0.12)',
       textColor: 'rgb(240, 6, 197)',
+      marqueeTextColor: 'rgb(240, 6, 197)',
     };
   }
   if (animationId === 3) {
@@ -178,6 +194,7 @@ function getBadgeRenderConfig(animationId) {
       border: 'rgba(0, 0, 0, 0.12)',
       textColor: 'rgb(26, 37, 65)',
       marqueeBg: 'rgb(231, 231, 231)',
+      marqueeTextColor: 'rgb(26, 37, 65)',
       badgeIconSrc: '/enter_animation/igMlevelSettingBallerMiddle@3x.png',
     };
   }
@@ -188,6 +205,7 @@ function getBadgeRenderConfig(animationId) {
       border: 'rgba(0, 0, 0, 0.12)',
       textColor: 'rgb(0, 0, 0)',
       marqueeBg: 'rgb(254, 239, 201)',
+      marqueeTextColor: 'rgb(0, 0, 0)',
       badgeIconSrc: '/enter_animation/igMlevelSettingBallerHigh@3x.png',
     };
   }
@@ -326,6 +344,10 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         return '';
       }
     })();
+    const hasVisibleText = (s) =>
+      typeof s === 'string' && s.replace(/[\s\u200B\uFEFF]/g, '').length > 0;
+    const safeBadgeLabel = hasVisibleText(badgeLabel) ? badgeLabel.trim() : '';
+    const safeMarqueeText = hasVisibleText(marqueeText) ? marqueeText.trim() : '';
 
     const src =
       normalizeAssetSrc(
@@ -358,14 +380,18 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
             ) : null}
             <Card $bg={cfg.bg} $border={cfg.border} $color={cfg.textColor}>
               <BadgeRow>
-                <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
-                {cfg.badgeIconSrc ? <BadgeIcon src={cfg.badgeIconSrc} alt="" /> : null}
-                {badgeLabel ? <Text>{badgeLabel}</Text> : null}
-                {marqueeText ? (
-                  <Marquee $bg={cfg.marqueeBg}>
-                    <Text>{marqueeText}</Text>
-                  </Marquee>
-                ) : null}
+                <AvatarBadgeGroup>
+                  <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
+                  {safeBadgeLabel ? (
+                    <Marquee $bg={cfg.marqueeBg}>
+                      {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
+                      <Text $fontSize="12px" $lineHeight="22px">
+                        {safeBadgeLabel}
+                      </Text>
+                    </Marquee>
+                  ) : null}
+                </AvatarBadgeGroup>
+                {safeMarqueeText ? <Text $color={cfg.marqueeTextColor}>{safeMarqueeText}</Text> : null}
               </BadgeRow>
             </Card>
           </BadgeContainer>
