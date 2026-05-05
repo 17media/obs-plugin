@@ -246,31 +246,37 @@ export class OneSevenLivePlatform extends BasePlatform {
       });
     } else if (msgType === MsgType_ENTER_ANIMATION) {
       const payload = message?.subscriberEnterMsg || message?.enterAnimationMsg || {};
-      const animationId = payload?.animation;
+      const animationId = Number(payload?.animation || 0);
 
-      const textKey = (() => {
+      const badgeKey = (() => {
         if (animationId === 1) return 'guardian_entry_animation_message';
         if (animationId === 2) return 'VIP';
         if (animationId === 6) return 'producer_enterroom';
-        if (animationId >= 7 && animationId <= 10) return 'army_enter_notification';
-        if (animationId === 15) return 'army_enter_notification';
-        if (animationId >= 11 && animationId <= 13) return 'mlevel_entry_notice_subscription';
-        return 'enter_is_here';
+        if ((animationId >= 7 && animationId <= 10) || animationId === 15) return 'army_enter_notification';
+        if (animationId === 12 || animationId === 13) return 'mlevel_entry_notice_subscription';
+        if (animationId === 3 || animationId === 4 || animationId === 5 || animationId === 16 || animationId === 17) return 'LV%@';
+        return '';
       })();
 
-      const localSrc = (() => {
+      const marqueeKey = animationId === 6 ? '' : 'enter_is_here';
+
+      const assetSrc = (() => {
         const notif = payload?.eventNotifMsg;
         if (notif && notif.templateURL) return notif.templateURL;
 
+        if (animationId === 3) return '/enter_animation/ani_lv_050.webp';
+        if (animationId === 4) return '/enter_animation/ani_lv_100.webp';
+        if (animationId === 5) return '/enter_animation/ani_lv_120.webp';
         if (animationId === 6) return '/enter_animation/ani_17k_producer_2.webp';
-        if (animationId === 2) return '/enter_animation/vip_goin_m.webp';
-        if (animationId === 1) return '/enter_animation/ani_vip_army_sergeant.webp';
-        if (animationId === 3 || animationId === 4 || animationId === 5) return '/enter_animation/igSettingMlevelLow@3x.png';
-        if (animationId === 7 || animationId === 8 || animationId === 9 || animationId === 10 || animationId === 15) {
-          return '/enter_animation/ani_vip_army_general.webp';
-        }
-        if (animationId >= 11 && animationId <= 13) return '/enter_animation/ani_lv_050.webp';
-        return '/enter_animation/ani_lv_050.webp';
+        if (animationId === 7) return '/enter_animation/ani_vip_army_sergeant.webp';
+        if (animationId === 8) return '/enter_animation/ani_vip_army_captain.webp';
+        if (animationId === 9) return '/enter_animation/ani_vip_army_colonel.webp';
+        if (animationId === 10) return '/enter_animation/ani_vip_army_general.webp';
+        if (animationId === 12) return '/enter_animation/vip_goin_m.webp';
+        if (animationId === 13) return '/enter_animation/vip_goin_l.webp';
+        if (animationId === 16) return '/enter_animation/ani_lv_160.webp';
+        if (animationId === 17) return '/enter_animation/ani_lv_200.webp';
+        return '';
       })();
 
       const durationMs = (() => {
@@ -295,8 +301,9 @@ export class OneSevenLivePlatform extends BasePlatform {
         enterAnimation: {
           ...payload,
           animationId,
-          textKey,
-          localSrc,
+          badgeKey,
+          marqueeKey,
+          assetSrc,
           durationMs,
         },
         id,

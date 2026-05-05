@@ -23,61 +23,80 @@ const Card = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  background: rgba(0, 0, 0, 0.72);
+  padding: 2px;
+  background: ${(p) => p.$bg || '#ffffff'};
   border-radius: 999px;
   max-width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid ${(p) => p.$border || 'rgba(0, 0, 0, 0.18)'};
   overflow: hidden;
+  color: ${(p) => p.$color || '#000000'};
 `;
 
 const BadgeRow = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   min-width: 0;
 `;
 
 const Avatar = styled.div`
-  width: 22px;
-  height: 22px;
+  width: 33px;
+  height: 33px;
   border-radius: 50%;
   flex-shrink: 0;
   background-color: rgba(255, 255, 255, 0.2);
   background-size: cover;
   background-position: center;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(0, 0, 0, 0.18);
 `;
 
-const Pill = styled.div`
+const BadgeIcon = styled.img`
+  width: 33px;
+  height: 33px;
+  object-fit: contain;
+  flex-shrink: 0;
+`;
+
+const Text = styled.div`
   display: inline-flex;
   align-items: center;
-  height: 22px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  line-height: 22px;
-  color: #ffffff;
+  font-size: 18px;
+  line-height: 33px;
   white-space: nowrap;
   flex-shrink: 0;
 `;
 
-const LevelPill = styled(Pill)`
-  background: rgba(255, 255, 255, 0.15);
-`;
-
-const NamePill = styled(Pill)`
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  max-width: 220px;
+const Marquee = styled.div`
+  display: inline-flex;
+  align-items: center;
+  height: 33px;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: ${(p) => p.$bg || 'transparent'};
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
 `;
 
 const AniImage = styled.img`
-  width: 160px;
-  height: 56px;
-  object-fit: contain;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+`;
+
+const BadgeContainer = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+`;
+
+const AniLayer = styled.div`
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
 `;
 
 function normalizeAssetSrc(raw) {
@@ -86,30 +105,110 @@ function normalizeAssetSrc(raw) {
   return `/enter_animation/${raw}`;
 }
 
-function buildBadgeLabel(t, enterAnimation) {
-  const key = enterAnimation?.textKey || enterAnimation?.key;
-  const mLevel = enterAnimation?.mLevel;
-  const level = enterAnimation?.level;
-  const name =
-    enterAnimation?.displayName ||
-    enterAnimation?.nickname ||
-    enterAnimation?.userName ||
-    '';
+function getBadgeRenderConfig(animationId) {
+  const defaultCfg = {
+    bg: '#ffffff',
+    border: 'rgba(0, 0, 0, 0.18)',
+    textColor: '#000000',
+    marqueeBg: 'transparent',
+    badgeIconSrc: '',
+  };
 
-  if (key === 'mlevel_entry_notice_subscription' && typeof mLevel === 'number') {
-    return `${t(key)} ${mLevel}`;
+  if (animationId === 1) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(88, 252, 255), rgb(196, 172, 255), rgb(255, 179, 244))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+      marqueeBg: 'rgb(255, 138, 212)',
+    };
   }
-  if ((key === 'LV%@' || key === 'LV%40') && typeof level === 'number') {
-    return t('LV%@', { level });
+  if (animationId === 2) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(240, 6, 197), rgb(245, 72, 125))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: 'rgb(240, 6, 197)',
+    };
   }
-  if (typeof key === 'string' && key.trim()) {
-    try {
-      return t(key, { name, level, mLevel });
-    } catch {
-      return '';
-    }
+  if (animationId === 3) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(246, 105, 108), rgb(246, 147, 85))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
   }
-  return '';
+  if (animationId === 4) {
+    return {
+      ...defaultCfg,
+      bg: 'rgb(255, 104, 249)',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if (animationId === 5) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(247, 80, 188), rgb(158, 123, 255))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if (animationId === 6) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 209, 0), rgb(246, 105, 108))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if ((animationId >= 7 && animationId <= 10) || animationId === 15) {
+    return {
+      ...defaultCfg,
+      bg: 'rgb(21, 144, 63)',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if (animationId === 12) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(176, 196, 209))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: 'rgb(26, 37, 65)',
+      marqueeBg: 'rgb(231, 231, 231)',
+      badgeIconSrc: '/enter_animation/igMlevelSettingBallerMiddle@3x.png',
+    };
+  }
+  if (animationId === 13) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 248, 230), rgb(249, 199, 127))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: 'rgb(0, 0, 0)',
+      marqueeBg: 'rgb(254, 239, 201)',
+      badgeIconSrc: '/enter_animation/igMlevelSettingBallerHigh@3x.png',
+    };
+  }
+  if (animationId === 16) {
+    return {
+      ...defaultCfg,
+      bg: 'rgb(51, 206, 176)',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if (animationId === 17) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 242, 20), rgb(177, 131, 255))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+
+  return defaultCfg;
 }
 
 function computeBannerKeyframes(entryMs, holdMs, exitMs) {
@@ -130,13 +229,19 @@ function computeBannerKeyframes(entryMs, holdMs, exitMs) {
 export default function EnterAnimationOverlay({ events, onConsume }) {
   const t = useTranslations('ChatPage');
   const [current, setCurrent] = useState(null);
+  const [showAnim, setShowAnim] = useState(false);
   const timerRef = useRef(null);
+  const animTimersRef = useRef([]);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
+      }
+      if (animTimersRef.current.length) {
+        animTimersRef.current.forEach((id) => clearTimeout(id));
+        animTimersRef.current = [];
       }
     };
   }, []);
@@ -147,12 +252,39 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const next = events[0];
     setCurrent(next);
     onConsume?.(next);
+    setShowAnim(false);
+    if (animTimersRef.current.length) {
+      animTimersRef.current.forEach((id) => clearTimeout(id));
+      animTimersRef.current = [];
+    }
 
     const holdMs =
       next?.content?.getIn?.(['enterAnimation', 'durationMs']) ||
       next?.content?.getIn?.(['enterAnimation', 'duration']) ||
       1300;
     const totalMs = 1000 + Number(holdMs || 1300) + 300;
+    const src =
+      normalizeAssetSrc(
+        next?.content?.getIn?.(['enterAnimation', 'assetSrc']) ||
+        next?.content?.getIn?.(['enterAnimation', 'localSrc']) ||
+        next?.content?.getIn?.(['enterAnimation', 'src']) ||
+        next?.content?.getIn?.(['enterAnimation', 'asset']) ||
+        next?.content?.getIn?.(['enterAnimation', 'fileName']) ||
+        next?.content?.getIn?.(['enterAnimation', 'file'])
+      ) || '';
+
+    if (src) {
+      animTimersRef.current.push(
+        setTimeout(() => {
+          setShowAnim(true);
+        }, 1000)
+      );
+      animTimersRef.current.push(
+        setTimeout(() => {
+          setShowAnim(false);
+        }, 1000 + Number(holdMs || 1300))
+      );
+    }
 
     timerRef.current = setTimeout(() => {
       setCurrent(null);
@@ -165,15 +297,47 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const enterAnimation = content?.get ? content.get('enterAnimation')?.toJS?.() : null;
     const displayName = content?.get ? content.get('displayName') : '';
     const picture = content?.get ? content.get('picture') : '';
+    const animationId = Number(enterAnimation?.animationId || enterAnimation?.animation || 0);
+    const badgeKey = enterAnimation?.badgeKey || enterAnimation?.textKey || '';
+    const marqueeKey = enterAnimation?.marqueeKey || '';
+    const level = enterAnimation?.level;
+    const mLevel = enterAnimation?.mLevel;
+    const name =
+      enterAnimation?.displayName ||
+      enterAnimation?.nickname ||
+      enterAnimation?.userName ||
+      displayName ||
+      '';
+
+    const badgeLabel = (() => {
+      if (!badgeKey) return '';
+      try {
+        return t(badgeKey, { name, level, mLevel });
+      } catch {
+        return '';
+      }
+    })();
+
+    const marqueeText = (() => {
+      if (!marqueeKey) return '';
+      try {
+        return t(marqueeKey, { name });
+      } catch {
+        return '';
+      }
+    })();
+
     const src =
       normalizeAssetSrc(
+        enterAnimation?.assetSrc ||
         enterAnimation?.localSrc ||
         enterAnimation?.src ||
         enterAnimation?.asset ||
         enterAnimation?.fileName ||
         enterAnimation?.file
       ) || '';
-    const badgeLabel = buildBadgeLabel(t, enterAnimation);
+
+    const cfg = getBadgeRenderConfig(animationId);
     const avatarUrl = picture ? `${CDN_URL}/${picture}` : '';
 
     const entryMs = 1000;
@@ -181,23 +345,34 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const exitMs = 300;
     const totalMs = entryMs + holdMs + exitMs;
     const kf = computeBannerKeyframes(entryMs, holdMs, exitMs);
-    if (!displayName && !src) return null;
+    if (!name) return null;
 
     return (
       <Wrapper>
         <Animated $kf={kf} $dur={totalMs}>
-          <Card>
-            <BadgeRow>
-              <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
-              {badgeLabel ? <LevelPill>{badgeLabel}</LevelPill> : null}
-              <NamePill>{displayName}</NamePill>
-            </BadgeRow>
-            {src ? <AniImage src={src} alt="" /> : null}
-          </Card>
+          <BadgeContainer>
+            {showAnim && src ? (
+              <AniLayer>
+                <AniImage src={src} alt="" />
+              </AniLayer>
+            ) : null}
+            <Card $bg={cfg.bg} $border={cfg.border} $color={cfg.textColor}>
+              <BadgeRow>
+                <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
+                {cfg.badgeIconSrc ? <BadgeIcon src={cfg.badgeIconSrc} alt="" /> : null}
+                {badgeLabel ? <Text>{badgeLabel}</Text> : null}
+                {marqueeText ? (
+                  <Marquee $bg={cfg.marqueeBg}>
+                    <Text>{marqueeText}</Text>
+                  </Marquee>
+                ) : null}
+              </BadgeRow>
+            </Card>
+          </BadgeContainer>
         </Animated>
       </Wrapper>
     );
-  }, [current, t]);
+  }, [current, showAnim, t]);
 
   return view;
 }
