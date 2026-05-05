@@ -68,6 +68,8 @@ class OneSevenLiveConfigManager {
     bool loadGifts(json &gifts);
     bool saveEnterAnimationFiles(const json &files);
     bool loadEnterAnimationFiles(json &files);
+    bool saveI18nConfig(const json &i18nConfig);
+    bool loadI18nConfig(json &i18nConfig);
 
     // Twitch token management
     bool setTwitchTokens(const QString &accessToken, qint64 fetchedAtEpochSec);

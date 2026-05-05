@@ -117,6 +117,8 @@ const string ONESEVENLIVE_GET_GIFTS_URL = buildApiUrl("/api/v1/gifts");
 
 const string ONESEVENLIVE_GET_FILES_LIST_URL = buildApiUrl("/api/v1/files/list");
 
+const string ONESEVENLIVE_GET_I18N_CONFIG_URL = buildApiUrl("/api/v1/config/i18n");
+
 const string ONESEVENLIVE_GET_ROCKVIEWERS_URL =
     buildApiUrl("/api/v1/lives/%1/streamer/rockviewers?type=0&count=50&filterEmpty=true");
 
@@ -1130,6 +1132,23 @@ bool OneSevenLiveApiWrappers::GetFilesList(Json &json_out_resp) {
                        true)) {
         obs_log(LOG_ERROR, "GetFilesList error: %s", json_out_resp.dump().c_str());
         setLastError(buildApiError(json_out_resp, "GetFilesList failed"));
+        return false;
+    }
+
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::GetI18nConfig(Json &json_out_resp) {
+    obs_log(LOG_INFO, "GetI18nConfig");
+
+    clearLastError();
+
+    QByteArray url = ONESEVENLIVE_GET_I18N_CONFIG_URL.c_str();
+
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0,
+                       true)) {
+        obs_log(LOG_ERROR, "GetI18nConfig error: %s", json_out_resp.dump().c_str());
+        setLastError(buildApiError(json_out_resp, "GetI18nConfig failed"));
         return false;
     }
 

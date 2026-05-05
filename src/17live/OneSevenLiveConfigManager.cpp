@@ -895,6 +895,79 @@ bool OneSevenLiveConfigManager::loadEnterAnimationFiles(Json &files) {
     }
 }
 
+bool OneSevenLiveConfigManager::saveI18nConfig(const Json &i18nConfig) {
+    try {
+        if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "saveI18nConfig"});
+            return false;
+        }
+
+        QString filePath = QString::fromStdString(configPath) + "/" + "i18n_config.json";
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            obs_log(LOG_ERROR, "Failed to open i18n_config.json for writing");
+            setLastError(ResultError{"IO.OpenFailed", "Failed to open i18n_config.json for writing",
+                                     false, filePath.toStdString()});
+            return false;
+        }
+        QTextStream out(&file);
+        out << QString::fromStdString(i18nConfig.dump());
+        file.close();
+        clearLastError();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveI18nConfig exception: %s", e.what());
+        setLastError(ResultError{"State.Exception", "saveI18nConfig exception", false, e.what()});
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveI18nConfig unknown exception");
+        setLastError(ResultError{"State.Exception", "saveI18nConfig unknown exception", false, ""});
+        return false;
+    }
+}
+
+bool OneSevenLiveConfigManager::loadI18nConfig(Json &i18nConfig) {
+    try {
+        if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "loadI18nConfig"});
+            return false;
+        }
+
+        QString filePath = QString::fromStdString(configPath) + "/" + "i18n_config.json";
+        QFile file(filePath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            i18nConfig = json::object();
+            clearLastError();
+            return true;
+        }
+        QTextStream in(&file);
+        QString jsonString = in.readAll();
+        file.close();
+
+        try {
+            i18nConfig = json::parse(jsonString.toStdString());
+        } catch (const json::parse_error &e) {
+            obs_log(LOG_ERROR, "Failed to parse i18n_config.json: %s", e.what());
+            setLastError(ResultError{"Json.ParseFailed", "Failed to parse i18n_config.json", false,
+                                     e.what()});
+            return false;
+        }
+
+        clearLastError();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadI18nConfig exception: %s", e.what());
+        setLastError(ResultError{"State.Exception", "loadI18nConfig exception", false, e.what()});
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadI18nConfig unknown exception");
+        setLastError(ResultError{"State.Exception", "loadI18nConfig unknown exception", false, ""});
+        return false;
+    }
+}
+
 bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken,
                                                 qint64 fetchedAtEpochSec) {
     if (!initialized) {

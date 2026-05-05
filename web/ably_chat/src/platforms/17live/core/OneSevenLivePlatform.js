@@ -17,7 +17,7 @@ import {
   MsgType_LABOR_RECEIVE_REWARD,
   MsgType_ENTER_ANIMATION,
 } from '@/lib/constants';
-import { getEnterAnimationFiles, getGiftByID, getRoomInfo } from '../api';
+import { getEnterAnimationFiles, getGiftByID, getI18nConfig, getRoomInfo } from '../api';
 
 export class OneSevenLivePlatform extends BasePlatform {
   constructor() {
@@ -53,6 +53,11 @@ export class OneSevenLivePlatform extends BasePlatform {
         this.enterAnimationFiles = await getEnterAnimationFiles();
       } catch (e) {
         console.warn('Failed to preload enter animation files:', e);
+      }
+      try {
+        this.i18nConfig = await getI18nConfig();
+      } catch (e) {
+        console.warn('Failed to preload i18n config:', e);
       }
 
       this.isConnected = true;

@@ -407,7 +407,11 @@ bool OneSevenLiveHttpServer::start() {
                     configManager->getConfigValue("RoomID", roomID);
                     success = apiWrapper->GetAblyToken(roomID, apiResult);
                 } else if (action == ACTION_GETGIFTS) {
-                    if (!configManager->loadGifts(apiResult)) {
+                    const bool loaded = configManager->loadGifts(apiResult);
+                    const bool hasCached =
+                        apiResult.contains("gifts") && apiResult["gifts"].is_array() &&
+                        !apiResult["gifts"].empty();
+                    if (!loaded || !hasCached) {
                         if (coreManager.isGiftsLoading()) {
                             obs_log(LOG_INFO,
                                     "[%s] Gifts loading in progress, returning wait response",
@@ -459,12 +463,27 @@ bool OneSevenLiveHttpServer::start() {
                     }
 
                 } else if (action == ACTION_GETENTERANIMATIONFILES) {
-                    if (!configManager->loadEnterAnimationFiles(apiResult)) {
+                    const bool loaded = configManager->loadEnterAnimationFiles(apiResult);
+                    const bool hasCached = !apiResult.empty();
+                    if (!loaded || !hasCached) {
                         success = apiWrapper->GetFilesList(apiResult);
                         if (success && !configManager->saveEnterAnimationFiles(apiResult)) {
                             const auto err = configManager->getLastError();
                             obs_log(LOG_WARNING,
                                     "[%s] Failed to save enter animation files: %s %s",
+                                    name_.c_str(), err.code.c_str(), err.message.c_str());
+                        }
+                    } else {
+                        success = true;
+                    }
+                } else if (action == ACTION_GETI18NCONFIG) {
+                    const bool loaded = configManager->loadI18nConfig(apiResult);
+                    const bool hasCached = !apiResult.empty();
+                    if (!loaded || !hasCached) {
+                        success = apiWrapper->GetI18nConfig(apiResult);
+                        if (success && !configManager->saveI18nConfig(apiResult)) {
+                            const auto err = configManager->getLastError();
+                            obs_log(LOG_WARNING, "[%s] Failed to save i18n config: %s %s",
                                     name_.c_str(), err.code.c_str(), err.message.c_str());
                         }
                     } else {
