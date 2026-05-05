@@ -14,5 +14,10 @@ export async function loadDevMockMessages() {
     import('@/../public/mock/chat_poke_back_3.json'),
   ]);
 
-  return modules.map((m) => m.default);
+  return modules.flatMap((m) => (Array.isArray(m.default) ? m.default : [m.default]));
+}
+
+export async function loadDevEnterAnimationMessages() {
+  const m = await import('@/../public/mock/chat_enter_animation_samples.json');
+  return Array.isArray(m.default) ? m.default : [];
 }

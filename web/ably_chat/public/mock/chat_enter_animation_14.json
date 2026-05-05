@@ -1,0 +1,36 @@
+{
+  "type": 27,
+  "subscriberEnterMsg": {
+    "animation": 14,
+    "displayName": "kevinliu_test_1",
+    "eventNotifMsg": {
+      "templateURL": "https://cdn.17app.co/0053b99d-6bcb-4b36-9a2e-beacd4cb3a57.png",
+      "icouURL": "https://cdn.17app.co/8497868a-2d40-4542-9efb-8c85f0b3118b.png",
+      "descriptionToken": {
+        "key": "user_animation_springparty_show",
+        "params": [
+          {
+            "value": "kevinliu_test_1"
+          }
+        ],
+        "fontAttribute": null
+      },
+      "name": {
+        "key": "entryeffect_JP_202512_nutcracker",
+        "params": null,
+        "fontAttribute": null
+      },
+      "gradientFrom": "#d85325",
+      "gradientTo": "#d85325",
+      "textSize": 13,
+      "textColor": "#008000",
+      "nameColor": "#ffffff",
+      "strokeColor": "",
+      "animationID": "entryeffect_2512-jp-vip-nutcracker"
+    },
+    "level": 79,
+    "mLevel": 1,
+    "picture": "147aa7f9-9467-4509-bbc5-e84c80d9c87a.png",
+    "userID": "7a020216-a76f-4a54-aca7-a79dff4ca822"
+  }
+}

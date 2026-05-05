@@ -7,6 +7,8 @@ import { PlatformSelector } from './PlatformSelector';
 import Chat from '@/lib/Chat';
 import { getChatProps } from '@/platforms/17live/util/getChatProps';
 import { fromJS } from 'immutable';
+import EnterAnimationOverlay from '@/lib/EnterAnimationOverlay';
+import { MsgType_ENTER_ANIMATION } from '@/lib/constants';
 
 /**
  * Multi-platform message display component
@@ -14,6 +16,7 @@ import { fromJS } from 'immutable';
  */
 
 const Container = styled.div`
+  position: relative;
   min-height: 100vh;
   background-color: #000000;
   color: #f3f4f6;
@@ -151,6 +154,7 @@ const Username = styled.span`
 
 export const MultiPlatformChat = () => {
   const [messages, setMessages] = useState([]); // Raw unified message format
+  const [enterAnimations, setEnterAnimations] = useState([]);
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const [filteredMessages, setFilteredMessages] = useState([]);
   const [fontSize, setFontSize] = useState('medium');
@@ -163,18 +167,42 @@ export const MultiPlatformChat = () => {
     if (!messageAggregator) return;
     const initial = typeof messageAggregator.getHistory === 'function' ? messageAggregator.getHistory(1000) : [];
     if (initial && initial.length) {
-      setMessages(prev => {
-        const next = [...prev, ...initial];
-        return next.length > 1000 ? next.slice(-1000) : next;
-      });
+      const anim = initial.filter(
+        (m) => m?.platform === '17live' && m?.content?.get?.('messageType') === MsgType_ENTER_ANIMATION
+      );
+      const normal = initial.filter(
+        (m) => !(m?.platform === '17live' && m?.content?.get?.('messageType') === MsgType_ENTER_ANIMATION)
+      );
+
+      if (anim.length) {
+        setEnterAnimations((prev) => [...prev, ...anim].slice(-20));
+      }
+      if (normal.length) {
+        setMessages(prev => {
+          const next = [...prev, ...normal];
+          return next.length > 1000 ? next.slice(-1000) : next;
+        });
+      }
     }
     // Consume only batch events to avoid duplicate inserts
     const handleMessagesBatch = (batch) => {
       if (!batch || batch.length === 0) return;
-      setMessages(prev => {
-        const next = [...prev, ...batch];
-        return next.length > 1000 ? next.slice(-1000) : next;
-      });
+      const anim = batch.filter(
+        (m) => m?.platform === '17live' && m?.content?.get?.('messageType') === MsgType_ENTER_ANIMATION
+      );
+      const normal = batch.filter(
+        (m) => !(m?.platform === '17live' && m?.content?.get?.('messageType') === MsgType_ENTER_ANIMATION)
+      );
+
+      if (anim.length) {
+        setEnterAnimations((prev) => [...prev, ...anim].slice(-20));
+      }
+      if (normal.length) {
+        setMessages(prev => {
+          const next = [...prev, ...normal];
+          return next.length > 1000 ? next.slice(-1000) : next;
+        });
+      }
     };
     messageAggregator.on('messages_batch', handleMessagesBatch);
 
@@ -244,6 +272,13 @@ export const MultiPlatformChat = () => {
       $chatFontSize={fontSize === 'small' ? '12px' : fontSize === 'large' ? '16px' : '14px'}
       $chatLineHeight={fontSize === 'small' ? '21px' : fontSize === 'large' ? '28px' : '24px'}
     >
+      <EnterAnimationOverlay
+        events={enterAnimations}
+        onConsume={(evt) => {
+          if (!evt?.id) return;
+          setEnterAnimations((prev) => prev.filter((x) => x?.id !== evt.id));
+        }}
+      />
       {/* Top selector */}
       <Header>
         <HeaderContent>

@@ -14,7 +14,14 @@
     "LIKE_STREAMER": "ライバーに「いいね」しました",
     "POKE_ONE": "ライバーが {receiverName} にPokeしました",
     "POKE_BACK": "がPokeを返しました",
-    "POKE_ALL": "ライバーが 全て にPokeしました"
+    "POKE_ALL": "ライバーが 全て にPokeしました",
+    "enter_is_here": "[{name}]さんが来たよ！",
+    "guardian_entry_animation_message": "ガーディアン",
+    "producer_enterroom": "[{name}] 参上！",
+    "army_enter_notification": "ライバーアーミー",
+    "mlevel_entry_notice_subscription": "メンバーズ",
+    "VIP": "プライムユーザー",
+    "LV%@": "LV{level}"
   },
   "PlatformSelector": {
     "label": "プラットフォーム選択",

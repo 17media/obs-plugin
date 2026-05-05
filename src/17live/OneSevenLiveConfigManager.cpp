@@ -816,6 +816,85 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
     }
 }
 
+bool OneSevenLiveConfigManager::saveEnterAnimationFiles(const Json &files) {
+    try {
+        if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "saveEnterAnimationFiles"});
+            return false;
+        }
+
+        QString filePath = QString::fromStdString(configPath) + "/" + "enter_animation_files.json";
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            obs_log(LOG_ERROR, "Failed to open enter_animation_files.json for writing");
+            setLastError(ResultError{"IO.OpenFailed",
+                                     "Failed to open enter_animation_files.json for writing", false,
+                                     filePath.toStdString()});
+            return false;
+        }
+        QTextStream out(&file);
+        out << QString::fromStdString(files.dump());
+        file.close();
+        clearLastError();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveEnterAnimationFiles exception: %s", e.what());
+        setLastError(
+            ResultError{"State.Exception", "saveEnterAnimationFiles exception", false, e.what()});
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveEnterAnimationFiles unknown exception");
+        setLastError(ResultError{"State.Exception", "saveEnterAnimationFiles unknown exception",
+                                 false, ""});
+        return false;
+    }
+}
+
+bool OneSevenLiveConfigManager::loadEnterAnimationFiles(Json &files) {
+    try {
+        if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "loadEnterAnimationFiles"});
+            return false;
+        }
+
+        QString filePath = QString::fromStdString(configPath) + "/" + "enter_animation_files.json";
+        QFile file(filePath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            files = json::object();
+            clearLastError();
+            return true;
+        }
+        QTextStream in(&file);
+        QString jsonString = in.readAll();
+        file.close();
+
+        try {
+            files = json::parse(jsonString.toStdString());
+        } catch (const json::parse_error &e) {
+            obs_log(LOG_ERROR, "Failed to parse enter_animation_files.json: %s", e.what());
+            setLastError(ResultError{"Json.ParseFailed",
+                                     "Failed to parse enter_animation_files.json", false,
+                                     e.what()});
+            return false;
+        }
+
+        clearLastError();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadEnterAnimationFiles exception: %s", e.what());
+        setLastError(
+            ResultError{"State.Exception", "loadEnterAnimationFiles exception", false, e.what()});
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadEnterAnimationFiles unknown exception");
+        setLastError(ResultError{"State.Exception", "loadEnterAnimationFiles unknown exception",
+                                 false, ""});
+        return false;
+    }
+}
+
 bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken,
                                                 qint64 fetchedAtEpochSec) {
     if (!initialized) {

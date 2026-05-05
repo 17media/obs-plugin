@@ -14,7 +14,14 @@
     "LIKE_STREAMER": "Liked the streamer",
     "POKE_ONE": "Streamer pokes {receiverName}",
     "POKE_BACK": "pokes back",
-    "POKE_ALL": "Streamer pokes All"
+    "POKE_ALL": "Streamer pokes All",
+    "enter_is_here": "[{name}] is here!",
+    "guardian_entry_animation_message": "Guardian",
+    "producer_enterroom": "China's Got Talent [{name}] is here",
+    "army_enter_notification": "Army",
+    "mlevel_entry_notice_subscription": "V Level",
+    "VIP": "Premium",
+    "LV%@": "LV{level}"
   },
   "PlatformSelector": {
     "label": "Platform Selection",

@@ -458,6 +458,18 @@ bool OneSevenLiveHttpServer::start() {
                         return;
                     }
 
+                } else if (action == ACTION_GETENTERANIMATIONFILES) {
+                    if (!configManager->loadEnterAnimationFiles(apiResult)) {
+                        success = apiWrapper->GetFilesList(apiResult);
+                        if (success && !configManager->saveEnterAnimationFiles(apiResult)) {
+                            const auto err = configManager->getLastError();
+                            obs_log(LOG_WARNING,
+                                    "[%s] Failed to save enter animation files: %s %s",
+                                    name_.c_str(), err.code.c_str(), err.message.c_str());
+                        }
+                    } else {
+                        success = true;
+                    }
                 } else if (action == ACTION_GETROOMINFO) {
                     OneSevenLiveLoginData loginData;
                     configManager->getLoginData(loginData);
