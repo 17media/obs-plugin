@@ -65,6 +65,7 @@ const Text = styled.div`
   font-size: ${(p) => p.$fontSize || '18px'};
   line-height: ${(p) => p.$lineHeight || '33px'};
   color: ${(p) => p.$color || 'inherit'};
+  margin-left: ${(p) => p.$ml || '0'};
   white-space: nowrap;
   flex-shrink: 0;
 `;
@@ -229,6 +230,12 @@ function getBadgeRenderConfig(animationId) {
   return defaultCfg;
 }
 
+function toCssLinearGradient(from, to) {
+  if (!from && !to) return '';
+  if (from && to) return `linear-gradient(90deg, ${from}, ${to})`;
+  return from || to || '';
+}
+
 function computeBannerKeyframes(entryMs, holdMs, exitMs) {
   const total = entryMs + holdMs + exitMs;
   const p1 = Math.max(0, Math.min(100, (entryMs / total) * 100));
@@ -327,7 +334,10 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
       displayName ||
       '';
 
+    const isEvent14 = animationId === 14 && enterAnimation?.eventNotifMsg;
+
     const badgeLabel = (() => {
+      if (isEvent14) return enterAnimation?.eventNameText || '';
       if (!badgeKey) return '';
       try {
         return t(badgeKey, { name, level, mLevel });
@@ -337,6 +347,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     })();
 
     const marqueeText = (() => {
+      if (isEvent14) return enterAnimation?.eventDescText || '';
       if (!marqueeKey) return '';
       try {
         return t(marqueeKey, { name });
@@ -359,8 +370,21 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         enterAnimation?.file
       ) || '';
 
-    const cfg = getBadgeRenderConfig(animationId);
+    const baseCfg = getBadgeRenderConfig(animationId);
+    const cfg = (() => {
+      if (!isEvent14) return baseCfg;
+      const g = toCssLinearGradient(enterAnimation?.eventGradientFrom, enterAnimation?.eventGradientTo);
+      const border = enterAnimation?.eventStrokeColor ? enterAnimation.eventStrokeColor : baseCfg.border;
+      return {
+        ...baseCfg,
+        border,
+        marqueeBg: g || baseCfg.marqueeBg,
+      };
+    })();
     const avatarUrl = picture ? `${CDN_URL}/${picture}` : '';
+    const eventTextSize = Number(enterAnimation?.eventTextSize || 0);
+    const eventFontSize = isEvent14 && Number.isFinite(eventTextSize) && eventTextSize > 0 ? `${eventTextSize}px` : '12px';
+    const eventLineHeight = isEvent14 ? '22px' : '22px';
 
     const entryMs = 1000;
     const holdMs = Number(enterAnimation?.durationMs || 1300);
@@ -382,7 +406,27 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
               <BadgeRow>
                 <AvatarBadgeGroup>
                   <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
-                  {safeBadgeLabel ? (
+                  {isEvent14 ? (
+                    <>
+                      {safeBadgeLabel ? (
+                        <Marquee $bg={cfg.marqueeBg}>
+                          <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor}>
+                            {safeBadgeLabel}
+                          </Text>
+                        </Marquee>
+                      ) : null}
+                      {safeMarqueeText ? (
+                        <Text
+                          $fontSize={eventFontSize}
+                          $lineHeight={eventLineHeight}
+                          $color={enterAnimation?.eventTextColor}
+                          $ml={safeBadgeLabel ? '5px' : '0'}
+                        >
+                          {safeMarqueeText}
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : safeBadgeLabel ? (
                     <Marquee $bg={cfg.marqueeBg}>
                       {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
                       <Text $fontSize="12px" $lineHeight="22px">
@@ -391,7 +435,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                     </Marquee>
                   ) : null}
                 </AvatarBadgeGroup>
-                {safeMarqueeText ? <Text $color={cfg.marqueeTextColor}>{safeMarqueeText}</Text> : null}
+                {!isEvent14 && safeMarqueeText ? <Text $color={cfg.marqueeTextColor}>{safeMarqueeText}</Text> : null}
               </BadgeRow>
             </Card>
           </BadgeContainer>

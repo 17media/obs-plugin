@@ -75,7 +75,8 @@ export class OneSevenLivePlatform extends BasePlatform {
           this.enqueueMessage(unified);
         }
 
-        const enterRaws = await loadDevEnterAnimationMessages();
+        const enterRaws1 = await loadDevEnterAnimationMessages();
+        let enterRaws = enterRaws1.filter(msg => msg.subscriberEnterMsg.animation === 14);
         console.log('enter raws: ', enterRaws);
         if (enterRaws && enterRaws.length) {
           this.devEnterAnimationIndex = 0;
@@ -248,6 +249,63 @@ export class OneSevenLivePlatform extends BasePlatform {
     } else if (msgType === MsgType_ENTER_ANIMATION) {
       const payload = message?.subscriberEnterMsg || message?.enterAnimationMsg || {};
       const animationId = Number(payload?.animation || 0);
+      const notif = payload?.eventNotifMsg;
+      const i18nMap = this.i18nConfig && typeof this.i18nConfig === 'object' ? this.i18nConfig : null;
+      const filesList = this.enterAnimationFiles && typeof this.enterAnimationFiles === 'object'
+        ? this.enterAnimationFiles
+        : null;
+
+      const resolveI18nString = (key) => {
+        if (!key) return '';
+        if (!i18nMap) return '';
+        const v = i18nMap[key];
+        return typeof v === 'string' ? v : '';
+      };
+
+      const formatI18nTemplate = (tpl, params) => {
+        if (typeof tpl !== 'string') return '';
+        const values = Array.isArray(params) ? params.map((p) => (p && p.value ? String(p.value) : '')) : [];
+        let out = tpl;
+        out = out.replace(/%(\d+)\$@/g, (_, n) => {
+          const idx = Number(n) - 1;
+          return idx >= 0 && idx < values.length ? values[idx] : '';
+        });
+        if (out.includes('%@')) {
+          out = out.replace(/%@/g, values[0] || '');
+        }
+        return out;
+      };
+
+      const resolveTokenText = (token) => {
+        if (!token || typeof token !== 'object') return '';
+        const key = token.key;
+        const tpl = resolveI18nString(key);
+        if (!tpl) return typeof key === 'string' ? key : '';
+        return formatI18nTemplate(tpl, token.params);
+      };
+
+      const lookupEventAnimSrc = (animationID) => {
+        if (!animationID) return '';
+        const files = filesList && Array.isArray(filesList.files) ? filesList.files : [];
+        const item = files.find((f) => {
+          if (!f || typeof f !== 'object') return false;
+          return (
+            f.animationID === animationID ||
+            f.animationId === animationID ||
+            f.id === animationID ||
+            f.name === animationID
+          );
+        });
+        if (!item) return '';
+        return (
+          item.webpURL ||
+          item.webpUrl ||
+          item.webp ||
+          item.url ||
+          item.URL ||
+          ''
+        );
+      };
 
       const badgeKey = (() => {
         if (animationId === 1) return 'guardian_entry_animation_message';
@@ -262,7 +320,11 @@ export class OneSevenLivePlatform extends BasePlatform {
       const marqueeKey = animationId === 6 ? '' : 'enter_is_here';
 
       const assetSrc = (() => {
-        const notif = payload?.eventNotifMsg;
+        if (animationId === 14 && notif) {
+          const fromFiles = lookupEventAnimSrc(notif.animationID);
+          if (fromFiles) return fromFiles;
+          if (notif.templateURL) return notif.templateURL;
+        }
         if (notif && notif.templateURL) return notif.templateURL;
 
         if (animationId === 3) return '/enter_animation/ani_lv_050.webp';
@@ -297,6 +359,21 @@ export class OneSevenLivePlatform extends BasePlatform {
         mLevel: payload?.mLevel,
       };
 
+      const event14 =
+        animationId === 14 && notif
+          ? {
+              eventNameText: resolveTokenText(notif.name),
+              eventDescText: resolveTokenText(notif.descriptionToken),
+              eventGradientFrom: notif.gradientFrom,
+              eventGradientTo: notif.gradientTo,
+              eventTextSize: notif.textSize,
+              eventTextColor: notif.textColor,
+              eventNameColor: notif.nameColor,
+              eventStrokeColor: notif.strokeColor,
+              eventAnimationID: notif.animationID,
+            }
+          : {};
+
       return fromJS({
         ...userInfo,
         enterAnimation: {
@@ -306,6 +383,7 @@ export class OneSevenLivePlatform extends BasePlatform {
           marqueeKey,
           assetSrc,
           durationMs,
+          ...event14,
         },
         id,
         messageType: msgType,

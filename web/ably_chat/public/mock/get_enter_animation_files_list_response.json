@@ -15,9 +15,9 @@
     { "name": "igMlevelSettingBallerHigh@3x.png", "url": "/enter_animation/igMlevelSettingBallerHigh@3x.png" },
     { "name": "igMlevelSettingBallerMiddle@3x.png", "url": "/enter_animation/igMlevelSettingBallerMiddle@3x.png" },
     { "name": "igSettingMlevelLow@3x.png", "url": "/enter_animation/igSettingMlevelLow@3x.png" },
+    { "animationID": "entryeffect_2512-jp-vip-nutcracker", "webpURL": "https://cdn.17app.co/0053b99d-6bcb-4b36-9a2e-beacd4cb3a57.png" },
     { "name": "vip_goin_l.webp", "url": "/enter_animation/vip_goin_l.webp" },
     { "name": "vip_goin_m.webp", "url": "/enter_animation/vip_goin_m.webp" },
     { "name": "vip_goin_s.webp", "url": "/enter_animation/vip_goin_s.webp" }
   ]
 }
-
