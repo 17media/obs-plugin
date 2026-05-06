@@ -75,9 +75,7 @@ export class OneSevenLivePlatform extends BasePlatform {
           this.enqueueMessage(unified);
         }
 
-        const enterRaws1 = await loadDevEnterAnimationMessages();
-        let enterRaws = enterRaws1.filter(msg => msg.subscriberEnterMsg.animation === 14);
-        console.log('enter raws: ', enterRaws);
+        const enterRaws = await loadDevEnterAnimationMessages();
         if (enterRaws && enterRaws.length) {
           this.devEnterAnimationIndex = 0;
           if (this.devEnterAnimationTimer) {
@@ -286,7 +284,12 @@ export class OneSevenLivePlatform extends BasePlatform {
 
       const lookupEventAnimSrc = (animationID) => {
         if (!animationID) return '';
-        const files = filesList && Array.isArray(filesList.files) ? filesList.files : [];
+        const files =
+          filesList && Array.isArray(filesList.files)
+            ? filesList.files
+            : filesList && Array.isArray(filesList.animations)
+              ? filesList.animations
+              : [];
         const item = files.find((f) => {
           if (!f || typeof f !== 'object') return false;
           return (

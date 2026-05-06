@@ -3,6 +3,7 @@ import styled, { css, keyframes } from 'styled-components';
 import { useTranslations } from 'next-intl';
 import { CDN_URL } from './constants';
 import { getWebpDurationMs } from './webpDuration';
+import { getI18nConfig } from '../platforms/17live/api/i18n';
 
 const ENTRY_MS = 1000;
 const EXIT_MS = 300;
@@ -45,7 +46,10 @@ const Card = styled.div`
   background-size: 100% 100%;
   border-radius: 999px;
   max-width: 100%;
-  border: 1px solid ${(p) => p.$border || 'rgba(0, 0, 0, 0.18)'};
+  border: ${(p) =>
+    p.$border === ''
+      ? 'none'
+      : `1px solid ${typeof p.$border === 'string' && p.$border ? p.$border : 'rgba(0, 0, 0, 0.18)'}`};
   overflow: hidden;
   color: ${(p) => p.$color || '#000000'};
 `;
@@ -102,6 +106,9 @@ const Marquee = styled.div`
   padding: 0 2px;
   border-radius: 999px;
   background: ${(p) => p.$bg || 'transparent'};
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
   max-width: 320px;
   overflow: hidden;
   margin-left: ${(p) => (typeof p.$ml === 'string' ? p.$ml : '-5px')};
@@ -340,6 +347,35 @@ function toCssLinearGradient(from, to) {
   return from || to || '';
 }
 
+function resolveI18nString(i18nMap, key) {
+  if (!key) return '';
+  if (!i18nMap || typeof i18nMap !== 'object') return '';
+  const v = i18nMap[key];
+  return typeof v === 'string' ? v : '';
+}
+
+function formatI18nTemplate(tpl, params) {
+  if (typeof tpl !== 'string') return '';
+  const values = Array.isArray(params) ? params.map((p) => (p && p.value ? String(p.value) : '')) : [];
+  let out = tpl;
+  out = out.replace(/%(\d+)\$@/g, (_, n) => {
+    const idx = Number(n) - 1;
+    return idx >= 0 && idx < values.length ? values[idx] : '';
+  });
+  if (out.includes('%@')) {
+    out = out.replace(/%@/g, values[0] || '');
+  }
+  return out;
+}
+
+function resolveTokenText(i18nMap, token) {
+  if (!token || typeof token !== 'object') return '';
+  const key = token.key;
+  const tpl = resolveI18nString(i18nMap, key);
+  if (!tpl) return typeof key === 'string' ? key : '';
+  return formatI18nTemplate(tpl, token.params);
+}
+
 function ScrollingText({
   children,
   gapPx = 12,
@@ -365,9 +401,9 @@ function ScrollingText({
         setAnim({ enabled: false, viewportW, start: 0, distance: 0, duration: 0 });
         return;
       }
-      const start = viewportW;
       const distance = contentW + gapPx;
-      const travel = start + distance;
+      const start = 0;
+      const travel = distance;
       const duration = Math.max(1200, Math.round((travel / Math.max(1, speedPxPerSec)) * 1000));
       setAnim({ enabled: true, viewportW, start, distance, duration });
     };
@@ -416,6 +452,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
   const [current, setCurrent] = useState(null);
   const [showAnim, setShowAnim] = useState(false);
   const [phase, setPhase] = useState('idle');
+  const [i18nMap, setI18nMap] = useState(null);
   const phaseRef = useRef('idle');
   const holdMsRef = useRef(1300);
   const phaseTimersRef = useRef([]);
@@ -442,6 +479,19 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         clearTimeout(failSafeTimerRef.current);
         failSafeTimerRef.current = null;
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getI18nConfig()
+      .then((cfg) => {
+        if (cancelled) return;
+        if (cfg && typeof cfg === 'object') setI18nMap(cfg);
+      })
+      .catch(() => { });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -562,6 +612,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
       '';
 
     const isEvent14 = animationId === 14 && enterAnimation?.eventNotifMsg;
+    const eventNotifMsg = isEvent14 ? enterAnimation?.eventNotifMsg : null;
 
     const effectiveBadgeKey = (() => {
       if (badgeKey) return badgeKey;
@@ -575,7 +626,10 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     })();
 
     const badgeLabel = (() => {
-      if (isEvent14) return enterAnimation?.eventNameText || '';
+      if (isEvent14) {
+        const resolved = resolveTokenText(i18nMap, eventNotifMsg?.name);
+        return resolved || enterAnimation?.eventNameText || '';
+      }
       if (!effectiveBadgeKey) return '';
       try {
         return t(effectiveBadgeKey, { name, level, mLevel });
@@ -585,7 +639,10 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     })();
 
     const marqueeText = (() => {
-      if (isEvent14) return enterAnimation?.eventDescText || '';
+      if (isEvent14) {
+        const resolved = resolveTokenText(i18nMap, eventNotifMsg?.descriptionToken);
+        return resolved || enterAnimation?.eventDescText || '';
+      }
       const effectiveKey = marqueeKey || (animationId === 6 ? '' : 'enter_is_here');
       if (!effectiveKey) return '';
       try {
@@ -622,10 +679,11 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const cfg = (() => {
       if (!isEvent14) return baseCfg;
       const g = toCssLinearGradient(enterAnimation?.eventGradientFrom, enterAnimation?.eventGradientTo);
-      const border = enterAnimation?.eventStrokeColor ? enterAnimation.eventStrokeColor : baseCfg.border;
+      const border = enterAnimation?.eventStrokeColor ? enterAnimation.eventStrokeColor : '';
       return {
         ...baseCfg,
         border,
+        bg: g || baseCfg.bg,
         marqueeBg: g || baseCfg.marqueeBg,
       };
     })();
@@ -650,6 +708,9 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const cardBgImg = animationId >= 11 && animationId <= 13 ? cfg.cardBgImg : '';
     const cardBg = cardBgImg ? 'transparent' : cfg.bg;
     const marqueeTextColor = animationId >= 11 && animationId <= 13 ? cfg.marqueeTextColor : '#ffffff';
+    const eventTemplateUrl = isEvent14 ? enterAnimation?.eventNotifMsg?.templateURL || '' : '';
+    const eventIconUrl = isEvent14 ? enterAnimation?.eventNotifMsg?.icouURL || '' : '';
+    const eventBadgeBg = eventTemplateUrl ? `url(${eventTemplateUrl})` : cfg.marqueeBg;
 
     return (
       <Wrapper>
@@ -664,21 +725,13 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
               <BadgeRow>
                 <AvatarBadgeGroup>
                   <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
-                  {isEvent14 && (safeBadgeLabel || safeMarqueeText) ? (
-                    <Marquee $bg={cfg.marqueeBg} $h="22px">
-                      <ScrollingText gapPx={12} speedPxPerSec={40} always>
-                        <Event14TextRow>
-                          {safeBadgeLabel ? (
-                            <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor}>
-                              {safeBadgeLabel}
-                            </Text>
-                          ) : null}
-                          {safeMarqueeText ? (
-                            <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventTextColor}>
-                              {safeMarqueeText}
-                            </Text>
-                          ) : null}
-                        </Event14TextRow>
+                  {isEvent14 && safeBadgeLabel ? (
+                    <Marquee $bg={eventBadgeBg} $h="33px">
+                      {eventIconUrl ? <BadgeIcon $size="25px" src={eventIconUrl} alt="" /> : null}
+                      <ScrollingText gapPx={12} speedPxPerSec={40} always padPx={0}>
+                        <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor}>
+                          {safeBadgeLabel}
+                        </Text>
                       </ScrollingText>
                     </Marquee>
                   ) : safeBadgeLabel ? (
@@ -714,10 +767,14 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                     </>
                   ) : null}
                 </AvatarBadgeGroup>
-                {!isEvent14 && safeMarqueeText ? (
+                {safeMarqueeText ? (
                   <MarqueeTextWrap>
                     <ScrollingText gapPx={12} speedPxPerSec={40} always>
-                      <Text $fontSize="12px" $lineHeight="22px" $color={marqueeTextColor}>
+                      <Text
+                        $fontSize={isEvent14 ? eventFontSize : '12px'}
+                        $lineHeight={isEvent14 ? eventLineHeight : '22px'}
+                        $color={isEvent14 ? enterAnimation?.eventTextColor : marqueeTextColor}
+                      >
                         {safeMarqueeText}
                       </Text>
                     </ScrollingText>
@@ -729,7 +786,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         </Animated>
       </Wrapper>
     );
-  }, [current, showAnim, phase, t]);
+  }, [current, showAnim, phase, t, i18nMap]);
 
   return view;
 }
