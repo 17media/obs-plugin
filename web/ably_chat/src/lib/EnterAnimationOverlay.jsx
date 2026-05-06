@@ -39,8 +39,7 @@ const Card = styled.div`
   align-items: center;
   gap: 10px;
   padding: 2px;
-  background: ${(p) => p.$bg || '#ffffff'};
-  background-image: ${(p) => (p.$bgImg ? `url(${p.$bgImg})` : 'none')};
+  background: ${(p) => (p.$bgImg ? `url(${p.$bgImg})` : p.$bg || '#ffffff')};
   background-repeat: no-repeat;
   background-position: center;
   background-size: 100% 100%;
@@ -318,7 +317,7 @@ function getBadgeRenderConfig(animationId) {
   if (animationId === 16) {
     return {
       ...defaultCfg,
-      bg: 'rgb(51, 206, 176)',
+      bg: 'linear-gradient(90deg, rgb(51, 206, 176), rgb(51, 206, 176))',
       border: 'rgba(0, 0, 0, 0.12)',
       textColor: '#ffffff',
     };
