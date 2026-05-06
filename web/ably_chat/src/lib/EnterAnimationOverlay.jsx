@@ -1,7 +1,11 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import { useTranslations } from 'next-intl';
 import { CDN_URL } from './constants';
+import { getWebpDurationMs } from './webpDuration';
+
+const ENTRY_MS = 1000;
+const EXIT_MS = 300;
 
 const Wrapper = styled.div`
   position: absolute;
@@ -16,7 +20,18 @@ const Wrapper = styled.div`
 
 const Animated = styled.div`
   will-change: transform, opacity;
-  animation: ${(p) => p.$kf} ${(p) => p.$dur}ms linear both;
+  ${(p) =>
+    p.$phase === 'enter'
+      ? css`
+          animation: ${entryKf} ${ENTRY_MS}ms linear both;
+        `
+      : p.$phase === 'exit'
+        ? css`
+            animation: ${exitKf} ${EXIT_MS}ms linear both;
+          `
+        : css`
+            animation: none;
+          `}
 `;
 
 const Card = styled.div`
@@ -99,6 +114,17 @@ const MarqueeViewport = styled.div`
 const marqueeKf = keyframes`
   0% { transform: translateX(var(--marquee-start)); }
   100% { transform: translateX(calc(-1 * var(--marquee-distance))); }
+`;
+
+const entryKf = keyframes`
+  0% { transform: translateX(140%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+`;
+
+const exitKf = keyframes`
+  0% { transform: translateX(0); opacity: 1; }
+  20% { transform: translateX(30px); opacity: 1; }
+  100% { transform: translateX(-160%); opacity: 0; }
 `;
 
 const MarqueeTrack = styled.div`
@@ -344,58 +370,77 @@ function ScrollingText({
   );
 }
 
-function computeBannerKeyframes(entryMs, holdMs, exitMs) {
-  const total = entryMs + holdMs + exitMs;
-  const p1 = Math.max(0, Math.min(100, (entryMs / total) * 100));
-  const p2 = Math.max(0, Math.min(100, ((entryMs + holdMs) / total) * 100));
-  const pShift = Math.max(0, Math.min(100, ((entryMs + holdMs + Math.min(60, exitMs)) / total) * 100));
-
-  return keyframes`
-    0% { transform: translateX(140%); opacity: 0; }
-    ${p1}% { transform: translateX(0); opacity: 1; }
-    ${p2}% { transform: translateX(0); opacity: 1; }
-    ${pShift}% { transform: translateX(30px); opacity: 1; }
-    100% { transform: translateX(-160%); opacity: 0; }
-  `;
-}
-
 export default function EnterAnimationOverlay({ events, onConsume }) {
   const t = useTranslations('ChatPage');
   const [current, setCurrent] = useState(null);
   const [showAnim, setShowAnim] = useState(false);
-  const timerRef = useRef(null);
-  const animTimersRef = useRef([]);
+  const [phase, setPhase] = useState('idle');
+  const phaseRef = useRef('idle');
+  const holdMsRef = useRef(1300);
+  const phaseTimersRef = useRef([]);
+  const currentKeyRef = useRef('');
+  const aniLoadedRef = useRef(false);
+  const exitTimerRef = useRef(null);
+  const failSafeTimerRef = useRef(null);
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
+      if (phaseTimersRef.current.length) {
+        phaseTimersRef.current.forEach((id) => clearTimeout(id));
+        phaseTimersRef.current = [];
       }
-      if (animTimersRef.current.length) {
-        animTimersRef.current.forEach((id) => clearTimeout(id));
-        animTimersRef.current = [];
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+        exitTimerRef.current = null;
+      }
+      if (failSafeTimerRef.current) {
+        clearTimeout(failSafeTimerRef.current);
+        failSafeTimerRef.current = null;
       }
     };
   }, []);
+
+  const scheduleExitAfter = (ms) => {
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    exitTimerRef.current = setTimeout(() => {
+      setShowAnim(false);
+      setPhase('exit');
+    }, Math.max(0, Number(ms || 0)));
+  };
 
   useEffect(() => {
     if (current || !events || events.length === 0) return;
 
     const next = events[0];
+    currentKeyRef.current = String(next?.id || '');
     setCurrent(next);
     onConsume?.(next);
     setShowAnim(false);
-    if (animTimersRef.current.length) {
-      animTimersRef.current.forEach((id) => clearTimeout(id));
-      animTimersRef.current = [];
+    setPhase('enter');
+    aniLoadedRef.current = false;
+    if (phaseTimersRef.current.length) {
+      phaseTimersRef.current.forEach((id) => clearTimeout(id));
+      phaseTimersRef.current = [];
+    }
+    if (exitTimerRef.current) {
+      clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = null;
+    }
+    if (failSafeTimerRef.current) {
+      clearTimeout(failSafeTimerRef.current);
+      failSafeTimerRef.current = null;
     }
 
     const holdMs =
       next?.content?.getIn?.(['enterAnimation', 'durationMs']) ||
       next?.content?.getIn?.(['enterAnimation', 'duration']) ||
       1300;
-    const totalMs = 1000 + Number(holdMs || 1300) + 300;
+    holdMsRef.current = Number(holdMs || 1300);
+
     const src =
       normalizeAssetSrc(
         next?.content?.getIn?.(['enterAnimation', 'assetSrc']) ||
@@ -406,23 +451,42 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         next?.content?.getIn?.(['enterAnimation', 'file'])
       ) || '';
 
-    if (src) {
-      animTimersRef.current.push(
-        setTimeout(() => {
-          setShowAnim(true);
-        }, 1000)
-      );
-      animTimersRef.current.push(
-        setTimeout(() => {
-          setShowAnim(false);
-        }, 1000 + Number(holdMs || 1300))
-      );
-    }
+    phaseTimersRef.current.push(
+      setTimeout(() => {
+        setPhase('hold');
+        setShowAnim(Boolean(src));
+        if (!src) {
+          scheduleExitAfter(holdMsRef.current);
+          return;
+        }
 
-    timerRef.current = setTimeout(() => {
-      setCurrent(null);
-    }, totalMs);
+        const keyAtStart = currentKeyRef.current;
+        getWebpDurationMs(src).then((ms) => {
+          if (!ms) return;
+          if (currentKeyRef.current !== keyAtStart) return;
+          holdMsRef.current = ms;
+          if (aniLoadedRef.current && phaseRef.current === 'hold') {
+            scheduleExitAfter(holdMsRef.current);
+          }
+        });
+
+        failSafeTimerRef.current = setTimeout(() => {
+          setShowAnim(false);
+          setPhase('exit');
+        }, Math.max(holdMsRef.current + 2000, 8000));
+      }, ENTRY_MS)
+    );
   }, [current, events, onConsume]);
+
+  useEffect(() => {
+    if (phase !== 'exit') return;
+    phaseTimersRef.current.push(
+      setTimeout(() => {
+        setCurrent(null);
+        setPhase('idle');
+      }, EXIT_MS)
+    );
+  }, [phase]);
 
   const view = useMemo(() => {
     if (!current) return null;
@@ -495,20 +559,26 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const eventFontSize = isEvent14 && Number.isFinite(eventTextSize) && eventTextSize > 0 ? `${eventTextSize}px` : '12px';
     const eventLineHeight = isEvent14 ? '22px' : '22px';
 
-    const entryMs = 1000;
-    const holdMs = Number(enterAnimation?.durationMs || 1300);
-    const exitMs = 300;
-    const totalMs = entryMs + holdMs + exitMs;
-    const kf = computeBannerKeyframes(entryMs, holdMs, exitMs);
     if (!name) return null;
+
+    const onAniLoaded = () => {
+      if (!showAnim) return;
+      if (phase !== 'hold') return;
+      aniLoadedRef.current = true;
+      if (failSafeTimerRef.current) {
+        clearTimeout(failSafeTimerRef.current);
+        failSafeTimerRef.current = null;
+      }
+      scheduleExitAfter(holdMsRef.current);
+    };
 
     return (
       <Wrapper>
-        <Animated $kf={kf} $dur={totalMs}>
+        <Animated $phase={phase}>
           <BadgeContainer>
             {showAnim && src ? (
               <AniLayer>
-                <AniImage src={src} alt="" />
+                <AniImage src={src} alt="" onLoad={onAniLoaded} />
               </AniLayer>
             ) : null}
             <Card $bg={cfg.bg} $border={cfg.border} $color={cfg.textColor}>
@@ -558,7 +628,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         </Animated>
       </Wrapper>
     );
-  }, [current, showAnim, t]);
+  }, [current, showAnim, phase, t]);
 
   return view;
 }
