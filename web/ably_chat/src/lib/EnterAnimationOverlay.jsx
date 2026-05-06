@@ -256,7 +256,10 @@ function getBadgeRenderConfig(animationId) {
       ...defaultCfg,
       bg: 'rgb(21, 144, 63)',
       border: 'rgba(0, 0, 0, 0.12)',
-      textColor: '#ffffff',
+      textColor: 'rgb(21, 144, 63)',
+      marqueeBg: '#ffffff',
+      marqueeTextColor: '#000000',
+      badgeIconSrc: '/enter_animation/tank.png',
     };
   }
   if (animationId === 12) {
@@ -616,7 +619,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                     </Marquee>
                   ) : safeBadgeLabel ? (
                     <>
-                      {animationId === 1 || animationId === 2 ? (
+                      {animationId === 1 || animationId === 2 || (animationId >= 7 && animationId <= 10) ? (
                         <Marquee $bg={cfg.marqueeBg} $h="22px">
                           {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
                           <ScrollingText gapPx={12} speedPxPerSec={40} always>
