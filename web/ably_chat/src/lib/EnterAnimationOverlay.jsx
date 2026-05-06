@@ -106,6 +106,14 @@ const Marquee = styled.div`
   z-index: ${(p) => (typeof p.$z === 'number' ? p.$z : 2)};
 `;
 
+const BadgeLabelWrap = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 320px;
+`;
+
 const MarqueeViewport = styled.div`
   min-width: 0;
   overflow: hidden;
@@ -497,8 +505,12 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const animationId = Number(enterAnimation?.animationId || enterAnimation?.animation || 0);
     const badgeKey = enterAnimation?.badgeKey || enterAnimation?.textKey || '';
     const marqueeKey = enterAnimation?.marqueeKey || '';
-    const level = enterAnimation?.level;
-    const mLevel = enterAnimation?.mLevel;
+    const rawLevel = enterAnimation?.level ?? (content?.get ? content.get('level') : undefined);
+    const rawMLevel = enterAnimation?.mLevel ?? (content?.get ? content.get('mLevel') : undefined);
+    const level =
+      typeof rawLevel === 'number' ? rawLevel : typeof rawLevel === 'string' && rawLevel.trim() ? Number(rawLevel) : undefined;
+    const mLevel =
+      typeof rawMLevel === 'number' ? rawMLevel : typeof rawMLevel === 'string' && rawMLevel.trim() ? Number(rawMLevel) : undefined;
     const name =
       enterAnimation?.displayName ||
       enterAnimation?.nickname ||
@@ -603,14 +615,27 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                       </ScrollingText>
                     </Marquee>
                   ) : safeBadgeLabel ? (
-                    <Marquee $bg={cfg.marqueeBg} $h="22px">
-                      {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
-                      <ScrollingText gapPx={12} speedPxPerSec={40} always>
-                        <Text $fontSize="12px" $lineHeight="22px">
-                          {safeBadgeLabel}
-                        </Text>
-                      </ScrollingText>
-                    </Marquee>
+                    <>
+                      {animationId === 1 || animationId === 2 ? (
+                        <Marquee $bg={cfg.marqueeBg} $h="22px">
+                          {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
+                          <ScrollingText gapPx={12} speedPxPerSec={40} always>
+                            <Text $fontSize="12px" $lineHeight="22px">
+                              {safeBadgeLabel}
+                            </Text>
+                          </ScrollingText>
+                        </Marquee>
+                      ) : (
+                        <BadgeLabelWrap>
+                          {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
+                          <ScrollingText gapPx={12} speedPxPerSec={40} always>
+                            <Text $fontSize="12px" $lineHeight="22px">
+                              {safeBadgeLabel}
+                            </Text>
+                          </ScrollingText>
+                        </BadgeLabelWrap>
+                      )}
+                    </>
                   ) : null}
                 </AvatarBadgeGroup>
                 {!isEvent14 && safeMarqueeText ? (
