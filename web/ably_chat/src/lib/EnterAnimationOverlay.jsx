@@ -40,6 +40,10 @@ const Card = styled.div`
   gap: 10px;
   padding: 2px;
   background: ${(p) => p.$bg || '#ffffff'};
+  background-image: ${(p) => (p.$bgImg ? `url(${p.$bgImg})` : 'none')};
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
   border-radius: 999px;
   max-width: 100%;
   border: 1px solid ${(p) => p.$border || 'rgba(0, 0, 0, 0.18)'};
@@ -112,6 +116,17 @@ const BadgeLabelWrap = styled.div`
   gap: 6px;
   min-width: 0;
   max-width: 320px;
+`;
+
+const MarqueePill = styled.div`
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: ${(p) => p.$bg || 'transparent'};
+  max-width: 320px;
+  overflow: hidden;
 `;
 
 const MarqueeViewport = styled.div`
@@ -196,6 +211,8 @@ function getBadgeRenderConfig(animationId) {
     marqueeBg: '#ffffff',
     marqueeTextColor: '#000000',
     badgeIconSrc: '',
+    cardBgImg: '',
+    marqueeStripBg: '',
   };
 
   if (animationId === 1) {
@@ -262,15 +279,28 @@ function getBadgeRenderConfig(animationId) {
       badgeIconSrc: '/enter_animation/tank.png',
     };
   }
+  if (animationId === 11) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(255, 181, 162))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: 'rgb(35, 11, 9)',
+      marqueeBg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(255, 181, 162))',
+      marqueeTextColor: 'rgb(255, 226, 224)',
+      badgeIconSrc: '/enter_animation/crown.png',
+      cardBgImg: '/enter_animation/igSettingMlevelLow@3x.png',
+    };
+  }
   if (animationId === 12) {
     return {
       ...defaultCfg,
       bg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(176, 196, 209))',
       border: 'rgba(0, 0, 0, 0.12)',
       textColor: 'rgb(26, 37, 65)',
-      marqueeBg: 'rgb(231, 231, 231)',
-      marqueeTextColor: 'rgb(26, 37, 65)',
-      badgeIconSrc: '/enter_animation/igMlevelSettingBallerMiddle@3x.png',
+      marqueeTextColor: 'rgb(231, 231, 231)',
+      marqueeBg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(176, 196, 209))',
+      badgeIconSrc: '/enter_animation/crown.png',
+      cardBgImg: '/enter_animation/igMlevelSettingBallerMiddle@3x.png',
     };
   }
   if (animationId === 13) {
@@ -279,9 +309,10 @@ function getBadgeRenderConfig(animationId) {
       bg: 'linear-gradient(90deg, rgb(255, 248, 230), rgb(249, 199, 127))',
       border: 'rgba(0, 0, 0, 0.12)',
       textColor: 'rgb(0, 0, 0)',
-      marqueeBg: 'rgb(254, 239, 201)',
-      marqueeTextColor: 'rgb(0, 0, 0)',
-      badgeIconSrc: '/enter_animation/igMlevelSettingBallerHigh@3x.png',
+      marqueeTextColor: 'rgb(254, 239, 201)',
+      marqueeBg: 'linear-gradient(90deg, rgb(255, 248, 230), rgb(249, 199, 127))',
+      badgeIconSrc: '/enter_animation/crown.png',
+      cardBgImg: '/enter_animation/igMlevelSettingBallerHigh@3x.png',
     };
   }
   if (animationId === 16) {
@@ -452,7 +483,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
       1300;
     holdMsRef.current = Number(holdMs || 1300);
 
-    const src =
+    let src =
       normalizeAssetSrc(
         next?.content?.getIn?.(['enterAnimation', 'assetSrc']) ||
         next?.content?.getIn?.(['enterAnimation', 'localSrc']) ||
@@ -461,6 +492,16 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         next?.content?.getIn?.(['enterAnimation', 'fileName']) ||
         next?.content?.getIn?.(['enterAnimation', 'file'])
       ) || '';
+    const animId = Number(
+      next?.content?.getIn?.(['enterAnimation', 'animationId']) ||
+      next?.content?.getIn?.(['enterAnimation', 'animation']) ||
+      0
+    );
+    if (!src) {
+      if (animId === 11) src = '/enter_animation/vip_goin_s.webp';
+      else if (animId === 12) src = '/enter_animation/vip_goin_m.webp';
+      else if (animId === 13) src = '/enter_animation/vip_goin_l.webp';
+    }
 
     phaseTimersRef.current.push(
       setTimeout(() => {
@@ -523,11 +564,22 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
 
     const isEvent14 = animationId === 14 && enterAnimation?.eventNotifMsg;
 
+    const effectiveBadgeKey = (() => {
+      if (badgeKey) return badgeKey;
+      if (animationId === 1) return 'guardian_entry_animation_message';
+      if (animationId === 2) return 'VIP';
+      if (animationId === 6) return 'producer_enterroom';
+      if ((animationId >= 7 && animationId <= 10) || animationId === 15) return 'army_enter_notification';
+      if (animationId === 11 || animationId === 12 || animationId === 13) return 'mlevel_entry_notice_subscription';
+      if (animationId === 3 || animationId === 4 || animationId === 5 || animationId === 16 || animationId === 17) return 'LV%@';
+      return '';
+    })();
+
     const badgeLabel = (() => {
       if (isEvent14) return enterAnimation?.eventNameText || '';
-      if (!badgeKey) return '';
+      if (!effectiveBadgeKey) return '';
       try {
-        return t(badgeKey, { name, level, mLevel });
+        return t(effectiveBadgeKey, { name, level, mLevel });
       } catch {
         return '';
       }
@@ -548,7 +600,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const safeBadgeLabel = hasVisibleText(badgeLabel) ? badgeLabel.trim() : '';
     const safeMarqueeText = hasVisibleText(marqueeText) ? marqueeText.trim() : '';
 
-    const src =
+    const src0 =
       normalizeAssetSrc(
         enterAnimation?.assetSrc ||
         enterAnimation?.localSrc ||
@@ -557,6 +609,15 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         enterAnimation?.fileName ||
         enterAnimation?.file
       ) || '';
+    const src =
+      src0 ||
+      (animationId === 11
+        ? '/enter_animation/vip_goin_s.webp'
+        : animationId === 12
+          ? '/enter_animation/vip_goin_m.webp'
+          : animationId === 13
+            ? '/enter_animation/vip_goin_l.webp'
+            : '');
 
     const baseCfg = getBadgeRenderConfig(animationId);
     const cfg = (() => {
@@ -587,6 +648,10 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
       scheduleExitAfter(holdMsRef.current);
     };
 
+    const cardBgImg = animationId >= 11 && animationId <= 13 ? cfg.cardBgImg : '';
+    const cardBg = cardBgImg ? 'transparent' : cfg.bg;
+    const marqueeTextColor = animationId >= 11 && animationId <= 13 ? cfg.marqueeTextColor : '#ffffff';
+
     return (
       <Wrapper>
         <Animated $phase={phase}>
@@ -596,7 +661,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                 <AniImage src={src} alt="" onLoad={onAniLoaded} />
               </AniLayer>
             ) : null}
-            <Card $bg={cfg.bg} $border={cfg.border} $color={cfg.textColor}>
+            <Card $bg={cardBg} $bgImg={cardBgImg} $border={cfg.border} $color={cfg.textColor}>
               <BadgeRow>
                 <AvatarBadgeGroup>
                   <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
@@ -619,7 +684,16 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                     </Marquee>
                   ) : safeBadgeLabel ? (
                     <>
-                      {animationId === 1 || animationId === 2 || (animationId >= 7 && animationId <= 10) ? (
+                      {animationId >= 11 && animationId <= 13 ? (
+                        <Marquee $bg={cfg.marqueeBg} $h="22px">
+                          {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
+                          <ScrollingText gapPx={12} speedPxPerSec={40} always>
+                            <Text $fontSize="12px" $lineHeight="22px" $color={cfg.textColor}>
+                              {safeBadgeLabel}
+                            </Text>
+                          </ScrollingText>
+                        </Marquee>
+                      ) : animationId === 1 || animationId === 2 || (animationId >= 7 && animationId <= 10) ? (
                         <Marquee $bg={cfg.marqueeBg} $h="22px">
                           {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
                           <ScrollingText gapPx={12} speedPxPerSec={40} always>
@@ -644,7 +718,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                 {!isEvent14 && safeMarqueeText ? (
                   <MarqueeTextWrap>
                     <ScrollingText gapPx={12} speedPxPerSec={40} always>
-                      <Text $fontSize="12px" $lineHeight="22px" $color="#ffffff">
+                      <Text $fontSize="12px" $lineHeight="22px" $color={marqueeTextColor}>
                         {safeMarqueeText}
                       </Text>
                     </ScrollingText>
