@@ -693,7 +693,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                             </Text>
                           </ScrollingText>
                         </Marquee>
-                      ) : animationId === 1 || animationId === 2 || (animationId >= 7 && animationId <= 10) ? (
+                      ) : animationId === 1 || animationId === 2 || (animationId >= 7 && animationId <= 10) || animationId === 15 ? (
                         <Marquee $bg={cfg.marqueeBg} $h="22px">
                           {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
                           <ScrollingText gapPx={12} speedPxPerSec={40} always>
