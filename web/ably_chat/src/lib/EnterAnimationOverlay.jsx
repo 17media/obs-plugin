@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useTranslations } from 'next-intl';
 import { CDN_URL } from './constants';
@@ -80,16 +80,51 @@ const Marquee = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 33px;
+  height: ${(p) => p.$h || '33px'};
   padding: 0 2px;
   border-radius: 999px;
   background: ${(p) => p.$bg || 'transparent'};
   max-width: 320px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  margin-left: -5px;
+  margin-left: ${(p) => (typeof p.$ml === 'string' ? p.$ml : '-5px')};
   position: relative;
-  z-index: 2;
+  z-index: ${(p) => (typeof p.$z === 'number' ? p.$z : 2)};
+`;
+
+const MarqueeViewport = styled.div`
+  min-width: 0;
+  overflow: hidden;
+`;
+
+const marqueeKf = keyframes`
+  0% { transform: translateX(var(--marquee-start)); }
+  100% { transform: translateX(calc(-1 * var(--marquee-distance))); }
+`;
+
+const MarqueeTrack = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--marquee-gap, 12px);
+  will-change: transform;
+  animation: ${(p) => (p.$animate ? marqueeKf : 'none')} var(--marquee-duration, 0ms) linear infinite;
+`;
+
+const MarqueeSpacer = styled.span`
+  display: inline-block;
+  width: var(--marquee-gap, 12px);
+`;
+
+const Event14TextRow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+`;
+
+const MarqueeTextWrap = styled.div`
+  min-width: 0;
+  max-width: 320px;
+  overflow: hidden;
 `;
 
 const AniImage = styled.img`
@@ -137,6 +172,7 @@ function getBadgeRenderConfig(animationId) {
       textColor: '#ffffff',
       marqueeBg: 'rgb(255, 138, 212)',
       marqueeTextColor: '#ffffff',
+      badgeIconSrc: '/enter_animation/shield.png',
     };
   }
   if (animationId === 2) {
@@ -146,6 +182,7 @@ function getBadgeRenderConfig(animationId) {
       border: 'rgba(0, 0, 0, 0.12)',
       textColor: 'rgb(240, 6, 197)',
       marqueeTextColor: 'rgb(240, 6, 197)',
+      badgeIconSrc: '/enter_animation/diamond.png',
     };
   }
   if (animationId === 3) {
@@ -234,6 +271,77 @@ function toCssLinearGradient(from, to) {
   if (!from && !to) return '';
   if (from && to) return `linear-gradient(90deg, ${from}, ${to})`;
   return from || to || '';
+}
+
+function ScrollingText({
+  children,
+  gapPx = 12,
+  speedPxPerSec = 40,
+  always = false,
+  maxWidthPx = 320,
+  padPx = 20,
+}) {
+  const viewportRef = useRef(null);
+  const contentRef = useRef(null);
+  const [anim, setAnim] = useState({ enabled: false, viewportW: 0, start: 0, distance: 0, duration: 0 });
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
+
+    const measure = () => {
+      const contentW = content.scrollWidth || 0;
+      const targetViewportW = Math.max(0, Math.min(maxWidthPx, contentW + padPx));
+      const viewportW = targetViewportW;
+      if ((!always && contentW <= viewportW) || viewportW === 0) {
+        setAnim({ enabled: false, viewportW, start: 0, distance: 0, duration: 0 });
+        return;
+      }
+      const start = viewportW;
+      const distance = contentW + gapPx;
+      const travel = start + distance;
+      const duration = Math.max(1200, Math.round((travel / Math.max(1, speedPxPerSec)) * 1000));
+      setAnim({ enabled: true, viewportW, start, distance, duration });
+    };
+
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    if (ro) {
+      ro.observe(viewport);
+      ro.observe(content);
+    } else {
+      window.addEventListener('resize', measure);
+    }
+    return () => {
+      if (ro) ro.disconnect();
+      else window.removeEventListener('resize', measure);
+    };
+  }, [gapPx, speedPxPerSec, always, maxWidthPx, padPx, children]);
+
+  return (
+    <MarqueeViewport ref={viewportRef} style={anim.viewportW ? { width: `${anim.viewportW}px` } : undefined}>
+      <MarqueeTrack
+        $animate={anim.enabled}
+        style={{
+          '--marquee-start': `${anim.start}px`,
+          '--marquee-distance': `${anim.distance}px`,
+          '--marquee-duration': `${anim.duration}ms`,
+          '--marquee-gap': `${gapPx}px`,
+        }}
+      >
+        <span ref={contentRef} style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          {children}
+        </span>
+        {anim.enabled ? (
+          <>
+            <MarqueeSpacer />
+            <span style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{children}</span>
+          </>
+        ) : null}
+      </MarqueeTrack>
+    </MarqueeViewport>
+  );
 }
 
 function computeBannerKeyframes(entryMs, holdMs, exitMs) {
@@ -348,9 +456,10 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
 
     const marqueeText = (() => {
       if (isEvent14) return enterAnimation?.eventDescText || '';
-      if (!marqueeKey) return '';
+      const effectiveKey = marqueeKey || (animationId === 6 ? '' : 'enter_is_here');
+      if (!effectiveKey) return '';
       try {
-        return t(marqueeKey, { name });
+        return t(effectiveKey, { name });
       } catch {
         return '';
       }
@@ -406,36 +515,43 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
               <BadgeRow>
                 <AvatarBadgeGroup>
                   <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
-                  {isEvent14 ? (
-                    <>
-                      {safeBadgeLabel ? (
-                        <Marquee $bg={cfg.marqueeBg}>
-                          <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor}>
-                            {safeBadgeLabel}
-                          </Text>
-                        </Marquee>
-                      ) : null}
-                      {safeMarqueeText ? (
-                        <Text
-                          $fontSize={eventFontSize}
-                          $lineHeight={eventLineHeight}
-                          $color={enterAnimation?.eventTextColor}
-                          $ml={safeBadgeLabel ? '5px' : '0'}
-                        >
-                          {safeMarqueeText}
-                        </Text>
-                      ) : null}
-                    </>
+                  {isEvent14 && (safeBadgeLabel || safeMarqueeText) ? (
+                    <Marquee $bg={cfg.marqueeBg} $h="22px">
+                      <ScrollingText gapPx={12} speedPxPerSec={40} always>
+                        <Event14TextRow>
+                          {safeBadgeLabel ? (
+                            <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor}>
+                              {safeBadgeLabel}
+                            </Text>
+                          ) : null}
+                          {safeMarqueeText ? (
+                            <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventTextColor}>
+                              {safeMarqueeText}
+                            </Text>
+                          ) : null}
+                        </Event14TextRow>
+                      </ScrollingText>
+                    </Marquee>
                   ) : safeBadgeLabel ? (
-                    <Marquee $bg={cfg.marqueeBg}>
+                    <Marquee $bg={cfg.marqueeBg} $h="22px">
                       {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
-                      <Text $fontSize="12px" $lineHeight="22px">
-                        {safeBadgeLabel}
-                      </Text>
+                      <ScrollingText gapPx={12} speedPxPerSec={40} always>
+                        <Text $fontSize="12px" $lineHeight="22px">
+                          {safeBadgeLabel}
+                        </Text>
+                      </ScrollingText>
                     </Marquee>
                   ) : null}
                 </AvatarBadgeGroup>
-                {!isEvent14 && safeMarqueeText ? <Text $color={cfg.marqueeTextColor}>{safeMarqueeText}</Text> : null}
+                {!isEvent14 && safeMarqueeText ? (
+                  <MarqueeTextWrap>
+                    <ScrollingText gapPx={12} speedPxPerSec={40} always>
+                      <Text $fontSize="12px" $lineHeight="22px" $color="#ffffff">
+                        {safeMarqueeText}
+                      </Text>
+                    </ScrollingText>
+                  </MarqueeTextWrap>
+                ) : null}
               </BadgeRow>
             </Card>
           </BadgeContainer>
