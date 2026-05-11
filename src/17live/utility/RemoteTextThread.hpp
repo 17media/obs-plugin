@@ -19,6 +19,7 @@
 
 #include <QThread>
 #include <chrono>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -97,3 +98,17 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error,
                    std::vector<std::string> extraHeaders = std::vector<std::string>(),
                    std::string *signature = nullptr, int timeoutSec = 0, bool fail_on_error = true,
                    int postDataSize = 0, std::atomic<bool> *cancelFlag = nullptr);
+
+bool UploadMultipartFile(const char *url, const char *fieldName, const std::string &filePath,
+                         std::string &str, std::string &error, long *responseCode = nullptr,
+                         std::vector<std::string> extraHeaders = std::vector<std::string>(),
+                         int timeoutSec = 0, std::atomic<bool> *cancelFlag = nullptr);
+
+using UploadProgressCallback = std::function<void(int64_t totalBytes, int64_t uploadedBytes)>;
+
+bool UploadMultipartFileWithProgress(const char *url, const char *fieldName,
+                                     const std::string &filePath, std::string &str,
+                                     std::string &error, long *responseCode,
+                                     std::vector<std::string> extraHeaders, int timeoutSec,
+                                     std::atomic<bool> *cancelFlag,
+                                     UploadProgressCallback uploadProgress);

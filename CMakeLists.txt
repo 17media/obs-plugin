@@ -187,6 +187,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/core/DockOrchestrator.cpp
   src/17live/core/CoreRuntime.cpp
   src/17live/core/AuthSessionService.cpp
+  src/17live/core/CrashUploadService.cpp
   src/17live/core/LocalGatewayService.cpp
   src/17live/core/ChatBridgeService.cpp
   src/17live/OneSevenLiveCoreManager.cpp
@@ -223,6 +224,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/utility/Meta.cpp
   src/17live/utility/NetworkDiagnostics.cpp
   src/17live/utility/RemoteTextThread.cpp
+  src/17live/utility/CrashSentinel.cpp
   src/17live/chat/OneSevenLiveChatMessageHandler.cpp
   src/17live/websocket/OneSevenLiveWebsocketClient.cpp
   src/17live/websocket/OneSevenLiveWebsocketServer.cpp

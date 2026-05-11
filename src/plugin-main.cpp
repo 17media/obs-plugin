@@ -37,6 +37,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "17live/OneSevenLiveCoreManager.hpp"
 #include "17live/utility/Common.hpp"
+#include "17live/utility/CrashSentinel.hpp"
 
 using namespace std;
 
@@ -45,6 +46,8 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 bool obs_module_load(void) {
     obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
+
+    seventeen::utility::CrashSentinel::Initialize();
 
     InitThreadPool();
 
@@ -148,6 +151,7 @@ MODULE_EXPORT void obs_module_post_load(void) {
 }
 
 void obs_module_unload(void) {
+    seventeen::utility::CrashSentinel::Shutdown();
     // Ensure thread pool is destroyed on unload as well
     DestroyThreadPool();
     obs_log(LOG_INFO, "[obs-17live] plugin unloaded");

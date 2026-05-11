@@ -22,6 +22,8 @@
 #include <QByteArray>
 #include <QString>
 
+#include <functional>
+
 #include "curl-helper.h"
 #include "moc_RemoteTextThread.cpp"
 
@@ -62,6 +64,32 @@ static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow
             return 1;  // Return non-zero to abort transfer
         }
     }
+    return 0;
+}
+
+struct UploadProgressContext {
+    std::atomic<bool> *cancelled = nullptr;
+    UploadProgressCallback cb;
+};
+
+static int progress_callback_upload(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
+                                    curl_off_t ultotal, curl_off_t ulnow) {
+    (void) dltotal;
+    (void) dlnow;
+
+    if (!clientp) {
+        return 0;
+    }
+
+    auto *ctx = static_cast<UploadProgressContext *>(clientp);
+    if (ctx->cancelled && ctx->cancelled->load()) {
+        return 1;
+    }
+
+    if (ctx->cb && ultotal > 0) {
+        ctx->cb(static_cast<int64_t>(ultotal), static_cast<int64_t>(ulnow));
+    }
+
     return 0;
 }
 
@@ -260,6 +288,134 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error, long *
             }
         }
 
+        curl_slist_free_all(header);
+    }
+
+    return code == CURLE_OK;
+}
+
+bool UploadMultipartFile(const char *url, const char *fieldName, const std::string &filePath,
+                         std::string &str, std::string &error, long *responseCode,
+                         std::vector<std::string> extraHeaders, int timeoutSec,
+                         std::atomic<bool> *cancelFlag) {
+    char error_in[CURL_ERROR_SIZE];
+    CURLcode code = CURLE_FAILED_INIT;
+
+    error_in[0] = 0;
+
+    string versionString("User-Agent: obs-basic ");
+    versionString += obs_get_version_string();
+
+    Curl curl{curl_easy_init(), curl_deleter};
+    if (curl) {
+        struct curl_slist *header = nullptr;
+        header = curl_slist_append(header, versionString.c_str());
+
+        for (std::string &h : extraHeaders)
+            header = curl_slist_append(header, h.c_str());
+
+        curl_easy_setopt(curl.get(), CURLOPT_URL, url);
+        curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING, "");
+        curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
+        curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error_in);
+        curl_easy_setopt(curl.get(), CURLOPT_FAILONERROR, 0L);
+        curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, string_write);
+        curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &str);
+        curl_obs_set_revoke_setting(curl.get());
+
+        if (timeoutSec)
+            curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, timeoutSec);
+
+        curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "POST");
+
+        curl_mime *mime = curl_mime_init(curl.get());
+        curl_mimepart *part = curl_mime_addpart(mime);
+        curl_mime_name(part, fieldName);
+        curl_mime_filedata(part, filePath.c_str());
+
+        curl_easy_setopt(curl.get(), CURLOPT_MIMEPOST, mime);
+
+        if (cancelFlag) {
+            curl_easy_setopt(curl.get(), CURLOPT_XFERINFOFUNCTION, progress_callback);
+            curl_easy_setopt(curl.get(), CURLOPT_XFERINFODATA, cancelFlag);
+            curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 0L);
+        }
+
+        code = curl_easy_perform(curl.get());
+        if (responseCode)
+            curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, responseCode);
+
+        if (code != CURLE_OK) {
+            error = strlen(error_in) ? error_in : curl_easy_strerror(code);
+        }
+
+        curl_mime_free(mime);
+        curl_slist_free_all(header);
+    }
+
+    return code == CURLE_OK;
+}
+
+bool UploadMultipartFileWithProgress(const char *url, const char *fieldName,
+                                     const std::string &filePath, std::string &str,
+                                     std::string &error, long *responseCode,
+                                     std::vector<std::string> extraHeaders, int timeoutSec,
+                                     std::atomic<bool> *cancelFlag,
+                                     UploadProgressCallback uploadProgress) {
+    char error_in[CURL_ERROR_SIZE];
+    CURLcode code = CURLE_FAILED_INIT;
+
+    error_in[0] = 0;
+
+    string versionString("User-Agent: obs-basic ");
+    versionString += obs_get_version_string();
+
+    Curl curl{curl_easy_init(), curl_deleter};
+    if (curl) {
+        struct curl_slist *header = nullptr;
+        header = curl_slist_append(header, versionString.c_str());
+
+        for (std::string &h : extraHeaders)
+            header = curl_slist_append(header, h.c_str());
+
+        curl_easy_setopt(curl.get(), CURLOPT_URL, url);
+        curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING, "");
+        curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
+        curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error_in);
+        curl_easy_setopt(curl.get(), CURLOPT_FAILONERROR, 0L);
+        curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, string_write);
+        curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &str);
+        curl_obs_set_revoke_setting(curl.get());
+
+        if (timeoutSec)
+            curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, timeoutSec);
+
+        curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "POST");
+
+        curl_mime *mime = curl_mime_init(curl.get());
+        curl_mimepart *part = curl_mime_addpart(mime);
+        curl_mime_name(part, fieldName);
+        curl_mime_filedata(part, filePath.c_str());
+
+        curl_easy_setopt(curl.get(), CURLOPT_MIMEPOST, mime);
+
+        UploadProgressContext ctx;
+        ctx.cancelled = cancelFlag;
+        ctx.cb = std::move(uploadProgress);
+
+        curl_easy_setopt(curl.get(), CURLOPT_XFERINFOFUNCTION, progress_callback_upload);
+        curl_easy_setopt(curl.get(), CURLOPT_XFERINFODATA, &ctx);
+        curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 0L);
+
+        code = curl_easy_perform(curl.get());
+        if (responseCode)
+            curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, responseCode);
+
+        if (code != CURLE_OK) {
+            error = strlen(error_in) ? error_in : curl_easy_strerror(code);
+        }
+
+        curl_mime_free(mime);
         curl_slist_free_all(header);
     }
 

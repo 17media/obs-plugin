@@ -68,6 +68,7 @@ class CoreRuntime;
 class DockOrchestrator;
 
 class AuthSessionService;
+class CrashUploadService;
 
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
@@ -374,10 +375,12 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     std::unique_ptr<CoreRuntime> runtime_;
     std::unique_ptr<DockOrchestrator> dockOrchestrator_;
     std::unique_ptr<AuthSessionService> authSessionService_;
+    std::unique_ptr<CrashUploadService> crashUploadService_;
     std::unique_ptr<LocalGatewayService> localGatewayService_;
     std::unique_ptr<ChatBridgeService> chatBridgeService_;
     bool initIsLogin_{false};
     OneSevenLiveLoginData initLoginData_;
+    bool previousRunClean_{true};
 
     void syncMenuDockVisibility();
     void flushChatEventQueue();

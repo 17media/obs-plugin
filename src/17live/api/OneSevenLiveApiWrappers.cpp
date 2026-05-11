@@ -2,6 +2,8 @@
 
 #include <obs-module.h>
 
+#include <filesystem>
+
 #include <QCryptographicHash>
 #include <QMimeDatabase>
 #include <QUrl>
@@ -129,6 +131,10 @@ const string ONESEVENLIVE_POKE_URL = buildApiUrl("/api/v1/pokes");
 const string ONESEVENLIVE_POKE_ALL_URL = buildApiUrl("/api/v1/pokes/pokeAll");
 
 const string ONESEVENLIVE_CHANGE_EVENT_URL = buildApiUrl("/api/v1/liveStreams/event");
+
+const string ONESEVENLIVE_LOGS_URL = buildApiUrl("/api/v1/logs");
+
+const string ONESEVENLIVE_LOGS_UPLOAD_URL = buildApiUrl("/api/v1/logs/uploadFile");
 
 OneSevenLiveApiWrappers::OneSevenLiveApiWrappers() : token("") {
     initializeApiWrapper();
@@ -506,6 +512,157 @@ bool OneSevenLiveApiWrappers::ChangeEvent(const OneSevenLiveChangeEventRequest &
         return false;
     }
 
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::ReportObsCrashEvent(const std::string &liveStreamID,
+                                                  int64_t crashTimestampSec) {
+    clearLastError();
+    obs_log(LOG_INFO, "CrashUpload: ReportObsCrashEvent start (liveStreamID=%s, ts=%lld)",
+            liveStreamID.empty() ? "" : liveStreamID.c_str(), (long long) crashTimestampSec);
+
+    Json data;
+    data["type"] = "obs_crash_log";
+    if (!liveStreamID.empty()) {
+        data["liveStreamID"] = liveStreamID;
+    }
+    data["crashTimestampSec"] = crashTimestampSec;
+
+    Json requestBody;
+    requestBody["logs"] = Json::array();
+    requestBody["logs"].push_back({{"data", data}, {"category", "LOG"}});
+
+    const std::string postData = requestBody.dump();
+    Json json_out;
+    if (!InsertCommand(ONESEVENLIVE_LOGS_URL.c_str(), "application/json", "POST", postData.c_str(),
+                       json_out, static_cast<int>(postData.size()), true)) {
+        const auto err = getLastError();
+        obs_log(LOG_WARNING, "CrashUpload: ReportObsCrashEvent failed: %s %s", err.code.c_str(),
+                err.message.c_str());
+        return false;
+    }
+
+    if (json_out.contains("errorCode")) {
+        setLastError(buildApiError(json_out, "ReportObsCrashEvent failed"));
+        const auto err = getLastError();
+        obs_log(LOG_WARNING, "CrashUpload: ReportObsCrashEvent error: %s %s", err.code.c_str(),
+                err.message.c_str());
+        return false;
+    }
+
+    obs_log(LOG_INFO, "CrashUpload: ReportObsCrashEvent success: %s", json_out.dump().c_str());
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::UploadObsLogsFile(const std::string &zipPath) {
+    return UploadObsLogsFile(zipPath, nullptr, nullptr);
+}
+
+bool OneSevenLiveApiWrappers::UploadObsLogsFile(const std::string &zipPath,
+                                                std::function<void(double)> onProgress) {
+    return UploadObsLogsFile(zipPath, std::move(onProgress), nullptr);
+}
+
+bool OneSevenLiveApiWrappers::UploadObsLogsFile(const std::string &zipPath,
+                                                std::function<void(double)> onProgress,
+                                                std::atomic<bool> *cancelFlag) {
+    clearLastError();
+    obs_log(LOG_INFO, "CrashUpload: UploadObsLogsFile start (path=%s)", zipPath.c_str());
+
+    std::uintmax_t fileSize = 0;
+    try {
+        fileSize = std::filesystem::file_size(zipPath);
+    } catch (...) {
+        setLastError(makeError("IO.FileSizeFailed", "Failed to get file size", false, zipPath));
+        return false;
+    }
+
+    std::vector<std::string> headers;
+
+    std::string currentToken;
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        if (token.empty()) {
+            setLastError(makeError("Auth.MissingToken", "Token not available", false, ""));
+            return false;
+        }
+        currentToken = token;
+    }
+
+    headers.push_back("Authorization: Bearer " + currentToken);
+    headers.push_back("Devicetype: WEB");
+    headers.push_back("version: " + std::string(PLUGIN_VERSION));
+    headers.push_back("OSVersion: " + currentOSVersion);
+    headers.push_back("hardware: " + currentOS);
+    headers.push_back("deviceName: OBSPlugin");
+    headers.push_back("deviceModel: OBSPlugin");
+    headers.push_back("deviceId: " + currentPlatformUUID);
+
+    std::string output;
+    std::string error;
+    long httpStatusCode = 0;
+    int timeout = 60 + static_cast<int>(fileSize / 125000);
+
+    bool success = false;
+    if (onProgress) {
+        success = UploadMultipartFileWithProgress(
+            ONESEVENLIVE_LOGS_UPLOAD_URL.c_str(), "file", zipPath, output, error, &httpStatusCode,
+            std::move(headers), timeout, cancelFlag ? cancelFlag : m_cancelFlag,
+            [onProgress = std::move(onProgress)](int64_t total, int64_t now) {
+                if (total <= 0) {
+                    return;
+                }
+                const double p = std::min(1.0, std::max(0.0, (double) now / (double) total));
+                onProgress(p);
+            });
+    } else {
+        success = UploadMultipartFile(ONESEVENLIVE_LOGS_UPLOAD_URL.c_str(), "file", zipPath, output,
+                                      error, &httpStatusCode, std::move(headers), timeout,
+                                      cancelFlag ? cancelFlag : m_cancelFlag);
+    }
+
+    if (cancelFlag && cancelFlag->load()) {
+        setLastError(makeError("Cancelled.User", "Cancelled", false, ""));
+        return false;
+    }
+
+    if (m_cancelFlag && *m_cancelFlag) {
+        setLastError(makeError("Cancelled.Shutdown", "Request cancelled", false, ""));
+        return false;
+    }
+
+    if (!success || output.empty()) {
+        obs_log(LOG_WARNING, "CrashUpload: UploadObsLogsFile network failed (http=%ld): %s",
+                httpStatusCode, error.c_str());
+        setLastError(buildNetworkError(httpStatusCode, error,
+                                       std::string("url=") + ONESEVENLIVE_LOGS_UPLOAD_URL));
+        return false;
+    }
+
+    Json json_out;
+    try {
+        json_out = Json::parse(output);
+    } catch (...) {
+        obs_log(LOG_WARNING, "CrashUpload: UploadObsLogsFile invalid json (http=%ld): %s",
+                httpStatusCode, output.c_str());
+        setLastError(makeError("Json.ParseFailed", "Failed to parse API JSON response", false,
+                               std::string("url=") + ONESEVENLIVE_LOGS_UPLOAD_URL));
+        return false;
+    }
+
+    if (json_out.contains("errorCode")) {
+        obs_log(LOG_WARNING, "CrashUpload: UploadObsLogsFile api error (http=%ld): %s",
+                httpStatusCode, json_out.dump().c_str());
+        auto err = buildApiError(json_out, "UploadObsLogsFile failed");
+        if (httpStatusCode == 401 || httpStatusCode == 420) {
+            err.code = "Api.Unauthorized";
+        }
+        setLastError(std::move(err));
+        return false;
+    }
+
+    obs_log(LOG_INFO, "CrashUpload: UploadObsLogsFile success (http=%ld): %s", httpStatusCode,
+            json_out.dump().c_str());
     return true;
 }
 

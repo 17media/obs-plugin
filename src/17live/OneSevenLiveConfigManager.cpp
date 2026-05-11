@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QString>
 #include <fstream>
+#include <unordered_set>
 
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
@@ -161,6 +162,117 @@ bool OneSevenLiveConfigManager::setConfigValue(const std::string &key, const std
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save config value: %s", key.c_str());
         setLastError(ResultError{"IO.SaveFailed", "Failed to save config value", false, key});
+        return false;
+    }
+
+    clearLastError();
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getBoolValue(const std::string &key, bool defaultValue) {
+    if (!initialized) {
+        return defaultValue;
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        return defaultValue;
+    }
+
+    const char *valueChar = config_get_string(config, service, key.c_str());
+    if (!valueChar) {
+        return defaultValue;
+    }
+
+    const std::string v = valueChar;
+    return v == "true" || v == "1" || v == "TRUE" || v == "True";
+}
+
+bool OneSevenLiveConfigManager::setBoolValue(const std::string &key, bool value) {
+    return setConfigValue(key, value ? "true" : "false");
+}
+
+std::vector<std::string> OneSevenLiveConfigManager::getCrashUploadHistory() {
+    if (!initialized) {
+        return {};
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        return {};
+    }
+
+    const char *valueChar = config_get_string(config, service, "CrashUploadHistory");
+    if (!valueChar) {
+        return {};
+    }
+
+    try {
+        json j = json::parse(valueChar);
+        if (!j.is_array()) {
+            return {};
+        }
+        std::vector<std::string> out;
+        out.reserve(j.size());
+        for (const auto &it : j) {
+            if (it.is_string()) {
+                out.push_back(it.get<std::string>());
+            }
+        }
+        return out;
+    } catch (...) {
+        return {};
+    }
+}
+
+bool OneSevenLiveConfigManager::addCrashUploadHistory(const std::vector<std::string> &keys) {
+    if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "addCrashUploadHistory"});
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "addCrashUploadHistory"});
+        return false;
+    }
+
+    std::unordered_set<std::string> uniq;
+    json arr = json::array();
+
+    const char *valueChar = config_get_string(config, service, "CrashUploadHistory");
+    if (valueChar) {
+        try {
+            json existing = json::parse(valueChar);
+            if (existing.is_array()) {
+                for (const auto &it : existing) {
+                    if (it.is_string()) {
+                        const std::string s = it.get<std::string>();
+                        if (uniq.insert(s).second) {
+                            arr.push_back(s);
+                        }
+                    }
+                }
+            }
+        } catch (...) {
+        }
+    }
+
+    for (const auto &k : keys) {
+        if (k.empty())
+            continue;
+        if (uniq.insert(k).second) {
+            arr.push_back(k);
+        }
+    }
+
+    const std::string jsonStr = arr.dump();
+    config_set_string(config, service, "CrashUploadHistory", jsonStr.c_str());
+    if (config_save(config) < 0) {
+        setLastError(
+            ResultError{"IO.SaveFailed", "Failed to save CrashUploadHistory", false, jsonStr});
         return false;
     }
 

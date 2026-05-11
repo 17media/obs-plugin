@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <functional>
 #include <mutex>
 #include <nlohmann/json.hpp>
 
@@ -98,6 +99,12 @@ class OneSevenLiveApiWrappers : public QObject {
     // ChangeEvent
     // Change event for live stream
     bool ChangeEvent(const OneSevenLiveChangeEventRequest &request);
+
+    bool ReportObsCrashEvent(const std::string &liveStreamID, int64_t crashTimestampSec);
+    bool UploadObsLogsFile(const std::string &zipPath);
+    bool UploadObsLogsFile(const std::string &zipPath, std::function<void(double)> onProgress);
+    bool UploadObsLogsFile(const std::string &zipPath, std::function<void(double)> onProgress,
+                           std::atomic<bool> *cancelFlag);
 
     /**
      * @brief Perform MD5 encryption on string

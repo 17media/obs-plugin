@@ -22,6 +22,7 @@
 #include "../twitch/OneSevenLiveTwitchAuth.hpp"
 #include "plugin-support.h"
 #include "ChatBridgeService.hpp"
+#include "CrashUploadService.hpp"
 
 AuthSessionService::AuthSessionService(OneSevenLiveCoreManager* coreManager, QObject* parent)
     : QObject(parent), coreManager_(coreManager) {}
@@ -181,6 +182,13 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
                 core->connectAblyChat(QString::number(rid), QString());
             }
         }
+    });
+
+    QTimer::singleShot(0, coreManager_, [core, loginData]() {
+        if (!core || !core->crashUploadService_) {
+            return;
+        }
+        core->crashUploadService_->onLogin(loginData, core->previousRunClean_);
     });
 
     // discovery is managed by YouTubeChatClient

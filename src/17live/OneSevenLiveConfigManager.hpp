@@ -45,6 +45,12 @@ class OneSevenLiveConfigManager {
     bool getConfigValue(const std::string &key, std::string &value);
     bool setConfigValue(const std::string &key, const std::string &value);
 
+    bool getBoolValue(const std::string &key, bool defaultValue);
+    bool setBoolValue(const std::string &key, bool value);
+
+    std::vector<std::string> getCrashUploadHistory();
+    bool addCrashUploadHistory(const std::vector<std::string> &keys);
+
     // Get current room ID
     qint64 getRoomID();
 

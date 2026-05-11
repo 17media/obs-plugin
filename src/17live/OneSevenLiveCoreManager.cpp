@@ -37,6 +37,7 @@
 #include "core/DockOrchestrator.hpp"
 #include "core/CoreRuntime.hpp"
 #include "core/AuthSessionService.hpp"
+#include "core/CrashUploadService.hpp"
 #include "core/ChatBridgeService.hpp"
 #include "core/LocalGatewayService.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
@@ -49,6 +50,7 @@
 #include "streamlist/OneSevenLiveStreamListDock.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "utility/Common.hpp"
+#include "utility/CrashSentinel.hpp"
 #include "utility/Meta.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WsMessage.hpp"
@@ -154,6 +156,8 @@ bool OneSevenLiveCoreManager::initConfigAndApi() {
         return false;
     }
 
+    previousRunClean_ = seventeen::utility::CrashSentinel::PreviousRunClean();
+
     // Initialize API wrapper before creating stream manager
     configManager->getLoginData(initLoginData_);
     initIsLogin_ = false;
@@ -171,6 +175,9 @@ bool OneSevenLiveCoreManager::initConfigAndApi() {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
         apiWrapper->setCancelFlag(getCancelFlag());
     }
+
+    crashUploadService_ = std::make_unique<CrashUploadService>(mainWindow, apiWrapper.get(),
+                                                              configManager.get(), this);
     return true;
 }
 
