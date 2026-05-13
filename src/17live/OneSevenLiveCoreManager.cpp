@@ -34,6 +34,8 @@
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
 #include "chat/OneSevenLiveChatWidget.hpp"
+#include "customized_cartoons/CustomizedCartoonDock.hpp"
+#include "customized_cartoons/CustomizedCartoonService.hpp"
 #include "core/DockOrchestrator.hpp"
 #include "core/CoreRuntime.hpp"
 #include "core/AuthSessionService.hpp"
@@ -282,6 +284,9 @@ bool OneSevenLiveCoreManager::initMenuAndBaseUI() {
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::previewDockClicked, this,
                      &OneSevenLiveCoreManager::handlePreviewDockClicked);
+
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::customizedCartoonClicked, this,
+                     &OneSevenLiveCoreManager::handleCustomizedCartoonClicked);
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this,
                      &OneSevenLiveCoreManager::handleCheckUpdateClicked);
@@ -586,6 +591,18 @@ OneSevenLivePreviewDock* OneSevenLiveCoreManager::getPreviewDock() const {
 
 void OneSevenLiveCoreManager::setPreviewDock(OneSevenLivePreviewDock* dock) {
     previewDock = dock;
+}
+
+CustomizedCartoonDock* OneSevenLiveCoreManager::getCustomizedCartoonDock() const {
+    return customizedCartoonDock.data();
+}
+
+void OneSevenLiveCoreManager::setCustomizedCartoonDock(CustomizedCartoonDock* dock) {
+    customizedCartoonDock = dock;
+}
+
+CustomizedCartoonService* OneSevenLiveCoreManager::getCustomizedCartoonService() const {
+    return customizedCartoonService_.get();
 }
 
 AuthSessionService* OneSevenLiveCoreManager::getAuthSessionService() const {
@@ -1159,6 +1176,18 @@ void OneSevenLiveCoreManager::handlePreviewDockClicked() {
 void OneSevenLiveCoreManager::createPreviewDock() {
     if (dockOrchestrator_) {
         dockOrchestrator_->createPreviewDock();
+    }
+}
+
+void OneSevenLiveCoreManager::handleCustomizedCartoonClicked() {
+    if (dockOrchestrator_) {
+        dockOrchestrator_->handleCustomizedCartoonClicked();
+    }
+}
+
+void OneSevenLiveCoreManager::createCustomizedCartoonDock() {
+    if (dockOrchestrator_) {
+        dockOrchestrator_->createCustomizedCartoonDock();
     }
 }
 

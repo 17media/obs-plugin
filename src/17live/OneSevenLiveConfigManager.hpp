@@ -51,6 +51,9 @@ class OneSevenLiveConfigManager {
     std::vector<std::string> getCrashUploadHistory();
     bool addCrashUploadHistory(const std::vector<std::string> &keys);
 
+    json getCustomizedCartoonsConfig();
+    bool setCustomizedCartoonsConfig(const json &cfg);
+
     // Get current room ID
     qint64 getRoomID();
 

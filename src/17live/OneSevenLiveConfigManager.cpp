@@ -280,6 +280,59 @@ bool OneSevenLiveConfigManager::addCrashUploadHistory(const std::vector<std::str
     return true;
 }
 
+json OneSevenLiveConfigManager::getCustomizedCartoonsConfig() {
+    if (!initialized) {
+        return json::object();
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        return json::object();
+    }
+
+    const char *valueChar = config_get_string(config, service, "CustomizedCartoonsConfigV1");
+    if (!valueChar) {
+        return json::object();
+    }
+
+    try {
+        json j = json::parse(valueChar);
+        if (!j.is_object()) {
+            return json::object();
+        }
+        return j;
+    } catch (...) {
+        return json::object();
+    }
+}
+
+bool OneSevenLiveConfigManager::setCustomizedCartoonsConfig(const json &cfg) {
+    if (!initialized) {
+        setLastError(
+            ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                        "setCustomizedCartoonsConfig"});
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "setCustomizedCartoonsConfig"});
+        return false;
+    }
+
+    const std::string jsonStr = cfg.dump();
+    config_set_string(config, service, "CustomizedCartoonsConfigV1", jsonStr.c_str());
+    if (config_save(config) < 0) {
+        setLastError(ResultError{"IO.SaveFailed", "Failed to save CustomizedCartoonsConfigV1", false,
+                                 jsonStr});
+        return false;
+    }
+
+    clearLastError();
+    return true;
+}
+
 qint64 OneSevenLiveConfigManager::getRoomID() {
     if (!initialized) {
         return 0;

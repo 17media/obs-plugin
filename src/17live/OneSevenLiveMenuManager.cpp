@@ -16,7 +16,8 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
       isLiveListVisible(false),
       isRockZoneVisible(false),
       isMultiRtmpVisible(false),
-      isPreviewDockVisible(false) {
+      isPreviewDockVisible(false),
+      isCustomizedCartoonVisible(false) {
     // Create 17Live menu
     menu = mainWindow->menuBar()->addMenu(obs_module_text("17LIVE"));
 
@@ -42,6 +43,10 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
 
     previewDockAction = dockSubMenu->addAction(obs_module_text("Menu.PreviewDock"));
     connect(previewDockAction, &QAction::triggered, this, [this]() { emit previewDockClicked(); });
+
+    customizedCartoonAction = dockSubMenu->addAction(obs_module_text("Menu.CustomizedCartoons"));
+    connect(customizedCartoonAction, &QAction::triggered, this,
+            [this]() { emit customizedCartoonClicked(); });
 
     menu->addSeparator();
 
@@ -78,12 +83,14 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     rockZoneAction->setCheckable(true);
     multiRtmpAction->setCheckable(true);
     previewDockAction->setCheckable(true);
+    customizedCartoonAction->setCheckable(true);
     chatRoomAction->setChecked(false);
     broadcastAction->setChecked(false);
     liveListAction->setChecked(false);
     rockZoneAction->setChecked(false);
     multiRtmpAction->setChecked(false);
     previewDockAction->setChecked(false);
+    customizedCartoonAction->setChecked(false);
 }
 
 OneSevenLiveMenuManager::~OneSevenLiveMenuManager() {}
@@ -128,7 +135,8 @@ void OneSevenLiveMenuManager::checkUpdate() {
 
 void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool broadcastVisible,
                                                    bool liveListVisible, bool rockZoneVisible,
-                                                   bool multiRtmpVisible, bool previewDockVisible) {
+                                                   bool multiRtmpVisible, bool previewDockVisible,
+                                                   bool customizedCartoonVisible) {
     // Update visibility status variables
     isChatRoomVisible = chatRoomVisible;
     isBroadcastVisible = broadcastVisible;
@@ -136,6 +144,7 @@ void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool br
     isRockZoneVisible = rockZoneVisible;
     isMultiRtmpVisible = multiRtmpVisible;
     isPreviewDockVisible = previewDockVisible;
+    isCustomizedCartoonVisible = customizedCartoonVisible;
 
     // Update menu item checked status
     if (chatRoomAction) {
@@ -167,6 +176,11 @@ void OneSevenLiveMenuManager::updateDockVisibility(bool chatRoomVisible, bool br
         previewDockAction->setCheckable(true);
         previewDockAction->setChecked(isPreviewDockVisible);
     }
+
+    if (customizedCartoonAction) {
+        customizedCartoonAction->setCheckable(true);
+        customizedCartoonAction->setChecked(isCustomizedCartoonVisible);
+    }
 }
 
 void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
@@ -177,6 +191,7 @@ void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
     rockZoneAction->setEnabled(isLoggedIn);
     multiRtmpAction->setEnabled(isLoggedIn);
     previewDockAction->setEnabled(isLoggedIn);
+    customizedCartoonAction->setEnabled(isLoggedIn);
     // Diagnostics action is always enabled regardless of login status
 }
 
@@ -194,6 +209,11 @@ void OneSevenLiveMenuManager::cleanup() {
     chatRoomAction = nullptr;
     settingsAction = nullptr;
     broadcastAction = nullptr;
+    liveListAction = nullptr;
+    rockZoneAction = nullptr;
+    multiRtmpAction = nullptr;
+    previewDockAction = nullptr;
+    customizedCartoonAction = nullptr;
     helpAction = nullptr;
     loginAction = nullptr;
     checkUpdateAction = nullptr;

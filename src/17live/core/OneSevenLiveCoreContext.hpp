@@ -17,6 +17,8 @@ class OneSevenLiveStreamListDock;
 class OneSevenLiveRockZoneDock;
 class OneSevenLiveMultiRtmpDock;
 class OneSevenLivePreviewDock;
+class CustomizedCartoonDock;
+class CustomizedCartoonService;
 
 enum class OneSevenLiveStreamingStatus;
 
@@ -57,4 +59,9 @@ public:
 
     virtual OneSevenLivePreviewDock* getPreviewDock() const = 0;
     virtual void setPreviewDock(OneSevenLivePreviewDock* dock) = 0;
+
+    virtual CustomizedCartoonDock* getCustomizedCartoonDock() const = 0;
+    virtual void setCustomizedCartoonDock(CustomizedCartoonDock* dock) = 0;
+
+    virtual CustomizedCartoonService* getCustomizedCartoonService() const = 0;
 };

@@ -126,7 +126,7 @@ class DockOrchestrator {
     void syncMenuDockVisibility(OneSevenLiveMenuManager* menuManager, QDockWidget* chatDock,
                                 QDockWidget* streamingDock, QDockWidget* liveListDock,
                                 QDockWidget* rockZoneDock, QDockWidget* multiRtmpDock,
-                                QDockWidget* previewDock) const;
+                                QDockWidget* previewDock, QDockWidget* customizedCartoonDock) const;
 
     void closeAllDocks();
     void handleStreamingClicked();
@@ -140,6 +140,8 @@ class DockOrchestrator {
     void createMultiRtmpDock();
     void handlePreviewDockClicked();
     void createPreviewDock();
+    void handleCustomizedCartoonClicked();
+    void createCustomizedCartoonDock();
 
     void syncMenuDockVisibility();
 
@@ -149,4 +151,5 @@ class DockOrchestrator {
     bool rockZoneDockFirstLoad_{true};
     bool multiRtmpDockFirstLoad_{true};
     bool previewDockFirstLoad_{true};
+    bool customizedCartoonDockFirstLoad_{true};
 };

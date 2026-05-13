@@ -100,6 +100,14 @@ class OneSevenLiveApiWrappers : public QObject {
     // Change event for live stream
     bool ChangeEvent(const OneSevenLiveChangeEventRequest &request);
 
+    bool CreateLiveEngagements(const std::string &liveStreamID,
+                               const std::vector<OneSevenLiveEngagementCreate> &engagements,
+                               std::vector<OneSevenLiveEngagementCreateResult> &results);
+    bool DeleteLiveEngagements(const std::string &liveStreamID,
+                               const std::vector<std::string> &engageIDs);
+    bool GetLiveEngagementProgress(const std::string &liveStreamID,
+                                   std::vector<OneSevenLiveEngagementProgress> &engagements);
+
     bool ReportObsCrashEvent(const std::string &liveStreamID, int64_t crashTimestampSec);
     bool UploadObsLogsFile(const std::string &zipPath);
     bool UploadObsLogsFile(const std::string &zipPath, std::function<void(double)> onProgress);

@@ -52,6 +52,7 @@ class OneSevenLiveChatWidget;
 class OneSevenLiveMultiRtmpDock;
 
 class OneSevenLivePreviewDock;
+class CustomizedCartoonDock;
 
 class OneSevenLiveHttpServer;
 
@@ -69,6 +70,7 @@ class DockOrchestrator;
 
 class AuthSessionService;
 class CrashUploadService;
+class CustomizedCartoonService;
 
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
@@ -250,6 +252,9 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     void setMultiRtmpDock(OneSevenLiveMultiRtmpDock* dock) override;
     OneSevenLivePreviewDock* getPreviewDock() const override;
     void setPreviewDock(OneSevenLivePreviewDock* dock) override;
+    CustomizedCartoonDock* getCustomizedCartoonDock() const override;
+    void setCustomizedCartoonDock(CustomizedCartoonDock* dock) override;
+    CustomizedCartoonService* getCustomizedCartoonService() const override;
 
     // Private constructor, ensure instance can only be obtained through getInstance method
     explicit OneSevenLiveCoreManager(QMainWindow* mainWindow);
@@ -316,6 +321,11 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     void handlePreviewDockClicked();
     void createPreviewDock();
 
+    bool customizedCartoonDockFirstLoad = true;
+    QPointer<CustomizedCartoonDock> customizedCartoonDock;
+    void handleCustomizedCartoonClicked();
+    void createCustomizedCartoonDock();
+
     void saveDockState();
 
     void load17LiveConfig(const OneSevenLiveLoginData& loginData);
@@ -376,6 +386,7 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     std::unique_ptr<DockOrchestrator> dockOrchestrator_;
     std::unique_ptr<AuthSessionService> authSessionService_;
     std::unique_ptr<CrashUploadService> crashUploadService_;
+    std::unique_ptr<CustomizedCartoonService> customizedCartoonService_;
     std::unique_ptr<LocalGatewayService> localGatewayService_;
     std::unique_ptr<ChatBridgeService> chatBridgeService_;
     bool initIsLogin_{false};

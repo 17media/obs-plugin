@@ -11,6 +11,7 @@
 #include "../OneSevenLiveHttpServer.hpp"
 #include "../OneSevenLiveMenuManager.hpp"
 #include "../chat/OneSevenLiveChatWidget.hpp"
+#include "../customized_cartoons/CustomizedCartoonDock.hpp"
 #include "../multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "../preview/OneSevenLivePreviewDock.hpp"
 #include "../rockzone/OneSevenLiveRockZoneDock.hpp"
@@ -55,13 +56,15 @@ void DockOrchestrator::syncMenuDockVisibility(OneSevenLiveMenuManager* menuManag
                                                QDockWidget* chatDock, QDockWidget* streamingDock,
                                                QDockWidget* liveListDock, QDockWidget* rockZoneDock,
                                                QDockWidget* multiRtmpDock,
-                                               QDockWidget* previewDock) const {
+                                               QDockWidget* previewDock,
+                                               QDockWidget* customizedCartoonDock) const {
     if (!menuManager) {
         return;
     }
     menuManager->updateDockVisibility(isDockOpen(chatDock), isDockOpen(streamingDock),
                                       isDockOpen(liveListDock), isDockOpen(rockZoneDock),
-                                      isDockOpen(multiRtmpDock), isDockOpen(previewDock));
+                                      isDockOpen(multiRtmpDock), isDockOpen(previewDock),
+                                      isDockOpen(customizedCartoonDock));
 }
 
 void DockOrchestrator::syncMenuDockVisibility() {
@@ -70,7 +73,8 @@ void DockOrchestrator::syncMenuDockVisibility() {
     }
     syncMenuDockVisibility(core_->getMenuManager(), core_->getChatDock(), core_->getStreamingDock(),
                            core_->getLiveListDock(), core_->getRockZoneDock(),
-                           core_->getMultiRtmpDock(), core_->getPreviewDock());
+                           core_->getMultiRtmpDock(), core_->getPreviewDock(),
+                           core_->getCustomizedCartoonDock());
 }
 
 void DockOrchestrator::closeAllDocks() {
@@ -135,6 +139,13 @@ void DockOrchestrator::closeAllDocks() {
     core_->setPreviewDock(previewDock);
     if (cfg) {
         cfg->setDockVisibility("previewDock", previewDockVisible);
+    }
+
+    auto* customizedCartoonDock = core_->getCustomizedCartoonDock();
+    const bool customizedCartoonVisible = closeAndDeleteDock(customizedCartoonDock, owner);
+    core_->setCustomizedCartoonDock(customizedCartoonDock);
+    if (cfg) {
+        cfg->setDockVisibility("customizedCartoon", customizedCartoonVisible);
     }
 
     syncMenuDockVisibility();
@@ -549,5 +560,52 @@ void DockOrchestrator::createPreviewDock() {
                          [this]() { this->syncMenuDockVisibility(); });
 
         previewDockFirstLoad_ = false;
+    }
+}
+
+void DockOrchestrator::handleCustomizedCartoonClicked() {
+    if (!core_) {
+        return;
+    }
+    obs_log(LOG_INFO, "handleCustomizedCartoonClicked");
+
+    if (!core_->getCustomizedCartoonDock()) {
+        createCustomizedCartoonDock();
+    } else {
+        core_->getCustomizedCartoonDock()->toggleViewAction()->trigger();
+    }
+
+    syncMenuDockVisibility();
+}
+
+void DockOrchestrator::createCustomizedCartoonDock() {
+    if (!core_ || core_->getCustomizedCartoonDock()) {
+        return;
+    }
+    if (!core_->getMainWindow() || !core_->getConfigManager()) {
+        return;
+    }
+    if (!core_->getCustomizedCartoonService()) {
+        obs_log(LOG_WARNING, "CustomizedCartoonService not available");
+        return;
+    }
+
+    auto* dock = new CustomizedCartoonDock(core_->getMainWindow(), core_->getCustomizedCartoonService());
+    core_->setCustomizedCartoonDock(dock);
+    dock->setObjectName("CustomizedCartoonDock");
+
+    dock->setMaximumWidth(600);
+    dock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
+
+    dock->setAllowedAreas(Qt::AllDockWidgetAreas);
+    core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);
+
+    showDockAsFloating(dock, core_->getMainWindow(), core_->getStartupRestore());
+
+    if (customizedCartoonDockFirstLoad_) {
+        QObject::connect(dock, &QDockWidget::visibilityChanged, core_->getUiOwner(),
+                         [this]() { this->syncMenuDockVisibility(); });
+
+        customizedCartoonDockFirstLoad_ = false;
     }
 }

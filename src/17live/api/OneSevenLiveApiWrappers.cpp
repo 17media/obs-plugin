@@ -132,6 +132,8 @@ const string ONESEVENLIVE_POKE_ALL_URL = buildApiUrl("/api/v1/pokes/pokeAll");
 
 const string ONESEVENLIVE_CHANGE_EVENT_URL = buildApiUrl("/api/v1/liveStreams/event");
 
+const string ONESEVENLIVE_LIVE_ENGAGEMENTS_URL = buildApiUrl("/api/v1/lives/%1/engagements");
+
 const string ONESEVENLIVE_LOGS_URL = buildApiUrl("/api/v1/logs");
 
 const string ONESEVENLIVE_LOGS_UPLOAD_URL = buildApiUrl("/api/v1/logs/uploadFile");
@@ -510,6 +512,159 @@ bool OneSevenLiveApiWrappers::ChangeEvent(const OneSevenLiveChangeEventRequest &
         obs_log(LOG_ERROR, "ChangeEvent error: %s", json_out.dump().c_str());
         setLastError(buildApiError(json_out, "ChangeEvent failed"));
         return false;
+    }
+
+    return true;
+}
+
+static const char *engagementTypeToString(OneSevenLiveEngagementType t) {
+    switch (t) {
+    case OneSevenLiveEngagementType::GiftAmountMilestone:
+        return "GIFT_AMOUNT_MILESTONE";
+    case OneSevenLiveEngagementType::GiftLuckybagFirstPrizeMilestone:
+        return "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
+    default:
+        return "GIFT_AMOUNT_MILESTONE";
+    }
+}
+
+bool OneSevenLiveApiWrappers::CreateLiveEngagements(
+    const std::string &liveStreamID, const std::vector<OneSevenLiveEngagementCreate> &engagements,
+    std::vector<OneSevenLiveEngagementCreateResult> &results) {
+    clearLastError();
+    results.clear();
+
+    if (liveStreamID.empty()) {
+        setLastError(makeError("State.InvalidArgument", "liveStreamID is empty", false, ""));
+        return false;
+    }
+
+    Json body;
+    body["engagements"] = Json::array();
+    for (const auto &e : engagements) {
+        Json obj;
+        obj["engageType"] = engagementTypeToString(e.engageType);
+        obj["payload"] = e.payload.is_null() ? Json::object() : e.payload;
+        obj["isRepeatable"] = e.isRepeatable;
+        body["engagements"].push_back(std::move(obj));
+    }
+
+    const std::string postData = body.dump();
+    Json json_out;
+
+    const QString urlStr =
+        QString::fromStdString(ONESEVENLIVE_LIVE_ENGAGEMENTS_URL).arg(liveStreamID.c_str());
+
+    if (!InsertCommand(urlStr.toStdString().c_str(), "application/json", "POST", postData.c_str(),
+                       json_out, static_cast<int>(postData.size()), true)) {
+        setLastError(buildApiError(json_out, "CreateLiveEngagements failed"));
+        return false;
+    }
+
+    if (json_out.contains("errorCode")) {
+        setLastError(buildApiError(json_out, "CreateLiveEngagements failed"));
+        return false;
+    }
+
+    if (!json_out.contains("engagements") || !json_out["engagements"].is_array()) {
+        setLastError(makeError("Api.InvalidResponse", "Missing engagements field", false,
+                               json_out.dump()));
+        return false;
+    }
+
+    for (const auto &it : json_out["engagements"]) {
+        OneSevenLiveEngagementCreateResult r;
+        if (it.contains("index") && it["index"].is_number_integer()) {
+            r.index = it["index"].get<int>();
+        }
+        if (it.contains("engageID") && it["engageID"].is_string()) {
+            r.engageID = QString::fromStdString(it["engageID"].get<std::string>());
+        }
+        results.push_back(std::move(r));
+    }
+
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::DeleteLiveEngagements(const std::string &liveStreamID,
+                                                   const std::vector<std::string> &engageIDs) {
+    clearLastError();
+    if (liveStreamID.empty()) {
+        setLastError(makeError("State.InvalidArgument", "liveStreamID is empty", false, ""));
+        return false;
+    }
+
+    Json body;
+    body["engageIDs"] = engageIDs;
+    const std::string postData = body.dump();
+
+    Json json_out;
+    const QString urlStr =
+        QString::fromStdString(ONESEVENLIVE_LIVE_ENGAGEMENTS_URL).arg(liveStreamID.c_str());
+
+    if (!InsertCommand(urlStr.toStdString().c_str(), "application/json", "DELETE",
+                       postData.c_str(), json_out, static_cast<int>(postData.size()), true)) {
+        setLastError(buildApiError(json_out, "DeleteLiveEngagements failed"));
+        return false;
+    }
+
+    if (json_out.contains("errorCode")) {
+        setLastError(buildApiError(json_out, "DeleteLiveEngagements failed"));
+        return false;
+    }
+
+    return true;
+}
+
+bool OneSevenLiveApiWrappers::GetLiveEngagementProgress(
+    const std::string &liveStreamID, std::vector<OneSevenLiveEngagementProgress> &engagements) {
+    clearLastError();
+    engagements.clear();
+
+    if (liveStreamID.empty()) {
+        setLastError(makeError("State.InvalidArgument", "liveStreamID is empty", false, ""));
+        return false;
+    }
+
+    Json json_out;
+    const QString urlStr =
+        QString::fromStdString(ONESEVENLIVE_LIVE_ENGAGEMENTS_URL).arg(liveStreamID.c_str());
+
+    if (!InsertCommand(urlStr.toStdString().c_str(), "application/json", "GET", nullptr, json_out, 0,
+                       true)) {
+        setLastError(buildApiError(json_out, "GetLiveEngagementProgress failed"));
+        return false;
+    }
+
+    if (json_out.contains("errorCode")) {
+        setLastError(buildApiError(json_out, "GetLiveEngagementProgress failed"));
+        return false;
+    }
+
+    if (!json_out.contains("engagements") || !json_out["engagements"].is_array()) {
+        setLastError(makeError("Api.InvalidResponse", "Missing engagements field", false,
+                               json_out.dump()));
+        return false;
+    }
+
+    for (const auto &it : json_out["engagements"]) {
+        OneSevenLiveEngagementProgress p;
+        if (it.contains("engageID") && it["engageID"].is_string()) {
+            p.engageID = QString::fromStdString(it["engageID"].get<std::string>());
+        }
+        if (it.contains("progress") && it["progress"].is_object()) {
+            const auto &pr = it["progress"];
+            if (pr.contains("current") && pr["current"].is_number_integer()) {
+                p.current = pr["current"].get<int>();
+            }
+            if (pr.contains("target") && pr["target"].is_number_integer()) {
+                p.target = pr["target"].get<int>();
+            }
+            if (pr.contains("round") && pr["round"].is_number_integer()) {
+                p.round = pr["round"].get<int>();
+            }
+        }
+        engagements.push_back(std::move(p));
     }
 
     return true;

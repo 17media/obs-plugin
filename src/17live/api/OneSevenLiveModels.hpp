@@ -180,6 +180,29 @@ struct OneSevenLiveError {
     QString errorTitle;
 };
 
+enum class OneSevenLiveEngagementType {
+    GiftAmountMilestone,
+    GiftLuckybagFirstPrizeMilestone,
+};
+
+struct OneSevenLiveEngagementCreate {
+    OneSevenLiveEngagementType engageType{OneSevenLiveEngagementType::GiftAmountMilestone};
+    Json payload;
+    bool isRepeatable{true};
+};
+
+struct OneSevenLiveEngagementCreateResult {
+    int index{0};
+    QString engageID;
+};
+
+struct OneSevenLiveEngagementProgress {
+    QString engageID;
+    int current{0};
+    int target{0};
+    int round{0};
+};
+
 // RTMP URL information struct
 struct OneSevenLiveRtmpUrl {
     int provider = 0;

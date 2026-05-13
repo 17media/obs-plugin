@@ -18,6 +18,8 @@
 #include "../streaming/OneSevenLiveStreamManager.hpp"
 #include "../streaming/OneSevenLiveStreamingDock.hpp"
 #include "../streamlist/OneSevenLiveStreamListDock.hpp"
+#include "../customized_cartoons/CustomizedCartoonDock.hpp"
+#include "../customized_cartoons/CustomizedCartoonService.hpp"
 #include "../websocket/OneSevenLiveWebsocketServer.hpp"
 #include "../twitch/OneSevenLiveTwitchAuth.hpp"
 #include "plugin-support.h"
@@ -135,6 +137,11 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
         return;
     }
 
+    coreManager_->customizedCartoonService_ =
+        std::make_unique<CustomizedCartoonService>(coreManager_->mainWindow, coreManager_->apiWrapper.get(),
+                                                   coreManager_->configManager.get(),
+                                                   coreManager_->streamManager.get(), coreManager_);
+
     QPointer<OneSevenLiveCoreManager> core = coreManager_;
     QTimer::singleShot(0, coreManager_, [core]() {
         if (core)
@@ -207,6 +214,7 @@ void AuthSessionService::performLogoutOperations() {
 
     coreManager_->destroyTwitchChatClient();
     coreManager_->destroyAblyChatClient();
+    coreManager_->customizedCartoonService_.reset();
 
     if (coreManager_->streamCheckTimer) {
         coreManager_->streamCheckTimer->stop();
@@ -304,6 +312,11 @@ void AuthSessionService::restoreDockStatesOnLogin() {
             coreManager_->handlePreviewDockClicked();
         }
 
+        // Restore customized cartoon dock if it was previously shown
+        if (coreManager_->configManager->getDockVisibility("customizedCartoon")) {
+            coreManager_->handleCustomizedCartoonClicked();
+        }
+
         // Apply the saved dock layout
         coreManager_->mainWindow->restoreState(dockState);
 
@@ -337,6 +350,10 @@ void AuthSessionService::restoreDockStatesOnLogin() {
             }
             if (core->chatDock) {
                 docks << core->chatDock.data();
+                sizes << initialHeight;
+            }
+            if (core->customizedCartoonDock) {
+                docks << core->customizedCartoonDock.data();
                 sizes << initialHeight;
             }
             if (!docks.isEmpty())
