@@ -42,7 +42,7 @@ class CustomizedCartoonDock : public QDockWidget {
 
     QListWidget* mediaList_{nullptr};
     QPushButton* addMediaButton_{nullptr};
-    QPushButton* removeMediaButton_{nullptr};
+    QLabel* mediaCountLabel_{nullptr};
 
     QComboBox* orientationCombo_{nullptr};
     QDoubleSpinBox* posXSpin_{nullptr};

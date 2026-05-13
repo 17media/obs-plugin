@@ -7,16 +7,19 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <QFrame>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHeaderView>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSizePolicy>
 #include <QSpinBox>
 #include <QTableWidget>
 #include <QUuid>
@@ -42,29 +45,71 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
 }
 
 void CustomizedCartoonDock::setupUi() {
+    resize(980, 820);
+    setMinimumSize(980, 820);
+
     auto* root = new QWidget(this);
+    root->setMinimumSize(980, 820);
     auto* mainLayout = new QHBoxLayout(root);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(30);
 
-    auto* left = new QVBoxLayout();
-    auto* right = new QVBoxLayout();
+    auto* leftContainer = new QWidget(root);
+    leftContainer->setFixedWidth(400);
+    auto* left = new QVBoxLayout(leftContainer);
+    left->setContentsMargins(0, 0, 0, 0);
+    left->setSpacing(30);
 
-    auto* mediaGroup = new QGroupBox(obs_module_text("CustomizedCartoon.Media.Title"), root);
-    auto* mediaLayout = new QVBoxLayout(mediaGroup);
-    mediaList_ = new QListWidget(mediaGroup);
-    mediaLayout->addWidget(mediaList_);
-    auto* mediaButtons = new QHBoxLayout();
-    addMediaButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Media.Add"), mediaGroup);
-    removeMediaButton_ =
-        new QPushButton(obs_module_text("CustomizedCartoon.Media.Remove"), mediaGroup);
-    mediaButtons->addWidget(addMediaButton_);
-    mediaButtons->addWidget(removeMediaButton_);
-    mediaLayout->addLayout(mediaButtons);
-    left->addWidget(mediaGroup);
+    auto* mediaPanel = new QWidget(leftContainer);
+    mediaPanel->setFixedSize(400, 269);
+    auto* mediaLayout = new QVBoxLayout(mediaPanel);
+    mediaLayout->setContentsMargins(0, 0, 0, 0);
+    mediaLayout->setSpacing(14);
+
+    auto* mediaTitle = new QLabel(obs_module_text("CustomizedCartoon.Media.VideoSetupTitle"), mediaPanel);
+    QFont titleFont = mediaTitle->font();
+    titleFont.setPointSize(18);
+    titleFont.setBold(true);
+    mediaTitle->setFont(titleFont);
+
+    mediaList_ = new QListWidget(mediaPanel);
+    mediaList_->setFrameShape(QFrame::NoFrame);
+    mediaList_->setSpacing(12);
+    mediaList_->setSelectionMode(QAbstractItemView::SingleSelection);
+    mediaList_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    mediaList_->setStyleSheet("QListWidget { background: transparent; }");
+
+    auto* mediaBottom = new QHBoxLayout();
+    mediaBottom->setContentsMargins(0, 0, 0, 0);
+    mediaBottom->setSpacing(12);
+
+    mediaCountLabel_ = new QLabel(mediaPanel);
+    QFont countFont = mediaCountLabel_->font();
+    countFont.setPointSize(16);
+    mediaCountLabel_->setFont(countFont);
+    mediaCountLabel_->setStyleSheet("QLabel { color: white; }");
+
+    addMediaButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Media.ChooseVideo"), mediaPanel);
+    addMediaButton_->setMinimumHeight(48);
+    addMediaButton_->setStyleSheet(
+        "QPushButton { background-color: #007AFF; color: white; font-size: 16px; "
+        "border-radius: 6px; padding: 10px 18px; }"
+        "QPushButton:hover { background-color: #0A84FF; }"
+        "QPushButton:pressed { background-color: #0060DF; }");
+
+    mediaBottom->addWidget(mediaCountLabel_, 1);
+    mediaBottom->addWidget(addMediaButton_, 0, Qt::AlignRight);
+
+    mediaLayout->addWidget(mediaTitle);
+    mediaLayout->addWidget(mediaList_, 1);
+    mediaLayout->addLayout(mediaBottom);
+
+    left->addWidget(mediaPanel);
 
     connect(addMediaButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onAddMedia);
-    connect(removeMediaButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onRemoveMedia);
 
-    auto* positionGroup = new QGroupBox(obs_module_text("CustomizedCartoon.Position.Title"), root);
+    auto* positionGroup = new QGroupBox(obs_module_text("CustomizedCartoon.Position.Title"), leftContainer);
+    positionGroup->setFixedSize(400, 425);
     auto* positionLayout = new QVBoxLayout(positionGroup);
     auto* positionForm = new QFormLayout();
 
@@ -130,7 +175,15 @@ void CustomizedCartoonDock::setupUi() {
     connect(stopPositionPreviewButton_, &QPushButton::clicked, this,
             &CustomizedCartoonDock::onStopPositionPreview);
 
-    auto* ruleGroup = new QGroupBox(obs_module_text("CustomizedCartoon.Rules.Title"), root);
+    left->addStretch(1);
+
+    auto* rightPanel = new QWidget(root);
+    rightPanel->setFixedSize(550, 704);
+    auto* right = new QVBoxLayout(rightPanel);
+    right->setContentsMargins(0, 0, 0, 0);
+    right->setSpacing(24);
+
+    auto* ruleGroup = new QGroupBox(obs_module_text("CustomizedCartoon.Rules.Title"), rightPanel);
     auto* ruleLayout = new QVBoxLayout(ruleGroup);
     ruleTable_ = new QTableWidget(ruleGroup);
     ruleTable_->setColumnCount(6);
@@ -162,7 +215,7 @@ void CustomizedCartoonDock::setupUi() {
     connect(removeRuleButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onRemoveRule);
     connect(previewButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onPreview);
 
-    auto* progressGroup = new QGroupBox(obs_module_text("CustomizedCartoon.Progress.Title"), root);
+    auto* progressGroup = new QGroupBox(obs_module_text("CustomizedCartoon.Progress.Title"), rightPanel);
     auto* progressLayout = new QVBoxLayout(progressGroup);
     progressTable_ = new QTableWidget(progressGroup);
     progressTable_->setColumnCount(4);
@@ -177,8 +230,8 @@ void CustomizedCartoonDock::setupUi() {
     progressLayout->addWidget(progressTable_);
     right->addWidget(progressGroup);
 
-    mainLayout->addLayout(left, 1);
-    mainLayout->addLayout(right, 2);
+    mainLayout->addWidget(leftContainer, 0, Qt::AlignTop);
+    mainLayout->addWidget(rightPanel, 0, Qt::AlignTop);
 
     setWidget(root);
 }
@@ -240,7 +293,10 @@ void CustomizedCartoonDock::loadFromConfig() {
     }
 
     mediaList_->clear();
+    int videoCount = 0;
     if (cfg.contains("media") && cfg["media"].is_array()) {
+        const QIcon videoIcon(":/resources/video.svg");
+        const QIcon trashIcon(":/resources/trash-red.svg");
         for (const auto& it : cfg["media"]) {
             if (!it.is_object())
                 continue;
@@ -259,10 +315,66 @@ void CustomizedCartoonDock::loadFromConfig() {
             if (id.isEmpty()) {
                 continue;
             }
-            auto* item = new QListWidgetItem(QString("%1 (%2)").arg(name, type), mediaList_);
+            if (type == "video") {
+                videoCount++;
+            }
+
+            auto* item = new QListWidgetItem(mediaList_);
             item->setData(Qt::UserRole, id);
+            item->setSizeHint(QSize(0, 64));
+
+            auto* row = new QFrame(mediaList_);
+            row->setObjectName("mediaRow");
+            row->setStyleSheet(
+                "QFrame#mediaRow { background-color: rgba(255,255,255,0.06); border-radius: 10px; }"
+                "QLabel { color: #DDE1E8; font-size: 16px; }"
+                "QPushButton { border: none; background: transparent; }");
+
+            auto* rowLayout = new QHBoxLayout(row);
+            rowLayout->setContentsMargins(14, 10, 14, 10);
+            rowLayout->setSpacing(12);
+
+            auto* iconLabel = new QLabel(row);
+            iconLabel->setPixmap(videoIcon.pixmap(30, 24));
+            iconLabel->setFixedSize(30, 24);
+
+            auto* nameLabel = new QLabel(name, row);
+            nameLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+            nameLabel->setTextInteractionFlags(Qt::NoTextInteraction);
+
+            auto* delButton = new QPushButton(row);
+            delButton->setIcon(trashIcon);
+            delButton->setIconSize(QSize(24, 24));
+            delButton->setFixedSize(40, 40);
+            delButton->setCursor(Qt::PointingHandCursor);
+
+            connect(delButton, &QPushButton::clicked, this, [this, id]() {
+                if (!service_) {
+                    return;
+                }
+                QString error;
+                if (!service_->deleteMedia(id, error)) {
+                    QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
+                                         QMessageBox::Ok);
+                }
+                refreshUi();
+            });
+
+            rowLayout->addWidget(iconLabel);
+            rowLayout->addWidget(nameLabel, 1);
+            rowLayout->addWidget(delButton);
+
             mediaList_->addItem(item);
+            mediaList_->setItemWidget(item, row);
         }
+    }
+
+    if (mediaCountLabel_) {
+        mediaCountLabel_->setText(
+            QString(obs_module_text("CustomizedCartoon.Media.SelectedVideoCount")).arg(videoCount));
+    }
+    if (mediaList_->count() > 0 && mediaList_->currentRow() < 0) {
+        mediaList_->setCurrentRow(0);
     }
 
     ruleTable_->setRowCount(0);
@@ -349,7 +461,8 @@ void CustomizedCartoonDock::onAddMedia() {
         return;
     }
 
-    const QString path = QFileDialog::getOpenFileName(this, obs_module_text("CustomizedCartoon.Media.Add"),
+    const QString path =
+        QFileDialog::getOpenFileName(this, obs_module_text("CustomizedCartoon.Media.ChooseVideo"),
                                                       QString(), QString());
     if (path.isEmpty()) {
         return;
