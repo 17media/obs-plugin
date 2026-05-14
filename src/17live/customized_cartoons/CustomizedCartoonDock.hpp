@@ -10,6 +10,7 @@ class QLabel;
 class QComboBox;
 class QDoubleSpinBox;
 class QSpinBox;
+class QTabWidget;
 class QVBoxLayout;
 class QWidget;
 class QScrollArea;
@@ -49,8 +50,7 @@ class CustomizedCartoonDock : public QDockWidget {
     QPushButton* addMediaButton_{nullptr};
     QLabel* mediaCountLabel_{nullptr};
 
-    QPushButton* portraitTabButton_{nullptr};
-    QPushButton* landscapeTabButton_{nullptr};
+    QTabWidget* positionTabWidget_{nullptr};
     QLabel* canvasRangeLabel_{nullptr};
     QWidget* positionCanvas_{nullptr};
     QSpinBox* posXSpin_{nullptr};

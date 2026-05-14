@@ -20,6 +20,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScrollArea>
+#include <QTabWidget>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSizePolicy>
@@ -58,7 +59,7 @@ class PositionCanvasWidget final : public QWidget {
         update();
     }
 
-    QRect rect() const { return rect_; }
+    QRect selectionRect() const { return rect_; }
 
     void setOnRectChanged(std::function<void(const QRect&)> cb) { onRectChanged_ = std::move(cb); }
 
@@ -67,7 +68,7 @@ class PositionCanvasWidget final : public QWidget {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing, true);
 
-        p.fillRect(rect(), QColor(0x12, 0x15, 0x1B));
+        p.fillRect(QWidget::rect(), QColor(0x12, 0x15, 0x1B));
 
         const QRectF area = contentRect();
         p.setPen(QPen(QColor(0x2A, 0x2F, 0x38), 1.0));
@@ -75,6 +76,7 @@ class PositionCanvasWidget final : public QWidget {
         p.drawRoundedRect(area, 10.0, 10.0);
 
         drawGrid(p, area);
+        drawRulers(p, area);
         drawSelection(p, area);
     }
 
@@ -175,7 +177,7 @@ class PositionCanvasWidget final : public QWidget {
 
     QRectF contentRect() const {
         const int pad = 14;
-        QRectF area = rect().adjusted(pad, pad, -pad, -pad);
+        QRectF area = QWidget::rect().adjusted(pad, pad, -pad, -pad);
         if (area.width() < 10.0 || area.height() < 10.0) {
             area = QRectF(0, 0, width(), height());
         }
@@ -203,6 +205,15 @@ class PositionCanvasWidget final : public QWidget {
             canvasToWidget(QPointF(rCanvas.x() + rCanvas.width(), rCanvas.y() + rCanvas.height()),
                            area);
         return QRectF(tl, br).normalized();
+    }
+
+    QRectF canvasRectInWidget(const QRectF& area) const {
+        const double s = scale(area);
+        const double w = canvasW_ * s;
+        const double h = canvasH_ * s;
+        const double ox = area.x() + (area.width() - w) / 2.0;
+        const double oy = area.y() + (area.height() - h) / 2.0;
+        return QRectF(ox, oy, w, h);
     }
 
     Hit hitTest(const QPointF& pt) const {
@@ -255,12 +266,7 @@ class PositionCanvasWidget final : public QWidget {
     }
 
     void drawGrid(QPainter& p, const QRectF& area) {
-        const double s = scale(area);
-        const double w = canvasW_ * s;
-        const double h = canvasH_ * s;
-        const double ox = area.x() + (area.width() - w) / 2.0;
-        const double oy = area.y() + (area.height() - h) / 2.0;
-        const QRectF canvasRect(ox, oy, w, h);
+        const QRectF canvasRect = canvasRectInWidget(area);
 
         p.setPen(Qt::NoPen);
         p.setBrush(QColor(0x3A, 0x40, 0x4B));
@@ -277,10 +283,61 @@ class PositionCanvasWidget final : public QWidget {
         p.drawRoundedRect(canvasRect, 8.0, 8.0);
     }
 
+    void drawRulers(QPainter& p, const QRectF& area) {
+        const QRectF canvasRect = canvasRectInWidget(area);
+        const QColor blue(0x00, 0x7A, 0xFF);
+        const QColor textColor(0xFF, 0xFF, 0xFF, 200);
+
+        const double leftX = canvasRect.left() - 18.0;
+        const double topY = canvasRect.top();
+        const double botY = canvasRect.bottom();
+        const double bottomY = canvasRect.bottom() + 18.0;
+        const double left2 = canvasRect.left();
+        const double right2 = canvasRect.right();
+
+        p.setPen(QPen(blue, 2.0));
+
+        p.drawLine(QPointF(leftX, topY + 6.0), QPointF(leftX, botY - 6.0));
+        p.drawLine(QPointF(left2 + 6.0, bottomY), QPointF(right2 - 6.0, bottomY));
+
+        auto drawArrow = [&p, &blue](const QPointF& tip, const QPointF& dir) {
+            const double size = 6.0;
+            const QPointF n(-dir.y(), dir.x());
+            const QPointF p1 = tip + (dir * size) + (n * size * 0.6);
+            const QPointF p2 = tip + (dir * size) - (n * size * 0.6);
+            QPolygonF tri;
+            tri << tip << p1 << p2;
+            p.setPen(Qt::NoPen);
+            p.setBrush(blue);
+            p.drawPolygon(tri);
+            p.setPen(QPen(blue, 2.0));
+            p.setBrush(Qt::NoBrush);
+        };
+
+        drawArrow(QPointF(leftX, topY), QPointF(0.0, 1.0));
+        drawArrow(QPointF(leftX, botY), QPointF(0.0, -1.0));
+        drawArrow(QPointF(left2, bottomY), QPointF(1.0, 0.0));
+        drawArrow(QPointF(right2, bottomY), QPointF(-1.0, 0.0));
+
+        p.setPen(textColor);
+        p.setFont(QFont("Inter", 12, QFont::Normal));
+
+        const QString vText = QString("%1 px").arg(canvasH_);
+        const QString hText = QString("%1 px").arg(canvasW_);
+
+        p.save();
+        p.translate(leftX - 8.0, (topY + botY) / 2.0);
+        p.rotate(-90.0);
+        p.drawText(QRectF(-100, -10, 200, 20), Qt::AlignCenter, vText);
+        p.restore();
+
+        p.drawText(QRectF(left2, bottomY + 4.0, canvasRect.width(), 20.0), Qt::AlignCenter, hText);
+    }
+
     void drawSelection(QPainter& p, const QRectF& area) {
         const QRectF r = canvasToWidget(rect_, area);
         p.setPen(QPen(QColor(0x00, 0x7A, 0xFF), 2.0));
-        p.setBrush(QColor(0x00, 0x7A, 0xFF, 70));
+        p.setBrush(QColor(0x2A, 0x6A, 0xFF, 77));
         p.drawRect(r);
 
         const double h = 6.0;
@@ -327,6 +384,109 @@ class PositionCanvasWidget final : public QWidget {
     Hit active_{Hit::None};
     std::function<void(const QRect&)> onRectChanged_{};
 };
+
+}  // namespace
+
+namespace {
+
+struct PositionSizePanelWidgets {
+    QFrame* panel{nullptr};
+    QSpinBox* posX{nullptr};
+    QSpinBox* posY{nullptr};
+    QSpinBox* width{nullptr};
+    QSpinBox* height{nullptr};
+};
+
+PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
+    PositionSizePanelWidgets out;
+    out.panel = new QFrame(parent);
+    out.panel->setObjectName("subPanel");
+
+    auto* sizeLayout = new QVBoxLayout(out.panel);
+    sizeLayout->setContentsMargins(12, 12, 12, 12);
+    sizeLayout->setSpacing(8);
+    auto* sizeTitle =
+        new QLabel(obs_module_text("CustomizedCartoon.Position.Size.Title"), out.panel);
+    sizeTitle->setObjectName("sectionTitle");
+    sizeTitle->setStyleSheet("QLabel#sectionTitle { font-size: 18px; font-weight: 700; }");
+    sizeLayout->addWidget(sizeTitle);
+
+    auto* grid = new QGridLayout();
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setHorizontalSpacing(10);
+    grid->setVerticalSpacing(8);
+
+    auto makePx = [p = out.panel]() {
+        auto* l = new QLabel("px", p);
+        l->setStyleSheet("QLabel { color: rgba(255,255,255,0.7); font-size: 14px; }");
+        return l;
+    };
+
+    out.posX = new QSpinBox(out.panel);
+    out.posX->setRange(-100000, 100000);
+    out.posX->setObjectName("posSpinBox");
+    out.posY = new QSpinBox(out.panel);
+    out.posY->setRange(-100000, 100000);
+    out.posY->setObjectName("posSpinBox");
+    out.width = new QSpinBox(out.panel);
+    out.width->setRange(20, 100000);
+    out.width->setObjectName("posSpinBox");
+    out.height = new QSpinBox(out.panel);
+    out.height->setRange(20, 100000);
+    out.height->setObjectName("posSpinBox");
+
+    for (auto* sb : {out.posX, out.posY, out.width, out.height}) {
+        sb->setFixedHeight(30);
+        sb->setMinimumWidth(96);
+    }
+
+    auto* xLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.X"), out.panel);
+    auto* yLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Y"), out.panel);
+    auto* wLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Width"), out.panel);
+    auto* hLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Height"), out.panel);
+    xLabel->setStyleSheet("QLabel { font-size: 14px; }");
+    yLabel->setStyleSheet("QLabel { font-size: 14px; }");
+    wLabel->setStyleSheet("QLabel { font-size: 14px; }");
+    hLabel->setStyleSheet("QLabel { font-size: 14px; }");
+
+    grid->addWidget(xLabel, 0, 0);
+    grid->addWidget(out.posX, 0, 1);
+    grid->addWidget(makePx(), 0, 2);
+
+    grid->addWidget(yLabel, 1, 0);
+    grid->addWidget(out.posY, 1, 1);
+    grid->addWidget(makePx(), 1, 2);
+
+    grid->addWidget(wLabel, 2, 0);
+    grid->addWidget(out.width, 2, 1);
+    grid->addWidget(makePx(), 2, 2);
+
+    grid->addWidget(hLabel, 3, 0);
+    grid->addWidget(out.height, 3, 1);
+    grid->addWidget(makePx(), 3, 2);
+
+    sizeLayout->addLayout(grid);
+    return out;
+}
+
+QFrame* createPositionTipsPanel(QWidget* parent) {
+    auto* tipsPanel = new QFrame(parent);
+    tipsPanel->setObjectName("subPanel");
+    auto* tipsLayout = new QVBoxLayout(tipsPanel);
+    tipsLayout->setContentsMargins(12, 12, 12, 12);
+    tipsLayout->setSpacing(8);
+    auto* tipsLabel = new QLabel(tipsPanel);
+    tipsLabel->setText(QString("• %1<br/>• %2<br/>• %3<br/>• %4")
+                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.1"))
+                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.2"))
+                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.3"))
+                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.4")));
+    tipsLabel->setTextFormat(Qt::RichText);
+    tipsLabel->setWordWrap(true);
+    tipsLabel->setStyleSheet("QLabel { font-size: 14px; color: rgba(255,255,255,0.9); }");
+    tipsLayout->addWidget(tipsLabel);
+    return tipsPanel;
+}
 
 }  // namespace
 
@@ -391,6 +551,12 @@ void CustomizedCartoonDock::setupUi() {
         "  font-size: 14px; padding: 10px 18px;"
         "}"
         "QPushButton#ghostButton:hover { background-color: rgba(255,255,255,0.12); }"
+        "QPushButton#cancelActionButton {"
+        "  background-color: #757575; color: white; border: none; border-radius: 6px;"
+        "  font-size: 14px; padding: 10px 18px;"
+        "}"
+        "QPushButton#cancelActionButton:hover { background-color: #8A8A8A; }"
+        "QPushButton#cancelActionButton:pressed { background-color: #666666; }"
         "QPushButton#tabButton {"
         "  background-color: transparent; color: rgba(255,255,255,0.7);"
         "  border: 1px solid rgba(255,255,255,0.35); border-radius: 6px;"
@@ -398,6 +564,22 @@ void CustomizedCartoonDock::setupUi() {
         "}"
         "QPushButton#tabButton:checked {"
         "  background-color: #007AFF; color: white; border: none;"
+        "}"
+        "QTabWidget#positionOrientationTabs::pane { border: none; }"
+        "QTabWidget#positionOrientationTabs QTabBar::tab {"
+        "  background-color: transparent; color: rgba(255,255,255,0.7);"
+        "  border: 1px solid rgba(255,255,255,0.35); border-radius: 6px;"
+        "  font-size: 16px; padding: 10px 18px; margin-right: 12px;"
+        "}"
+        "QTabWidget#positionOrientationTabs QTabBar::tab:selected {"
+        "  background-color: #007AFF; color: white; border: none;"
+        "}"
+        "QTabWidget#positionOrientationTabs QTabBar::tab:hover {"
+        "  background-color: rgba(255,255,255,0.08);"
+        "}"
+        "QSpinBox#posSpinBox {"
+        "  font-size: 14px;"
+        "  padding: 4px 8px;"
         "}"
         "QLineEdit, QSpinBox, QComboBox {"
         "  background-color: rgba(0,0,0,0.25);"
@@ -475,6 +657,7 @@ void CustomizedCartoonDock::setupUi() {
     auto* positionPanel = new QFrame(leftContainer);
     positionPanel->setObjectName("panel");
     positionPanel->setFixedSize(400, 425);
+    positionPanel->setLayoutDirection(Qt::LeftToRight);
     auto* positionLayout = new QVBoxLayout(positionPanel);
     positionLayout->setContentsMargins(18, 18, 18, 18);
     positionLayout->setSpacing(12);
@@ -484,168 +667,135 @@ void CustomizedCartoonDock::setupUi() {
     positionTitle->setObjectName("sectionTitle");
     positionLayout->addWidget(positionTitle);
 
-    auto* tabRow = new QHBoxLayout();
-    tabRow->setContentsMargins(0, 0, 0, 0);
-    tabRow->setSpacing(12);
-    portraitTabButton_ =
-        new QPushButton(obs_module_text("CustomizedCartoon.Position.Tab.Portrait"), positionPanel);
-    landscapeTabButton_ =
-        new QPushButton(obs_module_text("CustomizedCartoon.Position.Tab.Landscape"), positionPanel);
-    portraitTabButton_->setObjectName("tabButton");
-    landscapeTabButton_->setObjectName("tabButton");
-    portraitTabButton_->setCheckable(true);
-    landscapeTabButton_->setCheckable(true);
-    portraitTabButton_->setChecked(true);
-    tabRow->addWidget(portraitTabButton_);
-    tabRow->addWidget(landscapeTabButton_);
-    tabRow->addStretch(1);
-    positionLayout->addLayout(tabRow);
-
     canvasRangeLabel_ = new QLabel(positionPanel);
     canvasRangeLabel_->setStyleSheet("QLabel { font-size: 18px; font-weight: 700; }");
     positionLayout->addWidget(canvasRangeLabel_);
 
-    auto* positionBody = new QHBoxLayout();
-    positionBody->setContentsMargins(0, 0, 0, 0);
-    positionBody->setSpacing(12);
+    positionTabWidget_ = new QTabWidget(positionPanel);
+    positionTabWidget_->setObjectName("positionOrientationTabs");
+    positionTabWidget_->setUsesScrollButtons(false);
+    positionTabWidget_->tabBar()->setExpanding(false);
 
-    auto* canvas = new PositionCanvasWidget(positionPanel);
-    positionCanvas_ = canvas;
-    canvas->setFixedSize(210, 290);
-    canvas->setCanvasSize(720, 1280);
-    canvas->setRect(QRect(200, 300, 500, 500));
-    canvas->setOnRectChanged([this](const QRect& r) {
-        if (!posXSpin_ || !posYSpin_ || !widthSpin_ || !heightSpin_) {
-            return;
-        }
-        posXSpin_->blockSignals(true);
-        posYSpin_->blockSignals(true);
-        widthSpin_->blockSignals(true);
-        heightSpin_->blockSignals(true);
-        posXSpin_->setValue(r.x());
-        posYSpin_->setValue(r.y());
-        widthSpin_->setValue(r.width());
-        heightSpin_->setValue(r.height());
-        posXSpin_->blockSignals(false);
-        posYSpin_->blockSignals(false);
-        widthSpin_->blockSignals(false);
-        heightSpin_->blockSignals(false);
-    });
-    positionBody->addWidget(canvas, 0, Qt::AlignTop);
+    auto bindCanvasAndInputs = [this](PositionCanvasWidget* canvas,
+                                     const PositionSizePanelWidgets& inputs) {
+        canvas->setOnRectChanged([inputs](const QRect& r) {
+            if (!inputs.posX || !inputs.posY || !inputs.width || !inputs.height) {
+                return;
+            }
+            inputs.posX->blockSignals(true);
+            inputs.posY->blockSignals(true);
+            inputs.width->blockSignals(true);
+            inputs.height->blockSignals(true);
+            inputs.posX->setValue(r.x());
+            inputs.posY->setValue(r.y());
+            inputs.width->setValue(r.width());
+            inputs.height->setValue(r.height());
+            inputs.posX->blockSignals(false);
+            inputs.posY->blockSignals(false);
+            inputs.width->blockSignals(false);
+            inputs.height->blockSignals(false);
+        });
 
-    auto* rightSide = new QVBoxLayout();
-    rightSide->setContentsMargins(0, 0, 0, 0);
-    rightSide->setSpacing(12);
-
-    auto* sizePanel = new QFrame(positionPanel);
-    sizePanel->setObjectName("subPanel");
-    auto* sizeLayout = new QVBoxLayout(sizePanel);
-    sizeLayout->setContentsMargins(14, 14, 14, 14);
-    sizeLayout->setSpacing(10);
-    auto* sizeTitle =
-        new QLabel(obs_module_text("CustomizedCartoon.Position.Size.Title"), sizePanel);
-    sizeTitle->setObjectName("sectionTitle");
-    sizeTitle->setStyleSheet("QLabel#sectionTitle { font-size: 18px; font-weight: 700; }");
-    sizeLayout->addWidget(sizeTitle);
-
-    auto* grid = new QGridLayout();
-    grid->setContentsMargins(0, 0, 0, 0);
-    grid->setHorizontalSpacing(10);
-    grid->setVerticalSpacing(12);
-
-    auto makePx = [sizePanel]() {
-        auto* l = new QLabel("px", sizePanel);
-        l->setStyleSheet("QLabel { color: rgba(255,255,255,0.7); font-size: 16px; }");
-        return l;
+        auto syncCanvasFromInputs = [canvas, inputs]() {
+            if (!inputs.posX || !inputs.posY || !inputs.width || !inputs.height) {
+                return;
+            }
+            canvas->setRect(QRect(inputs.posX->value(), inputs.posY->value(), inputs.width->value(),
+                                  inputs.height->value()));
+        };
+        connect(inputs.posX, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
+            syncCanvasFromInputs();
+        });
+        connect(inputs.posY, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
+            syncCanvasFromInputs();
+        });
+        connect(inputs.width, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
+            syncCanvasFromInputs();
+        });
+        connect(inputs.height, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
+            syncCanvasFromInputs();
+        });
     };
 
-    posXSpin_ = new QSpinBox(sizePanel);
-    posXSpin_->setRange(-100000, 100000);
-    posYSpin_ = new QSpinBox(sizePanel);
-    posYSpin_->setRange(-100000, 100000);
-    widthSpin_ = new QSpinBox(sizePanel);
-    widthSpin_->setRange(20, 100000);
-    heightSpin_ = new QSpinBox(sizePanel);
-    heightSpin_->setRange(20, 100000);
+    auto* portraitPage = new QWidget(positionTabWidget_);
+    portraitPage->setLayoutDirection(Qt::LeftToRight);
+    auto* portraitBody = new QHBoxLayout(portraitPage);
+    portraitBody->setContentsMargins(0, 0, 0, 0);
+    portraitBody->setSpacing(12);
 
-    auto* xLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.X"), sizePanel);
-    auto* yLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Y"), sizePanel);
-    auto* wLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Width"), sizePanel);
-    auto* hLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Height"), sizePanel);
-    xLabel->setStyleSheet("QLabel { font-size: 16px; }");
-    yLabel->setStyleSheet("QLabel { font-size: 16px; }");
-    wLabel->setStyleSheet("QLabel { font-size: 16px; }");
-    hLabel->setStyleSheet("QLabel { font-size: 16px; }");
+    auto* portraitCanvas = new PositionCanvasWidget(portraitPage);
+    portraitCanvas->setFixedSize(210, 290);
+    portraitCanvas->setCanvasSize(720, 1280);
+    portraitCanvas->setRect(QRect(200, 300, 500, 500));
+    portraitBody->addWidget(portraitCanvas, 0, Qt::AlignTop);
 
-    grid->addWidget(xLabel, 0, 0);
-    grid->addWidget(posXSpin_, 0, 1);
-    grid->addWidget(makePx(), 0, 2);
+    auto portraitInputs = createPositionSizePanel(portraitPage);
+    auto* portraitTipsPanel = createPositionTipsPanel(portraitPage);
 
-    grid->addWidget(yLabel, 1, 0);
-    grid->addWidget(posYSpin_, 1, 1);
-    grid->addWidget(makePx(), 1, 2);
+    auto* portraitRightSide = new QVBoxLayout();
+    portraitRightSide->setContentsMargins(0, 0, 0, 0);
+    portraitRightSide->setSpacing(12);
+    portraitRightSide->addWidget(portraitInputs.panel);
+    portraitRightSide->addWidget(portraitTipsPanel, 1);
+    portraitBody->addLayout(portraitRightSide, 1);
+    positionTabWidget_->addTab(portraitPage,
+                               obs_module_text("CustomizedCartoon.Position.Tab.Portrait"));
 
-    grid->addWidget(wLabel, 2, 0);
-    grid->addWidget(widthSpin_, 2, 1);
-    grid->addWidget(makePx(), 2, 2);
+    auto* landscapePage = new QWidget(positionTabWidget_);
+    landscapePage->setLayoutDirection(Qt::LeftToRight);
+    auto* landscapeBody = new QVBoxLayout(landscapePage);
+    landscapeBody->setContentsMargins(0, 0, 0, 0);
+    landscapeBody->setSpacing(12);
 
-    grid->addWidget(hLabel, 3, 0);
-    grid->addWidget(heightSpin_, 3, 1);
-    grid->addWidget(makePx(), 3, 2);
+    auto* landscapeCanvas = new PositionCanvasWidget(landscapePage);
+    landscapeCanvas->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    landscapeCanvas->setFixedHeight(200);
+    landscapeCanvas->setCanvasSize(1280, 720);
+    landscapeCanvas->setRect(QRect(200, 100, 500, 500));
+    landscapeBody->addWidget(landscapeCanvas, 0);
 
-    sizeLayout->addLayout(grid);
-    rightSide->addWidget(sizePanel);
+    auto landscapeInputs = createPositionSizePanel(landscapePage);
+    auto* landscapeTipsPanel = createPositionTipsPanel(landscapePage);
 
-    auto* tipsPanel = new QFrame(positionPanel);
-    tipsPanel->setObjectName("subPanel");
-    auto* tipsLayout = new QVBoxLayout(tipsPanel);
-    tipsLayout->setContentsMargins(14, 14, 14, 14);
-    tipsLayout->setSpacing(10);
-    auto* tipsLabel = new QLabel(positionPanel);
-    tipsLabel->setText(QString("• %1<br/>• %2<br/>• %3<br/>• %4")
-                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.1"))
-                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.2"))
-                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.3"))
-                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.4")));
-    tipsLabel->setTextFormat(Qt::RichText);
-    tipsLabel->setWordWrap(true);
-    tipsLabel->setStyleSheet("QLabel { font-size: 16px; color: rgba(255,255,255,0.9); }");
-    tipsLayout->addWidget(tipsLabel);
-    rightSide->addWidget(tipsPanel, 1);
+    auto* landscapeBottom = new QHBoxLayout();
+    landscapeBottom->setContentsMargins(0, 0, 0, 0);
+    landscapeBottom->setSpacing(12);
+    landscapeBottom->addWidget(landscapeInputs.panel, 1);
+    landscapeBottom->addWidget(landscapeTipsPanel, 1);
+    landscapeBody->addLayout(landscapeBottom, 1);
+    positionTabWidget_->addTab(landscapePage,
+                               obs_module_text("CustomizedCartoon.Position.Tab.Landscape"));
+    positionTabWidget_->setCurrentIndex(0);
 
-    positionBody->addLayout(rightSide, 1);
-    positionLayout->addLayout(positionBody, 1);
+    positionCanvas_ = portraitCanvas;
+    posXSpin_ = portraitInputs.posX;
+    posYSpin_ = portraitInputs.posY;
+    widthSpin_ = portraitInputs.width;
+    heightSpin_ = portraitInputs.height;
+
+    bindCanvasAndInputs(portraitCanvas, portraitInputs);
+    bindCanvasAndInputs(landscapeCanvas, landscapeInputs);
+
+    positionLayout->addWidget(positionTabWidget_, 1);
     left->addWidget(positionPanel);
 
-    connect(portraitTabButton_, &QPushButton::clicked, this, [this]() {
-        if (portraitTabButton_) portraitTabButton_->setChecked(true);
-        if (landscapeTabButton_) landscapeTabButton_->setChecked(false);
-        onOrientationChanged(0);
-    });
-    connect(landscapeTabButton_, &QPushButton::clicked, this, [this]() {
-        if (portraitTabButton_) portraitTabButton_->setChecked(false);
-        if (landscapeTabButton_) landscapeTabButton_->setChecked(true);
-        onOrientationChanged(1);
-    });
-
-    auto syncCanvasFromInputs = [this, canvas]() {
-        if (!posXSpin_ || !posYSpin_ || !widthSpin_ || !heightSpin_) {
-            return;
+    connect(positionTabWidget_, &QTabWidget::currentChanged, this,
+            [this, portraitCanvas, portraitInputs, landscapeCanvas, landscapeInputs](int index) {
+        if (index == 0) {
+            positionCanvas_ = portraitCanvas;
+            posXSpin_ = portraitInputs.posX;
+            posYSpin_ = portraitInputs.posY;
+            widthSpin_ = portraitInputs.width;
+            heightSpin_ = portraitInputs.height;
+            onOrientationChanged(0);
+        } else {
+            positionCanvas_ = landscapeCanvas;
+            posXSpin_ = landscapeInputs.posX;
+            posYSpin_ = landscapeInputs.posY;
+            widthSpin_ = landscapeInputs.width;
+            heightSpin_ = landscapeInputs.height;
+            onOrientationChanged(1);
         }
-        canvas->setRect(QRect(posXSpin_->value(), posYSpin_->value(), widthSpin_->value(),
-                              heightSpin_->value()));
-    };
-    connect(posXSpin_, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
-        syncCanvasFromInputs();
-    });
-    connect(posYSpin_, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
-        syncCanvasFromInputs();
-    });
-    connect(widthSpin_, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
-        syncCanvasFromInputs();
-    });
-    connect(heightSpin_, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
-        syncCanvasFromInputs();
     });
 
     body->addWidget(leftContainer, 0, Qt::AlignTop);
@@ -688,18 +838,21 @@ void CustomizedCartoonDock::setupUi() {
     cancelButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Action.Cancel"), rightPanel);
     confirmButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Action.Confirm"), rightPanel);
     applyButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Action.Apply"), rightPanel);
-    cancelButton_->setObjectName("ghostButton");
+    cancelButton_->setObjectName("cancelActionButton");
     confirmButton_->setObjectName("dangerButton");
     applyButton_->setObjectName("dangerButton");
-    cancelButton_->setMinimumHeight(44);
-    confirmButton_->setMinimumHeight(44);
-    applyButton_->setMinimumHeight(44);
+    cancelButton_->setFixedSize(100, 40);
+    confirmButton_->setFixedSize(100, 40);
+    applyButton_->setFixedSize(100, 40);
     bottomRow->addWidget(cancelButton_);
     bottomRow->addWidget(confirmButton_);
     bottomRow->addWidget(applyButton_);
     right->addLayout(bottomRow);
 
-    connect(cancelButton_, &QPushButton::clicked, this, [this]() { refreshUi(); });
+    connect(cancelButton_, &QPushButton::clicked, this, [this]() {
+        refreshUi();
+        setVisible(false);
+    });
     connect(confirmButton_, &QPushButton::clicked, this, [this]() { setVisible(false); });
     connect(applyButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onApplyPosition);
 
@@ -715,11 +868,11 @@ void CustomizedCartoonDock::refreshUi() {
 }
 
 void CustomizedCartoonDock::refreshPositionUi() {
-    if (!service_ || !portraitTabButton_ || !landscapeTabButton_) {
+    if (!service_ || !positionTabWidget_) {
         return;
     }
     const json cfg = service_->getConfigSnapshot();
-    const bool landscape = landscapeTabButton_->isChecked();
+    const bool landscape = positionTabWidget_->currentIndex() == 1;
     const char* key = landscape ? "landscape" : "portrait";
     const int canvasW = landscape ? 1280 : 720;
     const int canvasH = landscape ? 720 : 1280;
@@ -1231,7 +1384,7 @@ void CustomizedCartoonDock::onPreview() {
 }
 
 void CustomizedCartoonDock::onOrientationChanged(int) {
-    const bool landscape = landscapeTabButton_ && landscapeTabButton_->isChecked();
+    const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     if (positionCanvas_) {
         auto* canvas = static_cast<PositionCanvasWidget*>(positionCanvas_);
         canvas->setCanvasSize(landscape ? 1280 : 720, landscape ? 720 : 1280);
@@ -1250,7 +1403,7 @@ void CustomizedCartoonDock::onApplyPosition() {
     if (!cfg.contains("position") || !cfg["position"].is_object()) {
         cfg["position"] = json::object();
     }
-    const bool landscape = landscapeTabButton_ && landscapeTabButton_->isChecked();
+    const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     const char* key = landscape ? "landscape" : "portrait";
     json t = cfg["position"].contains(key) && cfg["position"][key].is_object() ? cfg["position"][key]
                                                                                : json::object();
@@ -1303,7 +1456,7 @@ void CustomizedCartoonDock::onStartPositionPreview() {
         return;
     }
     QString error;
-    const bool landscape = landscapeTabButton_ && landscapeTabButton_->isChecked();
+    const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     if (!service_->startPositionPreview(id, landscape, error)) {
         QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
                              QMessageBox::Ok);
