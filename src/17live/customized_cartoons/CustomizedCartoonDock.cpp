@@ -529,9 +529,26 @@ void CustomizedCartoonDock::setupUi() {
         "  background-color: rgba(255,255,255,0.06);"
         "  border-radius: 10px;"
         "}"
+        "QFrame#mediaPanel {"
+        "  background-color: #12141A;"
+        "  border: 0.5px solid #3D3D3D;"
+        "  border-radius: 3px;"
+        "}"
+        "QFrame#mediaTitleBar {"
+        "  background-color: transparent;"
+        "  border: none;"
+        "  border-bottom: 0.5px solid #3D3D3D;"
+        "}"
         "QFrame#subPanel {"
         "  background-color: rgba(255,255,255,0.06);"
         "  border-radius: 10px;"
+        "}"
+        "QLabel#mediaTitle {"
+        "  color: #FFFFFF;"
+        "  font-size: 16px;"
+        "  font-weight: 600;"
+        "  line-height: 20px;"
+        "  padding: 0px;"
         "}"
         "QLabel#sectionTitle { font-size: 18px; font-weight: 700; }"
         "QLabel#pageTitle { font-size: 24px; font-weight: 800; }"
@@ -539,6 +556,12 @@ void CustomizedCartoonDock::setupUi() {
         "  background-color: #007AFF; color: white; border: none; border-radius: 6px;"
         "  font-size: 16px; padding: 10px 18px;"
         "}"
+        "QPushButton#mediaAddButton {"
+        "  background-color: #007AFF; color: #FFFFFF; border: none; border-radius: 3px;"
+        "  font-size: 16px; font-weight: 600; padding: 0px 14px;"
+        "}"
+        "QPushButton#mediaAddButton:hover { background-color: #0A84FF; }"
+        "QPushButton#mediaAddButton:pressed { background-color: #0060DF; }"
         "QPushButton#primaryButton:hover { background-color: #0A84FF; }"
         "QPushButton#primaryButton:pressed { background-color: #0060DF; }"
         "QPushButton#dangerButton {"
@@ -591,6 +614,30 @@ void CustomizedCartoonDock::setupUi() {
         "}"
         "QCheckBox { color: white; font-size: 16px; }"
         "QComboBox::drop-down { border: none; }"
+        "QListWidget#mediaList {"
+        "  background: transparent;"
+        "  border: none;"
+        "  outline: none;"
+        "}"
+        "QListWidget#mediaList::item {"
+        "  background: transparent;"
+        "  border: none;"
+        "  min-width: 370px;"
+        "  height: 43px;"
+        "  padding: 0px;"
+        "  margin: 0px 0px 5px 0px;"
+        "}"
+        "QListWidget#mediaList::item:selected {"
+        "  background: transparent;"
+        "  border: none;"
+        "  color: inherit;"
+        "}"
+        "QLabel#mediaCountLabel {"
+        "  color: #FFFFFF;"
+        "  font-size: 14px;"
+        "  font-weight: 400;"
+        "  line-height: 21px;"
+        "}"
         "QScrollBar:vertical { background: transparent; width: 10px; margin: 0px; }"
         "QScrollBar::handle:vertical { background: rgba(255,255,255,0.18); border-radius: 5px; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }");
@@ -615,39 +662,51 @@ void CustomizedCartoonDock::setupUi() {
     left->setSpacing(18);
 
     auto* mediaPanel = new QFrame(leftContainer);
-    mediaPanel->setObjectName("panel");
+    mediaPanel->setObjectName("mediaPanel");
     mediaPanel->setFixedSize(400, 269);
     auto* mediaLayout = new QVBoxLayout(mediaPanel);
-    mediaLayout->setContentsMargins(18, 18, 18, 18);
-    mediaLayout->setSpacing(14);
+    mediaLayout->setContentsMargins(10, 10, 10, 10);
+    mediaLayout->setSpacing(5);
+
+    auto* mediaTitleBar = new QFrame(mediaPanel);
+    mediaTitleBar->setObjectName("mediaTitleBar");
+    mediaTitleBar->setFixedHeight(29);
+    auto* mediaTitleLayout = new QHBoxLayout(mediaTitleBar);
+    mediaTitleLayout->setContentsMargins(0, 0, 0, 5);
+    mediaTitleLayout->setSpacing(0);
 
     auto* mediaTitle =
-        new QLabel(obs_module_text("CustomizedCartoon.Media.VideoSetupTitle"), mediaPanel);
-    mediaTitle->setObjectName("sectionTitle");
+        new QLabel(obs_module_text("CustomizedCartoon.Media.VideoSetupTitle"), mediaTitleBar);
+    mediaTitle->setObjectName("mediaTitle");
+    mediaTitle->setFixedHeight(24);
+    mediaTitleLayout->addWidget(mediaTitle, 0, Qt::AlignLeft | Qt::AlignVCenter);
 
     mediaList_ = new QListWidget(mediaPanel);
+    mediaList_->setObjectName("mediaList");
     mediaList_->setFrameShape(QFrame::NoFrame);
-    mediaList_->setSpacing(12);
+    mediaList_->setSpacing(0);
     mediaList_->setSelectionMode(QAbstractItemView::SingleSelection);
     mediaList_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    mediaList_->setStyleSheet("QListWidget { background: transparent; }");
+    mediaList_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    mediaList_->setStyleSheet("QListWidget#mediaList { background: transparent; }");
 
     auto* mediaBottom = new QHBoxLayout();
     mediaBottom->setContentsMargins(0, 0, 0, 0);
-    mediaBottom->setSpacing(12);
+    mediaBottom->setSpacing(5);
 
     mediaCountLabel_ = new QLabel(mediaPanel);
-    mediaCountLabel_->setStyleSheet("QLabel { color: white; font-size: 16px; }");
+    mediaCountLabel_->setObjectName("mediaCountLabel");
+    mediaCountLabel_->setFixedHeight(21);
 
     addMediaButton_ =
         new QPushButton(obs_module_text("CustomizedCartoon.Media.ChooseVideo"), mediaPanel);
-    addMediaButton_->setObjectName("primaryButton");
-    addMediaButton_->setMinimumHeight(48);
+    addMediaButton_->setObjectName("mediaAddButton");
+    addMediaButton_->setFixedSize(150, 30);
 
     mediaBottom->addWidget(mediaCountLabel_, 1);
     mediaBottom->addWidget(addMediaButton_, 0, Qt::AlignRight);
 
-    mediaLayout->addWidget(mediaTitle);
+    mediaLayout->addWidget(mediaTitleBar);
     mediaLayout->addWidget(mediaList_, 1);
     mediaLayout->addLayout(mediaBottom);
 
@@ -936,31 +995,35 @@ void CustomizedCartoonDock::loadFromConfig() {
 
             auto* item = new QListWidgetItem(mediaList_);
             item->setData(Qt::UserRole, id);
-            item->setSizeHint(QSize(0, 64));
+            item->setSizeHint(QSize(370, 43));
 
             auto* row = new QFrame(mediaList_);
             row->setObjectName("mediaRow");
             row->setStyleSheet(
-                "QFrame#mediaRow { background-color: rgba(255,255,255,0.06); border-radius: 10px; }"
-                "QLabel { color: #DDE1E8; font-size: 16px; }"
+                "QFrame#mediaRow { background-color: #272A33; border: none; border-radius: 0px; }"
+                "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; }"
                 "QPushButton { border: none; background: transparent; }");
+            row->setFixedSize(370, 43);
 
             auto* rowLayout = new QHBoxLayout(row);
-            rowLayout->setContentsMargins(14, 10, 14, 10);
-            rowLayout->setSpacing(12);
+            rowLayout->setContentsMargins(8, 9, 8, 10);
+            rowLayout->setSpacing(6);
 
             auto* iconLabel = new QLabel(row);
             iconLabel->setPixmap(videoIcon.pixmap(30, 24));
             iconLabel->setFixedSize(30, 24);
 
             auto* nameLabel = new QLabel(name, row);
+            nameLabel->setFixedHeight(24);
             nameLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
             nameLabel->setTextInteractionFlags(Qt::NoTextInteraction);
+            nameLabel->setStyleSheet(
+                "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; background: transparent; }");
 
             auto* delButton = new QPushButton(row);
             delButton->setIcon(trashIcon);
             delButton->setIconSize(QSize(24, 24));
-            delButton->setFixedSize(40, 40);
+            delButton->setFixedSize(24, 24);
             delButton->setCursor(Qt::PointingHandCursor);
 
             connect(delButton, &QPushButton::clicked, this, [this, id]() {
