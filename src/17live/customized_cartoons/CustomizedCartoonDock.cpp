@@ -74,7 +74,7 @@ class PositionCanvasWidget final : public QWidget {
         const QRectF area = contentRect();
         p.setPen(QPen(QColor(0x2A, 0x2F, 0x38), 1.0));
         p.setBrush(Qt::NoBrush);
-        p.drawRoundedRect(area, 10.0, 10.0);
+        p.drawRect(area);
 
         drawGrid(p, area);
         drawRulers(p, area);
@@ -177,8 +177,14 @@ class PositionCanvasWidget final : public QWidget {
     };
 
     QRectF contentRect() const {
-        const int pad = 14;
-        QRectF area = QWidget::rect().adjusted(pad, pad, -pad, -pad);
+        QRectF area;
+        if (canvasH_ > canvasW_) {
+            // Portrait preview keeps a narrower grid so the bottom ruler and text fit.
+            area = QWidget::rect().adjusted(34, 6, -36, -24);
+        } else {
+            // Landscape preview moves upward and leaves room for the bottom ruler/label.
+            area = QWidget::rect().adjusted(56, 2, -56, -30);
+        }
         if (area.width() < 10.0 || area.height() < 10.0) {
             area = QRectF(0, 0, width(), height());
         }
@@ -267,8 +273,6 @@ class PositionCanvasWidget final : public QWidget {
     }
 
     void drawGrid(QPainter& p, const QRectF& area) {
-        const QRectF canvasRect = canvasRectInWidget(area);
-
         p.setPen(Qt::NoPen);
         p.setBrush(QColor(0x3A, 0x40, 0x4B));
         const int step = 60;
@@ -279,9 +283,6 @@ class PositionCanvasWidget final : public QWidget {
             }
         }
 
-        p.setPen(QPen(QColor(0x2A, 0x2F, 0x38), 1.0));
-        p.setBrush(Qt::NoBrush);
-        p.drawRoundedRect(canvasRect, 8.0, 8.0);
     }
 
     void drawRulers(QPainter& p, const QRectF& area) {
@@ -289,10 +290,10 @@ class PositionCanvasWidget final : public QWidget {
         const QColor blue(0x00, 0x7A, 0xFF);
         const QColor textColor(0xFF, 0xFF, 0xFF, 200);
 
-        const double leftX = canvasRect.left() - 18.0;
+        const double leftX = canvasRect.left() - 14.0;
         const double topY = canvasRect.top();
         const double botY = canvasRect.bottom();
-        const double bottomY = canvasRect.bottom() + 18.0;
+        const double bottomY = canvasRect.bottom() + 10.0;
         const double left2 = canvasRect.left();
         const double right2 = canvasRect.right();
 
@@ -321,7 +322,7 @@ class PositionCanvasWidget final : public QWidget {
         drawArrow(QPointF(right2, bottomY), QPointF(-1.0, 0.0));
 
         p.setPen(textColor);
-        p.setFont(QFont("Inter", 12, QFont::Normal));
+        p.setFont(QFont("Inter", 12, QFont::Light));
 
         const QString vText = QString("%1 px").arg(canvasH_);
         const QString hText = QString("%1 px").arg(canvasW_);
@@ -332,7 +333,7 @@ class PositionCanvasWidget final : public QWidget {
         p.drawText(QRectF(-100, -10, 200, 20), Qt::AlignCenter, vText);
         p.restore();
 
-        p.drawText(QRectF(left2, bottomY + 4.0, canvasRect.width(), 20.0), Qt::AlignCenter, hText);
+        p.drawText(QRectF(left2, bottomY + 1.0, canvasRect.width(), 20.0), Qt::AlignCenter, hText);
     }
 
     void drawSelection(QPainter& p, const QRectF& area) {
@@ -367,14 +368,18 @@ class PositionCanvasWidget final : public QWidget {
 
     void clampRect() {
         rect_ = rect_.normalized();
-        if (rect_.width() <= 0) rect_.setWidth(100);
-        if (rect_.height() <= 0) rect_.setHeight(100);
-        if (rect_.x() < 0) rect_.moveLeft(0);
-        if (rect_.y() < 0) rect_.moveTop(0);
-        if (rect_.right() > canvasW_) rect_.moveRight(canvasW_);
-        if (rect_.bottom() > canvasH_) rect_.moveBottom(canvasH_);
-        if (rect_.x() < 0) rect_.moveLeft(0);
-        if (rect_.y() < 0) rect_.moveTop(0);
+        const int minSize = 20;
+        const int clampedWidth = std::clamp(rect_.width(), minSize, canvasW_);
+        const int clampedHeight = std::clamp(rect_.height(), minSize, canvasH_);
+
+        rect_.setWidth(clampedWidth);
+        rect_.setHeight(clampedHeight);
+
+        const int maxX = std::max(0, canvasW_ - rect_.width());
+        const int maxY = std::max(0, canvasH_ - rect_.height());
+        const int clampedX = std::clamp(rect_.x(), 0, maxX);
+        const int clampedY = std::clamp(rect_.y(), 0, maxY);
+        rect_.moveTo(clampedX, clampedY);
     }
 
     int canvasW_{720};
@@ -404,8 +409,8 @@ PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
     out.panel->setObjectName("subPanel");
 
     auto* sizeLayout = new QVBoxLayout(out.panel);
-    sizeLayout->setContentsMargins(12, 12, 12, 12);
-    sizeLayout->setSpacing(8);
+    sizeLayout->setContentsMargins(5, 5, 5, 5);
+    sizeLayout->setSpacing(5);
     auto* sizeTitle =
         new QLabel(obs_module_text("CustomizedCartoon.Position.Size.Title"), out.panel);
     sizeTitle->setObjectName("sectionTitle");
@@ -414,8 +419,8 @@ PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
 
     auto* grid = new QGridLayout();
     grid->setContentsMargins(0, 0, 0, 0);
-    grid->setHorizontalSpacing(8);
-    grid->setVerticalSpacing(6);
+    grid->setHorizontalSpacing(5);
+    grid->setVerticalSpacing(5);
 
     auto makePx = [p = out.panel]() {
         auto* l = new QLabel("px", p);
@@ -479,8 +484,8 @@ QFrame* createPositionTipsPanel(QWidget* parent) {
     auto* tipsPanel = new QFrame(parent);
     tipsPanel->setObjectName("subPanel");
     auto* tipsLayout = new QVBoxLayout(tipsPanel);
-    tipsLayout->setContentsMargins(12, 12, 12, 12);
-    tipsLayout->setSpacing(8);
+    tipsLayout->setContentsMargins(5, 5, 5, 5);
+    tipsLayout->setSpacing(5);
     auto* tipsLabel = new QLabel(tipsPanel);
     tipsLabel->setText(QString("• %1<br/>• %2<br/>• %3<br/>• %4")
                            .arg(obs_module_text("CustomizedCartoon.Position.Tips.1"))
@@ -617,27 +622,24 @@ void CustomizedCartoonDock::setupUi() {
         "  border: none;"
         "  border-top: 1px solid #77808F;"
         "  background: transparent;"
-        "  top: -1px;"
-        "  margin-top: -1px;"
+        "  top: 0px;"
+        "  margin-top: 0px;"
         "}"
         "QTabWidget#positionOrientationTabs QTabBar {"
         "  alignment: left;"
         "}"
         "QTabWidget#positionOrientationTabs QTabBar::tab {"
         "  background-color: #12141A; color: #FFFFFF;"
-        "  border: 1px solid #77808F; border-radius: 0px; border-bottom: none;"
-        "  font-size: 14px; font-weight: 400; min-width: 56px; min-height: 22px;"
-        "  padding: 4px 12px; margin-right: 4px; margin-bottom: 0px; text-align: center;"
-        "  min-height: 30px;"
-        "}"
-        "QTabWidget#positionOrientationTabs QTabBar::tab:!selected {"
-        "  margin-top: 2px;"
+        "  border: 1px solid #77808F; border-bottom: none;"
+        "  border-top-left-radius: 3px; border-top-right-radius: 3px;"
+        "  border-bottom-left-radius: 0px; border-bottom-right-radius: 0px;"
+        "  font-size: 14px; font-weight: 400; min-width: 56px; min-height: 28px; max-height: 28px;"
+        "  padding: 3px 12px; margin-right: 4px; margin-top: 0px; margin-bottom: 0px; text-align: center;"
         "}"
         "QTabWidget#positionOrientationTabs QTabBar::tab:selected {"
         "  background-color: #007ACC; color: #FFFFFF; border-color: #77808F;"
-        "  margin-bottom: -1px;"
         "  margin-top: 0px;"
-        "  padding-bottom: 5px;"
+        "  margin-bottom: 0px;"
         "}"
         "QTabWidget#positionOrientationTabs QTabBar::tab:hover {"
         "  background-color: #505050;"
@@ -775,19 +777,14 @@ void CustomizedCartoonDock::setupUi() {
     positionPanel->setFixedSize(400, 425);
     positionPanel->setLayoutDirection(Qt::LeftToRight);
     auto* positionLayout = new QVBoxLayout(positionPanel);
-    positionLayout->setContentsMargins(18, 18, 18, 18);
-    positionLayout->setSpacing(10);
+    positionLayout->setContentsMargins(5, 5, 5, 5);
+    positionLayout->setSpacing(5);
 
     auto* positionTitle =
         new QLabel(obs_module_text("CustomizedCartoon.Position.PanelTitle"), positionPanel);
     positionTitle->setObjectName("positionPanelTitle");
     positionTitle->setFixedHeight(20);
     positionLayout->addWidget(positionTitle);
-
-    canvasRangeLabel_ = new QLabel(positionPanel);
-    canvasRangeLabel_->setObjectName("positionCommentLabel");
-    canvasRangeLabel_->setFixedHeight(21);
-    positionLayout->addWidget(canvasRangeLabel_);
 
     positionTabWidget_ = new QTabWidget(positionPanel);
     positionTabWidget_->setObjectName("positionOrientationTabs");
@@ -841,12 +838,22 @@ void CustomizedCartoonDock::setupUi() {
 
     auto* portraitPage = new QWidget(positionTabWidget_);
     portraitPage->setLayoutDirection(Qt::LeftToRight);
-    auto* portraitBody = new QHBoxLayout(portraitPage);
-    portraitBody->setContentsMargins(0, 10, 0, 0);
-    portraitBody->setSpacing(10);
+    auto* portraitPageLayout = new QVBoxLayout(portraitPage);
+    portraitPageLayout->setContentsMargins(0, 0, 0, 0);
+    portraitPageLayout->setSpacing(4);
+
+    auto* portraitRangeLabel = new QLabel(portraitPage);
+    portraitRangeLabel->setObjectName("positionCommentLabel");
+    portraitRangeLabel->setFixedHeight(21);
+    portraitRangeLabel->setAlignment(Qt::AlignCenter);
+    portraitPageLayout->addWidget(portraitRangeLabel);
+
+    auto* portraitBody = new QHBoxLayout();
+    portraitBody->setContentsMargins(0, 0, 0, 0);
+    portraitBody->setSpacing(5);
 
     auto* portraitCanvas = new PositionCanvasWidget(portraitPage);
-    portraitCanvas->setFixedSize(210, 290);
+    portraitCanvas->setFixedSize(210, 304);
     portraitCanvas->setCanvasSize(720, 1280);
     portraitCanvas->setRect(QRect(200, 300, 500, 500));
     portraitBody->addWidget(portraitCanvas, 0, Qt::AlignTop);
@@ -856,39 +863,52 @@ void CustomizedCartoonDock::setupUi() {
 
     auto* portraitRightSide = new QVBoxLayout();
     portraitRightSide->setContentsMargins(0, 0, 0, 0);
-    portraitRightSide->setSpacing(10);
+    portraitRightSide->setSpacing(5);
     portraitRightSide->addWidget(portraitInputs.panel);
     portraitRightSide->addWidget(portraitTipsPanel, 1);
     portraitBody->addLayout(portraitRightSide, 1);
+    portraitPageLayout->addLayout(portraitBody, 1);
     positionTabWidget_->addTab(portraitPage,
                                obs_module_text("CustomizedCartoon.Position.Tab.Portrait"));
 
     auto* landscapePage = new QWidget(positionTabWidget_);
     landscapePage->setLayoutDirection(Qt::LeftToRight);
-    auto* landscapeBody = new QVBoxLayout(landscapePage);
-    landscapeBody->setContentsMargins(0, 10, 0, 0);
-    landscapeBody->setSpacing(10);
+    auto* landscapePageLayout = new QVBoxLayout(landscapePage);
+    landscapePageLayout->setContentsMargins(0, 0, 0, 0);
+    landscapePageLayout->setSpacing(2);
+
+    auto* landscapeRangeLabel = new QLabel(landscapePage);
+    landscapeRangeLabel->setObjectName("positionCommentLabel");
+    landscapeRangeLabel->setFixedHeight(21);
+    landscapeRangeLabel->setAlignment(Qt::AlignCenter);
+    landscapePageLayout->addWidget(landscapeRangeLabel);
+
+    auto* landscapeBody = new QVBoxLayout();
+    landscapeBody->setContentsMargins(0, 0, 0, 0);
+    landscapeBody->setSpacing(4);
 
     auto* landscapeCanvas = new PositionCanvasWidget(landscapePage);
     landscapeCanvas->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    landscapeCanvas->setFixedHeight(200);
+    landscapeCanvas->setFixedHeight(160);
     landscapeCanvas->setCanvasSize(1280, 720);
     landscapeCanvas->setRect(QRect(200, 100, 500, 500));
-    landscapeBody->addWidget(landscapeCanvas, 0);
+    landscapeBody->addWidget(landscapeCanvas, 0, Qt::AlignTop);
 
     auto landscapeInputs = createPositionSizePanel(landscapePage);
     auto* landscapeTipsPanel = createPositionTipsPanel(landscapePage);
 
     auto* landscapeBottom = new QHBoxLayout();
     landscapeBottom->setContentsMargins(0, 0, 0, 0);
-    landscapeBottom->setSpacing(10);
+    landscapeBottom->setSpacing(5);
     landscapeBottom->addWidget(landscapeInputs.panel, 1);
     landscapeBottom->addWidget(landscapeTipsPanel, 1);
     landscapeBody->addLayout(landscapeBottom, 1);
+    landscapePageLayout->addLayout(landscapeBody, 1);
     positionTabWidget_->addTab(landscapePage,
                                obs_module_text("CustomizedCartoon.Position.Tab.Landscape"));
     positionTabWidget_->setCurrentIndex(0);
 
+    canvasRangeLabel_ = portraitRangeLabel;
     positionCanvas_ = portraitCanvas;
     posXSpin_ = portraitInputs.posX;
     posYSpin_ = portraitInputs.posY;
@@ -902,8 +922,10 @@ void CustomizedCartoonDock::setupUi() {
     left->addWidget(positionPanel);
 
     connect(positionTabWidget_, &QTabWidget::currentChanged, this,
-            [this, portraitCanvas, portraitInputs, landscapeCanvas, landscapeInputs](int index) {
+            [this, portraitCanvas, portraitInputs, portraitRangeLabel, landscapeCanvas,
+             landscapeInputs, landscapeRangeLabel](int index) {
         if (index == 0) {
+            canvasRangeLabel_ = portraitRangeLabel;
             positionCanvas_ = portraitCanvas;
             posXSpin_ = portraitInputs.posX;
             posYSpin_ = portraitInputs.posY;
@@ -911,6 +933,7 @@ void CustomizedCartoonDock::setupUi() {
             heightSpin_ = portraitInputs.height;
             onOrientationChanged(0);
         } else {
+            canvasRangeLabel_ = landscapeRangeLabel;
             positionCanvas_ = landscapeCanvas;
             posXSpin_ = landscapeInputs.posX;
             posYSpin_ = landscapeInputs.posY;
