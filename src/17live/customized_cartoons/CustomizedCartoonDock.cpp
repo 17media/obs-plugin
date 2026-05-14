@@ -20,6 +20,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScrollArea>
+#include <QStyleFactory>
 #include <QTabWidget>
 #include <QMessageBox>
 #include <QPushButton>
@@ -408,17 +409,19 @@ PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
     auto* sizeTitle =
         new QLabel(obs_module_text("CustomizedCartoon.Position.Size.Title"), out.panel);
     sizeTitle->setObjectName("sectionTitle");
-    sizeTitle->setStyleSheet("QLabel#sectionTitle { font-size: 18px; font-weight: 700; }");
+    sizeTitle->setStyleSheet("QLabel#sectionTitle { font-size: 16px; font-weight: 600; color: #FFFFFF; }");
     sizeLayout->addWidget(sizeTitle);
 
     auto* grid = new QGridLayout();
     grid->setContentsMargins(0, 0, 0, 0);
-    grid->setHorizontalSpacing(10);
-    grid->setVerticalSpacing(8);
+    grid->setHorizontalSpacing(8);
+    grid->setVerticalSpacing(6);
 
     auto makePx = [p = out.panel]() {
         auto* l = new QLabel("px", p);
-        l->setStyleSheet("QLabel { color: rgba(255,255,255,0.7); font-size: 14px; }");
+        l->setObjectName("positionUnitLabel");
+        l->setFixedHeight(21);
+        l->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         return l;
     };
 
@@ -436,18 +439,21 @@ PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
     out.height->setObjectName("posSpinBox");
 
     for (auto* sb : {out.posX, out.posY, out.width, out.height}) {
-        sb->setFixedHeight(30);
-        sb->setMinimumWidth(96);
+        sb->setFixedHeight(32);
+        sb->setMinimumWidth(110);
+        sb->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        sb->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
     }
 
     auto* xLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.X"), out.panel);
     auto* yLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Y"), out.panel);
     auto* wLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Width"), out.panel);
     auto* hLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Height"), out.panel);
-    xLabel->setStyleSheet("QLabel { font-size: 14px; }");
-    yLabel->setStyleSheet("QLabel { font-size: 14px; }");
-    wLabel->setStyleSheet("QLabel { font-size: 14px; }");
-    hLabel->setStyleSheet("QLabel { font-size: 14px; }");
+    for (auto* label : {xLabel, yLabel, wLabel, hLabel}) {
+        label->setObjectName("positionFieldLabel");
+        label->setFixedHeight(21);
+        label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    }
 
     grid->addWidget(xLabel, 0, 0);
     grid->addWidget(out.posX, 0, 1);
@@ -483,7 +489,7 @@ QFrame* createPositionTipsPanel(QWidget* parent) {
                            .arg(obs_module_text("CustomizedCartoon.Position.Tips.4")));
     tipsLabel->setTextFormat(Qt::RichText);
     tipsLabel->setWordWrap(true);
-    tipsLabel->setStyleSheet("QLabel { font-size: 14px; color: rgba(255,255,255,0.9); }");
+    tipsLabel->setStyleSheet("QLabel { font-size: 14px; font-weight: 400; color: #FFFFFF; }");
     tipsLayout->addWidget(tipsLabel);
     return tipsPanel;
 }
@@ -526,8 +532,9 @@ void CustomizedCartoonDock::setupUi() {
         "  border-radius: 4px;"
         "}"
         "QFrame#panel {"
-        "  background-color: rgba(255,255,255,0.06);"
-        "  border-radius: 10px;"
+        "  background-color: #12141A;"
+        "  border: 0.5px solid #3D3D3D;"
+        "  border-radius: 3px;"
         "}"
         "QFrame#mediaPanel {"
         "  background-color: #12141A;"
@@ -551,6 +558,24 @@ void CustomizedCartoonDock::setupUi() {
         "  padding: 0px;"
         "}"
         "QLabel#sectionTitle { font-size: 18px; font-weight: 700; }"
+        "QLabel#positionPanelTitle {"
+        "  color: #FFFFFF;"
+        "  font-size: 16px;"
+        "  font-weight: 600;"
+        "  padding: 0px;"
+        "}"
+        "QLabel#positionCommentLabel {"
+        "  color: #FFFFFF;"
+        "  font-size: 14px;"
+        "  font-weight: 400;"
+        "  padding: 0px;"
+        "}"
+        "QLabel#positionFieldLabel, QLabel#positionUnitLabel {"
+        "  color: #FFFFFF;"
+        "  font-size: 14px;"
+        "  font-weight: 400;"
+        "  padding: 0px;"
+        "}"
         "QLabel#pageTitle { font-size: 24px; font-weight: 800; }"
         "QPushButton#primaryButton {"
         "  background-color: #007AFF; color: white; border: none; border-radius: 6px;"
@@ -588,21 +613,53 @@ void CustomizedCartoonDock::setupUi() {
         "QPushButton#tabButton:checked {"
         "  background-color: #007AFF; color: white; border: none;"
         "}"
-        "QTabWidget#positionOrientationTabs::pane { border: none; }"
+        "QTabWidget#positionOrientationTabs::pane {"
+        "  border: none;"
+        "  border-top: 1px solid #77808F;"
+        "  background: transparent;"
+        "  top: -1px;"
+        "  margin-top: -1px;"
+        "}"
+        "QTabWidget#positionOrientationTabs QTabBar {"
+        "  alignment: left;"
+        "}"
         "QTabWidget#positionOrientationTabs QTabBar::tab {"
-        "  background-color: transparent; color: rgba(255,255,255,0.7);"
-        "  border: 1px solid rgba(255,255,255,0.35); border-radius: 6px;"
-        "  font-size: 16px; padding: 10px 18px; margin-right: 12px;"
+        "  background-color: #12141A; color: #FFFFFF;"
+        "  border: 1px solid #77808F; border-radius: 0px; border-bottom: none;"
+        "  font-size: 14px; font-weight: 400; min-width: 56px; min-height: 22px;"
+        "  padding: 4px 12px; margin-right: 4px; margin-bottom: 0px; text-align: center;"
+        "  min-height: 30px;"
+        "}"
+        "QTabWidget#positionOrientationTabs QTabBar::tab:!selected {"
+        "  margin-top: 2px;"
         "}"
         "QTabWidget#positionOrientationTabs QTabBar::tab:selected {"
-        "  background-color: #007AFF; color: white; border: none;"
+        "  background-color: #007ACC; color: #FFFFFF; border-color: #77808F;"
+        "  margin-bottom: -1px;"
+        "  margin-top: 0px;"
+        "  padding-bottom: 5px;"
         "}"
         "QTabWidget#positionOrientationTabs QTabBar::tab:hover {"
-        "  background-color: rgba(255,255,255,0.08);"
+        "  background-color: #505050;"
         "}"
         "QSpinBox#posSpinBox {"
+        "  background-color: rgba(0,0,0,0.25);"
+        "  border: 1px solid rgba(255,255,255,0.12);"
+        "  border-radius: 4px;"
+        "  color: #FFFFFF;"
         "  font-size: 14px;"
+        "  font-weight: 400;"
         "  padding: 4px 8px;"
+        "}"
+        "QSpinBox#posSpinBox::up-button, QSpinBox#posSpinBox::down-button {"
+        "  width: 18px;"
+        "  subcontrol-origin: border;"
+        "  background: transparent;"
+        "  border: none;"
+        "}"
+        "QSpinBox#posSpinBox::up-arrow, QSpinBox#posSpinBox::down-arrow {"
+        "  width: 8px;"
+        "  height: 8px;"
         "}"
         "QLineEdit, QSpinBox, QComboBox {"
         "  background-color: rgba(0,0,0,0.25);"
@@ -719,21 +776,27 @@ void CustomizedCartoonDock::setupUi() {
     positionPanel->setLayoutDirection(Qt::LeftToRight);
     auto* positionLayout = new QVBoxLayout(positionPanel);
     positionLayout->setContentsMargins(18, 18, 18, 18);
-    positionLayout->setSpacing(12);
+    positionLayout->setSpacing(10);
 
     auto* positionTitle =
         new QLabel(obs_module_text("CustomizedCartoon.Position.PanelTitle"), positionPanel);
-    positionTitle->setObjectName("sectionTitle");
+    positionTitle->setObjectName("positionPanelTitle");
+    positionTitle->setFixedHeight(20);
     positionLayout->addWidget(positionTitle);
 
     canvasRangeLabel_ = new QLabel(positionPanel);
-    canvasRangeLabel_->setStyleSheet("QLabel { font-size: 18px; font-weight: 700; }");
+    canvasRangeLabel_->setObjectName("positionCommentLabel");
+    canvasRangeLabel_->setFixedHeight(21);
     positionLayout->addWidget(canvasRangeLabel_);
 
     positionTabWidget_ = new QTabWidget(positionPanel);
     positionTabWidget_->setObjectName("positionOrientationTabs");
     positionTabWidget_->setUsesScrollButtons(false);
     positionTabWidget_->tabBar()->setExpanding(false);
+#ifdef Q_OS_MACOS
+    positionTabWidget_->setUsesScrollButtons(true);
+    positionTabWidget_->tabBar()->setStyle(QStyleFactory::create("Fusion"));
+#endif
 
     auto bindCanvasAndInputs = [this](PositionCanvasWidget* canvas,
                                      const PositionSizePanelWidgets& inputs) {
@@ -779,8 +842,8 @@ void CustomizedCartoonDock::setupUi() {
     auto* portraitPage = new QWidget(positionTabWidget_);
     portraitPage->setLayoutDirection(Qt::LeftToRight);
     auto* portraitBody = new QHBoxLayout(portraitPage);
-    portraitBody->setContentsMargins(0, 0, 0, 0);
-    portraitBody->setSpacing(12);
+    portraitBody->setContentsMargins(0, 10, 0, 0);
+    portraitBody->setSpacing(10);
 
     auto* portraitCanvas = new PositionCanvasWidget(portraitPage);
     portraitCanvas->setFixedSize(210, 290);
@@ -793,7 +856,7 @@ void CustomizedCartoonDock::setupUi() {
 
     auto* portraitRightSide = new QVBoxLayout();
     portraitRightSide->setContentsMargins(0, 0, 0, 0);
-    portraitRightSide->setSpacing(12);
+    portraitRightSide->setSpacing(10);
     portraitRightSide->addWidget(portraitInputs.panel);
     portraitRightSide->addWidget(portraitTipsPanel, 1);
     portraitBody->addLayout(portraitRightSide, 1);
@@ -803,8 +866,8 @@ void CustomizedCartoonDock::setupUi() {
     auto* landscapePage = new QWidget(positionTabWidget_);
     landscapePage->setLayoutDirection(Qt::LeftToRight);
     auto* landscapeBody = new QVBoxLayout(landscapePage);
-    landscapeBody->setContentsMargins(0, 0, 0, 0);
-    landscapeBody->setSpacing(12);
+    landscapeBody->setContentsMargins(0, 10, 0, 0);
+    landscapeBody->setSpacing(10);
 
     auto* landscapeCanvas = new PositionCanvasWidget(landscapePage);
     landscapeCanvas->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -818,7 +881,7 @@ void CustomizedCartoonDock::setupUi() {
 
     auto* landscapeBottom = new QHBoxLayout();
     landscapeBottom->setContentsMargins(0, 0, 0, 0);
-    landscapeBottom->setSpacing(12);
+    landscapeBottom->setSpacing(10);
     landscapeBottom->addWidget(landscapeInputs.panel, 1);
     landscapeBottom->addWidget(landscapeTipsPanel, 1);
     landscapeBody->addLayout(landscapeBottom, 1);
