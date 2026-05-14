@@ -9,6 +9,10 @@ class QPushButton;
 class QLabel;
 class QComboBox;
 class QDoubleSpinBox;
+class QSpinBox;
+class QVBoxLayout;
+class QWidget;
+class QScrollArea;
 
 class CustomizedCartoonService;
 
@@ -37,6 +41,7 @@ class CustomizedCartoonDock : public QDockWidget {
     void loadFromConfig();
     void saveRulesToConfig();
     void refreshPositionUi();
+    void rebuildRulesUi();
 
     CustomizedCartoonService* service_{nullptr};
 
@@ -44,21 +49,27 @@ class CustomizedCartoonDock : public QDockWidget {
     QPushButton* addMediaButton_{nullptr};
     QLabel* mediaCountLabel_{nullptr};
 
-    QComboBox* orientationCombo_{nullptr};
-    QDoubleSpinBox* posXSpin_{nullptr};
-    QDoubleSpinBox* posYSpin_{nullptr};
-    QDoubleSpinBox* scaleXSpin_{nullptr};
-    QDoubleSpinBox* scaleYSpin_{nullptr};
-    QDoubleSpinBox* rotSpin_{nullptr};
+    QPushButton* portraitTabButton_{nullptr};
+    QPushButton* landscapeTabButton_{nullptr};
+    QLabel* canvasRangeLabel_{nullptr};
+    QWidget* positionCanvas_{nullptr};
+    QSpinBox* posXSpin_{nullptr};
+    QSpinBox* posYSpin_{nullptr};
+    QSpinBox* widthSpin_{nullptr};
+    QSpinBox* heightSpin_{nullptr};
     QPushButton* applyPositionButton_{nullptr};
     QPushButton* readPositionButton_{nullptr};
     QPushButton* startPositionPreviewButton_{nullptr};
     QPushButton* stopPositionPreviewButton_{nullptr};
 
-    QTableWidget* ruleTable_{nullptr};
+    QScrollArea* rulesScrollArea_{nullptr};
+    QWidget* rulesListContainer_{nullptr};
+    QVBoxLayout* rulesListLayout_{nullptr};
     QPushButton* addRuleButton_{nullptr};
-    QPushButton* removeRuleButton_{nullptr};
     QPushButton* previewButton_{nullptr};
+    QPushButton* cancelButton_{nullptr};
+    QPushButton* confirmButton_{nullptr};
+    QPushButton* applyButton_{nullptr};
 
     QTableWidget* progressTable_{nullptr};
 };
