@@ -512,6 +512,8 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
                 &CustomizedCartoonDock::refreshUi);
         connect(service_, &CustomizedCartoonService::progressUpdated, this,
                 &CustomizedCartoonDock::refreshProgress);
+        connect(service_, &CustomizedCartoonService::previewStateChanged, this,
+                &CustomizedCartoonDock::refreshMediaList);
     }
     refreshUi();
 }
@@ -766,7 +768,7 @@ void CustomizedCartoonDock::setupUi() {
     mediaList_ = new QListWidget(mediaPanel);
     mediaList_->setObjectName("mediaList");
     mediaList_->setFrameShape(QFrame::NoFrame);
-    mediaList_->setSpacing(0);
+    mediaList_->setSpacing(2);
     mediaList_->setSelectionMode(QAbstractItemView::SingleSelection);
     mediaList_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     mediaList_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -1074,13 +1076,25 @@ void CustomizedCartoonDock::loadFromConfig() {
     if (!service_) {
         return;
     }
+    refreshMediaList();
+    rebuildRulesUi();
+}
+
+void CustomizedCartoonDock::refreshMediaList() {
+    if (!service_ || !mediaList_) {
+        return;
+    }
     const json cfg = service_->getConfigSnapshot();
 
     mediaList_->clear();
     int videoCount = 0;
+    const QIcon videoIcon(":/resources/video.svg");
+    const QIcon playIcon(":/resources/play.svg");
+    const QIcon stopIcon(":/resources/stop.svg");
+    const QIcon trashIcon(":/resources/trash-red.svg");
+    const bool previewing = service_->isMediaPreviewing();
+    const QString previewingId = service_->previewingMediaId();
     if (cfg.contains("media") && cfg["media"].is_array()) {
-        const QIcon videoIcon(":/resources/video.svg");
-        const QIcon trashIcon(":/resources/trash-red.svg");
         for (const auto& it : cfg["media"]) {
             if (!it.is_object())
                 continue;
@@ -1130,6 +1144,13 @@ void CustomizedCartoonDock::loadFromConfig() {
             nameLabel->setStyleSheet(
                 "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; background: transparent; }");
 
+            const bool previewingThis = previewing && previewingId == id;
+            auto* previewButton = new QPushButton(row);
+            previewButton->setIcon(previewingThis ? stopIcon : playIcon);
+            previewButton->setIconSize(QSize(24, 24));
+            previewButton->setFixedSize(24, 24);
+            previewButton->setCursor(Qt::PointingHandCursor);
+
             auto* delButton = new QPushButton(row);
             delButton->setIcon(trashIcon);
             delButton->setIconSize(QSize(24, 24));
@@ -1148,8 +1169,37 @@ void CustomizedCartoonDock::loadFromConfig() {
                 refreshUi();
             });
 
+            connect(previewButton, &QPushButton::clicked, this, [this, item, id]() {
+                if (!service_) {
+                    return;
+                }
+                if (mediaList_) {
+                    mediaList_->setCurrentItem(item);
+                }
+
+                const bool previewing = service_->isMediaPreviewing();
+                const QString previewingId = service_->previewingMediaId();
+                if (previewing && previewingId == id) {
+                    service_->stopMediaPreview();
+                    return;
+                }
+                if (previewing && previewingId != id) {
+                    QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                             obs_module_text("CustomizedCartoon.Media.PreviewBusy"),
+                                             QMessageBox::Ok);
+                    return;
+                }
+
+                QString error;
+                if (!service_->startMediaPreview(id, error)) {
+                    QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
+                                         QMessageBox::Ok);
+                }
+            });
+
             rowLayout->addWidget(iconLabel);
             rowLayout->addWidget(nameLabel, 1);
+            rowLayout->addWidget(previewButton);
             rowLayout->addWidget(delButton);
 
             mediaList_->addItem(item);
@@ -1164,8 +1214,6 @@ void CustomizedCartoonDock::loadFromConfig() {
     if (mediaList_->count() > 0 && mediaList_->currentRow() < 0) {
         mediaList_->setCurrentRow(0);
     }
-
-    rebuildRulesUi();
 }
 
 void CustomizedCartoonDock::rebuildRulesUi() {

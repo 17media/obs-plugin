@@ -36,6 +36,10 @@ class CustomizedCartoonService : public QObject {
     bool deleteMedia(const QString& mediaId, QString& outError);
 
     void previewPlayAll();
+    bool startMediaPreview(const QString& mediaId, QString& outError);
+    void stopMediaPreview();
+    bool isMediaPreviewing() const;
+    QString previewingMediaId() const;
     bool startPositionPreview(const QString& mediaId, bool landscape, QString& outError);
     void stopPositionPreview();
     bool getCurrentOverlayTransform(nlohmann::json& outTransform, QString& outError) const;
@@ -45,6 +49,7 @@ class CustomizedCartoonService : public QObject {
    signals:
     void configChanged();
     void progressUpdated();
+    void previewStateChanged();
 
    private slots:
     void onStreamStatusChanged(OneSevenLiveStreamingStatus status);
@@ -91,6 +96,7 @@ class CustomizedCartoonService : public QObject {
     void stopPlayback();
     void ensureOverlaySources();
     void ensureOverlaySceneItem();
+    obs_source_t* getActivePreviewSceneSource() const;
     void applyOverlayTransform(bool landscape);
     void showOverlaySource(bool media);
     void hideOverlaySources();
@@ -139,4 +145,9 @@ class CustomizedCartoonService : public QObject {
     bool positionPreviewing_{false};
     bool positionPreviewLandscape_{true};
     bool positionPreviewIsMedia_{true};
+
+    bool mediaPreviewing_{false};
+    bool mediaPreviewLandscape_{true};
+    bool mediaPreviewIsMedia_{true};
+    QString previewMediaId_;
 };

@@ -40,6 +40,7 @@ class CustomizedCartoonDock : public QDockWidget {
    private:
     void setupUi();
     void loadFromConfig();
+    void refreshMediaList();
     void saveRulesToConfig();
     void refreshPositionUi();
     void rebuildRulesUi();
