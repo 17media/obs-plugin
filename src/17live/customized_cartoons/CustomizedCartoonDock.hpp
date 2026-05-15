@@ -65,6 +65,7 @@ class CustomizedCartoonDock : public QDockWidget {
     QScrollArea* rulesScrollArea_{nullptr};
     QWidget* rulesListContainer_{nullptr};
     QVBoxLayout* rulesListLayout_{nullptr};
+    bool pendingScrollToLatestRule_{false};
     QPushButton* addRuleButton_{nullptr};
     QPushButton* previewButton_{nullptr};
     QPushButton* cancelButton_{nullptr};
