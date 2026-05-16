@@ -51,6 +51,7 @@ constexpr int kPositionSidePanelMinWidth = 220;
 constexpr int kPositionPanelMinWidth =
     (kPanelInnerMargin * 2) + kPositionCanvasMinWidth + kPanelSpacing + kPositionSidePanelMinWidth;
 constexpr int kDockMinWidth = kPositionPanelMinWidth + 20;
+constexpr int kDockMinHeight = 300;
 constexpr int kRuleGiftParamLabelWidth = 100;
 constexpr int kRuleLuckyBagParamLabelWidth = 100;
 constexpr int kRuleGiftAmountSpinWidth = 100;
@@ -589,12 +590,12 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
 
 void CustomizedCartoonDock::setupUi() {
     resize(500, 820);
-    setMinimumSize(kDockMinWidth, 500);
+    setMinimumSize(kDockMinWidth, kDockMinHeight);
 
     auto* root = new QWidget(this);
     root->setObjectName("customizedCartoonRoot");
     root->setMinimumWidth(kDockMinWidth);
-    root->setMinimumHeight(500);
+    root->setMinimumHeight(kDockMinHeight);
     root->setStyleSheet(
         "QWidget#customizedCartoonRoot {"
         "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0E1116, stop:1 #0B0D11);"
