@@ -423,6 +423,55 @@ struct PositionSizePanelWidgets {
     QSpinBox* height{nullptr};
 };
 
+QRect normalizePositionRect(const QRect& rect, int canvasW, int canvasH) {
+    const int minSize = 20;
+    const int normalizedWidth = std::clamp(rect.width(), minSize, canvasW);
+    const int normalizedHeight = std::clamp(rect.height(), minSize, canvasH);
+    const int maxX = std::max(0, canvasW - normalizedWidth);
+    const int maxY = std::max(0, canvasH - normalizedHeight);
+    const int normalizedX = std::clamp(rect.x(), 0, maxX);
+    const int normalizedY = std::clamp(rect.y(), 0, maxY);
+    return QRect(normalizedX, normalizedY, normalizedWidth, normalizedHeight);
+}
+
+void applyPositionInputs(const PositionSizePanelWidgets& inputs, const QRect& rect, int canvasW, int canvasH) {
+    if (!inputs.posX || !inputs.posY || !inputs.width || !inputs.height) {
+        return;
+    }
+
+    const QRect normalized = normalizePositionRect(rect, canvasW, canvasH);
+    const int maxX = std::max(0, canvasW - normalized.width());
+    const int maxY = std::max(0, canvasH - normalized.height());
+
+    for (auto* spin : {inputs.posX, inputs.posY, inputs.width, inputs.height}) {
+        spin->blockSignals(true);
+    }
+
+    inputs.width->setRange(20, canvasW);
+    inputs.height->setRange(20, canvasH);
+    inputs.posX->setRange(0, maxX);
+    inputs.posY->setRange(0, maxY);
+
+    inputs.posX->setValue(normalized.x());
+    inputs.posY->setValue(normalized.y());
+    inputs.width->setValue(normalized.width());
+    inputs.height->setValue(normalized.height());
+
+    for (auto* spin : {inputs.posX, inputs.posY, inputs.width, inputs.height}) {
+        spin->blockSignals(false);
+    }
+}
+
+QRect applyPositionState(PositionCanvasWidget* canvas, const PositionSizePanelWidgets& inputs, const QRect& rect,
+                         int canvasW, int canvasH) {
+    const QRect normalized = normalizePositionRect(rect, canvasW, canvasH);
+    applyPositionInputs(inputs, normalized, canvasW, canvasH);
+    if (canvas) {
+        canvas->setRect(normalized);
+    }
+    return normalized;
+}
+
 PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
     PositionSizePanelWidgets out;
     out.panel = new QFrame(parent);
@@ -860,32 +909,20 @@ void CustomizedCartoonDock::setupUi() {
     positionTabWidget_->tabBar()->setStyle(QStyleFactory::create("Fusion"));
 #endif
 
-    auto bindCanvasAndInputs = [this](PositionCanvasWidget* canvas,
-                                     const PositionSizePanelWidgets& inputs) {
-        canvas->setOnRectChanged([inputs](const QRect& r) {
-            if (!inputs.posX || !inputs.posY || !inputs.width || !inputs.height) {
-                return;
-            }
-            inputs.posX->blockSignals(true);
-            inputs.posY->blockSignals(true);
-            inputs.width->blockSignals(true);
-            inputs.height->blockSignals(true);
-            inputs.posX->setValue(r.x());
-            inputs.posY->setValue(r.y());
-            inputs.width->setValue(r.width());
-            inputs.height->setValue(r.height());
-            inputs.posX->blockSignals(false);
-            inputs.posY->blockSignals(false);
-            inputs.width->blockSignals(false);
-            inputs.height->blockSignals(false);
+    auto bindCanvasAndInputs = [this](PositionCanvasWidget* canvas, const PositionSizePanelWidgets& inputs,
+                                      int canvasW, int canvasH) {
+        canvas->setOnRectChanged([inputs, canvasW, canvasH](const QRect& r) {
+            applyPositionInputs(inputs, r, canvasW, canvasH);
         });
 
-        auto syncCanvasFromInputs = [canvas, inputs]() {
+        auto syncCanvasFromInputs = [canvas, inputs, canvasW, canvasH]() {
             if (!inputs.posX || !inputs.posY || !inputs.width || !inputs.height) {
                 return;
             }
-            canvas->setRect(QRect(inputs.posX->value(), inputs.posY->value(), inputs.width->value(),
-                                  inputs.height->value()));
+            applyPositionState(canvas, inputs,
+                               QRect(inputs.posX->value(), inputs.posY->value(), inputs.width->value(),
+                                     inputs.height->value()),
+                               canvasW, canvasH);
         };
         connect(inputs.posX, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
             syncCanvasFromInputs();
@@ -980,8 +1017,8 @@ void CustomizedCartoonDock::setupUi() {
     widthSpin_ = portraitInputs.width;
     heightSpin_ = portraitInputs.height;
 
-    bindCanvasAndInputs(portraitCanvas, portraitInputs);
-    bindCanvasAndInputs(landscapeCanvas, landscapeInputs);
+    bindCanvasAndInputs(portraitCanvas, portraitInputs, 720, 1280);
+    bindCanvasAndInputs(landscapeCanvas, landscapeInputs, 1280, 720);
 
     positionLayout->addWidget(positionTabWidget_, 1);
     left->addWidget(positionPanel);
@@ -1106,20 +1143,21 @@ void CustomizedCartoonDock::refreshPositionUi() {
                 .arg(canvasW)
                 .arg(canvasH));
     }
+
+    auto* currentCanvas = positionCanvas_ ? static_cast<PositionCanvasWidget*>(positionCanvas_) : nullptr;
+    PositionSizePanelWidgets currentInputs{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_};
     if (!cfg.contains("position") || !cfg["position"].is_object() || !cfg["position"].contains(key) ||
         !cfg["position"][key].is_object()) {
-        if (posXSpin_) posXSpin_->setValue(200);
-        if (posYSpin_) posYSpin_->setValue(300);
-        if (widthSpin_) widthSpin_->setValue(500);
-        if (heightSpin_) heightSpin_->setValue(500);
+        applyPositionState(currentCanvas, currentInputs, QRect(200, 300, 500, 500), canvasW, canvasH);
         return;
     }
 
     const auto& t = cfg["position"][key];
-    if (posXSpin_) posXSpin_->setValue((int)std::round(t.value("x", 200.0)));
-    if (posYSpin_) posYSpin_->setValue((int)std::round(t.value("y", 300.0)));
-    if (widthSpin_) widthSpin_->setValue((int)std::round(t.value("boundsW", 500.0)));
-    if (heightSpin_) heightSpin_->setValue((int)std::round(t.value("boundsH", 500.0)));
+    applyPositionState(currentCanvas, currentInputs,
+                       QRect((int)std::round(t.value("x", 200.0)), (int)std::round(t.value("y", 300.0)),
+                             (int)std::round(t.value("boundsW", 500.0)),
+                             (int)std::round(t.value("boundsH", 500.0))),
+                       canvasW, canvasH);
 }
 
 void CustomizedCartoonDock::loadFromConfig() {
@@ -1759,15 +1797,23 @@ void CustomizedCartoonDock::onApplyPosition() {
     }
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     const char* key = landscape ? "landscape" : "portrait";
+    const int canvasW = landscape ? 1280 : 720;
+    const int canvasH = landscape ? 720 : 1280;
+    const QRect normalized = normalizePositionRect(
+        QRect(posXSpin_ ? posXSpin_->value() : 200, posYSpin_ ? posYSpin_->value() : 300,
+              widthSpin_ ? widthSpin_->value() : 500, heightSpin_ ? heightSpin_->value() : 500),
+        canvasW, canvasH);
+    applyPositionInputs(PositionSizePanelWidgets{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_},
+                        normalized, canvasW, canvasH);
     json t = cfg["position"].contains(key) && cfg["position"][key].is_object() ? cfg["position"][key]
                                                                                : json::object();
-    t["x"] = posXSpin_ ? (double)posXSpin_->value() : 200.0;
-    t["y"] = posYSpin_ ? (double)posYSpin_->value() : 300.0;
+    t["x"] = (double)normalized.x();
+    t["y"] = (double)normalized.y();
     t["boundsType"] = (int)OBS_BOUNDS_STRETCH;
     t["boundsAlignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
     t["alignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    t["boundsW"] = widthSpin_ ? (double)widthSpin_->value() : 500.0;
-    t["boundsH"] = heightSpin_ ? (double)heightSpin_->value() : 500.0;
+    t["boundsW"] = (double)normalized.width();
+    t["boundsH"] = (double)normalized.height();
     t["cropToBounds"] = true;
     if (!t.contains("scaleX")) t["scaleX"] = 1.0;
     if (!t.contains("scaleY")) t["scaleY"] = 1.0;
@@ -1788,10 +1834,16 @@ void CustomizedCartoonDock::onReadPositionFromCanvas() {
                              QMessageBox::Ok);
         return;
     }
-    if (posXSpin_) posXSpin_->setValue((int)std::round(t.value("x", 200.0)));
-    if (posYSpin_) posYSpin_->setValue((int)std::round(t.value("y", 300.0)));
-    if (widthSpin_) widthSpin_->setValue((int)std::round(t.value("boundsW", 500.0)));
-    if (heightSpin_) heightSpin_->setValue((int)std::round(t.value("boundsH", 500.0)));
+    const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
+    const int canvasW = landscape ? 1280 : 720;
+    const int canvasH = landscape ? 720 : 1280;
+    auto* currentCanvas = positionCanvas_ ? static_cast<PositionCanvasWidget*>(positionCanvas_) : nullptr;
+    applyPositionState(currentCanvas,
+                       PositionSizePanelWidgets{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_},
+                       QRect((int)std::round(t.value("x", 200.0)), (int)std::round(t.value("y", 300.0)),
+                             (int)std::round(t.value("boundsW", 500.0)),
+                             (int)std::round(t.value("boundsH", 500.0))),
+                       canvasW, canvasH);
 }
 
 void CustomizedCartoonDock::onStartPositionPreview() {
