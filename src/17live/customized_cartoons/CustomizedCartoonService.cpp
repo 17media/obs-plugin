@@ -24,6 +24,10 @@ namespace {
 
 constexpr const char* kCustomizedCartoonMediaSourceName = "17LiveCustomizedCartoonMedia";
 constexpr const char* kCustomizedCartoonImageSourceName = "17LiveCustomizedCartoonImage";
+constexpr uint32_t kPreviewLandscapeCanvasW = 1280;
+constexpr uint32_t kPreviewLandscapeCanvasH = 720;
+constexpr uint32_t kPreviewPortraitCanvasW = 720;
+constexpr uint32_t kPreviewPortraitCanvasH = 1280;
 
 }  // namespace
 
@@ -557,7 +561,8 @@ void CustomizedCartoonService::previewPlayAll() {
     }
 }
 
-bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, QString& outError) {
+bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool landscape,
+                                                 QString& outError) {
     outError.clear();
     MediaItem* media = findMediaById(mediaId);
     if (!media) {
@@ -575,9 +580,15 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, QString
     }
 
     mediaPreviewing_ = true;
-    mediaPreviewLandscape_ = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
+    mediaPreviewLandscape_ = landscape;
     mediaPreviewIsMedia_ = (media->type == "video");
     previewMediaId_ = mediaId;
+
+    if (!applyPreviewCanvas(mediaPreviewLandscape_, outError)) {
+        mediaPreviewing_ = false;
+        previewMediaId_.clear();
+        return false;
+    }
 
     syncOverlaySceneItems();
     applyOverlayTransform(mediaPreviewLandscape_);
@@ -587,6 +598,7 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, QString
             mediaPreviewing_ = false;
             previewMediaId_.clear();
             syncOverlaySceneItems();
+            restorePreviewCanvas();
             outError = obs_module_text("CustomizedCartoon.Error.VideoSourceNotAvailable");
             emit previewStateChanged();
             return false;
@@ -605,6 +617,7 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, QString
             mediaPreviewing_ = false;
             previewMediaId_.clear();
             syncOverlaySceneItems();
+            restorePreviewCanvas();
             outError = obs_module_text("CustomizedCartoon.Error.ImageSourceNotAvailable");
             emit previewStateChanged();
             return false;
@@ -633,6 +646,7 @@ void CustomizedCartoonService::stopMediaPreview() {
     playbackTimer_.stop();
     hideOverlaySources();
     syncOverlaySceneItems();
+    restorePreviewCanvas();
     emit previewStateChanged();
 }
 
@@ -661,6 +675,11 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     positionPreviewLandscape_ = landscape;
     positionPreviewIsMedia_ = (media->type == "video");
 
+    if (!applyPreviewCanvas(positionPreviewLandscape_, outError)) {
+        positionPreviewing_ = false;
+        return false;
+    }
+
     syncOverlaySceneItems();
     applyOverlayTransform(landscape);
 
@@ -668,6 +687,7 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
         if (!mediaSource_) {
             positionPreviewing_ = false;
             syncOverlaySceneItems();
+            restorePreviewCanvas();
             outError = obs_module_text("CustomizedCartoon.Error.VideoSourceNotAvailable");
             return false;
         }
@@ -687,6 +707,7 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     if (!imageSource_) {
         positionPreviewing_ = false;
         syncOverlaySceneItems();
+        restorePreviewCanvas();
         outError = obs_module_text("CustomizedCartoon.Error.ImageSourceNotAvailable");
         return false;
     }
@@ -710,6 +731,7 @@ void CustomizedCartoonService::stopPositionPreview() {
     playbackTimer_.stop();
     hideOverlaySources();
     syncOverlaySceneItems();
+    restorePreviewCanvas();
 }
 
 bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QString& outError) const {
@@ -732,16 +754,32 @@ bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QS
 
     obs_transform_info ti{};
     obs_sceneitem_get_info2(item, &ti);
-    outTransform["x"] = ti.pos.x;
-    outTransform["y"] = ti.pos.y;
+
+    bool useLandscapeConfig = positionPreviewing_ ? positionPreviewLandscape_ : true;
+    double actualCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
+    double actualCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
+
+    obs_video_info ovi{};
+    if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
+        actualCanvasW = static_cast<double>(ovi.base_width);
+        actualCanvasH = static_cast<double>(ovi.base_height);
+    }
+
+    const double referenceCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
+    const double referenceCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
+    const double scaleX = actualCanvasW > 0.0 ? referenceCanvasW / actualCanvasW : 1.0;
+    const double scaleY = actualCanvasH > 0.0 ? referenceCanvasH / actualCanvasH : 1.0;
+
+    outTransform["x"] = ti.pos.x * scaleX;
+    outTransform["y"] = ti.pos.y * scaleY;
     outTransform["scaleX"] = ti.scale.x;
     outTransform["scaleY"] = ti.scale.y;
     outTransform["rot"] = ti.rot;
     outTransform["alignment"] = ti.alignment;
     outTransform["boundsType"] = (int)ti.bounds_type;
     outTransform["boundsAlignment"] = ti.bounds_alignment;
-    outTransform["boundsW"] = ti.bounds.x;
-    outTransform["boundsH"] = ti.bounds.y;
+    outTransform["boundsW"] = ti.bounds.x * scaleX;
+    outTransform["boundsH"] = ti.bounds.y * scaleY;
     outTransform["cropToBounds"] = ti.crop_to_bounds;
     return true;
 }
@@ -908,6 +946,81 @@ obs_source_t* CustomizedCartoonService::getActivePreviewSceneSource() const {
     return sceneSource;
 }
 
+bool CustomizedCartoonService::applyPreviewCanvas(bool landscape, QString& outError) {
+    outError.clear();
+
+    config_t* cfg = obs_frontend_get_profile_config();
+    if (!cfg) {
+        outError = obs_module_text("CustomizedCartoon.Error.PreviewCanvasApplyFailed");
+        return false;
+    }
+
+    if (!previewVideoSettingsBackup_.valid) {
+        previewVideoSettingsBackup_.baseW = static_cast<uint32_t>(config_get_uint(cfg, "Video", "BaseCX"));
+        previewVideoSettingsBackup_.baseH = static_cast<uint32_t>(config_get_uint(cfg, "Video", "BaseCY"));
+        previewVideoSettingsBackup_.outputW =
+            static_cast<uint32_t>(config_get_uint(cfg, "Video", "OutputCX"));
+        previewVideoSettingsBackup_.outputH =
+            static_cast<uint32_t>(config_get_uint(cfg, "Video", "OutputCY"));
+        previewVideoSettingsBackup_.valid = true;
+    }
+
+    const uint32_t targetBaseW = landscape ? kPreviewLandscapeCanvasW : kPreviewPortraitCanvasW;
+    const uint32_t targetBaseH = landscape ? kPreviewLandscapeCanvasH : kPreviewPortraitCanvasH;
+    const uint32_t targetOutputW = targetBaseW;
+    const uint32_t targetOutputH = targetBaseH;
+
+    obs_video_info ovi{};
+    if (obs_get_video_info(&ovi) && ovi.base_width == targetBaseW && ovi.base_height == targetBaseH &&
+        ovi.output_width == targetOutputW && ovi.output_height == targetOutputH) {
+        return true;
+    }
+
+    config_set_uint(cfg, "Video", "BaseCX", targetBaseW);
+    config_set_uint(cfg, "Video", "BaseCY", targetBaseH);
+    config_set_uint(cfg, "Video", "OutputCX", targetOutputW);
+    config_set_uint(cfg, "Video", "OutputCY", targetOutputH);
+
+    if (config_save(cfg) < 0) {
+        outError = obs_module_text("CustomizedCartoon.Error.PreviewCanvasApplyFailed");
+        return false;
+    }
+
+    obs_frontend_reset_video();
+
+    if (!obs_get_video_info(&ovi) || ovi.base_width != targetBaseW || ovi.base_height != targetBaseH ||
+        ovi.output_width != targetOutputW || ovi.output_height != targetOutputH) {
+        outError = obs_module_text("CustomizedCartoon.Error.PreviewCanvasApplyFailed");
+        restorePreviewCanvas();
+        return false;
+    }
+
+    return true;
+}
+
+void CustomizedCartoonService::restorePreviewCanvas() {
+    if (!previewVideoSettingsBackup_.valid) {
+        return;
+    }
+
+    config_t* cfg = obs_frontend_get_profile_config();
+    if (!cfg) {
+        previewVideoSettingsBackup_.valid = false;
+        return;
+    }
+
+    config_set_uint(cfg, "Video", "BaseCX", previewVideoSettingsBackup_.baseW);
+    config_set_uint(cfg, "Video", "BaseCY", previewVideoSettingsBackup_.baseH);
+    config_set_uint(cfg, "Video", "OutputCX", previewVideoSettingsBackup_.outputW);
+    config_set_uint(cfg, "Video", "OutputCY", previewVideoSettingsBackup_.outputH);
+
+    if (config_save(cfg) >= 0) {
+        obs_frontend_reset_video();
+    }
+
+    previewVideoSettingsBackup_.valid = false;
+}
+
 void CustomizedCartoonService::ensureOverlaySceneItem() {
     obs_source_t* sceneSource = getActivePreviewSceneSource();
     if (!sceneSource) {
@@ -944,27 +1057,42 @@ void CustomizedCartoonService::ensureOverlaySceneItem() {
 }
 
 void CustomizedCartoonService::applyOverlayTransform(bool landscape) {
+    bool useLandscapeConfig = landscape;
+    double actualCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
+    double actualCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
+
+    obs_video_info ovi{};
+    if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
+        actualCanvasW = static_cast<double>(ovi.base_width);
+        actualCanvasH = static_cast<double>(ovi.base_height);
+    }
+
     json cfg = getConfigSnapshot();
     if (!cfg.contains("position") || !cfg["position"].is_object()) {
         return;
     }
-    const char* key = landscape ? "landscape" : "portrait";
+    const char* key = useLandscapeConfig ? "landscape" : "portrait";
     if (!cfg["position"].contains(key) || !cfg["position"][key].is_object()) {
         return;
     }
     const auto& t = cfg["position"][key];
 
+    const double referenceCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
+    const double referenceCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
+    const double scaleX = referenceCanvasW > 0.0 ? actualCanvasW / referenceCanvasW : 1.0;
+    const double scaleY = referenceCanvasH > 0.0 ? actualCanvasH / referenceCanvasH : 1.0;
+
     obs_transform_info ti{};
-    ti.pos.x = t.value("x", 0.0);
-    ti.pos.y = t.value("y", 0.0);
+    ti.pos.x = static_cast<float>(t.value("x", 0.0) * scaleX);
+    ti.pos.y = static_cast<float>(t.value("y", 0.0) * scaleY);
     ti.scale.x = t.value("scaleX", 1.0);
     ti.scale.y = t.value("scaleY", 1.0);
     ti.rot = t.value("rot", 0.0);
     ti.alignment = t.value("alignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
     ti.bounds_type = static_cast<obs_bounds_type>(t.value("boundsType", (int)OBS_BOUNDS_NONE));
     ti.bounds_alignment = t.value("boundsAlignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
-    ti.bounds.x = t.value("boundsW", 0.0);
-    ti.bounds.y = t.value("boundsH", 0.0);
+    ti.bounds.x = static_cast<float>(t.value("boundsW", 0.0) * scaleX);
+    ti.bounds.y = static_cast<float>(t.value("boundsH", 0.0) * scaleY);
     ti.crop_to_bounds = t.value("cropToBounds", false);
 
     if (mediaItem_) {

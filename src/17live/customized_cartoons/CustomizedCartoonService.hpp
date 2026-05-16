@@ -36,7 +36,7 @@ class CustomizedCartoonService : public QObject {
     bool deleteMedia(const QString& mediaId, QString& outError);
 
     void previewPlayAll();
-    bool startMediaPreview(const QString& mediaId, QString& outError);
+    bool startMediaPreview(const QString& mediaId, bool landscape, QString& outError);
     void stopMediaPreview();
     bool isMediaPreviewing() const;
     QString previewingMediaId() const;
@@ -82,6 +82,14 @@ class CustomizedCartoonService : public QObject {
         int lastTriggeredRound{-1};
     };
 
+    struct PreviewVideoSettingsBackup {
+        uint32_t baseW{0};
+        uint32_t baseH{0};
+        uint32_t outputW{0};
+        uint32_t outputH{0};
+        bool valid{false};
+    };
+
     void ensureStorageDir();
     QString storageDir() const;
     QString copyToStorage(const QString& srcPath, QString& outError) const;
@@ -101,6 +109,8 @@ class CustomizedCartoonService : public QObject {
     void ensureOverlaySources();
     void ensureOverlaySceneItem();
     obs_source_t* getActivePreviewSceneSource() const;
+    bool applyPreviewCanvas(bool landscape, QString& outError);
+    void restorePreviewCanvas();
     void applyOverlayTransform(bool landscape);
     void showOverlaySource(bool media);
     void hideOverlaySources();
@@ -154,4 +164,5 @@ class CustomizedCartoonService : public QObject {
     bool mediaPreviewLandscape_{true};
     bool mediaPreviewIsMedia_{true};
     QString previewMediaId_;
+    PreviewVideoSettingsBackup previewVideoSettingsBackup_{};
 };

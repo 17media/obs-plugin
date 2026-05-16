@@ -1191,7 +1191,8 @@ void CustomizedCartoonDock::refreshMediaList() {
                 }
 
                 QString error;
-                if (!service_->startMediaPreview(id, error)) {
+                const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
+                if (!service_->startMediaPreview(id, landscape, error)) {
                     QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
                                          QMessageBox::Ok);
                 }
