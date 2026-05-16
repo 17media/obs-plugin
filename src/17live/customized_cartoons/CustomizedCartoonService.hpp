@@ -94,6 +94,10 @@ class CustomizedCartoonService : public QObject {
     void enqueuePlayMedia(const QString& mediaId);
     void startNextPlayback();
     void stopPlayback();
+    bool hasActiveRules() const;
+    bool shouldKeepOverlaySources() const;
+    void syncOverlaySceneItems();
+    void removeOverlaySceneItems();
     void ensureOverlaySources();
     void ensureOverlaySceneItem();
     obs_source_t* getActivePreviewSceneSource() const;

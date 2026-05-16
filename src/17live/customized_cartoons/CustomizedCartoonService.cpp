@@ -20,6 +20,13 @@
 
 using json = nlohmann::json;
 
+namespace {
+
+constexpr const char* kCustomizedCartoonMediaSourceName = "17LiveCustomizedCartoonMedia";
+constexpr const char* kCustomizedCartoonImageSourceName = "17LiveCustomizedCartoonImage";
+
+}  // namespace
+
 CustomizedCartoonService::CustomizedCartoonService(QMainWindow* mainWindow,
                                                    OneSevenLiveApiWrappers* apiWrapper,
                                                    OneSevenLiveConfigManager* configManager,
@@ -58,6 +65,7 @@ void CustomizedCartoonService::reloadConfig() {
     }
     media_ = parseMedia(cfg);
     rules_ = parseRules(cfg);
+    syncOverlaySceneItems();
     emit configChanged();
 }
 
@@ -79,6 +87,7 @@ bool CustomizedCartoonService::saveConfig(const json& cfg) {
     }
     media_ = parseMedia(cfg);
     rules_ = parseRules(cfg);
+    syncOverlaySceneItems();
     emit configChanged();
     return true;
 }
@@ -348,6 +357,7 @@ void CustomizedCartoonService::onStreamStatusChanged(OneSevenLiveStreamingStatus
     if (status == OneSevenLiveStreamingStatus::Streaming) {
         liveStreamID_ = QString::fromStdString(streamManager_->getCurrentLiveStreamID());
         startEngagementsIfNeeded();
+        syncOverlaySceneItems();
         pollTimer_.start();
         onPollTimer();
     } else if (status == OneSevenLiveStreamingStatus::NotStarted) {
@@ -355,6 +365,7 @@ void CustomizedCartoonService::onStreamStatusChanged(OneSevenLiveStreamingStatus
         stopEngagements();
         stopPlayback();
         liveStreamID_.clear();
+        syncOverlaySceneItems();
     }
 }
 
@@ -568,14 +579,14 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, QString
     mediaPreviewIsMedia_ = (media->type == "video");
     previewMediaId_ = mediaId;
 
-    ensureOverlaySources();
-    ensureOverlaySceneItem();
+    syncOverlaySceneItems();
     applyOverlayTransform(mediaPreviewLandscape_);
 
     if (media->type == "video") {
         if (!mediaSource_) {
             mediaPreviewing_ = false;
             previewMediaId_.clear();
+            syncOverlaySceneItems();
             outError = obs_module_text("CustomizedCartoon.Error.VideoSourceNotAvailable");
             emit previewStateChanged();
             return false;
@@ -593,6 +604,7 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, QString
         if (!imageSource_) {
             mediaPreviewing_ = false;
             previewMediaId_.clear();
+            syncOverlaySceneItems();
             outError = obs_module_text("CustomizedCartoon.Error.ImageSourceNotAvailable");
             emit previewStateChanged();
             return false;
@@ -620,6 +632,7 @@ void CustomizedCartoonService::stopMediaPreview() {
     setMediaLooping(false);
     playbackTimer_.stop();
     hideOverlaySources();
+    syncOverlaySceneItems();
     emit previewStateChanged();
 }
 
@@ -648,12 +661,13 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     positionPreviewLandscape_ = landscape;
     positionPreviewIsMedia_ = (media->type == "video");
 
-    ensureOverlaySources();
-    ensureOverlaySceneItem();
+    syncOverlaySceneItems();
     applyOverlayTransform(landscape);
 
     if (media->type == "video") {
         if (!mediaSource_) {
+            positionPreviewing_ = false;
+            syncOverlaySceneItems();
             outError = obs_module_text("CustomizedCartoon.Error.VideoSourceNotAvailable");
             return false;
         }
@@ -671,6 +685,8 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     }
 
     if (!imageSource_) {
+        positionPreviewing_ = false;
+        syncOverlaySceneItems();
         outError = obs_module_text("CustomizedCartoon.Error.ImageSourceNotAvailable");
         return false;
     }
@@ -693,6 +709,7 @@ void CustomizedCartoonService::stopPositionPreview() {
     setMediaLooping(false);
     playbackTimer_.stop();
     hideOverlaySources();
+    syncOverlaySceneItems();
 }
 
 bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QString& outError) const {
@@ -791,25 +808,90 @@ void CustomizedCartoonService::stopPlayback() {
     playingMediaId_.clear();
     playQueue_.clear();
     hideOverlaySources();
+    syncOverlaySceneItems();
+}
+
+bool CustomizedCartoonService::hasActiveRules() const {
+    for (const auto& rule : rules_) {
+        if (rule.enabled && !rule.mediaId.isEmpty()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool CustomizedCartoonService::shouldKeepOverlaySources() const {
+    if (mediaPreviewing_ || positionPreviewing_ || playing_ || !playQueue_.empty()) {
+        return true;
+    }
+    return streamManager_ &&
+           streamManager_->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::Streaming &&
+           hasActiveRules();
+}
+
+void CustomizedCartoonService::syncOverlaySceneItems() {
+    if (!shouldKeepOverlaySources()) {
+        removeOverlaySceneItems();
+        return;
+    }
+
+    ensureOverlaySources();
+    ensureOverlaySceneItem();
+}
+
+void CustomizedCartoonService::removeOverlaySceneItems() {
+    hideOverlaySources();
+
+    if (mediaItem_) {
+        obs_sceneitem_remove(mediaItem_);
+        mediaItem_ = nullptr;
+    }
+    if (imageItem_) {
+        obs_sceneitem_remove(imageItem_);
+        imageItem_ = nullptr;
+    }
+
+    obs_source_t* sceneSource = getActivePreviewSceneSource();
+    if (!sceneSource) {
+        return;
+    }
+
+    obs_scene_t* scene = obs_scene_from_source(sceneSource);
+    if (scene) {
+        if (obs_sceneitem_t* item = obs_scene_find_source(scene, kCustomizedCartoonMediaSourceName)) {
+            obs_sceneitem_remove(item);
+        }
+        if (obs_sceneitem_t* item = obs_scene_find_source(scene, kCustomizedCartoonImageSourceName)) {
+            obs_sceneitem_remove(item);
+        }
+    }
+
+    obs_source_release(sceneSource);
 }
 
 void CustomizedCartoonService::ensureOverlaySources() {
+    if (!mediaSource_) {
+        mediaSource_ = obs_get_source_by_name(kCustomizedCartoonMediaSourceName);
+    }
     if (!mediaSource_) {
         if (obs_source_get_display_name("ffmpeg_source")) {
             obs_data_t* settings = obs_data_create();
             obs_data_set_bool(settings, "looping", false);
             obs_data_set_bool(settings, "restart_on_activate", true);
             obs_data_set_bool(settings, "close_when_inactive", true);
-            mediaSource_ =
-                obs_source_create("ffmpeg_source", "17LiveCustomizedCartoonMedia", settings, nullptr);
+            mediaSource_ = obs_source_create("ffmpeg_source", kCustomizedCartoonMediaSourceName,
+                                             settings, nullptr);
             obs_data_release(settings);
         }
+    }
+    if (!imageSource_) {
+        imageSource_ = obs_get_source_by_name(kCustomizedCartoonImageSourceName);
     }
     if (!imageSource_) {
         if (obs_source_get_display_name("image_source")) {
             obs_data_t* settings = obs_data_create();
             imageSource_ =
-                obs_source_create("image_source", "17LiveCustomizedCartoonImage", settings, nullptr);
+                obs_source_create("image_source", kCustomizedCartoonImageSourceName, settings, nullptr);
             obs_data_release(settings);
         }
     }
