@@ -595,8 +595,8 @@ void DockOrchestrator::createCustomizedCartoonDock() {
     dock->setObjectName("CustomizedCartoonDock");
 
     dock->setMaximumWidth(1200);
-    dock->setMinimumSize(980, 820);
-    dock->resize(980, 820);
+    dock->setMinimumSize(465, 500);
+    dock->resize(500, 820);
 
     dock->setAllowedAreas(Qt::AllDockWidgetAreas);
     core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);

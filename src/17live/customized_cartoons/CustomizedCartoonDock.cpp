@@ -43,6 +43,24 @@ using json = nlohmann::json;
 
 namespace {
 
+constexpr int kDockOuterMargin = 10;
+constexpr int kPanelInnerMargin = 5;
+constexpr int kPanelSpacing = 5;
+constexpr int kPositionCanvasMinWidth = 210;
+constexpr int kPositionSidePanelMinWidth = 220;
+constexpr int kPositionPanelMinWidth =
+    (kPanelInnerMargin * 2) + kPositionCanvasMinWidth + kPanelSpacing + kPositionSidePanelMinWidth;
+constexpr int kDockMinWidth = kPositionPanelMinWidth + 20;
+constexpr int kRuleGiftParamLabelWidth = 100;
+constexpr int kRuleLuckyBagParamLabelWidth = 100;
+constexpr int kRuleGiftAmountSpinWidth = 100;
+constexpr int kRuleGiftCountSpinWidth = 60;
+constexpr int kRuleLuckyBagCountSpinWidth = 100;
+constexpr int kRuleStatusComboWidth = 88;
+constexpr int kRuleTypeComboChars = 10;
+constexpr int kRuleMediaComboChars = 12;
+constexpr int kRuleStatusComboChars = 4;
+
 class PositionCanvasWidget final : public QWidget {
    public:
     explicit PositionCanvasWidget(QWidget* parent = nullptr) : QWidget(parent) {
@@ -409,6 +427,7 @@ PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
     PositionSizePanelWidgets out;
     out.panel = new QFrame(parent);
     out.panel->setObjectName("subPanel");
+    out.panel->setMinimumWidth(kPositionSidePanelMinWidth);
 
     auto* sizeLayout = new QVBoxLayout(out.panel);
     sizeLayout->setContentsMargins(5, 5, 5, 5);
@@ -485,6 +504,7 @@ PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
 QFrame* createPositionTipsPanel(QWidget* parent) {
     auto* tipsPanel = new QFrame(parent);
     tipsPanel->setObjectName("subPanel");
+    tipsPanel->setMinimumWidth(kPositionSidePanelMinWidth);
     auto* tipsLayout = new QVBoxLayout(tipsPanel);
     tipsLayout->setContentsMargins(5, 5, 5, 5);
     tipsLayout->setSpacing(5);
@@ -519,18 +539,13 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
 }
 
 void CustomizedCartoonDock::setupUi() {
-    resize(980, 820);
-    setMinimumSize(300, 500);
+    resize(500, 820);
+    setMinimumSize(kDockMinWidth, 500);
 
-    auto* scrollArea = new QScrollArea(this);
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setFrameShape(QFrame::NoFrame);
-    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-
-    auto* root = new QWidget(scrollArea);
+    auto* root = new QWidget(this);
     root->setObjectName("customizedCartoonRoot");
-    root->setMinimumSize(300, 500);
+    root->setMinimumWidth(kDockMinWidth);
+    root->setMinimumHeight(500);
     root->setStyleSheet(
         "QWidget#customizedCartoonRoot {"
         "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0E1116, stop:1 #0B0D11);"
@@ -644,17 +659,17 @@ void CustomizedCartoonDock::setupUi() {
         "QPushButton#tabButton:checked {"
         "  background-color: #007AFF; color: white; border: none;"
         "}"
-        "QTabWidget#positionOrientationTabs::pane {"
+        "QTabWidget#positionOrientationTabs::pane, QTabWidget#mainSectionTabs::pane {"
         "  border: none;"
         "  border-top: 1px solid #77808F;"
         "  background: transparent;"
         "  top: 0px;"
         "  margin-top: 0px;"
         "}"
-        "QTabWidget#positionOrientationTabs QTabBar {"
+        "QTabWidget#positionOrientationTabs QTabBar, QTabWidget#mainSectionTabs QTabBar {"
         "  alignment: left;"
         "}"
-        "QTabWidget#positionOrientationTabs QTabBar::tab {"
+        "QTabWidget#positionOrientationTabs QTabBar::tab, QTabWidget#mainSectionTabs QTabBar::tab {"
         "  background-color: #12141A; color: #FFFFFF;"
         "  border: 1px solid #77808F; border-bottom: none;"
         "  border-top-left-radius: 2px; border-top-right-radius: 2px;"
@@ -662,12 +677,14 @@ void CustomizedCartoonDock::setupUi() {
         "  font-size: 14px; font-weight: 400; min-width: 56px; min-height: 28px; max-height: 28px;"
         "  padding: 3px 12px; margin-right: 4px; margin-top: 0px; margin-bottom: 0px; text-align: center;"
         "}"
-        "QTabWidget#positionOrientationTabs QTabBar::tab:selected {"
+        "QTabWidget#positionOrientationTabs QTabBar::tab:selected, "
+        "QTabWidget#mainSectionTabs QTabBar::tab:selected {"
         "  background-color: #007ACC; color: #FFFFFF; border-color: #77808F;"
         "  margin-top: 0px;"
         "  margin-bottom: 0px;"
         "}"
-        "QTabWidget#positionOrientationTabs QTabBar::tab:hover {"
+        "QTabWidget#positionOrientationTabs QTabBar::tab:hover, "
+        "QTabWidget#mainSectionTabs QTabBar::tab:hover {"
         "  background-color: #505050;"
         "}"
         "QSpinBox#posSpinBox {"
@@ -707,7 +724,6 @@ void CustomizedCartoonDock::setupUi() {
         "QListWidget#mediaList::item {"
         "  background: transparent;"
         "  border: none;"
-        "  min-width: 370px;"
         "  height: 43px;"
         "  padding: 0px;"
         "  margin: 0px 0px 5px 0px;"
@@ -728,26 +744,49 @@ void CustomizedCartoonDock::setupUi() {
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }");
 
     auto* rootLayout = new QVBoxLayout(root);
-    rootLayout->setContentsMargins(10, 10, 10, 10);
+    rootLayout->setContentsMargins(kDockOuterMargin, kDockOuterMargin, kDockOuterMargin,
+                                   kDockOuterMargin);
     rootLayout->setSpacing(10);
 
-    auto* bodyWidget = new QWidget(root);
-    bodyWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    bodyWidget->setFixedHeight(712);
-    auto* body = new QHBoxLayout(bodyWidget);
-    body->setContentsMargins(0, 0, 0, 0);
-    body->setSpacing(10);
-    rootLayout->addWidget(bodyWidget, 0);
+    auto* contentScrollArea = new QScrollArea(root);
+    contentScrollArea->setWidgetResizable(true);
+    contentScrollArea->setFrameShape(QFrame::NoFrame);
+    contentScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    contentScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    rootLayout->addWidget(contentScrollArea, 1);
 
-    auto* leftContainer = new QWidget(root);
-    leftContainer->setFixedWidth(400);
+    auto* scrollContent = new QWidget(contentScrollArea);
+    auto* scrollContentLayout = new QVBoxLayout(scrollContent);
+    scrollContentLayout->setContentsMargins(0, 0, 0, 0);
+    scrollContentLayout->setSpacing(0);
+
+    auto* mainTabWidget = new QTabWidget(scrollContent);
+    mainTabWidget->setObjectName("mainSectionTabs");
+    mainTabWidget->setUsesScrollButtons(false);
+    mainTabWidget->tabBar()->setExpanding(false);
+    mainTabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+#ifdef Q_OS_MACOS
+    mainTabWidget->setUsesScrollButtons(true);
+    mainTabWidget->tabBar()->setStyle(QStyleFactory::create("Fusion"));
+#endif
+    scrollContentLayout->addWidget(mainTabWidget);
+
+    auto* settingsPage = new QWidget(mainTabWidget);
+    auto* settingsPageLayout = new QVBoxLayout(settingsPage);
+    settingsPageLayout->setContentsMargins(0, 0, 0, 0);
+    settingsPageLayout->setSpacing(18);
+
+    auto* leftContainer = new QWidget(settingsPage);
+    leftContainer->setMinimumWidth(kPositionPanelMinWidth);
+    leftContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     auto* left = new QVBoxLayout(leftContainer);
     left->setContentsMargins(0, 0, 0, 0);
     left->setSpacing(18);
 
     auto* mediaPanel = new QFrame(leftContainer);
     mediaPanel->setObjectName("mediaPanel");
-    mediaPanel->setFixedSize(400, 269);
+    mediaPanel->setMinimumSize(kPositionPanelMinWidth, 269);
+    mediaPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     auto* mediaLayout = new QVBoxLayout(mediaPanel);
     mediaLayout->setContentsMargins(5, 5, 5, 5);
     mediaLayout->setSpacing(5);
@@ -799,7 +838,8 @@ void CustomizedCartoonDock::setupUi() {
 
     auto* positionPanel = new QFrame(leftContainer);
     positionPanel->setObjectName("panel");
-    positionPanel->setFixedSize(400, 425);
+    positionPanel->setMinimumSize(kPositionPanelMinWidth, 425);
+    positionPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     positionPanel->setLayoutDirection(Qt::LeftToRight);
     auto* positionLayout = new QVBoxLayout(positionPanel);
     positionLayout->setContentsMargins(5, 5, 5, 5);
@@ -968,11 +1008,19 @@ void CustomizedCartoonDock::setupUi() {
         }
     });
 
-    body->addWidget(leftContainer, 0, Qt::AlignTop);
+    settingsPageLayout->addWidget(leftContainer, 0);
+    mainTabWidget->addTab(settingsPage, obs_module_text("CustomizedCartoon.Tab.Settings"));
 
-    auto* rightPanel = new QFrame(root);
+    auto* rulesPage = new QWidget(mainTabWidget);
+    auto* rulesPageLayout = new QVBoxLayout(rulesPage);
+    rulesPageLayout->setContentsMargins(0, 0, 0, 0);
+    rulesPageLayout->setSpacing(0);
+
+    auto* rightPanel = new QFrame(rulesPage);
     rightPanel->setObjectName("panel");
-    rightPanel->setFixedSize(550, 712);
+    rightPanel->setMinimumWidth(kPositionPanelMinWidth);
+    rightPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    rightPanel->setMinimumHeight(712);
     auto* right = new QVBoxLayout(rightPanel);
     right->setContentsMargins(5, 5, 5, 5);
     right->setSpacing(5);
@@ -1001,7 +1049,8 @@ void CustomizedCartoonDock::setupUi() {
     addRuleButton_->setMinimumHeight(48);
     right->addWidget(addRuleButton_);
     connect(addRuleButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onAddRule);
-    body->addWidget(rightPanel, 0, Qt::AlignTop);
+    rulesPageLayout->addWidget(rightPanel, 0);
+    mainTabWidget->addTab(rulesPage, obs_module_text("CustomizedCartoon.Rules.PanelTitle"));
 
     auto* bottomRow = new QHBoxLayout();
     bottomRow->setContentsMargins(0, 0, 20, 0);
@@ -1019,7 +1068,8 @@ void CustomizedCartoonDock::setupUi() {
     bottomRow->addWidget(cancelButton_);
     bottomRow->addWidget(confirmButton_);
     bottomRow->addWidget(applyButton_);
-    rootLayout->addLayout(bottomRow);
+    scrollContentLayout->addSpacing(10);
+    scrollContentLayout->addLayout(bottomRow);
 
     connect(cancelButton_, &QPushButton::clicked, this, [this]() {
         refreshUi();
@@ -1028,8 +1078,8 @@ void CustomizedCartoonDock::setupUi() {
     connect(confirmButton_, &QPushButton::clicked, this, [this]() { setVisible(false); });
     connect(applyButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onApplyPosition);
 
-    scrollArea->setWidget(root);
-    setWidget(scrollArea);
+    contentScrollArea->setWidget(scrollContent);
+    setWidget(root);
 }
 
 void CustomizedCartoonDock::refreshUi() {
@@ -1119,7 +1169,7 @@ void CustomizedCartoonDock::refreshMediaList() {
 
             auto* item = new QListWidgetItem(mediaList_);
             item->setData(Qt::UserRole, id);
-            item->setSizeHint(QSize(370, 43));
+            item->setSizeHint(QSize(0, 43));
 
             auto* row = new QFrame(mediaList_);
             row->setObjectName("mediaRow");
@@ -1127,7 +1177,8 @@ void CustomizedCartoonDock::refreshMediaList() {
                 "QFrame#mediaRow { background-color: #272A33; border: none; border-radius: 0px; }"
                 "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; }"
                 "QPushButton { border: none; background: transparent; }");
-            row->setFixedSize(370, 43);
+            row->setMinimumHeight(43);
+            row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
             auto* rowLayout = new QHBoxLayout(row);
             rowLayout->setContentsMargins(5, 5, 5, 5);
@@ -1314,6 +1365,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             grid->setContentsMargins(0, 0, 0, 0);
             grid->setHorizontalSpacing(5);
             grid->setVerticalSpacing(5);
+            grid->setColumnStretch(1, 1);
 
             auto makeLabel = [card](const char* key) {
                 auto* l = new QLabel(obs_module_text(key), card);
@@ -1328,6 +1380,9 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             const int typeIndex =
                 engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE" ? 0 : 1;
             typeCombo->setCurrentIndex(typeIndex);
+            typeCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+            typeCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+            typeCombo->setMinimumContentsLength(kRuleTypeComboChars);
             typeCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
 
             auto* ruleLabel = new QLabel(card);
@@ -1337,11 +1392,15 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             auto* pointsSpin = new QSpinBox(card);
             pointsSpin->setRange(1, 100000000);
             pointsSpin->setValue(std::max(1, points));
-            pointsSpin->setStyleSheet("QSpinBox { font-size: 14px; color: #FFFFFF; }");
+            pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
+            pointsSpin->setStyleSheet(
+                "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
             auto* countSpin = new QSpinBox(card);
             countSpin->setRange(1, 1000000);
             countSpin->setValue(std::max(1, count));
-            countSpin->setStyleSheet("QSpinBox { font-size: 14px; color: #FFFFFF; }");
+            countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
+            countSpin->setStyleSheet(
+                "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
 
             auto* mediaCombo = new QComboBox(card);
             for (const auto& m : mediaOptions) {
@@ -1351,6 +1410,9 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             if (mediaIndex >= 0) {
                 mediaCombo->setCurrentIndex(mediaIndex);
             }
+            mediaCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+            mediaCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+            mediaCombo->setMinimumContentsLength(kRuleMediaComboChars);
             mediaCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
 
             auto* repeatCheck = new QCheckBox(card);
@@ -1362,20 +1424,31 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             statusCombo->addItem(obs_module_text("CustomizedCartoon.Rules.Status.Active"), true);
             statusCombo->addItem(obs_module_text("CustomizedCartoon.Rules.Status.Inactive"), false);
             statusCombo->setCurrentIndex(enabled ? 0 : 1);
+            statusCombo->setFixedWidth(kRuleStatusComboWidth);
+            statusCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+            statusCombo->setMinimumContentsLength(kRuleStatusComboChars);
             statusCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
 
             auto* paramsRow = new QHBoxLayout();
             paramsRow->setContentsMargins(0, 0, 0, 0);
-            paramsRow->setSpacing(5);
+            paramsRow->setSpacing(2);
+            paramsRow->addStretch(1);
             auto* paramXLabel = new QLabel(card);
-            paramXLabel->setStyleSheet("QLabel { font-size: 14px; color: #FFFFFF; }");
+            paramXLabel->setFixedWidth(kRuleGiftParamLabelWidth);
+            paramXLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            paramXLabel->setStyleSheet(
+                "QLabel { font-size: 14px; color: #FFFFFF; padding: 0px; margin: 0px; }");
             auto* paramYLabel = new QLabel(card);
-            paramYLabel->setStyleSheet("QLabel { font-size: 14px; color: #FFFFFF; }");
+            paramYLabel->setFixedWidth(kRuleGiftParamLabelWidth);
+            paramYLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            paramYLabel->setStyleSheet(
+                "QLabel { font-size: 14px; color: #FFFFFF; padding: 0px; margin: 0px; }");
             paramsRow->addWidget(paramXLabel);
-            paramsRow->addWidget(pointsSpin, 1);
+            paramsRow->addWidget(pointsSpin, 0);
             paramsRow->addWidget(paramYLabel);
-            paramsRow->addWidget(countSpin, 1);
+            paramsRow->addWidget(countSpin, 0);
             auto* paramsWrap = new QWidget(card);
+            paramsWrap->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
             paramsWrap->setLayout(paramsRow);
 
             auto* statusLabel = new QLabel(obs_module_text("CustomizedCartoon.Rules.Field.Status"), card);
@@ -1386,15 +1459,21 @@ void CustomizedCartoonDock::rebuildRulesUi() {
                 if (t == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
                     ruleLabel->setText(obs_module_text("CustomizedCartoon.Rules.Desc.LuckyBag"));
                     paramXLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.LuckyBagX"));
+                    paramXLabel->setFixedWidth(kRuleLuckyBagParamLabelWidth);
+                    countSpin->setFixedWidth(kRuleLuckyBagCountSpinWidth);
                     pointsSpin->hide();
                     paramYLabel->hide();
                     countSpin->show();
                 } else {
                     ruleLabel->setText(obs_module_text("CustomizedCartoon.Rules.Desc.Gift"));
                     paramXLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.GiftX"));
+                    paramXLabel->setFixedWidth(kRuleGiftParamLabelWidth);
+                    pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
                     pointsSpin->show();
                     paramYLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.GiftY"));
+                    paramYLabel->setFixedWidth(kRuleGiftParamLabelWidth);
                     paramYLabel->show();
+                    countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
                     countSpin->show();
                 }
             };
@@ -1481,14 +1560,14 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             auto* paramSpacer = new QWidget(card);
             paramSpacer->setFixedWidth(1);
             grid->addWidget(paramSpacer, 2, 0);
-            grid->addWidget(paramsWrap, 2, 1);
+            grid->addWidget(paramsWrap, 2, 1, Qt::AlignLeft);
 
             grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Media"), 3, 0);
             grid->addWidget(mediaCombo, 3, 1);
 
             auto* bottomControls = new QHBoxLayout();
             bottomControls->setContentsMargins(0, 0, 0, 0);
-            bottomControls->setSpacing(5);
+            bottomControls->setSpacing(4);
             bottomControls->addWidget(repeatCheck);
             bottomControls->addStretch(1);
             bottomControls->addWidget(statusLabel);
