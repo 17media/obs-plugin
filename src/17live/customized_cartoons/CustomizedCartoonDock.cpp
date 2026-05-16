@@ -93,10 +93,6 @@ class PositionCanvasWidget final : public QWidget {
         p.fillRect(QWidget::rect(), QColor(0x12, 0x15, 0x1B));
 
         const QRectF area = contentRect();
-        p.setPen(QPen(QColor(0x2A, 0x2F, 0x38), 1.0));
-        p.setBrush(Qt::NoBrush);
-        p.drawRect(area);
-
         drawGrid(p, area);
         drawRulers(p, area);
         drawSelection(p, area);
@@ -200,8 +196,8 @@ class PositionCanvasWidget final : public QWidget {
     QRectF contentRect() const {
         QRectF area;
         if (canvasH_ > canvasW_) {
-            // Portrait preview keeps a narrower grid so the bottom ruler and text fit.
-            area = QWidget::rect().adjusted(34, 6, -36, -24);
+            // Portrait preview shifts slightly right/down while keeping bottom space for the ruler label.
+            area = QWidget::rect().adjusted(44, 22, -30, -17);
         } else {
             // Landscape preview moves upward and leaves room for the bottom ruler/label.
             area = QWidget::rect().adjusted(56, 2, -56, -30);
@@ -294,6 +290,10 @@ class PositionCanvasWidget final : public QWidget {
     }
 
     void drawGrid(QPainter& p, const QRectF& area) {
+        p.setPen(QPen(QColor(0x2A, 0x2F, 0x38), 1.0));
+        p.setBrush(Qt::NoBrush);
+        p.drawRect(canvasRectInWidget(area));
+
         p.setPen(Qt::NoPen);
         p.setBrush(QColor(0x3A, 0x40, 0x4B));
         const int step = 60;
@@ -363,7 +363,7 @@ class PositionCanvasWidget final : public QWidget {
         p.setBrush(QColor(0x2A, 0x6A, 0xFF, 77));
         p.drawRect(r);
 
-        const double h = 6.0;
+        const double h = 4.0;
         const QColor handleFill(0x00, 0x7A, 0xFF);
         p.setPen(Qt::NoPen);
         p.setBrush(handleFill);
@@ -950,7 +950,7 @@ void CustomizedCartoonDock::setupUi() {
     auto* portraitRangeLabel = new QLabel(portraitPage);
     portraitRangeLabel->setObjectName("positionCommentLabel");
     portraitRangeLabel->setFixedHeight(21);
-    portraitRangeLabel->setAlignment(Qt::AlignCenter);
+    portraitRangeLabel->setAlignment(Qt::AlignLeft);
     portraitPageLayout->addWidget(portraitRangeLabel);
 
     auto* portraitBody = new QHBoxLayout();
@@ -958,10 +958,12 @@ void CustomizedCartoonDock::setupUi() {
     portraitBody->setSpacing(5);
 
     auto* portraitCanvas = new PositionCanvasWidget(portraitPage);
-    portraitCanvas->setFixedSize(210, 304);
+    portraitCanvas->setFixedWidth(210);
+    portraitCanvas->setMinimumHeight(310);
+    portraitCanvas->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     portraitCanvas->setCanvasSize(720, 1280);
     portraitCanvas->setRect(QRect(200, 300, 500, 500));
-    portraitBody->addWidget(portraitCanvas, 0, Qt::AlignTop);
+    portraitBody->addWidget(portraitCanvas);
 
     auto portraitInputs = createPositionSizePanel(portraitPage);
     auto* portraitTipsPanel = createPositionTipsPanel(portraitPage);
@@ -985,7 +987,7 @@ void CustomizedCartoonDock::setupUi() {
     auto* landscapeRangeLabel = new QLabel(landscapePage);
     landscapeRangeLabel->setObjectName("positionCommentLabel");
     landscapeRangeLabel->setFixedHeight(21);
-    landscapeRangeLabel->setAlignment(Qt::AlignCenter);
+    landscapeRangeLabel->setAlignment(Qt::AlignLeft);
     landscapePageLayout->addWidget(landscapeRangeLabel);
 
     auto* landscapeBody = new QVBoxLayout();
