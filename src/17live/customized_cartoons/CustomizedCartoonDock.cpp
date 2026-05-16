@@ -911,11 +911,12 @@ void CustomizedCartoonDock::setupUi() {
 
     auto bindCanvasAndInputs = [this](PositionCanvasWidget* canvas, const PositionSizePanelWidgets& inputs,
                                       int canvasW, int canvasH) {
-        canvas->setOnRectChanged([inputs, canvasW, canvasH](const QRect& r) {
+        canvas->setOnRectChanged([this, inputs, canvasW, canvasH](const QRect& r) {
             applyPositionInputs(inputs, r, canvasW, canvasH);
+            syncPreviewDraftTransform();
         });
 
-        auto syncCanvasFromInputs = [canvas, inputs, canvasW, canvasH]() {
+        auto syncCanvasFromInputs = [this, canvas, inputs, canvasW, canvasH]() {
             if (!inputs.posX || !inputs.posY || !inputs.width || !inputs.height) {
                 return;
             }
@@ -923,6 +924,7 @@ void CustomizedCartoonDock::setupUi() {
                                QRect(inputs.posX->value(), inputs.posY->value(), inputs.width->value(),
                                      inputs.height->value()),
                                canvasW, canvasH);
+            syncPreviewDraftTransform();
         };
         connect(inputs.posX, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
             syncCanvasFromInputs();
@@ -1281,7 +1283,8 @@ void CustomizedCartoonDock::refreshMediaList() {
 
                 QString error;
                 const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
-                if (!service_->startMediaPreview(id, landscape, error)) {
+                const auto draft = buildCurrentPositionDraft(landscape);
+                if (!service_->startMediaPreview(id, landscape, &draft, error)) {
                     QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
                                          QMessageBox::Ok);
                 }
@@ -1782,9 +1785,47 @@ void CustomizedCartoonDock::onOrientationChanged(int) {
         canvas->setCanvasSize(landscape ? 1280 : 720, landscape ? 720 : 1280);
     }
     refreshPositionUi();
-    if (service_) {
-        service_->applyOverlayTransformForOrientation(landscape);
+    syncPreviewDraftTransform();
+}
+
+nlohmann::json CustomizedCartoonDock::buildCurrentPositionDraft(bool landscape) const {
+    nlohmann::json cfg = service_ ? service_->getConfigSnapshot() : nlohmann::json::object();
+    if (!cfg.contains("position") || !cfg["position"].is_object()) {
+        cfg["position"] = nlohmann::json::object();
     }
+
+    const char* key = landscape ? "landscape" : "portrait";
+    nlohmann::json t = cfg["position"].contains(key) && cfg["position"][key].is_object() ? cfg["position"][key]
+                                                                                          : nlohmann::json::object();
+
+    const int canvasW = landscape ? 1280 : 720;
+    const int canvasH = landscape ? 720 : 1280;
+    const QRect normalized = normalizePositionRect(
+        QRect(posXSpin_ ? posXSpin_->value() : 200, posYSpin_ ? posYSpin_->value() : 300,
+              widthSpin_ ? widthSpin_->value() : 500, heightSpin_ ? heightSpin_->value() : 500),
+        canvasW, canvasH);
+
+    t["x"] = (double)normalized.x();
+    t["y"] = (double)normalized.y();
+    t["boundsType"] = (int)OBS_BOUNDS_STRETCH;
+    t["boundsAlignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    t["alignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    t["boundsW"] = (double)normalized.width();
+    t["boundsH"] = (double)normalized.height();
+    t["cropToBounds"] = true;
+    if (!t.contains("scaleX")) t["scaleX"] = 1.0;
+    if (!t.contains("scaleY")) t["scaleY"] = 1.0;
+    if (!t.contains("rot")) t["rot"] = 0.0;
+    return t;
+}
+
+void CustomizedCartoonDock::syncPreviewDraftTransform() {
+    if (!service_ || (!service_->isMediaPreviewing() && !service_->isPositionPreviewing())) {
+        return;
+    }
+    const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
+    const auto draft = buildCurrentPositionDraft(landscape);
+    service_->applyOverlayTransformForOrientation(landscape, &draft);
 }
 
 void CustomizedCartoonDock::onApplyPosition() {
@@ -1797,28 +1838,7 @@ void CustomizedCartoonDock::onApplyPosition() {
     }
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     const char* key = landscape ? "landscape" : "portrait";
-    const int canvasW = landscape ? 1280 : 720;
-    const int canvasH = landscape ? 720 : 1280;
-    const QRect normalized = normalizePositionRect(
-        QRect(posXSpin_ ? posXSpin_->value() : 200, posYSpin_ ? posYSpin_->value() : 300,
-              widthSpin_ ? widthSpin_->value() : 500, heightSpin_ ? heightSpin_->value() : 500),
-        canvasW, canvasH);
-    applyPositionInputs(PositionSizePanelWidgets{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_},
-                        normalized, canvasW, canvasH);
-    json t = cfg["position"].contains(key) && cfg["position"][key].is_object() ? cfg["position"][key]
-                                                                               : json::object();
-    t["x"] = (double)normalized.x();
-    t["y"] = (double)normalized.y();
-    t["boundsType"] = (int)OBS_BOUNDS_STRETCH;
-    t["boundsAlignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    t["alignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    t["boundsW"] = (double)normalized.width();
-    t["boundsH"] = (double)normalized.height();
-    t["cropToBounds"] = true;
-    if (!t.contains("scaleX")) t["scaleX"] = 1.0;
-    if (!t.contains("scaleY")) t["scaleY"] = 1.0;
-    if (!t.contains("rot")) t["rot"] = 0.0;
-    cfg["position"][key] = std::move(t);
+    cfg["position"][key] = buildCurrentPositionDraft(landscape);
     service_->saveConfig(cfg);
     service_->applyOverlayTransformForOrientation(landscape);
 }
@@ -1863,7 +1883,8 @@ void CustomizedCartoonDock::onStartPositionPreview() {
     }
     QString error;
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
-    if (!service_->startPositionPreview(id, landscape, error)) {
+    const auto draft = buildCurrentPositionDraft(landscape);
+    if (!service_->startPositionPreview(id, landscape, &draft, error)) {
         QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
                              QMessageBox::Ok);
         return;

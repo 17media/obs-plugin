@@ -562,7 +562,7 @@ void CustomizedCartoonService::previewPlayAll() {
 }
 
 bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool landscape,
-                                                 QString& outError) {
+                                                 const json* previewTransform, QString& outError) {
     outError.clear();
     MediaItem* media = findMediaById(mediaId);
     if (!media) {
@@ -591,7 +591,7 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
     }
 
     syncOverlaySceneItems();
-    applyOverlayTransform(mediaPreviewLandscape_);
+    applyOverlayTransform(mediaPreviewLandscape_, previewTransform);
 
     if (media->type == "video") {
         if (!mediaSource_) {
@@ -654,8 +654,10 @@ bool CustomizedCartoonService::isMediaPreviewing() const { return mediaPreviewin
 
 QString CustomizedCartoonService::previewingMediaId() const { return previewMediaId_; }
 
+bool CustomizedCartoonService::isPositionPreviewing() const { return positionPreviewing_; }
+
 bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool landscape,
-                                                    QString& outError) {
+                                                    const json* previewTransform, QString& outError) {
     outError.clear();
     MediaItem* media = findMediaById(mediaId);
     if (!media) {
@@ -681,7 +683,7 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     }
 
     syncOverlaySceneItems();
-    applyOverlayTransform(landscape);
+    applyOverlayTransform(landscape, previewTransform);
 
     if (media->type == "video") {
         if (!mediaSource_) {
@@ -784,8 +786,9 @@ bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QS
     return true;
 }
 
-void CustomizedCartoonService::applyOverlayTransformForOrientation(bool landscape) {
-    applyOverlayTransform(landscape);
+void CustomizedCartoonService::applyOverlayTransformForOrientation(bool landscape,
+                                                                   const json* previewTransform) {
+    applyOverlayTransform(landscape, previewTransform);
 }
 
 std::vector<OneSevenLiveEngagementProgress> CustomizedCartoonService::getProgressSnapshot() const {
@@ -1056,7 +1059,7 @@ void CustomizedCartoonService::ensureOverlaySceneItem() {
     obs_source_release(sceneSource);
 }
 
-void CustomizedCartoonService::applyOverlayTransform(bool landscape) {
+void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json* previewTransform) {
     bool useLandscapeConfig = landscape;
     double actualCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
     double actualCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
@@ -1067,15 +1070,20 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape) {
         actualCanvasH = static_cast<double>(ovi.base_height);
     }
 
-    json cfg = getConfigSnapshot();
-    if (!cfg.contains("position") || !cfg["position"].is_object()) {
-        return;
+    json transform;
+    if (previewTransform) {
+        transform = *previewTransform;
+    } else {
+        json cfg = getConfigSnapshot();
+        if (!cfg.contains("position") || !cfg["position"].is_object()) {
+            return;
+        }
+        const char* key = useLandscapeConfig ? "landscape" : "portrait";
+        if (!cfg["position"].contains(key) || !cfg["position"][key].is_object()) {
+            return;
+        }
+        transform = cfg["position"][key];
     }
-    const char* key = useLandscapeConfig ? "landscape" : "portrait";
-    if (!cfg["position"].contains(key) || !cfg["position"][key].is_object()) {
-        return;
-    }
-    const auto& t = cfg["position"][key];
 
     const double referenceCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
     const double referenceCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
@@ -1083,17 +1091,19 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape) {
     const double scaleY = referenceCanvasH > 0.0 ? actualCanvasH / referenceCanvasH : 1.0;
 
     obs_transform_info ti{};
-    ti.pos.x = static_cast<float>(t.value("x", 0.0) * scaleX);
-    ti.pos.y = static_cast<float>(t.value("y", 0.0) * scaleY);
-    ti.scale.x = t.value("scaleX", 1.0);
-    ti.scale.y = t.value("scaleY", 1.0);
-    ti.rot = t.value("rot", 0.0);
-    ti.alignment = t.value("alignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
-    ti.bounds_type = static_cast<obs_bounds_type>(t.value("boundsType", (int)OBS_BOUNDS_NONE));
-    ti.bounds_alignment = t.value("boundsAlignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
-    ti.bounds.x = static_cast<float>(t.value("boundsW", 0.0) * scaleX);
-    ti.bounds.y = static_cast<float>(t.value("boundsH", 0.0) * scaleY);
-    ti.crop_to_bounds = t.value("cropToBounds", false);
+    ti.pos.x = static_cast<float>(transform.value("x", 0.0) * scaleX);
+    ti.pos.y = static_cast<float>(transform.value("y", 0.0) * scaleY);
+    ti.scale.x = transform.value("scaleX", 1.0);
+    ti.scale.y = transform.value("scaleY", 1.0);
+    ti.rot = transform.value("rot", 0.0);
+    ti.alignment = transform.value("alignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
+    ti.bounds_type =
+        static_cast<obs_bounds_type>(transform.value("boundsType", (int)OBS_BOUNDS_NONE));
+    ti.bounds_alignment =
+        transform.value("boundsAlignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
+    ti.bounds.x = static_cast<float>(transform.value("boundsW", 0.0) * scaleX);
+    ti.bounds.y = static_cast<float>(transform.value("boundsH", 0.0) * scaleY);
+    ti.crop_to_bounds = transform.value("cropToBounds", false);
 
     if (mediaItem_) {
         obs_sceneitem_set_info2(mediaItem_, &ti);

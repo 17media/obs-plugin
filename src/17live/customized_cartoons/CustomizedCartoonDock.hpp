@@ -2,6 +2,7 @@
 
 #include <QDockWidget>
 #include <QPointer>
+#include <nlohmann/json.hpp>
 
 class QListWidget;
 class QTableWidget;
@@ -44,6 +45,8 @@ class CustomizedCartoonDock : public QDockWidget {
     void saveRulesToConfig();
     void refreshPositionUi();
     void rebuildRulesUi();
+    nlohmann::json buildCurrentPositionDraft(bool landscape) const;
+    void syncPreviewDraftTransform();
 
     CustomizedCartoonService* service_{nullptr};
 

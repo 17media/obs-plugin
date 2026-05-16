@@ -36,14 +36,17 @@ class CustomizedCartoonService : public QObject {
     bool deleteMedia(const QString& mediaId, QString& outError);
 
     void previewPlayAll();
-    bool startMediaPreview(const QString& mediaId, bool landscape, QString& outError);
+    bool startMediaPreview(const QString& mediaId, bool landscape, const nlohmann::json* previewTransform,
+                           QString& outError);
     void stopMediaPreview();
     bool isMediaPreviewing() const;
     QString previewingMediaId() const;
-    bool startPositionPreview(const QString& mediaId, bool landscape, QString& outError);
+    bool startPositionPreview(const QString& mediaId, bool landscape, const nlohmann::json* previewTransform,
+                              QString& outError);
     void stopPositionPreview();
+    bool isPositionPreviewing() const;
     bool getCurrentOverlayTransform(nlohmann::json& outTransform, QString& outError) const;
-    void applyOverlayTransformForOrientation(bool landscape);
+    void applyOverlayTransformForOrientation(bool landscape, const nlohmann::json* previewTransform = nullptr);
     std::vector<OneSevenLiveEngagementProgress> getProgressSnapshot() const;
 
    signals:
@@ -111,7 +114,7 @@ class CustomizedCartoonService : public QObject {
     obs_source_t* getActivePreviewSceneSource() const;
     bool applyPreviewCanvas(bool landscape, QString& outError);
     void restorePreviewCanvas();
-    void applyOverlayTransform(bool landscape);
+    void applyOverlayTransform(bool landscape, const nlohmann::json* previewTransform = nullptr);
     void showOverlaySource(bool media);
     void hideOverlaySources();
     void setMediaLooping(bool looping);
