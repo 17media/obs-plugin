@@ -1179,6 +1179,7 @@ void CustomizedCartoonDock::refreshMediaList() {
     mediaList_->clear();
     int videoCount = 0;
     const QIcon videoIcon(":/resources/video.svg");
+    const QIcon imageIcon(":/resources/image.svg");
     const QIcon playIcon(":/resources/play.svg");
     const QIcon stopIcon(":/resources/stop.svg");
     const QIcon trashIcon(":/resources/trash-red.svg");
@@ -1225,7 +1226,8 @@ void CustomizedCartoonDock::refreshMediaList() {
             rowLayout->setSpacing(5);
 
             auto* iconLabel = new QLabel(row);
-            iconLabel->setPixmap(videoIcon.pixmap(30, 24));
+            const QIcon& mediaIcon = type == "image" ? imageIcon : videoIcon;
+            iconLabel->setPixmap(mediaIcon.pixmap(30, 24));
             iconLabel->setFixedSize(30, 24);
 
             auto* nameLabel = new QLabel(name, row);
