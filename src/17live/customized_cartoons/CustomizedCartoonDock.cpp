@@ -1177,7 +1177,7 @@ void CustomizedCartoonDock::refreshMediaList() {
     const json cfg = service_->getConfigSnapshot();
 
     mediaList_->clear();
-    int videoCount = 0;
+    int mediaCount = 0;
     const QIcon videoIcon(":/resources/video.svg");
     const QIcon imageIcon(":/resources/image.svg");
     const QIcon playIcon(":/resources/play.svg");
@@ -1204,9 +1204,7 @@ void CustomizedCartoonDock::refreshMediaList() {
             if (id.isEmpty()) {
                 continue;
             }
-            if (type == "video") {
-                videoCount++;
-            }
+            mediaCount++;
 
             auto* item = new QListWidgetItem(mediaList_);
             item->setData(Qt::UserRole, id);
@@ -1304,7 +1302,7 @@ void CustomizedCartoonDock::refreshMediaList() {
 
     if (mediaCountLabel_) {
         mediaCountLabel_->setText(
-            QString(obs_module_text("CustomizedCartoon.Media.SelectedVideoCount")).arg(videoCount));
+            QString(obs_module_text("CustomizedCartoon.Media.SelectedVideoCount")).arg(mediaCount));
     }
     if (mediaList_->count() > 0 && mediaList_->currentRow() < 0) {
         mediaList_->setCurrentRow(0);
