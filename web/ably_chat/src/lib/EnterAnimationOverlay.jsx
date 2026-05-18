@@ -274,7 +274,7 @@ function getBadgeRenderConfig(animationId) {
       textColor: '#ffffff',
     };
   }
-  if (animationId >= 7 && animationId <= 10) {
+  if ((animationId >= 7 && animationId <= 10) || animationId === 15) {
     return {
       ...defaultCfg,
       bg: 'rgb(21, 144, 63)',
