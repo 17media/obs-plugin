@@ -48,6 +48,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void updateUIValues();
     void handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult &result);
     void maybePromptObsAutoAdjust(bool allowSilentApply);
+    bool ensureStreamingAudioEncoderForGroupCall();
 
     /**
      * @brief Change event during streaming

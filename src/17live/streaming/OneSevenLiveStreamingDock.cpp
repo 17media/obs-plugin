@@ -22,12 +22,12 @@
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
+#include <cstring>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveCustomEventDialog.hpp"
 #include "OneSevenLiveLoadRoomInfoWorker.hpp"
-#include "OneSevenLiveStreamingDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "moc_OneSevenLiveStreamingDock.cpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
@@ -311,7 +311,9 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
 
                     msgBox.exec();
                     if (msgBox.clickedButton() == yesButton) {
-                        streamManager->startOBSStreaming();
+                        if (ensureStreamingAudioEncoderForGroupCall()) {
+                            streamManager->startOBSStreaming();
+                        }
                     }
                 } else {
                     QString msg = error;
@@ -1623,7 +1625,9 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
         msgBox.exec();
         if (msgBox.clickedButton() == yesButton) {
             // Start OBS streaming
-            streamManager->startOBSStreaming();
+            if (ensureStreamingAudioEncoderForGroupCall()) {
+                streamManager->startOBSStreaming();
+            }
         }
     }
 }
@@ -1717,6 +1721,175 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
         OneSevenLiveObsAutoAdjustDialog::ShowError(
             this, obs_module_text("Live.Settings.AutoAdjust.Error"));
     }
+}
+
+static bool EncoderTypeExists(const char *encoderId) {
+    if (!encoderId || !*encoderId) {
+        return false;
+    }
+    return obs_get_encoder_codec(encoderId) != nullptr;
+}
+
+static QString EncoderDisplayNameOrId(const char *encoderId) {
+    if (!encoderId || !*encoderId) {
+        return QString();
+    }
+    const char *name = obs_encoder_get_display_name(encoderId);
+    return QString::fromUtf8(name ? name : encoderId);
+}
+
+static std::string GetStreamingAudioCodecFromProfile(config_t *profile) {
+    if (!profile) {
+        return {};
+    }
+
+    const char *mode = config_get_string(profile, "Output", "Mode");
+    const bool advanced = mode && std::strcmp(mode, "Advanced") == 0;
+
+    if (!advanced) {
+        const char *codec = config_get_string(profile, "SimpleOutput", "StreamAudioEncoder");
+        return codec ? codec : "";
+    }
+
+    const char *enc = config_get_string(profile, "AdvOut", "AudioEncoder");
+    if (!enc || !*enc) {
+        return {};
+    }
+    const char *codec = obs_get_encoder_codec(enc);
+    return codec ? codec : "";
+}
+
+static QString GetStreamingAudioEncoderDisplayFromProfile(config_t *profile) {
+    if (!profile) {
+        return QString();
+    }
+
+    const char *mode = config_get_string(profile, "Output", "Mode");
+    const bool advanced = mode && std::strcmp(mode, "Advanced") == 0;
+
+    if (!advanced) {
+        const char *codec = config_get_string(profile, "SimpleOutput", "StreamAudioEncoder");
+        if (!codec || !*codec) {
+            return QString();
+        }
+        if (std::strcmp(codec, "opus") == 0) {
+            return QStringLiteral("Opus");
+        }
+        if (std::strcmp(codec, "aac") == 0) {
+            return QStringLiteral("AAC");
+        }
+        return QString::fromUtf8(codec);
+    }
+
+    const char *enc = config_get_string(profile, "AdvOut", "AudioEncoder");
+    return EncoderDisplayNameOrId(enc);
+}
+
+static bool SetStreamingAudioEncoderToCodec(config_t *profile, const char *targetCodec) {
+    if (!profile || !targetCodec || !*targetCodec) {
+        return false;
+    }
+
+    const char *mode = config_get_string(profile, "Output", "Mode");
+    const bool advanced = mode && std::strcmp(mode, "Advanced") == 0;
+
+    if (!advanced) {
+        config_set_string(profile, "SimpleOutput", "StreamAudioEncoder", targetCodec);
+        return true;
+    }
+
+    if (std::strcmp(targetCodec, "opus") == 0) {
+        if (!EncoderTypeExists("ffmpeg_opus")) {
+            return false;
+        }
+        config_set_string(profile, "AdvOut", "AudioEncoder", "ffmpeg_opus");
+        return true;
+    }
+
+    if (std::strcmp(targetCodec, "aac") == 0) {
+        const char *enc = "ffmpeg_aac";
+        if (EncoderTypeExists("CoreAudio_AAC")) {
+            enc = "CoreAudio_AAC";
+        } else if (EncoderTypeExists("libfdk_aac")) {
+            enc = "libfdk_aac";
+        } else if (!EncoderTypeExists(enc)) {
+            return false;
+        }
+        config_set_string(profile, "AdvOut", "AudioEncoder", enc);
+        return true;
+    }
+
+    return false;
+}
+
+bool OneSevenLiveStreamingDock::ensureStreamingAudioEncoderForGroupCall() {
+    const bool groupCallEnabled = GroupCallCheck && GroupCallCheck->isChecked();
+
+    config_t *profile = obs_frontend_get_profile_config();
+    if (!profile) {
+        return true;
+    }
+
+    const std::string currentCodec = GetStreamingAudioCodecFromProfile(profile);
+    const QString currentEncoderName = GetStreamingAudioEncoderDisplayFromProfile(profile);
+
+    if (groupCallEnabled) {
+        if (currentCodec == "opus") {
+            return true;
+        }
+
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle(obs_module_text("Live.Settings.AudioCodec.Title"));
+        msgBox.setText(QString(obs_module_text("Live.Settings.AudioCodec.GroupCall.Msg"))
+                           .arg(currentEncoderName.isEmpty() ? QStringLiteral("AAC")
+                                                            : currentEncoderName,
+                                QStringLiteral("FFmpeg Opus")));
+        QPushButton *yesButton =
+            msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
+        msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
+        msgBox.setDefaultButton(yesButton);
+
+        msgBox.exec();
+        if (msgBox.clickedButton() != yesButton) {
+            return false;
+        }
+
+        if (!SetStreamingAudioEncoderToCodec(profile, "opus")) {
+            QMessageBox::warning(this, obs_module_text("Live.Settings.Warning"),
+                                 obs_module_text("Live.Settings.AudioCodec.SwitchFailed"));
+            return false;
+        }
+
+        obs_frontend_save();
+        return true;
+    }
+
+    if (currentCodec != "opus") {
+        return true;
+    }
+
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle(obs_module_text("Live.Settings.AudioCodec.Title"));
+    msgBox.setText(QString(obs_module_text("Live.Settings.AudioCodec.NonGroupCall.Msg"))
+                       .arg(currentEncoderName.isEmpty() ? QStringLiteral("FFmpeg Opus")
+                                                        : currentEncoderName,
+                            QStringLiteral("AAC")));
+    QPushButton *yesButton =
+        msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
+    msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
+    msgBox.setDefaultButton(yesButton);
+
+    msgBox.exec();
+    if (msgBox.clickedButton() == yesButton) {
+        if (!SetStreamingAudioEncoderToCodec(profile, "aac")) {
+            QMessageBox::warning(this, obs_module_text("Live.Settings.Warning"),
+                                 obs_module_text("Live.Settings.AudioCodec.SwitchFailed"));
+        } else {
+            obs_frontend_save();
+        }
+    }
+
+    return true;
 }
 
 void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
