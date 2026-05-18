@@ -17,6 +17,7 @@ import {
   MsgType_LABOR_RECEIVE_REWARD,
   MsgType_ENTER_ANIMATION,
 } from '@/lib/constants';
+import { getWebpDurationMs } from '@/lib/webpDuration';
 import { getEnterAnimationFiles, getGiftByID, getI18nConfig, getRoomInfo } from '../api';
 
 export class OneSevenLivePlatform extends BasePlatform {
@@ -30,6 +31,42 @@ export class OneSevenLivePlatform extends BasePlatform {
     this.userID = '';
     this.devEnterAnimationTimer = null;
     this.devEnterAnimationIndex = 0;
+  }
+
+  resolveDevEnterAnimationAssetSrc(content) {
+    const raw =
+      content?.getIn?.(['enterAnimation', 'assetSrc']) ||
+      content?.getIn?.(['enterAnimation', 'localSrc']) ||
+      content?.getIn?.(['enterAnimation', 'src']) ||
+      content?.getIn?.(['enterAnimation', 'asset']) ||
+      content?.getIn?.(['enterAnimation', 'fileName']) ||
+      content?.getIn?.(['enterAnimation', 'file']) ||
+      '';
+
+    if (raw) {
+      if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) return raw;
+      return `/enter_animation/${raw}`;
+    }
+
+    const animationId = Number(
+      content?.getIn?.(['enterAnimation', 'animationId']) ||
+      content?.getIn?.(['enterAnimation', 'animation']) ||
+      0
+    );
+
+    if (animationId === 11) return '/enter_animation/vip_goin_s.webp';
+    if (animationId === 12) return '/enter_animation/vip_goin_m.webp';
+    if (animationId === 13) return '/enter_animation/vip_goin_l.webp';
+    return '';
+  }
+
+  async getDevEnterAnimationIntervalMs(unified) {
+    const fallbackHoldMs = Number(unified?.content?.getIn?.(['enterAnimation', 'durationMs']) || 1300);
+    const assetSrc = this.resolveDevEnterAnimationAssetSrc(unified?.content);
+    const actualHoldMs = (await getWebpDurationMs(assetSrc)) || fallbackHoldMs;
+
+    // Match overlay timing: 1000ms enter + hold duration + 300ms exit, plus a small buffer.
+    return 1000 + Number(actualHoldMs || fallbackHoldMs) + 300 + 200;
   }
 
   async connect(config = {}) {
@@ -75,7 +112,17 @@ export class OneSevenLivePlatform extends BasePlatform {
           this.enqueueMessage(unified);
         }
 
-        const enterRaws = await loadDevEnterAnimationMessages();
+        const enterRaws0 = await loadDevEnterAnimationMessages();
+        const enterRaws = Array.from({ length: 17 }, (_, index) => index + 1)
+          .map((animationId) =>
+            enterRaws0.find((raw) => {
+              const rawAnimationId = Number(
+                raw?.subscriberEnterMsg?.animation || raw?.enterAnimationMsg?.animation || 0
+              );
+              return rawAnimationId === animationId;
+            })
+          )
+          .filter(Boolean);
         if (enterRaws && enterRaws.length) {
           this.devEnterAnimationIndex = 0;
           if (this.devEnterAnimationTimer) {
@@ -93,8 +140,8 @@ export class OneSevenLivePlatform extends BasePlatform {
             if (unified) {
               unified.timestamp = Date.now();
               this.enqueueMessage(unified);
-              const dur = unified?.content?.getIn?.(['enterAnimation', 'durationMs']) || 1300;
-              this.devEnterAnimationTimer = setTimeout(tick, 1000 + Number(dur || 1300) + 300);
+              const intervalMs = await this.getDevEnterAnimationIntervalMs(unified);
+              this.devEnterAnimationTimer = setTimeout(tick, intervalMs);
             } else {
               this.devEnterAnimationTimer = setTimeout(tick, 500);
             }
