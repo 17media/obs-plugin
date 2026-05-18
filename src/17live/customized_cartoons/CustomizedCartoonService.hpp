@@ -10,6 +10,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <mutex>
 
 #include "../api/OneSevenLiveModels.hpp"
 
