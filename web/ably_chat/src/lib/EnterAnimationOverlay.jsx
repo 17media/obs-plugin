@@ -229,7 +229,7 @@ function getBadgeRenderConfig(animationId) {
       textColor: '#ffffff',
       marqueeBg: 'rgb(255, 138, 212)',
       marqueeTextColor: '#ffffff',
-      badgeIconSrc: '/enter_animation/shield.png',
+      badgeIconSrc: '/enter_animation/ic_fill_guardian.svg',
     };
   }
   if (animationId === 2) {
