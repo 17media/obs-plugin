@@ -225,7 +225,7 @@ function getBadgeRenderConfig(animationId) {
     return {
       ...defaultCfg,
       bg: 'linear-gradient(90deg, rgb(88, 252, 255), rgb(196, 172, 255), rgb(255, 179, 244))',
-      border: 'rgba(0, 0, 0, 0.12)',
+      border: '#ffffff',
       textColor: '#ffffff',
       marqueeBg: 'rgb(255, 138, 212)',
       marqueeTextColor: '#ffffff',
@@ -236,7 +236,7 @@ function getBadgeRenderConfig(animationId) {
     return {
       ...defaultCfg,
       bg: 'linear-gradient(90deg, rgb(240, 6, 197), rgb(245, 72, 125))',
-      border: 'rgba(0, 0, 0, 0.12)',
+      border: '#ffffff',
       textColor: 'rgb(240, 6, 197)',
       marqueeTextColor: 'rgb(240, 6, 197)',
       badgeIconSrc: '/enter_animation/diamond.png',
