@@ -274,7 +274,18 @@ function getBadgeRenderConfig(animationId) {
       textColor: '#ffffff',
     };
   }
-  if ((animationId >= 7 && animationId <= 10) || animationId === 15) {
+  if (animationId >= 7 && animationId <= 10) {
+    return {
+      ...defaultCfg,
+      bg: 'rgb(21, 144, 63)',
+      border: '#ffffff',
+      textColor: 'rgb(21, 144, 63)',
+      marqueeBg: '#ffffff',
+      marqueeTextColor: '#000000',
+      badgeIconSrc: '/enter_animation/tank.png',
+    };
+  }
+  if (animationId === 15) {
     return {
       ...defaultCfg,
       bg: 'rgb(21, 144, 63)',
