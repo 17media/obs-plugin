@@ -13,9 +13,10 @@
 #include "../streaming/OneSevenLiveStreamManager.hpp"
 #include "moc_OneSevenLivePreviewDock.cpp"
 
-OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent, const QString& overlayUrl)
+OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent, const QString& overlayUrl, const QString& enterAnimUrl)
     : QDockWidget(obs_module_text("PreviewDock.Title"), parent),
       overlayUrl_(overlayUrl),
+      enterAnimUrl_(enterAnimUrl),
       previewWidget(nullptr),
       initialized(false) {
     setupUi();
@@ -75,7 +76,7 @@ void OneSevenLivePreviewDock::setupUi() {
 
     setWidget(container);
 
-    previewWidget = new OneSevenLivePreviewWidget(previewContainer, overlayUrl_);
+    previewWidget = new OneSevenLivePreviewWidget(previewContainer, overlayUrl_, enterAnimUrl_);
 
     if (previewWidget) {
         connect(previewWidget, &OneSevenLivePreviewWidget::displayCreated, this,

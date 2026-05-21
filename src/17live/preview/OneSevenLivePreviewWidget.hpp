@@ -16,7 +16,8 @@ class OneSevenLivePreviewWidget : public QWidget {
 
    public:
     explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr,
-                                       const QString& overlayUrl = QString());
+                                       const QString& overlayUrl = QString(),
+                                       const QString& enterAnimUrl = QString());
     ~OneSevenLivePreviewWidget();
 
     /**
@@ -77,6 +78,7 @@ class OneSevenLivePreviewWidget : public QWidget {
 
     // Browser source overlay components
     obs_source_t* browserSource = nullptr;
+    obs_source_t* enterAnimSource = nullptr;
     OneSevenLivePreviewConfigLoader* configLoader = nullptr;
     OneSevenLivePreviewConfigLoader::PreviewConfig browserConfig;
     QTimer* browserRefreshTimer = nullptr;
@@ -86,4 +88,5 @@ class OneSevenLivePreviewWidget : public QWidget {
 
     // Optional overlay URL override
     QString overlayUrl_;
+    QString enterAnimUrl_;
 };

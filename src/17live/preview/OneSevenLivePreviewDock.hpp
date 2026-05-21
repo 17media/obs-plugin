@@ -14,7 +14,8 @@ class OneSevenLivePreviewDock : public QDockWidget {
 
    public:
     explicit OneSevenLivePreviewDock(QWidget* parent = nullptr,
-                                     const QString& overlayUrl = QString());
+                                     const QString& overlayUrl = QString(),
+                                     const QString& enterAnimUrl = QString());
     ~OneSevenLivePreviewDock();
 
     void initializePreview();
@@ -41,6 +42,7 @@ class OneSevenLivePreviewDock : public QDockWidget {
 
     bool initialized = false;
     QString overlayUrl_;
+    QString enterAnimUrl_;
 
    private slots:
     void onGiftsLoaded();

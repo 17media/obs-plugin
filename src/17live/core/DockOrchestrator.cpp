@@ -543,7 +543,12 @@ void DockOrchestrator::createPreviewDock() {
                              .arg(QString::number(http->getPort()), wsUrl);
     obs_log(LOG_INFO, "cartoonUrl: %s", cartoonUrl.toStdString().c_str());
 
-    auto* dock = new OneSevenLivePreviewDock(core_->getMainWindow(), cartoonUrl);
+    std::string locale = GetCurrentLocale();
+    QString enterAnimUrl = QString("http://localhost:%1/%2/enter_animation.html?ws=%3")
+                             .arg(QString::number(http->getPort()), QString::fromStdString(locale), wsUrl);
+    obs_log(LOG_INFO, "enterAnimUrl: %s", enterAnimUrl.toStdString().c_str());
+
+    auto* dock = new OneSevenLivePreviewDock(core_->getMainWindow(), cartoonUrl, enterAnimUrl);
     core_->setPreviewDock(dock);
     dock->setObjectName("OneSevenLivePreviewDock");
 
