@@ -17,7 +17,7 @@ const SnackItem = ({ value }) => {
   return (
     <Container>
       {t('SEND_SNACKS', { value })}
-      <SVG src={`${basePath}/images/hamburger.svg`} width={24} height={18} />
+      <SVG src={`${basePath}/images/snack.svg`} width={30} height={30} />
     </Container>
   );
 };
