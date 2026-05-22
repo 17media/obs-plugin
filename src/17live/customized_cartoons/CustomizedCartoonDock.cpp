@@ -571,6 +571,85 @@ QFrame* createPositionTipsPanel(QWidget* parent) {
     return tipsPanel;
 }
 
+bool editMediaSettingsDialog(QWidget* parent, const QString& mediaName, bool isVideo, int currentDisplaySec,
+                             bool currentMuted, bool currentPreserveAspectRatio, int& outDisplaySec,
+                             bool& outMuted, bool& outPreserveAspectRatio) {
+    QDialog dialog(parent);
+    dialog.setWindowTitle(obs_module_text("CustomizedCartoon.Media.Settings.Title"));
+    dialog.setModal(true);
+    dialog.setMinimumWidth(420);
+    dialog.setStyleSheet(
+        "QDialog { background-color: #272A33; color: #FFFFFF; }"
+        "QLabel { color: #FFFFFF; font-size: 14px; }"
+        "QSpinBox { background-color: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12); "
+        "border-radius: 2px; color: #FFFFFF; font-size: 14px; padding: 4px 8px; }"
+        "QCheckBox { color: #FFFFFF; font-size: 14px; spacing: 6px; }"
+        "QPushButton { min-width: 88px; min-height: 32px; padding: 0px 12px; }");
+
+    auto* layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(16, 16, 16, 16);
+    layout->setSpacing(12);
+
+    auto* nameLabel = new QLabel(mediaName, &dialog);
+    nameLabel->setWordWrap(true);
+    nameLabel->setStyleSheet("QLabel { color: #FFFFFF; font-size: 16px; font-weight: 600; }");
+    layout->addWidget(nameLabel);
+
+    auto* formLayout = new QFormLayout();
+    formLayout->setContentsMargins(0, 0, 0, 0);
+    formLayout->setHorizontalSpacing(12);
+    formLayout->setVerticalSpacing(12);
+    formLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    auto* durationSpin = new QSpinBox(&dialog);
+    durationSpin->setRange(1, 600);
+    durationSpin->setValue(std::max(1, currentDisplaySec));
+    durationSpin->setSuffix(" s");
+    formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.Duration"), durationSpin);
+
+    QCheckBox* muteCheck = nullptr;
+    if (isVideo) {
+        muteCheck = new QCheckBox(&dialog);
+        muteCheck->setChecked(currentMuted);
+        formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.Mute"), muteCheck);
+    }
+
+    auto* preserveAspectCheck = new QCheckBox(&dialog);
+    preserveAspectCheck->setChecked(currentPreserveAspectRatio);
+    formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.PreserveAspectRatio"),
+                       preserveAspectCheck);
+
+    layout->addLayout(formLayout);
+
+    auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    if (auto* okButton = buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setText(obs_module_text("CustomizedCartoon.Action.Confirm"));
+        okButton->setStyleSheet(
+            "QPushButton { background-color: #FF0001; color: #FFFFFF; border: none; border-radius: 2px; "
+            "font-size: 14px; font-weight: 700; }"
+            "QPushButton:hover { background-color: #FF3B30; }");
+    }
+    if (auto* cancelButton = buttonBox->button(QDialogButtonBox::Cancel)) {
+        cancelButton->setText(obs_module_text("CustomizedCartoon.Action.Cancel"));
+        cancelButton->setStyleSheet(
+            "QPushButton { background-color: #3C404D; color: #FFFFFF; border: 1px solid #757575; "
+            "border-radius: 2px; font-size: 14px; font-weight: 700; }"
+            "QPushButton:hover { background-color: #4A4F5E; }");
+    }
+    QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttonBox);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+
+    outDisplaySec = durationSpin->value();
+    outMuted = muteCheck ? muteCheck->isChecked() : false;
+    outPreserveAspectRatio = preserveAspectCheck->isChecked();
+    return true;
+}
+
 }  // namespace
 
 CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonService* service)
@@ -1185,6 +1264,7 @@ void CustomizedCartoonDock::refreshMediaList() {
     const QIcon imageIcon(":/resources/image.svg");
     const QIcon playIcon(":/resources/play.svg");
     const QIcon stopIcon(":/resources/stop.svg");
+    const QIcon settingsIcon(":/resources/settings.svg");
     const QIcon trashIcon(":/resources/trash-red.svg");
     const bool previewing = service_->isMediaPreviewing();
     const QString previewingId = service_->previewingMediaId();
@@ -1239,6 +1319,13 @@ void CustomizedCartoonDock::refreshMediaList() {
                 "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; background: transparent; }");
 
             const bool previewingThis = previewing && previewingId == id;
+            auto* settingsButton = new QPushButton(row);
+            settingsButton->setIcon(settingsIcon);
+            settingsButton->setIconSize(QSize(16, 16));
+            settingsButton->setFixedSize(24, 24);
+            settingsButton->setCursor(Qt::PointingHandCursor);
+            settingsButton->setToolTip(obs_module_text("CustomizedCartoon.Media.Settings.Tooltip"));
+
             auto* previewButton = new QPushButton(row);
             previewButton->setIcon(previewingThis ? stopIcon : playIcon);
             previewButton->setIconSize(QSize(24, 24));
@@ -1261,6 +1348,10 @@ void CustomizedCartoonDock::refreshMediaList() {
                                          QMessageBox::Ok);
                 }
                 refreshUi();
+            });
+
+            connect(settingsButton, &QPushButton::clicked, this, [this, id]() {
+                openMediaSettingsDialog(id);
             });
 
             connect(previewButton, &QPushButton::clicked, this, [this, item, id]() {
@@ -1295,6 +1386,7 @@ void CustomizedCartoonDock::refreshMediaList() {
 
             rowLayout->addWidget(iconLabel);
             rowLayout->addWidget(nameLabel, 1);
+            rowLayout->addWidget(settingsButton);
             rowLayout->addWidget(previewButton);
             rowLayout->addWidget(delButton);
 
@@ -1309,6 +1401,66 @@ void CustomizedCartoonDock::refreshMediaList() {
     }
     if (mediaList_->count() > 0 && mediaList_->currentRow() < 0) {
         mediaList_->setCurrentRow(0);
+    }
+}
+
+void CustomizedCartoonDock::openMediaSettingsDialog(const QString& mediaId) {
+    if (!service_ || mediaId.isEmpty()) {
+        return;
+    }
+
+    json cfg = service_->getConfigSnapshot();
+    if (!cfg.contains("media") || !cfg["media"].is_array()) {
+        return;
+    }
+
+    for (auto& media : cfg["media"]) {
+        if (!media.is_object() || !media.contains("id") || !media["id"].is_string()) {
+            continue;
+        }
+        if (QString::fromStdString(media["id"].get<std::string>()) != mediaId) {
+            continue;
+        }
+
+        const QString name =
+            media.contains("name") && media["name"].is_string()
+                ? QString::fromStdString(media["name"].get<std::string>())
+                : mediaId;
+        const QString type =
+            media.contains("type") && media["type"].is_string()
+                ? QString::fromStdString(media["type"].get<std::string>())
+                : QString();
+        int displaySec =
+            media.contains("displaySec") && media["displaySec"].is_number_integer()
+                ? media["displaySec"].get<int>()
+                : (type == "video" ? 15 : 5);
+        bool muted =
+            media.contains("muted") && media["muted"].is_boolean() ? media["muted"].get<bool>()
+                                                                   : (type == "video");
+        bool preserveAspectRatio =
+            media.contains("preserveAspectRatio") && media["preserveAspectRatio"].is_boolean()
+                ? media["preserveAspectRatio"].get<bool>()
+                : false;
+
+        int nextDisplaySec = displaySec;
+        bool nextMuted = muted;
+        bool nextPreserveAspectRatio = preserveAspectRatio;
+        if (!editMediaSettingsDialog(this, name, type == "video", displaySec, muted,
+                                     preserveAspectRatio, nextDisplaySec, nextMuted,
+                                     nextPreserveAspectRatio)) {
+            return;
+        }
+
+        media["displaySec"] = nextDisplaySec;
+        media["muted"] = (type == "video") ? nextMuted : false;
+        media["preserveAspectRatio"] = nextPreserveAspectRatio;
+
+        if (!service_->saveConfig(cfg)) {
+            QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                 obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"),
+                                 QMessageBox::Ok);
+        }
+        return;
     }
 }
 

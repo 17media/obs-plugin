@@ -29,6 +29,10 @@ constexpr uint32_t kPreviewLandscapeCanvasH = 720;
 constexpr uint32_t kPreviewPortraitCanvasW = 720;
 constexpr uint32_t kPreviewPortraitCanvasH = 1280;
 
+int defaultDisplaySecForType(const QString& type) {
+    return type == "video" ? 15 : 5;
+}
+
 }  // namespace
 
 CustomizedCartoonService::CustomizedCartoonService(QMainWindow* mainWindow,
@@ -48,6 +52,13 @@ CustomizedCartoonService::CustomizedCartoonService(QMainWindow* mainWindow,
     playbackTimer_.setInterval(200);
     playbackTimer_.setSingleShot(false);
     connect(&playbackTimer_, &QTimer::timeout, this, &CustomizedCartoonService::checkVideoState);
+
+    previewTimer_.setSingleShot(true);
+    connect(&previewTimer_, &QTimer::timeout, this, [this]() {
+        if (mediaPreviewing_) {
+            stopMediaPreview();
+        }
+    });
 
     if (streamManager_) {
         connect(streamManager_, &OneSevenLiveStreamManager::streamStatusChanged, this,
@@ -213,7 +224,9 @@ bool CustomizedCartoonService::importMediaFile(const QString& filePath, QString&
                             {"name", fi.fileName().toStdString()},
                             {"path", destPath.toStdString()},
                             {"type", type.toStdString()},
-                            {"displaySec", 5}});
+                            {"displaySec", defaultDisplaySecForType(type)},
+                            {"muted", type == "video"},
+                            {"preserveAspectRatio", false}});
 
     if (!saveConfig(cfg)) {
         outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
@@ -285,6 +298,16 @@ CustomizedCartoonService::MediaItem* CustomizedCartoonService::findMediaById(con
     return nullptr;
 }
 
+const CustomizedCartoonService::MediaItem* CustomizedCartoonService::findMediaById(
+    const QString& id) const {
+    for (const auto& m : media_) {
+        if (m.id == id) {
+            return &m;
+        }
+    }
+    return nullptr;
+}
+
 CustomizedCartoonService::RuleItem* CustomizedCartoonService::findRuleById(const QString& id) {
     for (auto& r : rules_) {
         if (r.id == id) {
@@ -312,8 +335,17 @@ std::vector<CustomizedCartoonService::MediaItem> CustomizedCartoonService::parse
             m.path = QString::fromStdString(it["path"].get<std::string>());
         if (it.contains("type") && it["type"].is_string())
             m.type = QString::fromStdString(it["type"].get<std::string>());
+        m.displaySec = defaultDisplaySecForType(m.type);
         if (it.contains("displaySec") && it["displaySec"].is_number_integer())
             m.displaySec = it["displaySec"].get<int>();
+        if (it.contains("muted") && it["muted"].is_boolean()) {
+            m.muted = it["muted"].get<bool>();
+        } else {
+            m.muted = (m.type == "video");
+        }
+        if (it.contains("preserveAspectRatio") && it["preserveAspectRatio"].is_boolean()) {
+            m.preserveAspectRatio = it["preserveAspectRatio"].get<bool>();
+        }
         if (!m.id.isEmpty() && !m.path.isEmpty()) {
             out.push_back(std::move(m));
         }
@@ -575,6 +607,7 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
     }
 
     stopPlayback();
+    previewTimer_.stop();
     if (positionPreviewing_) {
         stopPositionPreview();
     }
@@ -604,6 +637,7 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
             return false;
         }
         setMediaLooping(true);
+        obs_source_set_muted(mediaSource_, media->muted);
         obs_data_t* settings = obs_source_get_settings(mediaSource_);
         if (settings) {
             obs_data_set_string(settings, "local_file", media->path.toStdString().c_str());
@@ -631,6 +665,7 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
         showOverlaySource(false);
     }
 
+    previewTimer_.start(std::max(1, media->displaySec) * 1000);
     playbackTimer_.stop();
     emit previewStateChanged();
     return true;
@@ -642,6 +677,7 @@ void CustomizedCartoonService::stopMediaPreview() {
     }
     mediaPreviewing_ = false;
     previewMediaId_.clear();
+    previewTimer_.stop();
     setMediaLooping(false);
     playbackTimer_.stop();
     hideOverlaySources();
@@ -676,9 +712,11 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     positionPreviewing_ = true;
     positionPreviewLandscape_ = landscape;
     positionPreviewIsMedia_ = (media->type == "video");
+    positionPreviewMediaId_ = mediaId;
 
     if (!applyPreviewCanvas(positionPreviewLandscape_, outError)) {
         positionPreviewing_ = false;
+        positionPreviewMediaId_.clear();
         return false;
     }
 
@@ -688,12 +726,14 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     if (media->type == "video") {
         if (!mediaSource_) {
             positionPreviewing_ = false;
+            positionPreviewMediaId_.clear();
             syncOverlaySceneItems();
             restorePreviewCanvas();
             outError = obs_module_text("CustomizedCartoon.Error.VideoSourceNotAvailable");
             return false;
         }
         setMediaLooping(true);
+        obs_source_set_muted(mediaSource_, media->muted);
         obs_data_t* settings = obs_source_get_settings(mediaSource_);
         if (settings) {
             obs_data_set_string(settings, "local_file", media->path.toStdString().c_str());
@@ -708,6 +748,7 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
 
     if (!imageSource_) {
         positionPreviewing_ = false;
+        positionPreviewMediaId_.clear();
         syncOverlaySceneItems();
         restorePreviewCanvas();
         outError = obs_module_text("CustomizedCartoon.Error.ImageSourceNotAvailable");
@@ -729,6 +770,7 @@ void CustomizedCartoonService::stopPositionPreview() {
         return;
     }
     positionPreviewing_ = false;
+    positionPreviewMediaId_.clear();
     setMediaLooping(false);
     playbackTimer_.stop();
     hideOverlaySources();
@@ -830,10 +872,10 @@ void CustomizedCartoonService::startNextPlayback() {
         ensureOverlaySceneItem();
 
         const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
+        playingMediaId_ = mediaId;
         applyOverlayTransform(landscape);
 
         playing_ = true;
-        playingMediaId_ = mediaId;
         if (media->type == "video") {
             playVideo(*media);
         } else {
@@ -847,6 +889,7 @@ void CustomizedCartoonService::stopPlayback() {
     playbackTimer_.stop();
     playing_ = false;
     playingMediaId_.clear();
+    playingStartMs_ = 0;
     playQueue_.clear();
     hideOverlaySources();
     syncOverlaySceneItems();
@@ -1105,6 +1148,19 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
     ti.bounds.y = static_cast<float>(transform.value("boundsH", 0.0) * scaleY);
     ti.crop_to_bounds = transform.value("cropToBounds", false);
 
+    const MediaItem* activeMedia = nullptr;
+    if (positionPreviewing_ && !positionPreviewMediaId_.isEmpty()) {
+        activeMedia = findMediaById(positionPreviewMediaId_);
+    } else if (mediaPreviewing_ && !previewMediaId_.isEmpty()) {
+        activeMedia = findMediaById(previewMediaId_);
+    } else if (playing_ && !playingMediaId_.isEmpty()) {
+        activeMedia = findMediaById(playingMediaId_);
+    }
+    if (activeMedia && activeMedia->preserveAspectRatio) {
+        ti.bounds_type = OBS_BOUNDS_SCALE_INNER;
+        ti.crop_to_bounds = false;
+    }
+
     if (mediaItem_) {
         obs_sceneitem_set_info2(mediaItem_, &ti);
     }
@@ -1152,6 +1208,7 @@ void CustomizedCartoonService::playVideo(const MediaItem& media) {
         return;
     }
     setMediaLooping(false);
+    obs_source_set_muted(mediaSource_, media.muted);
     obs_data_t* settings = obs_source_get_settings(mediaSource_);
     if (settings) {
         obs_data_set_string(settings, "local_file", media.path.toStdString().c_str());
@@ -1160,6 +1217,7 @@ void CustomizedCartoonService::playVideo(const MediaItem& media) {
     }
 
     showOverlaySource(true);
+    playingStartMs_ = QDateTime::currentMSecsSinceEpoch();
     obs_source_media_restart(mediaSource_);
     playbackTimer_.start();
 }
@@ -1180,14 +1238,17 @@ void CustomizedCartoonService::playImage(const MediaItem& media) {
     showOverlaySource(false);
 
     const int sec = std::max(1, media.displaySec);
+    const QString expectedMediaId = media.id;
+    playingStartMs_ = QDateTime::currentMSecsSinceEpoch();
     QPointer<CustomizedCartoonService> self = this;
-    QTimer::singleShot(sec * 1000, this, [self]() {
-        if (!self) {
+    QTimer::singleShot(sec * 1000, this, [self, expectedMediaId]() {
+        if (!self || !self->playing_ || self->playingMediaId_ != expectedMediaId) {
             return;
         }
         self->hideOverlaySources();
         self->playing_ = false;
         self->playingMediaId_.clear();
+        self->playingStartMs_ = 0;
         self->startNextPlayback();
     });
 }
@@ -1197,12 +1258,26 @@ void CustomizedCartoonService::checkVideoState() {
         playbackTimer_.stop();
         return;
     }
+    if (const MediaItem* media = findMediaById(playingMediaId_)) {
+        const int durationMs = std::max(1, media->displaySec) * 1000;
+        if (playingStartMs_ > 0 &&
+            (QDateTime::currentMSecsSinceEpoch() - playingStartMs_) >= durationMs) {
+            playbackTimer_.stop();
+            hideOverlaySources();
+            playing_ = false;
+            playingMediaId_.clear();
+            playingStartMs_ = 0;
+            startNextPlayback();
+            return;
+        }
+    }
     const obs_media_state s = obs_source_media_get_state(mediaSource_);
     if (s == OBS_MEDIA_STATE_ENDED || s == OBS_MEDIA_STATE_STOPPED || s == OBS_MEDIA_STATE_ERROR) {
         playbackTimer_.stop();
         hideOverlaySources();
         playing_ = false;
         playingMediaId_.clear();
+        playingStartMs_ = 0;
         startNextPlayback();
     }
 }
@@ -1216,7 +1291,9 @@ json CustomizedCartoonService::serialize(const std::vector<MediaItem>& media,
                                 {"name", m.name.toStdString()},
                                 {"path", m.path.toStdString()},
                                 {"type", m.type.toStdString()},
-                                {"displaySec", m.displaySec}});
+                                {"displaySec", m.displaySec},
+                                {"muted", m.muted},
+                                {"preserveAspectRatio", m.preserveAspectRatio}});
     }
     cfg["rules"] = json::array();
     for (const auto& r : rules) {

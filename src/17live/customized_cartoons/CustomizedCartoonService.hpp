@@ -66,6 +66,8 @@ class CustomizedCartoonService : public QObject {
         QString path;
         QString type;
         int displaySec{5};
+        bool muted{false};
+        bool preserveAspectRatio{false};
     };
 
     struct RuleItem {
@@ -125,6 +127,7 @@ class CustomizedCartoonService : public QObject {
     void checkVideoState();
 
     MediaItem* findMediaById(const QString& id);
+    const MediaItem* findMediaById(const QString& id) const;
     RuleItem* findRuleById(const QString& id);
 
     std::vector<MediaItem> parseMedia(const nlohmann::json& cfg) const;
@@ -142,6 +145,7 @@ class CustomizedCartoonService : public QObject {
 
     QTimer pollTimer_;
     QTimer playbackTimer_;
+    QTimer previewTimer_;
 
     std::vector<MediaItem> media_;
     std::vector<RuleItem> rules_;
@@ -163,6 +167,7 @@ class CustomizedCartoonService : public QObject {
     bool positionPreviewing_{false};
     bool positionPreviewLandscape_{true};
     bool positionPreviewIsMedia_{true};
+    QString positionPreviewMediaId_;
 
     bool mediaPreviewing_{false};
     bool mediaPreviewLandscape_{true};
