@@ -101,7 +101,7 @@ const AvatarBadgeGroup = styled.div`
 const Marquee = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   height: ${(p) => p.$h || '33px'};
   padding: 0 2px;
   border-radius: 999px;
@@ -119,7 +119,7 @@ const Marquee = styled.div`
 const BadgeLabelWrap = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
   max-width: 320px;
 `;
@@ -140,9 +140,28 @@ const MarqueeViewport = styled.div`
   overflow: hidden;
 `;
 
+const BadgeSlideViewport = styled.div`
+  display: inline-flex;
+  align-items: center;
+  max-width: 320px;
+  overflow: hidden;
+  min-width: 0;
+`;
+
 const marqueeKf = keyframes`
   0% { transform: translateX(var(--marquee-start)); }
   100% { transform: translateX(calc(-1 * var(--marquee-distance))); }
+`;
+
+const badgeSlideInKf = keyframes`
+  0% {
+    transform: translateX(100%);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
 `;
 
 const entryKf = keyframes`
@@ -180,6 +199,16 @@ const MarqueeTextWrap = styled.div`
   min-width: 0;
   max-width: 320px;
   overflow: hidden;
+`;
+
+const BadgeSlideText = styled.div`
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  will-change: transform;
+  animation: ${badgeSlideInKf} 1200ms ease-out both;
 `;
 
 const AniImage = styled.img`
@@ -279,17 +308,6 @@ function getBadgeRenderConfig(animationId) {
       ...defaultCfg,
       bg: 'rgb(21, 144, 63)',
       border: '#ffffff',
-      textColor: 'rgb(21, 144, 63)',
-      marqueeBg: '#ffffff',
-      marqueeTextColor: '#000000',
-      badgeIconSrc: '/enter_animation/tank.png',
-    };
-  }
-  if (animationId === 15) {
-    return {
-      ...defaultCfg,
-      bg: 'rgb(21, 144, 63)',
-      border: 'rgba(0, 0, 0, 0.12)',
       textColor: 'rgb(21, 144, 63)',
       marqueeBg: '#ffffff',
       marqueeTextColor: '#000000',
@@ -455,6 +473,16 @@ function ScrollingText({
         ) : null}
       </MarqueeTrack>
     </MarqueeViewport>
+  );
+}
+
+function SlidingBadgeText({ children, maxWidthPx = 320, animationKey }) {
+  return (
+    <BadgeSlideViewport style={{ maxWidth: `${maxWidthPx}px` }}>
+      <BadgeSlideText key={animationKey}>
+        {children}
+      </BadgeSlideText>
+    </BadgeSlideViewport>
   );
 }
 
@@ -739,40 +767,40 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                   {isEvent14 && safeBadgeLabel ? (
                     <Marquee $bg={eventBadgeBg} $h="33px">
                       {eventIconUrl ? <BadgeIcon $size="25px" src={eventIconUrl} alt="" /> : null}
-                      <ScrollingText gapPx={12} speedPxPerSec={40} always padPx={0}>
-                        <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor}>
+                      <SlidingBadgeText maxWidthPx={320} animationKey={`${current?.id || 'badge'}-left`}>
+                        <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor} $ml="3px">
                           {safeBadgeLabel}
                         </Text>
-                      </ScrollingText>
+                      </SlidingBadgeText>
                     </Marquee>
                   ) : safeBadgeLabel ? (
                     <>
                       {animationId >= 11 && animationId <= 13 ? (
                         <Marquee $bg={cfg.marqueeBg} $h="22px">
                           {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
-                          <ScrollingText gapPx={12} speedPxPerSec={40} always>
-                            <Text $fontSize="12px" $lineHeight="22px" $color={cfg.textColor}>
+                          <SlidingBadgeText animationKey={`${current?.id || 'badge'}-left`}>
+                            <Text $fontSize="12px" $lineHeight="22px" $color={cfg.textColor} $ml="3px">
                               {safeBadgeLabel}
                             </Text>
-                          </ScrollingText>
+                          </SlidingBadgeText>
                         </Marquee>
                       ) : animationId === 1 || animationId === 2 || (animationId >= 7 && animationId <= 10) || animationId === 15 ? (
                         <Marquee $bg={cfg.marqueeBg} $h="22px">
                           {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
-                          <ScrollingText gapPx={12} speedPxPerSec={40} always>
-                            <Text $fontSize="12px" $lineHeight="22px">
+                          <SlidingBadgeText animationKey={`${current?.id || 'badge'}-left`}>
+                            <Text $fontSize="12px" $lineHeight="22px" $ml="3px">
                               {safeBadgeLabel}
                             </Text>
-                          </ScrollingText>
+                          </SlidingBadgeText>
                         </Marquee>
                       ) : (
                         <BadgeLabelWrap>
                           {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
-                          <ScrollingText gapPx={12} speedPxPerSec={40} always>
-                            <Text $fontSize="12px" $lineHeight="22px">
+                          <SlidingBadgeText animationKey={`${current?.id || 'badge'}-left`}>
+                            <Text $fontSize="12px" $lineHeight="22px" $ml="3px">
                               {safeBadgeLabel}
                             </Text>
-                          </ScrollingText>
+                          </SlidingBadgeText>
                         </BadgeLabelWrap>
                       )}
                     </>
