@@ -215,48 +215,45 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
         obs_source_t* source_ref = obs_source_get_ref(browserSource);
         if (source_ref) {
             const char* source_name = obs_source_get_name(source_ref);
-            if (!source_name || strlen(source_name) == 0) {
-                obs_source_release(source_ref);
-                return;
-            }
+            if (source_name && strlen(source_name) > 0) {
+                uint32_t browser_width = obs_source_get_width(source_ref);
+                uint32_t browser_height = obs_source_get_height(source_ref);
+                bool is_active = obs_source_active(source_ref);
+                bool is_showing = obs_source_showing(source_ref);
 
-            uint32_t browser_width = obs_source_get_width(source_ref);
-            uint32_t browser_height = obs_source_get_height(source_ref);
-            bool is_active = obs_source_active(source_ref);
-            bool is_showing = obs_source_showing(source_ref);
+                if (browser_width > 0 && browser_height > 0 && is_active && is_showing) {
+                    // Apply overlay transformation to cover entire preview area
+                    gs_matrix_push();
 
-            if (browser_width > 0 && browser_height > 0 && is_active && is_showing) {
-                // Apply overlay transformation to cover entire preview area
-                gs_matrix_push();
+                    // Calculate scale to fill the entire preview area
+                    float preview_width = static_cast<float>(cx);
+                    float preview_height = static_cast<float>(cy);
+                    float browser_width_f = static_cast<float>(browser_width);
+                    float browser_height_f = static_cast<float>(browser_height);
 
-                // Calculate scale to fill the entire preview area
-                float preview_width = static_cast<float>(cx);
-                float preview_height = static_cast<float>(cy);
-                float browser_width_f = static_cast<float>(browser_width);
-                float browser_height_f = static_cast<float>(browser_height);
+                    // Calculate scale factors for both dimensions
+                    float scale_x = preview_width / browser_width_f;
+                    float scale_y = preview_height / browser_height_f;
 
-                // Calculate scale factors for both dimensions
-                float scale_x = preview_width / browser_width_f;
-                float scale_y = preview_height / browser_height_f;
+                    // Use the larger scale to ensure overlay covers entire area
+                    float fill_scale = qMax(scale_x, scale_y);
 
-                // Use the larger scale to ensure overlay covers entire area
-                float fill_scale = qMax(scale_x, scale_y);
+                    // Apply the overlay scale factor from OneSevenLivePreviewScreen
+                    float final_scale = fill_scale * overlayScale;
 
-                // Apply the overlay scale factor from OneSevenLivePreviewScreen
-                float final_scale = fill_scale * overlayScale;
+                    // Calculate position to center the scaled overlay
+                    float scaled_browser_width = browser_width_f * final_scale;
+                    float scaled_browser_height = browser_height_f * final_scale;
+                    float overlay_x = (preview_width - scaled_browser_width) * 0.5f;
+                    float overlay_y = (preview_height - scaled_browser_height) * 0.5f;
 
-                // Calculate position to center the scaled overlay
-                float scaled_browser_width = browser_width_f * final_scale;
-                float scaled_browser_height = browser_height_f * final_scale;
-                float overlay_x = (preview_width - scaled_browser_width) * 0.5f;
-                float overlay_y = (preview_height - scaled_browser_height) * 0.5f;
+                    gs_matrix_translate3f(overlay_x, overlay_y, 0.0f);
+                    gs_matrix_scale3f(final_scale, final_scale, 1.0f);
 
-                gs_matrix_translate3f(overlay_x, overlay_y, 0.0f);
-                gs_matrix_scale3f(final_scale, final_scale, 1.0f);
+                    obs_source_video_render(source_ref);
 
-                obs_source_video_render(source_ref);
-
-                gs_matrix_pop();
+                    gs_matrix_pop();
+                }
             }
 
             obs_source_release(source_ref);
