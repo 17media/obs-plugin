@@ -195,7 +195,7 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
         if (!core || !core->crashUploadService_) {
             return;
         }
-        core->crashUploadService_->onLogin(loginData, core->previousRunClean_);
+        core->crashUploadService_->onLogin(loginData);
     });
 
     // discovery is managed by YouTubeChatClient

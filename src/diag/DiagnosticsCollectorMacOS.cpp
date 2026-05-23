@@ -63,12 +63,11 @@ namespace seventeen {
         std::vector<std::string> DiagnosticsCollectorMacOS::collectPluginLogs() {
             std::vector<std::string> logFiles;
 
-            // Candidate plugin log directories under OBS plugin_config and legacy ~/.17Live/logs
+            // Candidate plugin log directories under OBS plugin_config
             std::string homeDir = getHomeDirectory();
             std::vector<std::string> candidates = {
                 homeDir + "/Library/Application Support/obs-studio/plugin_config/17live/logs",
-                homeDir + "/Library/Application Support/obs-studio/plugin_config/obs-17live/logs",
-                homeDir + "/.17Live/logs"};
+                homeDir + "/Library/Application Support/obs-studio/plugin_config/obs-17live/logs"};
 
             std::vector<std::string> files;
             for (const auto& dir : candidates) {
@@ -267,8 +266,21 @@ namespace seventeen {
                 // structure
                 std::vector<std::filesystem::path> filesToCopy;
                 try {
-                    for (auto const& entry :
-                         std::filesystem::recursive_directory_iterator(pluginConfigDir)) {
+                    for (auto it = std::filesystem::recursive_directory_iterator(pluginConfigDir);
+                         it != std::filesystem::recursive_directory_iterator(); ++it) {
+                        const auto& entry = *it;
+                        const auto rel = std::filesystem::relative(entry.path(), pluginConfigDir);
+                        if (!rel.empty()) {
+                            const auto top = *rel.begin();
+                            const auto topName = top.u8string();
+                            if (topName == "customized_cartoons" || topName == "logs") {
+                                if (entry.is_directory()) {
+                                    it.disable_recursion_pending();
+                                }
+                                continue;
+                            }
+                        }
+
                         if (entry.is_regular_file()) {
                             filesToCopy.push_back(entry.path());
                         }

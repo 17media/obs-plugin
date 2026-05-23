@@ -351,6 +351,7 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
 
     // Diagnostics related methods
     void handleDiagnosticsClicked();
+    void handleCrashRecordsClicked();
 
     void loadGifts();
     void loadGiftsFromConfig();

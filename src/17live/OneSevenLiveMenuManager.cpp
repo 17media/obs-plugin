@@ -67,6 +67,9 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     diagnosticsAction = menu->addAction(obs_module_text("Menu.Diagnostics"));
     connect(diagnosticsAction, &QAction::triggered, this, [this]() { emit diagnosticsClicked(); });
 
+    crashRecordsAction = menu->addAction(obs_module_text("Menu.CrashRecords"));
+    connect(crashRecordsAction, &QAction::triggered, this, [this]() { emit crashRecordsClicked(); });
+
     menu->addSeparator();
 
     // Create login menu item
@@ -193,6 +196,9 @@ void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
     previewDockAction->setEnabled(isLoggedIn);
     customizedCartoonAction->setEnabled(isLoggedIn);
     // Diagnostics action is always enabled regardless of login status
+    if (crashRecordsAction) {
+        crashRecordsAction->setEnabled(true);
+    }
 }
 
 void OneSevenLiveMenuManager::cleanup() {
@@ -218,4 +224,5 @@ void OneSevenLiveMenuManager::cleanup() {
     loginAction = nullptr;
     checkUpdateAction = nullptr;
     diagnosticsAction = nullptr;
+    crashRecordsAction = nullptr;
 }

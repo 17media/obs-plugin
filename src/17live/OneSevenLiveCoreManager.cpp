@@ -294,6 +294,15 @@ bool OneSevenLiveCoreManager::initMenuAndBaseUI() {
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::diagnosticsClicked, this,
                      &OneSevenLiveCoreManager::handleDiagnosticsClicked);
 
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::crashRecordsClicked, this,
+                     &OneSevenLiveCoreManager::handleCrashRecordsClicked);
+
+    QTimer::singleShot(0, this, [this]() {
+        if (crashUploadService_) {
+            crashUploadService_->processPreviousRun(previousRunClean_);
+        }
+    });
+
     // Initialize update manager
     updateManager = new OneSevenLiveUpdateManager(this);
 
@@ -375,6 +384,12 @@ void OneSevenLiveCoreManager::handleDiagnosticsClicked() {
     // Create and show the diagnostics dialog
     seventeen::diag::ui::DiagnosticsDialog dialog(mainWindow);
     dialog.exec();
+}
+
+void OneSevenLiveCoreManager::handleCrashRecordsClicked() {
+    if (crashUploadService_) {
+        crashUploadService_->showCrashRecordsDialog();
+    }
 }
 
 void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& loginData) {

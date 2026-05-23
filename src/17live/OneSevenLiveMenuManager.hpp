@@ -48,6 +48,7 @@ class OneSevenLiveMenuManager : public QObject {
     void logoutClicked();
     void checkUpdateClicked();
     void diagnosticsClicked();
+    void crashRecordsClicked();
 
    private:
     QMainWindow* mainWindow = nullptr;
@@ -64,6 +65,7 @@ class OneSevenLiveMenuManager : public QObject {
     QAction* helpAction = nullptr;
     QAction* checkUpdateAction = nullptr;
     QAction* diagnosticsAction = nullptr;
+    QAction* crashRecordsAction = nullptr;
     QAction* loginAction = nullptr;
     bool isLoggedIn = false;
 

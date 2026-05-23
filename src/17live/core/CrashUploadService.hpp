@@ -20,7 +20,9 @@ class CrashUploadService : public QObject {
     CrashUploadService(QMainWindow* mainWindow, OneSevenLiveApiWrappers* apiWrapper,
                        OneSevenLiveConfigManager* configManager, QObject* parent = nullptr);
 
-    void onLogin(const OneSevenLiveLoginData& loginData, bool previousRunClean);
+    void processPreviousRun(bool previousRunClean);
+    void onLogin(const OneSevenLiveLoginData& loginData);
+    void showCrashRecordsDialog();
 
    private:
     QPointer<QMainWindow> mainWindow_;
@@ -31,19 +33,42 @@ class CrashUploadService : public QObject {
 
     std::atomic<bool> prompted_{false};
     std::atomic<bool> inFlight_{false};
+    std::atomic<bool> packagingInFlight_{false};
 
     struct CrashCandidate {
         std::string fileName;
         int64_t mtimeSec{0};
     };
 
+    struct CrashRecord {
+        std::string id;
+        std::string archivePath;
+        int64_t createdAtSec{0};
+        int64_t crashTimestampSec{0};
+        bool uploaded{false};
+        int64_t uploadedAtSec{0};
+        std::vector<std::string> recordKeys;
+    };
+
     std::vector<CrashCandidate> detectCrashCandidates() const;
-    std::vector<std::string> buildRecordKeys(const std::string& userId,
-                                             const std::vector<CrashCandidate>& candidates) const;
-    bool isAlreadyUploaded(const std::vector<std::string>& keys) const;
+    std::vector<std::string> buildRecordKeys(const std::vector<CrashCandidate>& candidates) const;
+    bool hasExistingRecordForKeys(const std::vector<std::string>& keys) const;
+    bool getCurrentLoginData(OneSevenLiveLoginData& loginData) const;
+    std::vector<CrashRecord> loadCrashRecords() const;
+    bool saveCrashRecord(const CrashRecord& record) const;
+    bool updateCrashRecordUploadStatus(const std::string& recordId, bool uploaded,
+                                       int64_t uploadedAtSec) const;
+    void pruneCrashRecords() const;
+    void maybePromptUploadForPendingRecord();
+    void promptUploadForRecord(const OneSevenLiveLoginData& loginData, const CrashRecord& record);
+    void packageCrashRecordAsync(std::vector<CrashCandidate> candidates);
 
     void startUploadAsync(const OneSevenLiveLoginData& loginData,
-                          std::vector<std::string> recordKeys, int64_t crashTimestampSec);
+                          const CrashRecord& record);
+
+    static std::string crashLogsDirectory();
+    static std::string crashArchivePath(const std::string& recordId);
+    static std::string crashMetadataPath(const std::string& recordId);
 
     static std::string normalizeFileName(const std::string& fileName);
     static std::string md5Hex(const std::string& s);
