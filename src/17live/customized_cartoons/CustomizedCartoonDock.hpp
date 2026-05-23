@@ -46,6 +46,7 @@ class CustomizedCartoonDock : public QDockWidget {
     void refreshPositionUi();
     void rebuildRulesUi();
     void openMediaSettingsDialog(const QString& mediaId);
+    void openHelpDialog();
     nlohmann::json buildCurrentPositionDraft(bool landscape) const;
     void syncPreviewDraftTransform();
 

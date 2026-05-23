@@ -21,6 +21,7 @@
 #include <QPainter>
 #include <QScrollArea>
 #include <QStyleFactory>
+#include <QStyle>
 #include <QTabWidget>
 #include <QMessageBox>
 #include <QPushButton>
@@ -655,6 +656,9 @@ bool editMediaSettingsDialog(QWidget* parent, const QString& mediaName, bool isV
 CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonService* service)
     : QDockWidget(parent), service_(service) {
     setWindowTitle(obs_module_text("CustomizedCartoon.Dock.Title"));
+    setAllowedAreas(Qt::AllDockWidgetAreas);
+    setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable |
+                QDockWidget::DockWidgetClosable);
     setupUi();
     if (service_) {
         connect(service_, &CustomizedCartoonService::configChanged, this,
@@ -780,6 +784,8 @@ void CustomizedCartoonDock::setupUi() {
         "}"
         "QPushButton#cancelActionButton:hover { background-color: #4A4F5E; }"
         "QPushButton#cancelActionButton:pressed { background-color: #343844; }"
+        "QPushButton#helpIconButton { border: none; background: transparent; padding: 0px; }"
+        "QPushButton#helpIconButton:hover { background-color: rgba(255,255,255,0.08); }"
         "QPushButton#tabButton {"
         "  background-color: transparent; color: rgba(255,255,255,0.7);"
         "  border: 1px solid rgba(255,255,255,0.35); border-radius: 2px;"
@@ -876,6 +882,91 @@ void CustomizedCartoonDock::setupUi() {
     rootLayout->setContentsMargins(kDockOuterMargin, kDockOuterMargin, kDockOuterMargin,
                                    kDockOuterMargin);
     rootLayout->setSpacing(10);
+
+    auto* titleBar = new QWidget(this);
+    titleBar->setObjectName("customizedCartoonTitleBar");
+    titleBar->setStyleSheet(
+        "QWidget#customizedCartoonTitleBar {"
+        "  background-color: #12141A;"
+        "  border: 0.5px solid #3D3D3D;"
+        "  border-radius: 2px;"
+        "}"
+        "QLabel#customizedCartoonTitleLabel {"
+        "  color: #FFFFFF;"
+        "  font-size: 14px;"
+        "  font-weight: 600;"
+        "}"
+        "QPushButton#customizedCartoonTitleButton {"
+        "  border: none;"
+        "  background: transparent;"
+        "  padding: 0px;"
+        "}"
+        "QPushButton#customizedCartoonTitleButton:hover { background-color: rgba(255,255,255,0.08); }");
+    auto* titleBarLayout = new QHBoxLayout(titleBar);
+    titleBarLayout->setContentsMargins(10, 4, 8, 4);
+    titleBarLayout->setSpacing(6);
+
+    auto* titleLabel = new QLabel(windowTitle(), titleBar);
+    titleLabel->setObjectName("customizedCartoonTitleLabel");
+    titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    titleBarLayout->addWidget(titleLabel, 0, Qt::AlignVCenter);
+    titleBarLayout->addStretch();
+
+    auto* titleHelpButton = new QPushButton(titleBar);
+    titleHelpButton->setObjectName("customizedCartoonTitleButton");
+    titleHelpButton->setIcon(QIcon(":/resources/question.svg"));
+    titleHelpButton->setIconSize(QSize(16, 16));
+    titleHelpButton->setFixedSize(20, 20);
+    titleHelpButton->setCursor(Qt::PointingHandCursor);
+    titleHelpButton->setToolTip(obs_module_text("CustomizedCartoon.Help.Tooltip"));
+    titleBarLayout->addWidget(titleHelpButton, 0, Qt::AlignVCenter);
+
+    auto* floatButton = new QPushButton(titleBar);
+    floatButton->setObjectName("customizedCartoonTitleButton");
+    floatButton->setFixedSize(20, 20);
+    floatButton->setCursor(Qt::PointingHandCursor);
+    titleBarLayout->addWidget(floatButton, 0, Qt::AlignVCenter);
+
+    auto* closeButton = new QPushButton(titleBar);
+    closeButton->setObjectName("customizedCartoonTitleButton");
+    closeButton->setIcon(style()->standardIcon(QStyle::SP_TitleBarCloseButton));
+    closeButton->setIconSize(QSize(12, 12));
+    closeButton->setFixedSize(20, 20);
+    closeButton->setCursor(Qt::PointingHandCursor);
+    titleBarLayout->addWidget(closeButton, 0, Qt::AlignVCenter);
+
+    auto updateTitleBarButtons = [this, floatButton, closeButton, titleLabel]() {
+        titleLabel->setText(windowTitle());
+        const auto dockFeatures = features();
+        const bool canFloat = dockFeatures.testFlag(QDockWidget::DockWidgetFloatable);
+        const bool canClose = dockFeatures.testFlag(QDockWidget::DockWidgetClosable);
+        floatButton->setVisible(canFloat);
+        closeButton->setVisible(canClose);
+        floatButton->setIcon(
+            style()->standardIcon(isFloating() ? QStyle::SP_TitleBarNormalButton
+                                               : QStyle::SP_TitleBarMaxButton));
+        floatButton->setIconSize(QSize(12, 12));
+        floatButton->setToolTip(isFloating()
+                                    ? obs_module_text("CustomizedCartoon.Dock.Docked")
+                                    : obs_module_text("CustomizedCartoon.Dock.Float"));
+        closeButton->setToolTip(obs_module_text("CustomizedCartoon.Dock.Close"));
+    };
+
+    connect(titleHelpButton, &QPushButton::clicked, this, &CustomizedCartoonDock::openHelpDialog);
+    connect(floatButton, &QPushButton::clicked, this, [this]() { setFloating(!isFloating()); });
+    connect(closeButton, &QPushButton::clicked, this, &QDockWidget::close);
+    connect(this, &QDockWidget::topLevelChanged, this, [updateTitleBarButtons](bool) {
+        updateTitleBarButtons();
+    });
+    connect(this, &QDockWidget::featuresChanged, this,
+            [updateTitleBarButtons](QDockWidget::DockWidgetFeatures) {
+                updateTitleBarButtons();
+            });
+    connect(this, &QWidget::windowTitleChanged, this, [updateTitleBarButtons](const QString&) {
+        updateTitleBarButtons();
+    });
+    updateTitleBarButtons();
+    setTitleBarWidget(titleBar);
 
     auto* contentScrollArea = new QScrollArea(root);
     contentScrollArea->setWidgetResizable(true);
@@ -1462,6 +1553,49 @@ void CustomizedCartoonDock::openMediaSettingsDialog(const QString& mediaId) {
         }
         return;
     }
+}
+
+void CustomizedCartoonDock::openHelpDialog() {
+    QDialog dialog(this);
+    dialog.setWindowTitle(obs_module_text("CustomizedCartoon.Help.Title"));
+    dialog.setModal(true);
+    dialog.setMinimumWidth(420);
+    dialog.setWindowFlags(dialog.windowFlags() & ~Qt::WindowContextHelpButtonHint);
+    dialog.setStyleSheet(
+        "QDialog { background-color: #4A5568; border-radius: 10px; color: #FFFFFF; }"
+        "QLabel#helpTitle { color: #FFFFFF; font-size: 16px; font-weight: 700; }"
+        "QLabel#helpContent { color: #FFFFFF; font-size: 14px; line-height: 150%; }"
+        "QLabel#helpContent a { color: #007AFF; text-decoration: none; }"
+        "QPushButton { min-width: 88px; min-height: 32px; padding: 0px 12px; }"
+        "QPushButton { background-color: #007AFF; color: #FFFFFF; border: none; border-radius: 2px; "
+        "font-size: 14px; font-weight: 600; }"
+        "QPushButton:hover { background-color: #0A84FF; }");
+
+    auto* layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(16, 16, 16, 16);
+    layout->setSpacing(12);
+
+    auto* titleLabel = new QLabel(obs_module_text("CustomizedCartoon.Help.Title"), &dialog);
+    titleLabel->setObjectName("helpTitle");
+    layout->addWidget(titleLabel);
+
+    auto* contentLabel = new QLabel(&dialog);
+    contentLabel->setObjectName("helpContent");
+    contentLabel->setWordWrap(true);
+    contentLabel->setTextFormat(Qt::RichText);
+    contentLabel->setOpenExternalLinks(true);
+    contentLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    contentLabel->setText(obs_module_text("CustomizedCartoon.Help.Content"));
+    layout->addWidget(contentLabel);
+
+    auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok, &dialog);
+    if (auto* okButton = buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setText(obs_module_text("CustomizedCartoon.Help.Button"));
+    }
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    layout->addWidget(buttonBox, 0, Qt::AlignRight);
+
+    dialog.exec();
 }
 
 void CustomizedCartoonDock::rebuildRulesUi() {
