@@ -147,27 +147,54 @@ SectionEnd
 ; Installer Functions
 Function .onInit
   SetShellVarContext all
-  StrCpy $INSTDIR "$APPDATA\obs-studio\plugins"
   !insertmacro MUI_LANGDLL_DISPLAY
   
   ; Check for existing installation
   ReadRegStr $R0 ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString"
-  StrCmp $R0 "" done
-  
-  MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION \
-  "${PRODUCT_NAME} is already installed. $\n$\nClick `OK` to remove the \
-  previous version or `Cancel` to cancel this upgrade." \
-  IDOK uninst
-  Abort
-  
-  uninst:
-    ClearErrors
-    ExecWait '$R0 _?=$INSTDIR'
-    
-    IfErrors no_remove_uninstaller done
-    no_remove_uninstaller:
-  
-  done:
+  StrCmp $R0 "" set_instdir
+
+  ReadRegStr $R1 HKLM "Software\17Live\OBSPlugin" "InstallPath"
+
+  StrCpy $R2 ""
+  StrCpy $R3 ""
+
+  StrCmp $R1 "" try_from_uninst
+  IfFileExists "$R1\uninst.exe" 0 try_from_uninst
+  StrCpy $R2 "$R1\uninst.exe"
+  StrCpy $R3 "$R1"
+  Goto do_uninst
+
+  try_from_uninst:
+  IfFileExists "$R0" 0 legacy_cleanup
+  StrCpy $R2 "$R0"
+  ${GetParent} "$R0" $R3
+  Goto do_uninst
+
+  legacy_cleanup:
+  StrCpy $R3 "C:\Program Files\obs-studio"
+  Delete "$R3\obs-plugins\64bit\obs-17live.dll"
+  Delete "$R3\obs-plugins\64bit\obs-17live.pdb"
+  RMDir /r "$R3\data\obs-plugins\obs-17live"
+  StrCpy $R3 "C:\Program Files (x86)\obs-studio"
+  Delete "$R3\obs-plugins\64bit\obs-17live.dll"
+  Delete "$R3\obs-plugins\64bit\obs-17live.pdb"
+  RMDir /r "$R3\data\obs-plugins\obs-17live"
+  DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
+  DeleteRegKey HKLM "Software\17Live\OBSPlugin"
+  Goto set_instdir
+
+  do_uninst:
+  ClearErrors
+  ExecWait '"$R2" /S _?=$R3'
+  Delete "$R3\obs-plugins\64bit\obs-17live.dll"
+  Delete "$R3\obs-plugins\64bit\obs-17live.pdb"
+  RMDir /r "$R3\data\obs-plugins\obs-17live"
+  Delete "$R3\uninst.exe"
+  DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
+  DeleteRegKey HKLM "Software\17Live\OBSPlugin"
+
+  set_instdir:
+  StrCpy $INSTDIR "$APPDATA\obs-studio\plugins"
 FunctionEnd
 
 Function un.onInit
