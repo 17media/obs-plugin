@@ -23,6 +23,7 @@ class CustomizedCartoonDock : public QDockWidget {
 
    public:
     explicit CustomizedCartoonDock(QWidget* parent, CustomizedCartoonService* service);
+    ~CustomizedCartoonDock() override;
 
    private slots:
     void refreshUi();
@@ -37,6 +38,7 @@ class CustomizedCartoonDock : public QDockWidget {
     void onReadPositionFromCanvas();
     void onStartPositionPreview();
     void onStopPositionPreview();
+    void setStreamingActive(bool active);
 
    private:
     void setupUi();
@@ -49,6 +51,7 @@ class CustomizedCartoonDock : public QDockWidget {
     void openHelpDialog();
     nlohmann::json buildCurrentPositionDraft(bool landscape) const;
     void syncPreviewDraftTransform();
+    void updateMediaPreviewAvailability();
 
     CustomizedCartoonService* service_{nullptr};
 
@@ -79,4 +82,5 @@ class CustomizedCartoonDock : public QDockWidget {
     QPushButton* applyButton_{nullptr};
 
     QTableWidget* progressTable_{nullptr};
+    bool streamingActive_{false};
 };

@@ -1,5 +1,6 @@
 #include "CustomizedCartoonDock.hpp"
 
+#include <obs-frontend-api.h>
 #include <obs-module.h>
 
 #include <QCheckBox>
@@ -17,6 +18,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMetaObject>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScrollArea>
@@ -62,6 +64,21 @@ constexpr int kRuleStatusComboWidth = 88;
 constexpr int kRuleTypeComboChars = 10;
 constexpr int kRuleMediaComboChars = 12;
 constexpr int kRuleStatusComboChars = 4;
+
+static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event event,
+                                                       void* private_data) {
+    auto* dock = static_cast<CustomizedCartoonDock*>(private_data);
+    if (!dock) {
+        return;
+    }
+
+    if (event == OBS_FRONTEND_EVENT_STREAMING_STARTED ||
+        event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
+        const bool active = obs_frontend_streaming_active();
+        QMetaObject::invokeMethod(dock, "setStreamingActive", Qt::QueuedConnection,
+                                  Q_ARG(bool, active));
+    }
+}
 
 class PositionCanvasWidget final : public QWidget {
    public:
@@ -660,6 +677,8 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
     setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable |
                 QDockWidget::DockWidgetClosable);
     setupUi();
+    streamingActive_ = obs_frontend_streaming_active();
+    obs_frontend_add_event_callback(CustomizedCartoonDockFrontendEventCallback, this);
     if (service_) {
         connect(service_, &CustomizedCartoonService::configChanged, this,
                 &CustomizedCartoonDock::refreshUi);
@@ -669,6 +688,44 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
                 &CustomizedCartoonDock::refreshMediaList);
     }
     refreshUi();
+}
+
+CustomizedCartoonDock::~CustomizedCartoonDock() {
+    obs_frontend_remove_event_callback(CustomizedCartoonDockFrontendEventCallback, this);
+}
+
+void CustomizedCartoonDock::setStreamingActive(bool active) {
+    if (streamingActive_ == active) {
+        return;
+    }
+    streamingActive_ = active;
+    if (streamingActive_ && service_ && service_->isMediaPreviewing()) {
+        service_->stopMediaPreview();
+    }
+    updateMediaPreviewAvailability();
+    refreshMediaList();
+}
+
+void CustomizedCartoonDock::updateMediaPreviewAvailability() {
+    if (!mediaList_) {
+        return;
+    }
+    const bool canPreview = !streamingActive_;
+    for (int i = 0; i < mediaList_->count(); ++i) {
+        auto* item = mediaList_->item(i);
+        auto* row = mediaList_->itemWidget(item);
+        if (!row) {
+            continue;
+        }
+        auto* previewButton = row->findChild<QPushButton*>("mediaPreviewButton");
+        if (!previewButton) {
+            continue;
+        }
+        previewButton->setEnabled(canPreview);
+        previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
+        previewButton->setToolTip(
+            canPreview ? QString() : obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"));
+    }
 }
 
 void CustomizedCartoonDock::setupUi() {
@@ -1418,10 +1475,16 @@ void CustomizedCartoonDock::refreshMediaList() {
             settingsButton->setToolTip(obs_module_text("CustomizedCartoon.Media.Settings.Tooltip"));
 
             auto* previewButton = new QPushButton(row);
+            previewButton->setObjectName("mediaPreviewButton");
             previewButton->setIcon(previewingThis ? stopIcon : playIcon);
             previewButton->setIconSize(QSize(24, 24));
             previewButton->setFixedSize(24, 24);
-            previewButton->setCursor(Qt::PointingHandCursor);
+            const bool canPreview = !streamingActive_;
+            previewButton->setEnabled(canPreview);
+            previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
+            previewButton->setToolTip(
+                canPreview ? QString()
+                           : obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"));
 
             auto* delButton = new QPushButton(row);
             delButton->setIcon(trashIcon);
@@ -1447,6 +1510,13 @@ void CustomizedCartoonDock::refreshMediaList() {
 
             connect(previewButton, &QPushButton::clicked, this, [this, item, id]() {
                 if (!service_) {
+                    return;
+                }
+                if (streamingActive_ || obs_frontend_streaming_active()) {
+                    QMessageBox::information(
+                        this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                        obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"),
+                        QMessageBox::Ok);
                     return;
                 }
                 if (mediaList_) {
