@@ -92,7 +92,12 @@ class WebSocketManager extends EventEmitter {
         }
       }
       try {
-        this.send({ type: 'action', payload: { type: 'register_chatdock' } });
+        const pathname = typeof window !== 'undefined' ? window.location?.pathname || '' : '';
+        const isEnterAnimationPage = pathname.includes('enter_animation');
+        this.send({
+          type: 'action',
+          payload: { type: isEnterAnimationPage ? 'register_enter_animation_page' : 'register_chatdock' },
+        });
       } catch {}
     };
 
@@ -109,6 +114,18 @@ class WebSocketManager extends EventEmitter {
       const type = msg?.type;
       const payload = msg?.payload;
       if (!type) return;
+
+      const pathname = typeof window !== 'undefined' ? window.location?.pathname || '' : '';
+      const isEnterAnimationPage = pathname.includes('enter_animation');
+      if (
+        isEnterAnimationPage &&
+        (type === 'twitch_chat_connected' ||
+          type === 'twitch_chat_message' ||
+          type === 'youtube_chat_connected' ||
+          type === 'youtube_chat_message')
+      ) {
+        return;
+      }
 
       // 路由到平台处理：twitch / youtube / 17live
       const routeTo = (platformId, transform) => {

@@ -89,4 +89,8 @@ class OneSevenLivePreviewWidget : public QWidget {
     // Optional overlay URL override
     QString overlayUrl_;
     QString enterAnimUrl_;
+    QString lastOverlayUrl_;
+    QString lastEnterAnimUrl_;
+    int lastEnterAnimWidth_{0};
+    int lastEnterAnimHeight_{0};
 };

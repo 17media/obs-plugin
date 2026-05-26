@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include <string>
+#include <unordered_set>
 
 #include <QString>
 #include <nlohmann/json.hpp>
@@ -24,10 +25,13 @@ public:
     void clear();
 
 private:
-    bool isChatDockClientConnectedLocked() const;
+    bool hasAnyConnectedTargetLocked(const std::unordered_set<std::string>& targets) const;
+    void sendToTargetsLocked(const WsMessage& m, const std::unordered_set<std::string>& targets);
+    const std::unordered_set<std::string>& resolveTargetsLocked(const WsMessage& m) const;
 
     OneSevenLiveCoreManager* coreManager_;
     WsMessageQueue chatEventQueue_{5000};
-    std::string chatDockClientId_;
+    std::unordered_set<std::string> chatDockClientIds_;
+    std::unordered_set<std::string> enterAnimClientIds_;
     mutable std::mutex chatQueueMutex_;
 };

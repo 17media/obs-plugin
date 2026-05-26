@@ -21,6 +21,9 @@
 #include <QWindow>
 #include <cmath>
 
+#include "../OneSevenLiveCoreManager.hpp"
+#include "../streaming/OneSevenLiveStreamManager.hpp"
+
 #include "moc_OneSevenLivePreviewWidget.cpp"
 #include "utility/Common.hpp"
 
@@ -70,6 +73,10 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QStr
     // Load browser source configuration and create browser source
     loadBrowserSourceConfig();
     createBrowserSource();
+    lastOverlayUrl_ = overlayUrl_.isEmpty() ? browserConfig.url : overlayUrl_;
+    lastEnterAnimUrl_ = enterAnimUrl_;
+    lastEnterAnimWidth_ = 0;
+    lastEnterAnimHeight_ = 0;
 
     // Set up browser refresh timer
     browserRefreshTimer->setInterval(1000);  // Refresh every second
@@ -179,6 +186,11 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
     vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 1.0f);
     gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
 
+    float video_x = 0.0f;
+    float video_y = 0.0f;
+    float video_w = static_cast<float>(cx);
+    float video_h = static_cast<float>(cy);
+
     // Render main source
     if (currentSource) {
         uint32_t source_width = obs_source_get_width(currentSource);
@@ -197,6 +209,11 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
             float scaled_height = (float) source_height * scale;
             float offset_x = ((float) cx - scaled_width) * 0.5f;
             float offset_y = ((float) cy - scaled_height) * 0.5f;
+
+            video_x = offset_x;
+            video_y = offset_y;
+            video_w = scaled_width;
+            video_h = scaled_height;
 
             // Apply transformation and render
             gs_matrix_push();
@@ -274,15 +291,36 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
                 if (browser_width > 0 && browser_height > 0 && is_active && is_showing) {
                     gs_matrix_push();
 
-                    float preview_width = static_cast<float>(cx);
-                    float preview_height = static_cast<float>(cy);
+                    bool isLandscape = true;
+                    auto& core = OneSevenLiveCoreManager::getInstance();
+                    if (core.getStreamManager()) {
+                        isLandscape = core.getStreamManager()->getRoomInfo().landscape;
+                    }
+
+                    const float roomAspect = isLandscape ? (16.0f / 9.0f) : (640.0f / 1136.0f);
+                    float region_h = static_cast<float>(cy);
+                    float region_w = region_h * roomAspect;
+                    if (region_w > static_cast<float>(cx)) {
+                        region_w = static_cast<float>(cx);
+                        region_h = region_w / roomAspect;
+                    }
+
+                    const float region_x = (static_cast<float>(cx) - region_w) * 0.5f;
+                    const float region_y =
+                        isLandscape ? (static_cast<float>(cy) - region_h) * 0.5f
+                                    : (static_cast<float>(cy) - region_h);
+
+                    gs_matrix_translate3f(region_x, region_y, 0.0f);
+
+                    float preview_width = region_w;
+                    float preview_height = region_h;
                     float browser_width_f = static_cast<float>(browser_width);
                     float browser_height_f = static_cast<float>(browser_height);
 
                     float scale_x = preview_width / browser_width_f;
                     float scale_y = preview_height / browser_height_f;
-                    float fill_scale = qMax(scale_x, scale_y);
-                    float final_scale = fill_scale * overlayScale;
+                    float fit_scale = qMin(scale_x, scale_y);
+                    float final_scale = fit_scale * overlayScale;
 
                     float scaled_browser_width = browser_width_f * final_scale;
                     float scaled_browser_height = browser_height_f * final_scale;
@@ -499,10 +537,19 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
 
     // Create enter animation browser source
     if (!enterAnimUrl_.isEmpty()) {
+        bool isLandscape = true;
+        auto& core = OneSevenLiveCoreManager::getInstance();
+        if (core.getStreamManager()) {
+            isLandscape = core.getStreamManager()->getRoomInfo().landscape;
+        }
+
+        const int enterW = isLandscape ? (browserConfig.isValid ? browserConfig.width : 1920) : 640;
+        const int enterH = isLandscape ? (browserConfig.isValid ? browserConfig.height : 1080) : 1136;
+
         ObsDataPtr enterAnimSettings{obs_data_create()};
         obs_data_set_string(enterAnimSettings.get(), "url", enterAnimUrl_.toUtf8().constData());
-        obs_data_set_int(enterAnimSettings.get(), "width", browserConfig.isValid ? browserConfig.width : 1920);
-        obs_data_set_int(enterAnimSettings.get(), "height", browserConfig.isValid ? browserConfig.height : 1080);
+        obs_data_set_int(enterAnimSettings.get(), "width", enterW);
+        obs_data_set_int(enterAnimSettings.get(), "height", enterH);
         obs_data_set_int(enterAnimSettings.get(), "fps", browserConfig.isValid ? browserConfig.fps : 30);
         obs_data_set_bool(enterAnimSettings.get(), "shutdown", false);
         obs_data_set_bool(enterAnimSettings.get(), "restart_when_active", false);
@@ -525,6 +572,9 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
         } else {
             obs_log(LOG_ERROR, "Failed to create enter anim browser source");
         }
+
+        lastEnterAnimWidth_ = enterW;
+        lastEnterAnimHeight_ = enterH;
     }
 }
 
@@ -562,8 +612,11 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
         if (settings) {
             // Update the URL to trigger a refresh; overlayUrl_ overrides config
             const QString effectiveUrl = overlayUrl_.isEmpty() ? browserConfig.url : overlayUrl_;
-            obs_data_set_string(settings.get(), "url", effectiveUrl.toUtf8().constData());
-            obs_source_update(browserSource, settings.get());
+            if (effectiveUrl != lastOverlayUrl_) {
+                obs_data_set_string(settings.get(), "url", effectiveUrl.toUtf8().constData());
+                obs_source_update(browserSource, settings.get());
+                lastOverlayUrl_ = effectiveUrl;
+            }
             settings.reset();
         }
     }
@@ -571,8 +624,31 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
     if (enterAnimSource) {
         ObsDataPtr settings{obs_source_get_settings(enterAnimSource)};
         if (settings) {
-            obs_data_set_string(settings.get(), "url", enterAnimUrl_.toUtf8().constData());
-            obs_source_update(enterAnimSource, settings.get());
+            bool isLandscape = true;
+            auto& core = OneSevenLiveCoreManager::getInstance();
+            if (core.getStreamManager()) {
+                isLandscape = core.getStreamManager()->getRoomInfo().landscape;
+            }
+
+            const int enterW = isLandscape ? (browserConfig.isValid ? browserConfig.width : 1920) : 640;
+            const int enterH = isLandscape ? (browserConfig.isValid ? browserConfig.height : 1080) : 1136;
+
+            bool changed = false;
+            if (enterAnimUrl_ != lastEnterAnimUrl_) {
+                obs_data_set_string(settings.get(), "url", enterAnimUrl_.toUtf8().constData());
+                lastEnterAnimUrl_ = enterAnimUrl_;
+                changed = true;
+            }
+            if (enterW != lastEnterAnimWidth_ || enterH != lastEnterAnimHeight_) {
+                obs_data_set_int(settings.get(), "width", enterW);
+                obs_data_set_int(settings.get(), "height", enterH);
+                lastEnterAnimWidth_ = enterW;
+                lastEnterAnimHeight_ = enterH;
+                changed = true;
+            }
+            if (changed) {
+                obs_source_update(enterAnimSource, settings.get());
+            }
             settings.reset();
         }
     }

@@ -13,6 +13,48 @@
 
 ChatBridgeService::ChatBridgeService(OneSevenLiveCoreManager* coreManager) : coreManager_(coreManager) {}
 
+bool ChatBridgeService::hasAnyConnectedTargetLocked(
+    const std::unordered_set<std::string>& targets) const {
+    if (targets.empty()) {
+        return false;
+    }
+    auto* ws = coreManager_ ? coreManager_->getWebsocketServer() : nullptr;
+    if (!ws || !ws->is_running()) {
+        return false;
+    }
+    const auto ids = ws->getConnectedClientIds();
+    for (const auto& id : ids) {
+        if (targets.find(id) != targets.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const std::unordered_set<std::string>& ChatBridgeService::resolveTargetsLocked(const WsMessage& m) const {
+    if (m.type == ws::EventAblyChatMessage && m.payload.contains("type") &&
+        m.payload["type"].is_number_integer() && m.payload["type"].get<int>() == 27) {
+        return enterAnimClientIds_;
+    }
+    return chatDockClientIds_;
+}
+
+void ChatBridgeService::sendToTargetsLocked(const WsMessage& m,
+                                            const std::unordered_set<std::string>& targets) {
+    auto* ws = coreManager_ ? coreManager_->getWebsocketServer() : nullptr;
+    if (!ws || !ws->is_running() || targets.empty()) {
+        return;
+    }
+    const auto connected = ws->getConnectedClientIds();
+    const auto msg = m.dump();
+    for (const auto& id : connected) {
+        if (targets.find(id) == targets.end()) {
+            continue;
+        }
+        ws->sendMessageToClient(id, msg);
+    }
+}
+
 void ChatBridgeService::onWebsocketMessage(const std::string& clientId, const std::string& message) {
     WsMessage m;
     if (!WsMessage::parse(message, m)) {
@@ -32,16 +74,25 @@ void ChatBridgeService::onWebsocketMessage(const std::string& clientId, const st
         if (actionType == ws::ActionRegisterChatDock) {
             {
                 std::lock_guard<std::mutex> lock(chatQueueMutex_);
-                chatDockClientId_ = clientId;
+                chatDockClientIds_.insert(clientId);
             }
             obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
+            flushChatEventQueue();
+            return;
+        }
+        if (actionType == ws::ActionRegisterEnterAnimationPage) {
+            {
+                std::lock_guard<std::mutex> lock(chatQueueMutex_);
+                enterAnimClientIds_.insert(clientId);
+            }
+            obs_log(LOG_INFO, "[ChatQueue] EnterAnimation registered client=%s", clientId.c_str());
             flushChatEventQueue();
             return;
         }
 
         {
             std::lock_guard<std::mutex> lock(chatQueueMutex_);
-            if (chatDockClientId_.empty() || chatDockClientId_ != clientId) {
+            if (chatDockClientIds_.find(clientId) == chatDockClientIds_.end()) {
                 return;
             }
         }
@@ -107,60 +158,55 @@ void ChatBridgeService::onWebsocketConnectionChanged(const std::string& clientId
     } else {
         obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
         std::lock_guard<std::mutex> lock(chatQueueMutex_);
-        if (!chatDockClientId_.empty() && chatDockClientId_ == clientId) {
-            chatDockClientId_.clear();
-        }
+        chatDockClientIds_.erase(clientId);
+        enterAnimClientIds_.erase(clientId);
     }
-}
-
-bool ChatBridgeService::isChatDockClientConnectedLocked() const {
-    if (chatDockClientId_.empty()) {
-        return false;
-    }
-    auto* ws = coreManager_ ? coreManager_->getWebsocketServer() : nullptr;
-    if (!ws || !ws->is_running()) {
-        return false;
-    }
-    const auto ids = ws->getConnectedClientIds();
-    return std::find(ids.begin(), ids.end(), chatDockClientId_) != ids.end();
 }
 
 void ChatBridgeService::enqueueOrBroadcastChatEvent(const QString& type, const nlohmann::json& payload) {
     std::lock_guard<std::mutex> lock(chatQueueMutex_);
-    auto* ws = coreManager_ ? coreManager_->getWebsocketServer() : nullptr;
-    if (ws && ws->is_running() && isChatDockClientConnectedLocked()) {
-        obs_log(LOG_DEBUG, "Sending chat event to chat dock client %s", chatDockClientId_.c_str());
-        ws->sendMessageToClient(chatDockClientId_, WsMessage{type.toStdString(), payload}.dump());
-        return;
+    const WsMessage m{type.toStdString(), payload};
+    if (m.type == ws::EventAblyChatConnected) {
+        if (hasAnyConnectedTargetLocked(chatDockClientIds_) || hasAnyConnectedTargetLocked(enterAnimClientIds_)) {
+            sendToTargetsLocked(m, chatDockClientIds_);
+            sendToTargetsLocked(m, enterAnimClientIds_);
+            return;
+        }
+    } else {
+        const auto& targets = resolveTargetsLocked(m);
+        if (hasAnyConnectedTargetLocked(targets)) {
+            sendToTargetsLocked(m, targets);
+            return;
+        }
     }
 
-    chatEventQueue_.enqueue(WsMessage{type.toStdString(), payload});
+    chatEventQueue_.enqueue(m);
     obs_log(LOG_DEBUG, "[ChatQueue] Enqueued chat event. queueSize=%zu", chatEventQueue_.size());
 }
 
 void ChatBridgeService::flushChatEventQueue() {
     std::lock_guard<std::mutex> lock(chatQueueMutex_);
-
-    if (!isChatDockClientConnectedLocked()) {
+    if (!hasAnyConnectedTargetLocked(chatDockClientIds_) && !hasAnyConnectedTargetLocked(enterAnimClientIds_)) {
         return;
     }
 
-    auto* ws = coreManager_ ? coreManager_->getWebsocketServer() : nullptr;
-    if (!ws) {
-        return;
-    }
-
-    obs_log(LOG_INFO, "[ChatQueue] Flushing %zu events to chatDock client=%s", chatEventQueue_.size(),
-            chatDockClientId_.c_str());
+    obs_log(LOG_INFO, "[ChatQueue] Flushing %zu events", chatEventQueue_.size());
     while (!chatEventQueue_.empty()) {
         const auto m = chatEventQueue_.front();
-        ws->sendMessageToClient(chatDockClientId_, m.dump());
+        if (m.type == ws::EventAblyChatConnected) {
+            sendToTargetsLocked(m, chatDockClientIds_);
+            sendToTargetsLocked(m, enterAnimClientIds_);
+        } else {
+            const auto& targets = resolveTargetsLocked(m);
+            sendToTargetsLocked(m, targets);
+        }
         chatEventQueue_.popFront();
     }
 }
 
 void ChatBridgeService::clear() {
     std::lock_guard<std::mutex> lock(chatQueueMutex_);
-    chatDockClientId_.clear();
+    chatDockClientIds_.clear();
+    enterAnimClientIds_.clear();
     chatEventQueue_.clear();
 }
