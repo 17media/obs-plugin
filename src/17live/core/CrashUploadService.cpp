@@ -4,6 +4,7 @@
 
 #include <QCryptographicHash>
 #include <QDateTime>
+#include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -19,6 +20,7 @@
 #include <QMetaObject>
 #include <QProgressDialog>
 #include <QPushButton>
+#include <QUrl>
 #include <QUuid>
 #include <QVBoxLayout>
 
@@ -147,19 +149,16 @@ void CrashUploadService::processPreviousRun(bool previousRunClean) {
         return;
     }
 
-    const auto candidates = detectCrashCandidates();
-    const auto keys = buildRecordKeys(candidates);
-    if (!keys.empty() && !hasExistingRecordForKeys(keys)) {
-        packageCrashRecordAsync(candidates);
-        return;
-    }
+    abnormalExitDetected_.store(true);
 
-    maybePromptUploadForPendingRecord();
+    const auto candidates = detectCrashCandidates();
+    packageCrashRecordAsync(candidates);
+    maybePromptUploadForAbnormalExit();
 }
 
 void CrashUploadService::onLogin(const OneSevenLiveLoginData& loginData) {
     Q_UNUSED(loginData);
-    maybePromptUploadForPendingRecord();
+    maybePromptUploadForAbnormalExit();
 }
 
 void CrashUploadService::showCrashRecordsDialog() {
@@ -182,10 +181,14 @@ void CrashUploadService::showCrashRecordsDialog() {
         "QFrame#historyRow { background-color: rgba(255,255,255,0.06); border-radius: 6px; }"
         "QLabel#recordName { color: #FFFFFF; font-size: 14px; font-weight: 600; }"
         "QLabel#recordMeta, QLabel#recordStatus { color: #D0D7E2; font-size: 12px; }"
+        "QLabel#recordTooLarge { color: #FFB020; font-size: 12px; }"
         "QPushButton { min-width: 88px; min-height: 32px; padding: 0px 12px; }"
         "QPushButton#uploadButton { background-color: #007AFF; color: #FFFFFF; border: none; "
         "border-radius: 2px; font-size: 14px; font-weight: 600; }"
         "QPushButton#uploadButton:hover { background-color: #0A84FF; }"
+        "QPushButton#deleteButton, QPushButton#openFolderButton { background-color: #3C404D; color: #FFFFFF; "
+        "border: 1px solid #757575; border-radius: 2px; font-size: 14px; font-weight: 600; }"
+        "QPushButton#deleteButton:hover, QPushButton#openFolderButton:hover { background-color: #4A4F5E; }"
         "QPushButton#closeButton { background-color: #3C404D; color: #FFFFFF; border: 1px solid #757575; "
         "border-radius: 2px; font-size: 14px; font-weight: 600; }"
         "QPushButton#closeButton:hover { background-color: #4A4F5E; }"
@@ -248,8 +251,20 @@ void CrashUploadService::showCrashRecordsDialog() {
             metaLabel->setObjectName("recordMeta");
             textLayout->addWidget(metaLabel);
 
+            bool archiveExists = false;
+            bool tooLarge = false;
+            try {
+                archiveExists = std::filesystem::exists(record.archivePath);
+                if (archiveExists) {
+                    const auto fileSize = std::filesystem::file_size(record.archivePath);
+                    tooLarge = fileSize > 25ULL * 1024ULL * 1024ULL;
+                }
+            } catch (...) {
+            }
+
             const QString statusText =
-                record.uploaded
+                tooLarge ? QString(obs_module_text("CrashUpload.History.StatusTooLarge"))
+                : record.uploaded
                     ? QString(obs_module_text("CrashUpload.History.StatusUploaded"))
                           .arg(formatCrashTime(record.uploadedAtSec))
                     : QString(obs_module_text("CrashUpload.History.StatusPending"));
@@ -264,7 +279,8 @@ void CrashUploadService::showCrashRecordsDialog() {
                                 : obs_module_text("CrashUpload.History.ButtonUpload"),
                 row);
             uploadButton->setObjectName("uploadButton");
-            uploadButton->setEnabled(isLoggedIn && !record.uploaded && !inFlight_.load());
+            uploadButton->setEnabled(isLoggedIn && !record.uploaded && archiveExists && !tooLarge &&
+                                     !inFlight_.load());
             rowLayout->addWidget(uploadButton, 0, Qt::AlignVCenter);
 
             if (!record.uploaded) {
@@ -282,6 +298,39 @@ void CrashUploadService::showCrashRecordsDialog() {
                                  });
             }
 
+            auto* deleteButton =
+                new QPushButton(obs_module_text("CrashUpload.History.ButtonDelete"), row);
+            deleteButton->setObjectName("deleteButton");
+            deleteButton->setEnabled(!inFlight_.load());
+            rowLayout->addWidget(deleteButton, 0, Qt::AlignVCenter);
+            QObject::connect(deleteButton, &QPushButton::clicked, &dialog,
+                             [this, list, item, row, record]() {
+                                 if (!mainWindow_ || !list || !item || !row) {
+                                     return;
+                                 }
+                                 const auto confirm =
+                                     QMessageBox::question(mainWindow_,
+                                                           obs_module_text("CrashUpload.History.DeleteConfirm.Title"),
+                                                           obs_module_text("CrashUpload.History.DeleteConfirm.Message"),
+                                                           QMessageBox::Yes | QMessageBox::No);
+                                 if (confirm != QMessageBox::Yes) {
+                                     return;
+                                 }
+                                 try {
+                                     std::filesystem::remove(record.archivePath);
+                                 } catch (...) {
+                                 }
+                                 try {
+                                     std::filesystem::remove(crashMetadataPath(record.id));
+                                 } catch (...) {
+                                 }
+                                 const int rowIndex = list->row(item);
+                                 auto* taken = list->takeItem(rowIndex);
+                                 list->removeItemWidget(taken);
+                                 row->deleteLater();
+                                 delete taken;
+                             });
+
             item->setSizeHint(row->sizeHint());
             list->addItem(item);
             list->setItemWidget(item, row);
@@ -291,10 +340,24 @@ void CrashUploadService::showCrashRecordsDialog() {
     }
 
     auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    auto* openFolderButton = buttonBox->addButton(
+        obs_module_text("CrashUpload.History.ButtonOpenFolder"), QDialogButtonBox::ActionRole);
+    if (openFolderButton) {
+        openFolderButton->setObjectName("openFolderButton");
+    }
     if (auto* closeButton = buttonBox->button(QDialogButtonBox::Close)) {
         closeButton->setObjectName("closeButton");
         closeButton->setText(obs_module_text("CrashUpload.History.ButtonClose"));
     }
+    QObject::connect(buttonBox, &QDialogButtonBox::clicked, &dialog,
+                     [openFolderButton](QAbstractButton* button) {
+                         if (button != openFolderButton) {
+                             return;
+                         }
+                         const QString dirPath =
+                             QString::fromStdString(CrashUploadService::crashLogsDirectory());
+                         QDesktopServices::openUrl(QUrl::fromLocalFile(dirPath));
+                     });
     QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttonBox);
 
@@ -416,6 +479,16 @@ bool CrashUploadService::getCurrentLoginData(OneSevenLiveLoginData& loginData) c
     return !apiWrapper_->getToken().empty();
 }
 
+std::optional<CrashUploadService::CrashRecord> CrashUploadService::findPendingRecord() const {
+    const auto records = loadCrashRecords();
+    auto it =
+        std::find_if(records.begin(), records.end(), [](const CrashRecord& record) { return !record.uploaded; });
+    if (it == records.end()) {
+        return std::nullopt;
+    }
+    return *it;
+}
+
 std::vector<CrashUploadService::CrashRecord> CrashUploadService::loadCrashRecords() const {
     std::vector<CrashRecord> out;
     const QString dirPath = QString::fromStdString(crashLogsDirectory());
@@ -532,8 +605,11 @@ void CrashUploadService::pruneCrashRecords() const {
     }
 }
 
-void CrashUploadService::maybePromptUploadForPendingRecord() {
+void CrashUploadService::maybePromptUploadForAbnormalExit() {
     if (prompted_.load()) {
+        return;
+    }
+    if (!abnormalExitDetected_.load()) {
         return;
     }
 
@@ -542,19 +618,76 @@ void CrashUploadService::maybePromptUploadForPendingRecord() {
         return;
     }
 
-    const auto records = loadCrashRecords();
-    auto it =
-        std::find_if(records.begin(), records.end(), [](const CrashRecord& record) { return !record.uploaded; });
-    if (it == records.end()) {
-        return;
-    }
-
     bool expected = false;
     if (!prompted_.compare_exchange_strong(expected, true)) {
         return;
     }
 
-    promptUploadForRecord(loginData, *it);
+    promptUploadForAbnormalExit(loginData);
+}
+
+void CrashUploadService::promptUploadForAbnormalExit(const OneSevenLiveLoginData& loginData) {
+    if (!mainWindow_) {
+        return;
+    }
+
+    auto* msgBox = new QMessageBox(mainWindow_);
+    msgBox->setWindowTitle(obs_module_text("CrashUpload.Confirm.Title"));
+    msgBox->setText(obs_module_text("CrashUpload.Confirm.Message"));
+    QPushButton* cancelButton =
+        msgBox->addButton(obs_module_text("CrashUpload.Confirm.Button.Cancel"), QMessageBox::NoRole);
+    QPushButton* uploadButton =
+        msgBox->addButton(obs_module_text("CrashUpload.Confirm.Button.Upload"), QMessageBox::YesRole);
+    msgBox->setDefaultButton(cancelButton);
+
+    QPointer<CrashUploadService> self = this;
+    QObject::connect(msgBox, &QMessageBox::finished, this,
+                     [self, msgBox, uploadButton, loginData](int) mutable {
+                         if (!self) {
+                             msgBox->deleteLater();
+                             return;
+                         }
+                         if (msgBox->clickedButton() != uploadButton) {
+                             msgBox->deleteLater();
+                             return;
+                         }
+
+                         self->userAcceptedUpload_.store(true);
+
+                         if (self->mainWindow_) {
+                             auto* dlg =
+                                 new QProgressDialog(obs_module_text("CrashUpload.Progress.Collecting"),
+                                                     obs_module_text("CrashUpload.Progress.Cancel"), 0, 100,
+                                                     self->mainWindow_);
+                             dlg->setWindowTitle(obs_module_text("CrashUpload.Confirm.Title"));
+                             dlg->setWindowModality(Qt::ApplicationModal);
+                             dlg->setAutoClose(false);
+                             dlg->setAutoReset(false);
+                             dlg->setMinimumDuration(0);
+                             dlg->setValue(10);
+                             self->progressDialog_ = dlg;
+                             self->cancelFlag_ = std::make_shared<std::atomic<bool>>(false);
+
+                             QPointer<CrashUploadService> s = self;
+                             QObject::connect(dlg, &QProgressDialog::canceled, dlg, [s]() {
+                                 if (s && s->cancelFlag_) {
+                                     s->cancelFlag_->store(true);
+                                 }
+                                 if (s && s->progressDialog_) {
+                                     s->progressDialog_->hide();
+                                     s->progressDialog_->deleteLater();
+                                     s->progressDialog_.clear();
+                                 }
+                             });
+
+                             dlg->show();
+                         }
+
+                         self->packageCrashRecordAsync(self->detectCrashCandidates());
+                         self->maybeStartAcceptedUpload();
+                         msgBox->deleteLater();
+                     });
+    msgBox->open();
 }
 
 void CrashUploadService::promptUploadForRecord(const OneSevenLiveLoginData& loginData,
@@ -696,15 +829,62 @@ void CrashUploadService::packageCrashRecordAsync(std::vector<CrashCandidate> can
 
         QMetaObject::invokeMethod(
             self,
-            [self]() {
+            [self, record]() {
                 if (self) {
-                    self->maybePromptUploadForPendingRecord();
+                    self->onCrashRecordPackaged(record);
                 }
             },
             Qt::QueuedConnection);
 
         self->packagingInFlight_.store(false);
     });
+}
+
+void CrashUploadService::onCrashRecordPackaged(const CrashRecord& record) {
+    Q_UNUSED(record);
+    maybeStartAcceptedUpload();
+}
+
+void CrashUploadService::maybeStartAcceptedUpload() {
+    if (!userAcceptedUpload_.load()) {
+        return;
+    }
+    if (inFlight_.load()) {
+        return;
+    }
+
+    OneSevenLiveLoginData loginData;
+    if (!getCurrentLoginData(loginData)) {
+        return;
+    }
+
+    const auto pending = findPendingRecord();
+    if (!pending) {
+        return;
+    }
+
+    try {
+        if (!std::filesystem::exists(pending->archivePath)) {
+            return;
+        }
+        const auto fileSize = std::filesystem::file_size(pending->archivePath);
+        if (fileSize > 25ULL * 1024ULL * 1024ULL) {
+            if (mainWindow_) {
+                if (progressDialog_) {
+                    progressDialog_->hide();
+                    progressDialog_->deleteLater();
+                    progressDialog_.clear();
+                }
+                QMessageBox::warning(mainWindow_, obs_module_text("CrashUpload.Result.Title"),
+                                     obs_module_text("CrashUpload.Result.TooLarge"), QMessageBox::Ok);
+            }
+            userAcceptedUpload_.store(false);
+            return;
+        }
+    } catch (...) {
+    }
+
+    startUploadAsync(loginData, *pending);
 }
 
 void CrashUploadService::startUploadAsync(const OneSevenLiveLoginData& loginData,

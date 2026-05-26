@@ -6,6 +6,7 @@
 #include <QProgressDialog>
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,8 @@ class CrashUploadService : public QObject {
     std::atomic<bool> prompted_{false};
     std::atomic<bool> inFlight_{false};
     std::atomic<bool> packagingInFlight_{false};
+    std::atomic<bool> abnormalExitDetected_{false};
+    std::atomic<bool> userAcceptedUpload_{false};
 
     struct CrashCandidate {
         std::string fileName;
@@ -55,13 +58,17 @@ class CrashUploadService : public QObject {
     bool hasExistingRecordForKeys(const std::vector<std::string>& keys) const;
     bool getCurrentLoginData(OneSevenLiveLoginData& loginData) const;
     std::vector<CrashRecord> loadCrashRecords() const;
+    std::optional<CrashRecord> findPendingRecord() const;
     bool saveCrashRecord(const CrashRecord& record) const;
     bool updateCrashRecordUploadStatus(const std::string& recordId, bool uploaded,
                                        int64_t uploadedAtSec) const;
     void pruneCrashRecords() const;
-    void maybePromptUploadForPendingRecord();
+    void maybePromptUploadForAbnormalExit();
+    void promptUploadForAbnormalExit(const OneSevenLiveLoginData& loginData);
     void promptUploadForRecord(const OneSevenLiveLoginData& loginData, const CrashRecord& record);
     void packageCrashRecordAsync(std::vector<CrashCandidate> candidates);
+    void onCrashRecordPackaged(const CrashRecord& record);
+    void maybeStartAcceptedUpload();
 
     void startUploadAsync(const OneSevenLiveLoginData& loginData,
                           const CrashRecord& record);
