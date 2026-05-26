@@ -82,6 +82,7 @@ namespace ably {
     static constexpr int MsgType_COMMENT = 3;              // General comment message
     static constexpr int MsgType_NEW_GIFT = 13;            // Gift animation message
     static constexpr int MsgType_JOIN_ROOM = 18;           // Audience join room message
+    static constexpr int MsgType_ENTER_ANIMATION = 27; // Enter animation message
     static constexpr int MsgType_NEW_LUCKYBAG = 32;        // Random gift message
     static constexpr int MsgType_POKE = 47;                // Poke message
     static constexpr int MsgType_ROCKZONE = 74;            // Rock Zone message
