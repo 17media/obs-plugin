@@ -15,6 +15,10 @@ class QTabWidget;
 class QVBoxLayout;
 class QWidget;
 class QScrollArea;
+class QTimer;
+class QEvent;
+class QGraphicsOpacityEffect;
+class QPropertyAnimation;
 
 class CustomizedCartoonService;
 
@@ -24,6 +28,9 @@ class CustomizedCartoonDock : public QDockWidget {
    public:
     explicit CustomizedCartoonDock(QWidget* parent, CustomizedCartoonService* service);
     ~CustomizedCartoonDock() override;
+
+   protected:
+    bool eventFilter(QObject* obj, QEvent* event) override;
 
    private slots:
     void refreshUi();
@@ -52,6 +59,8 @@ class CustomizedCartoonDock : public QDockWidget {
     nlohmann::json buildCurrentPositionDraft(bool landscape) const;
     void syncPreviewDraftTransform();
     void updateMediaPreviewAvailability();
+    void showToast(const QString& text, bool danger = false);
+    void repositionToast();
 
     CustomizedCartoonService* service_{nullptr};
 
@@ -83,4 +92,11 @@ class CustomizedCartoonDock : public QDockWidget {
 
     QTableWidget* progressTable_{nullptr};
     bool streamingActive_{false};
+
+    QWidget* rootWidget_{nullptr};
+    QWidget* toastWidget_{nullptr};
+    QLabel* toastLabel_{nullptr};
+    QTimer* toastTimer_{nullptr};
+    QGraphicsOpacityEffect* toastOpacity_{nullptr};
+    QPropertyAnimation* toastAnim_{nullptr};
 };

@@ -7,9 +7,11 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QEvent>
 #include <QFrame>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QGraphicsOpacityEffect>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHeaderView>
@@ -25,6 +27,7 @@
 #include <QStyleFactory>
 #include <QStyle>
 #include <QSignalBlocker>
+#include <QPropertyAnimation>
 #include <QTabWidget>
 #include <QMessageBox>
 #include <QPushButton>
@@ -736,6 +739,7 @@ void CustomizedCartoonDock::setupUi() {
 
     auto* root = new QWidget(this);
     root->setObjectName("customizedCartoonRoot");
+    rootWidget_ = root;
     root->setMinimumWidth(kDockMinWidth);
     root->setMinimumHeight(kDockMinHeight);
     root->setStyleSheet(
@@ -948,6 +952,46 @@ void CustomizedCartoonDock::setupUi() {
         "QScrollBar:vertical { background: transparent; width: 10px; margin: 0px; }"
         "QScrollBar::handle:vertical { background: rgba(255,255,255,0.18); border-radius: 2px; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }");
+
+    rootWidget_->installEventFilter(this);
+
+    toastWidget_ = new QFrame(rootWidget_);
+    toastWidget_->setVisible(false);
+    toastWidget_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    toastWidget_->setStyleSheet(
+        "QFrame { background-color: rgba(0,0,0,0.75); border-radius: 8px; }"
+        "QLabel { color: #FFFFFF; font-size: 12px; }");
+    auto* toastLayout = new QVBoxLayout(toastWidget_);
+    toastLayout->setContentsMargins(12, 10, 12, 10);
+    toastLayout->setSpacing(0);
+    toastLabel_ = new QLabel(toastWidget_);
+    toastLabel_->setWordWrap(true);
+    toastLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    toastLayout->addWidget(toastLabel_);
+    toastOpacity_ = new QGraphicsOpacityEffect(toastWidget_);
+    toastOpacity_->setOpacity(0.0);
+    toastWidget_->setGraphicsEffect(toastOpacity_);
+    toastAnim_ = new QPropertyAnimation(toastOpacity_, "opacity", toastWidget_);
+    toastAnim_->setDuration(220);
+    connect(toastAnim_, &QPropertyAnimation::finished, this, [this]() {
+        if (!toastWidget_ || !toastOpacity_) {
+            return;
+        }
+        if (toastOpacity_->opacity() <= 0.01) {
+            toastWidget_->setVisible(false);
+        }
+    });
+    toastTimer_ = new QTimer(this);
+    toastTimer_->setSingleShot(true);
+    connect(toastTimer_, &QTimer::timeout, this, [this]() {
+        if (!toastWidget_ || !toastOpacity_ || !toastAnim_) {
+            return;
+        }
+        toastAnim_->stop();
+        toastAnim_->setStartValue(toastOpacity_->opacity());
+        toastAnim_->setEndValue(0.0);
+        toastAnim_->start();
+    });
 
     auto* rootLayout = new QVBoxLayout(root);
     rootLayout->setContentsMargins(kDockOuterMargin, kDockOuterMargin, kDockOuterMargin,
@@ -1363,6 +1407,49 @@ void CustomizedCartoonDock::setupUi() {
 
     contentScrollArea->setWidget(scrollContent);
     setWidget(root);
+}
+
+bool CustomizedCartoonDock::eventFilter(QObject* obj, QEvent* event) {
+    if (obj == rootWidget_ && event && event->type() == QEvent::Resize) {
+        repositionToast();
+    }
+    return QDockWidget::eventFilter(obj, event);
+}
+
+void CustomizedCartoonDock::repositionToast() {
+    if (!rootWidget_ || !toastWidget_ || !toastWidget_->isVisible()) {
+        return;
+    }
+    const int margin = 16;
+    toastWidget_->adjustSize();
+    const QSize s = toastWidget_->sizeHint();
+    const int x = std::max(margin, rootWidget_->width() - s.width() - margin);
+    const int y = std::max(margin, rootWidget_->height() - s.height() - margin);
+    toastWidget_->setGeometry(x, y, s.width(), s.height());
+}
+
+void CustomizedCartoonDock::showToast(const QString& text, bool danger) {
+    if (!toastWidget_ || !toastLabel_ || !toastOpacity_ || !toastAnim_ || !toastTimer_) {
+        return;
+    }
+    toastWidget_->setStyleSheet(
+        danger ? "QFrame { background-color: rgba(255,0,1,0.85); border-radius: 8px; }"
+                 "QLabel { color: #FFFFFF; font-size: 12px; }"
+               : "QFrame { background-color: rgba(0,0,0,0.75); border-radius: 8px; }"
+                 "QLabel { color: #FFFFFF; font-size: 12px; }");
+    toastLabel_->setText(text);
+    toastWidget_->setVisible(true);
+    toastWidget_->raise();
+    toastOpacity_->setOpacity(0.0);
+    repositionToast();
+
+    toastAnim_->stop();
+    toastAnim_->setStartValue(0.0);
+    toastAnim_->setEndValue(1.0);
+    toastAnim_->start();
+
+    toastTimer_->stop();
+    toastTimer_->start(danger ? 2400 : 1600);
 }
 
 void CustomizedCartoonDock::refreshUi() {
@@ -2252,8 +2339,14 @@ void CustomizedCartoonDock::onApplyPosition() {
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     const char* key = landscape ? "landscape" : "portrait";
     cfg["position"][key] = buildCurrentPositionDraft(landscape);
-    service_->saveConfig(cfg);
+    if (!service_->saveConfig(cfg)) {
+        QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                             obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"),
+                             QMessageBox::Ok);
+        return;
+    }
     service_->applyOverlayTransformForOrientation(landscape);
+    showToast(obs_module_text("CustomizedCartoon.Position.ApplySuccess"));
 }
 
 void CustomizedCartoonDock::onReadPositionFromCanvas() {
