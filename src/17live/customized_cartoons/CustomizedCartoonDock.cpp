@@ -24,6 +24,7 @@
 #include <QScrollArea>
 #include <QStyleFactory>
 #include <QStyle>
+#include <QSignalBlocker>
 #include <QTabWidget>
 #include <QMessageBox>
 #include <QPushButton>
@@ -64,6 +65,7 @@ constexpr int kRuleStatusComboWidth = 88;
 constexpr int kRuleTypeComboChars = 10;
 constexpr int kRuleMediaComboChars = 12;
 constexpr int kRuleStatusComboChars = 4;
+constexpr int kRulesListMaxHeight = 620;
 
 static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event event,
                                                        void* private_data) {
@@ -794,6 +796,18 @@ void CustomizedCartoonDock::setupUi() {
         "  min-height: 24px;"
         "  max-height: 24px;"
         "}"
+        "QLabel#rulesEmptyTitle {"
+        "  color: #FFFFFF;"
+        "  font-size: 14px;"
+        "  font-weight: 600;"
+        "  line-height: 20px;"
+        "}"
+        "QLabel#rulesEmptyDesc {"
+        "  color: #A1A9B6;"
+        "  font-size: 12px;"
+        "  font-weight: 400;"
+        "  line-height: 18px;"
+        "}"
         "QLabel#positionPanelTitle {"
         "  color: #FFFFFF;"
         "  font-size: 16px;"
@@ -1289,7 +1303,6 @@ void CustomizedCartoonDock::setupUi() {
     rightPanel->setObjectName("panel");
     rightPanel->setMinimumWidth(kPositionPanelMinWidth);
     rightPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    rightPanel->setMinimumHeight(712);
     auto* right = new QVBoxLayout(rightPanel);
     right->setContentsMargins(5, 5, 5, 5);
     right->setSpacing(5);
@@ -1304,19 +1317,20 @@ void CustomizedCartoonDock::setupUi() {
     rulesScrollArea_->setFrameShape(QFrame::NoFrame);
     rulesScrollArea_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     rulesScrollArea_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    rulesScrollArea_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     rulesListContainer_ = new QWidget(rulesScrollArea_);
     rulesListLayout_ = new QVBoxLayout(rulesListContainer_);
     rulesListLayout_->setContentsMargins(0, 0, 0, 0);
     rulesListLayout_->setSpacing(5);
-    rulesListLayout_->addStretch(1);
     rulesScrollArea_->setWidget(rulesListContainer_);
-    right->addWidget(rulesScrollArea_, 1);
+    right->addWidget(rulesScrollArea_, 0);
 
     addRuleButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Rules.AddCondition"), rightPanel);
     addRuleButton_->setObjectName("ghostButton");
     addRuleButton_->setMinimumHeight(48);
     right->addWidget(addRuleButton_);
+    right->addStretch(1);
     connect(addRuleButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onAddRule);
     rulesPageLayout->addWidget(rightPanel, 0);
     mainTabWidget->addTab(rulesPage, obs_module_text("CustomizedCartoon.Rules.PanelTitle"));
@@ -1905,6 +1919,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
                     r["enabled"] = statusCombo->currentData().toBool();
                     break;
                 }
+                const QSignalBlocker blocker(service_);
                 service_->saveConfig(cfg);
             };
 
@@ -1987,13 +2002,52 @@ void CustomizedCartoonDock::rebuildRulesUi() {
         }
     }
 
-    rulesListLayout_->addStretch(1);
+    if (idx == 0) {
+        auto* emptyCard = new QFrame(rulesListContainer_);
+        emptyCard->setObjectName("subPanel");
+        auto* emptyLayout = new QVBoxLayout(emptyCard);
+        emptyLayout->setContentsMargins(16, 16, 16, 16);
+        emptyLayout->setSpacing(6);
+
+        auto* emptyTitle = new QLabel(obs_module_text("CustomizedCartoon.Rules.Empty.Title"), emptyCard);
+        emptyTitle->setObjectName("rulesEmptyTitle");
+        emptyTitle->setAlignment(Qt::AlignHCenter);
+
+        auto* emptyDesc = new QLabel(obs_module_text("CustomizedCartoon.Rules.Empty.Desc"), emptyCard);
+        emptyDesc->setObjectName("rulesEmptyDesc");
+        emptyDesc->setWordWrap(true);
+        emptyDesc->setAlignment(Qt::AlignHCenter);
+
+        emptyLayout->addStretch(1);
+        emptyLayout->addWidget(emptyTitle);
+        emptyLayout->addWidget(emptyDesc);
+        emptyLayout->addStretch(1);
+
+        rulesListLayout_->addWidget(emptyCard);
+    }
     rulesListContainer_->adjustSize();
     if (rulesListLayout_) {
         rulesListLayout_->activate();
     }
     rulesListContainer_->setUpdatesEnabled(true);
     if (rulesScrollArea_) {
+        auto updateHeight = [this]() {
+            if (!rulesScrollArea_ || !rulesListLayout_) {
+                return;
+            }
+            const int contentHeight = rulesListLayout_->sizeHint().height();
+            const int minHeight = contentHeight > 120 ? 240 : 120;
+            const int h = std::min(std::max(contentHeight, minHeight), kRulesListMaxHeight);
+            rulesScrollArea_->setFixedHeight(h);
+        };
+        updateHeight();
+        QPointer<QScrollArea> scrollArea(rulesScrollArea_);
+        QTimer::singleShot(0, rulesScrollArea_, [scrollArea, updateHeight]() {
+            if (!scrollArea) {
+                return;
+            }
+            updateHeight();
+        });
         rulesScrollArea_->setUpdatesEnabled(true);
         if (pendingScrollToLatestRule_ && latestCard) {
             QPointer<QScrollArea> scrollArea(rulesScrollArea_);
