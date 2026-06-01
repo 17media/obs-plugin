@@ -23,6 +23,7 @@
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QRadioButton>
 #include <QScrollArea>
 #include <QStyleFactory>
 #include <QStyle>
@@ -64,11 +65,11 @@ constexpr int kRuleLuckyBagParamLabelWidth = 100;
 constexpr int kRuleGiftAmountSpinWidth = 100;
 constexpr int kRuleGiftCountSpinWidth = 60;
 constexpr int kRuleLuckyBagCountSpinWidth = 100;
-constexpr int kRuleStatusComboWidth = 88;
 constexpr int kRuleTypeComboChars = 10;
 constexpr int kRuleMediaComboChars = 12;
-constexpr int kRuleStatusComboChars = 4;
 constexpr int kRulesListMaxHeight = 620;
+constexpr int kMediaActionButtonSize = 24;
+constexpr int kMediaActionIconSize = 20;
 
 static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event event,
                                                        void* private_data) {
@@ -800,6 +801,21 @@ void CustomizedCartoonDock::setupUi() {
         "  min-height: 24px;"
         "  max-height: 24px;"
         "}"
+        "QLineEdit#ruleNameEdit {"
+        "  color: #FFFFFF;"
+        "  font-size: 14px;"
+        "  font-weight: 500;"
+        "  line-height: 20px;"
+        "  min-height: 24px;"
+        "  max-height: 24px;"
+        "  border: 1px solid rgba(255,255,255,0.18);"
+        "  border-radius: 2px;"
+        "  background: transparent;"
+        "  padding: 0px 6px;"
+        "}"
+        "QLineEdit#ruleNameEdit:focus {"
+        "  border: 1px solid #007AFF;"
+        "}"
         "QLabel#rulesEmptyTitle {"
         "  color: #FFFFFF;"
         "  font-size: 14px;"
@@ -831,6 +847,17 @@ void CustomizedCartoonDock::setupUi() {
         "  padding: 0px;"
         "}"
         "QLabel#pageTitle { font-size: 24px; font-weight: 800; }"
+        "QRadioButton { font-size: 14px; color: #FFFFFF; }"
+        "QRadioButton::indicator {"
+        "  width: 16px; height: 16px;"
+        "  border: 1px solid rgba(255,255,255,0.35);"
+        "  border-radius: 8px;"
+        "  background: transparent;"
+        "}"
+        "QRadioButton::indicator:checked {"
+        "  border: 1px solid #007AFF;"
+        "  background-color: #007AFF;"
+        "}"
         "QPushButton#primaryButton {"
         "  background-color: #007AFF; color: white; border: none; border-radius: 2px;"
         "  font-size: 16px; padding: 10px 18px;"
@@ -1511,10 +1538,10 @@ void CustomizedCartoonDock::refreshMediaList() {
     int mediaCount = 0;
     const QIcon videoIcon(":/resources/video.svg");
     const QIcon imageIcon(":/resources/image.svg");
-    const QIcon playIcon(":/resources/play.svg");
-    const QIcon stopIcon(":/resources/stop.svg");
-    const QIcon settingsIcon(":/resources/settings.svg");
-    const QIcon trashIcon(":/resources/trash-red.svg");
+    const QIcon playIcon(":/resources/play-line.svg");
+    const QIcon stopIcon(":/resources/stop-line.svg");
+    const QIcon settingsIcon(":/resources/settings-red-line.svg");
+    const QIcon trashIcon(":/resources/trash-red-line.svg");
     const bool previewing = service_->isMediaPreviewing();
     const QString previewingId = service_->previewingMediaId();
     if (cfg.contains("media") && cfg["media"].is_array()) {
@@ -1570,16 +1597,16 @@ void CustomizedCartoonDock::refreshMediaList() {
             const bool previewingThis = previewing && previewingId == id;
             auto* settingsButton = new QPushButton(row);
             settingsButton->setIcon(settingsIcon);
-            settingsButton->setIconSize(QSize(16, 16));
-            settingsButton->setFixedSize(24, 24);
+            settingsButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
+            settingsButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
             settingsButton->setCursor(Qt::PointingHandCursor);
             settingsButton->setToolTip(obs_module_text("CustomizedCartoon.Media.Settings.Tooltip"));
 
             auto* previewButton = new QPushButton(row);
             previewButton->setObjectName("mediaPreviewButton");
             previewButton->setIcon(previewingThis ? stopIcon : playIcon);
-            previewButton->setIconSize(QSize(24, 24));
-            previewButton->setFixedSize(24, 24);
+            previewButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
+            previewButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
             const bool canPreview = !streamingActive_;
             previewButton->setEnabled(canPreview);
             previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
@@ -1589,8 +1616,8 @@ void CustomizedCartoonDock::refreshMediaList() {
 
             auto* delButton = new QPushButton(row);
             delButton->setIcon(trashIcon);
-            delButton->setIconSize(QSize(24, 24));
-            delButton->setFixedSize(24, 24);
+            delButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
+            delButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
             delButton->setCursor(Qt::PointingHandCursor);
 
             connect(delButton, &QPushButton::clicked, this, [this, id]() {
@@ -1806,7 +1833,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
         }
     }
 
-    const QIcon trashIcon(":/resources/trash-red.svg");
+    const QIcon trashIcon(":/resources/trash-line.svg");
     int idx = 0;
     QWidget* latestCard = nullptr;
     if (cfg.contains("rules") && cfg["rules"].is_array()) {
@@ -1833,6 +1860,9 @@ void CustomizedCartoonDock::rebuildRulesUi() {
                                                                            : true;
             const bool enabled =
                 it.contains("enabled") && it["enabled"].is_boolean() ? it["enabled"].get<bool>() : true;
+            const QString ruleName = it.contains("name") && it["name"].is_string()
+                                         ? QString::fromStdString(it["name"].get<std::string>())
+                                         : QString();
 
             auto* card = new QFrame(rulesListContainer_);
             card->setObjectName("subPanel");
@@ -1840,15 +1870,12 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             cardLayout->setContentsMargins(5, 5, 5, 5);
             cardLayout->setSpacing(5);
 
-            auto* header = new QHBoxLayout();
-            header->setContentsMargins(0, 0, 0, 0);
-            header->setSpacing(5);
-
-            auto* title =
-                new QLabel(QString(obs_module_text("CustomizedCartoon.Rules.ConditionTitle")).arg(idx + 1),
-                           card);
-            title->setObjectName("ruleCardTitle");
-            title->setFixedHeight(24);
+            auto* nameEdit = new QLineEdit(card);
+            nameEdit->setObjectName("ruleNameEdit");
+            nameEdit->setPlaceholderText(obs_module_text("CustomizedCartoon.Rules.ConditionName.Placeholder"));
+            nameEdit->setText(ruleName);
+            nameEdit->setFixedHeight(24);
+            nameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
             auto* delButton = new QPushButton(card);
             delButton->setIcon(trashIcon);
@@ -1856,11 +1883,6 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             delButton->setFixedSize(32, 32);
             delButton->setCursor(Qt::PointingHandCursor);
             delButton->setStyleSheet("QPushButton { border: none; background: transparent; }");
-
-            header->addWidget(title);
-            header->addStretch(1);
-            header->addWidget(delButton);
-            cardLayout->addLayout(header);
 
             auto* grid = new QGridLayout();
             grid->setContentsMargins(0, 0, 0, 0);
@@ -1921,14 +1943,11 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             repeatCheck->setText(obs_module_text("CustomizedCartoon.Rules.Field.Repeat"));
             repeatCheck->setStyleSheet("QCheckBox { font-size: 14px; color: #FFFFFF; }");
 
-            auto* statusCombo = new QComboBox(card);
-            statusCombo->addItem(obs_module_text("CustomizedCartoon.Rules.Status.Active"), true);
-            statusCombo->addItem(obs_module_text("CustomizedCartoon.Rules.Status.Inactive"), false);
-            statusCombo->setCurrentIndex(enabled ? 0 : 1);
-            statusCombo->setFixedWidth(kRuleStatusComboWidth);
-            statusCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-            statusCombo->setMinimumContentsLength(kRuleStatusComboChars);
-            statusCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
+            auto* statusActive = new QRadioButton(obs_module_text("CustomizedCartoon.Rules.Status.Active"), card);
+            auto* statusInactive =
+                new QRadioButton(obs_module_text("CustomizedCartoon.Rules.Status.Inactive"), card);
+            statusActive->setChecked(enabled);
+            statusInactive->setChecked(!enabled);
 
             auto* paramsRow = new QHBoxLayout();
             paramsRow->setContentsMargins(0, 0, 0, 0);
@@ -1981,7 +2000,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             updateRuleUi();
 
             auto saveRule = [this, id, typeCombo, pointsSpin, countSpin, mediaCombo, repeatCheck,
-                             statusCombo]() {
+                             statusActive]() {
                 if (!service_) {
                     return;
                 }
@@ -2003,12 +2022,36 @@ void CustomizedCartoonDock::rebuildRulesUi() {
                     r["count"] = countSpin->value();
                     r["mediaId"] = mediaCombo->currentData().toString().toStdString();
                     r["repeatable"] = repeatCheck->isChecked();
-                    r["enabled"] = statusCombo->currentData().toBool();
+                    r["enabled"] = statusActive->isChecked();
                     break;
                 }
                 const QSignalBlocker blocker(service_);
                 service_->saveConfig(cfg);
             };
+
+            auto saveRuleName = [this, id, nameEdit]() {
+                if (!service_ || !nameEdit) {
+                    return;
+                }
+                json cfg = service_->getConfigSnapshot();
+                if (!cfg.contains("rules") || !cfg["rules"].is_array()) {
+                    return;
+                }
+                for (auto& r : cfg["rules"]) {
+                    if (!r.is_object() || !r.contains("id") || !r["id"].is_string()) {
+                        continue;
+                    }
+                    if (QString::fromStdString(r["id"].get<std::string>()) != id) {
+                        continue;
+                    }
+                    r["name"] = nameEdit->text().toStdString();
+                    break;
+                }
+                const QSignalBlocker blocker(service_);
+                service_->saveConfig(cfg);
+            };
+
+            connect(nameEdit, &QLineEdit::editingFinished, card, [saveRuleName]() { saveRuleName(); });
 
             connect(typeCombo, &QComboBox::currentIndexChanged, card, [updateRuleUi, saveRule](int) {
                 updateRuleUi();
@@ -2018,7 +2061,16 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             connect(countSpin, &QSpinBox::valueChanged, card, [saveRule](int) { saveRule(); });
             connect(mediaCombo, &QComboBox::currentIndexChanged, card, [saveRule](int) { saveRule(); });
             connect(repeatCheck, &QCheckBox::toggled, card, [saveRule](bool) { saveRule(); });
-            connect(statusCombo, &QComboBox::currentIndexChanged, card, [saveRule](int) { saveRule(); });
+            connect(statusActive, &QRadioButton::toggled, card, [saveRule](bool checked) {
+                if (checked) {
+                    saveRule();
+                }
+            });
+            connect(statusInactive, &QRadioButton::toggled, card, [saveRule](bool checked) {
+                if (checked) {
+                    saveRule();
+                }
+            });
 
             connect(delButton, &QPushButton::clicked, card, [this, id]() {
                 if (!service_) {
@@ -2042,11 +2094,21 @@ void CustomizedCartoonDock::rebuildRulesUi() {
                 service_->saveConfig(cfg);
             });
 
-            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Type"), 0, 0);
-            grid->addWidget(typeCombo, 0, 1);
+            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.ConditionName"), 0, 0);
+            auto* nameControls = new QHBoxLayout();
+            nameControls->setContentsMargins(0, 0, 0, 0);
+            nameControls->setSpacing(5);
+            nameControls->addWidget(nameEdit, 1);
+            nameControls->addWidget(delButton);
+            auto* nameWrap = new QWidget(card);
+            nameWrap->setLayout(nameControls);
+            grid->addWidget(nameWrap, 0, 1);
 
-            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Rule"), 1, 0);
-            grid->addWidget(ruleLabel, 1, 1);
+            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Type"), 1, 0);
+            grid->addWidget(typeCombo, 1, 1);
+
+            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Rule"), 2, 0);
+            grid->addWidget(ruleLabel, 2, 1);
 
             const bool isLuckyBag = typeCombo->currentData().toString() == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
             pointsSpin->setEnabled(!isLuckyBag);
@@ -2061,25 +2123,26 @@ void CustomizedCartoonDock::rebuildRulesUi() {
 
             auto* paramSpacer = new QWidget(card);
             paramSpacer->setFixedWidth(1);
-            grid->addWidget(paramSpacer, 2, 0);
-            grid->addWidget(paramsWrap, 2, 1, Qt::AlignLeft);
+            grid->addWidget(paramSpacer, 3, 0);
+            grid->addWidget(paramsWrap, 3, 1, Qt::AlignLeft);
 
-            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Media"), 3, 0);
-            grid->addWidget(mediaCombo, 3, 1);
+            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Media"), 4, 0);
+            grid->addWidget(mediaCombo, 4, 1);
+
+            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Repeat"), 5, 0);
 
             auto* bottomControls = new QHBoxLayout();
             bottomControls->setContentsMargins(0, 0, 0, 0);
-            bottomControls->setSpacing(4);
+            bottomControls->setSpacing(10);
+            repeatCheck->setText(QString());
             bottomControls->addWidget(repeatCheck);
             bottomControls->addStretch(1);
             bottomControls->addWidget(statusLabel);
-            bottomControls->addWidget(statusCombo);
+            bottomControls->addWidget(statusActive);
+            bottomControls->addWidget(statusInactive);
             auto* bottomWrap = new QWidget(card);
             bottomWrap->setLayout(bottomControls);
-            auto* bottomSpacer = new QWidget(card);
-            bottomSpacer->setFixedWidth(1);
-            grid->addWidget(bottomSpacer, 4, 0);
-            grid->addWidget(bottomWrap, 4, 1);
+            grid->addWidget(bottomWrap, 5, 1);
 
             cardLayout->addLayout(grid);
 
@@ -2250,10 +2313,7 @@ void CustomizedCartoonDock::onAddRule() {
 
     const QString id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     cfg["rules"].push_back({{"id", id.toStdString()},
-                            {"name",
-                             QString(obs_module_text("CustomizedCartoon.Rules.ConditionTitle"))
-                                 .arg((int)cfg["rules"].size() + 1)
-                                 .toStdString()},
+                            {"name", ""},
                             {"mediaId", defaultMediaId.toStdString()},
                             {"engageType", "GIFT_AMOUNT_MILESTONE"},
                             {"points", 100},
