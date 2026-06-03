@@ -83,8 +83,11 @@ namespace ably {
     static constexpr int MsgType_NEW_GIFT = 13;            // Gift animation message
     static constexpr int MsgType_JOIN_ROOM = 18;           // Audience join room message
     static constexpr int MsgType_ENTER_ANIMATION = 27; // Enter animation message
+    static constexpr int MsgType_REACT = 28;             // React message
     static constexpr int MsgType_NEW_LUCKYBAG = 32;        // Random gift message
     static constexpr int MsgType_POKE = 47;                // Poke message
     static constexpr int MsgType_ROCKZONE = 74;            // Rock Zone message
+    static constexpr int MsgType_LABOR_RECEIVE_REWARD = 79;  // Labor receive reward message
     static constexpr int MsgType_AI_COHOST_MESSAGE = 120;  // AI co-host message
+    
 }  // namespace ably
