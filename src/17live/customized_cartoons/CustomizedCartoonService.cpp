@@ -7,9 +7,11 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QMetaObject>
 #include <QPointer>
 #include <QUuid>
 
+#include <algorithm>
 #include <chrono>
 #include <future>
 
@@ -67,6 +69,41 @@ CustomizedCartoonService::CustomizedCartoonService(QMainWindow* mainWindow,
 
     ensureStorageDir();
     reloadConfig();
+
+    obsSignalHandler_ = obs_get_signal_handler();
+    if (obsSignalHandler_) {
+        signal_handler_connect(obsSignalHandler_, "video_reset", videoResetCallback, this);
+    }
+}
+
+CustomizedCartoonService::~CustomizedCartoonService() {
+    if (obsSignalHandler_) {
+        signal_handler_disconnect(obsSignalHandler_, "video_reset", videoResetCallback, this);
+        obsSignalHandler_ = nullptr;
+    }
+}
+
+void CustomizedCartoonService::videoResetCallback(void* data, calldata_t*) {
+    auto* self = static_cast<CustomizedCartoonService*>(data);
+    if (!self) {
+        return;
+    }
+    QMetaObject::invokeMethod(self, &CustomizedCartoonService::handleVideoReset, Qt::QueuedConnection);
+}
+
+void CustomizedCartoonService::handleVideoReset() {
+    if (positionPreviewing_) {
+        applyOverlayTransform(positionPreviewLandscape_, nullptr);
+        return;
+    }
+    if (mediaPreviewing_) {
+        applyOverlayTransform(mediaPreviewLandscape_, nullptr);
+        return;
+    }
+    if (playing_) {
+        const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
+        applyOverlayTransform(landscape, nullptr);
+    }
 }
 
 void CustomizedCartoonService::reloadConfig() {
@@ -811,19 +848,20 @@ bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QS
 
     const double referenceCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
     const double referenceCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
-    const double scaleX = actualCanvasW > 0.0 ? referenceCanvasW / actualCanvasW : 1.0;
-    const double scaleY = actualCanvasH > 0.0 ? referenceCanvasH / actualCanvasH : 1.0;
+    const double scaleX = referenceCanvasW > 0.0 ? actualCanvasW / referenceCanvasW : 1.0;
+    const double scaleY = referenceCanvasH > 0.0 ? actualCanvasH / referenceCanvasH : 1.0;
+    const double uniformScale = std::min(scaleX, scaleY);
 
-    outTransform["x"] = ti.pos.x * scaleX;
-    outTransform["y"] = ti.pos.y * scaleY;
+    outTransform["x"] = uniformScale > 0.0 ? ti.pos.x / uniformScale : ti.pos.x;
+    outTransform["y"] = uniformScale > 0.0 ? ti.pos.y / uniformScale : ti.pos.y;
     outTransform["scaleX"] = ti.scale.x;
     outTransform["scaleY"] = ti.scale.y;
     outTransform["rot"] = ti.rot;
     outTransform["alignment"] = ti.alignment;
     outTransform["boundsType"] = (int)ti.bounds_type;
     outTransform["boundsAlignment"] = ti.bounds_alignment;
-    outTransform["boundsW"] = ti.bounds.x * scaleX;
-    outTransform["boundsH"] = ti.bounds.y * scaleY;
+    outTransform["boundsW"] = uniformScale > 0.0 ? ti.bounds.x / uniformScale : ti.bounds.x;
+    outTransform["boundsH"] = uniformScale > 0.0 ? ti.bounds.y / uniformScale : ti.bounds.y;
     outTransform["cropToBounds"] = ti.crop_to_bounds;
     return true;
 }
@@ -873,9 +911,8 @@ void CustomizedCartoonService::startNextPlayback() {
 
         const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
         playingMediaId_ = mediaId;
-        applyOverlayTransform(landscape);
-
         playing_ = true;
+        applyOverlayTransform(landscape);
         if (media->type == "video") {
             playVideo(*media);
         } else {
@@ -1132,10 +1169,11 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
     const double referenceCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
     const double scaleX = referenceCanvasW > 0.0 ? actualCanvasW / referenceCanvasW : 1.0;
     const double scaleY = referenceCanvasH > 0.0 ? actualCanvasH / referenceCanvasH : 1.0;
+    const double uniformScale = std::min(scaleX, scaleY);
 
     obs_transform_info ti{};
-    ti.pos.x = static_cast<float>(transform.value("x", 0.0) * scaleX);
-    ti.pos.y = static_cast<float>(transform.value("y", 0.0) * scaleY);
+    ti.pos.x = static_cast<float>(transform.value("x", 0.0) * uniformScale);
+    ti.pos.y = static_cast<float>(transform.value("y", 0.0) * uniformScale);
     ti.scale.x = transform.value("scaleX", 1.0);
     ti.scale.y = transform.value("scaleY", 1.0);
     ti.rot = transform.value("rot", 0.0);
@@ -1144,8 +1182,8 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
         static_cast<obs_bounds_type>(transform.value("boundsType", (int)OBS_BOUNDS_NONE));
     ti.bounds_alignment =
         transform.value("boundsAlignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
-    ti.bounds.x = static_cast<float>(transform.value("boundsW", 0.0) * scaleX);
-    ti.bounds.y = static_cast<float>(transform.value("boundsH", 0.0) * scaleY);
+    ti.bounds.x = static_cast<float>(transform.value("boundsW", 0.0) * uniformScale);
+    ti.bounds.y = static_cast<float>(transform.value("boundsH", 0.0) * uniformScale);
     ti.crop_to_bounds = transform.value("cropToBounds", false);
 
     const MediaItem* activeMedia = nullptr;

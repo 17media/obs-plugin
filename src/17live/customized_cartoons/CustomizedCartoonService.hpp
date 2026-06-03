@@ -28,6 +28,7 @@ class CustomizedCartoonService : public QObject {
                                       OneSevenLiveConfigManager* configManager,
                                       OneSevenLiveStreamManager* streamManager,
                                       QObject* parent = nullptr);
+    ~CustomizedCartoonService() override;
 
     void reloadConfig();
     nlohmann::json getConfigSnapshot() const;
@@ -135,10 +136,14 @@ class CustomizedCartoonService : public QObject {
     nlohmann::json serialize(const std::vector<MediaItem>& media,
                              const std::vector<RuleItem>& rules) const;
 
+    static void videoResetCallback(void* data, calldata_t*);
+    void handleVideoReset();
+
     QMainWindow* mainWindow_{nullptr};
     OneSevenLiveApiWrappers* apiWrapper_{nullptr};
     OneSevenLiveConfigManager* configManager_{nullptr};
     OneSevenLiveStreamManager* streamManager_{nullptr};
+    signal_handler_t* obsSignalHandler_{nullptr};
 
     mutable std::mutex cfgMutex_;
     nlohmann::json cfg_{nlohmann::json::object()};
