@@ -4,9 +4,9 @@ import { useTranslations } from 'next-intl';
 import styled from 'styled-components';
 import { messageAggregator } from '../services/MessageAggregator';
 import { PlatformSelector } from './PlatformSelector';
+import PopoverSelect from './PopoverSelect';
 import Chat from '@/lib/Chat';
 import { getChatProps } from '@/platforms/17live/util/getChatProps';
-import { fromJS } from 'immutable';
 import { MsgType_ENTER_ANIMATION } from '@/lib/constants';
 
 /**
@@ -44,47 +44,12 @@ const FontSizeGroup = styled.div`
 `;
 
 const FontSizeLabel = styled.span`
-  color: #FFFFFF;
+  color: #A1A9B6;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   font-style: normal;
   font-weight: 400;
   font-size: 14px;
-  line-height: 150%;
-`;
-
-const FontSizeSelectWrap = styled.div`
-  position: relative;
-  width: 72px;
-`;
-
-const FontSizeSelect = styled.select`
-  width: 100%;
-  height: 32px;
-  padding: 6px 28px 6px 12px;
-  background: #3C404C;
-  border-radius: 6px;
-  border: none;
-  outline: none;
-  color: #FFFFFF;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  font-style: normal;
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 150%;
-  appearance: none;
-  -webkit-appearance: none;
-`;
-
-const SelectChevron = styled.span`
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%) rotate(45deg);
-  width: 8px;
-  height: 8px;
-  border-bottom: 1px solid #B3B3B3;
-  border-right: 1px solid #B3B3B3;
-  pointer-events: none;
+  line-height: 20px;
 `;
 
 const MessageList = styled.div`
@@ -142,15 +107,6 @@ const MessageContent = styled.div`
   flex: 1;
 `;
 
-const SimpleMessage = styled.div`
-  font-size: 0.875rem;
-`;
-
-const Username = styled.span`
-  font-weight: 600;
-  margin-right: 0.5rem;
-`;
-
 export const MultiPlatformChat = () => {
   const [messages, setMessages] = useState([]); // Raw unified message format
   const [selectedPlatform, setSelectedPlatform] = useState('all');
@@ -199,6 +155,12 @@ export const MultiPlatformChat = () => {
   const handleSelectionChange = (value) => {
     setSelectedPlatform(value);
   };
+
+  const fontSizeDefs = [
+    { id: 'small', name: t('FONT_SIZE_SMALL') },
+    { id: 'medium', name: t('FONT_SIZE_MEDIUM') },
+    { id: 'large', name: t('FONT_SIZE_LARGE') },
+  ];
 
   // Filter messages based on selected platform
   useEffect(() => {
@@ -263,14 +225,17 @@ export const MultiPlatformChat = () => {
           <PlatformSelector onSelectionChange={handleSelectionChange} messageAggregator={messageAggregator} />
           <FontSizeGroup>
             <FontSizeLabel>{t('FONT_SIZE_LABEL')}</FontSizeLabel>
-            <FontSizeSelectWrap>
-              <FontSizeSelect value={fontSize} onChange={(e) => setFontSize(e.target.value)}>
-                <option value="small">{t('FONT_SIZE_SMALL')}</option>
-                <option value="medium">{t('FONT_SIZE_MEDIUM')}</option>
-                <option value="large">{t('FONT_SIZE_LARGE')}</option>
-              </FontSizeSelect>
-              <SelectChevron />
-            </FontSizeSelectWrap>
+            <PopoverSelect
+              ariaLabel={t('FONT_SIZE_LABEL')}
+              options={fontSizeDefs}
+              value={fontSize}
+              onChange={setFontSize}
+              getOptionValue={(o) => o.id}
+              getOptionLabel={(o) => o.name}
+              minWidth="72px"
+              maxWidth="72px"
+              width="72px"
+            />
           </FontSizeGroup>
         </HeaderContent>
       </Header>
