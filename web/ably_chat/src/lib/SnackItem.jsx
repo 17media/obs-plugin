@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl';
 import styled from 'styled-components';
 import SVG from './SVG';
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/';
 
 const Container = styled.span`
   display: inline-flex;
@@ -17,7 +17,7 @@ const SnackItem = ({ value }) => {
   return (
     <Container>
       {t('SEND_SNACKS', { value })}
-      <SVG src={`${basePath}/images/snack.svg`} width={30} height={30} />
+      <SVG src={`${basePath}images/snack.svg`} width={30} height={30} />
     </Container>
   );
 };
