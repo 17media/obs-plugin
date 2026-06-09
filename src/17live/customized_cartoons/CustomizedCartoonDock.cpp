@@ -1833,7 +1833,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
         }
     }
 
-    const QIcon trashIcon(":/resources/trash-line.svg");
+    const QIcon trashIcon(":/resources/trash-red-line.svg");
     int idx = 0;
     QWidget* latestCard = nullptr;
     if (cfg.contains("rules") && cfg["rules"].is_array()) {
