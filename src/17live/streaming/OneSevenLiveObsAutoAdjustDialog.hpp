@@ -20,9 +20,13 @@ class OneSevenLiveObsAutoAdjustDialog : public QDialog {
     struct PromptResult {
         bool confirmed = false;
         bool dontRemind = false;
+        bool autoApply = false;
     };
 
-    static PromptResult ShowPrompt(QWidget* parent, const QString& message, bool dontRemindDefault);
+    static PromptResult ShowPrompt(QWidget* parent,
+                                  const QString& message,
+                                  bool dontRemindDefault,
+                                  bool autoApplyDefault);
     static void ShowError(QWidget* parent, const QString& message);
 
    protected:
@@ -32,10 +36,11 @@ class OneSevenLiveObsAutoAdjustDialog : public QDialog {
 
    private:
     explicit OneSevenLiveObsAutoAdjustDialog(QWidget* parent, Mode mode);
-    void setupUiPrompt(const QString& message, bool dontRemindDefault);
+    void setupUiPrompt(const QString& message, bool dontRemindDefault, bool autoApplyDefault);
     void setupUiError(const QString& message);
 
     QCheckBox* dontRemindCheck = nullptr;
+    QCheckBox* autoApplyCheck = nullptr;
     QLabel* messageLabel = nullptr;
     QPushButton* cancelButton = nullptr;
     QPushButton* confirmButton = nullptr;
@@ -43,4 +48,3 @@ class OneSevenLiveObsAutoAdjustDialog : public QDialog {
     bool dragging = false;
     QPoint dragStartPosition;
 };
-

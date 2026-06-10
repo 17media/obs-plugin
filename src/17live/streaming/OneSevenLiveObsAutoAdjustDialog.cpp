@@ -13,13 +13,14 @@
 #include "plugin-support.h"
 
 OneSevenLiveObsAutoAdjustDialog::PromptResult OneSevenLiveObsAutoAdjustDialog::ShowPrompt(
-    QWidget* parent, const QString& message, bool dontRemindDefault) {
+    QWidget* parent, const QString& message, bool dontRemindDefault, bool autoApplyDefault) {
     OneSevenLiveObsAutoAdjustDialog dialog(parent, Mode::Prompt);
-    dialog.setupUiPrompt(message, dontRemindDefault);
+    dialog.setupUiPrompt(message, dontRemindDefault, autoApplyDefault);
     dialog.exec();
     PromptResult result;
     result.confirmed = dialog.result() == QDialog::Accepted;
     result.dontRemind = dialog.dontRemindCheck ? dialog.dontRemindCheck->isChecked() : false;
+    result.autoApply = dialog.autoApplyCheck ? dialog.autoApplyCheck->isChecked() : false;
     return result;
 }
 
@@ -37,7 +38,9 @@ OneSevenLiveObsAutoAdjustDialog::OneSevenLiveObsAutoAdjustDialog(QWidget* parent
     setModal(true);
 }
 
-void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message, bool dontRemindDefault) {
+void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message,
+                                                    bool dontRemindDefault,
+                                                    bool autoApplyDefault) {
     setFixedWidth(380);
 
     QVBoxLayout* rootLayout = new QVBoxLayout(this);
@@ -68,13 +71,7 @@ void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message, bool
     messageLabel->setFixedWidth(380 - 24 - 24);
     cardLayout->addWidget(messageLabel, 0);
 
-    QHBoxLayout* checkRow = new QHBoxLayout();
-    checkRow->setContentsMargins(0, 0, 0, 0);
-    checkRow->addStretch();
-
-    dontRemindCheck = new QCheckBox(obs_module_text("Live.Settings.AutoAdjust.DontRemind"), card);
-    dontRemindCheck->setChecked(dontRemindDefault);
-    dontRemindCheck->setStyleSheet(
+    const QString checkboxStyle =
         "QCheckBox {"
         "  font-family: 'Inter';"
         "  font-style: normal;"
@@ -85,10 +82,31 @@ void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message, bool
         "}"
         "QCheckBox::indicator { width: 18px; height: 18px; }"
         "QCheckBox::indicator:unchecked { background-color: transparent; border: 2px solid #6B6F7B; border-radius: 4px; }"
-        "QCheckBox::indicator:checked { background-color: #1877F2; border: 2px solid #1877F2; border-radius: 4px; }");
-    checkRow->addWidget(dontRemindCheck);
-    checkRow->addStretch();
+        "QCheckBox::indicator:checked { background-color: #1877F2; border: 2px solid #1877F2; border-radius: 4px; }";
+
+    dontRemindCheck = new QCheckBox(obs_module_text("Live.Settings.AutoAdjust.DontRemind"), card);
+    dontRemindCheck->setChecked(dontRemindDefault);
+    dontRemindCheck->setStyleSheet(checkboxStyle);
+    autoApplyCheck = new QCheckBox(obs_module_text("Live.Settings.AutoAdjust.AutoApply"), card);
+    autoApplyCheck->setChecked(autoApplyDefault);
+    autoApplyCheck->setStyleSheet(checkboxStyle);
+
+    QHBoxLayout* checkRow = new QHBoxLayout();
+    checkRow->setContentsMargins(0, 0, 0, 0);
+    checkRow->setSpacing(0);
+    checkRow->addWidget(dontRemindCheck, 0, Qt::AlignLeft);
+    checkRow->addStretch(1);
+    checkRow->addWidget(autoApplyCheck, 0, Qt::AlignRight);
     cardLayout->addLayout(checkRow);
+
+    connect(autoApplyCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (!checked) {
+            return;
+        }
+        if (dontRemindCheck) {
+            dontRemindCheck->setChecked(true);
+        }
+    });
 
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setContentsMargins(0, 6, 0, 0);
