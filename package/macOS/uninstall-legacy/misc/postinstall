@@ -3,6 +3,94 @@
 LEGACY_APP_PLUGIN="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin"
 LEGACY_APP_PLUGIN_DSYM="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin.dSYM"
 SILENT_FLAG="/tmp/obs-17live-legacy-uninstall-from-installer"
+TITLE="17LIVE OBS Plugin"
+CONSOLE_UID=""
+
+detect_console_user() {
+  local console_user
+  console_user="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null || true)"
+
+  if [ -n "$console_user" ] && [ "$console_user" != "root" ]; then
+    CONSOLE_UID="$(/usr/bin/id -u "$console_user" 2>/dev/null || true)"
+  else
+    CONSOLE_UID=""
+  fi
+}
+
+get_preferred_language() {
+  local locale=""
+
+  if [ -n "$CONSOLE_UID" ]; then
+    locale="$(/bin/launchctl asuser "$CONSOLE_UID" /usr/bin/defaults read -g AppleLocale 2>/dev/null || true)"
+    if [ -z "$locale" ]; then
+      locale="$(/bin/launchctl asuser "$CONSOLE_UID" /usr/bin/defaults read -g AppleLanguages 2>/dev/null | /usr/bin/awk -F'"' 'NR==2 {print $2}' || true)"
+    fi
+  fi
+
+  if [ -z "$locale" ]; then
+    locale="${LANG:-en_US}"
+  fi
+
+  case "$locale" in
+    zh*|ZH*)
+      echo "zh-TW"
+      ;;
+    ja*|JA*)
+      echo "ja-JP"
+      ;;
+    *)
+      echo "en-US"
+      ;;
+  esac
+}
+
+get_message() {
+  local key="$1"
+  local lang="$2"
+
+  case "$lang:$key" in
+    zh-TW:removed)
+      echo "已完成：已移除舊版插件（官方 OBS.app 內安裝）。\\n\\n請重新啟動 OBS。"
+      ;;
+    ja-JP:removed)
+      echo "完了：旧バージョンのプラグイン（公式 OBS.app 内にインストールされていたもの）を削除しました。\\n\\nOBS を再起動してください。"
+      ;;
+    en-US:removed)
+      echo "Done: the legacy plugin installed inside the official OBS.app bundle has been removed.\\n\\nPlease restart OBS."
+      ;;
+    zh-TW:not_found)
+      echo "未找到舊版插件（官方 OBS.app 內安裝）。\\n\\n無需操作。"
+      ;;
+    ja-JP:not_found)
+      echo "旧バージョンのプラグイン（公式 OBS.app 内にインストールされていたもの）は見つかりませんでした。\\n\\n追加の操作は不要です。"
+      ;;
+    en-US:not_found)
+      echo "The legacy plugin installed inside the official OBS.app bundle was not found.\\n\\nNo further action is required."
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+get_ok_label() {
+  case "$1" in
+    zh-TW) echo "好" ;;
+    ja-JP) echo "OK" ;;
+    *) echo "OK" ;;
+  esac
+}
+
+run_dialog() {
+  local message="$1"
+  local ok_label="$2"
+
+  if [ -n "$CONSOLE_UID" ]; then
+    /bin/launchctl asuser "$CONSOLE_UID" /usr/bin/osascript -e "display dialog \"$message\" with title \"$TITLE\" buttons {\"$ok_label\"} default button 1" >/dev/null 2>&1 || true
+  else
+    /usr/bin/osascript -e "display dialog \"$message\" with title \"$TITLE\" buttons {\"$ok_label\"} default button 1" >/dev/null 2>&1 || true
+  fi
+}
 
 REMOVED="0"
 if [ -d "$LEGACY_APP_PLUGIN" ]; then
@@ -18,24 +106,16 @@ if [ -f "$SILENT_FLAG" ]; then
   exit 0
 fi
 
-TITLE="17LIVE OBS Plugin"
+detect_console_user
+PREFERRED_LANGUAGE="$(get_preferred_language)"
+OK_LABEL="$(get_ok_label "$PREFERRED_LANGUAGE")"
+
 if [ "$REMOVED" = "1" ]; then
-  MESSAGE="已完成：已移除旧版插件（官方 OBS.app 内安装）。\n\n请重新启动 OBS。"
+  MESSAGE="$(get_message removed "$PREFERRED_LANGUAGE")"
 else
-  MESSAGE="未找到旧版插件（官方 OBS.app 内安装）。\n\n无需操作。"
+  MESSAGE="$(get_message not_found "$PREFERRED_LANGUAGE")"
 fi
 
-CONSOLE_USER="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null || true)"
-if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
-  CONSOLE_UID="$(/usr/bin/id -u "$CONSOLE_USER" 2>/dev/null || true)"
-else
-  CONSOLE_UID=""
-fi
-
-if [ -n "$CONSOLE_UID" ]; then
-  /bin/launchctl asuser "$CONSOLE_UID" /usr/bin/osascript -e "display dialog \"$MESSAGE\" with title \"$TITLE\" buttons {\"好\"} default button 1" >/dev/null 2>&1 || true
-else
-  /usr/bin/osascript -e "display dialog \"$MESSAGE\" with title \"$TITLE\" buttons {\"好\"} default button 1" >/dev/null 2>&1 || true
-fi
+run_dialog "$MESSAGE" "$OK_LABEL"
 
 exit 0
