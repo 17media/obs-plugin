@@ -19,29 +19,30 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
       isPreviewDockVisible(false),
       isCustomizedCartoonVisible(false) {
     // Create 17Live menu
-    menu = mainWindow->menuBar()->addMenu(obs_module_text("17LIVE"));
+    menu = mainWindow->menuBar()->addMenu(QString::fromUtf8(obs_module_text("17LIVE")));
 
     // Add submenu for dock menu
-    dockSubMenu = new QMenu(obs_module_text("Menu.Dock"));
-    menu->addMenu(dockSubMenu);
+    dockSubMenu = menu->addMenu(QString::fromUtf8(obs_module_text("Menu.Dock")));
 
     // Add submenu items
-    chatRoomAction = dockSubMenu->addAction(obs_module_text("Menu.ChatRoom"));
+    chatRoomAction = dockSubMenu->addAction(QString::fromUtf8(obs_module_text("Menu.ChatRoom")));
     connect(chatRoomAction, &QAction::triggered, this, [this]() { emit chatRoomClicked(); });
 
-    broadcastAction = dockSubMenu->addAction(obs_module_text("Menu.Broadcast"));
+    broadcastAction = dockSubMenu->addAction(QString::fromUtf8(obs_module_text("Menu.Broadcast")));
     connect(broadcastAction, &QAction::triggered, this, [this]() { emit streamingClicked(); });
 
-    rockZoneAction = dockSubMenu->addAction(obs_module_text("Menu.RockZone"));
+    rockZoneAction = dockSubMenu->addAction(QString::fromUtf8(obs_module_text("Menu.RockZone")));
     connect(rockZoneAction, &QAction::triggered, this, [this]() { emit rockZoneClicked(); });
 
-    liveListAction = dockSubMenu->addAction(obs_module_text("Menu.LiveList"));
+    liveListAction = dockSubMenu->addAction(QString::fromUtf8(obs_module_text("Menu.LiveList")));
     connect(liveListAction, &QAction::triggered, this, [this]() { emit liveListClicked(); });
 
-    multiRtmpAction = dockSubMenu->addAction(obs_module_text("MultiRTMP.Dock.Title"));
+    multiRtmpAction =
+        dockSubMenu->addAction(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.Title")));
     connect(multiRtmpAction, &QAction::triggered, this, [this]() { emit multiRtmpClicked(); });
 
-    previewDockAction = dockSubMenu->addAction(obs_module_text("Menu.PreviewDock"));
+    previewDockAction =
+        dockSubMenu->addAction(QString::fromUtf8(obs_module_text("Menu.PreviewDock")));
     connect(previewDockAction, &QAction::triggered, this, [this]() { emit previewDockClicked(); });
 
     customizedCartoonAction = dockSubMenu->addAction(obs_module_text("Menu.CustomizedCartoons"));
@@ -51,7 +52,7 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     menu->addSeparator();
 
     // Common menu
-    helpAction = menu->addAction(obs_module_text("Menu.Help"));
+    helpAction = menu->addAction(QString::fromUtf8(obs_module_text("Menu.Help")));
 
     connect(helpAction, &QAction::triggered, this, [this]() {
         // open url obs_module_text("Menu.Help.Url");
@@ -60,11 +61,11 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     });
 
     // Create check update menu item
-    checkUpdateAction = menu->addAction(obs_module_text("Menu.CheckUpdate"));
+    checkUpdateAction = menu->addAction(QString::fromUtf8(obs_module_text("Menu.CheckUpdate")));
     connect(checkUpdateAction, &QAction::triggered, this, &OneSevenLiveMenuManager::checkUpdate);
 
     // Create diagnostics menu item
-    diagnosticsAction = menu->addAction(obs_module_text("Menu.Diagnostics"));
+    diagnosticsAction = menu->addAction(QString::fromUtf8(obs_module_text("Menu.Diagnostics")));
     connect(diagnosticsAction, &QAction::triggered, this, [this]() { emit diagnosticsClicked(); });
 
     crashRecordsAction = menu->addAction(obs_module_text("Menu.CrashRecords"));
@@ -73,7 +74,7 @@ OneSevenLiveMenuManager::OneSevenLiveMenuManager(QMainWindow* parent)
     menu->addSeparator();
 
     // Create login menu item
-    loginAction = menu->addAction(obs_module_text("Menu.SignIn"));
+    loginAction = menu->addAction(QString::fromUtf8(obs_module_text("Menu.SignIn")));
     connect(loginAction, &QAction::triggered, this, &OneSevenLiveMenuManager::handleLogin);
 
     // Initialize menu item enabled status
@@ -100,12 +101,12 @@ OneSevenLiveMenuManager::~OneSevenLiveMenuManager() {}
 
 void OneSevenLiveMenuManager::updateLoginStatus(bool logged, QString username) {
     isLoggedIn = logged;
-    QString text = QString::fromStdString(obs_module_text("Menu.SignIn"));
+    QString text = QString::fromUtf8(obs_module_text("Menu.SignIn"));
     if (isLoggedIn) {
         if (username.isEmpty()) {
-            text = QString::fromStdString(obs_module_text("Menu.SignOut"));
+            text = QString::fromUtf8(obs_module_text("Menu.SignOut"));
         } else {
-            text = username + ": " + QString::fromStdString(obs_module_text("Menu.SignOut"));
+            text = username + ": " + QString::fromUtf8(obs_module_text("Menu.SignOut"));
         }
     }
     loginAction->setText(text);
@@ -195,6 +196,12 @@ void OneSevenLiveMenuManager::updateMenuItemsEnabled() {
     multiRtmpAction->setEnabled(isLoggedIn);
     previewDockAction->setEnabled(isLoggedIn);
     customizedCartoonAction->setEnabled(isLoggedIn);
+    if (dockSubMenu) {
+        dockSubMenu->setEnabled(true);
+        if (dockSubMenu->menuAction()) {
+            dockSubMenu->menuAction()->setEnabled(true);
+        }
+    }
     // Diagnostics action is always enabled regardless of login status
     if (crashRecordsAction) {
         crashRecordsAction->setEnabled(true);
