@@ -53,28 +53,34 @@ class CustomizedCartoonDock : public QDockWidget {
     void setupUi();
     void loadFromConfig();
     void refreshMediaList();
-    void saveRulesToConfig();
     void refreshPositionUi();
     void rebuildRulesUi();
     void openMediaSettingsDialog(const QString& mediaId);
     void openHelpDialog();
     nlohmann::json buildCurrentPositionDraft(bool landscape) const;
-    void resetPositionDraftFromService();
+    void resetDraftFromService();
     void updatePositionDraft(bool landscape, const QRect& rect);
-    bool savePositionDraft();
-    bool saveAndApplyPositionDraft();
+    bool saveDraft();
+    bool saveAndApplyDraft();
     bool confirmCloseWithUnsavedChanges();
     void closeDock();
     void syncPreviewDraftTransform();
     void updateMediaPreviewAvailability();
+    void updateDraftUi();
     void showToast(const QString& text, bool danger = false);
     void repositionToast();
+    bool isDraftDirty() const;
+    bool removeMediaFromDraft(const QString& mediaId);
+    bool isSettingsTabDirty() const;
+    bool isRulesTabDirty() const;
+    bool isPositionOrientationDirty(bool landscape) const;
 
     CustomizedCartoonService* service_{nullptr};
 
     QListWidget* mediaList_{nullptr};
     QPushButton* addMediaButton_{nullptr};
     QLabel* mediaCountLabel_{nullptr};
+    QTabWidget* mainTabWidget_{nullptr};
 
     QTabWidget* positionTabWidget_{nullptr};
     QLabel* canvasRangeLabel_{nullptr};
@@ -94,6 +100,7 @@ class CustomizedCartoonDock : public QDockWidget {
     bool pendingScrollToLatestRule_{false};
     QPushButton* addRuleButton_{nullptr};
     QPushButton* previewButton_{nullptr};
+    QLabel* draftStatusLabel_{nullptr};
     QPushButton* cancelButton_{nullptr};
     QPushButton* confirmButton_{nullptr};
     QPushButton* applyButton_{nullptr};
@@ -108,8 +115,8 @@ class CustomizedCartoonDock : public QDockWidget {
     QGraphicsOpacityEffect* toastOpacity_{nullptr};
     QPropertyAnimation* toastAnim_{nullptr};
 
-    nlohmann::json savedPositionConfig_{nlohmann::json::object()};
-    nlohmann::json draftPositionConfig_{nlohmann::json::object()};
-    bool positionDraftDirty_{false};
+    nlohmann::json savedConfig_{nlohmann::json::object()};
+    nlohmann::json draftConfig_{nlohmann::json::object()};
+    bool draftDirty_{false};
     bool bypassClosePrompt_{false};
 };

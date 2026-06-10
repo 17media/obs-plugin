@@ -186,9 +186,9 @@ QString CustomizedCartoonService::copyToStorage(const QString& srcPath, QString&
     return destPath;
 }
 
-bool CustomizedCartoonService::importMediaFile(const QString& filePath, QString& outMediaId,
-                                               QString& outError) {
-    outMediaId.clear();
+bool CustomizedCartoonService::prepareMediaDraftEntry(const QString& filePath, json& outMedia,
+                                                      QString& outError) {
+    outMedia = json::object();
     outError.clear();
 
     QFileInfo fi(filePath);
@@ -253,24 +253,44 @@ bool CustomizedCartoonService::importMediaFile(const QString& filePath, QString&
         }
     }
 
+    outMedia = {{"id", mediaId.toStdString()},
+                {"name", fi.fileName().toStdString()},
+                {"path", destPath.toStdString()},
+                {"type", type.toStdString()},
+                {"displaySec", defaultDisplaySecForType(type)},
+                {"muted", type == "video"},
+                {"preserveAspectRatio", false}};
+    return true;
+}
+
+bool CustomizedCartoonService::importMediaFile(const QString& filePath, QString& outMediaId,
+                                               QString& outError) {
+    outMediaId.clear();
+    json mediaEntry;
+    if (!prepareMediaDraftEntry(filePath, mediaEntry, outError)) {
+        return false;
+    }
+
     json cfg = getConfigSnapshot();
     if (!cfg.contains("media") || !cfg["media"].is_array()) {
         cfg["media"] = json::array();
     }
-    cfg["media"].push_back({{"id", mediaId.toStdString()},
-                            {"name", fi.fileName().toStdString()},
-                            {"path", destPath.toStdString()},
-                            {"type", type.toStdString()},
-                            {"displaySec", defaultDisplaySecForType(type)},
-                            {"muted", type == "video"},
-                            {"preserveAspectRatio", false}});
+    cfg["media"].push_back(mediaEntry);
 
     if (!saveConfig(cfg)) {
         outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+        if (mediaEntry.contains("path") && mediaEntry["path"].is_string()) {
+            const QString path = QString::fromStdString(mediaEntry["path"].get<std::string>());
+            if (!path.isEmpty() && QFile::exists(path)) {
+                QFile::remove(path);
+            }
+        }
         return false;
     }
 
-    outMediaId = mediaId;
+    outMediaId = mediaEntry.contains("id") && mediaEntry["id"].is_string()
+                     ? QString::fromStdString(mediaEntry["id"].get<std::string>())
+                     : QString();
     return true;
 }
 

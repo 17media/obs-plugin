@@ -8,6 +8,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QEvent>
+#include <QFile>
 #include <QFrame>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -39,6 +40,7 @@
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
+#include <QWheelEvent>
 
 #include <algorithm>
 #include <cmath>
@@ -435,6 +437,16 @@ class PositionCanvasWidget final : public QWidget {
     std::function<void(const QRect&)> onRectChanged_{};
 };
 
+class NoWheelSpinBox final : public QSpinBox {
+   public:
+    explicit NoWheelSpinBox(QWidget* parent = nullptr) : QSpinBox(parent) {}
+
+   protected:
+    void wheelEvent(QWheelEvent* event) override {
+        event->ignore();
+    }
+};
+
 }  // namespace
 
 namespace {
@@ -456,6 +468,79 @@ QRect normalizePositionRect(const QRect& rect, int canvasW, int canvasH) {
     const int normalizedX = std::clamp(rect.x(), 0, maxX);
     const int normalizedY = std::clamp(rect.y(), 0, maxY);
     return QRect(normalizedX, normalizedY, normalizedWidth, normalizedHeight);
+}
+
+json ensureObject(const json& value) {
+    return value.is_object() ? value : json::object();
+}
+
+json* findArrayItemById(json& array, const QString& id) {
+    if (!array.is_array()) {
+        return nullptr;
+    }
+    for (auto& item : array) {
+        if (!item.is_object() || !item.contains("id") || !item["id"].is_string()) {
+            continue;
+        }
+        if (QString::fromStdString(item["id"].get<std::string>()) == id) {
+            return &item;
+        }
+    }
+    return nullptr;
+}
+
+const json* findArrayItemById(const json& array, const QString& id) {
+    if (!array.is_array()) {
+        return nullptr;
+    }
+    for (const auto& item : array) {
+        if (!item.is_object() || !item.contains("id") || !item["id"].is_string()) {
+            continue;
+        }
+        if (QString::fromStdString(item["id"].get<std::string>()) == id) {
+            return &item;
+        }
+    }
+    return nullptr;
+}
+
+QString mediaPathForId(const json& cfg, const QString& id) {
+    if (!cfg.contains("media")) {
+        return {};
+    }
+    const json* item = findArrayItemById(cfg["media"], id);
+    if (!item || !item->contains("path") || !(*item)["path"].is_string()) {
+        return {};
+    }
+    return QString::fromStdString((*item)["path"].get<std::string>());
+}
+
+std::vector<QString> collectRemovedMediaPaths(const json& fromCfg, const json& toCfg) {
+    std::vector<QString> removedPaths;
+    if (!fromCfg.contains("media") || !fromCfg["media"].is_array()) {
+        return removedPaths;
+    }
+    for (const auto& media : fromCfg["media"]) {
+        if (!media.is_object() || !media.contains("id") || !media["id"].is_string()) {
+            continue;
+        }
+        const QString id = QString::fromStdString(media["id"].get<std::string>());
+        if (toCfg.contains("media") && findArrayItemById(toCfg["media"], id)) {
+            continue;
+        }
+        if (media.contains("path") && media["path"].is_string()) {
+            removedPaths.emplace_back(QString::fromStdString(media["path"].get<std::string>()));
+        }
+    }
+    return removedPaths;
+}
+
+void deleteMediaFiles(const std::vector<QString>& paths) {
+    for (const auto& path : paths) {
+        if (!path.isEmpty() && QFile::exists(path)) {
+            QFile::remove(path);
+        }
+    }
 }
 
 void applyPositionInputs(const PositionSizePanelWidgets& inputs, const QRect& rect, int canvasW, int canvasH) {
@@ -715,7 +800,11 @@ void CustomizedCartoonDock::updateMediaPreviewAvailability() {
     if (!mediaList_) {
         return;
     }
-    const bool canPreview = !streamingActive_;
+    const bool canPreview = !streamingActive_ && !isDraftDirty();
+    const QString previewTooltip =
+        streamingActive_ ? obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming")
+                         : (isDraftDirty() ? obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview")
+                                           : QString());
     for (int i = 0; i < mediaList_->count(); ++i) {
         auto* item = mediaList_->item(i);
         auto* row = mediaList_->itemWidget(item);
@@ -728,9 +817,111 @@ void CustomizedCartoonDock::updateMediaPreviewAvailability() {
         }
         previewButton->setEnabled(canPreview);
         previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
-        previewButton->setToolTip(
-            canPreview ? QString() : obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"));
+        previewButton->setToolTip(previewTooltip);
     }
+}
+
+bool CustomizedCartoonDock::isPositionOrientationDirty(bool landscape) const {
+    const char* key = landscape ? "landscape" : "portrait";
+    const json savedPosition =
+        savedConfig_.contains("position") && savedConfig_["position"].is_object() ? savedConfig_["position"]
+                                                                                  : json::object();
+    const json draftPosition =
+        draftConfig_.contains("position") && draftConfig_["position"].is_object() ? draftConfig_["position"]
+                                                                                  : json::object();
+    const json savedValue =
+        savedPosition.contains(key) && savedPosition[key].is_object() ? savedPosition[key] : json::object();
+    const json draftValue =
+        draftPosition.contains(key) && draftPosition[key].is_object() ? draftPosition[key] : json::object();
+    return savedValue != draftValue;
+}
+
+bool CustomizedCartoonDock::isSettingsTabDirty() const {
+    const json savedMedia =
+        savedConfig_.contains("media") && savedConfig_["media"].is_array() ? savedConfig_["media"] : json::array();
+    const json draftMedia =
+        draftConfig_.contains("media") && draftConfig_["media"].is_array() ? draftConfig_["media"] : json::array();
+    return savedMedia != draftMedia || isPositionOrientationDirty(false) || isPositionOrientationDirty(true);
+}
+
+bool CustomizedCartoonDock::isRulesTabDirty() const {
+    const json savedRules =
+        savedConfig_.contains("rules") && savedConfig_["rules"].is_array() ? savedConfig_["rules"] : json::array();
+    const json draftRules =
+        draftConfig_.contains("rules") && draftConfig_["rules"].is_array() ? draftConfig_["rules"] : json::array();
+    return savedRules != draftRules;
+}
+
+void CustomizedCartoonDock::updateDraftUi() {
+    const bool dirty = isDraftDirty();
+
+    if (applyButton_) {
+        applyButton_->setEnabled(dirty);
+        applyButton_->setToolTip(dirty ? QString()
+                                       : obs_module_text("CustomizedCartoon.Settings.NoPendingChanges"));
+    }
+    if (confirmButton_) {
+        confirmButton_->setText(dirty ? obs_module_text("CustomizedCartoon.Action.Confirm")
+                                      : obs_module_text("CustomizedCartoon.Dock.Close"));
+        confirmButton_->setToolTip(dirty ? obs_module_text("CustomizedCartoon.Settings.SaveAndClose")
+                                         : obs_module_text("CustomizedCartoon.Settings.CloseWithoutChanges"));
+    }
+    if (cancelButton_) {
+        cancelButton_->setToolTip(dirty ? obs_module_text("CustomizedCartoon.Settings.DiscardAndClose")
+                                        : QString());
+    }
+    if (draftStatusLabel_) {
+        if (dirty) {
+            draftStatusLabel_->setText(obs_module_text("CustomizedCartoon.Settings.PendingChanges"));
+            draftStatusLabel_->setVisible(true);
+        } else {
+            draftStatusLabel_->clear();
+            draftStatusLabel_->setVisible(false);
+        }
+    }
+    if (mainTabWidget_) {
+        const QString settingsText =
+            QString::fromUtf8(obs_module_text("CustomizedCartoon.Tab.Settings")) +
+            (isSettingsTabDirty() ? " *" : "");
+        const QString rulesText =
+            QString::fromUtf8(obs_module_text("CustomizedCartoon.Rules.PanelTitle")) +
+            (isRulesTabDirty() ? " *" : "");
+        if (mainTabWidget_->count() > 0) {
+            mainTabWidget_->setTabText(0, settingsText);
+            mainTabWidget_->setTabToolTip(
+                0, isSettingsTabDirty() ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
+                                        : QString());
+        }
+        if (mainTabWidget_->count() > 1) {
+            mainTabWidget_->setTabText(1, rulesText);
+            mainTabWidget_->setTabToolTip(
+                1, isRulesTabDirty() ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
+                                     : QString());
+        }
+    }
+    if (positionTabWidget_) {
+        const QString portraitText =
+            QString::fromUtf8(obs_module_text("CustomizedCartoon.Position.Tab.Portrait")) +
+            (isPositionOrientationDirty(false) ? " *" : "");
+        const QString landscapeText =
+            QString::fromUtf8(obs_module_text("CustomizedCartoon.Position.Tab.Landscape")) +
+            (isPositionOrientationDirty(true) ? " *" : "");
+        if (positionTabWidget_->count() > 0) {
+            positionTabWidget_->setTabText(0, portraitText);
+            positionTabWidget_->setTabToolTip(
+                0, isPositionOrientationDirty(false)
+                       ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
+                       : QString());
+        }
+        if (positionTabWidget_->count() > 1) {
+            positionTabWidget_->setTabText(1, landscapeText);
+            positionTabWidget_->setTabToolTip(
+                1, isPositionOrientationDirty(true)
+                       ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
+                       : QString());
+        }
+    }
+    updateMediaPreviewAvailability();
 }
 
 void CustomizedCartoonDock::setupUi() {
@@ -874,6 +1065,9 @@ void CustomizedCartoonDock::setupUi() {
         "  font-size: 14px; font-weight: 700; padding: 0px;"
         "}"
         "QPushButton#dangerButton:hover { background-color: #FF3B30; }"
+        "QPushButton#dangerButton:disabled {"
+        "  background-color: #5A5F6B; color: rgba(255,255,255,0.45);"
+        "}"
         "QPushButton#ghostButton {"
         "  background-color: rgba(255,255,255,0.08); color: white; border: none; border-radius: 2px;"
         "  font-size: 14px; padding: 10px 18px;"
@@ -974,6 +1168,11 @@ void CustomizedCartoonDock::setupUi() {
         "  font-size: 14px;"
         "  font-weight: 400;"
         "  line-height: 21px;"
+        "}"
+        "QLabel#draftStatusLabel {"
+        "  color: #A1A9B6;"
+        "  font-size: 12px;"
+        "  font-weight: 400;"
         "}"
         "QScrollBar:vertical { background: transparent; width: 10px; margin: 0px; }"
         "QScrollBar::handle:vertical { background: rgba(255,255,255,0.18); border-radius: 2px; }"
@@ -1109,18 +1308,18 @@ void CustomizedCartoonDock::setupUi() {
     updateTitleBarButtons();
     setTitleBarWidget(titleBar);
 
-    auto* mainTabWidget = new QTabWidget(root);
-    mainTabWidget->setObjectName("mainSectionTabs");
-    mainTabWidget->setUsesScrollButtons(false);
-    mainTabWidget->tabBar()->setExpanding(false);
-    mainTabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    mainTabWidget_ = new QTabWidget(root);
+    mainTabWidget_->setObjectName("mainSectionTabs");
+    mainTabWidget_->setUsesScrollButtons(false);
+    mainTabWidget_->tabBar()->setExpanding(false);
+    mainTabWidget_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 #ifdef Q_OS_MACOS
-    mainTabWidget->setUsesScrollButtons(true);
-    mainTabWidget->tabBar()->setStyle(QStyleFactory::create("Fusion"));
+    mainTabWidget_->setUsesScrollButtons(true);
+    mainTabWidget_->tabBar()->setStyle(QStyleFactory::create("Fusion"));
 #endif
-    rootLayout->addWidget(mainTabWidget, 1);
+    rootLayout->addWidget(mainTabWidget_, 1);
 
-    auto* settingsPage = new QWidget(mainTabWidget);
+    auto* settingsPage = new QWidget(mainTabWidget_);
     auto* settingsPageLayout = new QVBoxLayout(settingsPage);
     settingsPageLayout->setContentsMargins(0, 0, 0, 0);
     settingsPageLayout->setSpacing(0);
@@ -1365,9 +1564,9 @@ void CustomizedCartoonDock::setupUi() {
 
     left->addStretch(1);
     settingsScrollArea->setWidget(leftContainer);
-    mainTabWidget->addTab(settingsPage, obs_module_text("CustomizedCartoon.Tab.Settings"));
+    mainTabWidget_->addTab(settingsPage, obs_module_text("CustomizedCartoon.Tab.Settings"));
 
-    auto* rulesPage = new QWidget(mainTabWidget);
+    auto* rulesPage = new QWidget(mainTabWidget_);
     auto* rulesPageLayout = new QVBoxLayout(rulesPage);
     rulesPageLayout->setContentsMargins(0, 0, 0, 0);
     rulesPageLayout->setSpacing(0);
@@ -1415,11 +1614,15 @@ void CustomizedCartoonDock::setupUi() {
     rulesScrollContentLayout->addWidget(rightPanel);
     rulesScrollContentLayout->addStretch(1);
     rulesScrollArea_->setWidget(rulesScrollContent);
-    mainTabWidget->addTab(rulesPage, obs_module_text("CustomizedCartoon.Rules.PanelTitle"));
+    mainTabWidget_->addTab(rulesPage, obs_module_text("CustomizedCartoon.Rules.PanelTitle"));
 
     auto* bottomRow = new QHBoxLayout();
     bottomRow->setContentsMargins(0, 0, 20, 0);
     bottomRow->setSpacing(5);
+    draftStatusLabel_ = new QLabel(root);
+    draftStatusLabel_->setObjectName("draftStatusLabel");
+    draftStatusLabel_->setVisible(false);
+    bottomRow->addWidget(draftStatusLabel_, 0, Qt::AlignVCenter);
     bottomRow->addStretch(1);
     cancelButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Action.Cancel"), root);
     confirmButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Action.Confirm"), root);
@@ -1441,13 +1644,19 @@ void CustomizedCartoonDock::setupUi() {
         }
     });
     connect(confirmButton_, &QPushButton::clicked, this, [this]() {
-        if (saveAndApplyPositionDraft()) {
+        if (!isDraftDirty()) {
+            closeDock();
+            return;
+        }
+        if (saveAndApplyDraft()) {
             closeDock();
         }
     });
     connect(applyButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onApplyPosition);
+    connect(mainTabWidget_, &QTabWidget::currentChanged, this, [this](int) { updateDraftUi(); });
 
     setWidget(root);
+    updateDraftUi();
 }
 
 bool CustomizedCartoonDock::eventFilter(QObject* obj, QEvent* event) {
@@ -1509,19 +1718,22 @@ void CustomizedCartoonDock::showToast(const QString& text, bool danger) {
 }
 
 void CustomizedCartoonDock::refreshUi() {
-    if (!positionDraftDirty_) {
-        resetPositionDraftFromService();
+    if (!isDraftDirty()) {
+        resetDraftFromService();
     }
     loadFromConfig();
     refreshPositionUi();
     refreshProgress();
+    updateDraftUi();
 }
 
 void CustomizedCartoonDock::refreshPositionUi() {
     if (!service_ || !positionTabWidget_) {
         return;
     }
-    const json cfg = draftPositionConfig_;
+    const json cfg =
+        draftConfig_.contains("position") && draftConfig_["position"].is_object() ? draftConfig_["position"]
+                                                                                  : json::object();
     const bool landscape = positionTabWidget_->currentIndex() == 1;
     const char* key = landscape ? "landscape" : "portrait";
     const int canvasW = landscape ? 1280 : 720;
@@ -1563,7 +1775,7 @@ void CustomizedCartoonDock::refreshMediaList() {
     if (!service_ || !mediaList_) {
         return;
     }
-    const json cfg = service_->getConfigSnapshot();
+    const json cfg = draftConfig_;
 
     mediaList_->clear();
     int mediaCount = 0;
@@ -1638,12 +1850,14 @@ void CustomizedCartoonDock::refreshMediaList() {
             previewButton->setIcon(previewingThis ? stopIcon : playIcon);
             previewButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
             previewButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
-            const bool canPreview = !streamingActive_;
+            const bool canPreview = !streamingActive_ && !isDraftDirty();
             previewButton->setEnabled(canPreview);
             previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
             previewButton->setToolTip(
                 canPreview ? QString()
-                           : obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"));
+                           : (streamingActive_
+                                  ? obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming")
+                                  : obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview")));
 
             auto* delButton = new QPushButton(row);
             delButton->setIcon(trashIcon);
@@ -1652,15 +1866,10 @@ void CustomizedCartoonDock::refreshMediaList() {
             delButton->setCursor(Qt::PointingHandCursor);
 
             connect(delButton, &QPushButton::clicked, this, [this, id]() {
-                if (!service_) {
-                    return;
+                if (removeMediaFromDraft(id)) {
+                    loadFromConfig();
+                    syncPreviewDraftTransform();
                 }
-                QString error;
-                if (!service_->deleteMedia(id, error)) {
-                    QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
-                                         QMessageBox::Ok);
-                }
-                refreshUi();
             });
 
             connect(settingsButton, &QPushButton::clicked, this, [this, id]() {
@@ -1676,6 +1885,12 @@ void CustomizedCartoonDock::refreshMediaList() {
                         this, obs_module_text("CustomizedCartoon.Dock.Title"),
                         obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"),
                         QMessageBox::Ok);
+                    return;
+                }
+                if (isDraftDirty()) {
+                    QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                             obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview"),
+                                             QMessageBox::Ok);
                     return;
                 }
                 if (mediaList_) {
@@ -1741,7 +1956,7 @@ void CustomizedCartoonDock::openMediaSettingsDialog(const QString& mediaId) {
         return;
     }
 
-    json cfg = service_->getConfigSnapshot();
+    json cfg = draftConfig_;
     if (!cfg.contains("media") || !cfg["media"].is_array()) {
         return;
     }
@@ -1786,12 +2001,9 @@ void CustomizedCartoonDock::openMediaSettingsDialog(const QString& mediaId) {
         media["displaySec"] = nextDisplaySec;
         media["muted"] = (type == "video") ? nextMuted : false;
         media["preserveAspectRatio"] = nextPreserveAspectRatio;
-
-        if (!service_->saveConfig(cfg)) {
-            QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                                 obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"),
-                                 QMessageBox::Ok);
-        }
+        draftConfig_ = std::move(cfg);
+        draftDirty_ = draftConfig_ != savedConfig_;
+        updateDraftUi();
         return;
     }
 }
@@ -1860,7 +2072,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
         delete item;
     }
 
-    const json cfg = service_->getConfigSnapshot();
+    const json cfg = draftConfig_;
 
     std::vector<std::pair<QString, QString>> mediaOptions;
     if (cfg.contains("media") && cfg["media"].is_array()) {
@@ -1955,13 +2167,13 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             ruleLabel->setWordWrap(true);
             ruleLabel->setStyleSheet("QLabel { font-size: 14px; color: #FFFFFF; }");
 
-            auto* pointsSpin = new QSpinBox(card);
+            auto* pointsSpin = new NoWheelSpinBox(card);
             pointsSpin->setRange(1, 100000000);
             pointsSpin->setValue(std::max(1, points));
             pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
             pointsSpin->setStyleSheet(
                 "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
-            auto* countSpin = new QSpinBox(card);
+            auto* countSpin = new NoWheelSpinBox(card);
             countSpin->setRange(1, 1000000);
             countSpin->setValue(std::max(1, count));
             countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
@@ -2044,54 +2256,32 @@ void CustomizedCartoonDock::rebuildRulesUi() {
 
             auto saveRule = [this, id, typeCombo, pointsSpin, countSpin, mediaCombo, repeatCheck,
                              statusActive]() {
-                if (!service_) {
+                if (!draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
                     return;
                 }
-                json cfg = service_->getConfigSnapshot();
-                if (!cfg.contains("rules") || !cfg["rules"].is_array()) {
-                    return;
-                }
-                for (auto& r : cfg["rules"]) {
-                    if (!r.is_object() || !r.contains("id") || !r["id"].is_string()) {
-                        continue;
-                    }
-                    if (QString::fromStdString(r["id"].get<std::string>()) != id) {
-                        continue;
-                    }
+                if (auto* rule = findArrayItemById(draftConfig_["rules"], id)) {
                     const QString engageType = typeCombo->currentData().toString();
                     const bool luckyBag = engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
-                    r["engageType"] = engageType.toStdString();
-                    r["points"] = luckyBag ? 0 : pointsSpin->value();
-                    r["count"] = countSpin->value();
-                    r["mediaId"] = mediaCombo->currentData().toString().toStdString();
-                    r["repeatable"] = repeatCheck->isChecked();
-                    r["enabled"] = statusActive->isChecked();
-                    break;
+                    (*rule)["engageType"] = engageType.toStdString();
+                    (*rule)["points"] = luckyBag ? 0 : pointsSpin->value();
+                    (*rule)["count"] = countSpin->value();
+                    (*rule)["mediaId"] = mediaCombo->currentData().toString().toStdString();
+                    (*rule)["repeatable"] = repeatCheck->isChecked();
+                    (*rule)["enabled"] = statusActive->isChecked();
+                    draftDirty_ = draftConfig_ != savedConfig_;
+                    updateDraftUi();
                 }
-                const QSignalBlocker blocker(service_);
-                service_->saveConfig(cfg);
             };
 
             auto saveRuleName = [this, id, nameEdit]() {
-                if (!service_ || !nameEdit) {
+                if (!nameEdit || !draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
                     return;
                 }
-                json cfg = service_->getConfigSnapshot();
-                if (!cfg.contains("rules") || !cfg["rules"].is_array()) {
-                    return;
+                if (auto* rule = findArrayItemById(draftConfig_["rules"], id)) {
+                    (*rule)["name"] = nameEdit->text().toStdString();
+                    draftDirty_ = draftConfig_ != savedConfig_;
+                    updateDraftUi();
                 }
-                for (auto& r : cfg["rules"]) {
-                    if (!r.is_object() || !r.contains("id") || !r["id"].is_string()) {
-                        continue;
-                    }
-                    if (QString::fromStdString(r["id"].get<std::string>()) != id) {
-                        continue;
-                    }
-                    r["name"] = nameEdit->text().toStdString();
-                    break;
-                }
-                const QSignalBlocker blocker(service_);
-                service_->saveConfig(cfg);
             };
 
             connect(nameEdit, &QLineEdit::editingFinished, card, [saveRuleName]() { saveRuleName(); });
@@ -2116,15 +2306,11 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             });
 
             connect(delButton, &QPushButton::clicked, card, [this, id]() {
-                if (!service_) {
-                    return;
-                }
-                json cfg = service_->getConfigSnapshot();
-                if (!cfg.contains("rules") || !cfg["rules"].is_array()) {
+                if (!draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
                     return;
                 }
                 json newRules = json::array();
-                for (const auto& r : cfg["rules"]) {
+                for (const auto& r : draftConfig_["rules"]) {
                     if (!r.is_object() || !r.contains("id") || !r["id"].is_string()) {
                         continue;
                     }
@@ -2133,8 +2319,9 @@ void CustomizedCartoonDock::rebuildRulesUi() {
                     }
                     newRules.push_back(r);
                 }
-                cfg["rules"] = std::move(newRules);
-                service_->saveConfig(cfg);
+                draftConfig_["rules"] = std::move(newRules);
+                draftDirty_ = draftConfig_ != savedConfig_;
+                rebuildRulesUi();
             });
 
             grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.ConditionName"), 0, 0);
@@ -2243,6 +2430,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
         }
     }
     pendingScrollToLatestRule_ = false;
+    updateDraftUi();
 }
 
 void CustomizedCartoonDock::refreshProgress() {
@@ -2277,18 +2465,24 @@ void CustomizedCartoonDock::onAddMedia() {
         return;
     }
 
-    QString mediaId;
+    json mediaEntry;
     QString error;
-    if (!service_->importMediaFile(path, mediaId, error)) {
+    if (!service_->prepareMediaDraftEntry(path, mediaEntry, error)) {
         QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
                              QMessageBox::Ok);
         return;
     }
-    refreshUi();
+    if (!draftConfig_.contains("media") || !draftConfig_["media"].is_array()) {
+        draftConfig_["media"] = json::array();
+    }
+    draftConfig_["media"].push_back(std::move(mediaEntry));
+    draftDirty_ = draftConfig_ != savedConfig_;
+    loadFromConfig();
+    updateDraftUi();
 }
 
 void CustomizedCartoonDock::onRemoveMedia() {
-    if (!service_) {
+    if (!mediaList_) {
         return;
     }
     auto* item = mediaList_->currentItem();
@@ -2299,12 +2493,11 @@ void CustomizedCartoonDock::onRemoveMedia() {
     if (id.isEmpty()) {
         return;
     }
-    QString error;
-    if (!service_->deleteMedia(id, error)) {
-        QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
-                             QMessageBox::Ok);
+    if (removeMediaFromDraft(id)) {
+        loadFromConfig();
+        syncPreviewDraftTransform();
+        updateDraftUi();
     }
-    refreshUi();
 }
 
 void CustomizedCartoonDock::onAddRule() {
@@ -2312,7 +2505,7 @@ void CustomizedCartoonDock::onAddRule() {
         return;
     }
 
-    json cfg = service_->getConfigSnapshot();
+    json cfg = ensureObject(draftConfig_);
     if (!cfg.contains("rules") || !cfg["rules"].is_array()) {
         cfg["rules"] = json::array();
     }
@@ -2349,9 +2542,10 @@ void CustomizedCartoonDock::onAddRule() {
                             {"enabled", true}});
 
     pendingScrollToLatestRule_ = true;
-    if (!service_->saveConfig(cfg)) {
-        pendingScrollToLatestRule_ = false;
-    }
+    draftConfig_ = std::move(cfg);
+    draftDirty_ = draftConfig_ != savedConfig_;
+    rebuildRulesUi();
+    updateDraftUi();
 }
 
 void CustomizedCartoonDock::onRemoveRule() {
@@ -2360,6 +2554,12 @@ void CustomizedCartoonDock::onRemoveRule() {
 
 void CustomizedCartoonDock::onPreview() {
     if (!service_) {
+        return;
+    }
+    if (isDraftDirty()) {
+        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                 obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview"),
+                                 QMessageBox::Ok);
         return;
     }
     service_->previewPlayAll();
@@ -2373,13 +2573,16 @@ void CustomizedCartoonDock::onOrientationChanged(int) {
     }
     refreshPositionUi();
     syncPreviewDraftTransform();
+    updateDraftUi();
 }
 
 nlohmann::json CustomizedCartoonDock::buildCurrentPositionDraft(bool landscape) const {
     const char* key = landscape ? "landscape" : "portrait";
-    nlohmann::json t = draftPositionConfig_.contains(key) && draftPositionConfig_[key].is_object()
-                           ? draftPositionConfig_[key]
-                           : nlohmann::json::object();
+    const json positionCfg =
+        draftConfig_.contains("position") && draftConfig_["position"].is_object() ? draftConfig_["position"]
+                                                                                  : json::object();
+    nlohmann::json t = positionCfg.contains(key) && positionCfg[key].is_object() ? positionCfg[key]
+                                                                                  : nlohmann::json::object();
 
     const int canvasW = landscape ? 1280 : 720;
     const int canvasH = landscape ? 720 : 1280;
@@ -2402,15 +2605,11 @@ nlohmann::json CustomizedCartoonDock::buildCurrentPositionDraft(bool landscape) 
     return t;
 }
 
-void CustomizedCartoonDock::resetPositionDraftFromService() {
-    const nlohmann::json cfg = service_ ? service_->getConfigSnapshot() : nlohmann::json::object();
-    if (cfg.contains("position") && cfg["position"].is_object()) {
-        savedPositionConfig_ = cfg["position"];
-    } else {
-        savedPositionConfig_ = nlohmann::json::object();
-    }
-    draftPositionConfig_ = savedPositionConfig_;
-    positionDraftDirty_ = false;
+void CustomizedCartoonDock::resetDraftFromService() {
+    savedConfig_ = service_ ? ensureObject(service_->getConfigSnapshot()) : nlohmann::json::object();
+    draftConfig_ = savedConfig_;
+    draftDirty_ = false;
+    updateDraftUi();
 }
 
 void CustomizedCartoonDock::updatePositionDraft(bool landscape, const QRect& rect) {
@@ -2419,12 +2618,15 @@ void CustomizedCartoonDock::updatePositionDraft(bool landscape, const QRect& rec
     const int canvasH = landscape ? 720 : 1280;
     const QRect normalized = normalizePositionRect(rect, canvasW, canvasH);
 
-    if (!draftPositionConfig_.is_object()) {
-        draftPositionConfig_ = nlohmann::json::object();
+    if (!draftConfig_.is_object()) {
+        draftConfig_ = nlohmann::json::object();
+    }
+    if (!draftConfig_.contains("position") || !draftConfig_["position"].is_object()) {
+        draftConfig_["position"] = nlohmann::json::object();
     }
 
-    nlohmann::json t = draftPositionConfig_.contains(key) && draftPositionConfig_[key].is_object()
-                           ? draftPositionConfig_[key]
+    nlohmann::json t = draftConfig_["position"].contains(key) && draftConfig_["position"][key].is_object()
+                           ? draftConfig_["position"][key]
                            : nlohmann::json::object();
     t["x"] = (double)normalized.x();
     t["y"] = (double)normalized.y();
@@ -2438,38 +2640,43 @@ void CustomizedCartoonDock::updatePositionDraft(bool landscape, const QRect& rec
     if (!t.contains("scaleY")) t["scaleY"] = 1.0;
     if (!t.contains("rot")) t["rot"] = 0.0;
 
-    draftPositionConfig_[key] = std::move(t);
-    positionDraftDirty_ = draftPositionConfig_ != savedPositionConfig_;
+    draftConfig_["position"][key] = std::move(t);
+    draftDirty_ = draftConfig_ != savedConfig_;
+    updateDraftUi();
 }
 
-bool CustomizedCartoonDock::savePositionDraft() {
+bool CustomizedCartoonDock::saveDraft() {
     if (!service_) {
         return false;
     }
-    if (!positionDraftDirty_) {
+    if (!isDraftDirty()) {
         return true;
     }
 
-    nlohmann::json cfg = service_->getConfigSnapshot();
-    cfg["position"] = draftPositionConfig_;
-    if (!service_->saveConfig(cfg)) {
+    const std::vector<QString> removedPaths = collectRemovedMediaPaths(savedConfig_, draftConfig_);
+    const QSignalBlocker blocker(service_);
+    if (!service_->saveConfig(draftConfig_)) {
         QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
                              obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"),
                              QMessageBox::Ok);
         return false;
     }
 
-    resetPositionDraftFromService();
+    deleteMediaFiles(removedPaths);
+    resetDraftFromService();
+    loadFromConfig();
+    refreshPositionUi();
+    updateDraftUi();
     return true;
 }
 
-bool CustomizedCartoonDock::saveAndApplyPositionDraft() {
+bool CustomizedCartoonDock::saveAndApplyDraft() {
     if (!service_) {
         return false;
     }
 
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
-    if (!savePositionDraft()) {
+    if (!saveDraft()) {
         return false;
     }
 
@@ -2478,7 +2685,7 @@ bool CustomizedCartoonDock::saveAndApplyPositionDraft() {
 }
 
 bool CustomizedCartoonDock::confirmCloseWithUnsavedChanges() {
-    if (!positionDraftDirty_) {
+    if (!isDraftDirty()) {
         return true;
     }
 
@@ -2497,18 +2704,65 @@ bool CustomizedCartoonDock::confirmCloseWithUnsavedChanges() {
     confirmBox.exec();
 
     if (confirmBox.clickedButton() == saveButton) {
-        return saveAndApplyPositionDraft();
+        return saveAndApplyDraft();
     }
 
     if (confirmBox.clickedButton() == discardButton) {
-        resetPositionDraftFromService();
+        deleteMediaFiles(collectRemovedMediaPaths(draftConfig_, savedConfig_));
+        resetDraftFromService();
+        loadFromConfig();
         refreshPositionUi();
         syncPreviewDraftTransform();
+        updateDraftUi();
         return true;
     }
 
     Q_UNUSED(cancelButton);
     return false;
+}
+
+bool CustomizedCartoonDock::isDraftDirty() const {
+    return draftDirty_ || draftConfig_ != savedConfig_;
+}
+
+bool CustomizedCartoonDock::removeMediaFromDraft(const QString& mediaId) {
+    if (mediaId.isEmpty() || !draftConfig_.contains("media") || !draftConfig_["media"].is_array()) {
+        return false;
+    }
+
+    const QString draftOnlyPath =
+        findArrayItemById(savedConfig_.contains("media") ? savedConfig_["media"] : json::array(), mediaId)
+            ? QString()
+            : mediaPathForId(draftConfig_, mediaId);
+
+    json newMedia = json::array();
+    for (const auto& media : draftConfig_["media"]) {
+        if (!media.is_object() || !media.contains("id") || !media["id"].is_string()) {
+            continue;
+        }
+        if (QString::fromStdString(media["id"].get<std::string>()) == mediaId) {
+            continue;
+        }
+        newMedia.push_back(media);
+    }
+    draftConfig_["media"] = std::move(newMedia);
+
+    if (draftConfig_.contains("rules") && draftConfig_["rules"].is_array()) {
+        for (auto& rule : draftConfig_["rules"]) {
+            if (rule.is_object() && rule.contains("mediaId") && rule["mediaId"].is_string() &&
+                QString::fromStdString(rule["mediaId"].get<std::string>()) == mediaId) {
+                rule["mediaId"] = "";
+            }
+        }
+    }
+
+    if (!draftOnlyPath.isEmpty()) {
+        deleteMediaFiles({draftOnlyPath});
+    }
+
+    draftDirty_ = draftConfig_ != savedConfig_;
+    updateDraftUi();
+    return true;
 }
 
 void CustomizedCartoonDock::closeDock() {
@@ -2526,10 +2780,10 @@ void CustomizedCartoonDock::syncPreviewDraftTransform() {
 }
 
 void CustomizedCartoonDock::onApplyPosition() {
-    if (!saveAndApplyPositionDraft()) {
+    if (!saveAndApplyDraft()) {
         return;
     }
-    showToast(obs_module_text("CustomizedCartoon.Position.ApplySuccess"));
+    showToast(obs_module_text("CustomizedCartoon.Settings.ApplySuccess"));
 }
 
 void CustomizedCartoonDock::onReadPositionFromCanvas() {
@@ -2559,6 +2813,12 @@ void CustomizedCartoonDock::onReadPositionFromCanvas() {
 
 void CustomizedCartoonDock::onStartPositionPreview() {
     if (!service_) {
+        return;
+    }
+    if (isDraftDirty()) {
+        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                 obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview"),
+                                 QMessageBox::Ok);
         return;
     }
     auto* item = mediaList_ ? mediaList_->currentItem() : nullptr;

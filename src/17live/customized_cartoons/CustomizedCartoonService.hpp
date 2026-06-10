@@ -34,6 +34,7 @@ class CustomizedCartoonService : public QObject {
     nlohmann::json getConfigSnapshot() const;
     bool saveConfig(const nlohmann::json& cfg);
 
+    bool prepareMediaDraftEntry(const QString& filePath, nlohmann::json& outMedia, QString& outError);
     bool importMediaFile(const QString& filePath, QString& outMediaId, QString& outError);
     bool deleteMedia(const QString& mediaId, QString& outError);
 
