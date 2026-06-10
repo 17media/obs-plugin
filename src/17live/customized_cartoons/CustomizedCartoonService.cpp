@@ -31,6 +31,32 @@ constexpr uint32_t kPreviewLandscapeCanvasH = 720;
 constexpr uint32_t kPreviewPortraitCanvasW = 720;
 constexpr uint32_t kPreviewPortraitCanvasH = 1280;
 
+static obs_transform_info DefaultOverlayTransform(bool landscape) {
+    const int canvasW = landscape ? (int)kPreviewLandscapeCanvasW : (int)kPreviewPortraitCanvasW;
+    const int canvasH = landscape ? (int)kPreviewLandscapeCanvasH : (int)kPreviewPortraitCanvasH;
+    const int minSize = 20;
+    const int normalizedWidth = std::clamp(500, minSize, canvasW);
+    const int normalizedHeight = std::clamp(500, minSize, canvasH);
+    const int maxX = std::max(0, canvasW - normalizedWidth);
+    const int maxY = std::max(0, canvasH - normalizedHeight);
+    const int normalizedX = std::clamp(200, 0, maxX);
+    const int normalizedY = std::clamp(300, 0, maxY);
+
+    obs_transform_info ti{};
+    ti.pos.x = (float)normalizedX;
+    ti.pos.y = (float)normalizedY;
+    ti.scale.x = 1.0f;
+    ti.scale.y = 1.0f;
+    ti.rot = 0.0f;
+    ti.alignment = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    ti.bounds_type = OBS_BOUNDS_STRETCH;
+    ti.bounds_alignment = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    ti.bounds.x = (float)normalizedWidth;
+    ti.bounds.y = (float)normalizedHeight;
+    ti.crop_to_bounds = true;
+    return ti;
+}
+
 int defaultDisplaySecForType(const QString& type) {
     return type == "video" ? 15 : 5;
 }
@@ -1143,6 +1169,7 @@ void CustomizedCartoonService::ensureOverlaySceneItem() {
         if (mediaItem_) {
             obs_sceneitem_set_order(mediaItem_, OBS_ORDER_MOVE_TOP);
             obs_sceneitem_set_visible(mediaItem_, false);
+            obs_sceneitem_select(mediaItem_, false);
         }
     }
     if (imageSource_) {
@@ -1153,6 +1180,7 @@ void CustomizedCartoonService::ensureOverlaySceneItem() {
         if (imageItem_) {
             obs_sceneitem_set_order(imageItem_, OBS_ORDER_MOVE_TOP);
             obs_sceneitem_set_visible(imageItem_, false);
+            obs_sceneitem_select(imageItem_, false);
         }
     }
 
@@ -1171,18 +1199,19 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
     }
 
     json transform;
+    bool hasTransform = false;
     if (previewTransform) {
         transform = *previewTransform;
+        hasTransform = true;
     } else {
         json cfg = getConfigSnapshot();
-        if (!cfg.contains("position") || !cfg["position"].is_object()) {
-            return;
+        if (cfg.contains("position") && cfg["position"].is_object()) {
+            const char* key = useLandscapeConfig ? "landscape" : "portrait";
+            if (cfg["position"].contains(key) && cfg["position"][key].is_object()) {
+                transform = cfg["position"][key];
+                hasTransform = true;
+            }
         }
-        const char* key = useLandscapeConfig ? "landscape" : "portrait";
-        if (!cfg["position"].contains(key) || !cfg["position"][key].is_object()) {
-            return;
-        }
-        transform = cfg["position"][key];
     }
 
     const double referenceCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
@@ -1192,19 +1221,27 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
     const double uniformScale = std::min(scaleX, scaleY);
 
     obs_transform_info ti{};
-    ti.pos.x = static_cast<float>(transform.value("x", 0.0) * uniformScale);
-    ti.pos.y = static_cast<float>(transform.value("y", 0.0) * uniformScale);
-    ti.scale.x = transform.value("scaleX", 1.0);
-    ti.scale.y = transform.value("scaleY", 1.0);
-    ti.rot = transform.value("rot", 0.0);
-    ti.alignment = transform.value("alignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
-    ti.bounds_type =
-        static_cast<obs_bounds_type>(transform.value("boundsType", (int)OBS_BOUNDS_NONE));
-    ti.bounds_alignment =
-        transform.value("boundsAlignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
-    ti.bounds.x = static_cast<float>(transform.value("boundsW", 0.0) * uniformScale);
-    ti.bounds.y = static_cast<float>(transform.value("boundsH", 0.0) * uniformScale);
-    ti.crop_to_bounds = transform.value("cropToBounds", false);
+    if (!hasTransform) {
+        ti = DefaultOverlayTransform(useLandscapeConfig);
+        ti.pos.x = ti.pos.x * (float)uniformScale;
+        ti.pos.y = ti.pos.y * (float)uniformScale;
+        ti.bounds.x = ti.bounds.x * (float)uniformScale;
+        ti.bounds.y = ti.bounds.y * (float)uniformScale;
+    } else {
+        ti.pos.x = static_cast<float>(transform.value("x", 0.0) * uniformScale);
+        ti.pos.y = static_cast<float>(transform.value("y", 0.0) * uniformScale);
+        ti.scale.x = transform.value("scaleX", 1.0);
+        ti.scale.y = transform.value("scaleY", 1.0);
+        ti.rot = transform.value("rot", 0.0);
+        ti.alignment = transform.value("alignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
+        ti.bounds_type =
+            static_cast<obs_bounds_type>(transform.value("boundsType", (int)OBS_BOUNDS_NONE));
+        ti.bounds_alignment =
+            transform.value("boundsAlignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
+        ti.bounds.x = static_cast<float>(transform.value("boundsW", 0.0) * uniformScale);
+        ti.bounds.y = static_cast<float>(transform.value("boundsH", 0.0) * uniformScale);
+        ti.crop_to_bounds = transform.value("cropToBounds", false);
+    }
 
     const MediaItem* activeMedia = nullptr;
     if (positionPreviewing_ && !positionPreviewMediaId_.isEmpty()) {
