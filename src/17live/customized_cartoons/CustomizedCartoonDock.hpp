@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDockWidget>
+#include <QCloseEvent>
 #include <QPointer>
 #include <nlohmann/json.hpp>
 
@@ -31,6 +32,7 @@ class CustomizedCartoonDock : public QDockWidget {
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
    private slots:
     void refreshUi();
@@ -57,6 +59,12 @@ class CustomizedCartoonDock : public QDockWidget {
     void openMediaSettingsDialog(const QString& mediaId);
     void openHelpDialog();
     nlohmann::json buildCurrentPositionDraft(bool landscape) const;
+    void resetPositionDraftFromService();
+    void updatePositionDraft(bool landscape, const QRect& rect);
+    bool savePositionDraft();
+    bool saveAndApplyPositionDraft();
+    bool confirmCloseWithUnsavedChanges();
+    void closeDock();
     void syncPreviewDraftTransform();
     void updateMediaPreviewAvailability();
     void showToast(const QString& text, bool danger = false);
@@ -99,4 +107,9 @@ class CustomizedCartoonDock : public QDockWidget {
     QTimer* toastTimer_{nullptr};
     QGraphicsOpacityEffect* toastOpacity_{nullptr};
     QPropertyAnimation* toastAnim_{nullptr};
+
+    nlohmann::json savedPositionConfig_{nlohmann::json::object()};
+    nlohmann::json draftPositionConfig_{nlohmann::json::object()};
+    bool positionDraftDirty_{false};
+    bool bypassClosePrompt_{false};
 };

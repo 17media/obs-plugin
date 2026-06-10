@@ -1226,6 +1226,7 @@ void CustomizedCartoonDock::setupUi() {
                                       int canvasW, int canvasH) {
         canvas->setOnRectChanged([this, inputs, canvasW, canvasH](const QRect& r) {
             applyPositionInputs(inputs, r, canvasW, canvasH);
+            updatePositionDraft(canvasW > canvasH, r);
             syncPreviewDraftTransform();
         });
 
@@ -1237,6 +1238,9 @@ void CustomizedCartoonDock::setupUi() {
                                QRect(inputs.posX->value(), inputs.posY->value(), inputs.width->value(),
                                      inputs.height->value()),
                                canvasW, canvasH);
+            updatePositionDraft(canvasW > canvasH,
+                                QRect(inputs.posX->value(), inputs.posY->value(), inputs.width->value(),
+                                      inputs.height->value()));
             syncPreviewDraftTransform();
         };
         connect(inputs.posX, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
@@ -1426,10 +1430,15 @@ void CustomizedCartoonDock::setupUi() {
     scrollContentLayout->addLayout(bottomRow);
 
     connect(cancelButton_, &QPushButton::clicked, this, [this]() {
-        refreshUi();
-        setVisible(false);
+        if (confirmCloseWithUnsavedChanges()) {
+            closeDock();
+        }
     });
-    connect(confirmButton_, &QPushButton::clicked, this, [this]() { setVisible(false); });
+    connect(confirmButton_, &QPushButton::clicked, this, [this]() {
+        if (saveAndApplyPositionDraft()) {
+            closeDock();
+        }
+    });
     connect(applyButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onApplyPosition);
 
     contentScrollArea->setWidget(scrollContent);
@@ -1441,6 +1450,21 @@ bool CustomizedCartoonDock::eventFilter(QObject* obj, QEvent* event) {
         repositionToast();
     }
     return QDockWidget::eventFilter(obj, event);
+}
+
+void CustomizedCartoonDock::closeEvent(QCloseEvent* event) {
+    if (bypassClosePrompt_) {
+        bypassClosePrompt_ = false;
+        event->accept();
+        return;
+    }
+
+    if (confirmCloseWithUnsavedChanges()) {
+        event->accept();
+        return;
+    }
+
+    event->ignore();
 }
 
 void CustomizedCartoonDock::repositionToast() {
@@ -1480,6 +1504,9 @@ void CustomizedCartoonDock::showToast(const QString& text, bool danger) {
 }
 
 void CustomizedCartoonDock::refreshUi() {
+    if (!positionDraftDirty_) {
+        resetPositionDraftFromService();
+    }
     loadFromConfig();
     refreshPositionUi();
     refreshProgress();
@@ -1489,7 +1516,7 @@ void CustomizedCartoonDock::refreshPositionUi() {
     if (!service_ || !positionTabWidget_) {
         return;
     }
-    const json cfg = service_->getConfigSnapshot();
+    const json cfg = draftPositionConfig_;
     const bool landscape = positionTabWidget_->currentIndex() == 1;
     const char* key = landscape ? "landscape" : "portrait";
     const int canvasW = landscape ? 1280 : 720;
@@ -1506,13 +1533,12 @@ void CustomizedCartoonDock::refreshPositionUi() {
 
     auto* currentCanvas = positionCanvas_ ? static_cast<PositionCanvasWidget*>(positionCanvas_) : nullptr;
     PositionSizePanelWidgets currentInputs{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_};
-    if (!cfg.contains("position") || !cfg["position"].is_object() || !cfg["position"].contains(key) ||
-        !cfg["position"][key].is_object()) {
+    if (!cfg.contains(key) || !cfg[key].is_object()) {
         applyPositionState(currentCanvas, currentInputs, QRect(200, 300, 500, 500), canvasW, canvasH);
         return;
     }
 
-    const auto& t = cfg["position"][key];
+    const auto& t = cfg[key];
     applyPositionState(currentCanvas, currentInputs,
                        QRect((int)std::round(t.value("x", 200.0)), (int)std::round(t.value("y", 300.0)),
                              (int)std::round(t.value("boundsW", 500.0)),
@@ -2349,14 +2375,10 @@ void CustomizedCartoonDock::onOrientationChanged(int) {
 }
 
 nlohmann::json CustomizedCartoonDock::buildCurrentPositionDraft(bool landscape) const {
-    nlohmann::json cfg = service_ ? service_->getConfigSnapshot() : nlohmann::json::object();
-    if (!cfg.contains("position") || !cfg["position"].is_object()) {
-        cfg["position"] = nlohmann::json::object();
-    }
-
     const char* key = landscape ? "landscape" : "portrait";
-    nlohmann::json t = cfg["position"].contains(key) && cfg["position"][key].is_object() ? cfg["position"][key]
-                                                                                          : nlohmann::json::object();
+    nlohmann::json t = draftPositionConfig_.contains(key) && draftPositionConfig_[key].is_object()
+                           ? draftPositionConfig_[key]
+                           : nlohmann::json::object();
 
     const int canvasW = landscape ? 1280 : 720;
     const int canvasH = landscape ? 720 : 1280;
@@ -2379,6 +2401,120 @@ nlohmann::json CustomizedCartoonDock::buildCurrentPositionDraft(bool landscape) 
     return t;
 }
 
+void CustomizedCartoonDock::resetPositionDraftFromService() {
+    const nlohmann::json cfg = service_ ? service_->getConfigSnapshot() : nlohmann::json::object();
+    if (cfg.contains("position") && cfg["position"].is_object()) {
+        savedPositionConfig_ = cfg["position"];
+    } else {
+        savedPositionConfig_ = nlohmann::json::object();
+    }
+    draftPositionConfig_ = savedPositionConfig_;
+    positionDraftDirty_ = false;
+}
+
+void CustomizedCartoonDock::updatePositionDraft(bool landscape, const QRect& rect) {
+    const char* key = landscape ? "landscape" : "portrait";
+    const int canvasW = landscape ? 1280 : 720;
+    const int canvasH = landscape ? 720 : 1280;
+    const QRect normalized = normalizePositionRect(rect, canvasW, canvasH);
+
+    if (!draftPositionConfig_.is_object()) {
+        draftPositionConfig_ = nlohmann::json::object();
+    }
+
+    nlohmann::json t = draftPositionConfig_.contains(key) && draftPositionConfig_[key].is_object()
+                           ? draftPositionConfig_[key]
+                           : nlohmann::json::object();
+    t["x"] = (double)normalized.x();
+    t["y"] = (double)normalized.y();
+    t["boundsType"] = (int)OBS_BOUNDS_STRETCH;
+    t["boundsAlignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    t["alignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    t["boundsW"] = (double)normalized.width();
+    t["boundsH"] = (double)normalized.height();
+    t["cropToBounds"] = true;
+    if (!t.contains("scaleX")) t["scaleX"] = 1.0;
+    if (!t.contains("scaleY")) t["scaleY"] = 1.0;
+    if (!t.contains("rot")) t["rot"] = 0.0;
+
+    draftPositionConfig_[key] = std::move(t);
+    positionDraftDirty_ = draftPositionConfig_ != savedPositionConfig_;
+}
+
+bool CustomizedCartoonDock::savePositionDraft() {
+    if (!service_) {
+        return false;
+    }
+    if (!positionDraftDirty_) {
+        return true;
+    }
+
+    nlohmann::json cfg = service_->getConfigSnapshot();
+    cfg["position"] = draftPositionConfig_;
+    if (!service_->saveConfig(cfg)) {
+        QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                             obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"),
+                             QMessageBox::Ok);
+        return false;
+    }
+
+    resetPositionDraftFromService();
+    return true;
+}
+
+bool CustomizedCartoonDock::saveAndApplyPositionDraft() {
+    if (!service_) {
+        return false;
+    }
+
+    const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
+    if (!savePositionDraft()) {
+        return false;
+    }
+
+    service_->applyOverlayTransformForOrientation(landscape);
+    return true;
+}
+
+bool CustomizedCartoonDock::confirmCloseWithUnsavedChanges() {
+    if (!positionDraftDirty_) {
+        return true;
+    }
+
+    QMessageBox confirmBox(this);
+    confirmBox.setIcon(QMessageBox::Warning);
+    confirmBox.setWindowTitle(obs_module_text("CustomizedCartoon.UnsavedChanges.Title"));
+    confirmBox.setText(obs_module_text("CustomizedCartoon.UnsavedChanges.Message"));
+
+    auto* saveButton =
+        confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Save"), QMessageBox::AcceptRole);
+    auto* discardButton =
+        confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Discard"), QMessageBox::DestructiveRole);
+    auto* cancelButton =
+        confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Cancel"), QMessageBox::RejectRole);
+    confirmBox.setDefaultButton(qobject_cast<QPushButton*>(saveButton));
+    confirmBox.exec();
+
+    if (confirmBox.clickedButton() == saveButton) {
+        return saveAndApplyPositionDraft();
+    }
+
+    if (confirmBox.clickedButton() == discardButton) {
+        resetPositionDraftFromService();
+        refreshPositionUi();
+        syncPreviewDraftTransform();
+        return true;
+    }
+
+    Q_UNUSED(cancelButton);
+    return false;
+}
+
+void CustomizedCartoonDock::closeDock() {
+    bypassClosePrompt_ = true;
+    close();
+}
+
 void CustomizedCartoonDock::syncPreviewDraftTransform() {
     if (!service_ || (!service_->isMediaPreviewing() && !service_->isPositionPreviewing())) {
         return;
@@ -2389,23 +2525,9 @@ void CustomizedCartoonDock::syncPreviewDraftTransform() {
 }
 
 void CustomizedCartoonDock::onApplyPosition() {
-    if (!service_) {
+    if (!saveAndApplyPositionDraft()) {
         return;
     }
-    json cfg = service_->getConfigSnapshot();
-    if (!cfg.contains("position") || !cfg["position"].is_object()) {
-        cfg["position"] = json::object();
-    }
-    const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
-    const char* key = landscape ? "landscape" : "portrait";
-    cfg["position"][key] = buildCurrentPositionDraft(landscape);
-    if (!service_->saveConfig(cfg)) {
-        QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                             obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"),
-                             QMessageBox::Ok);
-        return;
-    }
-    service_->applyOverlayTransformForOrientation(landscape);
     showToast(obs_module_text("CustomizedCartoon.Position.ApplySuccess"));
 }
 
@@ -2423,13 +2545,15 @@ void CustomizedCartoonDock::onReadPositionFromCanvas() {
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     const int canvasW = landscape ? 1280 : 720;
     const int canvasH = landscape ? 720 : 1280;
+    const QRect rect((int)std::round(t.value("x", 200.0)), (int)std::round(t.value("y", 300.0)),
+                     (int)std::round(t.value("boundsW", 500.0)),
+                     (int)std::round(t.value("boundsH", 500.0)));
     auto* currentCanvas = positionCanvas_ ? static_cast<PositionCanvasWidget*>(positionCanvas_) : nullptr;
     applyPositionState(currentCanvas,
                        PositionSizePanelWidgets{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_},
-                       QRect((int)std::round(t.value("x", 200.0)), (int)std::round(t.value("y", 300.0)),
-                             (int)std::round(t.value("boundsW", 500.0)),
-                             (int)std::round(t.value("boundsH", 500.0))),
-                       canvasW, canvasH);
+                       rect, canvasW, canvasH);
+    updatePositionDraft(landscape, rect);
+    syncPreviewDraftTransform();
 }
 
 void CustomizedCartoonDock::onStartPositionPreview() {
