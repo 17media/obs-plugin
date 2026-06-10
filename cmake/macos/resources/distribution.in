@@ -30,13 +30,13 @@
             }
 
             var legacyPluginPath = '/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin';
-            if (system.files.fileExistsAtPath(legacyPluginPath)) {
+            var legacyDsymPath = '/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin.dSYM';
+            if (system.files.fileExistsAtPath(legacyPluginPath) ||
+                system.files.fileExistsAtPath(legacyDsymPath)) {
                 my.result.title = 'Legacy OBS.app installation detected';
                 my.result.message =
-                    'A previous version of this plugin was found inside the official OBS.app bundle:\\n' +
-                    legacyPluginPath + '\\n\\n' +
-                    'To avoid duplicate plugin loading, remove it by running the optional cleanup script, then restart OBS.\\n' +
-                    '(The installer will continue without removing it.)';
+                    'A previous version of this plugin was found inside the official OBS.app bundle.\\n\\n' +
+                    'To avoid duplicate plugin loading, the installer will remove the old plugin files automatically before installing the new version.';
                 my.result.type = 'Warning';
             }
 

@@ -22,6 +22,12 @@ Optional GUI uninstaller (pkg, requires admin password):
 ./package/macOS/build-uninstall-legacy-pkg.sh 1.0.0 obs-17live-uninstall-legacy.pkg
 ```
 
+The main macOS installer does not rely on the legacy uninstall pkg anymore.
+If legacy files are found under `/Applications/OBS.app/Contents/PlugIns`,
+the installer prompts the user, requests administrator privileges only for the
+cleanup step, removes both `obs-17live.plugin` and `obs-17live.plugin.dSYM`,
+and then continues installing the new version into the user plugin directory.
+
 ```bash
 cd {project_base_path}
 

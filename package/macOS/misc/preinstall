@@ -1,0 +1,90 @@
+#!/bin/bash
+
+set -u
+
+TITLE="17LIVE OBS Plugin"
+LEGACY_APP_PLUGIN="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin"
+LEGACY_APP_PLUGIN_DSYM="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin.dSYM"
+LEGACY_UNINSTALL_LOG="/tmp/obs-17live-legacy-uninstall.log"
+TEMP_ADMIN_SCRIPT=""
+
+run_osascript_for_console_user() {
+  local script="$1"
+  local console_user
+  console_user="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null || true)"
+
+  if [ -n "$console_user" ] && [ "$console_user" != "root" ]; then
+    local console_uid
+    console_uid="$(/usr/bin/id -u "$console_user" 2>/dev/null || true)"
+    if [ -n "$console_uid" ]; then
+      /bin/launchctl asuser "$console_uid" /usr/bin/osascript -e "$script"
+      return $?
+    fi
+  fi
+
+  /usr/bin/osascript -e "$script"
+}
+
+show_dialog() {
+  local message="$1"
+  local button1="${2:-OK}"
+  local button2="${3:-}"
+  local default_button="${4:-1}"
+  local script
+
+  if [ -n "$button2" ]; then
+    script="display dialog \"$message\" with title \"$TITLE\" buttons {\"$button2\", \"$button1\"} default button \"$button1\""
+  else
+    script="display dialog \"$message\" with title \"$TITLE\" buttons {\"$button1\"} default button $default_button"
+  fi
+  run_osascript_for_console_user "$script"
+}
+
+cleanup_temp_admin_script() {
+  if [ -n "$TEMP_ADMIN_SCRIPT" ] && [ -f "$TEMP_ADMIN_SCRIPT" ]; then
+    /bin/rm -f "$TEMP_ADMIN_SCRIPT"
+  fi
+}
+
+cleanup() {
+  cleanup_temp_admin_script
+}
+
+if [ ! -d "$LEGACY_APP_PLUGIN" ] && [ ! -d "$LEGACY_APP_PLUGIN_DSYM" ]; then
+  exit 0
+fi
+
+if ! show_dialog "A legacy version of the 17LIVE OBS plugin was found inside /Applications/OBS.app.\n\nThe installer will remove the old plugin files with administrator privileges, then continue installing the new version." "Continue" "Cancel"; then
+  exit 1
+fi
+
+trap cleanup EXIT
+
+TEMP_ADMIN_SCRIPT="$(/usr/bin/mktemp /tmp/obs-17live-legacy-uninstall.XXXXXX.sh)"
+
+cat > "$TEMP_ADMIN_SCRIPT" <<EOF
+#!/bin/bash
+{
+  if [ -d "$LEGACY_APP_PLUGIN" ]; then
+    /bin/rm -rf "$LEGACY_APP_PLUGIN"
+    echo "Removed: $LEGACY_APP_PLUGIN"
+  fi
+  if [ -d "$LEGACY_APP_PLUGIN_DSYM" ]; then
+    /bin/rm -rf "$LEGACY_APP_PLUGIN_DSYM"
+    echo "Removed: $LEGACY_APP_PLUGIN_DSYM"
+  fi
+} >"$LEGACY_UNINSTALL_LOG" 2>&1
+EOF
+/bin/chmod 700 "$TEMP_ADMIN_SCRIPT"
+
+if ! run_osascript_for_console_user "do shell script \"/bin/sh '$TEMP_ADMIN_SCRIPT'\" with administrator privileges"; then
+  show_dialog "Failed to remove the legacy plugin files inside /Applications/OBS.app. Installation has been stopped to avoid duplicate plugin loading.\n\nSee /tmp/obs-17live-legacy-uninstall.log for details." "OK"
+  exit 1
+fi
+
+if [ -d "$LEGACY_APP_PLUGIN" ] || [ -d "$LEGACY_APP_PLUGIN_DSYM" ]; then
+  show_dialog "The legacy plugin files still exist inside /Applications/OBS.app after cleanup. Installation has been stopped to avoid duplicate plugin loading.\n\nSee /tmp/obs-17live-legacy-uninstall.log for details." "OK"
+  exit 1
+fi
+
+exit 0

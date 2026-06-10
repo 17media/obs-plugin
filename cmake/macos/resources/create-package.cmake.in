@@ -12,9 +12,17 @@ if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@CMAKE_PROJECT_NAME@.plugin" AND
 endif()
 
 make_directory("$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp")
+make_directory("$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp/scripts")
+
+file(INSTALL DESTINATION "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp/scripts"
+  TYPE FILE FILES
+    "@CMAKE_SOURCE_DIR@/package/macOS/misc/preinstall"
+    "@CMAKE_SOURCE_DIR@/package/macOS/misc/postinstall")
 
 execute_process(
-  COMMAND /bin/chmod +x "@CMAKE_SOURCE_DIR@/package/macOS/misc/postinstall"
+  COMMAND /bin/chmod +x
+    "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp/scripts/preinstall"
+    "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp/scripts/postinstall"
   COMMAND_ERROR_IS_FATAL ANY
 )
 
@@ -23,7 +31,7 @@ execute_process(
     --identifier '@MACOS_BUNDLEID@'
     --version '@CMAKE_PROJECT_VERSION@'
     --root "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/package"
-    --scripts "@CMAKE_SOURCE_DIR@/package/macOS/misc"
+    --scripts "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp/scripts"
     "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/temp/@CMAKE_PROJECT_NAME@.pkg"
     COMMAND_ERROR_IS_FATAL ANY
   )

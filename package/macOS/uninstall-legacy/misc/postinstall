@@ -1,11 +1,21 @@
 #!/bin/bash
 
 LEGACY_APP_PLUGIN="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin"
+LEGACY_APP_PLUGIN_DSYM="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin.dSYM"
+SILENT_FLAG="/tmp/obs-17live-legacy-uninstall-from-installer"
 
 REMOVED="0"
 if [ -d "$LEGACY_APP_PLUGIN" ]; then
   rm -rf "$LEGACY_APP_PLUGIN"
   REMOVED="1"
+fi
+if [ -d "$LEGACY_APP_PLUGIN_DSYM" ]; then
+  rm -rf "$LEGACY_APP_PLUGIN_DSYM"
+  REMOVED="1"
+fi
+
+if [ -f "$SILENT_FLAG" ]; then
+  exit 0
 fi
 
 TITLE="17LIVE OBS Plugin"
