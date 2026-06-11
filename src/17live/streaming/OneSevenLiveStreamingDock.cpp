@@ -50,6 +50,10 @@ namespace {
     constexpr int kSuggestedVideoBitrateKbps = 2500;
     constexpr const char* kConfigKeyAutoAdjustDontRemind = "ObsAutoAdjustDontRemind";
 
+    static void SyncPreviewDockLayoutToObsCanvas() {
+        OneSevenLiveCoreManager::getInstance().syncPreviewDockLayoutToObsCanvas();
+    }
+
     static bool isAdvancedOutputMode(config_t* cfg) {
         if (!cfg) {
             return false;
@@ -1602,6 +1606,8 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
     if (!streamManager)
         return;
 
+    SyncPreviewDockLayoutToObsCanvas();
+
     if (startStream) {
         // Start streaming (server-side)
         createLiveButton->setEnabled(false);
@@ -1706,7 +1712,10 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
     if (!ok) {
         OneSevenLiveObsAutoAdjustDialog::ShowError(
             this, obs_module_text("Live.Settings.AutoAdjust.Error"));
+        return;
     }
+
+    SyncPreviewDockLayoutToObsCanvas();
 }
 
 static bool EncoderTypeExists(const char *encoderId) {

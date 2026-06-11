@@ -608,6 +608,12 @@ void OneSevenLiveCoreManager::setPreviewDock(OneSevenLivePreviewDock* dock) {
     previewDock = dock;
 }
 
+void OneSevenLiveCoreManager::syncPreviewDockLayoutToObsCanvas() {
+    if (auto* dock = previewDock.data()) {
+        dock->syncLayoutToObsCanvas();
+    }
+}
+
 CustomizedCartoonDock* OneSevenLiveCoreManager::getCustomizedCartoonDock() const {
     return customizedCartoonDock.data();
 }

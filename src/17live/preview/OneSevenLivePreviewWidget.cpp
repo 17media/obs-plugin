@@ -70,9 +70,13 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QStr
     // Connect to OBS frontend events
     obs_frontend_add_event_callback(frontendEvent, this);
 
+    createPreviewScene();
+
     // Load browser source configuration and create browser source
     loadBrowserSourceConfig();
     createBrowserSource();
+    syncProgramSource();
+    updateSceneLayout();
     lastOverlayUrl_ = overlayUrl_.isEmpty() ? browserConfig.url : overlayUrl_;
     lastEnterAnimUrl_ = enterAnimUrl_;
     lastEnterAnimWidth_ = 0;
@@ -96,8 +100,10 @@ OneSevenLivePreviewWidget::~OneSevenLivePreviewWidget() {
         browserRefreshTimer->stop();
     }
     obs_frontend_remove_event_callback(frontendEvent, this);
+    setPreviewSceneVisible(false);
     destroyBrowserSource();
     destroyDisplay();
+    destroyPreviewScene();
 }
 
 void OneSevenLivePreviewWidget::createDisplay() {
@@ -135,7 +141,9 @@ void OneSevenLivePreviewWidget::createDisplay() {
     init_data.window.id = windowId;
 #endif
 
+    obs_enter_graphics();
     previewDisplay = obs_display_create(&init_data, 0x0);
+    obs_leave_graphics();
 
     if (previewDisplay) {
         display_created = true;
@@ -143,6 +151,7 @@ void OneSevenLivePreviewWidget::createDisplay() {
         display_height = physical_height;
 
         obs_display_add_draw_callback(previewDisplay, drawCallback, this);
+        updateSceneLayout();
 
         emit displayCreated(true);
     }
@@ -151,17 +160,14 @@ void OneSevenLivePreviewWidget::createDisplay() {
 void OneSevenLivePreviewWidget::destroyDisplay() {
     if (previewDisplay) {
         obs_display_remove_draw_callback(previewDisplay, drawCallback, this);
+        obs_enter_graphics();
         obs_display_destroy(previewDisplay);
+        obs_leave_graphics();
         previewDisplay = nullptr;
     }
     display_created = false;
 
     emit displayCreated(false);
-
-    if (currentSource) {
-        obs_source_release(currentSource);
-        currentSource = nullptr;
-    }
 }
 
 void OneSevenLivePreviewWidget::drawCallback(void* data, uint32_t cx, uint32_t cy) {
@@ -186,157 +192,8 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
     vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 1.0f);
     gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
 
-    float video_x = 0.0f;
-    float video_y = 0.0f;
-    float video_w = static_cast<float>(cx);
-    float video_h = static_cast<float>(cy);
-
-    // Render main source
-    if (currentSource) {
-        uint32_t source_width = obs_source_get_width(currentSource);
-        uint32_t source_height = obs_source_get_height(currentSource);
-
-        if (source_width > 0 && source_height > 0) {
-            // Calculate scaling to fit while maintaining aspect ratio (ensure entire video is
-            // visible)
-            float scale_x = (float) cx / (float) source_width;
-            float scale_y = (float) cy / (float) source_height;
-            // Use the smaller scale to ensure entire video content is visible within preview bounds
-            float scale = std::min(scale_x, scale_y);
-
-            // Center the source
-            float scaled_width = (float) source_width * scale;
-            float scaled_height = (float) source_height * scale;
-            float offset_x = ((float) cx - scaled_width) * 0.5f;
-            float offset_y = ((float) cy - scaled_height) * 0.5f;
-
-            video_x = offset_x;
-            video_y = offset_y;
-            video_w = scaled_width;
-            video_h = scaled_height;
-
-            // Apply transformation and render
-            gs_matrix_push();
-            gs_matrix_translate3f(offset_x, offset_y, 0.0f);
-            gs_matrix_scale3f(scale, scale, 1.0f);
-
-            obs_source_video_render(currentSource);
-
-            gs_matrix_pop();
-        }
-    }
-
-    // Render browser source overlay
-    if (browserSource) {
-        // Get fresh reference to ensure source is still valid
-        obs_source_t* source_ref = obs_source_get_ref(browserSource);
-        if (source_ref) {
-            const char* source_name = obs_source_get_name(source_ref);
-            if (source_name && strlen(source_name) > 0) {
-                uint32_t browser_width = obs_source_get_width(source_ref);
-                uint32_t browser_height = obs_source_get_height(source_ref);
-                bool is_active = obs_source_active(source_ref);
-                bool is_showing = obs_source_showing(source_ref);
-
-                if (browser_width > 0 && browser_height > 0 && is_active && is_showing) {
-                    // Apply overlay transformation to cover entire preview area
-                    gs_matrix_push();
-
-                    // Calculate scale to fill the entire preview area
-                    float preview_width = static_cast<float>(cx);
-                    float preview_height = static_cast<float>(cy);
-                    float browser_width_f = static_cast<float>(browser_width);
-                    float browser_height_f = static_cast<float>(browser_height);
-
-                    // Calculate scale factors for both dimensions
-                    float scale_x = preview_width / browser_width_f;
-                    float scale_y = preview_height / browser_height_f;
-
-                    // Use the larger scale to ensure overlay covers entire area
-                    float fill_scale = qMax(scale_x, scale_y);
-
-                    // Apply the overlay scale factor from OneSevenLivePreviewScreen
-                    float final_scale = fill_scale * overlayScale;
-
-                    // Calculate position to center the scaled overlay
-                    float scaled_browser_width = browser_width_f * final_scale;
-                    float scaled_browser_height = browser_height_f * final_scale;
-                    float overlay_x = (preview_width - scaled_browser_width) * 0.5f;
-                    float overlay_y = (preview_height - scaled_browser_height) * 0.5f;
-
-                    gs_matrix_translate3f(overlay_x, overlay_y, 0.0f);
-                    gs_matrix_scale3f(final_scale, final_scale, 1.0f);
-
-                    obs_source_video_render(source_ref);
-
-                    gs_matrix_pop();
-                }
-            }
-
-            obs_source_release(source_ref);
-        }
-    }
-
-    // Render enter animation source overlay
-    if (enterAnimSource) {
-        obs_source_t* source_ref = obs_source_get_ref(enterAnimSource);
-        if (source_ref) {
-            const char* source_name = obs_source_get_name(source_ref);
-            if (source_name && strlen(source_name) > 0) {
-                uint32_t browser_width = obs_source_get_width(source_ref);
-                uint32_t browser_height = obs_source_get_height(source_ref);
-                bool is_active = obs_source_active(source_ref);
-                bool is_showing = obs_source_showing(source_ref);
-
-                if (browser_width > 0 && browser_height > 0 && is_active && is_showing) {
-                    gs_matrix_push();
-
-                    bool isLandscape = true;
-                    auto& core = OneSevenLiveCoreManager::getInstance();
-                    if (core.getStreamManager()) {
-                        isLandscape = core.getStreamManager()->getRoomInfo().landscape;
-                    }
-
-                    const float roomAspect = isLandscape ? (16.0f / 9.0f) : (640.0f / 1136.0f);
-                    float region_h = static_cast<float>(cy);
-                    float region_w = region_h * roomAspect;
-                    if (region_w > static_cast<float>(cx)) {
-                        region_w = static_cast<float>(cx);
-                        region_h = region_w / roomAspect;
-                    }
-
-                    const float region_x = (static_cast<float>(cx) - region_w) * 0.5f;
-                    const float region_y =
-                        isLandscape ? (static_cast<float>(cy) - region_h) * 0.5f
-                                    : (static_cast<float>(cy) - region_h);
-
-                    gs_matrix_translate3f(region_x, region_y, 0.0f);
-
-                    float preview_width = region_w;
-                    float preview_height = region_h;
-                    float browser_width_f = static_cast<float>(browser_width);
-                    float browser_height_f = static_cast<float>(browser_height);
-
-                    float scale_x = preview_width / browser_width_f;
-                    float scale_y = preview_height / browser_height_f;
-                    float fit_scale = qMin(scale_x, scale_y);
-                    float final_scale = fit_scale * overlayScale;
-
-                    float scaled_browser_width = browser_width_f * final_scale;
-                    float scaled_browser_height = browser_height_f * final_scale;
-                    float overlay_x = (preview_width - scaled_browser_width) * 0.5f;
-                    float overlay_y = (preview_height - scaled_browser_height) * 0.5f;
-
-                    gs_matrix_translate3f(overlay_x, overlay_y, 0.0f);
-                    gs_matrix_scale3f(final_scale, final_scale, 1.0f);
-
-                    obs_source_video_render(source_ref);
-
-                    gs_matrix_pop();
-                }
-            }
-            obs_source_release(source_ref);
-        }
+    if (previewSceneSource_) {
+        obs_source_video_render(previewSceneSource_);
     }
 
     // Restore graphics state
@@ -345,23 +202,8 @@ void OneSevenLivePreviewWidget::renderScene(uint32_t cx, uint32_t cy) {
 }
 
 void OneSevenLivePreviewWidget::refreshVideo() {
-    // Update current program source
-    obs_source_t* newSource = getCurrentProgramSource();
-
-    if (currentSource != newSource) {
-        if (currentSource) {
-            obs_source_release(currentSource);
-        }
-        currentSource = newSource;
-        if (currentSource) {
-            obs_source_get_ref(currentSource);
-        }
-    }
-
-    // Release temporary reference
-    if (newSource) {
-        obs_source_release(newSource);
-    }
+    syncProgramSource();
+    updateSceneLayout();
 
     // Force display refresh
     if (previewDisplay && display_created) {
@@ -375,9 +217,6 @@ obs_source_t* OneSevenLivePreviewWidget::getCurrentProgramSource() {
 
 void OneSevenLivePreviewWidget::updateVideoInfo() {
     if (previewDisplay) {
-        display_width = width();
-        display_height = height();
-
         // Get device pixel ratio for HiDPI support
         qreal device_pixel_ratio = 1.0;
         QWindow* window_handle = windowHandle();
@@ -394,15 +233,23 @@ void OneSevenLivePreviewWidget::updateVideoInfo() {
         }
 
         // Calculate physical dimensions for HiDPI
-        int phys_cx = static_cast<int>(std::lround(static_cast<double>(display_width) *
+        const int logical_width = width();
+        const int logical_height = height();
+        int phys_cx = static_cast<int>(std::lround(static_cast<double>(logical_width) *
                                                    static_cast<double>(device_pixel_ratio)));
-        int phys_cy = static_cast<int>(std::lround(static_cast<double>(display_height) *
+        int phys_cy = static_cast<int>(std::lround(static_cast<double>(logical_height) *
                                                    static_cast<double>(device_pixel_ratio)));
 
         // obs_log(LOG_INFO, "Resizing display: logical=%dx%d, physical=%dx%d, dpr=%.2f",
         //         display_width, display_height, phys_cx, phys_cy, device_pixel_ratio);
 
+        display_width = phys_cx;
+        display_height = phys_cy;
+
+        obs_enter_graphics();
         obs_display_resize(previewDisplay, phys_cx, phys_cy);
+        obs_leave_graphics();
+        updateSceneLayout();
     }
 }
 
@@ -410,8 +257,19 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
 
     if (display_created && previewDisplay) {
-        QScreen* screen = QGuiApplication::primaryScreen();
-        qreal dpr = screen ? screen->devicePixelRatio() : 1.0;
+        qreal dpr = 1.0;
+        QWindow* window_handle = windowHandle();
+        if (!window_handle) {
+            window_handle = window()->windowHandle();
+        }
+        if (window_handle) {
+            dpr = window_handle->devicePixelRatio();
+        } else {
+            QScreen* screen = QGuiApplication::primaryScreen();
+            if (screen) {
+                dpr = screen->devicePixelRatio();
+            }
+        }
 
         int logical_width = event->size().width();
         int logical_height = event->size().height();
@@ -421,7 +279,10 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
         display_width = physical_width;
         display_height = physical_height;
 
+        obs_enter_graphics();
         obs_display_resize(previewDisplay, physical_width, physical_height);
+        obs_leave_graphics();
+        updateSceneLayout();
 
         // Force refresh to ensure content scales properly with new size
         forceRefresh();
@@ -430,11 +291,25 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
 
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
+    setPreviewSceneVisible(true);
+    if (refreshTimer) {
+        refreshTimer->start();
+    }
+    if (browserRefreshTimer) {
+        browserRefreshTimer->start();
+    }
     QTimer::singleShot(0, this, &OneSevenLivePreviewWidget::createDisplay);
 }
 
 void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
+    if (refreshTimer) {
+        refreshTimer->stop();
+    }
+    if (browserRefreshTimer) {
+        browserRefreshTimer->stop();
+    }
+    setPreviewSceneVisible(false);
     destroyDisplay();
 }
 
@@ -468,6 +343,65 @@ void OneSevenLivePreviewWidget::loadBrowserSourceConfig() {
         obs_log(LOG_WARNING, "Failed to load browser source config, using defaults");
         browserConfig.isValid = false;
     }
+}
+
+void OneSevenLivePreviewWidget::createPreviewScene() {
+    if (previewScene_) {
+        return;
+    }
+
+    previewScene_ = obs_scene_create_private("17LivePreviewScene");
+    if (!previewScene_) {
+        obs_log(LOG_ERROR, "Failed to create private preview scene");
+        return;
+    }
+
+    previewSceneSource_ = obs_source_get_ref(obs_scene_get_source(previewScene_));
+    rebuildPreviewSceneItems();
+}
+
+void OneSevenLivePreviewWidget::destroyPreviewScene() {
+    if (programItem_) {
+        removeSceneItem(programItem_);
+    }
+    if (browserItem_) {
+        removeSceneItem(browserItem_);
+    }
+    if (enterAnimItem_) {
+        removeSceneItem(enterAnimItem_);
+    }
+
+    if (currentSource) {
+        obs_source_release(currentSource);
+        currentSource = nullptr;
+    }
+
+    if (previewSceneSource_) {
+        obs_source_release(previewSceneSource_);
+        previewSceneSource_ = nullptr;
+    }
+
+    if (previewScene_) {
+        obs_scene_release(previewScene_);
+        previewScene_ = nullptr;
+    }
+}
+
+void OneSevenLivePreviewWidget::setPreviewSceneVisible(bool visible) {
+    if (!previewSceneSource_ || previewSceneVisible_ == visible) {
+        previewSceneVisible_ = visible;
+        return;
+    }
+
+    if (visible) {
+        obs_source_inc_showing(previewSceneSource_);
+        obs_source_inc_active(previewSceneSource_);
+    } else {
+        obs_source_dec_showing(previewSceneSource_);
+        obs_source_dec_active(previewSceneSource_);
+    }
+
+    previewSceneVisible_ = visible;
 }
 
 void OneSevenLivePreviewWidget::createBrowserSource() {
@@ -518,16 +452,9 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
 
     // Create browser source
     browserSource =
-        obs_source_create("browser_source", "LivePreviewOverlay", settings.get(), nullptr);
+        obs_source_create_private("browser_source", "LivePreviewOverlay", settings.get());
 
     if (browserSource) {
-        // Get reference and activate source
-        obs_source_t* source_ref = obs_source_get_ref(browserSource);
-        if (source_ref) {
-            obs_source_inc_showing(source_ref);
-            obs_source_inc_active(source_ref);
-            obs_source_release(source_ref);
-        }
         obs_log(LOG_INFO, "Preview Cartoon Browser source created successfully");
     } else {
         obs_log(LOG_ERROR, "Failed to create browser source");
@@ -559,15 +486,10 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
         QDir().mkpath(enterAnimPath);
         obs_data_set_string(enterAnimSettings.get(), "local_storage_path", enterAnimPath.toStdString().c_str());
 
-        enterAnimSource = obs_source_create("browser_source", "LiveEnterAnimOverlay", enterAnimSettings.get(), nullptr);
+        enterAnimSource =
+            obs_source_create_private("browser_source", "LiveEnterAnimOverlay", enterAnimSettings.get());
 
         if (enterAnimSource) {
-            obs_source_t* source_ref = obs_source_get_ref(enterAnimSource);
-            if (source_ref) {
-                obs_source_inc_showing(source_ref);
-                obs_source_inc_active(source_ref);
-                obs_source_release(source_ref);
-            }
             obs_log(LOG_INFO, "Preview Enter Anim Browser source created successfully");
         } else {
             obs_log(LOG_ERROR, "Failed to create enter anim browser source");
@@ -576,30 +498,20 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
         lastEnterAnimWidth_ = enterW;
         lastEnterAnimHeight_ = enterH;
     }
+
+    rebuildPreviewSceneItems();
+    updateSceneLayout();
 }
 
 void OneSevenLivePreviewWidget::destroyBrowserSource() {
     if (browserSource) {
-        // Get reference and properly deactivate
-        obs_source_t* source_ref = obs_source_get_ref(browserSource);
-        if (source_ref) {
-            obs_source_dec_showing(source_ref);
-            obs_source_dec_active(source_ref);
-            obs_source_release(source_ref);
-        }
-
+        removeSceneItem(browserItem_);
         obs_source_release(browserSource);
         browserSource = nullptr;
     }
     
     if (enterAnimSource) {
-        obs_source_t* source_ref = obs_source_get_ref(enterAnimSource);
-        if (source_ref) {
-            obs_source_dec_showing(source_ref);
-            obs_source_dec_active(source_ref);
-            obs_source_release(source_ref);
-        }
-
+        removeSceneItem(enterAnimItem_);
         obs_source_release(enterAnimSource);
         enterAnimSource = nullptr;
     }
@@ -658,21 +570,23 @@ void OneSevenLivePreviewWidget::setOverlayScale(float scale) {
     overlayScale = qMax(0.1f, qMin(5.0f, scale));  // Clamp between 0.1 and 5.0
 
     // Force refresh to apply new scale
+    updateSceneLayout();
     forceRefresh();
 }
 
 void OneSevenLivePreviewWidget::setOverlayUrl(const QString& url) {
     overlayUrl_ = url;
-    // Apply immediately if browser source exists
+    if (!browserSource && (!overlayUrl_.isEmpty() || browserConfig.isValid)) {
+        createBrowserSource();
+    }
     updateBrowserSource();
+    updateSceneLayout();
     obs_log(LOG_INFO, "Preview overlay URL %s",
             overlayUrl_.isEmpty() ? "(using config)" : overlayUrl_.toUtf8().constData());
 }
 
 void OneSevenLivePreviewWidget::forceRefresh() {
     if (previewDisplay && display_created) {
-        // Invalidate the display to force re-rendering
-        obs_display_set_enabled(previewDisplay, false);
         obs_display_set_enabled(previewDisplay, true);
 
         // Also trigger a video refresh
@@ -682,4 +596,148 @@ void OneSevenLivePreviewWidget::forceRefresh() {
 
 void OneSevenLivePreviewWidget::syncDisplaySize() {
     updateVideoInfo();
+}
+
+void OneSevenLivePreviewWidget::rebuildDisplay() {
+    destroyDisplay();
+    if (isVisible()) {
+        QTimer::singleShot(0, this, &OneSevenLivePreviewWidget::createDisplay);
+    }
+}
+
+void OneSevenLivePreviewWidget::syncProgramSource() {
+    obs_source_t* newSource = getCurrentProgramSource();
+    if (newSource == currentSource) {
+        if (newSource) {
+            obs_source_release(newSource);
+        }
+        return;
+    }
+
+    removeSceneItem(programItem_);
+
+    if (currentSource) {
+        obs_source_release(currentSource);
+        currentSource = nullptr;
+    }
+
+    currentSource = newSource;
+
+    if (previewScene_ && currentSource) {
+        programItem_ = obs_scene_add(previewScene_, currentSource);
+        if (programItem_) {
+            obs_sceneitem_set_order(programItem_, OBS_ORDER_MOVE_BOTTOM);
+        }
+    }
+
+    updateSceneLayout();
+}
+
+void OneSevenLivePreviewWidget::rebuildPreviewSceneItems() {
+    if (!previewScene_) {
+        return;
+    }
+
+    if (!programItem_ && currentSource) {
+        programItem_ = obs_scene_add(previewScene_, currentSource);
+        if (programItem_) {
+            obs_sceneitem_set_order(programItem_, OBS_ORDER_MOVE_BOTTOM);
+        }
+    }
+
+    if (!browserItem_ && browserSource) {
+        browserItem_ = obs_scene_add(previewScene_, browserSource);
+        if (browserItem_) {
+            obs_sceneitem_set_order(browserItem_, OBS_ORDER_MOVE_TOP);
+        }
+    }
+
+    if (!enterAnimItem_ && enterAnimSource) {
+        enterAnimItem_ = obs_scene_add(previewScene_, enterAnimSource);
+        if (enterAnimItem_) {
+            obs_sceneitem_set_order(enterAnimItem_, OBS_ORDER_MOVE_TOP);
+        }
+    }
+}
+
+void OneSevenLivePreviewWidget::removeSceneItem(obs_sceneitem_t*& item) {
+    if (!item) {
+        return;
+    }
+
+    obs_sceneitem_remove(item);
+    item = nullptr;
+}
+
+void OneSevenLivePreviewWidget::updateSceneLayout() {
+    rebuildPreviewSceneItems();
+
+    if (display_width <= 0 || display_height <= 0) {
+        return;
+    }
+
+    const float previewWidth = static_cast<float>(display_width);
+    const float previewHeight = static_cast<float>(display_height);
+
+    if (programItem_) {
+        obs_transform_info itemInfo = {};
+        vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+        vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+        itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+        itemInfo.rot = 0.0f;
+        vec2_set(&itemInfo.bounds, previewWidth, previewHeight);
+        itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+        itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+        itemInfo.crop_to_bounds = false;
+        obs_sceneitem_set_info2(programItem_, &itemInfo);
+        obs_sceneitem_set_visible(programItem_, true);
+    }
+
+    if (browserItem_) {
+        obs_transform_info itemInfo = {};
+        vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+        vec2_set(&itemInfo.scale, overlayScale, overlayScale);
+        itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+        itemInfo.rot = 0.0f;
+        vec2_set(&itemInfo.bounds, previewWidth, previewHeight);
+        itemInfo.bounds_type = OBS_BOUNDS_SCALE_OUTER;
+        itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+        itemInfo.crop_to_bounds = false;
+        obs_sceneitem_set_info2(browserItem_, &itemInfo);
+        obs_sceneitem_set_visible(browserItem_, true);
+        obs_sceneitem_set_order(browserItem_, OBS_ORDER_MOVE_TOP);
+    }
+
+    if (enterAnimItem_) {
+        bool isLandscape = true;
+        obs_video_info ovi{};
+        if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
+            isLandscape = ovi.base_width >= ovi.base_height;
+        }
+
+        const float roomAspect = isLandscape ? (16.0f / 9.0f) : (640.0f / 1136.0f);
+        float regionHeight = previewHeight;
+        float regionWidth = regionHeight * roomAspect;
+        if (regionWidth > previewWidth) {
+            regionWidth = previewWidth;
+            regionHeight = regionWidth / roomAspect;
+        }
+
+        const float regionX = (previewWidth - regionWidth) * 0.5f;
+        const float regionY =
+            isLandscape ? (previewHeight - regionHeight) * 0.5f : (previewHeight - regionHeight);
+
+        obs_transform_info itemInfo = {};
+        vec2_set(&itemInfo.pos, regionX, regionY);
+        vec2_set(&itemInfo.scale, overlayScale, overlayScale);
+        itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+        itemInfo.rot = 0.0f;
+        vec2_set(&itemInfo.bounds, regionWidth, regionHeight);
+        itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+        itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+        itemInfo.crop_to_bounds = false;
+        obs_sceneitem_set_info2(enterAnimItem_, &itemInfo);
+        obs_sceneitem_set_visible(enterAnimItem_, !enterAnimUrl_.isEmpty());
+        obs_sceneitem_set_order(enterAnimItem_, OBS_ORDER_MOVE_TOP);
+    }
 }

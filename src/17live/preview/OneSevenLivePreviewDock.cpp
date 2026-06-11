@@ -13,6 +13,21 @@
 #include "../streaming/OneSevenLiveStreamManager.hpp"
 #include "moc_OneSevenLivePreviewDock.cpp"
 
+namespace {
+void PreviewDockFrontendEventCallback(enum obs_frontend_event event, void* private_data) {
+    auto* dock = static_cast<OneSevenLivePreviewDock*>(private_data);
+    if (!dock) {
+        return;
+    }
+
+    if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGED ||
+        event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED ||
+        event == OBS_FRONTEND_EVENT_STREAMING_STARTED) {
+        QTimer::singleShot(0, dock, [dock]() { dock->syncLayoutToObsCanvas(); });
+    }
+}
+}  // namespace
+
 OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent, const QString& overlayUrl, const QString& enterAnimUrl)
     : QDockWidget(obs_module_text("PreviewDock.Title"), parent),
       overlayUrl_(overlayUrl),
@@ -20,9 +35,11 @@ OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent, const QString&
       previewWidget(nullptr),
       initialized(false) {
     setupUi();
+    obs_frontend_add_event_callback(PreviewDockFrontendEventCallback, this);
 }
 
 OneSevenLivePreviewDock::~OneSevenLivePreviewDock() {
+    obs_frontend_remove_event_callback(PreviewDockFrontendEventCallback, this);
     if (previewWidget) {
         previewWidget->deleteLater();
     }
@@ -82,6 +99,7 @@ void OneSevenLivePreviewDock::setupUi() {
         connect(previewWidget, &OneSevenLivePreviewWidget::displayCreated, this,
                 &OneSevenLivePreviewDock::onDisplayCreated);
     }
+    connect(this, &QDockWidget::topLevelChanged, this, &OneSevenLivePreviewDock::onTopLevelChanged);
 
     // Placeholder label
     placeholderLabel = new QLabel(obs_module_text("PreviewDock.Initializing"), previewContainer);
@@ -121,18 +139,24 @@ void OneSevenLivePreviewDock::updatePreviewGeometry() {
     if (cw <= 0 || ch <= 0)
         return;
 
-    bool isLandscape = true;
-    auto& core = OneSevenLiveCoreManager::getInstance();
-    if (core.getStreamManager()) {
-        isLandscape = core.getStreamManager()->getRoomInfo().landscape;
+    double aspect = 16.0 / 9.0;
+    obs_video_info ovi{};
+    if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
+        aspect = static_cast<double>(ovi.base_width) / static_cast<double>(ovi.base_height);
+    } else {
+        bool isLandscape = true;
+        auto& core = OneSevenLiveCoreManager::getInstance();
+        if (core.getStreamManager()) {
+            isLandscape = core.getStreamManager()->getRoomInfo().landscape;
+        }
+        aspect = isLandscape ? (16.0 / 9.0) : (640.0 / 1136.0);
     }
 
-    double aspect = isLandscape ? (16.0 / 9.0) : (640.0 / 1136.0);
     int targetW = cw;
-    int targetH = static_cast<int>(std::round(targetW / aspect));
+    int targetH = static_cast<int>(std::round(static_cast<double>(targetW) / aspect));
     if (targetH > ch) {
         targetH = ch;
-        targetW = cw;  // keep width full per requirement
+        targetW = static_cast<int>(std::round(static_cast<double>(targetH) * aspect));
     }
     int x = (cw - targetW) / 2;
     int y = (ch - targetH) / 2;
@@ -148,6 +172,16 @@ void OneSevenLivePreviewDock::initializePreview() {
     }
 }
 
+void OneSevenLivePreviewDock::syncLayoutToObsCanvas() {
+    updatePreviewGeometry();
+    if (!previewWidget) {
+        return;
+    }
+
+    QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
+    QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
+}
+
 void OneSevenLivePreviewDock::showEvent(QShowEvent* event) {
     QDockWidget::showEvent(event);
 
@@ -155,16 +189,11 @@ void OneSevenLivePreviewDock::showEvent(QShowEvent* event) {
         initializePreview();
     }
 
-    updatePreviewGeometry();
+    syncLayoutToObsCanvas();
 
     if (loadingOverlay && loadingOverlay->isVisible() && container) {
         loadingOverlay->resize(container->size());
         loadingOverlay->raise();
-    }
-
-    if (previewWidget) {
-        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
-        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
     }
 }
 
@@ -179,7 +208,6 @@ void OneSevenLivePreviewDock::resizeEvent(QResizeEvent* event) {
 
     if (previewWidget) {
         QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
-        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
     }
 }
 
@@ -197,5 +225,14 @@ void OneSevenLivePreviewDock::onGiftsLoaded() {
 void OneSevenLivePreviewDock::onDisplayCreated(bool created) {
     if (placeholderLabel) {
         placeholderLabel->setVisible(!created);
+    }
+}
+
+void OneSevenLivePreviewDock::onTopLevelChanged(bool floating) {
+    Q_UNUSED(floating);
+
+    syncLayoutToObsCanvas();
+    if (previewWidget) {
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::rebuildDisplay);
     }
 }

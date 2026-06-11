@@ -19,6 +19,7 @@ class OneSevenLivePreviewDock : public QDockWidget {
     ~OneSevenLivePreviewDock();
 
     void initializePreview();
+    void syncLayoutToObsCanvas();
 
    protected:
     void showEvent(QShowEvent* event) override;
@@ -47,4 +48,5 @@ class OneSevenLivePreviewDock : public QDockWidget {
    private slots:
     void onGiftsLoaded();
     void onDisplayCreated(bool created);
+    void onTopLevelChanged(bool floating);
 };

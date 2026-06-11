@@ -108,6 +108,8 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
      */
     void shutdown();
 
+    void syncPreviewDockLayoutToObsCanvas();
+
     /**
      * @brief Get OBS main window
      *
