@@ -49,7 +49,6 @@ namespace {
     constexpr uint32_t kLandscapeOutputHeight = 720;
     constexpr int kSuggestedVideoBitrateKbps = 2500;
     constexpr const char* kConfigKeyAutoAdjustDontRemind = "ObsAutoAdjustDontRemind";
-    constexpr const char* kConfigKeyAutoAdjustAutoApply = "ObsAutoAdjustAutoApply";
 
     static bool isAdvancedOutputMode(config_t* cfg) {
         if (!cfg) {
@@ -1634,6 +1633,7 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
 }
 
 void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) {
+    Q_UNUSED(allowSilentApply);
     if (obsAutoAdjustPromptShown) {
         return;
     }
@@ -1659,50 +1659,20 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
     const bool outputMatches = vinfo.output_width == targetOutW && vinfo.output_height == targetOutH;
     const bool baseOrientationMatches = isLandscape ? currentBaseIsLandscape : currentBaseIsPortrait;
     const bool resolutionMismatch = !(baseOrientationMatches && outputMatches);
-
-    config_t* cfg = obs_frontend_get_profile_config();
-    const int currentBitrate = getCurrentVideoBitrateKbpsFromProfile(cfg);
-    const bool bitrateMismatch = currentBitrate != 0 && currentBitrate != kSuggestedVideoBitrateKbps;
-
-    if (!resolutionMismatch && !bitrateMismatch) {
+    if (!resolutionMismatch) {
         return;
     }
 
     bool dontRemind = false;
-    bool autoApply = false;
     if (configManager) {
         std::string v;
         if (configManager->getConfigValue(kConfigKeyAutoAdjustDontRemind, v)) {
             dontRemind = v == "true";
         }
-        if (configManager->getConfigValue(kConfigKeyAutoAdjustAutoApply, v)) {
-            autoApply = v == "true";
-        }
     }
 
     if (dontRemind) {
-        if (!autoApply) {
-            return;
-        }
-        const bool ok = applyObsProfileVideoSettings(targetBaseW, targetBaseH, targetOutW, targetOutH,
-                                                     kSuggestedVideoBitrateKbps);
-        if (!ok) {
-            OneSevenLiveObsAutoAdjustDialog::ShowError(
-                this, obs_module_text("Live.Settings.AutoAdjust.Error"));
-        }
         return;
-    }
-
-    if (allowSilentApply) {
-        if (autoApply) {
-            const bool ok = applyObsProfileVideoSettings(targetBaseW, targetBaseH, targetOutW, targetOutH,
-                                                         kSuggestedVideoBitrateKbps);
-            if (!ok) {
-                OneSevenLiveObsAutoAdjustDialog::ShowError(
-                    this, obs_module_text("Live.Settings.AutoAdjust.Error"));
-            }
-            return;
-        }
     }
 
     const QString portraitName = obs_module_text("Live.Settings.Layout.Portrait");
@@ -1721,13 +1691,10 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
                                      QString::number(kSuggestedVideoBitrateKbps), confirmText,
                                      cancelText);
 
-    const auto result = OneSevenLiveObsAutoAdjustDialog::ShowPrompt(this, message, false, false);
+    const auto result = OneSevenLiveObsAutoAdjustDialog::ShowPrompt(this, message, false);
     if (configManager) {
-        const bool finalDontRemind = result.dontRemind || result.autoApply;
         configManager->setConfigValue(kConfigKeyAutoAdjustDontRemind,
-                                      finalDontRemind ? "true" : "false");
-        configManager->setConfigValue(kConfigKeyAutoAdjustAutoApply,
-                                      result.autoApply ? "true" : "false");
+                                      result.dontRemind ? "true" : "false");
     }
 
     if (!result.confirmed) {

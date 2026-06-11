@@ -13,14 +13,13 @@
 #include "plugin-support.h"
 
 OneSevenLiveObsAutoAdjustDialog::PromptResult OneSevenLiveObsAutoAdjustDialog::ShowPrompt(
-    QWidget* parent, const QString& message, bool dontRemindDefault, bool autoApplyDefault) {
+    QWidget* parent, const QString& message, bool dontRemindDefault) {
     OneSevenLiveObsAutoAdjustDialog dialog(parent, Mode::Prompt);
-    dialog.setupUiPrompt(message, dontRemindDefault, autoApplyDefault);
+    dialog.setupUiPrompt(message, dontRemindDefault);
     dialog.exec();
     PromptResult result;
     result.confirmed = dialog.result() == QDialog::Accepted;
     result.dontRemind = dialog.dontRemindCheck ? dialog.dontRemindCheck->isChecked() : false;
-    result.autoApply = dialog.autoApplyCheck ? dialog.autoApplyCheck->isChecked() : false;
     return result;
 }
 
@@ -39,8 +38,7 @@ OneSevenLiveObsAutoAdjustDialog::OneSevenLiveObsAutoAdjustDialog(QWidget* parent
 }
 
 void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message,
-                                                    bool dontRemindDefault,
-                                                    bool autoApplyDefault) {
+                                                    bool dontRemindDefault) {
     setFixedWidth(380);
 
     QVBoxLayout* rootLayout = new QVBoxLayout(this);
@@ -87,26 +85,7 @@ void OneSevenLiveObsAutoAdjustDialog::setupUiPrompt(const QString& message,
     dontRemindCheck = new QCheckBox(obs_module_text("Live.Settings.AutoAdjust.DontRemind"), card);
     dontRemindCheck->setChecked(dontRemindDefault);
     dontRemindCheck->setStyleSheet(checkboxStyle);
-    autoApplyCheck = new QCheckBox(obs_module_text("Live.Settings.AutoAdjust.AutoApply"), card);
-    autoApplyCheck->setChecked(autoApplyDefault);
-    autoApplyCheck->setStyleSheet(checkboxStyle);
-
-    QHBoxLayout* checkRow = new QHBoxLayout();
-    checkRow->setContentsMargins(0, 0, 0, 0);
-    checkRow->setSpacing(0);
-    checkRow->addWidget(dontRemindCheck, 0, Qt::AlignLeft);
-    checkRow->addStretch(1);
-    checkRow->addWidget(autoApplyCheck, 0, Qt::AlignRight);
-    cardLayout->addLayout(checkRow);
-
-    connect(autoApplyCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (!checked) {
-            return;
-        }
-        if (dontRemindCheck) {
-            dontRemindCheck->setChecked(true);
-        }
-    });
+    cardLayout->addWidget(dontRemindCheck, 0);
 
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setContentsMargins(0, 6, 0, 0);
