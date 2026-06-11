@@ -38,14 +38,14 @@ class CustomizedCartoonService : public QObject {
     bool importMediaFile(const QString& filePath, QString& outMediaId, QString& outError);
     bool deleteMedia(const QString& mediaId, QString& outError);
 
-    void previewPlayAll();
+    void previewPlayAll(const nlohmann::json* previewConfig = nullptr);
     bool startMediaPreview(const QString& mediaId, bool landscape, const nlohmann::json* previewTransform,
-                           QString& outError);
+                           const nlohmann::json* previewConfig, QString& outError);
     void stopMediaPreview();
     bool isMediaPreviewing() const;
     QString previewingMediaId() const;
     bool startPositionPreview(const QString& mediaId, bool landscape, const nlohmann::json* previewTransform,
-                              QString& outError);
+                              const nlohmann::json* previewConfig, QString& outError);
     void stopPositionPreview();
     bool isPositionPreviewing() const;
     bool getCurrentOverlayTransform(nlohmann::json& outTransform, QString& outError) const;
@@ -179,5 +179,12 @@ class CustomizedCartoonService : public QObject {
     bool mediaPreviewLandscape_{true};
     bool mediaPreviewIsMedia_{true};
     QString previewMediaId_;
+    MediaItem mediaPreviewSnapshot_;
+    bool hasMediaPreviewSnapshot_{false};
+
+    MediaItem positionPreviewSnapshot_;
+    bool hasPositionPreviewSnapshot_{false};
+    nlohmann::json playbackPreviewConfig_{nlohmann::json::object()};
+    bool hasPlaybackPreviewConfig_{false};
     PreviewVideoSettingsBackup previewVideoSettingsBackup_{};
 };

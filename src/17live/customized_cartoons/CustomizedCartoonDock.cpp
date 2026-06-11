@@ -800,11 +800,9 @@ void CustomizedCartoonDock::updateMediaPreviewAvailability() {
     if (!mediaList_) {
         return;
     }
-    const bool canPreview = !streamingActive_ && !isDraftDirty();
+    const bool canPreview = !streamingActive_;
     const QString previewTooltip =
-        streamingActive_ ? obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming")
-                         : (isDraftDirty() ? obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview")
-                                           : QString());
+        streamingActive_ ? obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming") : QString();
     for (int i = 0; i < mediaList_->count(); ++i) {
         auto* item = mediaList_->item(i);
         auto* row = mediaList_->itemWidget(item);
@@ -1850,14 +1848,11 @@ void CustomizedCartoonDock::refreshMediaList() {
             previewButton->setIcon(previewingThis ? stopIcon : playIcon);
             previewButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
             previewButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
-            const bool canPreview = !streamingActive_ && !isDraftDirty();
+            const bool canPreview = !streamingActive_;
             previewButton->setEnabled(canPreview);
             previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
-            previewButton->setToolTip(
-                canPreview ? QString()
-                           : (streamingActive_
-                                  ? obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming")
-                                  : obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview")));
+            previewButton->setToolTip(canPreview ? QString()
+                                                 : obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"));
 
             auto* delButton = new QPushButton(row);
             delButton->setIcon(trashIcon);
@@ -1887,12 +1882,6 @@ void CustomizedCartoonDock::refreshMediaList() {
                         QMessageBox::Ok);
                     return;
                 }
-                if (isDraftDirty()) {
-                    QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                                             obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview"),
-                                             QMessageBox::Ok);
-                    return;
-                }
                 if (mediaList_) {
                     mediaList_->setCurrentItem(item);
                 }
@@ -1913,7 +1902,7 @@ void CustomizedCartoonDock::refreshMediaList() {
                 QString error;
                 const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
                 const auto draft = buildCurrentPositionDraft(landscape);
-                if (!service_->startMediaPreview(id, landscape, &draft, error)) {
+                if (!service_->startMediaPreview(id, landscape, &draft, &draftConfig_, error)) {
                     QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
                                          QMessageBox::Ok);
                 }
@@ -2556,13 +2545,7 @@ void CustomizedCartoonDock::onPreview() {
     if (!service_) {
         return;
     }
-    if (isDraftDirty()) {
-        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                                 obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview"),
-                                 QMessageBox::Ok);
-        return;
-    }
-    service_->previewPlayAll();
+    service_->previewPlayAll(&draftConfig_);
 }
 
 void CustomizedCartoonDock::onOrientationChanged(int) {
@@ -2815,12 +2798,6 @@ void CustomizedCartoonDock::onStartPositionPreview() {
     if (!service_) {
         return;
     }
-    if (isDraftDirty()) {
-        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                                 obs_module_text("CustomizedCartoon.Settings.ApplyBeforePreview"),
-                                 QMessageBox::Ok);
-        return;
-    }
     auto* item = mediaList_ ? mediaList_->currentItem() : nullptr;
     if (!item) {
         QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
@@ -2835,7 +2812,7 @@ void CustomizedCartoonDock::onStartPositionPreview() {
     QString error;
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     const auto draft = buildCurrentPositionDraft(landscape);
-    if (!service_->startPositionPreview(id, landscape, &draft, error)) {
+    if (!service_->startPositionPreview(id, landscape, &draft, &draftConfig_, error)) {
         QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
                              QMessageBox::Ok);
         return;
