@@ -19,7 +19,7 @@ const Container = styled.div`
   min-height: 100vh;
   background-color: #000000;
   color: #f3f4f6;
-  --chat-font-size: ${(p) => p.$chatFontSize || '14px'};
+  --chat-font-size: ${(p) => p.$chatFontSize || '16px'};
   --chat-line-height: ${(p) => p.$chatLineHeight || '24px'};
 `;
 
@@ -81,7 +81,7 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 0;
   color: #A1A9B6;
-  font-size: var(--chat-font-size, 14px);
+  font-size: var(--chat-font-size, 16px);
 `;
 
 const EmptyIcon = styled.img`
@@ -216,7 +216,7 @@ export const MultiPlatformChat = () => {
 
   return (
     <Container
-      $chatFontSize={fontSize === 'small' ? '12px' : fontSize === 'large' ? '16px' : '14px'}
+      $chatFontSize={fontSize === 'small' ? '12px' : fontSize === 'large' ? '20px' : '16px'}
       $chatLineHeight={fontSize === 'small' ? '21px' : fontSize === 'large' ? '28px' : '24px'}
     >
       {/* Top selector */}

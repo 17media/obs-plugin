@@ -14,7 +14,7 @@ const GiftName = styled.span`
 `;
 
 const GiftPoint = styled.span`
-  font-size: 0.875rem;
+  font-size: 0.875em;
 `;
 
 const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
