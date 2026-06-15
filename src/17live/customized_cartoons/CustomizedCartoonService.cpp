@@ -1555,6 +1555,7 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
     }
     if (activeMedia && activeMedia->preserveAspectRatio) {
         ti.bounds_type = OBS_BOUNDS_SCALE_INNER;
+        ti.bounds_alignment = OBS_ALIGN_CENTER;
         ti.crop_to_bounds = false;
     }
 
