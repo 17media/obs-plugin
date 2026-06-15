@@ -794,6 +794,7 @@ void CustomizedCartoonDock::setStreamingActive(bool active) {
     }
     updateMediaPreviewAvailability();
     refreshMediaList();
+    rebuildRulesUi();
 }
 
 void CustomizedCartoonDock::updateMediaPreviewAvailability() {
@@ -2107,9 +2108,16 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             const QString ruleName = it.contains("name") && it["name"].is_string()
                                          ? QString::fromStdString(it["name"].get<std::string>())
                                          : QString();
+            const bool isExistingRule =
+                savedConfig_.contains("rules") && findArrayItemById(savedConfig_["rules"], id) != nullptr;
+            const bool lockRuleDefinition = streamingActive_ && isExistingRule;
+            const QString ruleLockedTooltip = lockRuleDefinition
+                                                 ? obs_module_text("CustomizedCartoon.Error.RuleContentLockedStreaming")
+                                                 : QString();
 
             auto* card = new QFrame(rulesListContainer_);
             card->setObjectName("subPanel");
+            card->setToolTip(ruleLockedTooltip);
             auto* cardLayout = new QVBoxLayout(card);
             cardLayout->setContentsMargins(5, 5, 5, 5);
             cardLayout->setSpacing(5);
@@ -2120,6 +2128,8 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             nameEdit->setText(ruleName);
             nameEdit->setFixedHeight(24);
             nameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+            nameEdit->setEnabled(!lockRuleDefinition);
+            nameEdit->setToolTip(ruleLockedTooltip);
 
             auto* delButton = new QPushButton(card);
             delButton->setIcon(trashIcon);
@@ -2151,6 +2161,8 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             typeCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
             typeCombo->setMinimumContentsLength(kRuleTypeComboChars);
             typeCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
+            typeCombo->setEnabled(!lockRuleDefinition);
+            typeCombo->setToolTip(ruleLockedTooltip);
 
             auto* ruleLabel = new QLabel(card);
             ruleLabel->setWordWrap(true);
@@ -2162,12 +2174,15 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
             pointsSpin->setStyleSheet(
                 "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
+            pointsSpin->setToolTip(ruleLockedTooltip);
             auto* countSpin = new NoWheelSpinBox(card);
             countSpin->setRange(1, 1000000);
             countSpin->setValue(std::max(1, count));
             countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
             countSpin->setStyleSheet(
                 "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
+            countSpin->setEnabled(!lockRuleDefinition);
+            countSpin->setToolTip(ruleLockedTooltip);
 
             auto* mediaCombo = new QComboBox(card);
             for (const auto& m : mediaOptions) {
@@ -2181,11 +2196,15 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             mediaCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
             mediaCombo->setMinimumContentsLength(kRuleMediaComboChars);
             mediaCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
+            mediaCombo->setEnabled(!lockRuleDefinition);
+            mediaCombo->setToolTip(ruleLockedTooltip);
 
             auto* repeatCheck = new QCheckBox(card);
             repeatCheck->setChecked(repeatable);
             repeatCheck->setText(obs_module_text("CustomizedCartoon.Rules.Field.Repeat"));
             repeatCheck->setStyleSheet("QCheckBox { font-size: 14px; color: #FFFFFF; }");
+            repeatCheck->setEnabled(!lockRuleDefinition);
+            repeatCheck->setToolTip(ruleLockedTooltip);
 
             auto* statusActive = new QRadioButton(obs_module_text("CustomizedCartoon.Rules.Status.Active"), card);
             auto* statusInactive =
@@ -2330,13 +2349,13 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             grid->addWidget(ruleLabel, 2, 1);
 
             const bool isLuckyBag = typeCombo->currentData().toString() == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
-            pointsSpin->setEnabled(!isLuckyBag);
+            pointsSpin->setEnabled(!lockRuleDefinition && !isLuckyBag);
             if (isLuckyBag) pointsSpin->setValue(0);
             connect(typeCombo, &QComboBox::currentIndexChanged, card,
-                    [pointsSpin, typeCombo](int) {
+                    [pointsSpin, typeCombo, lockRuleDefinition](int) {
                         const bool lb =
                             typeCombo->currentData().toString() == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
-                        pointsSpin->setEnabled(!lb);
+                        pointsSpin->setEnabled(!lockRuleDefinition && !lb);
                         if (lb) pointsSpin->setValue(0);
                     });
 
@@ -2638,9 +2657,11 @@ bool CustomizedCartoonDock::saveDraft() {
 
     const std::vector<QString> removedPaths = collectRemovedMediaPaths(savedConfig_, draftConfig_);
     const QSignalBlocker blocker(service_);
-    if (!service_->saveConfig(draftConfig_)) {
+    QString error;
+    if (!service_->saveConfig(draftConfig_, &error)) {
         QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                             obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"),
+                             error.isEmpty() ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
+                                             : error,
                              QMessageBox::Ok);
         return false;
     }

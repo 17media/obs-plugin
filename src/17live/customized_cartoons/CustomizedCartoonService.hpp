@@ -32,7 +32,7 @@ class CustomizedCartoonService : public QObject {
 
     void reloadConfig();
     nlohmann::json getConfigSnapshot() const;
-    bool saveConfig(const nlohmann::json& cfg);
+    bool saveConfig(const nlohmann::json& cfg, QString* outError = nullptr);
 
     bool prepareMediaDraftEntry(const QString& filePath, nlohmann::json& outMedia, QString& outError);
     bool importMediaFile(const QString& filePath, QString& outMediaId, QString& outError);
@@ -90,6 +90,11 @@ class CustomizedCartoonService : public QObject {
         int lastTriggeredRound{-1};
     };
 
+    struct LiveRuleSyncPlan {
+        std::vector<QString> ruleIdsToDelete;
+        std::vector<RuleItem> rulesToCreate;
+    };
+
     struct PreviewVideoSettingsBackup {
         uint32_t baseW{0};
         uint32_t baseH{0};
@@ -106,6 +111,10 @@ class CustomizedCartoonService : public QObject {
     void startEngagementsIfNeeded();
     void stopEngagements();
     void pollProgressAsync();
+    bool buildLiveRuleSyncPlan(const std::vector<RuleItem>& nextRules, LiveRuleSyncPlan& plan,
+                               QString& outError) const;
+    bool executeLiveRuleSyncPlan(const LiveRuleSyncPlan& plan, QString& outError);
+    static bool isRuleDefinitionChanged(const RuleItem& current, const RuleItem& next);
 
     void enqueuePlayMedia(const QString& mediaId);
     void startNextPlayback();

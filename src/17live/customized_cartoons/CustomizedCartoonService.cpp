@@ -152,13 +152,43 @@ json CustomizedCartoonService::getConfigSnapshot() const {
     return cfg_;
 }
 
-bool CustomizedCartoonService::saveConfig(const json& cfg) {
+bool CustomizedCartoonService::saveConfig(const json& cfg, QString* outError) {
+    if (outError) {
+        outError->clear();
+    }
     if (!configManager_) {
         return false;
     }
-    if (!configManager_->setCustomizedCartoonsConfig(cfg)) {
+
+    const bool shouldSyncLiveRules = !liveStreamID_.isEmpty();
+    const json previousCfg = getConfigSnapshot();
+    LiveRuleSyncPlan liveRuleSyncPlan;
+    QString liveRuleSyncError;
+    if (shouldSyncLiveRules &&
+        !buildLiveRuleSyncPlan(parseRules(cfg), liveRuleSyncPlan, liveRuleSyncError)) {
+        if (outError) {
+            *outError = liveRuleSyncError;
+        }
         return false;
     }
+
+    if (!configManager_->setCustomizedCartoonsConfig(cfg)) {
+        if (outError) {
+            *outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+        }
+        return false;
+    }
+
+    if (shouldSyncLiveRules && !executeLiveRuleSyncPlan(liveRuleSyncPlan, liveRuleSyncError)) {
+        configManager_->setCustomizedCartoonsConfig(previousCfg);
+        if (outError) {
+            *outError = liveRuleSyncError.isEmpty()
+                            ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
+                            : liveRuleSyncError;
+        }
+        return false;
+    }
+
     {
         std::lock_guard<std::mutex> lock(cfgMutex_);
         cfg_ = cfg;
@@ -554,6 +584,203 @@ void CustomizedCartoonService::startEngagementsIfNeeded() {
             },
             Qt::QueuedConnection);
     });
+}
+
+bool CustomizedCartoonService::isRuleDefinitionChanged(const RuleItem& current, const RuleItem& next) {
+    return current.name != next.name || current.mediaId != next.mediaId ||
+           current.engageType != next.engageType || current.points != next.points ||
+           current.count != next.count || current.repeatable != next.repeatable;
+}
+
+bool CustomizedCartoonService::buildLiveRuleSyncPlan(const std::vector<RuleItem>& nextRules,
+                                                     LiveRuleSyncPlan& plan,
+                                                     QString& outError) const {
+    outError.clear();
+    plan.ruleIdsToDelete.clear();
+    plan.rulesToCreate.clear();
+
+    std::map<QString, const RuleItem*> currentRulesById;
+    for (const auto& rule : rules_) {
+        currentRulesById[rule.id] = &rule;
+    }
+
+    std::map<QString, const RuleItem*> nextRulesById;
+    for (const auto& rule : nextRules) {
+        nextRulesById[rule.id] = &rule;
+    }
+
+    for (const auto& [ruleId, currentRule] : currentRulesById) {
+        const auto nextIt = nextRulesById.find(ruleId);
+        if (nextIt == nextRulesById.end()) {
+            if (ruleToEngageID_.find(ruleId) != ruleToEngageID_.end()) {
+                plan.ruleIdsToDelete.push_back(ruleId);
+            }
+            continue;
+        }
+
+        const RuleItem& nextRule = *nextIt->second;
+        if (isRuleDefinitionChanged(*currentRule, nextRule)) {
+            outError = obs_module_text("CustomizedCartoon.Error.RuleContentLockedStreaming");
+            return false;
+        }
+
+        if (currentRule->enabled && !nextRule.enabled) {
+            if (ruleToEngageID_.find(ruleId) != ruleToEngageID_.end()) {
+                plan.ruleIdsToDelete.push_back(ruleId);
+            }
+        } else if (!currentRule->enabled && nextRule.enabled && !nextRule.mediaId.isEmpty()) {
+            plan.rulesToCreate.push_back(nextRule);
+        }
+    }
+
+    for (const auto& [ruleId, nextRule] : nextRulesById) {
+        if (currentRulesById.find(ruleId) == currentRulesById.end() && nextRule->enabled &&
+            !nextRule->mediaId.isEmpty()) {
+            plan.rulesToCreate.push_back(*nextRule);
+        }
+    }
+
+    return true;
+}
+
+bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& plan, QString& outError) {
+    outError.clear();
+    if (!apiWrapper_ || liveStreamID_.isEmpty()) {
+        return true;
+    }
+
+    if (!plan.ruleIdsToDelete.empty()) {
+        std::vector<std::string> engageIDs;
+        std::vector<QString> deletedRuleIds;
+        engageIDs.reserve(plan.ruleIdsToDelete.size());
+        deletedRuleIds.reserve(plan.ruleIdsToDelete.size());
+
+        for (const auto& ruleId : plan.ruleIdsToDelete) {
+            const auto it = ruleToEngageID_.find(ruleId);
+            if (it == ruleToEngageID_.end() || it->second.isEmpty()) {
+                continue;
+            }
+            engageIDs.push_back(it->second.toStdString());
+            deletedRuleIds.push_back(ruleId);
+        }
+
+        if (!engageIDs.empty()) {
+            struct DeleteResult {
+                bool ok{false};
+                QString error;
+            };
+
+            auto promise = std::make_shared<std::promise<DeleteResult>>();
+            auto future = promise->get_future();
+            const std::string liveStreamID = liveStreamID_.toStdString();
+            QPointer<CustomizedCartoonService> self = this;
+
+            ScheduleOBSTask([self, liveStreamID, engageIDs = std::move(engageIDs), promise]() mutable {
+                DeleteResult result;
+                if (!self || !self->apiWrapper_) {
+                    result.error = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+                    promise->set_value(std::move(result));
+                    return;
+                }
+
+                result.ok = self->apiWrapper_->DeleteLiveEngagements(liveStreamID, engageIDs);
+                if (!result.ok) {
+                    result.error = self->apiWrapper_->getLastErrorMessage();
+                }
+                promise->set_value(std::move(result));
+            });
+
+            if (future.wait_for(std::chrono::seconds(15)) != std::future_status::ready) {
+                outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+                return false;
+            }
+
+            const DeleteResult result = future.get();
+            if (!result.ok) {
+                outError = result.error.isEmpty()
+                               ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
+                               : result.error;
+                return false;
+            }
+
+            for (const auto& ruleId : deletedRuleIds) {
+                const auto engageIt = ruleToEngageID_.find(ruleId);
+                if (engageIt != ruleToEngageID_.end()) {
+                    engageProgress_.erase(engageIt->second);
+                    ruleToEngageID_.erase(engageIt);
+                }
+            }
+        }
+    }
+
+    if (!plan.rulesToCreate.empty()) {
+        std::vector<OneSevenLiveEngagementCreate> creates;
+        std::vector<QString> ruleIds;
+        creates.reserve(plan.rulesToCreate.size());
+        ruleIds.reserve(plan.rulesToCreate.size());
+
+        for (const auto& rule : plan.rulesToCreate) {
+            OneSevenLiveEngagementCreate create;
+            if (rule.engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
+                create.engageType = OneSevenLiveEngagementType::GiftLuckybagFirstPrizeMilestone;
+                create.payload = json{{"count", rule.count}};
+            } else {
+                create.engageType = OneSevenLiveEngagementType::GiftAmountMilestone;
+                create.payload = json{{"points", rule.points}, {"count", rule.count}};
+            }
+            create.isRepeatable = rule.repeatable;
+            creates.push_back(std::move(create));
+            ruleIds.push_back(rule.id);
+        }
+
+        struct CreateResult {
+            bool ok{false};
+            QString error;
+            std::vector<OneSevenLiveEngagementCreateResult> results;
+        };
+
+        auto promise = std::make_shared<std::promise<CreateResult>>();
+        auto future = promise->get_future();
+        const std::string liveStreamID = liveStreamID_.toStdString();
+        QPointer<CustomizedCartoonService> self = this;
+
+        ScheduleOBSTask([self, liveStreamID, creates = std::move(creates), promise]() mutable {
+            CreateResult result;
+            if (!self || !self->apiWrapper_) {
+                result.error = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+                promise->set_value(std::move(result));
+                return;
+            }
+
+            result.ok = self->apiWrapper_->CreateLiveEngagements(liveStreamID, creates, result.results);
+            if (!result.ok) {
+                result.error = self->apiWrapper_->getLastErrorMessage();
+            }
+            promise->set_value(std::move(result));
+        });
+
+        if (future.wait_for(std::chrono::seconds(15)) != std::future_status::ready) {
+            outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+            return false;
+        }
+
+        CreateResult result = future.get();
+        if (!result.ok) {
+            outError = result.error.isEmpty()
+                           ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
+                           : result.error;
+            return false;
+        }
+
+        for (const auto& item : result.results) {
+            if (item.index < 0 || item.index >= static_cast<int>(ruleIds.size()) || item.engageID.isEmpty()) {
+                continue;
+            }
+            ruleToEngageID_[ruleIds[item.index]] = item.engageID;
+        }
+    }
+
+    return true;
 }
 
 void CustomizedCartoonService::stopEngagements() {
