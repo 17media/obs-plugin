@@ -72,6 +72,29 @@ constexpr int kRuleMediaComboChars = 12;
 constexpr int kMediaActionButtonSize = 24;
 constexpr int kMediaActionIconSize = 20;
 
+QString getRuleTypeLabel(const QString& engageType) {
+    if (engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
+        return obs_module_text("CustomizedCartoon.Rules.Type.LuckyBag");
+    }
+    return obs_module_text("CustomizedCartoon.Rules.Type.Gift");
+}
+
+QString buildRuleDeleteConfirmMessage(const json& rule) {
+    const QString ruleName = rule.contains("name") && rule["name"].is_string()
+                                 ? QString::fromStdString(rule["name"].get<std::string>()).trimmed()
+                                 : QString();
+    if (!ruleName.isEmpty()) {
+        return QString(obs_module_text("CustomizedCartoon.Rules.DeleteConfirm.Named"))
+            .arg(QString::fromUtf8("【%1】").arg(ruleName));
+    }
+
+    const QString engageType = rule.contains("engageType") && rule["engageType"].is_string()
+                                   ? QString::fromStdString(rule["engageType"].get<std::string>())
+                                   : QString();
+    return QString(obs_module_text("CustomizedCartoon.Rules.DeleteConfirm.Unnamed"))
+        .arg(QString::fromUtf8("【%1】").arg(getRuleTypeLabel(engageType)));
+}
+
 static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event event,
                                                        void* private_data) {
     auto* dock = static_cast<CustomizedCartoonDock*>(private_data);
@@ -2315,6 +2338,17 @@ void CustomizedCartoonDock::rebuildRulesUi() {
 
             connect(delButton, &QPushButton::clicked, card, [this, id]() {
                 if (!draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
+                    return;
+                }
+                const json* targetRule = findArrayItemById(draftConfig_["rules"], id);
+                if (!targetRule) {
+                    return;
+                }
+                const auto confirmed = QMessageBox::question(
+                    this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                    buildRuleDeleteConfirmMessage(*targetRule), QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::No);
+                if (confirmed != QMessageBox::Yes) {
                     return;
                 }
                 json newRules = json::array();
