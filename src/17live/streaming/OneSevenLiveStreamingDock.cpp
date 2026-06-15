@@ -70,6 +70,10 @@ namespace {
             return 0;
         }
         if (isAdvancedOutputMode(cfg)) {
+            const int bitrate = config_get_int(cfg, "AdvOut", "Bitrate");
+            if (bitrate > 0) {
+                return bitrate;
+            }
             return config_get_int(cfg, "AdvOut", "FFVBitrate");
         }
         return static_cast<int>(config_get_uint(cfg, "SimpleOutput", "VBitrate"));
@@ -195,6 +199,7 @@ namespace {
         config_set_uint(cfg, "Video", "OutputCY", outH);
 
         if (isAdvancedOutputMode(cfg)) {
+            config_set_int(cfg, "AdvOut", "Bitrate", bitrateKbps);
             config_set_int(cfg, "AdvOut", "FFVBitrate", bitrateKbps);
         } else {
             config_set_uint(cfg, "SimpleOutput", "VBitrate", static_cast<uint32_t>(bitrateKbps));
