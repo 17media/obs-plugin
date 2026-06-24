@@ -17,6 +17,11 @@
 
 using Json = nlohmann::json;
 
+namespace {
+constexpr int kYouTubeOauthTimeoutSec = 20;
+constexpr int kYouTubeOauthConnectTimeoutSec = 8;
+}
+
 const QString OneSevenLiveYouTubeAuth::YT_AUTH_URL_TEMPLATE =
     "https://accounts.google.com/o/oauth2/v2/"
     "auth?scope=%1&response_type=code&state=%2&redirect_uri=%3&client_id=%4";
@@ -123,8 +128,9 @@ bool OneSevenLiveYouTubeAuth::handleAuthorizationCallbackUrl(const QString& call
     long httpStatusCode = 0;
     bool ok = GetRemoteFile(tokenUrl.toUtf8().constData(), responseBody, httpError, &httpStatusCode,
                             "application/x-www-form-urlencoded", "POST", postData.c_str(),
-                            std::vector<std::string>(), nullptr, /*timeout*/ 0,
-                            /*fail_on_error*/ true, static_cast<int>(postData.size()));
+                            std::vector<std::string>(), nullptr, kYouTubeOauthTimeoutSec,
+                            /*fail_on_error*/ true, static_cast<int>(postData.size()), nullptr,
+                            kYouTubeOauthConnectTimeoutSec);
 
     if (!ok || httpStatusCode < 200 || httpStatusCode >= 300) {
         obs_log(LOG_ERROR, "YouTube token exchange failed (HTTP %ld): %s", httpStatusCode,
@@ -261,8 +267,9 @@ bool OneSevenLiveYouTubeAuth::refreshAccessToken() {
     long httpStatusCode = 0;
     bool ok = GetRemoteFile(YT_TOKEN_URL.toUtf8().constData(), responseBody, error, &httpStatusCode,
                             "application/x-www-form-urlencoded", "POST", postData.c_str(),
-                            std::vector<std::string>(), nullptr, /*timeout*/ 0,
-                            /*fail_on_error*/ true, static_cast<int>(postData.size()));
+                            std::vector<std::string>(), nullptr, kYouTubeOauthTimeoutSec,
+                            /*fail_on_error*/ true, static_cast<int>(postData.size()), nullptr,
+                            kYouTubeOauthConnectTimeoutSec);
 
     if (!ok || httpStatusCode < 200 || httpStatusCode >= 300) {
         obs_log(LOG_ERROR, "YouTube token refresh failed (HTTP %ld): %s", httpStatusCode,
@@ -373,7 +380,8 @@ void OneSevenLiveYouTubeAuth::refreshAccessTokenAsync() {
     std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
     auto* thread =
         new RemoteTextThread(YT_TOKEN_URL.toUtf8().constData(), "application/x-www-form-urlencoded",
-                             postData, 0, false, cancelFlag);
+                             postData, kYouTubeOauthTimeoutSec, false, cancelFlag,
+                             kYouTubeOauthConnectTimeoutSec);
     QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     QObject::connect(
         thread, &RemoteTextThread::Result, this,

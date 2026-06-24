@@ -33,6 +33,7 @@ class RemoteTextThread : public QThread {
     std::vector<std::string> extraHeaders;
 
     int timeoutSec = 0;
+    int connectTimeoutSec = 0;
     bool isImageRequest = false;
     std::atomic<bool> *externalCancel = nullptr;
 
@@ -45,42 +46,47 @@ class RemoteTextThread : public QThread {
    public:
     inline RemoteTextThread(std::string url_, std::string contentType_ = std::string(),
                             std::string postData_ = std::string(), int timeoutSec_ = 0,
-                            bool isImageRequest_ = false)
+                            bool isImageRequest_ = false, int connectTimeoutSec_ = 0)
         : url(url_),
           contentType(contentType_),
           postData(postData_),
           timeoutSec(timeoutSec_),
+          connectTimeoutSec(connectTimeoutSec_),
           isImageRequest(isImageRequest_) {}
 
     inline RemoteTextThread(std::string url_, std::vector<std::string> &&extraHeaders_,
                             std::string contentType_ = std::string(),
                             std::string postData_ = std::string(), int timeoutSec_ = 0,
-                            bool isImageRequest_ = false)
+                            bool isImageRequest_ = false, int connectTimeoutSec_ = 0)
         : url(url_),
           contentType(contentType_),
           postData(postData_),
           extraHeaders(std::move(extraHeaders_)),
           timeoutSec(timeoutSec_),
+          connectTimeoutSec(connectTimeoutSec_),
           isImageRequest(isImageRequest_) {}
 
     inline RemoteTextThread(std::string url_, std::vector<std::string> &&extraHeaders_,
                             std::string contentType_, std::string postData_, int timeoutSec_,
-                            bool isImageRequest_, std::atomic<bool> *externalCancel_)
+                            bool isImageRequest_, std::atomic<bool> *externalCancel_,
+                            int connectTimeoutSec_ = 0)
         : url(url_),
           contentType(contentType_),
           postData(postData_),
           extraHeaders(std::move(extraHeaders_)),
           timeoutSec(timeoutSec_),
+          connectTimeoutSec(connectTimeoutSec_),
           isImageRequest(isImageRequest_),
           externalCancel(externalCancel_) {}
 
     inline RemoteTextThread(std::string url_, std::string contentType_, std::string postData_,
                             int timeoutSec_, bool isImageRequest_,
-                            std::atomic<bool> *externalCancel_)
+                            std::atomic<bool> *externalCancel_, int connectTimeoutSec_ = 0)
         : url(url_),
           contentType(contentType_),
           postData(postData_),
           timeoutSec(timeoutSec_),
+          connectTimeoutSec(connectTimeoutSec_),
           isImageRequest(isImageRequest_),
           externalCancel(externalCancel_) {}
 
@@ -97,7 +103,8 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error,
                    std::string request_type = "", const char *postData = nullptr,
                    std::vector<std::string> extraHeaders = std::vector<std::string>(),
                    std::string *signature = nullptr, int timeoutSec = 0, bool fail_on_error = true,
-                   int postDataSize = 0, std::atomic<bool> *cancelFlag = nullptr);
+                   int postDataSize = 0, std::atomic<bool> *cancelFlag = nullptr,
+                   int connectTimeoutSec = 0);
 
 bool UploadMultipartFile(const char *url, const char *fieldName, const std::string &filePath,
                          std::string &str, std::string &error, long *responseCode = nullptr,
