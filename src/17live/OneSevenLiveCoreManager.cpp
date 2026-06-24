@@ -31,6 +31,7 @@
 #include "OneSevenLiveLoginDialog.hpp"
 #include "OneSevenLiveMenuManager.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
+#include "ui/OneSevenLiveSettingsDialog.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
 #include "chat/OneSevenLiveChatWidget.hpp"
@@ -297,6 +298,9 @@ bool OneSevenLiveCoreManager::initMenuAndBaseUI() {
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::crashRecordsClicked, this,
                      &OneSevenLiveCoreManager::handleCrashRecordsClicked);
 
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::settingsClicked, this,
+                     &OneSevenLiveCoreManager::handleSettingsClicked);
+
     QTimer::singleShot(0, this, [this]() {
         if (crashUploadService_) {
             crashUploadService_->processPreviousRun(previousRunClean_);
@@ -390,6 +394,11 @@ void OneSevenLiveCoreManager::handleCrashRecordsClicked() {
     if (crashUploadService_) {
         crashUploadService_->showCrashRecordsDialog();
     }
+}
+
+void OneSevenLiveCoreManager::handleSettingsClicked() {
+    OneSevenLiveSettingsDialog dialog(mainWindow, configManager.get());
+    dialog.exec();
 }
 
 void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& loginData) {
