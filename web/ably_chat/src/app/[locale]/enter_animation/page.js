@@ -18,6 +18,33 @@ export default function EnterAnimationPage() {
   const [enterAnimations, setEnterAnimations] = useState([]);
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const wsParam = params.get('ws');
+    if (wsParam && wsParam.trim()) return;
+
+    if (!messageAggregator) return;
+
+    (async () => {
+      try {
+        const mockAnimParam = params.get('mockAnim');
+        const mockAnimId = mockAnimParam ? Number(mockAnimParam) : 0;
+        const config = mockAnimId ? { devMockEnterAnimationId: mockAnimId } : {};
+
+        const statusMap = messageAggregator.getPlatformsStatus?.();
+        if (!statusMap || !statusMap['17live']) {
+          await messageAggregator.addPlatform('17live', config);
+        }
+        await messageAggregator.connectPlatform('17live', config);
+      } catch (err) {
+        console.error('Failed to connect 17live platform for enter animation page:', err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const wsParam = params.get('ws');
@@ -49,10 +76,22 @@ export default function EnterAnimationPage() {
         setEnterAnimations((prev) => [...prev, ...anim].slice(-20));
       }
     };
+
+    const handleSingleMessage = (m) => {
+      if (!m) return;
+      if (m?.platform !== '17live') return;
+      if (m?.content?.get?.('messageType') !== MsgType_ENTER_ANIMATION) return;
+      setEnterAnimations((prev) => {
+        if (prev.some((x) => x?.id === m.id)) return prev;
+        return [...prev, m].slice(-20);
+      });
+    };
     
     messageAggregator.on('messages_batch', handleMessagesBatch);
+    messageAggregator.on('message', handleSingleMessage);
     return () => {
       messageAggregator.off('messages_batch', handleMessagesBatch);
+      messageAggregator.off('message', handleSingleMessage);
     };
   }, []);
 

@@ -5,8 +5,8 @@ async function loadMockEnterAnimationFiles() {
   if (cached) return cached;
 
   const candidates = [
-    '/mock/get_enter_animation_files_list_response.json',
     '/mock/get_files_list_response.json',
+    '/mock/get_enter_animation_files_list_response.json',
   ];
 
   for (const url of candidates) {

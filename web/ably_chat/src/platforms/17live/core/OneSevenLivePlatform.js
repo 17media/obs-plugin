@@ -72,10 +72,10 @@ export class OneSevenLivePlatform extends BasePlatform {
   async connect(config = {}) {
     try {
       let { roomID, userID } = config;
+      const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
 
       // Allow fetching roomID/userID from URL when not provided (aligned with Ably.jsx)
       if (!roomID || !userID) {
-        const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
         roomID = roomID || urlParams.get('roomID') || '';
         userID = userID || urlParams.get('userID') || '';
       }
@@ -113,16 +113,28 @@ export class OneSevenLivePlatform extends BasePlatform {
         }
 
         const enterRaws0 = await loadDevEnterAnimationMessages();
-        const enterRaws = Array.from({ length: 17 }, (_, index) => index + 1)
-          .map((animationId) =>
-            enterRaws0.find((raw) => {
-              const rawAnimationId = Number(
-                raw?.subscriberEnterMsg?.animation || raw?.enterAnimationMsg?.animation || 0
-              );
-              return rawAnimationId === animationId;
-            })
-          )
-          .filter(Boolean);
+        const devMockOnlyAnimId = Number(
+          config?.devMockEnterAnimationId || urlParams.get('mockAnim') || 0
+        );
+
+        const enterRaws =
+          devMockOnlyAnimId > 0
+            ? enterRaws0.filter((raw) => {
+                const rawAnimationId = Number(
+                  raw?.subscriberEnterMsg?.animation || raw?.enterAnimationMsg?.animation || 0
+                );
+                return rawAnimationId === devMockOnlyAnimId;
+              })
+            : Array.from({ length: 17 }, (_, index) => index + 1)
+                .map((animationId) =>
+                  enterRaws0.find((raw) => {
+                    const rawAnimationId = Number(
+                      raw?.subscriberEnterMsg?.animation || raw?.enterAnimationMsg?.animation || 0
+                    );
+                    return rawAnimationId === animationId;
+                  })
+                )
+                .filter(Boolean);
         if (enterRaws && enterRaws.length) {
           this.devEnterAnimationIndex = 0;
           if (this.devEnterAnimationTimer) {
@@ -370,6 +382,10 @@ export class OneSevenLivePlatform extends BasePlatform {
       const marqueeKey = animationId === 6 ? '' : 'enter_is_here';
 
       const assetSrc = (() => {
+        if (animationId === 1) {
+          const fromFiles = lookupEventAnimSrc('new_guardian_enter_ios');
+          if (fromFiles) return fromFiles;
+        }
         if (animationId === 14 && notif) {
           const fromFiles = lookupEventAnimSrc(notif.animationID);
           if (fromFiles) return fromFiles;
