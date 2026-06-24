@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { messageAggregator } from '../services/MessageAggregator';
 import { PlatformSelector } from './PlatformSelector';
 import PopoverSelect from './PopoverSelect';
+import { CHAT_HEADER_SELECT_WIDTHS } from './selectWidths';
 import Chat from '@/lib/Chat';
 import { getChatProps } from '@/platforms/17live/util/getChatProps';
 import { MsgType_ENTER_ANIMATION } from '@/lib/constants';
@@ -232,9 +233,9 @@ export const MultiPlatformChat = () => {
               onChange={setFontSize}
               getOptionValue={(o) => o.id}
               getOptionLabel={(o) => o.name}
-              minWidth="72px"
-              maxWidth="72px"
-              width="72px"
+              minWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
+              maxWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
+              width={CHAT_HEADER_SELECT_WIDTHS.fontSize}
             />
           </FontSizeGroup>
         </HeaderContent>

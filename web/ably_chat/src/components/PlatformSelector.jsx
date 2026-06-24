@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useTranslations } from 'next-intl';
 import PopoverSelect from './PopoverSelect';
+import { CHAT_HEADER_SELECT_WIDTHS } from './selectWidths';
 
 const StatusDot = styled.span`
   display: inline-block;
@@ -19,6 +20,8 @@ const StatusWrap = styled.span`
   justify-content: flex-end;
   gap: 6px;
   color: #A1A9B6;
+  min-width: 0;
+  max-width: 120px;
 `;
 
 const SelectedStatusWrap = styled.span`
@@ -28,6 +31,15 @@ const SelectedStatusWrap = styled.span`
   color: #A1A9B6;
   margin-left: auto;
   padding-right: 24px;
+  min-width: 0;
+  max-width: 120px;
+`;
+
+const StatusText = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
@@ -131,7 +143,7 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
         o.id !== 'all' ? (
           <SelectedStatusWrap>
             <StatusDot $connected={platformsStatus[o.id]?.status === 'connected'} />
-            <span>{statusText(o.id)}</span>
+            <StatusText>{statusText(o.id)}</StatusText>
           </SelectedStatusWrap>
         ) : null
       }
@@ -139,10 +151,13 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
         o.id !== 'all' ? (
           <StatusWrap>
             <StatusDot $connected={platformsStatus[o.id]?.status === 'connected'} />
-            <span>{statusText(o.id)}</span>
+            <StatusText>{statusText(o.id)}</StatusText>
           </StatusWrap>
         ) : null
       }
+      minWidth={CHAT_HEADER_SELECT_WIDTHS.platform}
+      maxWidth={CHAT_HEADER_SELECT_WIDTHS.platform}
+      width={CHAT_HEADER_SELECT_WIDTHS.platform}
     />
   );
 };
