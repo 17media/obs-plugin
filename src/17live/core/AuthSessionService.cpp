@@ -12,6 +12,7 @@
 #include "../OneSevenLiveLoginDialog.hpp"
 #include "../OneSevenLiveMenuManager.hpp"
 #include "../api/OneSevenLiveApiWrappers.hpp"
+#include "../chat/OneSevenLiveChatDock.hpp"
 #include "../multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "../preview/OneSevenLivePreviewDock.hpp"
 #include "../rockzone/OneSevenLiveRockZoneDock.hpp"

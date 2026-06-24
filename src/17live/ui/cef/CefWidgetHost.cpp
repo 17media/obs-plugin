@@ -51,6 +51,8 @@ bool CefWidgetHost::ensureCreated(QWidget* parent, const QString& url) {
     widget_.reset(w);
 
     browserClosed_ = false;
+    releasing_ = false;
+    released_ = false;
     if (qcefVersion() >= 1) {
         widget_->allowAllPopups(true);
     }
@@ -80,6 +82,11 @@ void CefWidgetHost::release(bool requestCloseBrowser) {
     if (!widget_) {
         return;
     }
+    if (releasing_ || released_) {
+        return;
+    }
+
+    releasing_ = true;
 
     if (requestCloseBrowser && !browserClosed_ && qcefVersion() >= 2) {
         widget_->closeBrowser();
@@ -88,6 +95,8 @@ void CefWidgetHost::release(bool requestCloseBrowser) {
 
     widget_->setVisible(false);
     widget_.reset(nullptr);
+    released_ = true;
+    releasing_ = false;
 }
 
 QCef* CefWidgetHost::getOrCreateSharedCef() {

@@ -10,7 +10,7 @@
 #include "../OneSevenLiveConfigManager.hpp"
 #include "../OneSevenLiveHttpServer.hpp"
 #include "../OneSevenLiveMenuManager.hpp"
-#include "../chat/OneSevenLiveChatWidget.hpp"
+#include "../chat/OneSevenLiveChatDock.hpp"
 #include "../customized_cartoons/CustomizedCartoonDock.hpp"
 #include "../multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "../preview/OneSevenLivePreviewDock.hpp"
@@ -112,12 +112,7 @@ void DockOrchestrator::closeAllDocks() {
     if (chatDock) {
         chatRoomVisible = isDockOpen(chatDock);
         chatDock->disconnect(owner);
-        if (auto* widget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget())) {
-            obs_log(LOG_INFO, "Shutting down chat widget in closeAllDocks");
-            widget->shutdown();
-            chatDock->setWidget(nullptr);
-            delete widget;
-        }
+        chatDock->prepareForDelete();
         chatDock->close();
         chatDock->deleteLater();
         chatDock = nullptr;
@@ -409,16 +404,13 @@ void DockOrchestrator::handleChatRoomClicked() {
     auto* existingChatDock = core_->getChatDock();
     if (!existingChatDock) {
         obs_log(LOG_INFO, "Creating new chatDock instance");
-        auto* dock = new QDockWidget(obs_module_text("ChatRoom.Title"), core_->getMainWindow());
+        auto* dock = new OneSevenLiveChatDock(obs_module_text("ChatRoom.Title"), chatUrl,
+                                              core_->getMainWindow());
         core_->setChatDock(dock);
         dock->setObjectName("OneSevenLiveChatDock");
         dock->setAllowedAreas(Qt::AllDockWidgetAreas);
         dock->setAttribute(Qt::WA_DeleteOnClose, false);
-        dock->installEventFilter(owner);
         dock->setMinimumWidth(300);
-
-        OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(dock, chatUrl);
-        dock->setWidget(chatWidget);
 
         core_->getMainWindow()->addDockWidget(Qt::RightDockWidgetArea, dock);
 
@@ -442,13 +434,7 @@ void DockOrchestrator::handleChatRoomClicked() {
                          });
     } else {
         auto* dock = existingChatDock;
-        if (!dock->widget()) {
-            OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(dock, chatUrl);
-            dock->setWidget(chatWidget);
-        } else if (auto* chatWidget =
-                       qobject_cast<OneSevenLiveChatWidget*>(dock->widget())) {
-            chatWidget->setUrl(chatUrl);
-        }
+        dock->setUrl(chatUrl);
 
         obs_log(LOG_INFO, "Toggling existing chatDock visibility. Current: %s",
                 dock->isVisible() ? "visible" : "hidden");

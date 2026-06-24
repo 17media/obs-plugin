@@ -34,7 +34,7 @@
 #include "ui/OneSevenLiveSettingsDialog.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
-#include "chat/OneSevenLiveChatWidget.hpp"
+#include "chat/OneSevenLiveChatDock.hpp"
 #include "customized_cartoons/CustomizedCartoonDock.hpp"
 #include "customized_cartoons/CustomizedCartoonService.hpp"
 #include "core/DockOrchestrator.hpp"
@@ -577,11 +577,11 @@ void OneSevenLiveCoreManager::setStreamingDock(OneSevenLiveStreamingDock* dock) 
     streamingDock = dock;
 }
 
-QDockWidget* OneSevenLiveCoreManager::getChatDock() const {
+OneSevenLiveChatDock* OneSevenLiveCoreManager::getChatDock() const {
     return chatDock.data();
 }
 
-void OneSevenLiveCoreManager::setChatDock(QDockWidget* dock) {
+void OneSevenLiveCoreManager::setChatDock(OneSevenLiveChatDock* dock) {
     chatDock = dock;
 }
 
@@ -959,9 +959,16 @@ void OneSevenLiveCoreManager::setConnection() {
 }
 
 void OneSevenLiveCoreManager::closeAllDocks() {
+    if (closeAllDocksInProgress_) {
+        obs_log(LOG_INFO, "closeAllDocks skipped: already in progress");
+        return;
+    }
+
+    closeAllDocksInProgress_ = true;
     if (dockOrchestrator_) {
         dockOrchestrator_->closeAllDocks();
     }
+    closeAllDocksInProgress_ = false;
 }
 
 void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
@@ -1026,22 +1033,6 @@ void OneSevenLiveCoreManager::handleChatRoomClicked() {
     if (dockOrchestrator_) {
         dockOrchestrator_->handleChatRoomClicked();
     }
-}
-
-bool OneSevenLiveCoreManager::eventFilter(QObject* obj, QEvent* event) {
-    if (obj == chatDock) {
-        if (event->type() == QEvent::Close) {
-            if (auto* chatWidget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget())) {
-                chatWidget->shutdown();
-                chatDock->setWidget(nullptr);
-                delete chatWidget;
-            }
-            event->ignore();
-            chatDock->hide();
-            return true;
-        }
-    }
-    return QObject::eventFilter(obj, event);
 }
 
 void OneSevenLiveCoreManager::loadGifts() {

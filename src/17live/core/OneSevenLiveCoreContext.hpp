@@ -15,6 +15,7 @@ class OneSevenLiveStreamManager;
 class OneSevenLiveStreamingDock;
 class OneSevenLiveStreamListDock;
 class OneSevenLiveRockZoneDock;
+class OneSevenLiveChatDock;
 class OneSevenLiveMultiRtmpDock;
 class OneSevenLivePreviewDock;
 class CustomizedCartoonDock;
@@ -45,8 +46,8 @@ public:
     virtual OneSevenLiveStreamingDock* getStreamingDock() const = 0;
     virtual void setStreamingDock(OneSevenLiveStreamingDock* dock) = 0;
 
-    virtual QDockWidget* getChatDock() const = 0;
-    virtual void setChatDock(QDockWidget* dock) = 0;
+    virtual OneSevenLiveChatDock* getChatDock() const = 0;
+    virtual void setChatDock(OneSevenLiveChatDock* dock) = 0;
 
     virtual OneSevenLiveStreamListDock* getLiveListDock() const = 0;
     virtual void setLiveListDock(OneSevenLiveStreamListDock* dock) = 0;

@@ -13,6 +13,7 @@
 #include <unordered_map>
 
 #include "api/OneSevenLiveModels.hpp"
+#include "chat/OneSevenLiveChatDock.hpp"
 #include "core/OneSevenLiveCoreContext.hpp"
 #include "utility/NetworkDiagnostics.hpp"
 #include "websocket/WsMessage.hpp"
@@ -46,8 +47,6 @@ class OneSevenLiveStreamingDock;
 class OneSevenLiveStreamListDock;
 
 class OneSevenLiveRockZoneDock;
-
-class OneSevenLiveChatWidget;
 
 class OneSevenLiveMultiRtmpDock;
 
@@ -233,9 +232,6 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     std::atomic<bool> shutdownCancelFlag_{false};
     std::atomic<bool> sessionCancelFlag_{false};
 
-   protected:
-    bool eventFilter(QObject* obj, QEvent* event) override;
-
    private:
     QObject* getUiOwner() override;
     OneSevenLiveStreamingStatus getStreamingStatus() const override;
@@ -244,8 +240,8 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     void requestFlushChatEventQueue() override;
     OneSevenLiveStreamingDock* getStreamingDock() const override;
     void setStreamingDock(OneSevenLiveStreamingDock* dock) override;
-    QDockWidget* getChatDock() const override;
-    void setChatDock(QDockWidget* dock) override;
+    OneSevenLiveChatDock* getChatDock() const override;
+    void setChatDock(OneSevenLiveChatDock* dock) override;
     OneSevenLiveStreamListDock* getLiveListDock() const override;
     void setLiveListDock(OneSevenLiveStreamListDock* dock) override;
     OneSevenLiveRockZoneDock* getRockZoneDock() const override;
@@ -278,6 +274,7 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
 
     // Flag to track if we are in startup dock restoration phase
     bool isStartupRestore = false;
+    bool closeAllDocksInProgress_ = false;
 
     std::unique_ptr<OneSevenLiveConfigManager> configManager;
 
@@ -301,7 +298,7 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     void handleStreamingClicked();
     void createStreamingDock();
 
-    QPointer<QDockWidget> chatDock;
+    QPointer<OneSevenLiveChatDock> chatDock;
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;

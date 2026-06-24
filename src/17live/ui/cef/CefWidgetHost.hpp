@@ -35,6 +35,8 @@ class CefWidgetHost {
     QScopedPointer<QCefWidget> widget_{nullptr};
     QCefCookieManager* cookieManager_{nullptr};
     bool browserClosed_{false};
+    bool releasing_{false};
+    bool released_{false};
     QString cookieStorageKey_;
     bool persistSessionCookies_{false};
 
