@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QFrame>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QGraphicsOpacityEffect>
 #include <QGridLayout>
@@ -2500,10 +2501,45 @@ void CustomizedCartoonDock::onAddMedia() {
         return;
     }
 
+    auto toFilePatterns = [](const QStringList& extensions) {
+        QStringList patterns;
+        patterns.reserve(extensions.size());
+        for (const auto& extension : extensions) {
+            patterns.push_back(QString("*.%1").arg(extension));
+        }
+        return patterns;
+    };
+
+    const QStringList videoPatterns =
+        toFilePatterns(CustomizedCartoonService::supportedVideoExtensions());
+    const QStringList imagePatterns =
+        toFilePatterns(CustomizedCartoonService::supportedImageExtensions());
+    const QString fileFilter =
+        QString("%1 (%2 %3);;%4 (%2);;%5 (%3)")
+            .arg(obs_module_text("CustomizedCartoon.Media.ChooseVideo"))
+            .arg(videoPatterns.join(' '))
+            .arg(imagePatterns.join(' '))
+            .arg("Video Files")
+            .arg("Image Files");
     const QString path =
         QFileDialog::getOpenFileName(this, obs_module_text("CustomizedCartoon.Media.ChooseVideo"),
-                                                      QString(), QString());
+                                     QString(), fileFilter);
     if (path.isEmpty()) {
+        return;
+    }
+
+    const QFileInfo fileInfo(path);
+    if (!fileInfo.exists() || !fileInfo.isFile()) {
+        QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                             obs_module_text("CustomizedCartoon.Error.FileNotFound"),
+                             QMessageBox::Ok);
+        return;
+    }
+
+    if (fileInfo.size() > CustomizedCartoonService::maxMediaFileSizeBytes()) {
+        QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                             obs_module_text("CustomizedCartoon.Error.FileTooLarge"),
+                             QMessageBox::Ok);
         return;
     }
 

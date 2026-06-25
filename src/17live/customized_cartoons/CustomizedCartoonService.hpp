@@ -30,6 +30,10 @@ class CustomizedCartoonService : public QObject {
                                       QObject* parent = nullptr);
     ~CustomizedCartoonService() override;
 
+    static QStringList supportedVideoExtensions();
+    static QStringList supportedImageExtensions();
+    static qint64 maxMediaFileSizeBytes();
+
     void reloadConfig();
     nlohmann::json getConfigSnapshot() const;
     bool saveConfig(const nlohmann::json& cfg, QString* outError = nullptr);

@@ -63,6 +63,16 @@ int defaultDisplaySecForType(const QString& type) {
 
 }  // namespace
 
+QStringList CustomizedCartoonService::supportedVideoExtensions() {
+    return {"mp4", "mov", "m4v", "mkv", "webm", "avi"};
+}
+
+QStringList CustomizedCartoonService::supportedImageExtensions() {
+    return {"png", "jpg", "jpeg", "gif", "webp", "bmp"};
+}
+
+qint64 CustomizedCartoonService::maxMediaFileSizeBytes() { return 200LL * 1024LL * 1024LL; }
+
 CustomizedCartoonService::CustomizedCartoonService(QMainWindow* mainWindow,
                                                    OneSevenLiveApiWrappers* apiWrapper,
                                                    OneSevenLiveConfigManager* configManager,
@@ -213,11 +223,13 @@ void CustomizedCartoonService::ensureStorageDir() {
 
 QString CustomizedCartoonService::inferMediaType(const QString& path) {
     const QString ext = QFileInfo(path).suffix().toLower();
-    const QStringList videoExts = {"mp4", "mov", "m4v", "mkv", "webm", "avi"};
-    if (videoExts.contains(ext)) {
+    if (supportedVideoExtensions().contains(ext)) {
         return "video";
     }
-    return "image";
+    if (supportedImageExtensions().contains(ext)) {
+        return "image";
+    }
+    return QString();
 }
 
 QString CustomizedCartoonService::copyToStorage(const QString& srcPath, QString& outError) const {
@@ -253,9 +265,14 @@ bool CustomizedCartoonService::prepareMediaDraftEntry(const QString& filePath, j
         return false;
     }
 
-    const qint64 maxSize = 200LL * 1024LL * 1024LL;
-    if (fi.size() > maxSize) {
+    if (fi.size() > maxMediaFileSizeBytes()) {
         outError = obs_module_text("CustomizedCartoon.Error.FileTooLarge");
+        return false;
+    }
+
+    const QString sourceType = inferMediaType(filePath);
+    if (sourceType.isEmpty()) {
+        outError = obs_module_text("CustomizedCartoon.Error.UnsupportedMediaFormat");
         return false;
     }
 
