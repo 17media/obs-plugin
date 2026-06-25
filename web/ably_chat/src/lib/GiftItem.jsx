@@ -51,6 +51,12 @@ const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
             luckyBagName: luckyBagInfo.get('name'),
             point
           })}
+          {isEventPointEnabled && typeof eventPoint !== 'undefined' && eventPoint !== null ? (
+            <GiftPoint>
+              {' '}
+              {t('EVENT_POINTS_SUFFIX', { eventPoint })}
+            </GiftPoint>
+          ) : null}
           {' '}
         </>
         :
