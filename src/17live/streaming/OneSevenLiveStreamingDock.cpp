@@ -274,6 +274,15 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
 
     connect(streamManager, &OneSevenLiveStreamManager::obsStreamStopped, this,
             [this](int code, const QString &lastError) {
+                if (!streamManager) {
+                    return;
+                }
+
+                if (streamManager->isStopStreamInProgress()) {
+                    obs_log(LOG_INFO, "OBS stream stopped during managed stop flow");
+                    return;
+                }
+
                 obs_log(LOG_WARNING, "OBS stream stopped unexpectedly with code %d: %s", code,
                         lastError.toStdString().c_str());
                 // If this was an unexpected stop (network error etc), we might want to reflect that

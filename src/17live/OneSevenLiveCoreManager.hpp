@@ -91,6 +91,13 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     static OneSevenLiveCoreManager& getInstance(QMainWindow* mainWindow = nullptr);
 
     /**
+     * @brief Get the singleton instance if it already exists
+     *
+     * @return OneSevenLiveCoreManager* Existing instance or nullptr
+     */
+    static OneSevenLiveCoreManager* peekInstance();
+
+    /**
      * @brief Destroy the singleton instance
      */
     static void destroyInstance();
@@ -138,6 +145,11 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
      * @return OneSevenLiveStreamManager* Pointer to stream manager
      */
     OneSevenLiveStreamManager* getStreamManager() const override;
+
+    /**
+     * @brief Safely forward OBS frontend stream-stopped event to the current stream manager
+     */
+    void notifyObsStreamStopped(int code, const QString& lastError);
 
     /**
      * @brief Get WebSocket server

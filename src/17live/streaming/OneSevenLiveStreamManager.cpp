@@ -24,21 +24,26 @@
 #include "websocket/WsMessage.hpp"
 
 // Static callback for OBS frontend events to ensure safe registration/removal
-static void ObsFrontendEventCallback(enum obs_frontend_event event, void* private_data) {
-    OneSevenLiveStreamManager* manager = static_cast<OneSevenLiveStreamManager*>(private_data);
-    if (!manager)
+static void ObsFrontendEventCallback(enum obs_frontend_event event, [[maybe_unused]] void* private_data) {
+    if (event != OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
         return;
-
-    if (event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
-        obs_output_t* output = obs_frontend_get_streaming_output();
-        if (output) {
-            const char* err = obs_output_get_last_error(output);
-            manager->handleObsStreamStopped(0, err ? QString(err) : QString());
-            obs_output_release(output);
-        } else {
-            manager->handleObsStreamStopped(0, QString());
-        }
     }
+
+    QString lastError;
+    obs_output_t* output = obs_frontend_get_streaming_output();
+    if (output) {
+        const char* err = obs_output_get_last_error(output);
+        lastError = err ? QString(err) : QString();
+        obs_output_release(output);
+    }
+
+    auto* core = OneSevenLiveCoreManager::peekInstance();
+    if (!core || core->isShuttingDown()) {
+        obs_log(LOG_INFO, "Ignoring OBS stream stopped event because core manager is unavailable");
+        return;
+    }
+
+    core->notifyObsStreamStopped(0, lastError);
 }
 
 OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* apiWrapper,
@@ -502,6 +507,12 @@ void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRe
 }
 
 bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
+    bool expected = false;
+    if (!stopStreamInProgress_.compare_exchange_strong(expected, true)) {
+        obs_log(LOG_INFO, "stopStream already in progress, skipping duplicate request");
+        return false;
+    }
+
     obs_log(LOG_INFO, "Stopping streaming");
 
     // Stop OBS streaming first
@@ -544,8 +555,13 @@ bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
     currentStreamResponse = OneSevenLiveRtmpResponse{};
     currentLiveStreamInfo = OneSevenLiveStreamInfo{};
 
+    stopStreamInProgress_.store(false);
     obs_log(LOG_INFO, "Streaming stopped successfully");
     return true;
+}
+
+bool OneSevenLiveStreamManager::isStopStreamInProgress() const {
+    return stopStreamInProgress_.load();
 }
 
 void OneSevenLiveStreamManager::onStatusTimer() {
@@ -896,7 +912,12 @@ void OneSevenLiveStreamManager::configureStreamingSettings(
 }
 
 void OneSevenLiveStreamManager::handleObsStreamStopped(int code, const QString& lastError) {
-    // This is called from OBS callback thread, so we need to invoke on main thread
+    if (QThread::currentThread() == thread()) {
+        emit obsStreamStopped(code, lastError);
+        return;
+    }
+
+    // OBS frontend callbacks may arrive on a non-Qt thread.
     QMetaObject::invokeMethod(
         this, [this, code, lastError]() { emit obsStreamStopped(code, lastError); },
         Qt::QueuedConnection);

@@ -87,6 +87,11 @@ OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainW
     return *instance;
 }
 
+OneSevenLiveCoreManager* OneSevenLiveCoreManager::peekInstance() {
+    std::lock_guard<std::mutex> lock(oneSevenLiveCoreManagerInstanceMutex);
+    return instance;
+}
+
 void OneSevenLiveCoreManager::destroyInstance() {
     std::lock_guard<std::mutex> lock(oneSevenLiveCoreManagerInstanceMutex);
     delete instance;
@@ -537,6 +542,28 @@ OneSevenLiveConfigManager* OneSevenLiveCoreManager::getConfigManager() const {
 
 OneSevenLiveStreamManager* OneSevenLiveCoreManager::getStreamManager() const {
     return streamManager.get();
+}
+
+void OneSevenLiveCoreManager::notifyObsStreamStopped(int code, const QString& lastError) {
+    if (QThread::currentThread() != thread()) {
+        QPointer<OneSevenLiveCoreManager> self = this;
+        QMetaObject::invokeMethod(
+            this,
+            [self, code, lastError]() {
+                if (self) {
+                    self->notifyObsStreamStopped(code, lastError);
+                }
+            },
+            Qt::QueuedConnection);
+        return;
+    }
+
+    if (shuttingDown || !streamManager) {
+        obs_log(LOG_INFO, "Ignoring OBS stream stopped event during teardown");
+        return;
+    }
+
+    streamManager->handleObsStreamStopped(code, lastError);
 }
 
 OneSevenLiveWebsocketServer* OneSevenLiveCoreManager::getWebsocketServer() const {
