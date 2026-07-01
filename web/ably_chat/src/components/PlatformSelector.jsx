@@ -155,9 +155,9 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
           </StatusWrap>
         ) : null
       }
-      minWidth="0"
+      minWidth={CHAT_HEADER_SELECT_WIDTHS.platform}
       maxWidth={CHAT_HEADER_SELECT_WIDTHS.platform}
-      width="100%"
+      width={CHAT_HEADER_SELECT_WIDTHS.platform}
     />
   );
 };

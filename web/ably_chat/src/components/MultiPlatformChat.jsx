@@ -32,30 +32,28 @@ const Header = styled.div`
   box-sizing: border-box;
   padding: 1rem;
   border-bottom: 1px solid #1f2937;
+  overflow-x: auto;
+  overflow-y: hidden;
 `;
 
 const HeaderContent = styled.div`
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
   gap: 16px;
 `;
 
 const PlatformSelectorWrap = styled.div`
-  flex: 1 1 200px;
-  min-width: 0;
-  max-width: 100%;
+  flex: 0 0 auto;
 `;
 
 const FontSizeGroup = styled.div`
   display: flex;
   align-items: center;
-  flex: 0 1 auto;
-  min-width: 0;
+  flex: 0 0 auto;
   flex-wrap: nowrap;
   gap: 12px;
 `;
@@ -258,7 +256,7 @@ export const MultiPlatformChat = () => {
               onChange={setFontSize}
               getOptionValue={(o) => o.id}
               getOptionLabel={(o) => o.name}
-              minWidth="0"
+              minWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
               maxWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
               width={CHAT_HEADER_SELECT_WIDTHS.fontSize}
             />
