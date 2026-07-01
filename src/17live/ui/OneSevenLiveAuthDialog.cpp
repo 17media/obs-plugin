@@ -2,11 +2,15 @@
 
 #include <obs-module.h>
 
+#include <QAbstractButton>
 #include <QDialog>
+#include <QHBoxLayout>
+#include <QPushButton>
 #include <QString>
+#include <QVBoxLayout>
 
 #include "../../plugin-support.h"
-#include "cef/CefWidgetHost.hpp"
+#include "../chat/cef_panel.hpp"
 #include "moc_OneSevenLiveAuthDialog.cpp"
 
 OneSevenLiveAuthDialog::OneSevenLiveAuthDialog(QWidget* parent)
@@ -21,50 +25,79 @@ OneSevenLiveAuthDialog::OneSevenLiveAuthDialog(const QString& url, QWidget* pare
 }
 
 OneSevenLiveAuthDialog::~OneSevenLiveAuthDialog() {
-    obs_log(LOG_INFO, "OneSevenLiveAuthDialog: destructor");
-    cefHost_.reset();
+    cleanupBrowser();
+
+    if (cookieManager_) {
+        cookieManager_->FlushStore();
+        delete cookieManager_;
+        cookieManager_ = nullptr;
+    }
 }
 
 void OneSevenLiveAuthDialog::setupUi() {
     setWindowTitle("Authorization");
     setModal(true);
-    resize(800, 600);
+    setMinimumSize(400, 400);
+    resize(700, 700);
 
-    cefHost_ = std::make_unique<CefWidgetHost>();
-    cefHost_->setCookieStorage("onesevenlive-auth", false);
-    if (cefHost_->ensureCreated(this, "about:blank")) {
-        if (auto* w = cefHost_->widget()) {
-            connect(w, SIGNAL(urlChanged(const QString&)), this, SIGNAL(urlChanged(const QString&)));
-            w->show();
-        }
-    } else {
+    Qt::WindowFlags flags = windowFlags();
+    Qt::WindowFlags helpFlag = Qt::WindowContextHelpButtonHint;
+    setWindowFlags(flags & (~helpFlag));
+
+    cef_ = obs_browser_init_panel();
+    if (!cef_) {
+        obs_log(LOG_ERROR, "OneSevenLiveAuthDialog: obs-browser panel is not available");
+        return;
+    }
+
+    if (!cef_->initialized()) {
+        cef_->init_browser();
+        cef_->wait_for_browser_init();
+    }
+
+    cookieManager_ = cef_->create_cookie_manager("onesevenlive-auth", false);
+    QCefWidget* widget = cef_->create_widget(nullptr, "about:blank", cookieManager_);
+    if (!widget) {
         obs_log(LOG_ERROR, "OneSevenLiveAuthDialog: Failed to create browser widget");
+        return;
     }
-}
 
-void OneSevenLiveAuthDialog::resizeEvent(QResizeEvent* event) {
-    QDialog::resizeEvent(event);
-    if (cefHost_ && cefHost_->widget()) {
-        cefHost_->widget()->setGeometry(rect());
-    }
+    cefWidget_.reset(widget);
+
+    connect(cefWidget_.data(), SIGNAL(urlChanged(const QString&)), this,
+            SIGNAL(urlChanged(const QString&)));
+
+    QPushButton* close = new QPushButton(tr("Cancel"));
+    connect(close, &QAbstractButton::clicked, this, &QDialog::reject);
+
+    QHBoxLayout* bottomLayout = new QHBoxLayout();
+    bottomLayout->addStretch();
+    bottomLayout->addWidget(close);
+    bottomLayout->addStretch();
+
+    QVBoxLayout* topLayout = new QVBoxLayout(this);
+    topLayout->addWidget(cefWidget_.data());
+    topLayout->addLayout(bottomLayout);
 }
 
 void OneSevenLiveAuthDialog::setUrl(const QString& url) {
-    if (cefHost_) {
-        cefHost_->setUrl(url);
+    if (cefWidget_) {
+        cefWidget_->setURL(url.toStdString());
     }
 }
 
 void OneSevenLiveAuthDialog::accept() {
-    if (cefHost_) {
-        cefHost_->release(true);
-    }
+    cleanupBrowser();
     QDialog::accept();
 }
 
 void OneSevenLiveAuthDialog::reject() {
-    if (cefHost_) {
-        cefHost_->release(true);
-    }
+    cleanupBrowser();
     QDialog::reject();
+}
+
+void OneSevenLiveAuthDialog::cleanupBrowser() {
+    if (cefWidget_) {
+        cefWidget_.reset(nullptr);
+    }
 }
