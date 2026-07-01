@@ -1,8 +1,8 @@
 #pragma once
 
 #include <QDockWidget>
+#include <QScopedPointer>
 #include <QString>
-#include <memory>
 
 class QCloseEvent;
 class QHideEvent;
@@ -10,7 +10,8 @@ class QLabel;
 class QResizeEvent;
 class QShowEvent;
 class QWidget;
-class CefWidgetHost;
+
+#include "cef_panel.hpp"
 
 class OneSevenLiveChatDock : public QDockWidget {
     Q_OBJECT
@@ -34,16 +35,17 @@ class OneSevenLiveChatDock : public QDockWidget {
     void onGiftsLoaded();
 
    private:
+    QCef* getOrCreateSharedCef() const;
+    int qcefVersion() const;
     void createBrowser(const QString& url);
+    void updateOverlayGeometry();
     void shutdownBrowser();
 
     QString title_;
     QString chatUrl_;
-    QWidget* contentWidget_ = nullptr;
-    QWidget* browserContainer_ = nullptr;
     QWidget* loadingOverlay_ = nullptr;
     QLabel* loadingLabel_ = nullptr;
     QLabel* errorLabel_ = nullptr;
-    std::unique_ptr<CefWidgetHost> cefHost_;
+    QScopedPointer<QCefWidget> cefWidget_;
     bool deleting_{false};
 };

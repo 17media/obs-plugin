@@ -44,6 +44,29 @@ using namespace std;
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+static const char* obs_frontend_event_name(enum obs_frontend_event event) {
+    switch (event) {
+    case OBS_FRONTEND_EVENT_FINISHED_LOADING:
+        return "OBS_FRONTEND_EVENT_FINISHED_LOADING";
+    case OBS_FRONTEND_EVENT_EXIT:
+        return "OBS_FRONTEND_EVENT_EXIT";
+    case OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
+        return "OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN";
+    case OBS_FRONTEND_EVENT_STREAMING_STARTED:
+        return "OBS_FRONTEND_EVENT_STREAMING_STARTED";
+    case OBS_FRONTEND_EVENT_STREAMING_STOPPED:
+        return "OBS_FRONTEND_EVENT_STREAMING_STOPPED";
+    case OBS_FRONTEND_EVENT_PROFILE_CHANGED:
+        return "OBS_FRONTEND_EVENT_PROFILE_CHANGED";
+    case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED:
+        return "OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED";
+    case OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        return "OBS_FRONTEND_EVENT_SCENE_CHANGED";
+    default:
+        return "OBS_FRONTEND_EVENT_OTHER";
+    }
+}
+
 bool obs_module_load(void) {
     obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
 
@@ -105,8 +128,9 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
     }
     case OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
     case OBS_FRONTEND_EVENT_EXIT: {
-        if (!isRunning)
+        if (!isRunning) {
             return;
+        }
 
         isRunning = false;
 

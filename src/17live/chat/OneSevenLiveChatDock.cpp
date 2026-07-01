@@ -3,39 +3,26 @@
 #include <obs-module.h>
 
 #include <QCloseEvent>
+#include <QEvent>
 #include <QHideEvent>
+#include <QApplication>
 #include <QLabel>
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QVBoxLayout>
 
 #include "../OneSevenLiveCoreManager.hpp"
-#include "../ui/cef/CefWidgetHost.hpp"
 #include "../../plugin-support.h"
 #include "moc_OneSevenLiveChatDock.cpp"
 
 OneSevenLiveChatDock::OneSevenLiveChatDock(const QString& title, const QString& chatUrl,
                                            QWidget* parent)
     : QDockWidget(title, parent), title_(title), chatUrl_(chatUrl) {
-    obs_log(LOG_INFO, "OneSevenLiveChatDock constructed");
-
     setAttribute(Qt::WA_NativeWindow);
 
-    contentWidget_ = new QWidget(this);
-    contentWidget_->setContentsMargins(0, 0, 0, 0);
-    setWidget(contentWidget_);
-
-    browserContainer_ = new QWidget(contentWidget_);
-    browserContainer_->setContentsMargins(0, 0, 0, 0);
-
-    QVBoxLayout* rootLayout = new QVBoxLayout(contentWidget_);
-    rootLayout->setContentsMargins(0, 0, 0, 0);
-    rootLayout->setSpacing(0);
-
-    cefHost_ = std::make_unique<CefWidgetHost>();
     createBrowser(chatUrl_);
 
-    loadingOverlay_ = new QWidget(contentWidget_);
+    loadingOverlay_ = new QWidget(this);
     loadingOverlay_->setStyleSheet("background-color: rgba(0, 0, 0, 180);");
 
     QVBoxLayout* overlayLayout = new QVBoxLayout(loadingOverlay_);
@@ -46,6 +33,7 @@ OneSevenLiveChatDock::OneSevenLiveChatDock(const QString& title, const QString& 
     overlayLayout->addWidget(loadingLabel_);
 
     loadingOverlay_->raise();
+    updateOverlayGeometry();
 
     auto& core = OneSevenLiveCoreManager::getInstance();
     connect(&core, &OneSevenLiveCoreManager::giftsLoaded, this, &OneSevenLiveChatDock::onGiftsLoaded);
@@ -57,130 +45,170 @@ OneSevenLiveChatDock::OneSevenLiveChatDock(const QString& title, const QString& 
     }
 }
 
-OneSevenLiveChatDock::~OneSevenLiveChatDock() {
-    obs_log(LOG_INFO, "OneSevenLiveChatDock destructor called");
-    prepareForDelete();
+OneSevenLiveChatDock::~OneSevenLiveChatDock() = default;
+
+QCef* OneSevenLiveChatDock::getOrCreateSharedCef() const {
+    static QCef* shared = nullptr;
+    if (shared) {
+        return shared;
+    }
+
+    shared = obs_browser_init_panel();
+    if (!shared) {
+        return nullptr;
+    }
+
+    if (!shared->initialized()) {
+        shared->init_browser();
+        shared->wait_for_browser_init();
+    }
+
+    return shared;
+}
+
+int OneSevenLiveChatDock::qcefVersion() const {
+    return obs_browser_qcef_version();
 }
 
 void OneSevenLiveChatDock::createBrowser(const QString& url) {
-    if (!contentWidget_) {
-        return;
-    }
-
     chatUrl_ = url;
 
-    if (!cefHost_) {
-        cefHost_ = std::make_unique<CefWidgetHost>();
-    }
-
-    if (!cefHost_->ensureCreated(browserContainer_, url)) {
-        if (!errorLabel_) {
-            errorLabel_ = new QLabel("Browser source not available", contentWidget_);
-            errorLabel_->setAlignment(Qt::AlignCenter);
-            if (auto* layout = qobject_cast<QVBoxLayout*>(contentWidget_->layout())) {
-                layout->addWidget(errorLabel_);
-            }
-        }
-        obs_log(LOG_ERROR, "OneSevenLiveChatDock: Failed to create QCefWidget");
+    if (cefWidget_) {
+        cefWidget_->setURL(url.toStdString());
         return;
     }
 
-    if (auto* layout = qobject_cast<QVBoxLayout*>(browserContainer_->layout())) {
-        if (layout->indexOf(cefHost_->widget()) == -1) {
-            layout->addWidget(cefHost_->widget());
-        }
-    } else {
-        QVBoxLayout* browserLayout = new QVBoxLayout(browserContainer_);
-        browserLayout->setContentsMargins(0, 0, 0, 0);
-        browserLayout->setSpacing(0);
-        browserLayout->addWidget(cefHost_->widget());
+    QCef* cef = getOrCreateSharedCef();
+    if (!cef) {
+        obs_log(LOG_ERROR, "OneSevenLiveChatDock: obs-browser panel is not available");
+        return;
     }
 
-    if (auto* layout = qobject_cast<QVBoxLayout*>(contentWidget_->layout())) {
-        if (layout->indexOf(browserContainer_) == -1) {
-            layout->addWidget(browserContainer_);
+    QCefWidget* widget = cef->create_widget(this, url.toStdString(), nullptr);
+    if (!widget) {
+        if (!errorLabel_) {
+            errorLabel_ = new QLabel("Browser source not available", this);
+            errorLabel_->setAlignment(Qt::AlignCenter);
+            errorLabel_->setStyleSheet("background-color: #202020; color: white;");
         }
+        obs_log(LOG_ERROR, "OneSevenLiveChatDock: Failed to create QCefWidget");
+        updateOverlayGeometry();
+        return;
+    }
+
+    cefWidget_.reset(widget);
+    setWidget(cefWidget_.data());
+
+    if (qcefVersion() >= 1) {
+        cefWidget_->allowAllPopups(true);
     }
 
     if (errorLabel_) {
         errorLabel_->hide();
     }
+    updateOverlayGeometry();
+}
+
+void OneSevenLiveChatDock::updateOverlayGeometry() {
+    const QRect area = contentsRect();
+    if (loadingOverlay_) {
+        loadingOverlay_->setGeometry(area);
+    }
+    if (errorLabel_) {
+        errorLabel_->setGeometry(area);
+    }
 }
 
 void OneSevenLiveChatDock::shutdownBrowser() {
-    if (cefHost_) {
-        cefHost_->release(true);
-        cefHost_.reset();
+    if (!cefWidget_) {
+        return;
+    }
+
+    // Match OBS browser-panel guidance: decouple the browser widget from the
+    // dock before closing, so CEF does not treat the root window as the host.
+    QWidget* browserWidget = cefWidget_.data();
+    if (widget() == browserWidget) {
+        setWidget(nullptr);
+    }
+    browserWidget->hide();
+    browserWidget->setParent(nullptr);
+
+    if (qcefVersion() >= 2) {
+        cefWidget_->closeBrowser();
     }
 }
 
 void OneSevenLiveChatDock::setUrl(const QString& url) {
     chatUrl_ = url;
 
-    if (!cefHost_ || !cefHost_->widget()) {
+    if (!cefWidget_) {
         createBrowser(url);
         return;
     }
 
-    cefHost_->setUrl(url);
+    cefWidget_->setURL(url.toStdString());
 }
 
 void OneSevenLiveChatDock::reload() {
-    if (cefHost_) {
-        cefHost_->reload();
+    if (cefWidget_) {
+        cefWidget_->reloadPage();
     }
 }
 
 void OneSevenLiveChatDock::prepareForDelete() {
     if (deleting_) {
-        obs_log(LOG_INFO, "OneSevenLiveChatDock prepareForDelete skipped: already deleting");
         return;
     }
 
     deleting_ = true;
-    obs_log(LOG_INFO, "OneSevenLiveChatDock prepareForDelete");
-    shutdownBrowser();
 }
 
 void OneSevenLiveChatDock::showEvent(QShowEvent* event) {
     QDockWidget::showEvent(event);
     setWindowTitle(title_);
-    if (!cefHost_ && !deleting_) {
+    if (!cefWidget_ && !deleting_) {
         createBrowser(chatUrl_);
     }
-    if (cefHost_ && cefHost_->widget()) {
-        cefHost_->widget()->setVisible(true);
+    if (cefWidget_) {
+        cefWidget_->setVisible(true);
     }
     if (loadingOverlay_ && loadingOverlay_->isVisible()) {
         loadingOverlay_->raise();
     }
+    if (errorLabel_ && errorLabel_->isVisible()) {
+        errorLabel_->raise();
+    }
+    updateOverlayGeometry();
 }
 
 void OneSevenLiveChatDock::hideEvent(QHideEvent* event) {
     QDockWidget::hideEvent(event);
-    if (cefHost_ && cefHost_->widget()) {
-        cefHost_->widget()->setVisible(false);
+    if (cefWidget_) {
+        cefWidget_->setVisible(false);
     }
 }
 
 void OneSevenLiveChatDock::closeEvent(QCloseEvent* event) {
-    if (!deleting_) {
-        obs_log(LOG_INFO, "OneSevenLiveChatDock closeEvent: releasing browser for later recreate");
-        shutdownBrowser();
-    }
     QDockWidget::closeEvent(event);
+
+    if (event && event->isAccepted() && widget()) {
+        QEvent widgetEvent(QEvent::Type(QEvent::User + QEvent::Close));
+        qApp->sendEvent(widget(), &widgetEvent);
+    }
+
+    if (event && event->isAccepted() && cefWidget_) {
+        shutdownBrowser();
+
+        if (!deleting_) {
+            // Manual close keeps the dock instance around, so recreate the browser next time it opens.
+            cefWidget_.reset(nullptr);
+        }
+    }
 }
 
 void OneSevenLiveChatDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
-    if (contentWidget_) {
-        if (loadingOverlay_) {
-            loadingOverlay_->setGeometry(contentWidget_->contentsRect());
-        }
-        if (errorLabel_) {
-            errorLabel_->setGeometry(contentWidget_->contentsRect());
-        }
-    }
+    updateOverlayGeometry();
 }
 
 void OneSevenLiveChatDock::onGiftsLoaded() {
