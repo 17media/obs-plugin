@@ -24,7 +24,7 @@
 
 namespace {
 constexpr int kDefaultFloatingWidth = 520;
-constexpr int kDefaultFloatingHeight = 550;
+constexpr int kDefaultFloatingHeight = 780;
 constexpr int kMinimumFloatingHeight = 300;
 constexpr int kPersistDockStateDelayMs = 200;
 }

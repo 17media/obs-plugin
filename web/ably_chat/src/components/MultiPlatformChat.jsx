@@ -15,16 +15,23 @@ import { MsgType_ENTER_ANIMATION } from '@/lib/constants';
  * Aggregates and displays messages from different platforms
  */
 
+const CHAT_PAGE_MIN_WIDTH = '400px';
+
 const Container = styled.div`
   position: relative;
   width: 100%;
   min-height: 100vh;
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow-x: auto;
   background-color: #000000;
   color: #f3f4f6;
   --chat-font-size: ${(p) => p.$chatFontSize || '16px'};
   --chat-line-height: ${(p) => p.$chatLineHeight || '24px'};
+`;
+
+const PageContent = styled.div`
+  width: max(100%, ${CHAT_PAGE_MIN_WIDTH});
+  min-width: ${CHAT_PAGE_MIN_WIDTH};
 `;
 
 const Header = styled.div`
@@ -32,8 +39,6 @@ const Header = styled.div`
   box-sizing: border-box;
   padding: 1rem;
   border-bottom: 1px solid #1f2937;
-  overflow-x: auto;
-  overflow-y: hidden;
 `;
 
 const HeaderContent = styled.div`
@@ -238,44 +243,46 @@ export const MultiPlatformChat = () => {
       $chatFontSize={fontSize === 'small' ? '12px' : fontSize === 'large' ? '20px' : '16px'}
       $chatLineHeight={fontSize === 'small' ? '21px' : fontSize === 'large' ? '28px' : '24px'}
     >
-      {/* Top selector */}
-      <Header>
-        <HeaderContent>
-          <PlatformSelectorWrap>
-            <PlatformSelector
-              onSelectionChange={handleSelectionChange}
-              messageAggregator={messageAggregator}
-            />
-          </PlatformSelectorWrap>
-          <FontSizeGroup>
-            <FontSizeLabel>{t('FONT_SIZE_LABEL')}</FontSizeLabel>
-            <PopoverSelect
-              ariaLabel={t('FONT_SIZE_LABEL')}
-              options={fontSizeDefs}
-              value={fontSize}
-              onChange={setFontSize}
-              getOptionValue={(o) => o.id}
-              getOptionLabel={(o) => o.name}
-              minWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
-              maxWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
-              width={CHAT_HEADER_SELECT_WIDTHS.fontSize}
-            />
-          </FontSizeGroup>
-        </HeaderContent>
-      </Header>
+      <PageContent>
+        {/* Top selector */}
+        <Header>
+          <HeaderContent>
+            <PlatformSelectorWrap>
+              <PlatformSelector
+                onSelectionChange={handleSelectionChange}
+                messageAggregator={messageAggregator}
+              />
+            </PlatformSelectorWrap>
+            <FontSizeGroup>
+              <FontSizeLabel>{t('FONT_SIZE_LABEL')}</FontSizeLabel>
+              <PopoverSelect
+                ariaLabel={t('FONT_SIZE_LABEL')}
+                options={fontSizeDefs}
+                value={fontSize}
+                onChange={setFontSize}
+                getOptionValue={(o) => o.id}
+                getOptionLabel={(o) => o.name}
+                minWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
+                maxWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
+                width={CHAT_HEADER_SELECT_WIDTHS.fontSize}
+              />
+            </FontSizeGroup>
+          </HeaderContent>
+        </Header>
 
-      {/* Message list */}
-      <MessageList ref={listRef}>
-        {filteredMessages.length === 0 ? (
-          <EmptyState>
-            <EmptyIcon src="/images/chat.svg" alt="" />
-            <span>{t('EMPTY_CHAT_MESSAGE')}</span>
-          </EmptyState>
-        ) : (
-          filteredMessages.map((m, i) => renderMessageItem(m, i))
-        )}
-        <div ref={endRef} />
-      </MessageList>
+        {/* Message list */}
+        <MessageList ref={listRef}>
+          {filteredMessages.length === 0 ? (
+            <EmptyState>
+              <EmptyIcon src="/images/chat.svg" alt="" />
+              <span>{t('EMPTY_CHAT_MESSAGE')}</span>
+            </EmptyState>
+          ) : (
+            filteredMessages.map((m, i) => renderMessageItem(m, i))
+          )}
+          <div ref={endRef} />
+        </MessageList>
+      </PageContent>
     </Container>
   );
 };
