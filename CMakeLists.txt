@@ -216,7 +216,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/17live/preview/OneSevenLivePreviewWidget.cpp
   src/17live/ui/cef/CefWidgetHost.cpp
   src/17live/ui/OneSevenLiveAuthDialog.cpp
-  src/17live/ui/OneSevenLiveBrowserDock.cpp
   src/17live/ui/OneSevenLiveLineEditWithEye.cpp
   src/17live/ui/OneSevenLiveSettingsDialog.cpp
   src/17live/ui/OneSevenLivePropertiesWidget.cpp
