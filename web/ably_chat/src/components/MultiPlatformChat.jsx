@@ -17,7 +17,10 @@ import { MsgType_ENTER_ANIMATION } from '@/lib/constants';
 
 const Container = styled.div`
   position: relative;
+  width: 100%;
   min-height: 100vh;
+  box-sizing: border-box;
+  overflow-x: hidden;
   background-color: #000000;
   color: #f3f4f6;
   --chat-font-size: ${(p) => p.$chatFontSize || '16px'};
@@ -25,23 +28,36 @@ const Container = styled.div`
 `;
 
 const Header = styled.div`
+  width: 100%;
+  box-sizing: border-box;
   padding: 1rem;
   border-bottom: 1px solid #1f2937;
 `;
 
 const HeaderContent = styled.div`
-  max-width: 28rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
+`;
+
+const PlatformSelectorWrap = styled.div`
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: 100%;
 `;
 
 const FontSizeGroup = styled.div`
   display: flex;
   align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
   gap: 12px;
-  flex-shrink: 0;
 `;
 
 const FontSizeLabel = styled.span`
@@ -51,9 +67,13 @@ const FontSizeLabel = styled.span`
   font-weight: 400;
   font-size: 14px;
   line-height: 20px;
+  white-space: nowrap;
 `;
 
 const MessageList = styled.div`
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   height: calc(100vh - 72px);
   overflow-y: auto;
   padding: 1rem;
@@ -223,7 +243,12 @@ export const MultiPlatformChat = () => {
       {/* Top selector */}
       <Header>
         <HeaderContent>
-          <PlatformSelector onSelectionChange={handleSelectionChange} messageAggregator={messageAggregator} />
+          <PlatformSelectorWrap>
+            <PlatformSelector
+              onSelectionChange={handleSelectionChange}
+              messageAggregator={messageAggregator}
+            />
+          </PlatformSelectorWrap>
           <FontSizeGroup>
             <FontSizeLabel>{t('FONT_SIZE_LABEL')}</FontSizeLabel>
             <PopoverSelect
@@ -233,7 +258,7 @@ export const MultiPlatformChat = () => {
               onChange={setFontSize}
               getOptionValue={(o) => o.id}
               getOptionLabel={(o) => o.name}
-              minWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
+              minWidth="0"
               maxWidth={CHAT_HEADER_SELECT_WIDTHS.fontSize}
               width={CHAT_HEADER_SELECT_WIDTHS.fontSize}
             />

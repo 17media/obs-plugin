@@ -5,20 +5,52 @@
 #include <QCloseEvent>
 #include <QEvent>
 #include <QHideEvent>
+#include <QMoveEvent>
 #include <QApplication>
+#include <QGuiApplication>
 #include <QLabel>
 #include <QResizeEvent>
+#include <QScreen>
+#include <QSizePolicy>
 #include <QShowEvent>
+#include <QTimer>
 #include <QVBoxLayout>
+#include <QMainWindow>
 
 #include "../OneSevenLiveCoreManager.hpp"
+#include "../OneSevenLiveConfigManager.hpp"
 #include "../../plugin-support.h"
 #include "moc_OneSevenLiveChatDock.cpp"
+
+namespace {
+constexpr int kDefaultFloatingWidth = 520;
+constexpr int kDefaultFloatingHeight = 550;
+constexpr int kMinimumFloatingHeight = 300;
+constexpr int kPersistDockStateDelayMs = 200;
+}
 
 OneSevenLiveChatDock::OneSevenLiveChatDock(const QString& title, const QString& chatUrl,
                                            QWidget* parent)
     : QDockWidget(title, parent), title_(title), chatUrl_(chatUrl) {
     setAttribute(Qt::WA_NativeWindow);
+    setMinimumSize(300, kMinimumFloatingHeight);
+    resize(kDefaultFloatingWidth, kDefaultFloatingHeight);
+
+    persistDockStateTimer_ = new QTimer(this);
+    persistDockStateTimer_->setSingleShot(true);
+    persistDockStateTimer_->setInterval(kPersistDockStateDelayMs);
+    connect(persistDockStateTimer_, &QTimer::timeout, this, [this]() {
+        auto* core = OneSevenLiveCoreManager::peekInstance();
+        if (!core || core->isShuttingDown() || deleting_) {
+            return;
+        }
+        auto* mainWindow = core->getMainWindow();
+        auto* configManager = core->getConfigManager();
+        if (!mainWindow || !configManager) {
+            return;
+        }
+        configManager->setDockState(mainWindow->saveState());
+    });
 
     createBrowser(chatUrl_);
 
@@ -43,6 +75,24 @@ OneSevenLiveChatDock::OneSevenLiveChatDock(const QString& title, const QString& 
     } else {
         loadingOverlay_->show();
     }
+
+    connect(this, &QDockWidget::topLevelChanged, this, [this](bool floating) {
+        auto syncDockedLayout = [this]() {
+            syncBrowserGeometry();
+            updateOverlayGeometry();
+        };
+
+        if (floating) {
+            QTimer::singleShot(0, this, [this]() { ensureFloatingGeometry(); });
+            QTimer::singleShot(50, this, [this]() { ensureFloatingGeometry(); });
+            schedulePersistDockState();
+            return;
+        }
+
+        QTimer::singleShot(0, this, syncDockedLayout);
+        QTimer::singleShot(50, this, syncDockedLayout);
+        schedulePersistDockState();
+    });
 }
 
 OneSevenLiveChatDock::~OneSevenLiveChatDock() = default;
@@ -98,6 +148,7 @@ void OneSevenLiveChatDock::createBrowser(const QString& url) {
 
     cefWidget_.reset(widget);
     setWidget(cefWidget_.data());
+    syncBrowserGeometry();
 
     if (qcefVersion() >= 1) {
         cefWidget_->allowAllPopups(true);
@@ -107,6 +158,85 @@ void OneSevenLiveChatDock::createBrowser(const QString& url) {
         errorLabel_->hide();
     }
     updateOverlayGeometry();
+    QTimer::singleShot(0, this, [this]() { syncBrowserGeometry(); });
+}
+
+void OneSevenLiveChatDock::syncBrowserGeometry() {
+    QWidget* content = widget();
+    if (!content) {
+        return;
+    }
+
+    content->setMinimumSize(0, 0);
+    content->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    const QRect area = contentsRect();
+    if (area.isValid() && area.size() != content->size()) {
+        content->setGeometry(area);
+        content->resize(area.size());
+    }
+    content->updateGeometry();
+}
+
+void OneSevenLiveChatDock::ensureFloatingGeometry() {
+    if (!isFloating()) {
+        return;
+    }
+
+    int targetWidth = width();
+    int targetHeight = height();
+    if (targetWidth <= minimumWidth()) {
+        targetWidth = std::max(minimumWidth(), kDefaultFloatingWidth);
+    }
+    if (targetHeight < minimumHeight()) {
+        targetHeight = std::max(minimumHeight(), kDefaultFloatingHeight);
+    }
+    if (targetWidth != width() || targetHeight != height()) {
+        resize(targetWidth, targetHeight);
+    }
+
+    QRect frame = frameGeometry();
+    bool onScreen = false;
+    const QList<QScreen*> screens = QGuiApplication::screens();
+    for (QScreen* screen : screens) {
+        if (screen && screen->availableGeometry().intersects(frame)) {
+            onScreen = true;
+            break;
+        }
+    }
+
+    if (!onScreen) {
+        QRect anchorRect;
+        if (QWidget* parent = parentWidget()) {
+            anchorRect = parent->frameGeometry();
+        } else if (!screens.isEmpty() && screens.first()) {
+            anchorRect = screens.first()->availableGeometry();
+        }
+
+        if (!anchorRect.isNull()) {
+            const int x = anchorRect.x() + (anchorRect.width() - width()) / 2;
+            const int y = anchorRect.y() + (anchorRect.height() - height()) / 2;
+            move(x, y);
+        }
+    }
+
+    show();
+    raise();
+    activateWindow();
+    syncBrowserGeometry();
+}
+
+void OneSevenLiveChatDock::schedulePersistDockState() {
+    if (!persistDockStateTimer_) {
+        return;
+    }
+
+    auto* core = OneSevenLiveCoreManager::peekInstance();
+    if (!core || core->isShuttingDown() || deleting_) {
+        return;
+    }
+
+    persistDockStateTimer_->start();
 }
 
 void OneSevenLiveChatDock::updateOverlayGeometry() {
@@ -171,6 +301,7 @@ void OneSevenLiveChatDock::showEvent(QShowEvent* event) {
     }
     if (cefWidget_) {
         cefWidget_->setVisible(true);
+        syncBrowserGeometry();
     }
     if (loadingOverlay_ && loadingOverlay_->isVisible()) {
         loadingOverlay_->raise();
@@ -179,6 +310,10 @@ void OneSevenLiveChatDock::showEvent(QShowEvent* event) {
         errorLabel_->raise();
     }
     updateOverlayGeometry();
+    if (isFloating()) {
+        ensureFloatingGeometry();
+    }
+    QTimer::singleShot(0, this, [this]() { syncBrowserGeometry(); });
 }
 
 void OneSevenLiveChatDock::hideEvent(QHideEvent* event) {
@@ -206,9 +341,20 @@ void OneSevenLiveChatDock::closeEvent(QCloseEvent* event) {
     }
 }
 
+void OneSevenLiveChatDock::moveEvent(QMoveEvent* event) {
+    QDockWidget::moveEvent(event);
+    if (isFloating()) {
+        schedulePersistDockState();
+    }
+}
+
 void OneSevenLiveChatDock::resizeEvent(QResizeEvent* event) {
     QDockWidget::resizeEvent(event);
+    syncBrowserGeometry();
     updateOverlayGeometry();
+    if (isFloating()) {
+        schedulePersistDockState();
+    }
 }
 
 void OneSevenLiveChatDock::onGiftsLoaded() {

@@ -21,7 +21,7 @@ const StatusWrap = styled.span`
   gap: 6px;
   color: #A1A9B6;
   min-width: 0;
-  max-width: 120px;
+  max-width: 92px;
 `;
 
 const SelectedStatusWrap = styled.span`
@@ -32,7 +32,7 @@ const SelectedStatusWrap = styled.span`
   margin-left: auto;
   padding-right: 24px;
   min-width: 0;
-  max-width: 120px;
+  max-width: 92px;
 `;
 
 const StatusText = styled.span`
@@ -155,9 +155,9 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
           </StatusWrap>
         ) : null
       }
-      minWidth={CHAT_HEADER_SELECT_WIDTHS.platform}
+      minWidth="0"
       maxWidth={CHAT_HEADER_SELECT_WIDTHS.platform}
-      width={CHAT_HEADER_SELECT_WIDTHS.platform}
+      width="100%"
     />
   );
 };

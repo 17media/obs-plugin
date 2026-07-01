@@ -7,8 +7,10 @@
 class QCloseEvent;
 class QHideEvent;
 class QLabel;
+class QMoveEvent;
 class QResizeEvent;
 class QShowEvent;
+class QTimer;
 class QWidget;
 
 #include "cef_panel.hpp"
@@ -29,6 +31,7 @@ class OneSevenLiveChatDock : public QDockWidget {
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
+    void moveEvent(QMoveEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
 
    private slots:
@@ -38,6 +41,9 @@ class OneSevenLiveChatDock : public QDockWidget {
     QCef* getOrCreateSharedCef() const;
     int qcefVersion() const;
     void createBrowser(const QString& url);
+    void syncBrowserGeometry();
+    void ensureFloatingGeometry();
+    void schedulePersistDockState();
     void updateOverlayGeometry();
     void shutdownBrowser();
 
@@ -47,5 +53,6 @@ class OneSevenLiveChatDock : public QDockWidget {
     QLabel* loadingLabel_ = nullptr;
     QLabel* errorLabel_ = nullptr;
     QScopedPointer<QCefWidget> cefWidget_;
+    QTimer* persistDockStateTimer_ = nullptr;
     bool deleting_{false};
 };

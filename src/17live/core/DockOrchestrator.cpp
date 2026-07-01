@@ -25,6 +25,7 @@
 
 static const int INITIAL_DOCK_WIDTH = 450;
 static const int INITIAL_DOCK_HEIGHT = 550;
+static const int INITIAL_CHAT_DOCK_WIDTH = 520;
 
 DockOrchestrator::DockOrchestrator(OneSevenLiveCoreContext* core) : core_(core) {}
 
@@ -421,7 +422,7 @@ void DockOrchestrator::handleChatRoomClicked() {
             bool hadChatStored =
                 core_->getConfigManager() ? core_->getConfigManager()->getDockVisibility("chatRoom") : false;
             if (!hadChatStored) {
-                dock->resize(INITIAL_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
+                dock->resize(INITIAL_CHAT_DOCK_WIDTH, INITIAL_DOCK_HEIGHT);
             }
             showDockAsFloating(dock, core_->getMainWindow(), false);
         }
