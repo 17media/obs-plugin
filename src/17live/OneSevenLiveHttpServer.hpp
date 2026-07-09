@@ -37,6 +37,12 @@ class OneSevenLiveHttpServer {
    private:
     std::string get_mime_type(const std::string& file_path) const;
     std::string get_file_extension(const std::string& file_path) const;
+    void serve_file(const std::filesystem::path& file_path, httplib::Response& res) const;
+    bool handle_enter_animation_cache_request(const httplib::Request& req, httplib::Response& res);
+    bool ensure_enter_animation_asset_cached(const std::string& source_url,
+                                             std::filesystem::path& cached_file_path,
+                                             std::string& error_message);
+    std::string get_enter_animation_asset_cache_dir() const;
 
     // Security-related methods
     bool is_safe_path(const std::string& path) const;
@@ -67,6 +73,7 @@ class OneSevenLiveHttpServer {
     static constexpr int RATE_LIMIT_WINDOW_SECONDS = 60;
 
     mutable std::mutex rate_limit_mutex_;
+    mutable std::mutex asset_cache_mutex_;
     std::unordered_map<std::string, std::vector<std::chrono::steady_clock::time_point>>
         rate_limit_map_;
     std::string csrf_token_;

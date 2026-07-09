@@ -79,6 +79,7 @@ class OneSevenLiveConfigManager {
     bool loadEnterAnimationFiles(json &files);
     bool saveI18nConfig(const json &i18nConfig);
     bool loadI18nConfig(json &i18nConfig);
+    std::string getConfigPath() const;
 
     // Twitch token management
     bool setTwitchTokens(const QString &accessToken, qint64 fetchedAtEpochSec);

@@ -24,6 +24,10 @@ ResultError OneSevenLiveConfigManager::getLastError() const {
     return lastError_;
 }
 
+std::string OneSevenLiveConfigManager::getConfigPath() const {
+    return configPath;
+}
+
 void OneSevenLiveConfigManager::setLastError(ResultError error) {
     std::lock_guard<std::mutex> lock(errorMutex_);
     lastError_ = std::move(error);

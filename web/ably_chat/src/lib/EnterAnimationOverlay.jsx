@@ -232,9 +232,37 @@ const AniLayer = styled.div`
   transform: none;
 `;
 
+function toCachedEnterAnimationUrl(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  if (!raw.startsWith('http://') && !raw.startsWith('https://')) return raw;
+
+  try {
+    const parsed = new URL(raw);
+    let fileName = parsed.pathname.split('/').pop() || 'asset.bin';
+    if (!fileName.includes('.')) {
+      fileName = `${fileName}.bin`;
+    }
+    return `/__17live_cache/enter_animation/${encodeURIComponent(fileName)}?src=${encodeURIComponent(raw)}`;
+  } catch {
+    return raw;
+  }
+}
+
+function normalizeRemoteEnterAnimationAsset(raw) {
+  if (!raw) return '';
+  if (raw.startsWith('/')) return raw;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    return toCachedEnterAnimationUrl(raw);
+  }
+  return raw;
+}
+
 function normalizeAssetSrc(raw) {
   if (!raw) return '';
-  if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) return raw;
+  if (raw.startsWith('/')) return raw;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    return toCachedEnterAnimationUrl(raw);
+  }
   return `/enter_animation/${raw}`;
 }
 
@@ -747,8 +775,8 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const cardBgImg = animationId >= 11 && animationId <= 13 ? cfg.cardBgImg : '';
     const cardBg = cardBgImg ? 'transparent' : cfg.bg;
     const marqueeTextColor = animationId >= 11 && animationId <= 13 ? cfg.marqueeTextColor : '#ffffff';
-    const eventTemplateUrl = isEvent14 ? enterAnimation?.eventNotifMsg?.templateURL || '' : '';
-    const eventIconUrl = isEvent14 ? enterAnimation?.eventNotifMsg?.icouURL || '' : '';
+    const eventTemplateUrl = isEvent14 ? normalizeRemoteEnterAnimationAsset(enterAnimation?.eventNotifMsg?.templateURL || '') : '';
+    const eventIconUrl = isEvent14 ? normalizeRemoteEnterAnimationAsset(enterAnimation?.eventNotifMsg?.icouURL || '') : '';
     const eventBadgeBg = eventTemplateUrl ? `url(${eventTemplateUrl})` : cfg.marqueeBg;
 
     return (

@@ -11,13 +11,19 @@
 #include <sstream>
 #include <vector>
 
+#include <QCryptographicHash>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QString>
+#include <QUrl>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
+#include "utility/RemoteTextThread.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 
 std::string OneSevenLiveHttpServer::get_file_extension(const std::string& file_path) const {
@@ -44,6 +50,8 @@ std::string OneSevenLiveHttpServer::get_mime_type(const std::string& file_path) 
         return "image/jpeg";
     if (ext == "gif")
         return "image/gif";
+    if (ext == "webp")
+        return "image/webp";
     if (ext == "svg")
         return "image/svg+xml";
     if (ext == "ico")
@@ -55,6 +63,183 @@ std::string OneSevenLiveHttpServer::get_mime_type(const std::string& file_path) 
     if (ext == "ttf")
         return "font/ttf";
     return "application/octet-stream";
+}
+
+void OneSevenLiveHttpServer::serve_file(const std::filesystem::path& file_path,
+                                        httplib::Response& res) const {
+    const std::string file_path_str = file_path.string();
+
+    try {
+        if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
+            res.status = 404;
+            res.set_content("Not Found", "text/plain");
+            return;
+        }
+
+        std::ifstream ifs(file_path_str, std::ios::in | std::ios::binary);
+        if (!ifs.is_open() || !ifs.good()) {
+            obs_log(LOG_ERROR, "[%s] Failed to open file: %s", name_.c_str(), file_path_str.c_str());
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
+            return;
+        }
+
+        std::string content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+        if (ifs.bad()) {
+            obs_log(LOG_ERROR, "[%s] Error reading file: %s", name_.c_str(), file_path_str.c_str());
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
+            return;
+        }
+
+        res.set_content(content, get_mime_type(file_path_str).c_str());
+    } catch (const std::filesystem::filesystem_error& e) {
+        obs_log(LOG_ERROR, "[%s] Filesystem error for %s: %s", name_.c_str(), file_path_str.c_str(),
+                e.what());
+        res.status = 500;
+        res.set_content("Internal Server Error", "text/plain");
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[%s] Exception serving file %s: %s", name_.c_str(), file_path_str.c_str(),
+                e.what());
+        res.status = 500;
+        res.set_content("Internal Server Error", "text/plain");
+    }
+}
+
+std::string OneSevenLiveHttpServer::get_enter_animation_asset_cache_dir() const {
+    auto* coreManager = OneSevenLiveCoreManager::peekInstance();
+    if (!coreManager) {
+        return "";
+    }
+
+    auto* configManager = coreManager->getConfigManager();
+    if (!configManager) {
+        return "";
+    }
+
+    const std::string config_path = configManager->getConfigPath();
+    if (config_path.empty()) {
+        return "";
+    }
+
+    return (std::filesystem::path(config_path) / "enter_animation_assets").string();
+}
+
+bool OneSevenLiveHttpServer::ensure_enter_animation_asset_cached(
+    const std::string& source_url, std::filesystem::path& cached_file_path, std::string& error_message) {
+    const QUrl url(QString::fromStdString(source_url));
+    if (!url.isValid() || url.host().isEmpty() ||
+        (url.scheme() != "https" && url.scheme() != "http")) {
+        error_message = "Invalid remote asset URL";
+        return false;
+    }
+
+    const std::string cache_dir = get_enter_animation_asset_cache_dir();
+    if (cache_dir.empty()) {
+        error_message = "Config cache directory unavailable";
+        return false;
+    }
+
+    QDir dir(QString::fromStdString(cache_dir));
+    if (!dir.exists() && !dir.mkpath(".")) {
+        error_message = "Failed to create asset cache directory";
+        return false;
+    }
+
+    QString suffix = QFileInfo(url.path()).suffix().toLower();
+    if (suffix.isEmpty()) {
+        suffix = "bin";
+    }
+
+    const QByteArray hash =
+        QCryptographicHash::hash(QByteArray::fromStdString(source_url), QCryptographicHash::Md5)
+            .toHex();
+    const QString file_name = QString("%1.%2").arg(QString::fromLatin1(hash), suffix);
+    const QString file_path = dir.filePath(file_name);
+    cached_file_path = std::filesystem::path(file_path.toStdString());
+
+    std::lock_guard<std::mutex> lock(asset_cache_mutex_);
+
+    const QFileInfo cache_info(file_path);
+    if (cache_info.exists() && cache_info.isFile() && cache_info.size() > 0) {
+        return true;
+    }
+
+    std::string content;
+    std::string download_error;
+    long response_code = 0;
+    const bool success =
+        GetRemoteFile(source_url.c_str(), content, download_error, &response_code, nullptr, "GET",
+                      nullptr, {}, nullptr, 20, true);
+    if (!success || response_code < 200 || response_code >= 300 || content.empty()) {
+        std::ostringstream ss;
+        ss << "Failed to download remote asset";
+        if (response_code > 0) {
+            ss << " (HTTP " << response_code << ")";
+        }
+        if (!download_error.empty()) {
+            ss << ": " << download_error;
+        }
+        error_message = ss.str();
+        return false;
+    }
+
+    const QString temp_file_path = file_path + ".part";
+    QFile::remove(temp_file_path);
+
+    QFile file(temp_file_path);
+    if (!file.open(QIODevice::WriteOnly)) {
+        error_message = "Failed to write cached asset";
+        return false;
+    }
+    if (file.write(content.data(), static_cast<qint64>(content.size())) !=
+        static_cast<qint64>(content.size())) {
+        file.close();
+        QFile::remove(temp_file_path);
+        error_message = "Failed to persist cached asset";
+        return false;
+    }
+    file.close();
+
+    QFile::remove(file_path);
+    if (!QFile::rename(temp_file_path, file_path)) {
+        QFile::remove(temp_file_path);
+        error_message = "Failed to finalize cached asset";
+        return false;
+    }
+
+    obs_log(LOG_INFO, "[%s] Cached enter animation asset: %s -> %s", name_.c_str(),
+            source_url.c_str(), file_path.toStdString().c_str());
+    return true;
+}
+
+bool OneSevenLiveHttpServer::handle_enter_animation_cache_request(const httplib::Request& req,
+                                                                  httplib::Response& res) {
+    static const std::string kCacheRoutePrefix = "/__17live_cache/enter_animation/";
+    if (req.path.rfind(kCacheRoutePrefix, 0) != 0) {
+        return false;
+    }
+
+    if (!req.has_param("src")) {
+        res.status = 400;
+        res.set_content("Missing src parameter", "text/plain");
+        return true;
+    }
+
+    const std::string source_url = req.get_param_value("src");
+    std::filesystem::path cached_file_path;
+    std::string error_message;
+    if (!ensure_enter_animation_asset_cached(source_url, cached_file_path, error_message)) {
+        obs_log(LOG_WARNING, "[%s] Failed to cache enter animation asset %s: %s", name_.c_str(),
+                source_url.c_str(), error_message.c_str());
+        res.status = 502;
+        res.set_content(error_message, "text/plain");
+        return true;
+    }
+
+    res.set_header("Cache-Control", "public, max-age=31536000, immutable");
+    serve_file(cached_file_path, res);
+    return true;
 }
 
 OneSevenLiveHttpServer::OneSevenLiveHttpServer(const std::string& host, int port,
@@ -134,6 +319,10 @@ bool OneSevenLiveHttpServer::start() {
             path = "/index.html";
         }
 
+        if (handle_enter_animation_cache_request(req, res)) {
+            return;
+        }
+
         // Security check: path validation
         if (!is_safe_path(path)) {
             res.status = 403;
@@ -143,43 +332,7 @@ bool OneSevenLiveHttpServer::start() {
 
         // Serve the file
         std::filesystem::path file_path = std::filesystem::path(base_dir_) / path.substr(1);
-        std::string file_path_str = file_path.string();
-
-        try {
-            if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path)) {
-                std::ifstream ifs(file_path_str, std::ios::in | std::ios::binary);
-                if (ifs.is_open() && ifs.good()) {
-                    std::string content((std::istreambuf_iterator<char>(ifs)),
-                                        (std::istreambuf_iterator<char>()));
-                    if (ifs.bad()) {
-                        obs_log(LOG_ERROR, "[%s] Error reading file: %s", name_.c_str(),
-                                file_path_str.c_str());
-                        res.status = 500;
-                        res.set_content("Internal Server Error", "text/plain");
-                    } else {
-                        res.set_content(content, get_mime_type(file_path_str).c_str());
-                    }
-                } else {
-                    obs_log(LOG_ERROR, "[%s] Failed to open file: %s", name_.c_str(),
-                            file_path_str.c_str());
-                    res.status = 500;
-                    res.set_content("Internal Server Error", "text/plain");
-                }
-            } else {
-                res.status = 404;
-                res.set_content("Not Found", "text/plain");
-            }
-        } catch (const std::filesystem::filesystem_error& e) {
-            obs_log(LOG_ERROR, "[%s] Filesystem error for %s: %s", name_.c_str(),
-                    file_path_str.c_str(), e.what());
-            res.status = 500;
-            res.set_content("Internal Server Error", "text/plain");
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "[%s] Exception serving file %s: %s", name_.c_str(),
-                    file_path_str.c_str(), e.what());
-            res.status = 500;
-            res.set_content("Internal Server Error", "text/plain");
-        }
+        serve_file(file_path, res);
     });
 
     // Provide index.html by default

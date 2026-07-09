@@ -33,7 +33,8 @@ function saveToStorage(src, durationMs) {
 
 export async function getWebpDurationMs(src) {
   if (!src || typeof src !== 'string') return null;
-  if (!src.toLowerCase().endsWith('.webp')) return null;
+  const normalizedSrc = src.split('?')[0].toLowerCase();
+  if (!normalizedSrc.endsWith('.webp')) return null;
 
   const cached = mem.get(src);
   if (typeof cached === 'number') return cached;
@@ -79,4 +80,3 @@ export async function getWebpDurationMs(src) {
   mem.set(src, v || null);
   return v || null;
 }
-
