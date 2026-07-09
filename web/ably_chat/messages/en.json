@@ -27,7 +27,7 @@
     "label": "Platform Selection",
     "platforms": {
       "all": "All",
-      "17live": "17live",
+      "17live": "17LIVE",
       "youtube": "YouTube",
       "twitch": "Twitch"
     },

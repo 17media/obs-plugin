@@ -6,7 +6,7 @@
     "GIVE_GIFT_DEFAULT": "送了一個禮物 ({point})",
     "EVENT_POINTS_SUFFIX": "(+{eventPoint} 活動點數)",
     "EMPTY_CHAT_MESSAGE": "觀眾留言會出現在這裡，和大家互動吧！",
-    "FONT_SIZE_LABEL": "字號",
+    "FONT_SIZE_LABEL": "字體大小",
     "FONT_SIZE_LARGE": "大",
     "FONT_SIZE_MEDIUM": "中",
     "FONT_SIZE_SMALL": "小",
@@ -27,7 +27,7 @@
     "label": "平台選擇",
     "platforms": {
       "all": "全部",
-      "17live": "17live",
+      "17live": "17LIVE",
       "youtube": "YouTube",
       "twitch": "Twitch"
     },

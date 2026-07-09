@@ -14,7 +14,7 @@
     "LIKE_STREAMER": "ライバーに「いいね」しました",
     "POKE_ONE": "ライバーが {receiverName} にPokeしました",
     "POKE_BACK": "がPokeを返しました",
-    "POKE_ALL": "ライバーが 全て にPokeしました",
+    "POKE_ALL": "ライバーが全員にPokeしました",
     "enter_is_here": "{name}さんが来たよ！",
     "guardian_entry_animation_message": "ガーディアン",
     "producer_enterroom": "{name} 参上！",
@@ -27,7 +27,7 @@
     "label": "プラットフォーム選択",
     "platforms": {
       "all": "すべて",
-      "17live": "17live",
+      "17live": "17LIVE",
       "youtube": "YouTube",
       "twitch": "Twitch"
     },
