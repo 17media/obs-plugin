@@ -49,6 +49,7 @@ namespace {
     constexpr uint32_t kLandscapeOutputHeight = 720;
     constexpr int kSuggestedVideoBitrateKbps = 2500;
     constexpr const char* kConfigKeyAutoAdjustDontRemind = "ObsAutoAdjustDontRemind";
+    constexpr const char* kConfigKeyAutoAdjustSilentApply = "ObsAutoAdjustSilentApply";
 
     static void SyncPreviewDockLayoutToObsCanvas() {
         OneSevenLiveCoreManager::getInstance().syncPreviewDockLayoutToObsCanvas();
@@ -1151,11 +1152,11 @@ void OneSevenLiveStreamingDock::createConnections() {
 
     connect(portraitStreamRadio, &QRadioButton::clicked, this, [this]() {
         obsAutoAdjustPromptShown = false;
-        maybePromptObsAutoAdjust(false);
+        maybePromptObsAutoAdjust(true);
     });
     connect(landscapeStreamRadio, &QRadioButton::clicked, this, [this]() {
         obsAutoAdjustPromptShown = false;
-        maybePromptObsAutoAdjust(false);
+        maybePromptObsAutoAdjust(true);
     });
 
     // Army-only viewing collapse/expand button
@@ -1382,7 +1383,7 @@ void OneSevenLiveStreamingDock::onCreateLiveClicked() {
         return;
     }
 
-    maybePromptObsAutoAdjust(false);
+    maybePromptObsAutoAdjust(true);
     startCreateLiveSequence(request);
 }
 
@@ -1653,7 +1654,6 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
 }
 
 void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) {
-    Q_UNUSED(allowSilentApply);
     if (obsAutoAdjustPromptShown) {
         return;
     }
@@ -1683,15 +1683,31 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
         return;
     }
 
-    bool dontRemind = false;
-    if (configManager) {
-        std::string v;
-        if (configManager->getConfigValue(kConfigKeyAutoAdjustDontRemind, v)) {
-            dontRemind = v == "true";
+    const auto applyCurrentSelection = [this, targetBaseW, targetBaseH, targetOutW,
+                                        targetOutH]() -> bool {
+        const bool ok = applyObsProfileVideoSettings(targetBaseW, targetBaseH, targetOutW,
+                                                     targetOutH, kSuggestedVideoBitrateKbps);
+        if (!ok) {
+            OneSevenLiveObsAutoAdjustDialog::ShowError(
+                this, obs_module_text("Live.Settings.AutoAdjust.Error"));
+            return false;
         }
+
+        SyncPreviewDockLayoutToObsCanvas();
+        return true;
+    };
+
+    bool dontRemind = false;
+    bool silentApply = false;
+    if (configManager) {
+        dontRemind = configManager->getBoolValue(kConfigKeyAutoAdjustDontRemind, false);
+        silentApply = configManager->getBoolValue(kConfigKeyAutoAdjustSilentApply, false);
     }
 
     if (dontRemind) {
+        if (allowSilentApply && silentApply) {
+            applyCurrentSelection();
+        }
         return;
     }
 
@@ -1713,23 +1729,16 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
 
     const auto result = OneSevenLiveObsAutoAdjustDialog::ShowPrompt(this, message, false);
     if (configManager) {
-        configManager->setConfigValue(kConfigKeyAutoAdjustDontRemind,
-                                      result.dontRemind ? "true" : "false");
+        configManager->setBoolValue(kConfigKeyAutoAdjustDontRemind, result.dontRemind);
+        configManager->setBoolValue(kConfigKeyAutoAdjustSilentApply,
+                                    result.dontRemind && result.confirmed);
     }
 
     if (!result.confirmed) {
         return;
     }
 
-    const bool ok = applyObsProfileVideoSettings(targetBaseW, targetBaseH, targetOutW, targetOutH,
-                                                 kSuggestedVideoBitrateKbps);
-    if (!ok) {
-        OneSevenLiveObsAutoAdjustDialog::ShowError(
-            this, obs_module_text("Live.Settings.AutoAdjust.Error"));
-        return;
-    }
-
-    SyncPreviewDockLayoutToObsCanvas();
+    applyCurrentSelection();
 }
 
 static bool EncoderTypeExists(const char *encoderId) {
