@@ -22,6 +22,31 @@ constexpr bool IsYouTubeEnabled()
     return false;
 #endif
 }
+
+bool HasConfiguredPlatform(const std::vector<OneSevenLiveMultiRtmpConfig>& configs,
+                           const std::string& platformName)
+{
+    for (const auto& cfg : configs) {
+        std::string name = cfg.streamName;
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+        if (name == platformName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool CanAddNewStreamConfig(const std::vector<OneSevenLiveMultiRtmpConfig>& configs)
+{
+    const bool hasTwitch = HasConfiguredPlatform(configs, "twitch");
+    const bool hasYouTube = HasConfiguredPlatform(configs, "youtube");
+
+    if (!hasTwitch) {
+        return true;
+    }
+
+    return IsYouTubeEnabled() && !hasYouTube;
+}
 }  // namespace
 
 OneSevenLiveMultiRtmpDock::OneSevenLiveMultiRtmpDock(QWidget* parent)
@@ -432,6 +457,18 @@ void OneSevenLiveMultiRtmpDock::updateStreamStats(const std::string& streamId,
 }
 
 void OneSevenLiveMultiRtmpDock::onAddStreamClicked() {
+    if (!ensureManagerInitialized()) {
+        return;
+    }
+
+    const auto configs = m_manager->getAllStreamConfigs();
+    if (!CanAddNewStreamConfig(configs)) {
+        obs_log(LOG_INFO,
+                "[MultiRTMP-Dock] Add stream blocked because no enabled platform is available");
+        updateButtonStates();
+        return;
+    }
+
     showConfigDialog();
 }
 
@@ -629,21 +666,15 @@ void OneSevenLiveMultiRtmpDock::updateButtonStates() {
         m_stopAllButton->setText(QString::fromUtf8(obs_module_text("MultiRTMP.Dock.StopAll")));
     }
 
-    bool hasYouTube = false;
-    bool hasTwitch = false;
+    bool canAddStream = false;
     if (!OneSevenLiveCoreManager::getInstance().isShuttingDown() && ensureManagerInitialized()) {
         auto configs = m_manager->getAllStreamConfigs();
-        for (const auto& cfg : configs) {
-            std::string n = cfg.streamName;
-            std::transform(n.begin(), n.end(), n.begin(), ::tolower);
-            if (IsYouTubeEnabled() && n == std::string("youtube"))
-                hasYouTube = true;
-            else if (n == std::string("twitch"))
-                hasTwitch = true;
-        }
+        canAddStream = CanAddNewStreamConfig(configs);
     }
-    if (m_addStreamButton)
-        m_addStreamButton->setVisible(!(hasYouTube && hasTwitch));
+    if (m_addStreamButton) {
+        m_addStreamButton->setVisible(true);
+        m_addStreamButton->setEnabled(canAddStream);
+    }
 }
 
 void OneSevenLiveMultiRtmpDock::showConfigDialog(const OneSevenLiveMultiRtmpConfig& config) {

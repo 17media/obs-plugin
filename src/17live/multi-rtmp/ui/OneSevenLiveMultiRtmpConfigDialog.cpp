@@ -1018,6 +1018,13 @@ void OneSevenLiveMultiRtmpConfigDialog::updateAuthorizeButtonState() {
     }
 
     const QString channel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
+    if (channel.isEmpty()) {
+        m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Authorize"));
+        m_authorizeButton->setEnabled(false);
+        if (m_serviceWidget)
+            m_serviceWidget->setVisible(true);
+        return;
+    }
 
     bool isAuthorized = false;
     if (channel == "YouTube") {
@@ -1065,6 +1072,11 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
                 throw std::runtime_error("Stream name combo widget is null");
             }
             config.streamName = m_streamNameCombo->currentText().toStdString();
+            if (config.streamName.empty()) {
+                obs_log(LOG_ERROR,
+                        "[MultiRTMP-ConfigDialog] Cannot save config because stream name is empty");
+                throw std::runtime_error("No available stream platform");
+            }
         }
         obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] RTMP channel (stream name): '%s'",
                 config.streamName.c_str());
