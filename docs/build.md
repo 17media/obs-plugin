@@ -4,10 +4,16 @@ This guide will walk you through the process of building the OBS 17LIVE plugin f
 
 ## build chat room app first
 
+`ENABLE_YOUTUBE` defaults to `false`. Only when it is explicitly set to `true` will the web chat
+show the YouTube channel and the plugin expose YouTube-related multi-RTMP functionality.
+
 ```bash
 cd web/ably_chat
 npm install
 npm run build
+
+# Enable YouTube explicitly when needed
+ENABLE_YOUTUBE=true npm run build
 ```
 
 **Note: run `cmake --build --preset [macos|windows-x64]` after rebuilding the chat room app so the
@@ -31,6 +37,10 @@ Then build the plugin:
 ```bash
 cmake --preset windows-x64
 cmake --build --preset windows-x64 --config RelWithDebInfo
+
+# Enable YouTube explicitly when needed
+cmake --preset windows-x64 -DENABLE_YOUTUBE=ON
+cmake --build --preset windows-x64 --config RelWithDebInfo
 ```
 
 Then open the generated solution file `build_x64\obs-17live.sln` in Visual Studio. Build the plugin. 
@@ -45,6 +55,10 @@ Build the plugin with `Release` (the installer script defaults to `build_x64\run
 
 ```powershell
 cmake --preset windows-x64
+cmake --build --preset windows-x64 --config Release
+
+# Enable YouTube explicitly when needed
+cmake --preset windows-x64 -DENABLE_YOUTUBE=ON
 cmake --build --preset windows-x64 --config Release
 
 pwsh -ExecutionPolicy Bypass -File package/windows/build-installer.ps1 -Version "v1.2.3"
@@ -71,6 +85,10 @@ Then build the plugin (default preset builds a Universal binary):
 ```bash
 cmake --preset macos
 cmake --build --preset macos --config RelWithDebInfo
+
+# Enable YouTube explicitly when needed
+cmake --preset macos -DENABLE_YOUTUBE=ON
+cmake --build --preset macos --config RelWithDebInfo
 ```
 
 Then open the generated Xcode project `build_macos/obs-17live.xcodeproj`. Build the plugin.
@@ -82,6 +100,10 @@ Build a `.pkg` (installer) and a `-non-installer.zip` locally:
 ```bash
 CONFIG=Release
 
+cmake --build --preset macos --config "$CONFIG"
+
+# Enable YouTube explicitly when needed
+cmake --preset macos -DENABLE_YOUTUBE=ON
 cmake --build --preset macos --config "$CONFIG"
 
 INSTALL_PREFIX="$PWD/dist-install"
@@ -103,6 +125,8 @@ The zip contains `obs-17live.plugin`; extract and copy it into the same director
 
 ## CI / Release Packaging
 
+Detailed CI variable / environment setup is documented in `docs/ci-configuration.md`.
+
 - There are no `*-prod` presets. CI uses the same presets and injects environment-specific values
   via `-D` arguments and GitHub Actions environment variables.
 - The Steam version of OBS is essentially OBS Studio. To ensure compatibility with both the official and Steam versions, the installer no longer relies on OBS’s installation directory; instead, it installs into OBS’s user plugin directory (which OBS automatically scans).
@@ -110,14 +134,20 @@ The zip contains `obs-17live.plugin`; extract and copy it into the same director
   - `ONESEVENLIVE_API_URL` (GitHub Actions env/vars)
   - `CMAKE_PROJECT_VERSION` (derived from git tag or workflow input)
   - `YOUTUBE_API_CLIENT_ID`, `YOUTUBE_API_CLIENT_SECRET`, `TWITCH_API_CLIENT_ID` (vars)
+  - `ENABLE_YOUTUBE` (`ON` to enable, otherwise defaults to `OFF`)
 
 ```bash
 cmake --preset macos \
+  -DENABLE_YOUTUBE="$ENABLE_YOUTUBE" \
   -DYOUTUBE_API_CLIENT_ID="$YOUTUBE_API_CLIENT_ID" \
   -DYOUTUBE_API_CLIENT_SECRET="$YOUTUBE_API_CLIENT_SECRET" \
   -DTWITCH_API_CLIENT_ID="$TWITCH_API_CLIENT_ID" \
   -DONESEVENLIVE_API_URL="$ONESEVENLIVE_API_URL" \
   -DCMAKE_PROJECT_VERSION="$VERSION"
+
+cd web/ably_chat
+ENABLE_YOUTUBE="${ENABLE_YOUTUBE:-false}" npm run build
+cd ../..
 
 cmake --build --preset macos --config Release
 
@@ -129,13 +159,20 @@ cmake --install build_macos --config Release --prefix "$PWD/dist-install"
 #   ~/Library/Application Support/obs-studio/plugins
 
 cmake --preset windows-x64 ^
+  -DENABLE_YOUTUBE="%ENABLE_YOUTUBE%" ^
   -DYOUTUBE_API_CLIENT_ID="%YOUTUBE_API_CLIENT_ID%" ^
   -DYOUTUBE_API_CLIENT_SECRET="%YOUTUBE_API_CLIENT_SECRET%" ^
   -DTWITCH_API_CLIENT_ID="%TWITCH_API_CLIENT_ID%" ^
   -DONESEVENLIVE_API_URL="%ONESEVENLIVE_API_URL%" ^
   -DCMAKE_PROJECT_VERSION="%VERSION%"
 
+cd web/ably_chat
+set ENABLE_YOUTUBE=%ENABLE_YOUTUBE%
+npm run build
+cd ..\..
+
 cmake --build --preset windows-x64 --config Release
+
 # Windows installer is built from package/windows and installs into:
 # %ProgramData%\obs-studio\plugins\obs-17live
 # CI also exports non-installer zip containing:

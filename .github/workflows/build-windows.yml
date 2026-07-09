@@ -22,6 +22,11 @@ on:
         required: false
         default: "0.0.0"
         type: string
+      enable_youtube:
+        description: "Enable YouTube support"
+        required: false
+        default: false
+        type: boolean
 
 env:
   CMAKE_MINIMUM_VERSION: '3.28'
@@ -36,6 +41,7 @@ jobs:
       ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
       VERSION: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) && github.ref_name || github.event.inputs.version || '0.0.0' }}
       BUILD_ENV: ${{ github.event_name == 'push' && (contains(github.ref_name, '-stage') && 'stage' || 'production') || github.event.inputs.environment || 'stage' }}
+      ENABLE_YOUTUBE: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.enable_youtube == 'true' && 'true' || 'false')) || vars.ENABLE_YOUTUBE || 'false' }}
     
     steps:
       - name: Checkout
@@ -48,6 +54,7 @@ jobs:
           Write-Host "ONESEVENLIVE_API_URL: $env:ONESEVENLIVE_API_URL"
           Write-Host "BUILD_ENV: $env:BUILD_ENV"
           Write-Host "VERSION: $env:VERSION"
+          Write-Host "ENABLE_YOUTUBE: $env:ENABLE_YOUTUBE"
           Write-Host "Tag name: ${{ github.ref_name }}"
           Write-Host "Manual version input: ${{ github.event.inputs.version }}"
       
@@ -88,6 +95,7 @@ jobs:
           } else {
             Write-Host "Skipping npm install (dependencies restored from cache)"
           }
+          $env:ENABLE_YOUTUBE = if ($env:ENABLE_YOUTUBE -eq "true") { "true" } else { "false" }
           npm run build
 
       - name: Install and Build Ably Client
@@ -152,7 +160,8 @@ jobs:
           TWITCH_API_CLIENT_ID: ${{ vars.TWITCH_API_CLIENT_ID }}
           ONESEVENLIVE_API_URL: ${{ vars.ONESEVENLIVE_API_URL }}
         run: |
-          cmake --preset windows-x64 -DYOUTUBE_API_CLIENT_ID="$env:YOUTUBE_API_CLIENT_ID" -DYOUTUBE_API_CLIENT_SECRET="$env:YOUTUBE_API_CLIENT_SECRET" -DTWITCH_API_CLIENT_ID="$env:TWITCH_API_CLIENT_ID" -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
+          $enableYoutube = if ($env:ENABLE_YOUTUBE -eq "true") { "ON" } else { "OFF" }
+          cmake --preset windows-x64 -DENABLE_YOUTUBE="$enableYoutube" -DYOUTUBE_API_CLIENT_ID="$env:YOUTUBE_API_CLIENT_ID" -DYOUTUBE_API_CLIENT_SECRET="$env:YOUTUBE_API_CLIENT_SECRET" -DTWITCH_API_CLIENT_ID="$env:TWITCH_API_CLIENT_ID" -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
       
       - name: Build Project
         shell: pwsh

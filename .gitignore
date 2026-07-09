@@ -137,3 +137,4 @@ __pycache__/
 output/
 web/ably_chat/messages/en.d.json.ts
 trash_rm_scripts/
+docs/ci-configuration.md

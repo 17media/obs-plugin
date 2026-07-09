@@ -4,6 +4,7 @@ import { OneSevenLivePlatform } from '../platforms/17live/core/OneSevenLivePlatf
 import { TwitchPlatform } from '../platforms/twitch/core/TwitchPlatform';
 import { YouTubePlatform } from '../platforms/youtube/core/YouTubePlatform';
 import { sendWSMessage } from './WSSender';
+import { ENABLE_YOUTUBE } from '@/lib/features';
 
 /**
  * Unified message aggregation manager
@@ -44,7 +45,7 @@ export class MessageAggregator extends EventEmitter {
     this.platformHandlers = {
       '17live': OneSevenLivePlatform,
       'twitch': TwitchPlatform,
-      'youtube': YouTubePlatform,
+      ...(ENABLE_YOUTUBE ? { 'youtube': YouTubePlatform } : {}),
     };
     
     this.initialize();

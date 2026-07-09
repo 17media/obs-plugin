@@ -5,6 +5,7 @@
  */
 import { EventEmitter } from 'events';
 import { messageAggregator } from './MessageAggregator';
+import { ENABLE_YOUTUBE } from '@/lib/features';
 
 class WebSocketManager extends EventEmitter {
   constructor() {
@@ -191,7 +192,8 @@ class WebSocketManager extends EventEmitter {
             }
           })
           .catch(() => {});
-      } else if (type === 'youtube_chat_connected' || type === 'youtube_chat_message') {
+      } else if (ENABLE_YOUTUBE &&
+        (type === 'youtube_chat_connected' || type === 'youtube_chat_message')) {
         const ensure = () => {
           const platform = messageAggregator.platforms?.get('youtube');
           if (!platform) return messageAggregator.addPlatform('youtube', {}).then(() => messageAggregator.platforms.get('youtube'));

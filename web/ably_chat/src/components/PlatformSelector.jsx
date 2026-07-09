@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useTranslations } from 'next-intl';
 import PopoverSelect from './PopoverSelect';
 import { CHAT_HEADER_SELECT_WIDTHS } from './selectWidths';
+import { ENABLE_YOUTUBE } from '@/lib/features';
 
 const StatusDot = styled.span`
   display: inline-block;
@@ -51,7 +52,7 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
     { id: 'all', name: t('platforms.all') },
     { id: '17live', name: t('platforms.17live') },
     { id: 'twitch', name: t('platforms.twitch') },
-    { id: 'youtube', name: t('platforms.youtube') },
+    ...(ENABLE_YOUTUBE ? [{ id: 'youtube', name: t('platforms.youtube') }] : []),
   ];
 
   const statusText = (platformId) => {
@@ -105,7 +106,7 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
         if (!statusMap || !statusMap['17live']) {
           await messageAggregator.addPlatform('17live', {});
         }
-        if (!statusMap || !statusMap['youtube']) {
+        if (ENABLE_YOUTUBE && (!statusMap || !statusMap['youtube'])) {
           await messageAggregator.addPlatform('youtube', {});
         }
       } catch { }
@@ -118,10 +119,12 @@ export const PlatformSelector = ({ onSelectionChange, messageAggregator }) => {
         ...prev,
         twitch: { ...(prev.twitch || {}), status: 'disconnected' },
       }));
-      setPlatformsStatus(prev => ({
-        ...prev,
-        youtube: { ...(prev.youtube || {}), status: 'disconnected' },
-      }));
+      if (ENABLE_YOUTUBE) {
+        setPlatformsStatus(prev => ({
+          ...prev,
+          youtube: { ...(prev.youtube || {}), status: 'disconnected' },
+        }));
+      }
 
       updateSelection('all');
     })();

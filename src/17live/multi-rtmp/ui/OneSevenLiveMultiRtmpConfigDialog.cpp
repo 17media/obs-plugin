@@ -26,6 +26,17 @@
 #include "utility/Common.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
 
+namespace {
+constexpr bool IsYouTubeEnabled()
+{
+#if ENABLE_YOUTUBE
+    return true;
+#else
+    return false;
+#endif
+}
+}  // namespace
+
 OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
     QWidget* parent, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config, bool isEditMode)
     : QDialog(parent),
@@ -226,7 +237,7 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
         m_streamNameCombo->addItem(QString::fromStdString(m_config->streamName));
         m_streamNameCombo->setEnabled(false);
     } else {
-        if (!hasYouTube)
+        if (IsYouTubeEnabled() && !hasYouTube)
             m_streamNameCombo->addItem("YouTube");
         if (!hasTwitch)
             m_streamNameCombo->addItem("Twitch");

@@ -7,10 +7,15 @@ const withNextIntl = createNextIntlPlugin({
   }
 });
 
+const enableYouTube = process.env.ENABLE_YOUTUBE === 'true';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   compiler: {
     styledComponents: true
+  },
+  env: {
+    NEXT_PUBLIC_ENABLE_YOUTUBE: enableYouTube ? 'true' : 'false'
   }
 };
 

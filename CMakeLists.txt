@@ -6,6 +6,7 @@ project(${_name} VERSION ${_version})
 
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" OFF)
 option(ENABLE_QT "Use Qt functionality" OFF)
+option(ENABLE_YOUTUBE "Enable YouTube-related functionality" OFF)
 option(USE_STATIC_MSVC_RUNTIME "Use static MSVC runtime library (/MT) instead of dynamic (/MD)" ON)
 option(ENABLE_TESTS "Build unit tests" OFF)
 
@@ -106,6 +107,9 @@ endif()
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wno-newline-eof -Wno-error=newline-eof>
   $<$<CXX_COMPILER_ID:GNU>:-Wno-eof-newline -Wno-error=eof-newline>
+)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+  ENABLE_YOUTUBE=$<BOOL:${ENABLE_YOUTUBE}>
 )
 
 foreach(_v IN ITEMS ONESEVENLIVE_API_URL YOUTUBE_API_CLIENT_ID YOUTUBE_API_CLIENT_SECRET TWITCH_API_CLIENT_ID)

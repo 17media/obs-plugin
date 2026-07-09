@@ -6,6 +6,10 @@ parameters:
     type: string
     default: "0.0.0"
     description: "Version number for manual builds (e.g., 1.0.0)"
+  enable_youtube:
+    type: boolean
+    default: false
+    description: "Enable YouTube support for web and plugin builds"
 
 # Import orbs for different platforms
 orbs:
@@ -31,6 +35,7 @@ jobs:
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
       VERSION: << pipeline.parameters.version >>
+      ENABLE_YOUTUBE: << pipeline.parameters.enable_youtube >>
     steps:
       - checkout
       
@@ -61,6 +66,11 @@ jobs:
             # Save environment variables for subsequent steps
             echo "export BUILD_ENV=\"$BUILD_ENV\"" >> $BASH_ENV
             echo "export ONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\"" >> $BASH_ENV
+            if [ "$ENABLE_YOUTUBE" = "true" ]; then
+              echo "export ENABLE_YOUTUBE=true" >> $BASH_ENV
+            else
+              echo "export ENABLE_YOUTUBE=false" >> $BASH_ENV
+            fi
 
       
       # Install dependencies
@@ -133,6 +143,7 @@ jobs:
           command: |
             cd web/ably_chat
             npm install
+            export ENABLE_YOUTUBE="${ENABLE_YOUTUBE:-false}"
             npm run build
       
       # Set environment variables and version
@@ -165,7 +176,11 @@ jobs:
       - run:
           name: CMake Configure
           command: |
-            CMAKE_ARGS="-DYOUTUBE_API_CLIENT_ID=\"$YOUTUBE_API_CLIENT_ID\" -DYOUTUBE_API_CLIENT_SECRET=\"$YOUTUBE_API_CLIENT_SECRET\" -DTWITCH_API_CLIENT_ID=\"$TWITCH_API_CLIENT_ID\" -DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
+            ENABLE_YOUTUBE_CMAKE=OFF
+            if [ "${ENABLE_YOUTUBE:-false}" = "true" ]; then
+              ENABLE_YOUTUBE_CMAKE=ON
+            fi
+            CMAKE_ARGS="-DENABLE_YOUTUBE=\"$ENABLE_YOUTUBE_CMAKE\" -DYOUTUBE_API_CLIENT_ID=\"$YOUTUBE_API_CLIENT_ID\" -DYOUTUBE_API_CLIENT_SECRET=\"$YOUTUBE_API_CLIENT_SECRET\" -DTWITCH_API_CLIENT_ID=\"$TWITCH_API_CLIENT_ID\" -DONESEVENLIVE_API_URL=\"$ONESEVENLIVE_API_URL\" -DCMAKE_PROJECT_VERSION=\"$VERSION\""
             
             # Add architecture parameter if specified
             if [ -n "<< parameters.cmake_arch >>" ]; then
@@ -275,6 +290,7 @@ jobs:
       size: medium
     environment:
       VERSION: << pipeline.parameters.version >>
+      ENABLE_YOUTUBE: << pipeline.parameters.enable_youtube >>
     steps:
       - checkout
       
@@ -306,10 +322,13 @@ jobs:
             # Save environment variables for subsequent steps
             echo "BUILD_ENV=$env:BUILD_ENV" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
             echo "ONESEVENLIVE_API_URL=$env:ONESEVENLIVE_API_URL" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
+            $enableYoutube = if ($env:ENABLE_YOUTUBE -eq "True" -or $env:ENABLE_YOUTUBE -eq "true") { "true" } else { "false" }
+            echo "ENABLE_YOUTUBE=$enableYoutube" | Out-File -FilePath $env:BASH_ENV -Encoding utf8 -Append
             
             # Also set as machine-level environment variables for PowerShell sessions
             [Environment]::SetEnvironmentVariable("BUILD_ENV", $env:BUILD_ENV, "Machine")
             [Environment]::SetEnvironmentVariable("ONESEVENLIVE_API_URL", $env:ONESEVENLIVE_API_URL, "Machine")
+            [Environment]::SetEnvironmentVariable("ENABLE_YOUTUBE", $enableYoutube, "Machine")
             
             Write-Host "Environment set to: $env:BUILD_ENV"
             Write-Host "API URL set to: $env:ONESEVENLIVE_API_URL"
@@ -405,6 +424,7 @@ jobs:
           command: |
             cd web/ably_chat
             npm install
+            $env:ENABLE_YOUTUBE = if ($env:ENABLE_YOUTUBE -eq "true") { "true" } else { "false" }
             npm run build
       
       # Set environment variables and version
@@ -444,7 +464,8 @@ jobs:
       - run:
           name: CMake Configure
           command: |
-            cmake --preset windows-x64 -DYOUTUBE_API_CLIENT_ID="$env:YOUTUBE_API_CLIENT_ID" -DYOUTUBE_API_CLIENT_SECRET="$env:YOUTUBE_API_CLIENT_SECRET" -DTWITCH_API_CLIENT_ID="$env:TWITCH_API_CLIENT_ID" -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
+            $enableYoutube = if ($env:ENABLE_YOUTUBE -eq "true") { "ON" } else { "OFF" }
+            cmake --preset windows-x64 -DENABLE_YOUTUBE="$enableYoutube" -DYOUTUBE_API_CLIENT_ID="$env:YOUTUBE_API_CLIENT_ID" -DYOUTUBE_API_CLIENT_SECRET="$env:YOUTUBE_API_CLIENT_SECRET" -DTWITCH_API_CLIENT_ID="$env:TWITCH_API_CLIENT_ID" -DONESEVENLIVE_API_URL="$env:ONESEVENLIVE_API_URL" -DCMAKE_PROJECT_VERSION="$env:VERSION"
       
       # Build the project
       - run:
