@@ -521,16 +521,22 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
   const [phase, setPhase] = useState('idle');
   const [i18nMap, setI18nMap] = useState(null);
   const phaseRef = useRef('idle');
+  const showAnimRef = useRef(false);
   const holdMsRef = useRef(1300);
   const phaseTimersRef = useRef([]);
   const currentKeyRef = useRef('');
   const aniLoadedRef = useRef(false);
+  const aniImageRef = useRef(null);
   const exitTimerRef = useRef(null);
   const failSafeTimerRef = useRef(null);
 
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+
+  useEffect(() => {
+    showAnimRef.current = showAnim;
+  }, [showAnim]);
 
   useEffect(() => {
     return () => {
@@ -568,6 +574,28 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
       setShowAnim(false);
       setPhase('exit');
     }, Math.max(0, Number(ms || 0)));
+  };
+
+  const handleAniLoaded = () => {
+    if (!showAnimRef.current) return;
+    if (phaseRef.current !== 'hold') return;
+    // Advance the lifecycle only after the upper animation image is ready.
+    aniLoadedRef.current = true;
+    if (failSafeTimerRef.current) {
+      clearTimeout(failSafeTimerRef.current);
+      failSafeTimerRef.current = null;
+    }
+    scheduleExitAfter(holdMsRef.current);
+  };
+
+  const handleAniLoadError = () => {
+    if (phaseRef.current !== 'hold') return;
+    if (failSafeTimerRef.current) {
+      clearTimeout(failSafeTimerRef.current);
+      failSafeTimerRef.current = null;
+    }
+    setShowAnim(false);
+    scheduleExitAfter(holdMsRef.current);
   };
 
   useEffect(() => {
@@ -655,6 +683,20 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
       }, EXIT_MS)
     );
   }, [phase]);
+
+  useEffect(() => {
+    if (!showAnim || phase !== 'hold' || !current) return;
+    const img = aniImageRef.current;
+    if (!img || !img.complete || img.naturalWidth <= 0) return;
+
+    // CEF may reuse a cached image without dispatching a fresh load event.
+    const timer = setTimeout(() => {
+      if (aniImageRef.current !== img) return;
+      handleAniLoaded();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [current, phase, showAnim]);
 
   const view = useMemo(() => {
     if (!current) return null;
@@ -761,17 +803,6 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
 
     if (!name) return null;
 
-    const onAniLoaded = () => {
-      if (!showAnim) return;
-      if (phase !== 'hold') return;
-      aniLoadedRef.current = true;
-      if (failSafeTimerRef.current) {
-        clearTimeout(failSafeTimerRef.current);
-        failSafeTimerRef.current = null;
-      }
-      scheduleExitAfter(holdMsRef.current);
-    };
-
     const cardBgImg = animationId >= 11 && animationId <= 13 ? cfg.cardBgImg : '';
     const cardBg = cardBgImg ? 'transparent' : cfg.bg;
     const marqueeTextColor = animationId >= 11 && animationId <= 13 ? cfg.marqueeTextColor : '#ffffff';
@@ -785,7 +816,15 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
           <BadgeContainer>
             {showAnim && src ? (
               <AniLayer>
-                <AniImage src={src} alt="" onLoad={onAniLoaded} />
+                {/* Force a remount per event so CEF does not silently reuse a stale cached image node. */}
+                <AniImage
+                  key={`${current?.id || 'ani'}-${src}`}
+                  ref={aniImageRef}
+                  src={src}
+                  alt=""
+                  onLoad={handleAniLoaded}
+                  onError={handleAniLoadError}
+                />
               </AniLayer>
             ) : null}
             <Card $bg={cardBg} $bgImg={cardBgImg} $border={cfg.border} $color={cfg.textColor}>
