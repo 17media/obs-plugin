@@ -129,11 +129,13 @@ void CustomizedCartoonService::videoResetCallback(void* data, calldata_t*) {
 
 void CustomizedCartoonService::handleVideoReset() {
     if (positionPreviewing_) {
-        applyOverlayTransform(positionPreviewLandscape_, nullptr);
+        applyOverlayTransform(positionPreviewLandscape_,
+                              hasPositionPreviewTransform_ ? &positionPreviewTransform_ : nullptr);
         return;
     }
     if (mediaPreviewing_) {
-        applyOverlayTransform(mediaPreviewLandscape_, nullptr);
+        applyOverlayTransform(mediaPreviewLandscape_,
+                              hasMediaPreviewTransform_ ? &mediaPreviewTransform_ : nullptr);
         return;
     }
     if (playing_) {
@@ -963,6 +965,13 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
     previewMediaId_ = mediaId;
     mediaPreviewSnapshot_ = *media;
     hasMediaPreviewSnapshot_ = true;
+    if (previewTransform) {
+        mediaPreviewTransform_ = *previewTransform;
+        hasMediaPreviewTransform_ = true;
+    } else {
+        mediaPreviewTransform_ = json::object();
+        hasMediaPreviewTransform_ = false;
+    }
 
     if (!applyPreviewCanvas(mediaPreviewLandscape_, outError)) {
         mediaPreviewing_ = false;
@@ -1028,6 +1037,8 @@ void CustomizedCartoonService::stopMediaPreview() {
     mediaPreviewing_ = false;
     previewMediaId_.clear();
     hasMediaPreviewSnapshot_ = false;
+    hasMediaPreviewTransform_ = false;
+    mediaPreviewTransform_ = json::object();
     previewTimer_.stop();
     setMediaLooping(false);
     playbackTimer_.stop();
@@ -1081,6 +1092,13 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     positionPreviewMediaId_ = mediaId;
     positionPreviewSnapshot_ = *media;
     hasPositionPreviewSnapshot_ = true;
+    if (previewTransform) {
+        positionPreviewTransform_ = *previewTransform;
+        hasPositionPreviewTransform_ = true;
+    } else {
+        positionPreviewTransform_ = json::object();
+        hasPositionPreviewTransform_ = false;
+    }
 
     if (!applyPreviewCanvas(positionPreviewLandscape_, outError)) {
         positionPreviewing_ = false;
@@ -1143,6 +1161,8 @@ void CustomizedCartoonService::stopPositionPreview() {
     positionPreviewing_ = false;
     positionPreviewMediaId_.clear();
     hasPositionPreviewSnapshot_ = false;
+    hasPositionPreviewTransform_ = false;
+    positionPreviewTransform_ = json::object();
     setMediaLooping(false);
     playbackTimer_.stop();
     hideOverlaySources();

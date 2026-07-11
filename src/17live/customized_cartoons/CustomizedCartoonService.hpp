@@ -187,6 +187,8 @@ class CustomizedCartoonService : public QObject {
     bool positionPreviewLandscape_{true};
     bool positionPreviewIsMedia_{true};
     QString positionPreviewMediaId_;
+    nlohmann::json positionPreviewTransform_{nlohmann::json::object()};
+    bool hasPositionPreviewTransform_{false};
 
     bool mediaPreviewing_{false};
     bool mediaPreviewLandscape_{true};
@@ -194,6 +196,8 @@ class CustomizedCartoonService : public QObject {
     QString previewMediaId_;
     MediaItem mediaPreviewSnapshot_;
     bool hasMediaPreviewSnapshot_{false};
+    nlohmann::json mediaPreviewTransform_{nlohmann::json::object()};
+    bool hasMediaPreviewTransform_{false};
 
     MediaItem positionPreviewSnapshot_;
     bool hasPositionPreviewSnapshot_{false};
