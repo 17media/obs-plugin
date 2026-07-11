@@ -633,16 +633,16 @@ PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
         return l;
     };
 
-    out.posX = new QSpinBox(out.panel);
+    out.posX = new NoWheelSpinBox(out.panel);
     out.posX->setRange(-100000, 100000);
     out.posX->setObjectName("posSpinBox");
-    out.posY = new QSpinBox(out.panel);
+    out.posY = new NoWheelSpinBox(out.panel);
     out.posY->setRange(-100000, 100000);
     out.posY->setObjectName("posSpinBox");
-    out.width = new QSpinBox(out.panel);
+    out.width = new NoWheelSpinBox(out.panel);
     out.width->setRange(20, 100000);
     out.width->setObjectName("posSpinBox");
-    out.height = new QSpinBox(out.panel);
+    out.height = new NoWheelSpinBox(out.panel);
     out.height->setRange(20, 100000);
     out.height->setObjectName("posSpinBox");
 
@@ -651,6 +651,7 @@ PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
         sb->setMinimumWidth(110);
         sb->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         sb->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+        sb->setProperty("redirectWheelToSettingsScroll", true);
     }
 
     auto* xLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.X"), out.panel);
@@ -1347,14 +1348,14 @@ void CustomizedCartoonDock::setupUi() {
     settingsPageLayout->setContentsMargins(0, 0, 0, 0);
     settingsPageLayout->setSpacing(0);
 
-    auto* settingsScrollArea = new QScrollArea(settingsPage);
-    settingsScrollArea->setWidgetResizable(true);
-    settingsScrollArea->setFrameShape(QFrame::NoFrame);
-    settingsScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    settingsScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    settingsPageLayout->addWidget(settingsScrollArea, 1);
+    settingsScrollArea_ = new QScrollArea(settingsPage);
+    settingsScrollArea_->setWidgetResizable(true);
+    settingsScrollArea_->setFrameShape(QFrame::NoFrame);
+    settingsScrollArea_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    settingsScrollArea_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    settingsPageLayout->addWidget(settingsScrollArea_, 1);
 
-    auto* leftContainer = new QWidget(settingsScrollArea);
+    auto* leftContainer = new QWidget(settingsScrollArea_);
     leftContainer->setMinimumWidth(kPositionPanelMinWidth);
     leftContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     auto* left = new QVBoxLayout(leftContainer);
@@ -1436,6 +1437,10 @@ void CustomizedCartoonDock::setupUi() {
     positionTabWidget_->setObjectName("positionOrientationTabs");
     positionTabWidget_->setUsesScrollButtons(false);
     positionTabWidget_->tabBar()->setExpanding(false);
+    positionTabWidget_->setProperty("redirectWheelToSettingsScroll", true);
+    positionTabWidget_->tabBar()->setProperty("redirectWheelToSettingsScroll", true);
+    positionTabWidget_->installEventFilter(this);
+    positionTabWidget_->tabBar()->installEventFilter(this);
 #ifdef Q_OS_MACOS
     positionTabWidget_->setUsesScrollButtons(true);
     positionTabWidget_->tabBar()->setStyle(QStyleFactory::create("Fusion"));
@@ -1559,6 +1564,14 @@ void CustomizedCartoonDock::setupUi() {
 
     bindCanvasAndInputs(portraitCanvas, portraitInputs, 720, 1280);
     bindCanvasAndInputs(landscapeCanvas, landscapeInputs, 1280, 720);
+    for (auto* sb :
+         {portraitInputs.posX, portraitInputs.posY, portraitInputs.width, portraitInputs.height,
+          landscapeInputs.posX, landscapeInputs.posY, landscapeInputs.width,
+          landscapeInputs.height}) {
+        if (sb) {
+            sb->installEventFilter(this);
+        }
+    }
 
     positionLayout->addWidget(positionTabWidget_, 1);
     left->addWidget(positionPanel);
@@ -1586,7 +1599,7 @@ void CustomizedCartoonDock::setupUi() {
     });
 
     left->addStretch(1);
-    settingsScrollArea->setWidget(leftContainer);
+    settingsScrollArea_->setWidget(leftContainer);
     mainTabWidget_->addTab(settingsPage, obs_module_text("CustomizedCartoon.Tab.Settings"));
 
     auto* rulesPage = new QWidget(mainTabWidget_);
@@ -1686,7 +1699,45 @@ bool CustomizedCartoonDock::eventFilter(QObject* obj, QEvent* event) {
     if (obj == rootWidget_ && event && event->type() == QEvent::Resize) {
         repositionToast();
     }
+    if (event && event->type() == QEvent::Wheel) {
+        auto* widget = qobject_cast<QWidget*>(obj);
+        if (widget && widget->property("redirectWheelToSettingsScroll").toBool()) {
+            auto* wheelEvent = static_cast<QWheelEvent*>(event);
+            redirectWheelToSettingsScroll(wheelEvent);
+            wheelEvent->accept();
+            return true;
+        }
+    }
     return QDockWidget::eventFilter(obj, event);
+}
+
+bool CustomizedCartoonDock::redirectWheelToSettingsScroll(QWheelEvent* event) {
+    if (!event || !settingsScrollArea_) {
+        return false;
+    }
+    auto* scrollBar = settingsScrollArea_->verticalScrollBar();
+    if (!scrollBar) {
+        return false;
+    }
+
+    const QPoint pixelDelta = event->pixelDelta();
+    if (!pixelDelta.isNull()) {
+        scrollBar->setValue(scrollBar->value() - pixelDelta.y());
+        return true;
+    }
+
+    const QPoint angleDelta = event->angleDelta();
+    if (angleDelta.y() == 0) {
+        return false;
+    }
+
+    const double stepRatio = static_cast<double>(angleDelta.y()) / 120.0;
+    int delta = static_cast<int>(std::lround(scrollBar->singleStep() * stepRatio));
+    if (delta == 0) {
+        delta = angleDelta.y() > 0 ? 1 : -1;
+    }
+    scrollBar->setValue(scrollBar->value() - delta);
+    return true;
 }
 
 void CustomizedCartoonDock::closeEvent(QCloseEvent* event) {

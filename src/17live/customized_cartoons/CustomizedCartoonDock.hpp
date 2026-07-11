@@ -18,6 +18,7 @@ class QWidget;
 class QScrollArea;
 class QTimer;
 class QEvent;
+class QWheelEvent;
 class QGraphicsOpacityEffect;
 class QPropertyAnimation;
 
@@ -69,6 +70,7 @@ class CustomizedCartoonDock : public QDockWidget {
     void updateDraftUi();
     void showToast(const QString& text, bool danger = false);
     void repositionToast();
+    bool redirectWheelToSettingsScroll(QWheelEvent* event);
     bool isDraftDirty() const;
     bool removeMediaFromDraft(const QString& mediaId);
     bool isSettingsTabDirty() const;
@@ -93,6 +95,7 @@ class CustomizedCartoonDock : public QDockWidget {
     QPushButton* readPositionButton_{nullptr};
     QPushButton* startPositionPreviewButton_{nullptr};
     QPushButton* stopPositionPreviewButton_{nullptr};
+    QScrollArea* settingsScrollArea_{nullptr};
 
     QScrollArea* rulesScrollArea_{nullptr};
     QWidget* rulesListContainer_{nullptr};
