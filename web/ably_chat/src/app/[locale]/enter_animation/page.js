@@ -57,26 +57,6 @@ export default function EnterAnimationPage() {
 
   useEffect(() => {
     if (!messageAggregator) return;
-    const initial = typeof messageAggregator.getHistory === 'function' ? messageAggregator.getHistory(1000) : [];
-    if (initial && initial.length) {
-      const anim = initial.filter(
-        (m) => m?.platform === '17live' && m?.content?.get?.('messageType') === MsgType_ENTER_ANIMATION
-      );
-      if (anim.length) {
-        setEnterAnimations((prev) => [...prev, ...anim].slice(-20));
-      }
-    }
-    
-    const handleMessagesBatch = (batch) => {
-      if (!batch || batch.length === 0) return;
-      const anim = batch.filter(
-        (m) => m?.platform === '17live' && m?.content?.get?.('messageType') === MsgType_ENTER_ANIMATION
-      );
-      if (anim.length) {
-        setEnterAnimations((prev) => [...prev, ...anim].slice(-20));
-      }
-    };
-
     const handleSingleMessage = (m) => {
       if (!m) return;
       if (m?.platform !== '17live') return;
@@ -87,10 +67,8 @@ export default function EnterAnimationPage() {
       });
     };
     
-    messageAggregator.on('messages_batch', handleMessagesBatch);
     messageAggregator.on('message', handleSingleMessage);
     return () => {
-      messageAggregator.off('messages_batch', handleMessagesBatch);
       messageAggregator.off('message', handleSingleMessage);
     };
   }, []);

@@ -84,13 +84,16 @@ void OneSevenLiveChatMessageHandler::routeByType(int type, const nlohmann::json&
     case ably::MsgType_POKE:
     case ably::MsgType_AI_COHOST_MESSAGE:
     case ably::MsgType_COMMENT:
-    case ably::MsgType_ENTER_ANIMATION:
     case ably::MsgType_REACT:
     case ably::MsgType_LABOR_RECEIVE_REWARD:
         OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
             QString::fromUtf8(EventAblyChatMessage), decoded);
         if (type == ably::MsgType_NEW_LUCKYBAG || type == ably::MsgType_NEW_GIFT)
             handleGiftPlayback(decoded);
+        break;
+    case ably::MsgType_ENTER_ANIMATION:
+        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+            QString::fromUtf8(EventAblyChatMessage), decoded);
         break;
     case ably::MsgType_ROCKZONE:
         obs_log(LOG_DEBUG, "ROCKZONE");
