@@ -39,10 +39,12 @@ class OneSevenLiveHttpServer {
     std::string get_file_extension(const std::string& file_path) const;
     void serve_file(const std::filesystem::path& file_path, httplib::Response& res) const;
     bool handle_enter_animation_cache_request(const httplib::Request& req, httplib::Response& res);
-    bool ensure_enter_animation_asset_cached(const std::string& source_url,
-                                             std::filesystem::path& cached_file_path,
-                                             std::string& error_message);
-    std::string get_enter_animation_asset_cache_dir() const;
+    bool handle_chat_asset_cache_request(const httplib::Request& req, httplib::Response& res);
+    bool ensure_cached_remote_asset(const std::string& source_url,
+                                    const std::string& cache_subdir,
+                                    std::filesystem::path& cached_file_path,
+                                    std::string& error_message);
+    std::string get_remote_asset_cache_dir(const std::string& cache_subdir) const;
 
     // Security-related methods
     bool is_safe_path(const std::string& path) const;

@@ -1,6 +1,7 @@
 export async function loadDevMockMessages() {
   const modules = await Promise.all([
     import('@/../public/mock/chat_message.json'),
+    import('@/../public/mock/chat_message_comment_frame_wave.json'),
     import('@/../public/mock/chat_new_join.json'),
     import('@/../public/mock/chat_new_gift_2.json'),
     import('@/../public/mock/chat_labor_receive_reward.json'),

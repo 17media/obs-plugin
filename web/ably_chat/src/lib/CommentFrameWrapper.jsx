@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { BorderType, COMMENT_BORDER_PADDING_CANDY_CANE } from './constants';
 import CommentFrameCandyCane from './CommentFrameCandyCane';
 import CommentFrameGradient from './CommentFrameGradient';
 import CommentFrameMetal from './CommentFrameMetal';
+import { getChatAssetProxyUrl, imageOnLoad, isImageLoaded } from './utils';
 
 
 const CommentFrameWrapper = ({
@@ -13,16 +14,48 @@ const CommentFrameWrapper = ({
                                                           onAnimationEnd,
                                                           children,
                                                       }) => {
-    if (!border) {
+    const hasBorder = !!border;
+    const url = useMemo(() => (border ? getChatAssetProxyUrl(border.get('URL')) : ''), [border]);
+    const borderType = border?.get('type');
+    let borderWidth =
+        borderType === BorderType.CANDY_CANE
+            ? COMMENT_BORDER_PADDING_CANDY_CANE
+            : border?.get('borderWidth');
+    const [assetReady, setAssetReady] = useState(false);
+
+    useEffect(() => {
+        let disposed = false;
+
+        if (!url) {
+            setAssetReady(false);
+            return undefined;
+        }
+
+        setAssetReady(false);
+        imageOnLoad(url).then(image => {
+            if (!disposed) {
+                setAssetReady(isImageLoaded(image));
+            }
+        });
+
+        return () => {
+            disposed = true;
+        };
+    }, [url]);
+
+    if (
+        !hasBorder ||
+        !url ||
+        !Number.isFinite(borderWidth) ||
+        borderWidth <= 0 ||
+        width <= 0 ||
+        height <= 0 ||
+        !assetReady
+    ) {
         return <>{children}</>;
     }
 
-    const url = border.get('URL');
-    const borderType = border.get('type');
-    let borderWidth = border.get('borderWidth');
-
     if (borderType === BorderType.CANDY_CANE) {
-        borderWidth = COMMENT_BORDER_PADDING_CANDY_CANE;
         return (
             <CommentFrameCandyCane
                 imageURL={url}

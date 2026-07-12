@@ -106,7 +106,7 @@ void OneSevenLiveHttpServer::serve_file(const std::filesystem::path& file_path,
     }
 }
 
-std::string OneSevenLiveHttpServer::get_enter_animation_asset_cache_dir() const {
+std::string OneSevenLiveHttpServer::get_remote_asset_cache_dir(const std::string& cache_subdir) const {
     auto* coreManager = OneSevenLiveCoreManager::peekInstance();
     if (!coreManager) {
         return "";
@@ -122,11 +122,12 @@ std::string OneSevenLiveHttpServer::get_enter_animation_asset_cache_dir() const 
         return "";
     }
 
-    return (std::filesystem::path(config_path) / "enter_animation_assets").string();
+    return (std::filesystem::path(config_path) / cache_subdir).string();
 }
 
-bool OneSevenLiveHttpServer::ensure_enter_animation_asset_cached(
-    const std::string& source_url, std::filesystem::path& cached_file_path, std::string& error_message) {
+bool OneSevenLiveHttpServer::ensure_cached_remote_asset(
+    const std::string& source_url, const std::string& cache_subdir,
+    std::filesystem::path& cached_file_path, std::string& error_message) {
     const QUrl url(QString::fromStdString(source_url));
     if (!url.isValid() || url.host().isEmpty() ||
         (url.scheme() != "https" && url.scheme() != "http")) {
@@ -134,7 +135,7 @@ bool OneSevenLiveHttpServer::ensure_enter_animation_asset_cached(
         return false;
     }
 
-    const std::string cache_dir = get_enter_animation_asset_cache_dir();
+    const std::string cache_dir = get_remote_asset_cache_dir(cache_subdir);
     if (cache_dir.empty()) {
         error_message = "Config cache directory unavailable";
         return false;
@@ -208,8 +209,8 @@ bool OneSevenLiveHttpServer::ensure_enter_animation_asset_cached(
         return false;
     }
 
-    obs_log(LOG_INFO, "[%s] Cached enter animation asset: %s -> %s", name_.c_str(),
-            source_url.c_str(), file_path.toStdString().c_str());
+    obs_log(LOG_INFO, "[%s] Cached remote asset (%s): %s -> %s", name_.c_str(),
+            cache_subdir.c_str(), source_url.c_str(), file_path.toStdString().c_str());
     return true;
 }
 
@@ -229,8 +230,38 @@ bool OneSevenLiveHttpServer::handle_enter_animation_cache_request(const httplib:
     const std::string source_url = req.get_param_value("src");
     std::filesystem::path cached_file_path;
     std::string error_message;
-    if (!ensure_enter_animation_asset_cached(source_url, cached_file_path, error_message)) {
+    if (!ensure_cached_remote_asset(source_url, "enter_animation_assets", cached_file_path,
+                                    error_message)) {
         obs_log(LOG_WARNING, "[%s] Failed to cache enter animation asset %s: %s", name_.c_str(),
+                source_url.c_str(), error_message.c_str());
+        res.status = 502;
+        res.set_content(error_message, "text/plain");
+        return true;
+    }
+
+    res.set_header("Cache-Control", "public, max-age=31536000, immutable");
+    serve_file(cached_file_path, res);
+    return true;
+}
+
+bool OneSevenLiveHttpServer::handle_chat_asset_cache_request(const httplib::Request& req,
+                                                             httplib::Response& res) {
+    static const std::string kCacheRoutePrefix = "/__17live_cache/chat_asset/";
+    if (req.path.rfind(kCacheRoutePrefix, 0) != 0) {
+        return false;
+    }
+
+    if (!req.has_param("src")) {
+        res.status = 400;
+        res.set_content("Missing src parameter", "text/plain");
+        return true;
+    }
+
+    const std::string source_url = req.get_param_value("src");
+    std::filesystem::path cached_file_path;
+    std::string error_message;
+    if (!ensure_cached_remote_asset(source_url, "chat_assets", cached_file_path, error_message)) {
+        obs_log(LOG_WARNING, "[%s] Failed to cache chat asset %s: %s", name_.c_str(),
                 source_url.c_str(), error_message.c_str());
         res.status = 502;
         res.set_content(error_message, "text/plain");
@@ -320,6 +351,10 @@ bool OneSevenLiveHttpServer::start() {
         }
 
         if (handle_enter_animation_cache_request(req, res)) {
+            return;
+        }
+
+        if (handle_chat_asset_cache_request(req, res)) {
             return;
         }
 

@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React from 'react';
 
 import styled from 'styled-components';
 import { useTranslations } from 'next-intl';
@@ -25,6 +25,8 @@ import {
     DEFAULT_COMMENT_BG_COLOR,
     DEFAULT_GUARDIAN_COMMENT_BG_COLOR,
     DEFAULT_STREAMER_COMMENT_BG_COLOR,
+    BorderType,
+    COMMENT_BORDER_PADDING_CANDY_CANE,
     REACTION_TYPE,
     USER_GUARDIAN,
     USER_STREAMER,
@@ -42,6 +44,7 @@ import {
     mapCommentShadowColor,
     mapUserTypeToColor,
     mapUserTypeToIcon,
+    getChatAssetProxyUrl,
 } from './utils';
 import CheckingLevel from './CheckingLevel';
 
@@ -49,6 +52,20 @@ const MultilineDesktop = styled(Multiline)`
     margin-left: 4px;
     color: ${({ color }) => color};
 `;
+
+const getCommentFramePadding = border => {
+    if (!border) {
+        return 0;
+    }
+
+    const borderType = border.get('type');
+    if (borderType === BorderType.CANDY_CANE) {
+        return COMMENT_BORDER_PADDING_CANDY_CANE;
+    }
+
+    const borderWidth = Number(border.get('borderWidth'));
+    return Number.isFinite(borderWidth) && borderWidth > 0 ? borderWidth : 0;
+};
 
 const renderMessageContent = (
     messageType,
@@ -109,6 +126,7 @@ const Chat = ({
     middleBadge,
     topRightBadge,
     asideLiveWidth,
+    layoutVersion,
     gift,
     luckyBag,
     pokeInfo,
@@ -120,6 +138,7 @@ const Chat = ({
     const {
         commentRef,
         size,
+        availableWidth,
         levelBadges,
         prefixBadgeContents,
         skipAnimationFrame,
@@ -128,7 +147,14 @@ const Chat = ({
         levelBadges: originalLevelBadges,
         prefixBadges,
         asideLiveWidth,
+        layoutVersion,
     });
+
+    const commentFramePadding = getCommentFramePadding(border);
+    const innerMaxWidth =
+        availableWidth > 0
+            ? Math.max(0, availableWidth - commentFramePadding * 2)
+            : 0;
 
     const isDefaultBackgroundColor = [
         DEFAULT_COMMENT_BG_COLOR,
@@ -190,6 +216,7 @@ const Chat = ({
                     $textShadowColor={textShadowColor}
                     $borderRadius={border?.get('commentCornerRadius')}
                     $hasPaddingRight={hasTopRightBadge}
+                    $maxWidthPx={innerMaxWidth}
                 >
                     {levelBadges?.map(badge => (
                         <LevelBadge
@@ -238,7 +265,7 @@ const Chat = ({
                     />
 
                     {/* Suffix badges */}
-                    {middleBadge && <BadgeImage src={middleBadge} />}
+                    {middleBadge && <BadgeImage src={getChatAssetProxyUrl(middleBadge)} />}
 
                     {SVGSrc && (
                         <span
@@ -267,7 +294,7 @@ const Chat = ({
                     {/* Top right badge */}
                     {hasTopRightBadge && (
                         <div style={{ position: 'absolute', top: '5px', right: '6px' }}>
-                            <BadgeImage src={topRightBadge} />
+                            <BadgeImage src={getChatAssetProxyUrl(topRightBadge)} />
                         </div>
                     )}
                 </InnerWrapper>
@@ -276,9 +303,4 @@ const Chat = ({
     );
 };
 
-// we don't need to update sent chat when streamerInfo update
-export default memo(
-    Chat,
-    (prevProps, nextProps) =>
-        prevProps.asideLiveWidth === nextProps.asideLiveWidth
-);
+export default Chat;

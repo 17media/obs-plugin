@@ -116,7 +116,7 @@ const EmptyIcon = styled.img`
 
 const MessageItem = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
 `;
 
@@ -129,6 +129,8 @@ const PlatformIcon = styled.img`
 
 const MessageContent = styled.div`
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
 `;
 
 export const MultiPlatformChat = () => {
@@ -231,8 +233,8 @@ export const MultiPlatformChat = () => {
           src={platformIcon(message.platform)}
           alt={message.platform}
         />
-        <MessageContent>
-          <Chat {...safeChatProps} platform={message.platform} />
+        <MessageContent data-chat-message-content="true">
+          <Chat {...safeChatProps} platform={message.platform} layoutVersion={fontSize} />
         </MessageContent>
       </MessageItem>
     );
