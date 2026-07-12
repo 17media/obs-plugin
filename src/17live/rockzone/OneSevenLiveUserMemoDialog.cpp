@@ -3,10 +3,14 @@
 #include <obs-module.h>
 
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QMessageBox>
 #include <QMetaObject>
 #include <QPointer>
 #include <QScrollBar>
+#include <QSize>
+#include <QTextCursor>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include "api/OneSevenLiveApiWrappers.hpp"
@@ -14,6 +18,35 @@
 
 namespace {
     constexpr int kMaxMemoChars = 500;
+
+    int getMemoLength(const QString& text) {
+        return text.toUtf8().size();
+    }
+
+    QString truncateMemoText(const QString& text, int maxLength) {
+        if (getMemoLength(text) <= maxLength) {
+            return text;
+        }
+
+        QString truncated;
+        truncated.reserve(text.size());
+
+        int currentLength = 0;
+        const QList<uint> codePoints = text.toUcs4();
+        for (uint codePoint : codePoints) {
+            const char32_t scalarValue = static_cast<char32_t>(codePoint);
+            const QString chunk = QString::fromUcs4(&scalarValue, 1);
+            const int chunkLength = getMemoLength(chunk);
+            if (currentLength + chunkLength > maxLength) {
+                break;
+            }
+
+            truncated += chunk;
+            currentLength += chunkLength;
+        }
+
+        return truncated;
+    }
 }
 
 OneSevenLiveUserMemoDialog::OneSevenLiveUserMemoDialog(QWidget* parent,
@@ -39,7 +72,21 @@ void OneSevenLiveUserMemoDialog::setupUi() {
 
     QWidget* card = new QWidget(this);
     card->setObjectName("card");
-    card->setStyleSheet("#card { background-color: #272A33; border-radius: 8px; }");
+    card->setStyleSheet(
+        "#card {"
+        "  background-color: #272A33;"
+        "  border-radius: 8px;"
+        "}"
+        "QToolTip {"
+        "  background-color: #333333;"
+        "  color: #FFFFFF;"
+        "  font-weight: 400;"
+        "  font-size: 12px;"
+        "  line-height: 16px;"
+        "  padding: 5px;"
+        "  border: none;"
+        "  border-radius: 4px;"
+        "}");
 
     QVBoxLayout* cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(20, 18, 20, 18);
@@ -86,6 +133,35 @@ void OneSevenLiveUserMemoDialog::setupUi() {
     memoEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     cardLayout->addWidget(memoEdit, 1);
 
+    QHBoxLayout* counterLayout = new QHBoxLayout();
+    counterLayout->setContentsMargins(0, 0, 0, 0);
+    counterLayout->setSpacing(4);
+    counterLayout->addStretch(1);
+
+    counterLabel = new QLabel(card);
+    counterLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    counterLabel->setStyleSheet("QLabel { color: #A1A9B6; font-size: 12px; line-height: 16px; }");
+    counterLayout->addWidget(counterLabel, 0, Qt::AlignVCenter);
+
+    QToolButton* counterHelpButton = new QToolButton(card);
+    counterHelpButton->setCursor(Qt::PointingHandCursor);
+    counterHelpButton->setIcon(QIcon(":/resources/question.svg"));
+    counterHelpButton->setIconSize(QSize(16, 16));
+    counterHelpButton->setAutoRaise(true);
+    counterHelpButton->setToolTip(obs_module_text("RockZone.UserMemo.Counter.Tooltip"));
+    counterHelpButton->setStyleSheet(
+        "QToolButton {"
+        "  border: none;"
+        "  background: transparent;"
+        "  padding: 0px;"
+        "}"
+        "QToolButton:hover {"
+        "  background: transparent;"
+        "}");
+    counterLayout->addWidget(counterHelpButton, 0, Qt::AlignVCenter);
+
+    cardLayout->addLayout(counterLayout);
+
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setContentsMargins(0, 8, 0, 0);
     buttonLayout->setSpacing(12);
@@ -125,7 +201,12 @@ void OneSevenLiveUserMemoDialog::setupUi() {
     connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
     connect(saveButton, &QPushButton::clicked, this,
             [this]() { saveUserNoteAsync(memoEdit ? memoEdit->toPlainText() : QString()); });
-    connect(memoEdit, &QTextEdit::textChanged, this, [this]() { enforceTextLimit(); });
+    connect(memoEdit, &QTextEdit::textChanged, this, [this]() {
+        enforceTextLimit();
+        updateCharacterCount();
+    });
+
+    updateCharacterCount();
 }
 
 void OneSevenLiveUserMemoDialog::loadUserNoteAsync() {
@@ -158,6 +239,7 @@ void OneSevenLiveUserMemoDialog::loadUserNoteAsync() {
                     safeThis->memoEdit->setPlainText(note.content);
                     safeThis->suppressTextChanged = false;
                     safeThis->enforceTextLimit();
+                    safeThis->updateCharacterCount();
                 } else if (!errorMessage.isEmpty()) {
                     QMessageBox::warning(safeThis, obs_module_text("RockZone.UserMemo.Error.Title"),
                                          obs_module_text("RockZone.UserMemo.LoadFailed") +
@@ -178,7 +260,8 @@ void OneSevenLiveUserMemoDialog::saveUserNoteAsync(const QString& content) {
         return;
     }
 
-    if (content.size() > kMaxMemoChars) {
+    const QString normalizedContent = truncateMemoText(content, kMaxMemoChars);
+    if (getMemoLength(normalizedContent) > kMaxMemoChars) {
         QMessageBox::warning(this, obs_module_text("RockZone.UserMemo.Error.Title"),
                              obs_module_text("RockZone.UserMemo.CharLimitExceeded"));
         return;
@@ -190,7 +273,7 @@ void OneSevenLiveUserMemoDialog::saveUserNoteAsync(const QString& content) {
     QThread* workerThread = new QThread();
     QPointer<OneSevenLiveUserMemoDialog> safeThis = this;
     const QString targetUserID = userID;
-    const QString payload = content;
+    const QString payload = normalizedContent;
 
     connect(workerThread, &QThread::started, [=]() {
         const bool success = apiWrapper->SetUserNote(targetUserID.toStdString(), payload);
@@ -233,20 +316,30 @@ void OneSevenLiveUserMemoDialog::enforceTextLimit() {
     }
 
     const QString text = memoEdit->toPlainText();
-    if (text.size() <= kMaxMemoChars) {
+    const QString truncatedText = truncateMemoText(text, kMaxMemoChars);
+    if (truncatedText == text) {
         return;
     }
 
     suppressTextChanged = true;
     QTextCursor cursor = memoEdit->textCursor();
-    const int cursorPos = cursor.position();
-
-    memoEdit->setPlainText(text.left(kMaxMemoChars));
+    memoEdit->setPlainText(truncatedText);
 
     QTextCursor newCursor = memoEdit->textCursor();
-    newCursor.setPosition(qMin(cursorPos, kMaxMemoChars));
+    newCursor.setPosition(qMin(cursor.position(), truncatedText.size()));
     memoEdit->setTextCursor(newCursor);
     suppressTextChanged = false;
+}
+
+void OneSevenLiveUserMemoDialog::updateCharacterCount() {
+    if (!counterLabel || !memoEdit) {
+        return;
+    }
+
+    const int currentLength = getMemoLength(memoEdit->toPlainText());
+    counterLabel->setText(QString(obs_module_text("RockZone.UserMemo.Counter"))
+                              .arg(currentLength)
+                              .arg(kMaxMemoChars));
 }
 
 void OneSevenLiveUserMemoDialog::mousePressEvent(QMouseEvent* event) {

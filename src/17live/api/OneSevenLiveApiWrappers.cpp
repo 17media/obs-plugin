@@ -1359,7 +1359,8 @@ bool OneSevenLiveApiWrappers::SetUserNote(const std::string userID, const QStrin
     QString urlStr = QString::fromStdString(ONESEVENLIVE_GET_USER_NOTE_URL).arg(userID.c_str());
     QByteArray url = urlStr.toUtf8();
 
-    Json requestData = {{"content", content.toStdString()}};
+    const QByteArray utf8Content = content.toUtf8();
+    Json requestData = {{"content", std::string(utf8Content.constData(), utf8Content.size())}};
     const std::string postData = requestData.dump();
 
     Json json_out_resp;

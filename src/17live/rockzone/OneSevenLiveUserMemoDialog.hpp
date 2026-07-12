@@ -26,9 +26,11 @@ class OneSevenLiveUserMemoDialog : public QDialog {
     void loadUserNoteAsync();
     void saveUserNoteAsync(const QString& content);
     void enforceTextLimit();
+    void updateCharacterCount();
 
     QLabel* titleLabel = nullptr;
     QLabel* descLabel = nullptr;
+    QLabel* counterLabel = nullptr;
     QTextEdit* memoEdit = nullptr;
     QPushButton* cancelButton = nullptr;
     QPushButton* saveButton = nullptr;
@@ -41,4 +43,3 @@ class OneSevenLiveUserMemoDialog : public QDialog {
 
     bool suppressTextChanged = false;
 };
-
