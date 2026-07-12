@@ -25,6 +25,7 @@
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QFontMetrics>
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QStyleFactory>
@@ -63,8 +64,8 @@ constexpr int kPositionPanelMinWidth =
     (kPanelInnerMargin * 2) + kPositionCanvasMinWidth + kPanelSpacing + kPositionSidePanelMinWidth;
 constexpr int kDockMinWidth = kPositionPanelMinWidth + 20;
 constexpr int kDockMinHeight = 300;
-constexpr int kRuleGiftParamLabelWidth = 100;
-constexpr int kRuleLuckyBagParamLabelWidth = 100;
+constexpr int kRuleParamRowSpacing = 4;
+constexpr int kRuleParamGroupSpacing = 10;
 constexpr int kRuleGiftAmountSpinWidth = 100;
 constexpr int kRuleGiftCountSpinWidth = 60;
 constexpr int kRuleLuckyBagCountSpinWidth = 100;
@@ -94,6 +95,25 @@ QString buildRuleDeleteConfirmMessage(const json& rule) {
                                    : QString();
     return QString(obs_module_text("CustomizedCartoon.Rules.DeleteConfirm.Unnamed"))
         .arg(QString::fromUtf8("【%1】").arg(getRuleTypeLabel(engageType)));
+}
+
+int computeRuleParamLabelWidth() {
+    QFont font;
+    font.setPixelSize(14);
+    QFontMetrics metrics(font);
+
+    const QStringList candidates = {
+        obs_module_text("CustomizedCartoon.Rules.Param.GiftX"),
+        obs_module_text("CustomizedCartoon.Rules.Param.GiftY"),
+        obs_module_text("CustomizedCartoon.Rules.Param.LuckyBagX"),
+    };
+
+    int width = 0;
+    for (const QString& text : candidates) {
+        width = std::max(width, metrics.horizontalAdvance(text));
+    }
+
+    return width + 12;
 }
 
 static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event event,
@@ -2289,20 +2309,22 @@ void CustomizedCartoonDock::rebuildRulesUi() {
 
             auto* paramsRow = new QHBoxLayout();
             paramsRow->setContentsMargins(0, 0, 0, 0);
-            paramsRow->setSpacing(2);
+            paramsRow->setSpacing(kRuleParamRowSpacing);
             paramsRow->addStretch(1);
+            const int ruleParamLabelWidth = computeRuleParamLabelWidth();
             auto* paramXLabel = new QLabel(card);
-            paramXLabel->setFixedWidth(kRuleGiftParamLabelWidth);
+            paramXLabel->setFixedWidth(ruleParamLabelWidth);
             paramXLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
             paramXLabel->setStyleSheet(
                 "QLabel { font-size: 14px; color: #FFFFFF; padding: 0px; margin: 0px; }");
             auto* paramYLabel = new QLabel(card);
-            paramYLabel->setFixedWidth(kRuleGiftParamLabelWidth);
+            paramYLabel->setFixedWidth(ruleParamLabelWidth);
             paramYLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
             paramYLabel->setStyleSheet(
                 "QLabel { font-size: 14px; color: #FFFFFF; padding: 0px; margin: 0px; }");
             paramsRow->addWidget(paramXLabel);
             paramsRow->addWidget(pointsSpin, 0);
+            paramsRow->addSpacing(kRuleParamGroupSpacing);
             paramsRow->addWidget(paramYLabel);
             paramsRow->addWidget(countSpin, 0);
             auto* paramsWrap = new QWidget(card);
@@ -2312,12 +2334,13 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             auto* statusLabel = new QLabel(obs_module_text("CustomizedCartoon.Rules.Field.Status"), card);
             statusLabel->setStyleSheet("QLabel { font-size: 14px; color: #FFFFFF; }");
 
-            auto updateRuleUi = [ruleLabel, typeCombo, pointsSpin, countSpin, paramXLabel, paramYLabel]() {
+            auto updateRuleUi = [ruleLabel, typeCombo, pointsSpin, countSpin, paramXLabel,
+                                 paramYLabel, ruleParamLabelWidth]() {
                 const QString t = typeCombo->currentData().toString();
                 if (t == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
                     ruleLabel->setText(obs_module_text("CustomizedCartoon.Rules.Desc.LuckyBag"));
                     paramXLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.LuckyBagX"));
-                    paramXLabel->setFixedWidth(kRuleLuckyBagParamLabelWidth);
+                    paramXLabel->setFixedWidth(ruleParamLabelWidth);
                     countSpin->setFixedWidth(kRuleLuckyBagCountSpinWidth);
                     pointsSpin->hide();
                     paramYLabel->hide();
@@ -2325,11 +2348,11 @@ void CustomizedCartoonDock::rebuildRulesUi() {
                 } else {
                     ruleLabel->setText(obs_module_text("CustomizedCartoon.Rules.Desc.Gift"));
                     paramXLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.GiftX"));
-                    paramXLabel->setFixedWidth(kRuleGiftParamLabelWidth);
+                    paramXLabel->setFixedWidth(ruleParamLabelWidth);
                     pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
                     pointsSpin->show();
                     paramYLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.GiftY"));
-                    paramYLabel->setFixedWidth(kRuleGiftParamLabelWidth);
+                    paramYLabel->setFixedWidth(ruleParamLabelWidth);
                     paramYLabel->show();
                     countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
                     countSpin->show();
