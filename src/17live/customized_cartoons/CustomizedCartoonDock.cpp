@@ -124,10 +124,13 @@ static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event e
     }
 
     if (event == OBS_FRONTEND_EVENT_STREAMING_STARTED ||
-        event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
-        const bool active = obs_frontend_streaming_active();
-        QMetaObject::invokeMethod(dock, "setStreamingActive", Qt::QueuedConnection,
-                                  Q_ARG(bool, active));
+        event == OBS_FRONTEND_EVENT_STREAMING_STOPPED ||
+        event == OBS_FRONTEND_EVENT_RECORDING_STARTED ||
+        event == OBS_FRONTEND_EVENT_RECORDING_STOPPED) {
+        const bool streamingActive = obs_frontend_streaming_active();
+        const bool recordingActive = obs_frontend_recording_active();
+        QMetaObject::invokeMethod(dock, "setBroadcastState", Qt::QueuedConnection,
+                                  Q_ARG(bool, streamingActive), Q_ARG(bool, recordingActive));
     }
 }
 
@@ -813,6 +816,7 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
                 QDockWidget::DockWidgetClosable);
     setupUi();
     streamingActive_ = obs_frontend_streaming_active();
+    recordingActive_ = obs_frontend_recording_active();
     obs_frontend_add_event_callback(CustomizedCartoonDockFrontendEventCallback, this);
     if (service_) {
         connect(service_, &CustomizedCartoonService::configChanged, this,
@@ -829,12 +833,13 @@ CustomizedCartoonDock::~CustomizedCartoonDock() {
     obs_frontend_remove_event_callback(CustomizedCartoonDockFrontendEventCallback, this);
 }
 
-void CustomizedCartoonDock::setStreamingActive(bool active) {
-    if (streamingActive_ == active) {
+void CustomizedCartoonDock::setBroadcastState(bool streamingActive, bool recordingActive) {
+    if (streamingActive_ == streamingActive && recordingActive_ == recordingActive) {
         return;
     }
-    streamingActive_ = active;
-    if (streamingActive_ && service_ && service_->isMediaPreviewing()) {
+    streamingActive_ = streamingActive;
+    recordingActive_ = recordingActive;
+    if (isPreviewBlocked() && service_ && service_->isMediaPreviewing()) {
         service_->stopMediaPreview();
     }
     updateMediaPreviewAvailability();
@@ -846,9 +851,8 @@ void CustomizedCartoonDock::updateMediaPreviewAvailability() {
     if (!mediaList_) {
         return;
     }
-    const bool canPreview = !streamingActive_;
-    const QString previewTooltip =
-        streamingActive_ ? obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming") : QString();
+    const bool canPreview = !isPreviewBlocked();
+    const QString previewTooltip = canPreview ? QString() : previewBlockedTooltip();
     for (int i = 0; i < mediaList_->count(); ++i) {
         auto* item = mediaList_->item(i);
         auto* row = mediaList_->itemWidget(item);
@@ -863,6 +867,12 @@ void CustomizedCartoonDock::updateMediaPreviewAvailability() {
         previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
         previewButton->setToolTip(previewTooltip);
     }
+}
+
+bool CustomizedCartoonDock::isPreviewBlocked() const { return streamingActive_ || recordingActive_; }
+
+QString CustomizedCartoonDock::previewBlockedTooltip() const {
+    return obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting");
 }
 
 bool CustomizedCartoonDock::isPositionOrientationDirty(bool landscape) const {
@@ -1944,11 +1954,10 @@ void CustomizedCartoonDock::refreshMediaList() {
             previewButton->setIcon(previewingThis ? stopIcon : playIcon);
             previewButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
             previewButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
-            const bool canPreview = !streamingActive_;
+            const bool canPreview = !isPreviewBlocked();
             previewButton->setEnabled(canPreview);
             previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
-            previewButton->setToolTip(canPreview ? QString()
-                                                 : obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"));
+            previewButton->setToolTip(canPreview ? QString() : previewBlockedTooltip());
 
             auto* delButton = new QPushButton(row);
             delButton->setIcon(trashIcon);
@@ -1971,10 +1980,11 @@ void CustomizedCartoonDock::refreshMediaList() {
                 if (!service_) {
                     return;
                 }
-                if (streamingActive_ || obs_frontend_streaming_active()) {
+                if (isPreviewBlocked() || obs_frontend_streaming_active() ||
+                    obs_frontend_recording_active()) {
                     QMessageBox::information(
                         this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                        obs_module_text("CustomizedCartoon.Media.PreviewDisabledStreaming"),
+                        obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
                         QMessageBox::Ok);
                     return;
                 }
@@ -2708,6 +2718,12 @@ void CustomizedCartoonDock::onPreview() {
     if (!service_) {
         return;
     }
+    if (isPreviewBlocked() || obs_frontend_streaming_active() || obs_frontend_recording_active()) {
+        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                 obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
+                                 QMessageBox::Ok);
+        return;
+    }
     service_->previewPlayAll(&draftConfig_);
 }
 
@@ -2961,6 +2977,12 @@ void CustomizedCartoonDock::onReadPositionFromCanvas() {
 
 void CustomizedCartoonDock::onStartPositionPreview() {
     if (!service_) {
+        return;
+    }
+    if (isPreviewBlocked() || obs_frontend_streaming_active() || obs_frontend_recording_active()) {
+        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                 obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
+                                 QMessageBox::Ok);
         return;
     }
     auto* item = mediaList_ ? mediaList_->currentItem() : nullptr;

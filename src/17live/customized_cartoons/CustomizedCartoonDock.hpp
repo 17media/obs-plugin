@@ -48,7 +48,7 @@ class CustomizedCartoonDock : public QDockWidget {
     void onReadPositionFromCanvas();
     void onStartPositionPreview();
     void onStopPositionPreview();
-    void setStreamingActive(bool active);
+    void setBroadcastState(bool streamingActive, bool recordingActive);
 
    private:
     void setupUi();
@@ -68,6 +68,8 @@ class CustomizedCartoonDock : public QDockWidget {
     void syncPreviewDraftTransform();
     void updateMediaPreviewAvailability();
     void updateDraftUi();
+    bool isPreviewBlocked() const;
+    QString previewBlockedTooltip() const;
     void showToast(const QString& text, bool danger = false);
     void repositionToast();
     bool redirectWheelToSettingsScroll(QWheelEvent* event);
@@ -110,6 +112,7 @@ class CustomizedCartoonDock : public QDockWidget {
 
     QTableWidget* progressTable_{nullptr};
     bool streamingActive_{false};
+    bool recordingActive_{false};
 
     QWidget* rootWidget_{nullptr};
     QWidget* toastWidget_{nullptr};
