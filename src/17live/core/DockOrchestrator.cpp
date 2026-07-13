@@ -588,7 +588,8 @@ void DockOrchestrator::createCustomizedCartoonDock() {
     dock->setObjectName("CustomizedCartoonDock");
 
     dock->setMaximumWidth(1200);
-    dock->setMinimumSize(465, 500);
+    // Keep the dock dockable in all areas by avoiding an overly tall minimum height.
+    dock->setMinimumSize(465, 300);
     dock->resize(500, 820);
 
     dock->setAllowedAreas(Qt::AllDockWidgetAreas);

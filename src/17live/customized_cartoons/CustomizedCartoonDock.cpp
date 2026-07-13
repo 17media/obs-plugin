@@ -1277,91 +1277,6 @@ void CustomizedCartoonDock::setupUi() {
                                    kDockOuterMargin);
     rootLayout->setSpacing(10);
 
-    auto* titleBar = new QWidget(this);
-    titleBar->setObjectName("customizedCartoonTitleBar");
-    titleBar->setStyleSheet(
-        "QWidget#customizedCartoonTitleBar {"
-        "  background-color: #12141A;"
-        "  border: 0.5px solid #3D3D3D;"
-        "  border-radius: 2px;"
-        "}"
-        "QLabel#customizedCartoonTitleLabel {"
-        "  color: #FFFFFF;"
-        "  font-size: 14px;"
-        "  font-weight: 600;"
-        "}"
-        "QPushButton#customizedCartoonTitleButton {"
-        "  border: none;"
-        "  background: transparent;"
-        "  padding: 0px;"
-        "}"
-        "QPushButton#customizedCartoonTitleButton:hover { background-color: rgba(255,255,255,0.08); }");
-    auto* titleBarLayout = new QHBoxLayout(titleBar);
-    titleBarLayout->setContentsMargins(10, 4, 8, 4);
-    titleBarLayout->setSpacing(6);
-
-    auto* titleLabel = new QLabel(windowTitle(), titleBar);
-    titleLabel->setObjectName("customizedCartoonTitleLabel");
-    titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    titleBarLayout->addWidget(titleLabel, 0, Qt::AlignVCenter);
-    titleBarLayout->addStretch();
-
-    auto* titleHelpButton = new QPushButton(titleBar);
-    titleHelpButton->setObjectName("customizedCartoonTitleButton");
-    titleHelpButton->setIcon(QIcon(":/resources/question.svg"));
-    titleHelpButton->setIconSize(QSize(16, 16));
-    titleHelpButton->setFixedSize(20, 20);
-    titleHelpButton->setCursor(Qt::PointingHandCursor);
-    titleHelpButton->setToolTip(obs_module_text("CustomizedCartoon.Help.Tooltip"));
-    titleBarLayout->addWidget(titleHelpButton, 0, Qt::AlignVCenter);
-
-    auto* floatButton = new QPushButton(titleBar);
-    floatButton->setObjectName("customizedCartoonTitleButton");
-    floatButton->setFixedSize(20, 20);
-    floatButton->setCursor(Qt::PointingHandCursor);
-    titleBarLayout->addWidget(floatButton, 0, Qt::AlignVCenter);
-
-    auto* closeButton = new QPushButton(titleBar);
-    closeButton->setObjectName("customizedCartoonTitleButton");
-    closeButton->setIcon(style()->standardIcon(QStyle::SP_TitleBarCloseButton));
-    closeButton->setIconSize(QSize(12, 12));
-    closeButton->setFixedSize(20, 20);
-    closeButton->setCursor(Qt::PointingHandCursor);
-    titleBarLayout->addWidget(closeButton, 0, Qt::AlignVCenter);
-
-    auto updateTitleBarButtons = [this, floatButton, closeButton, titleLabel]() {
-        titleLabel->setText(windowTitle());
-        const auto dockFeatures = features();
-        const bool canFloat = dockFeatures.testFlag(QDockWidget::DockWidgetFloatable);
-        const bool canClose = dockFeatures.testFlag(QDockWidget::DockWidgetClosable);
-        floatButton->setVisible(canFloat);
-        closeButton->setVisible(canClose);
-        floatButton->setIcon(
-            style()->standardIcon(isFloating() ? QStyle::SP_TitleBarNormalButton
-                                               : QStyle::SP_TitleBarMaxButton));
-        floatButton->setIconSize(QSize(12, 12));
-        floatButton->setToolTip(isFloating()
-                                    ? obs_module_text("CustomizedCartoon.Dock.Docked")
-                                    : obs_module_text("CustomizedCartoon.Dock.Float"));
-        closeButton->setToolTip(obs_module_text("CustomizedCartoon.Dock.Close"));
-    };
-
-    connect(titleHelpButton, &QPushButton::clicked, this, &CustomizedCartoonDock::openHelpDialog);
-    connect(floatButton, &QPushButton::clicked, this, [this]() { setFloating(!isFloating()); });
-    connect(closeButton, &QPushButton::clicked, this, &QDockWidget::close);
-    connect(this, &QDockWidget::topLevelChanged, this, [updateTitleBarButtons](bool) {
-        updateTitleBarButtons();
-    });
-    connect(this, &QDockWidget::featuresChanged, this,
-            [updateTitleBarButtons](QDockWidget::DockWidgetFeatures) {
-                updateTitleBarButtons();
-            });
-    connect(this, &QWidget::windowTitleChanged, this, [updateTitleBarButtons](const QString&) {
-        updateTitleBarButtons();
-    });
-    updateTitleBarButtons();
-    setTitleBarWidget(titleBar);
-
     mainTabWidget_ = new QTabWidget(root);
     mainTabWidget_->setObjectName("mainSectionTabs");
     mainTabWidget_->setUsesScrollButtons(false);
@@ -1371,6 +1286,15 @@ void CustomizedCartoonDock::setupUi() {
     mainTabWidget_->setUsesScrollButtons(true);
     mainTabWidget_->tabBar()->setStyle(QStyleFactory::create("Fusion"));
 #endif
+    auto* headerHelpButton = new QPushButton(mainTabWidget_);
+    headerHelpButton->setObjectName("helpIconButton");
+    headerHelpButton->setIcon(QIcon(":/resources/question.svg"));
+    headerHelpButton->setIconSize(QSize(16, 16));
+    headerHelpButton->setFixedSize(24, 24);
+    headerHelpButton->setCursor(Qt::PointingHandCursor);
+    headerHelpButton->setToolTip(obs_module_text("CustomizedCartoon.Help.Tooltip"));
+    connect(headerHelpButton, &QPushButton::clicked, this, &CustomizedCartoonDock::openHelpDialog);
+    mainTabWidget_->setCornerWidget(headerHelpButton, Qt::TopRightCorner);
     rootLayout->addWidget(mainTabWidget_, 1);
 
     auto* settingsPage = new QWidget(mainTabWidget_);
