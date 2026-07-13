@@ -68,7 +68,7 @@ QStringList CustomizedCartoonService::supportedVideoExtensions() {
 }
 
 QStringList CustomizedCartoonService::supportedImageExtensions() {
-    return {"png", "jpg", "jpeg", "gif", "webp", "bmp"};
+    return {"png", "jpg", "jpeg", "gif", "bmp"};
 }
 
 qint64 CustomizedCartoonService::maxMediaFileSizeBytes() { return 200LL * 1024LL * 1024LL; }
