@@ -50,6 +50,7 @@
 #include <unordered_map>
 
 #include "CustomizedCartoonService.hpp"
+#include "../../plugin-support.h"
 
 using json = nlohmann::json;
 
@@ -2768,7 +2769,15 @@ bool CustomizedCartoonDock::saveAndApplyDraft() {
         return false;
     }
 
-    service_->applyOverlayTransformForOrientation(landscape);
+    const bool shouldApplyImmediately =
+        obs_frontend_streaming_active() || obs_frontend_recording_active();
+    if (!shouldApplyImmediately) {
+        return true;
+    }
+
+    const auto* item = mediaList_ ? mediaList_->currentItem() : nullptr;
+    const QString mediaId = item ? item->data(Qt::UserRole).toString() : QString();
+    service_->applyOverlayTransformForOrientation(landscape, nullptr, mediaId, &draftConfig_);
     return true;
 }
 
@@ -2864,7 +2873,9 @@ void CustomizedCartoonDock::syncPreviewDraftTransform() {
     }
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     const auto draft = buildCurrentPositionDraft(landscape);
-    service_->applyOverlayTransformForOrientation(landscape, &draft);
+    const auto* item = mediaList_ ? mediaList_->currentItem() : nullptr;
+    const QString mediaId = item ? item->data(Qt::UserRole).toString() : QString();
+    service_->applyOverlayTransformForOrientation(landscape, &draft, mediaId, &draftConfig_);
 }
 
 void CustomizedCartoonDock::onApplyPosition() {

@@ -19,6 +19,7 @@
 #include "../api/OneSevenLiveApiWrappers.hpp"
 #include "../streaming/OneSevenLiveStreamManager.hpp"
 #include "../utility/Common.hpp"
+#include "../../plugin-support.h"
 
 using json = nlohmann::json;
 
@@ -153,6 +154,7 @@ void CustomizedCartoonService::reloadConfig() {
         std::lock_guard<std::mutex> lock(cfgMutex_);
         cfg_ = cfg;
     }
+
     media_ = parseMedia(cfg);
     rules_ = parseRules(cfg);
     syncOverlaySceneItems();
@@ -1222,8 +1224,10 @@ bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QS
 }
 
 void CustomizedCartoonService::applyOverlayTransformForOrientation(bool landscape,
-                                                                   const json* previewTransform) {
-    applyOverlayTransform(landscape, previewTransform);
+                                                                   const json* previewTransform,
+                                                                   const QString& previewMediaId,
+                                                                   const json* previewConfig) {
+    applyOverlayTransform(landscape, previewTransform, previewMediaId, previewConfig);
 }
 
 std::vector<OneSevenLiveEngagementProgress> CustomizedCartoonService::getProgressSnapshot() const {
@@ -1279,9 +1283,10 @@ void CustomizedCartoonService::startNextPlayback() {
         ensureOverlaySceneItem();
 
         const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
+
         playingMediaId_ = mediaId;
         playing_ = true;
-        applyOverlayTransform(landscape);
+        applyOverlayTransform(landscape, nullptr, QString(), nullptr);
         if (media->type == "video") {
             playVideo(*media);
         } else {
@@ -1512,7 +1517,9 @@ void CustomizedCartoonService::ensureOverlaySceneItem() {
     obs_source_release(sceneSource);
 }
 
-void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json* previewTransform) {
+void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json* previewTransform,
+                                                     const QString& previewMediaId,
+                                                     const json* previewConfig) {
     bool useLandscapeConfig = landscape;
     double actualCanvasW = useLandscapeConfig ? 1280.0 : 720.0;
     double actualCanvasH = useLandscapeConfig ? 720.0 : 1280.0;
@@ -1569,6 +1576,7 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
     }
 
     MediaItem activePreviewPlaybackMedia;
+    MediaItem applyPreviewMedia;
     const MediaItem* activeMedia = nullptr;
     if (positionPreviewing_ && !positionPreviewMediaId_.isEmpty()) {
         activeMedia = hasPositionPreviewSnapshot_ ? &positionPreviewSnapshot_
@@ -1588,6 +1596,21 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
         }
         if (!activeMedia) {
             activeMedia = findMediaById(playingMediaId_);
+        }
+    }
+    if (!activeMedia && !previewMediaId.isEmpty()) {
+        if (previewConfig) {
+            const auto previewMediaList = parseMedia(*previewConfig);
+            for (const auto& item : previewMediaList) {
+                if (item.id == previewMediaId) {
+                    applyPreviewMedia = item;
+                    activeMedia = &applyPreviewMedia;
+                    break;
+                }
+            }
+        }
+        if (!activeMedia) {
+            activeMedia = findMediaById(previewMediaId);
         }
     }
     if (activeMedia && activeMedia->preserveAspectRatio) {
