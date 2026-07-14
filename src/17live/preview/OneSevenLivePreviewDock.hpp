@@ -6,6 +6,8 @@
 #include <QResizeEvent>
 #include <QString>
 
+class QTimer;
+
 #include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLivePreviewWidget.hpp"
 
@@ -32,6 +34,7 @@ class OneSevenLivePreviewDock : public QDockWidget {
    private:
     void setupUi();
     void updatePreviewGeometry();
+    void schedulePreviewDisplayRebuild();
 
     QPointer<OneSevenLivePreviewWidget> previewWidget = nullptr;
     QWidget* container = nullptr;
@@ -44,9 +47,11 @@ class OneSevenLivePreviewDock : public QDockWidget {
     bool initialized = false;
     QString overlayUrl_;
     QString enterAnimUrl_;
+    QTimer* displayRebuildTimer_ = nullptr;
 
    private slots:
     void onGiftsLoaded();
     void onDisplayCreated(bool created);
     void onTopLevelChanged(bool floating);
+    void onDockLocationChanged(Qt::DockWidgetArea area);
 };

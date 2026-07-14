@@ -14,21 +14,22 @@
 #include "moc_OneSevenLivePreviewDock.cpp"
 
 namespace {
-void PreviewDockFrontendEventCallback(enum obs_frontend_event event, void* private_data) {
-    auto* dock = static_cast<OneSevenLivePreviewDock*>(private_data);
-    if (!dock) {
-        return;
-    }
+    void PreviewDockFrontendEventCallback(enum obs_frontend_event event, void* private_data) {
+        auto* dock = static_cast<OneSevenLivePreviewDock*>(private_data);
+        if (!dock) {
+            return;
+        }
 
-    if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGED ||
-        event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED ||
-        event == OBS_FRONTEND_EVENT_STREAMING_STARTED) {
-        QTimer::singleShot(0, dock, [dock]() { dock->syncLayoutToObsCanvas(); });
+        if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGED ||
+            event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED ||
+            event == OBS_FRONTEND_EVENT_STREAMING_STARTED) {
+            QTimer::singleShot(0, dock, [dock]() { dock->syncLayoutToObsCanvas(); });
+        }
     }
-}
 }  // namespace
 
-OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent, const QString& overlayUrl, const QString& enterAnimUrl)
+OneSevenLivePreviewDock::OneSevenLivePreviewDock(QWidget* parent, const QString& overlayUrl,
+                                                 const QString& enterAnimUrl)
     : QDockWidget(obs_module_text("PreviewDock.Title"), parent),
       overlayUrl_(overlayUrl),
       enterAnimUrl_(enterAnimUrl),
@@ -100,6 +101,20 @@ void OneSevenLivePreviewDock::setupUi() {
                 &OneSevenLivePreviewDock::onDisplayCreated);
     }
     connect(this, &QDockWidget::topLevelChanged, this, &OneSevenLivePreviewDock::onTopLevelChanged);
+    connect(this, &QDockWidget::dockLocationChanged, this,
+            &OneSevenLivePreviewDock::onDockLocationChanged);
+
+    displayRebuildTimer_ = new QTimer(this);
+    displayRebuildTimer_->setSingleShot(true);
+    connect(displayRebuildTimer_, &QTimer::timeout, this, [this]() {
+        updatePreviewGeometry();
+        if (!previewWidget) {
+            return;
+        }
+
+        previewWidget->syncDisplaySize();
+        previewWidget->forceRefresh();
+    });
 
     // Placeholder label
     placeholderLabel = new QLabel(obs_module_text("PreviewDock.Initializing"), previewContainer);
@@ -231,8 +246,27 @@ void OneSevenLivePreviewDock::onDisplayCreated(bool created) {
 void OneSevenLivePreviewDock::onTopLevelChanged(bool floating) {
     Q_UNUSED(floating);
 
-    syncLayoutToObsCanvas();
-    if (previewWidget) {
-        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::rebuildDisplay);
+    schedulePreviewDisplayRebuild();
+}
+
+void OneSevenLivePreviewDock::onDockLocationChanged(Qt::DockWidgetArea area) {
+    Q_UNUSED(area);
+
+    schedulePreviewDisplayRebuild();
+}
+
+void OneSevenLivePreviewDock::schedulePreviewDisplayRebuild() {
+    updatePreviewGeometry();
+    if (!previewWidget) {
+        return;
+    }
+
+    // Reparenting between floating and docked states can invalidate the old native view.
+    // Tear the display down immediately, then wait for Qt to settle the new layout before
+    // recreating and resizing it.
+    previewWidget->rebuildDisplayAfterDelay(50);
+
+    if (displayRebuildTimer_) {
+        displayRebuildTimer_->start(70);
     }
 }

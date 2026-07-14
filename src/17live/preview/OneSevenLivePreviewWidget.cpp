@@ -23,11 +23,11 @@
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "../streaming/OneSevenLiveStreamManager.hpp"
-
 #include "moc_OneSevenLivePreviewWidget.cpp"
 #include "utility/Common.hpp"
 
-OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QString& overlayUrl, const QString& enterAnimUrl)
+OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QString& overlayUrl,
+                                                     const QString& enterAnimUrl)
     : QWidget(parent),
       previewDisplay(nullptr),
       display_created(false),
@@ -471,23 +471,26 @@ void OneSevenLivePreviewWidget::createBrowserSource() {
         }
 
         const int enterW = isLandscape ? (browserConfig.isValid ? browserConfig.width : 1920) : 640;
-        const int enterH = isLandscape ? (browserConfig.isValid ? browserConfig.height : 1080) : 1136;
+        const int enterH =
+            isLandscape ? (browserConfig.isValid ? browserConfig.height : 1080) : 1136;
 
         ObsDataPtr enterAnimSettings{obs_data_create()};
         obs_data_set_string(enterAnimSettings.get(), "url", enterAnimUrl_.toUtf8().constData());
         obs_data_set_int(enterAnimSettings.get(), "width", enterW);
         obs_data_set_int(enterAnimSettings.get(), "height", enterH);
-        obs_data_set_int(enterAnimSettings.get(), "fps", browserConfig.isValid ? browserConfig.fps : 30);
+        obs_data_set_int(enterAnimSettings.get(), "fps",
+                         browserConfig.isValid ? browserConfig.fps : 30);
         obs_data_set_bool(enterAnimSettings.get(), "shutdown", false);
         obs_data_set_bool(enterAnimSettings.get(), "restart_when_active", false);
         obs_data_set_bool(enterAnimSettings.get(), "reroute_audio", false);
 
         QString enterAnimPath = QDir::homePath() + "/.17Live/obs_browser_storage_enter_anim";
         QDir().mkpath(enterAnimPath);
-        obs_data_set_string(enterAnimSettings.get(), "local_storage_path", enterAnimPath.toStdString().c_str());
+        obs_data_set_string(enterAnimSettings.get(), "local_storage_path",
+                            enterAnimPath.toStdString().c_str());
 
-        enterAnimSource =
-            obs_source_create_private("browser_source", "LiveEnterAnimOverlay", enterAnimSettings.get());
+        enterAnimSource = obs_source_create_private("browser_source", "LiveEnterAnimOverlay",
+                                                    enterAnimSettings.get());
 
         if (enterAnimSource) {
             obs_log(LOG_INFO, "Preview Enter Anim Browser source created successfully");
@@ -509,7 +512,7 @@ void OneSevenLivePreviewWidget::destroyBrowserSource() {
         obs_source_release(browserSource);
         browserSource = nullptr;
     }
-    
+
     if (enterAnimSource) {
         removeSceneItem(enterAnimItem_);
         obs_source_release(enterAnimSource);
@@ -532,7 +535,7 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
             settings.reset();
         }
     }
-    
+
     if (enterAnimSource) {
         ObsDataPtr settings{obs_source_get_settings(enterAnimSource)};
         if (settings) {
@@ -542,8 +545,10 @@ void OneSevenLivePreviewWidget::updateBrowserSource() {
                 isLandscape = core.getStreamManager()->getRoomInfo().landscape;
             }
 
-            const int enterW = isLandscape ? (browserConfig.isValid ? browserConfig.width : 1920) : 640;
-            const int enterH = isLandscape ? (browserConfig.isValid ? browserConfig.height : 1080) : 1136;
+            const int enterW =
+                isLandscape ? (browserConfig.isValid ? browserConfig.width : 1920) : 640;
+            const int enterH =
+                isLandscape ? (browserConfig.isValid ? browserConfig.height : 1080) : 1136;
 
             bool changed = false;
             if (enterAnimUrl_ != lastEnterAnimUrl_) {
@@ -599,9 +604,13 @@ void OneSevenLivePreviewWidget::syncDisplaySize() {
 }
 
 void OneSevenLivePreviewWidget::rebuildDisplay() {
+    rebuildDisplayAfterDelay(0);
+}
+
+void OneSevenLivePreviewWidget::rebuildDisplayAfterDelay(int delayMs) {
     destroyDisplay();
     if (isVisible()) {
-        QTimer::singleShot(0, this, &OneSevenLivePreviewWidget::createDisplay);
+        QTimer::singleShot(qMax(0, delayMs), this, &OneSevenLivePreviewWidget::createDisplay);
     }
 }
 
