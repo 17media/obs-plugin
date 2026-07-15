@@ -34,7 +34,6 @@ class OneSevenLivePreviewDock : public QDockWidget {
    private:
     void setupUi();
     void updatePreviewGeometry();
-    void schedulePreviewDisplayRebuild();
 
     QPointer<OneSevenLivePreviewWidget> previewWidget = nullptr;
     QWidget* container = nullptr;
@@ -47,7 +46,6 @@ class OneSevenLivePreviewDock : public QDockWidget {
     bool initialized = false;
     QString overlayUrl_;
     QString enterAnimUrl_;
-    QTimer* displayRebuildTimer_ = nullptr;
 
    private slots:
     void onGiftsLoaded();

@@ -104,18 +104,6 @@ void OneSevenLivePreviewDock::setupUi() {
     connect(this, &QDockWidget::dockLocationChanged, this,
             &OneSevenLivePreviewDock::onDockLocationChanged);
 
-    displayRebuildTimer_ = new QTimer(this);
-    displayRebuildTimer_->setSingleShot(true);
-    connect(displayRebuildTimer_, &QTimer::timeout, this, [this]() {
-        updatePreviewGeometry();
-        if (!previewWidget) {
-            return;
-        }
-
-        previewWidget->syncDisplaySize();
-        previewWidget->forceRefresh();
-    });
-
     // Placeholder label
     placeholderLabel = new QLabel(obs_module_text("PreviewDock.Initializing"), previewContainer);
     placeholderLabel->setAlignment(Qt::AlignCenter);
@@ -246,27 +234,19 @@ void OneSevenLivePreviewDock::onDisplayCreated(bool created) {
 void OneSevenLivePreviewDock::onTopLevelChanged(bool floating) {
     Q_UNUSED(floating);
 
-    schedulePreviewDisplayRebuild();
+    updatePreviewGeometry();
+    if (previewWidget) {
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
+    }
 }
 
 void OneSevenLivePreviewDock::onDockLocationChanged(Qt::DockWidgetArea area) {
     Q_UNUSED(area);
 
-    schedulePreviewDisplayRebuild();
-}
-
-void OneSevenLivePreviewDock::schedulePreviewDisplayRebuild() {
     updatePreviewGeometry();
-    if (!previewWidget) {
-        return;
-    }
-
-    // Reparenting between floating and docked states can invalidate the old native view.
-    // Tear the display down immediately, then wait for Qt to settle the new layout before
-    // recreating and resizing it.
-    previewWidget->rebuildDisplayAfterDelay(50);
-
-    if (displayRebuildTimer_) {
-        displayRebuildTimer_->start(70);
+    if (previewWidget) {
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
+        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
     }
 }

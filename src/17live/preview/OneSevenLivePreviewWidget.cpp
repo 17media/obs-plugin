@@ -9,12 +9,14 @@
 #include <graphics/graphics.h>
 
 #include <QDir>
+#include <QEvent>
 #include <QFont>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QPlatformSurfaceEvent>
 #include <QResizeEvent>
 #include <QScreen>
 #include <QTimer>
@@ -39,6 +41,8 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QStr
       enterAnimSource(nullptr),
       configLoader(new OneSevenLivePreviewConfigLoader(this)),
       browserRefreshTimer(new QTimer(this)),
+      createDisplayTimer_(new QTimer(this)),
+      refreshDisplayTimer_(new QTimer(this)),
       overlayScale(1.0f),
       overlayUrl_(overlayUrl),
       enterAnimUrl_(enterAnimUrl) {
@@ -67,6 +71,15 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QStr
     connect(refreshTimer, &QTimer::timeout, this, &OneSevenLivePreviewWidget::refreshVideo);
     refreshTimer->start();
 
+    createDisplayTimer_->setSingleShot(true);
+    connect(createDisplayTimer_, &QTimer::timeout, this, &OneSevenLivePreviewWidget::createDisplay);
+
+    refreshDisplayTimer_->setSingleShot(true);
+    connect(refreshDisplayTimer_, &QTimer::timeout, this, [this]() {
+        updateVideoInfo();
+        forceRefresh();
+    });
+
     // Connect to OBS frontend events
     obs_frontend_add_event_callback(frontendEvent, this);
 
@@ -92,6 +105,7 @@ OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QStr
 OneSevenLivePreviewWidget::~OneSevenLivePreviewWidget() {
     // Disconnect all signals to prevent calling slots on destroyed objects
     disconnect(this, nullptr, nullptr, nullptr);
+    clearTrackedWindow();
 
     if (refreshTimer) {
         refreshTimer->stop();
@@ -106,23 +120,179 @@ OneSevenLivePreviewWidget::~OneSevenLivePreviewWidget() {
     destroyPreviewScene();
 }
 
+bool OneSevenLivePreviewWidget::event(QEvent* event) {
+    if (event) {
+        switch (event->type()) {
+            case QEvent::ParentAboutToChange:
+                clearTrackedWindow();
+                destroyDisplay();
+                break;
+            case QEvent::ParentChange:
+                updateTrackedWindow();
+                scheduleCreateDisplay();
+                scheduleRefresh();
+                break;
+            case QEvent::PlatformSurface: {
+                auto* surfaceEvent = static_cast<QPlatformSurfaceEvent*>(event);
+                if (surfaceEvent->surfaceEventType() ==
+                    QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
+                    destroyDisplay();
+                } else if (surfaceEvent->surfaceEventType() ==
+                           QPlatformSurfaceEvent::SurfaceCreated) {
+                    updateTrackedWindow();
+                    scheduleCreateDisplay();
+                    scheduleRefresh();
+                }
+                break;
+            }
+            case QEvent::WinIdChange: {
+                const WId currentWindowId = internalWinId();
+                if (display_created && previewDisplay && boundWindowId_ != 0 &&
+                    currentWindowId != 0 && currentWindowId != boundWindowId_) {
+                    destroyDisplay();
+                }
+
+                updateTrackedWindow();
+                scheduleCreateDisplay();
+                scheduleRefresh();
+                break;
+            }
+            case QEvent::ShowToParent:
+            case QEvent::Show:
+                updateTrackedWindow();
+                scheduleCreateDisplay();
+                scheduleRefresh();
+                break;
+            case QEvent::HideToParent:
+            case QEvent::Hide:
+                destroyDisplay();
+                break;
+            case QEvent::Move:
+            case QEvent::WindowStateChange:
+                updateTrackedWindow();
+                scheduleRefresh();
+                break;
+            default:
+                break;
+        }
+    }
+
+    return QWidget::event(event);
+}
+
+bool OneSevenLivePreviewWidget::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == trackedWindow_ && event) {
+        switch (event->type()) {
+            case QEvent::PlatformSurface: {
+                auto* surfaceEvent = static_cast<QPlatformSurfaceEvent*>(event);
+                if (surfaceEvent->surfaceEventType() ==
+                    QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
+                    destroyDisplay();
+                } else if (surfaceEvent->surfaceEventType() ==
+                           QPlatformSurfaceEvent::SurfaceCreated) {
+                    scheduleCreateDisplay();
+                    scheduleRefresh();
+                }
+                break;
+            }
+            case QEvent::Expose:
+            case QEvent::Resize:
+            case QEvent::Move:
+            case QEvent::Show:
+            case QEvent::WindowStateChange:
+                scheduleCreateDisplay();
+                scheduleRefresh();
+                break;
+            case QEvent::Hide:
+            case QEvent::Close:
+                destroyDisplay();
+                break;
+            default:
+                break;
+        }
+    }
+
+    return QWidget::eventFilter(watched, event);
+}
+
+void OneSevenLivePreviewWidget::scheduleCreateDisplay(int delayMs) {
+    if (!isVisible()) {
+        return;
+    }
+
+    createDisplayTimer_->start(qMax(0, delayMs));
+}
+
+void OneSevenLivePreviewWidget::scheduleRefresh(int delayMs) {
+    if (!isVisible()) {
+        return;
+    }
+
+    refreshDisplayTimer_->start(qMax(0, delayMs));
+}
+
+void OneSevenLivePreviewWidget::updateTrackedWindow() {
+    QWindow* newTrackedWindow = windowHandle();
+    if (!newTrackedWindow && window()) {
+        newTrackedWindow = window()->windowHandle();
+    }
+
+    if (trackedWindow_ == newTrackedWindow) {
+        return;
+    }
+
+    clearTrackedWindow();
+    trackedWindow_ = newTrackedWindow;
+    if (trackedWindow_) {
+        trackedWindow_->installEventFilter(this);
+    }
+}
+
+void OneSevenLivePreviewWidget::clearTrackedWindow() {
+    if (trackedWindow_) {
+        trackedWindow_->removeEventFilter(this);
+        trackedWindow_.clear();
+    }
+}
+
 void OneSevenLivePreviewWidget::createDisplay() {
     if (display_created || !isVisible()) {
         return;
     }
 
     // Get the native window handle
-    WId windowId = winId();
+    WId windowId = internalWinId();
+    if (windowId == 0) {
+        windowId = winId();
+    }
     if (windowId == 0) {
         return;
     }
 
-    // Calculate display dimensions with device pixel ratio
-    QScreen* screen = QGuiApplication::primaryScreen();
-    qreal dpr = screen ? screen->devicePixelRatio() : 1.0;
+    updateTrackedWindow();
 
-    int logical_width = width();
-    int logical_height = height();
+    const int logical_width = width();
+    const int logical_height = height();
+    if (logical_width <= 0 || logical_height <= 0) {
+        scheduleCreateDisplay(16);
+        return;
+    }
+
+    // Calculate display dimensions with device pixel ratio
+    qreal dpr = 1.0;
+    QWindow* window_handle = windowHandle();
+    if (!window_handle) {
+        window_handle = window()->windowHandle();
+    }
+    if (window_handle) {
+        dpr = window_handle->devicePixelRatio();
+    } else {
+        QScreen* screen = QGuiApplication::primaryScreen();
+        if (screen) {
+            dpr = screen->devicePixelRatio();
+        }
+    }
+
     int physical_width = static_cast<int>(logical_width * dpr);
     int physical_height = static_cast<int>(logical_height * dpr);
 
@@ -149,6 +319,7 @@ void OneSevenLivePreviewWidget::createDisplay() {
         display_created = true;
         display_width = physical_width;
         display_height = physical_height;
+        boundWindowId_ = windowId;
 
         obs_display_add_draw_callback(previewDisplay, drawCallback, this);
         updateSceneLayout();
@@ -166,6 +337,7 @@ void OneSevenLivePreviewWidget::destroyDisplay() {
         previewDisplay = nullptr;
     }
     display_created = false;
+    boundWindowId_ = 0;
 
     emit displayCreated(false);
 }
@@ -292,13 +464,14 @@ void OneSevenLivePreviewWidget::resizeEvent(QResizeEvent* event) {
 void OneSevenLivePreviewWidget::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
     setPreviewSceneVisible(true);
+    updateTrackedWindow();
     if (refreshTimer) {
         refreshTimer->start();
     }
     if (browserRefreshTimer) {
         browserRefreshTimer->start();
     }
-    QTimer::singleShot(0, this, &OneSevenLivePreviewWidget::createDisplay);
+    scheduleCreateDisplay();
 }
 
 void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
@@ -311,6 +484,7 @@ void OneSevenLivePreviewWidget::hideEvent(QHideEvent* event) {
     }
     setPreviewSceneVisible(false);
     destroyDisplay();
+    clearTrackedWindow();
 }
 
 void OneSevenLivePreviewWidget::paintEvent(QPaintEvent* event) {
@@ -610,7 +784,8 @@ void OneSevenLivePreviewWidget::rebuildDisplay() {
 void OneSevenLivePreviewWidget::rebuildDisplayAfterDelay(int delayMs) {
     destroyDisplay();
     if (isVisible()) {
-        QTimer::singleShot(qMax(0, delayMs), this, &OneSevenLivePreviewWidget::createDisplay);
+        scheduleCreateDisplay(delayMs);
+        scheduleRefresh(delayMs);
     }
 }
 

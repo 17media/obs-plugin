@@ -5,11 +5,15 @@
 
 #include <QLabel>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QTimer>
 #include <QWidget>
 
 #include "OneSevenLivePreviewConfigLoader.hpp"
+
+class QEvent;
+class QWindow;
 
 class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
@@ -41,6 +45,8 @@ class OneSevenLivePreviewWidget : public QWidget {
     void setOverlayUrl(const QString& url);
 
    protected:
+    bool event(QEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
@@ -54,6 +60,10 @@ class OneSevenLivePreviewWidget : public QWidget {
     void displayCreated(bool created);
 
    private:
+    void scheduleCreateDisplay(int delayMs = 0);
+    void scheduleRefresh(int delayMs = 0);
+    void updateTrackedWindow();
+    void clearTrackedWindow();
     void createDisplay();
     void destroyDisplay();
     void updateVideoInfo();
@@ -90,6 +100,10 @@ class OneSevenLivePreviewWidget : public QWidget {
     // Display dimensions
     int display_width;
     int display_height;
+    WId boundWindowId_{0};
+    QPointer<QWindow> trackedWindow_{nullptr};
+    QTimer* createDisplayTimer_{nullptr};
+    QTimer* refreshDisplayTimer_{nullptr};
 
     // Browser source overlay components
     obs_source_t* browserSource = nullptr;
