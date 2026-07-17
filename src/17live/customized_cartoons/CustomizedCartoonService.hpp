@@ -110,6 +110,12 @@ class CustomizedCartoonService : public QObject {
         bool valid{false};
     };
 
+    struct OverlaySceneItems {
+        obs_scene_t* scene{nullptr};
+        obs_sceneitem_t* mediaItem{nullptr};
+        obs_sceneitem_t* imageItem{nullptr};
+    };
+
     void ensureStorageDir();
     QString storageDir() const;
     QString copyToStorage(const QString& srcPath, QString& outError) const;
@@ -131,8 +137,10 @@ class CustomizedCartoonService : public QObject {
     void syncOverlaySceneItems();
     void removeOverlaySceneItems();
     void ensureOverlaySources();
-    void ensureOverlaySceneItem();
-    obs_source_t* getActivePreviewSceneSource() const;
+    void ensureOverlaySceneItems();
+    std::vector<obs_source_t*> getTargetSceneSources() const;
+    OverlaySceneItems* findOverlaySceneItems(obs_scene_t* scene);
+    const OverlaySceneItems* findOverlaySceneItems(obs_scene_t* scene) const;
     bool applyPreviewCanvas(bool landscape, QString& outError);
     void restorePreviewCanvas();
     void applyOverlayTransform(bool landscape,
@@ -186,8 +194,7 @@ class CustomizedCartoonService : public QObject {
 
     obs_source_t* mediaSource_{nullptr};
     obs_source_t* imageSource_{nullptr};
-    obs_sceneitem_t* mediaItem_{nullptr};
-    obs_sceneitem_t* imageItem_{nullptr};
+    std::vector<OverlaySceneItems> overlaySceneItems_;
 
     bool positionPreviewing_{false};
     bool positionPreviewLandscape_{true};
