@@ -1098,13 +1098,6 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
         hasMediaPreviewTransform_ = false;
     }
 
-    if (!applyPreviewCanvas(mediaPreviewLandscape_, outError)) {
-        mediaPreviewing_ = false;
-        previewMediaId_.clear();
-        hasMediaPreviewSnapshot_ = false;
-        return false;
-    }
-
     syncOverlaySceneItems();
     applyOverlayTransform(mediaPreviewLandscape_, previewTransform);
 
@@ -1114,7 +1107,6 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
             previewMediaId_.clear();
             hasMediaPreviewSnapshot_ = false;
             syncOverlaySceneItems();
-            restorePreviewCanvas();
             outError = obs_module_text("CustomizedCartoon.Error.VideoSourceNotAvailable");
             emit previewStateChanged();
             return false;
@@ -1135,7 +1127,6 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
             previewMediaId_.clear();
             hasMediaPreviewSnapshot_ = false;
             syncOverlaySceneItems();
-            restorePreviewCanvas();
             outError = obs_module_text("CustomizedCartoon.Error.ImageSourceNotAvailable");
             emit previewStateChanged();
             return false;
@@ -1169,7 +1160,6 @@ void CustomizedCartoonService::stopMediaPreview() {
     playbackTimer_.stop();
     hideOverlaySources();
     syncOverlaySceneItems();
-    restorePreviewCanvas();
     emit previewStateChanged();
 }
 
@@ -1225,13 +1215,6 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
         hasPositionPreviewTransform_ = false;
     }
 
-    if (!applyPreviewCanvas(positionPreviewLandscape_, outError)) {
-        positionPreviewing_ = false;
-        positionPreviewMediaId_.clear();
-        hasPositionPreviewSnapshot_ = false;
-        return false;
-    }
-
     syncOverlaySceneItems();
     applyOverlayTransform(landscape, previewTransform);
 
@@ -1241,7 +1224,6 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
             positionPreviewMediaId_.clear();
             hasPositionPreviewSnapshot_ = false;
             syncOverlaySceneItems();
-            restorePreviewCanvas();
             outError = obs_module_text("CustomizedCartoon.Error.VideoSourceNotAvailable");
             return false;
         }
@@ -1264,7 +1246,6 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
         positionPreviewMediaId_.clear();
         hasPositionPreviewSnapshot_ = false;
         syncOverlaySceneItems();
-        restorePreviewCanvas();
         outError = obs_module_text("CustomizedCartoon.Error.ImageSourceNotAvailable");
         return false;
     }
@@ -1292,7 +1273,6 @@ void CustomizedCartoonService::stopPositionPreview() {
     playbackTimer_.stop();
     hideOverlaySources();
     syncOverlaySceneItems();
-    restorePreviewCanvas();
 }
 
 bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QString& outError) const {
@@ -1521,7 +1501,7 @@ void CustomizedCartoonService::ensureOverlaySources() {
 
 std::vector<obs_source_t*> CustomizedCartoonService::getTargetSceneSources() const {
     std::vector<obs_source_t*> sources;
-    auto appendUniqueSource = [&sources](obs_source_t* source, const char* label) {
+    auto appendUniqueSource = [&sources](obs_source_t* source, const char* /*label*/) {
         if (!source) {
             return false;
         }
@@ -1745,7 +1725,6 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
 
             if (mediaSource_) {
                 items->mediaItem = obs_scene_find_source(scene, obs_source_get_name(mediaSource_));
-                const bool existed = items->mediaItem != nullptr;
                 if (!items->mediaItem) {
                     items->mediaItem = obs_scene_add(scene, mediaSource_);
                 }
@@ -1766,7 +1745,6 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
 
             if (imageSource_) {
                 items->imageItem = obs_scene_find_source(scene, obs_source_get_name(imageSource_));
-                const bool existed = items->imageItem != nullptr;
                 if (!items->imageItem) {
                     items->imageItem = obs_scene_add(scene, imageSource_);
                 }
