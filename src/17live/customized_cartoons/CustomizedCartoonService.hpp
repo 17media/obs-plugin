@@ -1,5 +1,6 @@
 #pragma once
 
+#include <obs-frontend-api.h>
 #include <obs.h>
 
 #include <QObject>
@@ -165,7 +166,12 @@ class CustomizedCartoonService : public QObject {
                              const std::vector<RuleItem>& rules) const;
 
     static void videoResetCallback(void* data, calldata_t*);
+    static void frontendEventCallback(enum obs_frontend_event event, void* data);
     void handleVideoReset();
+    void handleFrontendEvent(enum obs_frontend_event event);
+    void refreshActiveOverlayState();
+    bool resolvePlaybackMedia(const QString& mediaId, MediaItem& outMedia) const;
+    bool currentPlaybackUsesMediaSource() const;
 
     QMainWindow* mainWindow_{nullptr};
     OneSevenLiveApiWrappers* apiWrapper_{nullptr};

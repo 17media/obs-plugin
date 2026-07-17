@@ -154,6 +154,7 @@ CustomizedCartoonService::CustomizedCartoonService(QMainWindow* mainWindow,
     ensureStorageDir();
     reloadConfig();
 
+    obs_frontend_add_event_callback(frontendEventCallback, this);
     obsSignalHandler_ = obs_get_signal_handler();
     if (obsSignalHandler_) {
         signal_handler_connect(obsSignalHandler_, "video_reset", videoResetCallback, this);
@@ -161,6 +162,7 @@ CustomizedCartoonService::CustomizedCartoonService(QMainWindow* mainWindow,
 }
 
 CustomizedCartoonService::~CustomizedCartoonService() {
+    obs_frontend_remove_event_callback(frontendEventCallback, this);
     if (obsSignalHandler_) {
         signal_handler_disconnect(obsSignalHandler_, "video_reset", videoResetCallback, this);
         obsSignalHandler_ = nullptr;
@@ -173,6 +175,22 @@ void CustomizedCartoonService::videoResetCallback(void* data, calldata_t*) {
         return;
     }
     QMetaObject::invokeMethod(self, &CustomizedCartoonService::handleVideoReset, Qt::QueuedConnection);
+}
+
+void CustomizedCartoonService::frontendEventCallback(enum obs_frontend_event event, void* data) {
+    auto* self = static_cast<CustomizedCartoonService*>(data);
+    if (!self) {
+        return;
+    }
+    QMetaObject::invokeMethod(
+        self,
+        [self, event]() {
+            if (!self) {
+                return;
+            }
+            self->handleFrontendEvent(event);
+        },
+        Qt::QueuedConnection);
 }
 
 void CustomizedCartoonService::handleVideoReset() {
@@ -190,6 +208,27 @@ void CustomizedCartoonService::handleVideoReset() {
         const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
         applyOverlayTransform(landscape, nullptr);
     }
+}
+
+void CustomizedCartoonService::handleFrontendEvent(enum obs_frontend_event event) {
+    switch (event) {
+        case OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        case OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
+        case OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED:
+        case OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED:
+        case OBS_FRONTEND_EVENT_TRANSITION_STOPPED:
+            break;
+        default:
+            return;
+    }
+
+    if (!shouldKeepOverlaySources()) {
+        return;
+    }
+
+    obs_log(LOG_INFO, "[CustomizedCartoon] frontend event=%d resync overlay targets", event);
+    syncOverlaySceneItems();
+    refreshActiveOverlayState();
 }
 
 void CustomizedCartoonService::reloadConfig() {
@@ -959,6 +998,35 @@ void CustomizedCartoonService::enqueuePlayMedia(const QString& mediaId) {
     }
 }
 
+bool CustomizedCartoonService::resolvePlaybackMedia(const QString& mediaId, MediaItem& outMedia) const {
+    if (mediaId.isEmpty()) {
+        return false;
+    }
+
+    if (hasPlaybackPreviewConfig_) {
+        const auto previewMediaList = parseMedia(playbackPreviewConfig_);
+        for (const auto& item : previewMediaList) {
+            if (item.id == mediaId) {
+                outMedia = item;
+                return true;
+            }
+        }
+    }
+
+    const MediaItem* media = findMediaById(mediaId);
+    if (!media) {
+        return false;
+    }
+
+    outMedia = *media;
+    return true;
+}
+
+bool CustomizedCartoonService::currentPlaybackUsesMediaSource() const {
+    MediaItem media;
+    return resolvePlaybackMedia(playingMediaId_, media) ? (media.type == "video") : true;
+}
+
 void CustomizedCartoonService::previewPlayAll(const json* previewConfig) {
     playbackPreviewConfig_ = previewConfig ? *previewConfig : json::object();
     hasPlaybackPreviewConfig_ = (previewConfig != nullptr);
@@ -1309,31 +1377,17 @@ void CustomizedCartoonService::startNextPlayback() {
     while (!playQueue_.empty()) {
         const QString mediaId = playQueue_.front();
         playQueue_.pop_front();
-        MediaItem previewMedia;
-        const MediaItem* media = nullptr;
-        if (hasPlaybackPreviewConfig_) {
-            const auto previewMediaList = parseMedia(playbackPreviewConfig_);
-            for (const auto& item : previewMediaList) {
-                if (item.id == mediaId) {
-                    previewMedia = item;
-                    media = &previewMedia;
-                    break;
-                }
-            }
-        }
-        if (!media) {
-            media = findMediaById(mediaId);
-        }
-        if (!media) {
+        MediaItem media;
+        if (!resolvePlaybackMedia(mediaId, media)) {
             continue;
         }
-        if (!QFile::exists(media->path)) {
+        if (!QFile::exists(media.path)) {
             continue;
         }
 
         obs_log(LOG_INFO, "[CustomizedCartoon] start playback mediaId=%s type=%s path=%s",
-                mediaId.toUtf8().constData(), media->type.toUtf8().constData(),
-                media->path.toUtf8().constData());
+                mediaId.toUtf8().constData(), media.type.toUtf8().constData(),
+                media.path.toUtf8().constData());
         ensureOverlaySources();
         ensureOverlaySceneItems();
 
@@ -1342,13 +1396,21 @@ void CustomizedCartoonService::startNextPlayback() {
         playingMediaId_ = mediaId;
         playing_ = true;
         applyOverlayTransform(landscape, nullptr, QString(), nullptr);
-        if (media->type == "video") {
-            playVideo(*media);
+        if (media.type == "video") {
+            playVideo(media);
         } else {
-            playImage(*media);
+            playImage(media);
         }
         return;
     }
+
+    hideOverlaySources();
+    playing_ = false;
+    playingMediaId_.clear();
+    playingStartMs_ = 0;
+    playbackPreviewConfig_ = json::object();
+    hasPlaybackPreviewConfig_ = false;
+    syncOverlaySceneItems();
 }
 
 void CustomizedCartoonService::stopPlayback() {
@@ -1373,12 +1435,7 @@ bool CustomizedCartoonService::hasActiveRules() const {
 }
 
 bool CustomizedCartoonService::shouldKeepOverlaySources() const {
-    if (mediaPreviewing_ || positionPreviewing_ || playing_ || !playQueue_.empty()) {
-        return true;
-    }
-    return streamManager_ &&
-           streamManager_->getCurrentStreamingStatus() == OneSevenLiveStreamingStatus::Streaming &&
-           hasActiveRules();
+    return mediaPreviewing_ || positionPreviewing_ || playing_ || !playQueue_.empty();
 }
 
 void CustomizedCartoonService::syncOverlaySceneItems() {
@@ -1884,6 +1941,28 @@ void CustomizedCartoonService::hideOverlaySources() {
         if (items.imageItem) {
             obs_sceneitem_set_visible(items.imageItem, false);
         }
+    }
+}
+
+void CustomizedCartoonService::refreshActiveOverlayState() {
+    if (positionPreviewing_) {
+        applyOverlayTransform(positionPreviewLandscape_,
+                              hasPositionPreviewTransform_ ? &positionPreviewTransform_ : nullptr);
+        showOverlaySource(positionPreviewIsMedia_);
+        return;
+    }
+
+    if (mediaPreviewing_) {
+        applyOverlayTransform(mediaPreviewLandscape_,
+                              hasMediaPreviewTransform_ ? &mediaPreviewTransform_ : nullptr);
+        showOverlaySource(mediaPreviewIsMedia_);
+        return;
+    }
+
+    if (playing_) {
+        const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
+        applyOverlayTransform(landscape, nullptr, QString(), nullptr);
+        showOverlaySource(currentPlaybackUsesMediaSource());
     }
 }
 
