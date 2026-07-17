@@ -234,7 +234,7 @@ void CustomizedCartoonService::handleFrontendEvent(enum obs_frontend_event event
         return;
     }
 
-    obs_log(LOG_INFO, "[CustomizedCartoon] frontend event=%d resync overlay targets", event);
+    // obs_log(LOG_INFO, "[CustomizedCartoon] frontend event=%d resync overlay targets", event);
     syncOverlaySceneItems();
     refreshActiveOverlayState();
 }
@@ -1393,9 +1393,9 @@ void CustomizedCartoonService::startNextPlayback() {
             continue;
         }
 
-        obs_log(LOG_INFO, "[CustomizedCartoon] start playback mediaId=%s type=%s path=%s",
-                mediaId.toUtf8().constData(), media.type.toUtf8().constData(),
-                media.path.toUtf8().constData());
+        // obs_log(LOG_INFO, "[CustomizedCartoon] start playback mediaId=%s type=%s path=%s",
+        //         mediaId.toUtf8().constData(), media.type.toUtf8().constData(),
+        //         media.path.toUtf8().constData());
         ensureOverlaySources();
         ensureOverlaySceneItems();
 
@@ -1448,12 +1448,12 @@ bool CustomizedCartoonService::shouldKeepOverlaySources() const {
 
 void CustomizedCartoonService::syncOverlaySceneItems() {
     if (!shouldKeepOverlaySources()) {
-        obs_log(LOG_INFO, "[CustomizedCartoon] sync overlay items skipped: nothing should keep overlay");
+        // obs_log(LOG_INFO, "[CustomizedCartoon] sync overlay items skipped: nothing should keep overlay");
         removeOverlaySceneItems();
         return;
     }
 
-    obs_log(LOG_INFO, "[CustomizedCartoon] sync overlay items");
+    // obs_log(LOG_INFO, "[CustomizedCartoon] sync overlay items");
     ensureOverlaySources();
     ensureOverlaySceneItems();
 }
@@ -1463,14 +1463,14 @@ void CustomizedCartoonService::removeOverlaySceneItems() {
     for (auto& items : overlaySceneItems_) {
         const std::string sceneName = SafeSceneName(items.scene);
         if (items.mediaItem) {
-            obs_log(LOG_INFO, "[CustomizedCartoon] remove media overlay item from scene=%s",
-                    sceneName.c_str());
+            // obs_log(LOG_INFO, "[CustomizedCartoon] remove media overlay item from scene=%s",
+            //         sceneName.c_str());
             obs_sceneitem_remove(items.mediaItem);
             items.mediaItem = nullptr;
         }
         if (items.imageItem) {
-            obs_log(LOG_INFO, "[CustomizedCartoon] remove image overlay item from scene=%s",
-                    sceneName.c_str());
+            // obs_log(LOG_INFO, "[CustomizedCartoon] remove image overlay item from scene=%s",
+            //         sceneName.c_str());
             obs_sceneitem_remove(items.imageItem);
             items.imageItem = nullptr;
         }
@@ -1483,8 +1483,8 @@ void CustomizedCartoonService::ensureOverlaySources() {
     if (!mediaSource_) {
         mediaSource_ = obs_get_source_by_name(kCustomizedCartoonMediaSourceName);
         if (mediaSource_) {
-            obs_log(LOG_INFO, "[CustomizedCartoon] reuse media source=%s",
-                    SafeSourceName(mediaSource_).c_str());
+            // obs_log(LOG_INFO, "[CustomizedCartoon] reuse media source=%s",
+            //         SafeSourceName(mediaSource_).c_str());
         }
     }
     if (!mediaSource_) {
@@ -1496,15 +1496,15 @@ void CustomizedCartoonService::ensureOverlaySources() {
             mediaSource_ = obs_source_create("ffmpeg_source", kCustomizedCartoonMediaSourceName,
                                              settings, nullptr);
             obs_data_release(settings);
-            obs_log(LOG_INFO, "[CustomizedCartoon] create media source success=%d",
-                    mediaSource_ != nullptr);
+            // obs_log(LOG_INFO, "[CustomizedCartoon] create media source success=%d",
+            //         mediaSource_ != nullptr);
         }
     }
     if (!imageSource_) {
         imageSource_ = obs_get_source_by_name(kCustomizedCartoonImageSourceName);
         if (imageSource_) {
-            obs_log(LOG_INFO, "[CustomizedCartoon] reuse image source=%s",
-                    SafeSourceName(imageSource_).c_str());
+            // obs_log(LOG_INFO, "[CustomizedCartoon] reuse image source=%s",
+            //         SafeSourceName(imageSource_).c_str());
         }
     }
     if (!imageSource_) {
@@ -1513,8 +1513,8 @@ void CustomizedCartoonService::ensureOverlaySources() {
             imageSource_ =
                 obs_source_create("image_source", kCustomizedCartoonImageSourceName, settings, nullptr);
             obs_data_release(settings);
-            obs_log(LOG_INFO, "[CustomizedCartoon] create image source success=%d",
-                    imageSource_ != nullptr);
+            // obs_log(LOG_INFO, "[CustomizedCartoon] create image source success=%d",
+            //         imageSource_ != nullptr);
         }
     }
 }
@@ -1530,9 +1530,9 @@ std::vector<obs_source_t*> CustomizedCartoonService::getTargetSceneSources() con
                 return existing == source;
             });
         if (alreadyAdded) {
-            obs_log(LOG_INFO,
-                    "[CustomizedCartoon] skip duplicate target label=%s source=%s",
-                    label ? label : "<unknown>", FormatSourceDebug(source).c_str());
+            // obs_log(LOG_INFO,
+            //         "[CustomizedCartoon] skip duplicate target label=%s source=%s",
+            //         label ? label : "<unknown>", FormatSourceDebug(source).c_str());
             obs_source_release(source);
             return false;
         }
@@ -1563,35 +1563,35 @@ std::vector<obs_source_t*> CustomizedCartoonService::getTargetSceneSources() con
         previewScene = obs_frontend_get_current_preview_scene();
         programScene = obs_frontend_get_current_scene();
 
-        obs_log(LOG_INFO,
-                "[CustomizedCartoon] resolve target scenes studioMode=1 preview=%s(%p) program=%s(%p) same=%d",
-                SafeSourceName(previewScene).c_str(), static_cast<void*>(previewScene),
-                SafeSourceName(programScene).c_str(), static_cast<void*>(programScene),
-                previewScene && programScene && previewScene == programScene);
+        // obs_log(LOG_INFO,
+        //         "[CustomizedCartoon] resolve target scenes studioMode=1 preview=%s(%p) program=%s(%p) same=%d",
+        //         SafeSourceName(previewScene).c_str(), static_cast<void*>(previewScene),
+        //         SafeSourceName(programScene).c_str(), static_cast<void*>(programScene),
+        //         previewScene && programScene && previewScene == programScene);
 
         appendUniqueSource(previewScene, "previewScene");
         appendUniqueSource(programScene, "programScene");
     } else {
         programScene = obs_frontend_get_current_scene();
-        obs_log(LOG_INFO, "[CustomizedCartoon] resolve target scenes studioMode=0 current=%s(%p)",
-                SafeSourceName(programScene).c_str(), static_cast<void*>(programScene));
+        // obs_log(LOG_INFO, "[CustomizedCartoon] resolve target scenes studioMode=0 current=%s(%p)",
+        //         SafeSourceName(programScene).c_str(), static_cast<void*>(programScene));
         appendUniqueSource(programScene, "currentScene");
     }
 
     appendUniqueSource(outputActiveScene, "outputActiveScene");
 
-    obs_log(LOG_INFO,
-            "[CustomizedCartoon] frontend state studioMode=%d previewScene=%s programScene=%s currentTransition=%s",
-            studioMode, FormatSourceDebug(previewScene).c_str(), FormatSourceDebug(programScene).c_str(),
-            FormatSourceDebug(currentTransition).c_str());
-    obs_log(LOG_INFO,
-            "[CustomizedCartoon] output state outputSource=%s active=%s sourceA=%s sourceB=%s",
-            FormatSourceDebug(outputSource).c_str(), FormatSourceDebug(outputActiveSource).c_str(),
-            FormatSourceDebug(outputSourceA).c_str(), FormatSourceDebug(outputSourceB).c_str());
+    // obs_log(LOG_INFO,
+    //         "[CustomizedCartoon] frontend state studioMode=%d previewScene=%s programScene=%s currentTransition=%s",
+    //         studioMode, FormatSourceDebug(previewScene).c_str(), FormatSourceDebug(programScene).c_str(),
+    //         FormatSourceDebug(currentTransition).c_str());
+    // obs_log(LOG_INFO,
+    //         "[CustomizedCartoon] output state outputSource=%s active=%s sourceA=%s sourceB=%s",
+    //         FormatSourceDebug(outputSource).c_str(), FormatSourceDebug(outputActiveSource).c_str(),
+    //         FormatSourceDebug(outputSourceA).c_str(), FormatSourceDebug(outputSourceB).c_str());
 
     for (size_t i = 0; i < sources.size(); ++i) {
-        obs_log(LOG_INFO, "[CustomizedCartoon] target[%zu]=%s(%p)", i,
-                SafeSourceName(sources[i]).c_str(), static_cast<void*>(sources[i]));
+        // obs_log(LOG_INFO, "[CustomizedCartoon] target[%zu]=%s(%p)", i,
+        //         SafeSourceName(sources[i]).c_str(), static_cast<void*>(sources[i]));
     }
 
     if (currentTransition) {
@@ -1718,8 +1718,8 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
     auto sceneSources = getTargetSceneSources();
     std::vector<obs_scene_t*> targetScenes;
     targetScenes.reserve(sceneSources.size());
-    obs_log(LOG_INFO, "[CustomizedCartoon] ensure overlay scene items targetCount=%zu",
-            sceneSources.size());
+    // obs_log(LOG_INFO, "[CustomizedCartoon] ensure overlay scene items targetCount=%zu",
+    //         sceneSources.size());
 
     for (obs_source_t* sceneSource : sceneSources) {
         if (!sceneSource) {
@@ -1736,11 +1736,11 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
             if (!items) {
                 overlaySceneItems_.push_back(OverlaySceneItems{scene, nullptr, nullptr});
                 items = &overlaySceneItems_.back();
-                obs_log(LOG_INFO, "[CustomizedCartoon] create overlay scene entry scene=%s(%p)",
-                        sceneName.c_str(), static_cast<void*>(sceneSource));
+                // obs_log(LOG_INFO, "[CustomizedCartoon] create overlay scene entry scene=%s(%p)",
+                //         sceneName.c_str(), static_cast<void*>(sceneSource));
             } else {
-                obs_log(LOG_INFO, "[CustomizedCartoon] reuse overlay scene entry scene=%s(%p)",
-                        sceneName.c_str(), static_cast<void*>(sceneSource));
+                // obs_log(LOG_INFO, "[CustomizedCartoon] reuse overlay scene entry scene=%s(%p)",
+                //         sceneName.c_str(), static_cast<void*>(sceneSource));
             }
 
             if (mediaSource_) {
@@ -1750,10 +1750,10 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
                     items->mediaItem = obs_scene_add(scene, mediaSource_);
                 }
                 if (items->mediaItem) {
-                    obs_log(LOG_INFO,
-                            "[CustomizedCartoon] media overlay item %s scene=%s(%p) item=%p",
-                            existed ? "reused" : "added", sceneName.c_str(),
-                            static_cast<void*>(sceneSource), static_cast<void*>(items->mediaItem));
+                    // obs_log(LOG_INFO,
+                    //         "[CustomizedCartoon] media overlay item %s scene=%s(%p) item=%p",
+                    //         existed ? "reused" : "added", sceneName.c_str(),
+                    //         static_cast<void*>(sceneSource), static_cast<void*>(items->mediaItem));
                     obs_sceneitem_set_order(items->mediaItem, OBS_ORDER_MOVE_TOP);
                     obs_sceneitem_set_visible(items->mediaItem, false);
                     obs_sceneitem_select(items->mediaItem, false);
@@ -1771,10 +1771,10 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
                     items->imageItem = obs_scene_add(scene, imageSource_);
                 }
                 if (items->imageItem) {
-                    obs_log(LOG_INFO,
-                            "[CustomizedCartoon] image overlay item %s scene=%s(%p) item=%p",
-                            existed ? "reused" : "added", sceneName.c_str(),
-                            static_cast<void*>(sceneSource), static_cast<void*>(items->imageItem));
+                    // obs_log(LOG_INFO,
+                    //         "[CustomizedCartoon] image overlay item %s scene=%s(%p) item=%p",
+                    //         existed ? "reused" : "added", sceneName.c_str(),
+                    //         static_cast<void*>(sceneSource), static_cast<void*>(items->imageItem));
                     obs_sceneitem_set_order(items->imageItem, OBS_ORDER_MOVE_TOP);
                     obs_sceneitem_set_visible(items->imageItem, false);
                     obs_sceneitem_select(items->imageItem, false);
@@ -1804,8 +1804,8 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
             continue;
         }
 
-        obs_log(LOG_INFO, "[CustomizedCartoon] remove stale overlay scene entry scene=%s",
-                SafeSceneName(it->scene).c_str());
+        // obs_log(LOG_INFO, "[CustomizedCartoon] remove stale overlay scene entry scene=%s",
+        //         SafeSceneName(it->scene).c_str());
         if (it->mediaItem) {
             obs_sceneitem_remove(it->mediaItem);
         }
