@@ -44,6 +44,11 @@ class CustomizedCartoonService : public QObject {
     bool deleteMedia(const QString& mediaId, QString& outError);
 
     void previewPlayAll(const nlohmann::json* previewConfig = nullptr);
+    void stopPreviewPlayback();
+    bool enterPreviewMode(bool landscape, QString& outError);
+    void exitPreviewMode(bool restoreObsSettings = true);
+    bool updatePreviewModeOrientation(bool landscape, QString& outError);
+    bool isPreviewModeActive() const;
     bool startMediaPreview(const QString& mediaId, bool landscape, const nlohmann::json* previewTransform,
                            const nlohmann::json* previewConfig, QString& outError);
     void stopMediaPreview();
@@ -112,9 +117,7 @@ class CustomizedCartoonService : public QObject {
     };
 
     struct OverlaySceneItems {
-        obs_scene_t* scene{nullptr};
-        obs_sceneitem_t* mediaItem{nullptr};
-        obs_sceneitem_t* imageItem{nullptr};
+        obs_source_t* sceneSource{nullptr};
     };
 
     void ensureStorageDir();
@@ -137,11 +140,12 @@ class CustomizedCartoonService : public QObject {
     bool shouldKeepOverlaySources() const;
     void syncOverlaySceneItems();
     void removeOverlaySceneItems();
+    void discardOverlaySceneItemsCache();
     void ensureOverlaySources();
     void ensureOverlaySceneItems();
     std::vector<obs_source_t*> getTargetSceneSources() const;
-    OverlaySceneItems* findOverlaySceneItems(obs_scene_t* scene);
-    const OverlaySceneItems* findOverlaySceneItems(obs_scene_t* scene) const;
+    OverlaySceneItems* findOverlaySceneItems(obs_source_t* sceneSource);
+    const OverlaySceneItems* findOverlaySceneItems(obs_source_t* sceneSource) const;
     bool applyPreviewCanvas(bool landscape, QString& outError);
     void restorePreviewCanvas();
     void applyOverlayTransform(bool landscape,
@@ -210,6 +214,7 @@ class CustomizedCartoonService : public QObject {
     bool hasPositionPreviewTransform_{false};
 
     bool mediaPreviewing_{false};
+    bool previewModeActive_{false};
     bool mediaPreviewLandscape_{true};
     bool mediaPreviewIsMedia_{true};
     QString previewMediaId_;
