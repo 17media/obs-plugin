@@ -109,6 +109,14 @@ std::string FormatSourceDebug(obs_source_t* source) {
            std::to_string(reinterpret_cast<uintptr_t>(source)) + "}";
 }
 
+bool CurrentOBSCanvasLandscape() {
+    obs_video_info ovi{};
+    if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
+        return ovi.base_width >= ovi.base_height;
+    }
+    return true;
+}
+
 }  // namespace
 
 QStringList CustomizedCartoonService::supportedVideoExtensions() {
@@ -205,7 +213,7 @@ void CustomizedCartoonService::handleVideoReset() {
         return;
     }
     if (playing_) {
-        const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
+        const bool landscape = CurrentOBSCanvasLandscape();
         applyOverlayTransform(landscape, nullptr);
     }
 }
@@ -1391,7 +1399,7 @@ void CustomizedCartoonService::startNextPlayback() {
         ensureOverlaySources();
         ensureOverlaySceneItems();
 
-        const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
+        const bool landscape = CurrentOBSCanvasLandscape();
 
         playingMediaId_ = mediaId;
         playing_ = true;
@@ -1960,7 +1968,7 @@ void CustomizedCartoonService::refreshActiveOverlayState() {
     }
 
     if (playing_) {
-        const bool landscape = streamManager_ ? streamManager_->getRoomInfo().landscape : true;
+        const bool landscape = CurrentOBSCanvasLandscape();
         applyOverlayTransform(landscape, nullptr, QString(), nullptr);
         showOverlaySource(currentPlaybackUsesMediaSource());
     }
