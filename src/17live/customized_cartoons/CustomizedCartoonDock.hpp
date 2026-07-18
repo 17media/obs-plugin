@@ -8,6 +8,7 @@
 class QListWidget;
 class QTableWidget;
 class QPushButton;
+class QCheckBox;
 class QLabel;
 class QComboBox;
 class QDoubleSpinBox;
@@ -65,11 +66,15 @@ class CustomizedCartoonDock : public QDockWidget {
     bool saveAndApplyDraft();
     bool confirmCloseWithUnsavedChanges();
     void closeDock();
+    bool setPreviewModeEnabled(bool enabled, bool restoreObsSettings, bool showErrorDialog = true);
+    void updatePreviewModeUi();
+    bool isPreviewModeActive() const;
     void syncPreviewDraftTransform();
     void updateMediaPreviewAvailability();
     void updateDraftUi();
     bool isPreviewBlocked() const;
     QString previewBlockedTooltip() const;
+    void scheduleInitialMediaListRefresh();
     void showToast(const QString& text, bool danger = false);
     void repositionToast();
     bool redirectWheelToSettingsScroll(QWheelEvent* event);
@@ -83,6 +88,7 @@ class CustomizedCartoonDock : public QDockWidget {
 
     QListWidget* mediaList_{nullptr};
     QPushButton* addMediaButton_{nullptr};
+    QCheckBox* previewModeCheckBox_{nullptr};
     QLabel* mediaCountLabel_{nullptr};
     QTabWidget* mainTabWidget_{nullptr};
 
@@ -113,6 +119,8 @@ class CustomizedCartoonDock : public QDockWidget {
     QTableWidget* progressTable_{nullptr};
     bool streamingActive_{false};
     bool recordingActive_{false};
+    bool liveStreamingActive_{false};
+    bool previewModeActive_{false};
 
     QWidget* rootWidget_{nullptr};
     QWidget* toastWidget_{nullptr};
@@ -125,4 +133,6 @@ class CustomizedCartoonDock : public QDockWidget {
     nlohmann::json draftConfig_{nlohmann::json::object()};
     bool draftDirty_{false};
     bool bypassClosePrompt_{false};
+    bool initialMediaListRefreshScheduled_{false};
+    bool initialMediaListRefreshDone_{false};
 };

@@ -2,6 +2,7 @@
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
+#include <graphics/vec2.h>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -50,6 +51,8 @@
 #include <unordered_map>
 
 #include "CustomizedCartoonService.hpp"
+#include "../OneSevenLiveCoreManager.hpp"
+#include "../streaming/OneSevenLiveStreamManager.hpp"
 #include "../../plugin-support.h"
 
 using json = nlohmann::json;
@@ -74,6 +77,87 @@ constexpr int kRuleTypeComboChars = 10;
 constexpr int kRuleMediaComboChars = 12;
 constexpr int kMediaActionButtonSize = 24;
 constexpr int kMediaActionIconSize = 20;
+
+bool isSceneItemEligibleForFit(obs_sceneitem_t* item) {
+    if (!item) {
+        return false;
+    }
+    if (!obs_sceneitem_visible(item)) {
+        return false;
+    }
+    if (obs_sceneitem_locked(item)) {
+        return false;
+    }
+    return true;
+}
+
+int applyFitToAllSceneItemsToCurrentCanvas() {
+    obs_video_info ovi{};
+    if (!obs_get_video_info(&ovi) || ovi.base_width == 0 || ovi.base_height == 0) {
+        return 0;
+    }
+
+    obs_source_t* sceneSource = obs_frontend_get_current_scene();
+    if (!sceneSource) {
+        return 0;
+    }
+
+    obs_scene_t* scene = obs_scene_from_source(sceneSource);
+    if (!scene) {
+        obs_source_release(sceneSource);
+        return 0;
+    }
+
+    struct Ctx {
+        uint32_t canvasW = 0;
+        uint32_t canvasH = 0;
+        int applied = 0;
+    } ctx;
+    ctx.canvasW = ovi.base_width;
+    ctx.canvasH = ovi.base_height;
+
+    obs_scene_enum_items(
+        scene,
+        [](obs_scene_t*, obs_sceneitem_t* item, void* param) -> bool {
+            auto* ctx = static_cast<Ctx*>(param);
+            auto applyOne = [ctx](obs_sceneitem_t* target) {
+                if (!isSceneItemEligibleForFit(target)) {
+                    return;
+                }
+
+                obs_transform_info itemInfo;
+                vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+                vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+                itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+                itemInfo.rot = 0.0f;
+                vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
+                itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+                itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+                itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(target);
+                obs_sceneitem_set_info2(target, &itemInfo);
+                ctx->applied++;
+            };
+
+            if (obs_sceneitem_is_group(item)) {
+                obs_sceneitem_group_enum_items(item, [](obs_scene_t*, obs_sceneitem_t* child,
+                                                        void* groupParam) -> bool {
+                    auto* applyChild =
+                        static_cast<std::function<void(obs_sceneitem_t*)>*>(groupParam);
+                    (*applyChild)(child);
+                    return true;
+                },
+                                             &applyOne);
+                return true;
+            }
+
+            applyOne(item);
+            return true;
+        },
+        &ctx);
+
+    obs_source_release(sceneSource);
+    return ctx.applied;
+}
 
 QString getRuleTypeLabel(const QString& engageType) {
     if (engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
@@ -818,6 +902,35 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
     setupUi();
     streamingActive_ = obs_frontend_streaming_active();
     recordingActive_ = obs_frontend_recording_active();
+    auto& core = OneSevenLiveCoreManager::getInstance();
+    if (auto* streamManager = core.getStreamManager()) {
+        const auto status = streamManager->getCurrentStreamingStatus();
+        liveStreamingActive_ = (status == OneSevenLiveStreamingStatus::Live ||
+                                status == OneSevenLiveStreamingStatus::Streaming);
+        connect(streamManager, &OneSevenLiveStreamManager::streamStatusChanged, this,
+                [this](OneSevenLiveStreamingStatus status) {
+                    const bool liveActive = (status == OneSevenLiveStreamingStatus::Live ||
+                                             status == OneSevenLiveStreamingStatus::Streaming);
+                    if (liveStreamingActive_ == liveActive) {
+                        return;
+                    }
+                    liveStreamingActive_ = liveActive;
+                    if (liveActive && previewModeActive_) {
+                        setPreviewModeEnabled(false, false, false);
+                        showToast(obs_module_text("CustomizedCartoon.PreviewMode.AutoExit"));
+                    } else if (liveActive && service_) {
+                        service_->stopPreviewPlayback();
+                        if (service_->isMediaPreviewing()) {
+                            service_->stopMediaPreview();
+                        }
+                        if (service_->isPositionPreviewing()) {
+                            service_->stopPositionPreview();
+                        }
+                    }
+                    updatePreviewModeUi();
+                    refreshMediaList();
+                });
+    }
     obs_frontend_add_event_callback(CustomizedCartoonDockFrontendEventCallback, this);
     if (service_) {
         connect(service_, &CustomizedCartoonService::configChanged, this,
@@ -828,6 +941,7 @@ CustomizedCartoonDock::CustomizedCartoonDock(QWidget* parent, CustomizedCartoonS
                 &CustomizedCartoonDock::refreshMediaList);
     }
     refreshUi();
+    updatePreviewModeUi();
 }
 
 CustomizedCartoonDock::~CustomizedCartoonDock() {
@@ -840,20 +954,100 @@ void CustomizedCartoonDock::setBroadcastState(bool streamingActive, bool recordi
     }
     streamingActive_ = streamingActive;
     recordingActive_ = recordingActive;
-    if (isPreviewBlocked() && service_ && service_->isMediaPreviewing()) {
-        service_->stopMediaPreview();
+    if (isPreviewBlocked() && previewModeActive_) {
+        setPreviewModeEnabled(false, false, false);
+        showToast(obs_module_text("CustomizedCartoon.PreviewMode.AutoExit"));
+    } else if (isPreviewBlocked() && service_) {
+        service_->stopPreviewPlayback();
+        if (service_->isMediaPreviewing()) {
+            service_->stopMediaPreview();
+        }
+        if (service_->isPositionPreviewing()) {
+            service_->stopPositionPreview();
+        }
     }
+    updatePreviewModeUi();
     updateMediaPreviewAvailability();
     refreshMediaList();
     rebuildRulesUi();
 }
 
+bool CustomizedCartoonDock::setPreviewModeEnabled(bool enabled, bool restoreObsSettings,
+                                                  bool showErrorDialog) {
+    if (!service_) {
+        return false;
+    }
+
+    if (enabled == previewModeActive_) {
+        updatePreviewModeUi();
+        return true;
+    }
+
+    if (enabled) {
+        if (isPreviewBlocked()) {
+            if (showErrorDialog) {
+                QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                         obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
+                                         QMessageBox::Ok);
+            }
+            return false;
+        }
+
+        QString error;
+        const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
+        if (!service_->enterPreviewMode(landscape, error)) {
+            if (showErrorDialog) {
+                QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
+                                     QMessageBox::Ok);
+            }
+            return false;
+        }
+        previewModeActive_ = true;
+        OneSevenLiveCoreManager::getInstance().syncPreviewDockLayoutToObsCanvas();
+    } else {
+        service_->stopPreviewPlayback();
+        if (service_->isMediaPreviewing()) {
+            service_->stopMediaPreview();
+        }
+        if (service_->isPositionPreviewing()) {
+            service_->stopPositionPreview();
+        }
+        service_->exitPreviewMode(restoreObsSettings);
+        previewModeActive_ = false;
+        if (restoreObsSettings) {
+            OneSevenLiveCoreManager::getInstance().syncPreviewDockLayoutToObsCanvas();
+        }
+    }
+
+    updatePreviewModeUi();
+    refreshMediaList();
+    return true;
+}
+
+void CustomizedCartoonDock::updatePreviewModeUi() {
+    if (previewModeCheckBox_) {
+        const QSignalBlocker blocker(previewModeCheckBox_);
+        previewModeCheckBox_->setChecked(previewModeActive_);
+        previewModeCheckBox_->setToolTip(previewModeActive_
+                                             ? QString()
+                                             : (isPreviewBlocked() ? previewBlockedTooltip()
+                                                                   : QString::fromUtf8(obs_module_text(
+                                                                         "CustomizedCartoon.PreviewMode.Tooltip"))));
+    }
+    updateMediaPreviewAvailability();
+}
+
+bool CustomizedCartoonDock::isPreviewModeActive() const { return previewModeActive_; }
+
 void CustomizedCartoonDock::updateMediaPreviewAvailability() {
     if (!mediaList_) {
         return;
     }
-    const bool canPreview = !isPreviewBlocked();
-    const QString previewTooltip = canPreview ? QString() : previewBlockedTooltip();
+    const bool canPreview = previewModeActive_ && !isPreviewBlocked();
+    const QString previewTooltip =
+        !previewModeActive_
+            ? QString::fromUtf8(obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"))
+            : (canPreview ? QString() : previewBlockedTooltip());
     for (int i = 0; i < mediaList_->count(); ++i) {
         auto* item = mediaList_->item(i);
         auto* row = mediaList_->itemWidget(item);
@@ -870,7 +1064,9 @@ void CustomizedCartoonDock::updateMediaPreviewAvailability() {
     }
 }
 
-bool CustomizedCartoonDock::isPreviewBlocked() const { return streamingActive_ || recordingActive_; }
+bool CustomizedCartoonDock::isPreviewBlocked() const {
+    return streamingActive_ || recordingActive_ || liveStreamingActive_;
+}
 
 QString CustomizedCartoonDock::previewBlockedTooltip() const {
     return obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting");
@@ -1134,6 +1330,18 @@ void CustomizedCartoonDock::setupUi() {
         "}"
         "QPushButton#cancelActionButton:hover { background-color: #4A4F5E; }"
         "QPushButton#cancelActionButton:pressed { background-color: #343844; }"
+        "QCheckBox#previewModeCheckBox {"
+        "  color: #FFFFFF; font-size: 14px; font-weight: 500; spacing: 6px;"
+        "}"
+        "QCheckBox#previewModeCheckBox::indicator {"
+        "  width: 16px; height: 16px;"
+        "  border: 1px solid rgba(255,255,255,0.35);"
+        "  border-radius: 3px;"
+        "  background: transparent;"
+        "}"
+        "QCheckBox#previewModeCheckBox::indicator:checked {"
+        "  border: 1px solid #007AFF; background-color: #007AFF;"
+        "}"
         "QPushButton#helpIconButton { border: none; background: transparent; padding: 0px; }"
         "QPushButton#helpIconButton:hover { background-color: rgba(255,255,255,0.08); }"
         "QPushButton#tabButton {"
@@ -1287,7 +1495,17 @@ void CustomizedCartoonDock::setupUi() {
     mainTabWidget_->setUsesScrollButtons(true);
     mainTabWidget_->tabBar()->setStyle(QStyleFactory::create("Fusion"));
 #endif
-    auto* headerHelpButton = new QPushButton(mainTabWidget_);
+    auto* cornerWidget = new QWidget(mainTabWidget_);
+    auto* cornerLayout = new QHBoxLayout(cornerWidget);
+    cornerLayout->setContentsMargins(0, 0, 0, 0);
+    cornerLayout->setSpacing(8);
+    previewModeCheckBox_ =
+        new QCheckBox(obs_module_text("CustomizedCartoon.PreviewMode.Label"), cornerWidget);
+    previewModeCheckBox_->setObjectName("previewModeCheckBox");
+    previewModeCheckBox_->setCursor(Qt::PointingHandCursor);
+    previewModeCheckBox_->setToolTip(obs_module_text("CustomizedCartoon.PreviewMode.Tooltip"));
+    cornerLayout->addWidget(previewModeCheckBox_);
+    auto* headerHelpButton = new QPushButton(cornerWidget);
     headerHelpButton->setObjectName("helpIconButton");
     headerHelpButton->setIcon(QIcon(":/resources/question.svg"));
     headerHelpButton->setIconSize(QSize(16, 16));
@@ -1295,7 +1513,18 @@ void CustomizedCartoonDock::setupUi() {
     headerHelpButton->setCursor(Qt::PointingHandCursor);
     headerHelpButton->setToolTip(obs_module_text("CustomizedCartoon.Help.Tooltip"));
     connect(headerHelpButton, &QPushButton::clicked, this, &CustomizedCartoonDock::openHelpDialog);
-    mainTabWidget_->setCornerWidget(headerHelpButton, Qt::TopRightCorner);
+    cornerLayout->addWidget(headerHelpButton);
+    mainTabWidget_->setCornerWidget(cornerWidget, Qt::TopRightCorner);
+    connect(previewModeCheckBox_, &QCheckBox::toggled, this, [this](bool checked) {
+        if (checked == previewModeActive_) {
+            updatePreviewModeUi();
+            return;
+        }
+        if (!setPreviewModeEnabled(checked, true, true) && previewModeCheckBox_) {
+            const QSignalBlocker blocker(previewModeCheckBox_);
+            previewModeCheckBox_->setChecked(previewModeActive_);
+        }
+    });
     rootLayout->addWidget(mainTabWidget_, 1);
 
     auto* settingsPage = new QWidget(mainTabWidget_);
@@ -1651,8 +1880,13 @@ void CustomizedCartoonDock::setupUi() {
 }
 
 bool CustomizedCartoonDock::eventFilter(QObject* obj, QEvent* event) {
-    if (obj == rootWidget_ && event && event->type() == QEvent::Resize) {
-        repositionToast();
+    if (obj == rootWidget_ && event) {
+        if (event->type() == QEvent::Show || event->type() == QEvent::Resize) {
+            scheduleInitialMediaListRefresh();
+        }
+        if (event->type() == QEvent::Resize) {
+            repositionToast();
+        }
     }
     if (event && event->type() == QEvent::Wheel) {
         auto* widget = qobject_cast<QWidget*>(obj);
@@ -1664,6 +1898,28 @@ bool CustomizedCartoonDock::eventFilter(QObject* obj, QEvent* event) {
         }
     }
     return QDockWidget::eventFilter(obj, event);
+}
+
+void CustomizedCartoonDock::scheduleInitialMediaListRefresh() {
+    if (initialMediaListRefreshDone_ || initialMediaListRefreshScheduled_ || !rootWidget_ || !mediaList_) {
+        return;
+    }
+    if (!rootWidget_->isVisible() || rootWidget_->width() <= 0 || mediaList_->viewport()->width() <= 0) {
+        return;
+    }
+
+    initialMediaListRefreshScheduled_ = true;
+    QTimer::singleShot(0, this, [this]() {
+        initialMediaListRefreshScheduled_ = false;
+        if (initialMediaListRefreshDone_ || !rootWidget_ || !mediaList_) {
+            return;
+        }
+        if (!rootWidget_->isVisible() || rootWidget_->width() <= 0 || mediaList_->viewport()->width() <= 0) {
+            return;
+        }
+        initialMediaListRefreshDone_ = true;
+        refreshMediaList();
+    });
 }
 
 bool CustomizedCartoonDock::redirectWheelToSettingsScroll(QWheelEvent* event) {
@@ -1698,11 +1954,17 @@ bool CustomizedCartoonDock::redirectWheelToSettingsScroll(QWheelEvent* event) {
 void CustomizedCartoonDock::closeEvent(QCloseEvent* event) {
     if (bypassClosePrompt_) {
         bypassClosePrompt_ = false;
+        if (previewModeActive_) {
+            setPreviewModeEnabled(false, true, false);
+        }
         event->accept();
         return;
     }
 
     if (confirmCloseWithUnsavedChanges()) {
+        if (previewModeActive_) {
+            setPreviewModeEnabled(false, true, false);
+        }
         event->accept();
         return;
     }
@@ -1754,6 +2016,7 @@ void CustomizedCartoonDock::refreshUi() {
     refreshPositionUi();
     refreshProgress();
     updateDraftUi();
+    updatePreviewModeUi();
 }
 
 void CustomizedCartoonDock::refreshPositionUi() {
@@ -1861,7 +2124,8 @@ void CustomizedCartoonDock::refreshMediaList() {
 
             auto* nameLabel = new QLabel(name, row);
             nameLabel->setFixedHeight(24);
-            nameLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+            nameLabel->setMinimumWidth(0);
+            nameLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
             nameLabel->setTextInteractionFlags(Qt::NoTextInteraction);
             nameLabel->setStyleSheet(
                 "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; background: transparent; }");
@@ -1879,10 +2143,14 @@ void CustomizedCartoonDock::refreshMediaList() {
             previewButton->setIcon(previewingThis ? stopIcon : playIcon);
             previewButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
             previewButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
-            const bool canPreview = !isPreviewBlocked();
+            const bool canPreview = previewModeActive_ && !isPreviewBlocked();
             previewButton->setEnabled(canPreview);
             previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
-            previewButton->setToolTip(canPreview ? QString() : previewBlockedTooltip());
+            previewButton->setToolTip(!previewModeActive_
+                                          ? QString::fromUtf8(
+                                                obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"))
+                                          : (canPreview ? QString() : previewBlockedTooltip()));
+            previewButton->setVisible(previewModeActive_);
 
             auto* delButton = new QPushButton(row);
             delButton->setIcon(trashIcon);
@@ -1903,6 +2171,12 @@ void CustomizedCartoonDock::refreshMediaList() {
 
             connect(previewButton, &QPushButton::clicked, this, [this, item, id]() {
                 if (!service_) {
+                    return;
+                }
+                if (!previewModeActive_) {
+                    QMessageBox::information(
+                        this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                        obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"), QMessageBox::Ok);
                     return;
                 }
                 if (isPreviewBlocked() || obs_frontend_streaming_active() ||
@@ -2643,6 +2917,12 @@ void CustomizedCartoonDock::onPreview() {
     if (!service_) {
         return;
     }
+    if (!previewModeActive_) {
+        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                 obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"),
+                                 QMessageBox::Ok);
+        return;
+    }
     if (isPreviewBlocked() || obs_frontend_streaming_active() || obs_frontend_recording_active()) {
         QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
                                  obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
@@ -2654,6 +2934,16 @@ void CustomizedCartoonDock::onPreview() {
 
 void CustomizedCartoonDock::onOrientationChanged(int) {
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
+    if (previewModeActive_ && service_) {
+        QString error;
+        if (!service_->updatePreviewModeOrientation(landscape, error)) {
+            QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
+                                 QMessageBox::Ok);
+        } else {
+            OneSevenLiveCoreManager::getInstance().syncPreviewDockLayoutToObsCanvas();
+            QTimer::singleShot(0, this, []() { applyFitToAllSceneItemsToCurrentCanvas(); });
+        }
+    }
     if (positionCanvas_) {
         auto* canvas = static_cast<PositionCanvasWidget*>(positionCanvas_);
         canvas->setCanvasSize(landscape ? 1280 : 720, landscape ? 720 : 1280);
@@ -2912,6 +3202,12 @@ void CustomizedCartoonDock::onReadPositionFromCanvas() {
 
 void CustomizedCartoonDock::onStartPositionPreview() {
     if (!service_) {
+        return;
+    }
+    if (!previewModeActive_) {
+        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                 obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"),
+                                 QMessageBox::Ok);
         return;
     }
     if (isPreviewBlocked() || obs_frontend_streaming_active() || obs_frontend_recording_active()) {
