@@ -701,14 +701,14 @@ void OneSevenLiveCoreManager::createYouTubeChatClient() {
         return;
     }
     if (!youtubeApiClient) {
-        youtubeApiClient = std::make_unique<OneSevenLiveYouTubeClient>(this);
+        youtubeApiClient = std::make_unique<OneSevenLiveYouTubeClient>(nullptr);
         if (youtubeAuth && youtubeAuth->hasValidToken()) {
             youtubeApiClient->setAccessToken(youtubeAuth->getAccessToken());
         }
         youtubeApiClient->setTimeout(12000);
     }
     if (!youtubeChatClient) {
-        youtubeChatClient = std::make_unique<OneSevenLiveYouTubeChatClient>(this);
+        youtubeChatClient = std::make_unique<OneSevenLiveYouTubeChatClient>(nullptr);
         youtubeChatClient->setTimeout(12000);
         youtubeChatClient->setMaxRetries(3);
         youtubeChatClient->setRetryDelay(1000);
