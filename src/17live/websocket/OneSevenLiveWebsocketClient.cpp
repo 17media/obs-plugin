@@ -151,20 +151,26 @@ void OneSevenLiveWebsocketClient::startThread(const QString& host, const QString
         return;
     running.store(true);
 
-    thread_ = new QThread();
-    runner_ = new QObject();
-    runner_->moveToThread(thread_);
-    QObject::connect(thread_, &QThread::finished, runner_, &QObject::deleteLater);
-    QObject::connect(thread_, &QThread::finished, thread_, &QObject::deleteLater);
-    QObject::connect(thread_, &QThread::finished, this, [this]() {
-        runner_ = nullptr;
-        thread_ = nullptr;
+    QThread* thread = new QThread();
+    QObject* runner = new QObject();
+    thread_ = thread;
+    runner_ = runner;
+    runner->moveToThread(thread);
+    QObject::connect(thread, &QThread::finished, runner, &QObject::deleteLater);
+    QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    QObject::connect(thread, &QThread::finished, this, [this, thread, runner]() {
+        if (runner_ == runner) {
+            runner_ = nullptr;
+        }
+        if (thread_ == thread) {
+            thread_ = nullptr;
+        }
     });
-    thread_->start();
+    thread->start();
 
     QPointer<OneSevenLiveWebsocketClient> self(this);
     QMetaObject::invokeMethod(
-        runner_,
+        runner,
         [self, host, port, path]() {
             if (self) {
                 self->threadFunc(host, port, path);
