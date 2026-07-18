@@ -69,12 +69,15 @@ constexpr int kPositionPanelMinWidth =
 constexpr int kDockMinWidth = kPositionPanelMinWidth + 20;
 constexpr int kDockMinHeight = 300;
 constexpr int kRuleParamRowSpacing = 4;
-constexpr int kRuleParamGroupSpacing = 10;
-constexpr int kRuleGiftAmountSpinWidth = 100;
-constexpr int kRuleGiftCountSpinWidth = 60;
-constexpr int kRuleLuckyBagCountSpinWidth = 100;
-constexpr int kRuleTypeComboChars = 10;
-constexpr int kRuleMediaComboChars = 12;
+constexpr int kRuleParamGroupSpacing = 6;
+constexpr int kRuleGiftAmountSpinWidth = 84;
+constexpr int kRuleGiftCountSpinWidth = 56;
+constexpr int kRuleLuckyBagCountSpinWidth = 84;
+constexpr int kRuleTypeComboChars = 8;
+constexpr int kRuleMediaComboChars = 10;
+constexpr int kRulesPanelMinWidth = 360;
+constexpr int kRuleFieldLabelWidthNumerator = 2;
+constexpr int kRuleFieldLabelWidthDenominator = 3;
 constexpr int kMediaActionButtonSize = 24;
 constexpr int kMediaActionIconSize = 20;
 
@@ -198,7 +201,30 @@ int computeRuleParamLabelWidth() {
         width = std::max(width, metrics.horizontalAdvance(text));
     }
 
-    return width + 12;
+    return width + 8;
+}
+
+int computeRuleFieldLabelWidth() {
+    QFont font;
+    font.setPixelSize(14);
+    QFontMetrics metrics(font);
+
+    const QStringList candidates = {
+        obs_module_text("CustomizedCartoon.Rules.Field.ConditionName"),
+        obs_module_text("CustomizedCartoon.Rules.Field.Type"),
+        obs_module_text("CustomizedCartoon.Rules.Field.Rule"),
+        obs_module_text("CustomizedCartoon.Rules.Field.Media"),
+        obs_module_text("CustomizedCartoon.Rules.Field.Repeat"),
+    };
+
+    int width = 0;
+    for (const QString& text : candidates) {
+        width = std::max(width, metrics.horizontalAdvance(text));
+    }
+
+    const int reducedWidth =
+        (width * kRuleFieldLabelWidthNumerator) / kRuleFieldLabelWidthDenominator;
+    return std::max(56, reducedWidth);
 }
 
 static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event event,
@@ -1220,15 +1246,15 @@ void CustomizedCartoonDock::setupUi() {
         "}"
         "QLabel#mediaTitle {"
         "  color: #FFFFFF;"
-        "  font-size: 16px;"
+        "  font-size: 14px;"
         "  font-weight: 600;"
         "  line-height: 20px;"
         "  padding: 0px;"
         "}"
-        "QLabel#sectionTitle { font-size: 18px; font-weight: 700; }"
+        "QLabel#sectionTitle { font-size: 16px; font-weight: 700; }"
         "QLabel#rulesPanelTitle {"
         "  color: #FFFFFF;"
-        "  font-size: 16px;"
+        "  font-size: 14px;"
         "  font-weight: 600;"
         "  line-height: 20px;"
         "  min-height: 24px;"
@@ -1271,7 +1297,7 @@ void CustomizedCartoonDock::setupUi() {
         "}"
         "QLabel#positionPanelTitle {"
         "  color: #FFFFFF;"
-        "  font-size: 16px;"
+        "  font-size: 14px;"
         "  font-weight: 600;"
         "  padding: 0px;"
         "}"
@@ -1287,7 +1313,7 @@ void CustomizedCartoonDock::setupUi() {
         "  font-weight: 400;"
         "  padding: 0px;"
         "}"
-        "QLabel#pageTitle { font-size: 24px; font-weight: 800; }"
+        "QLabel#pageTitle { font-size: 20px; font-weight: 800; }"
         "QRadioButton { font-size: 14px; color: #FFFFFF; }"
         "QRadioButton::indicator {"
         "  width: 16px; height: 16px;"
@@ -1301,11 +1327,11 @@ void CustomizedCartoonDock::setupUi() {
         "}"
         "QPushButton#primaryButton {"
         "  background-color: #007AFF; color: white; border: none; border-radius: 2px;"
-        "  font-size: 16px; padding: 10px 18px;"
+        "  font-size: 14px; padding: 8px 14px;"
         "}"
         "QPushButton#mediaAddButton {"
         "  background-color: #007AFF; color: #FFFFFF; border: none; border-radius: 2px;"
-        "  font-size: 16px; font-weight: 600; padding: 0px 14px;"
+        "  font-size: 14px; font-weight: 600; padding: 0px 12px;"
         "}"
         "QPushButton#mediaAddButton:hover { background-color: #0A84FF; }"
         "QPushButton#mediaAddButton:pressed { background-color: #0060DF; }"
@@ -1347,7 +1373,7 @@ void CustomizedCartoonDock::setupUi() {
         "QPushButton#tabButton {"
         "  background-color: transparent; color: rgba(255,255,255,0.7);"
         "  border: 1px solid rgba(255,255,255,0.35); border-radius: 2px;"
-        "  font-size: 16px; padding: 10px 18px;"
+        "  font-size: 14px; padding: 8px 14px;"
         "}"
         "QPushButton#tabButton:checked {"
         "  background-color: #007AFF; color: white; border: none;"
@@ -1404,10 +1430,10 @@ void CustomizedCartoonDock::setupUi() {
         "  border: 1px solid rgba(255,255,255,0.12);"
         "  border-radius: 2px;"
         "  color: white;"
-        "  font-size: 16px;"
-        "  padding: 6px 10px;"
+        "  font-size: 14px;"
+        "  padding: 4px 8px;"
         "}"
-        "QCheckBox { color: white; font-size: 16px; }"
+        "QCheckBox { color: white; font-size: 14px; }"
         "QComboBox::drop-down { border: none; }"
         "QListWidget#mediaList {"
         "  background: transparent;"
@@ -1439,7 +1465,10 @@ void CustomizedCartoonDock::setupUi() {
         "}"
         "QScrollBar:vertical { background: transparent; width: 10px; margin: 0px; }"
         "QScrollBar::handle:vertical { background: rgba(255,255,255,0.18); border-radius: 2px; }"
-        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }");
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+        "QScrollBar:horizontal { background: transparent; height: 10px; margin: 0px; }"
+        "QScrollBar::handle:horizontal { background: rgba(255,255,255,0.18); border-radius: 2px; }"
+        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }");
 
     rootWidget_->installEventFilter(this);
 
@@ -1794,11 +1823,13 @@ void CustomizedCartoonDock::setupUi() {
     rulesScrollArea_ = new QScrollArea(rulesPage);
     rulesScrollArea_->setWidgetResizable(true);
     rulesScrollArea_->setFrameShape(QFrame::NoFrame);
-    rulesScrollArea_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    rulesScrollArea_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     rulesScrollArea_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     rulesPageLayout->addWidget(rulesScrollArea_, 1);
 
     auto* rulesScrollContent = new QWidget(rulesScrollArea_);
+    rulesScrollContent->setMinimumWidth(kRulesPanelMinWidth);
+    rulesScrollContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Preferred);
     auto* rulesScrollContentLayout = new QVBoxLayout(rulesScrollContent);
     rulesScrollContentLayout->setContentsMargins(0, 0, 0, 0);
     rulesScrollContentLayout->setSpacing(0);
@@ -1806,11 +1837,11 @@ void CustomizedCartoonDock::setupUi() {
 
     auto* rightPanel = new QFrame(rulesScrollContent);
     rightPanel->setObjectName("panel");
-    rightPanel->setMinimumWidth(kPositionPanelMinWidth);
+    rightPanel->setMinimumWidth(kRulesPanelMinWidth);
     rightPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
     auto* right = new QVBoxLayout(rightPanel);
-    right->setContentsMargins(5, 5, 5, 5);
-    right->setSpacing(5);
+    right->setContentsMargins(4, 4, 4, 4);
+    right->setSpacing(4);
     right->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
     auto* rulesTitle = new QLabel(obs_module_text("CustomizedCartoon.Rules.PanelTitle"), rightPanel);
@@ -2423,8 +2454,8 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             card->setObjectName("subPanel");
             card->setToolTip(ruleLockedTooltip);
             auto* cardLayout = new QVBoxLayout(card);
-            cardLayout->setContentsMargins(5, 5, 5, 5);
-            cardLayout->setSpacing(5);
+            cardLayout->setContentsMargins(4, 4, 4, 4);
+            cardLayout->setSpacing(4);
 
             auto* nameEdit = new QLineEdit(card);
             nameEdit->setObjectName("ruleNameEdit");
@@ -2444,13 +2475,18 @@ void CustomizedCartoonDock::rebuildRulesUi() {
 
             auto* grid = new QGridLayout();
             grid->setContentsMargins(0, 0, 0, 0);
-            grid->setHorizontalSpacing(5);
-            grid->setVerticalSpacing(5);
+            grid->setHorizontalSpacing(4);
+            grid->setVerticalSpacing(4);
             grid->setColumnStretch(1, 1);
+            const int ruleFieldLabelWidth = computeRuleFieldLabelWidth();
+            grid->setColumnMinimumWidth(0, ruleFieldLabelWidth);
 
-            auto makeLabel = [card](const char* key) {
+            auto makeLabel = [card, ruleFieldLabelWidth](const char* key) {
                 auto* l = new QLabel(obs_module_text(key), card);
-                l->setStyleSheet("QLabel { font-size: 14px; color: #FFFFFF; }");
+                l->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+                l->setWordWrap(true);
+                l->setFixedWidth(ruleFieldLabelWidth);
+                l->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
                 return l;
             };
 
@@ -2470,7 +2506,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
 
             auto* ruleLabel = new QLabel(card);
             ruleLabel->setWordWrap(true);
-            ruleLabel->setStyleSheet("QLabel { font-size: 14px; color: #FFFFFF; }");
+            ruleLabel->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
 
             auto* pointsSpin = new NoWheelSpinBox(card);
             pointsSpin->setRange(1, 100000000);
@@ -2541,7 +2577,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             paramsWrap->setLayout(paramsRow);
 
             auto* statusLabel = new QLabel(obs_module_text("CustomizedCartoon.Rules.Field.Status"), card);
-            statusLabel->setStyleSheet("QLabel { font-size: 14px; color: #FFFFFF; }");
+            statusLabel->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
 
             auto updateRuleUi = [ruleLabel, typeCombo, pointsSpin, countSpin, paramXLabel,
                                  paramYLabel, ruleParamLabelWidth]() {
@@ -2653,7 +2689,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
             grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.ConditionName"), 0, 0);
             auto* nameControls = new QHBoxLayout();
             nameControls->setContentsMargins(0, 0, 0, 0);
-            nameControls->setSpacing(5);
+            nameControls->setSpacing(4);
             nameControls->addWidget(nameEdit, 1);
             nameControls->addWidget(delButton);
             auto* nameWrap = new QWidget(card);
@@ -2689,7 +2725,7 @@ void CustomizedCartoonDock::rebuildRulesUi() {
 
             auto* bottomControls = new QHBoxLayout();
             bottomControls->setContentsMargins(0, 0, 0, 0);
-            bottomControls->setSpacing(10);
+            bottomControls->setSpacing(6);
             repeatCheck->setText(QString());
             bottomControls->addWidget(repeatCheck);
             bottomControls->addStretch(1);
