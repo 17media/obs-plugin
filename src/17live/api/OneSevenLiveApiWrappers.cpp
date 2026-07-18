@@ -1454,6 +1454,17 @@ bool OneSevenLiveApiWrappers::GetFilesList(Json &json_out_resp) {
         return false;
     }
 
+    size_t fileCount = 0;
+    if (json_out_resp.contains("files") && json_out_resp["files"].is_array()) {
+        fileCount = json_out_resp["files"].size();
+    } else if (json_out_resp.contains("animations") && json_out_resp["animations"].is_array()) {
+        fileCount = json_out_resp["animations"].size();
+    }
+    // obs_log(LOG_INFO, "GetFilesList success: fileCount=%zu keys=%s", fileCount,
+    //         json_out_resp.dump(0, ' ', false, nlohmann::json::error_handler_t::ignore)
+    //             .substr(0, 256)
+    //             .c_str());
+
     return true;
 }
 

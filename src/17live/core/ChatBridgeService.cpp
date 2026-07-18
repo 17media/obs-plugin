@@ -11,6 +11,52 @@
 #include "../websocket/OneSevenLiveWebsocketServer.hpp"
 #include "rockzone/OneSevenLiveUserDialog.hpp"
 
+namespace {
+bool isEnterAnimationPayload(const WsMessage& m) {
+    return m.type == ws::EventAblyChatMessage && m.payload.contains("type") &&
+           m.payload["type"].is_number_integer() && m.payload["type"].get<int>() == 27;
+}
+
+std::string buildEnterAnimationSummary(const nlohmann::json& payload) {
+    const auto* enter =
+        payload.contains("subscriberEnterMsg") && payload["subscriberEnterMsg"].is_object()
+            ? &payload["subscriberEnterMsg"]
+        : payload.contains("enterAnimationMsg") && payload["enterAnimationMsg"].is_object()
+            ? &payload["enterAnimationMsg"]
+            : nullptr;
+    if (!enter) {
+        return "payload=missing";
+    }
+
+    const int animation =
+        enter->contains("animation") && (*enter)["animation"].is_number_integer()
+            ? (*enter)["animation"].get<int>()
+            : -1;
+    const std::string userID =
+        enter->contains("userID") && (*enter)["userID"].is_string()
+            ? (*enter)["userID"].get<std::string>()
+            : "";
+    const std::string displayName =
+        enter->contains("displayName") && (*enter)["displayName"].is_string()
+            ? (*enter)["displayName"].get<std::string>()
+            : "";
+    std::string notifAnimationID;
+    if (enter->contains("eventNotifMsg") && (*enter)["eventNotifMsg"].is_object()) {
+        const auto& notif = (*enter)["eventNotifMsg"];
+        if (notif.contains("animationID") && notif["animationID"].is_string()) {
+            notifAnimationID = notif["animationID"].get<std::string>();
+        }
+    }
+
+    return QString("animation=%1 userID=%2 displayName=%3 notifAnimationID=%4")
+        .arg(animation)
+        .arg(QString::fromStdString(userID))
+        .arg(QString::fromStdString(displayName))
+        .arg(QString::fromStdString(notifAnimationID))
+        .toStdString();
+}
+}  // namespace
+
 ChatBridgeService::ChatBridgeService(OneSevenLiveCoreManager* coreManager) : coreManager_(coreManager) {}
 
 bool ChatBridgeService::hasAnyConnectedTargetLocked(
@@ -47,12 +93,19 @@ void ChatBridgeService::sendToTargetsLocked(const WsMessage& m,
     }
     const auto connected = ws->getConnectedClientIds();
     const auto msg = m.dump();
+    size_t deliveredCount = 0;
     for (const auto& id : connected) {
         if (targets.find(id) == targets.end()) {
             continue;
         }
         ws->sendMessageToClient(id, msg);
+        deliveredCount++;
     }
+    // if (isEnterAnimationPayload(m)) {
+    //     obs_log(LOG_INFO,
+    //             "[ChatQueue][EnterAnimation] delivered to %zu clients: %s", deliveredCount,
+    //             buildEnterAnimationSummary(m.payload).c_str());
+    // }
 }
 
 void ChatBridgeService::onWebsocketMessage(const std::string& clientId, const std::string& message) {
@@ -85,7 +138,8 @@ void ChatBridgeService::onWebsocketMessage(const std::string& clientId, const st
                 std::lock_guard<std::mutex> lock(chatQueueMutex_);
                 enterAnimClientIds_.insert(clientId);
             }
-            obs_log(LOG_INFO, "[ChatQueue] EnterAnimation registered client=%s", clientId.c_str());
+            // obs_log(LOG_INFO, "[ChatQueue] EnterAnimation registered client=%s",
+            //         clientId.c_str());
             flushChatEventQueue();
             return;
         }
@@ -166,6 +220,7 @@ void ChatBridgeService::onWebsocketConnectionChanged(const std::string& clientId
 void ChatBridgeService::enqueueOrBroadcastChatEvent(const QString& type, const nlohmann::json& payload) {
     std::lock_guard<std::mutex> lock(chatQueueMutex_);
     const WsMessage m{type.toStdString(), payload};
+    const bool isEnterAnimation = isEnterAnimationPayload(m);
     if (m.type == ws::EventAblyChatConnected) {
         if (hasAnyConnectedTargetLocked(chatDockClientIds_) || hasAnyConnectedTargetLocked(enterAnimClientIds_)) {
             sendToTargetsLocked(m, chatDockClientIds_);
@@ -175,13 +230,27 @@ void ChatBridgeService::enqueueOrBroadcastChatEvent(const QString& type, const n
     } else {
         const auto& targets = resolveTargetsLocked(m);
         if (hasAnyConnectedTargetLocked(targets)) {
+            // if (isEnterAnimation) {
+            //     obs_log(LOG_INFO,
+            //             "[ChatQueue][EnterAnimation] broadcasting immediately to registered "
+            //             "clients=%zu: %s",
+            //             targets.size(), buildEnterAnimationSummary(payload).c_str());
+            // }
             sendToTargetsLocked(m, targets);
             return;
         }
     }
 
     chatEventQueue_.enqueue(m);
-    obs_log(LOG_DEBUG, "[ChatQueue] Enqueued chat event. queueSize=%zu", chatEventQueue_.size());
+    if (isEnterAnimation) {
+        // obs_log(LOG_INFO,
+        //         "[ChatQueue][EnterAnimation] enqueued queueSize=%zu enterAnimClients=%zu "
+        //         "chatDockClients=%zu: %s",
+        //         chatEventQueue_.size(), enterAnimClientIds_.size(), chatDockClientIds_.size(),
+        //         buildEnterAnimationSummary(payload).c_str());
+    } else {
+        obs_log(LOG_DEBUG, "[ChatQueue] Enqueued chat event. queueSize=%zu", chatEventQueue_.size());
+    }
 }
 
 void ChatBridgeService::flushChatEventQueue() {
@@ -198,6 +267,11 @@ void ChatBridgeService::flushChatEventQueue() {
             sendToTargetsLocked(m, enterAnimClientIds_);
         } else {
             const auto& targets = resolveTargetsLocked(m);
+            // if (isEnterAnimationPayload(m)) {
+            //     obs_log(LOG_INFO,
+            //             "[ChatQueue][EnterAnimation] flushing queued event to targets=%zu: %s",
+            //             targets.size(), buildEnterAnimationSummary(m.payload).c_str());
+            // }
             sendToTargetsLocked(m, targets);
         }
         chatEventQueue_.popFront();

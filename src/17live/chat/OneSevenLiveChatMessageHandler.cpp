@@ -13,6 +13,60 @@
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WsMessage.hpp"
 
+namespace {
+std::string buildEnterAnimationLogSummary(const nlohmann::json& decoded) {
+    const auto* payload =
+        decoded.contains("subscriberEnterMsg") && decoded["subscriberEnterMsg"].is_object()
+            ? &decoded["subscriberEnterMsg"]
+        : decoded.contains("enterAnimationMsg") && decoded["enterAnimationMsg"].is_object()
+            ? &decoded["enterAnimationMsg"]
+            : nullptr;
+    if (!payload) {
+        return "payload=missing";
+    }
+
+    const int animation =
+        payload->contains("animation") && (*payload)["animation"].is_number_integer()
+            ? (*payload)["animation"].get<int>()
+            : -1;
+    const std::string userID =
+        payload->contains("userID") && (*payload)["userID"].is_string()
+            ? (*payload)["userID"].get<std::string>()
+            : "";
+    const std::string displayName =
+        payload->contains("displayName") && (*payload)["displayName"].is_string()
+            ? (*payload)["displayName"].get<std::string>()
+            : "";
+
+    std::string notifAnimationID;
+    bool hasTemplateURL = false;
+    bool hasIconURL = false;
+    bool hasNotif = false;
+    if (payload->contains("eventNotifMsg") && (*payload)["eventNotifMsg"].is_object()) {
+        const auto& notif = (*payload)["eventNotifMsg"];
+        hasNotif = true;
+        if (notif.contains("animationID") && notif["animationID"].is_string()) {
+            notifAnimationID = notif["animationID"].get<std::string>();
+        }
+        hasTemplateURL = notif.contains("templateURL") && notif["templateURL"].is_string() &&
+                         !notif["templateURL"].get<std::string>().empty();
+        hasIconURL = notif.contains("icouURL") && notif["icouURL"].is_string() &&
+                     !notif["icouURL"].get<std::string>().empty();
+    }
+
+    return QString("animation=%1 userID=%2 displayName=%3 hasNotif=%4 notifAnimationID=%5 "
+                   "hasTemplateURL=%6 hasIconURL=%7")
+        .arg(animation)
+        .arg(QString::fromStdString(userID))
+        .arg(QString::fromStdString(displayName))
+        .arg(hasNotif ? 1 : 0)
+        .arg(QString::fromStdString(notifAnimationID))
+        .arg(hasTemplateURL ? 1 : 0)
+        .arg(hasIconURL ? 1 : 0)
+        .toStdString();
+}
+}  // namespace
+
 bool OneSevenLiveChatMessageHandler::handleRaw(const std::string& msg) {
     try {
         nlohmann::json j = nlohmann::json::parse(msg);
@@ -28,6 +82,10 @@ bool OneSevenLiveChatMessageHandler::handleRaw(const std::string& msg) {
                 int type = decoded.contains("type") && decoded["type"].is_number_integer()
                                ? decoded["type"].get<int>()
                                : -1;
+                // if (type == ably::MsgType_ENTER_ANIMATION) {
+                //     obs_log(LOG_INFO, "[EnterAnimation][AblyDecoded] type=%d %s", type,
+                //             buildEnterAnimationLogSummary(decoded).c_str());
+                // }
                 routeByType(type, decoded);
             }
         }
@@ -92,6 +150,8 @@ void OneSevenLiveChatMessageHandler::routeByType(int type, const nlohmann::json&
             handleGiftPlayback(decoded);
         break;
     case ably::MsgType_ENTER_ANIMATION:
+        // obs_log(LOG_INFO, "[EnterAnimation][Route] forwarding to chat bridge: %s",
+        //         buildEnterAnimationLogSummary(decoded).c_str());
         OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
             QString::fromUtf8(EventAblyChatMessage), decoded);
         break;

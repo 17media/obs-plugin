@@ -653,8 +653,25 @@ bool OneSevenLiveHttpServer::start() {
                 } else if (action == ACTION_GETENTERANIMATIONFILES) {
                     const bool loaded = configManager->loadEnterAnimationFiles(apiResult);
                     const bool hasCached = !apiResult.empty();
+                    const auto getFileCount = [](const nlohmann::json &jsonValue) -> size_t {
+                        if (jsonValue.contains("files") && jsonValue["files"].is_array()) {
+                            return jsonValue["files"].size();
+                        }
+                        if (jsonValue.contains("animations") && jsonValue["animations"].is_array()) {
+                            return jsonValue["animations"].size();
+                        }
+                        return 0;
+                    };
+                    // obs_log(LOG_INFO,
+                    //         "[%s] getEnterAnimationFiles requested: cacheLoaded=%d hasCached=%d "
+                    //         "cachedFileCount=%zu",
+                    //         name_.c_str(), loaded, hasCached, getFileCount(apiResult));
                     if (!loaded || !hasCached) {
                         success = apiWrapper->GetFilesList(apiResult);
+                        // obs_log(LOG_INFO,
+                        //         "[%s] getEnterAnimationFiles fetched from remote: success=%d "
+                        //         "fileCount=%zu",
+                        //         name_.c_str(), success, getFileCount(apiResult));
                         if (success && !configManager->saveEnterAnimationFiles(apiResult)) {
                             const auto err = configManager->getLastError();
                             obs_log(LOG_WARNING,
@@ -662,6 +679,9 @@ bool OneSevenLiveHttpServer::start() {
                                     name_.c_str(), err.code.c_str(), err.message.c_str());
                         }
                     } else {
+                        // obs_log(LOG_INFO,
+                        //         "[%s] getEnterAnimationFiles served from cache: fileCount=%zu",
+                        //         name_.c_str(), getFileCount(apiResult));
                         success = true;
                     }
                 } else if (action == ACTION_GETI18NCONFIG) {

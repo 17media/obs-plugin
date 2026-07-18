@@ -100,6 +100,15 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                         scheduleReconnect();
                     }
                 } else if (action == 14) {
+                } else if (action == 15) {
+                    const std::string channel =
+                        j.contains("channel") && j["channel"].is_string()
+                            ? j["channel"].get<std::string>()
+                            : "";
+                    const size_t messageCount =
+                        j.contains("messages") && j["messages"].is_array() ? j["messages"].size() : 0;
+                    // obs_log(LOG_INFO, "[Ably] message action received: channel=%s messageCount=%zu",
+                    //         channel.c_str(), messageCount);
                 } else if (action == 16) {
                 } else if (action == 12) {
                     if (j.contains("channel") && j["channel"].is_string()) {

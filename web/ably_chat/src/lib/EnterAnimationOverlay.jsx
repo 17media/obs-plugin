@@ -433,6 +433,22 @@ function resolveTokenText(i18nMap, token) {
   return formatI18nTemplate(tpl, token.params);
 }
 
+function shouldLogAnim14Debug() {
+  if (typeof window === 'undefined') return process.env.NODE_ENV === 'development';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get('logAnim14') || params.get('debugAnim14') || '';
+    return (
+      process.env.NODE_ENV === 'development' ||
+      v === '1' ||
+      v.toLowerCase() === 'true' ||
+      v.toLowerCase() === 'yes'
+    );
+  } catch {
+    return process.env.NODE_ENV === 'development';
+  }
+}
+
 function ScrollingText({
   children,
   gapPx = 12,
@@ -529,6 +545,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
   const aniImageRef = useRef(null);
   const exitTimerRef = useRef(null);
   const failSafeTimerRef = useRef(null);
+  const currentMetaRef = useRef({ animationId: 0, src: '', eventTemplateUrl: '', eventIconUrl: '' });
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -581,6 +598,17 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     if (phaseRef.current !== 'hold') return;
     // Advance the lifecycle only after the upper animation image is ready.
     aniLoadedRef.current = true;
+    const meta = currentMetaRef.current || {};
+    // if (meta.animationId === 14 && shouldLogAnim14Debug()) {
+    //   console.log('[enter_animation][anim14] asset loaded', {
+    //     src: meta.src || null,
+    //     eventTemplateUrl: meta.eventTemplateUrl || null,
+    //     eventIconUrl: meta.eventIconUrl || null,
+    //     naturalWidth: aniImageRef.current?.naturalWidth ?? null,
+    //     naturalHeight: aniImageRef.current?.naturalHeight ?? null,
+    //     holdMs: holdMsRef.current,
+    //   });
+    // }
     if (failSafeTimerRef.current) {
       clearTimeout(failSafeTimerRef.current);
       failSafeTimerRef.current = null;
@@ -590,6 +618,15 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
 
   const handleAniLoadError = () => {
     if (phaseRef.current !== 'hold') return;
+    const meta = currentMetaRef.current || {};
+    // if (meta.animationId === 14 && shouldLogAnim14Debug()) {
+    //   console.warn('[enter_animation][anim14] asset load failed', {
+    //     src: meta.src || null,
+    //     eventTemplateUrl: meta.eventTemplateUrl || null,
+    //     eventIconUrl: meta.eventIconUrl || null,
+    //     currentSrc: aniImageRef.current?.currentSrc || null,
+    //   });
+    // }
     if (failSafeTimerRef.current) {
       clearTimeout(failSafeTimerRef.current);
       failSafeTimerRef.current = null;
@@ -646,6 +683,43 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
       else if (animId === 12) src = '/enter_animation/vip_goin_m.webp';
       else if (animId === 13) src = '/enter_animation/vip_goin_l.webp';
     }
+    const eventTemplateUrl =
+      animId === 14
+        ? normalizeRemoteEnterAnimationAsset(
+            next?.content?.getIn?.(['enterAnimation', 'eventNotifMsg', 'templateURL']) || ''
+          )
+        : '';
+    const eventIconUrl =
+      animId === 14
+        ? normalizeRemoteEnterAnimationAsset(
+            next?.content?.getIn?.(['enterAnimation', 'eventNotifMsg', 'icouURL']) || ''
+          )
+        : '';
+    currentMetaRef.current = { animationId: animId, src, eventTemplateUrl, eventIconUrl };
+    // if (animId === 14 && shouldLogAnim14Debug()) {
+    //   const enterAnimation = next?.content?.get?.('enterAnimation');
+    //   const enterAnimationJs = enterAnimation?.toJS?.() || null;
+    //   const notif = enterAnimation?.get?.('eventNotifMsg');
+    //   const notifJs = notif?.toJS?.() || null;
+    //   console.log('[enter_animation][anim14] overlay queued', {
+    //     id: next?.id || null,
+    //     src: src || null,
+    //     durationMs: holdMsRef.current,
+    //     hasEventNotifMsg: Boolean(notifJs),
+    //     eventTemplateUrl: eventTemplateUrl || null,
+    //     eventIconUrl: eventIconUrl || null,
+    //     eventAnimationID:
+    //       enterAnimationJs?.eventAnimationID ?? enterAnimation?.get?.('eventAnimationID') ?? null,
+    //     eventNameText: enterAnimationJs?.eventNameText ?? enterAnimation?.get?.('eventNameText') ?? null,
+    //     eventDescText: enterAnimationJs?.eventDescText ?? enterAnimation?.get?.('eventDescText') ?? null,
+    //   });
+    //   if (!notifJs) {
+    //     console.warn('[enter_animation][anim14] overlay missing eventNotifMsg on normalized payload');
+    //   }
+    //   if (!src) {
+    //     console.warn('[enter_animation][anim14] overlay missing animation asset src');
+    //   }
+    // }
 
     phaseTimersRef.current.push(
       setTimeout(() => {

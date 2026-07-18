@@ -20,6 +20,22 @@ import {
 import { getWebpDurationMs } from '@/lib/webpDuration';
 import { getEnterAnimationFiles, getGiftByID, getI18nConfig, getRoomInfo } from '../api';
 
+function shouldLogAnim14Debug() {
+  if (typeof window === 'undefined') return process.env.NODE_ENV === 'development';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get('logAnim14') || params.get('debugAnim14') || '';
+    return (
+      process.env.NODE_ENV === 'development' ||
+      v === '1' ||
+      v.toLowerCase() === 'true' ||
+      v.toLowerCase() === 'yes'
+    );
+  } catch {
+    return process.env.NODE_ENV === 'development';
+  }
+}
+
 export class OneSevenLivePlatform extends BasePlatform {
   constructor() {
     super('17live', '17Live');
@@ -27,6 +43,12 @@ export class OneSevenLivePlatform extends BasePlatform {
     this.channel = null;
     this.roomInfo = null;
     this.gifts = null;
+    this.enterAnimationFiles = null;
+    this.enterAnimationFilesPromise = null;
+    this.enterAnimationFilesLoadState = 'idle';
+    this.enterAnimationFilesLoadSource = 'not_started';
+    this.enterAnimationFilesLoadRequestedAt = 0;
+    this.enterAnimationFilesLoadResolvedAt = 0;
     this.roomID = '';
     this.userID = '';
     this.devEnterAnimationTimer = null;
@@ -69,6 +91,78 @@ export class OneSevenLivePlatform extends BasePlatform {
     return 1000 + Number(actualHoldMs || fallbackHoldMs) + 300 + 200;
   }
 
+  async ensureEnterAnimationFilesLoaded(source = 'unknown') {
+    const current = this.enterAnimationFiles;
+    const files = Array.isArray(current?.files)
+      ? current.files
+      : Array.isArray(current?.animations)
+        ? current.animations
+        : [];
+
+    if (files.length > 0) {
+      if (this.enterAnimationFilesLoadState !== 'loaded') {
+        this.enterAnimationFilesLoadState = 'loaded';
+        this.enterAnimationFilesLoadSource = source;
+        this.enterAnimationFilesLoadResolvedAt = this.enterAnimationFilesLoadResolvedAt || Date.now();
+      }
+      return current;
+    }
+
+    if (this.enterAnimationFilesPromise) {
+      return this.enterAnimationFilesPromise;
+    }
+
+    this.enterAnimationFilesLoadState = 'loading';
+    this.enterAnimationFilesLoadSource = source;
+    this.enterAnimationFilesLoadRequestedAt = Date.now();
+    this.enterAnimationFilesLoadResolvedAt = 0;
+
+    // if (shouldLogAnim14Debug()) {
+    //   console.log('[enter_animation][files] preload start', {
+    //     source: this.enterAnimationFilesLoadSource,
+    //     roomID: this.roomID || '',
+    //     userID: this.userID || '',
+    //     requestedAt: this.enterAnimationFilesLoadRequestedAt,
+    //   });
+    // }
+
+    this.enterAnimationFilesPromise = (async () => {
+      try {
+        const result = await getEnterAnimationFiles();
+        this.enterAnimationFiles = result;
+        this.enterAnimationFilesLoadState = 'loaded';
+        this.enterAnimationFilesLoadResolvedAt = Date.now();
+
+        // if (shouldLogAnim14Debug()) {
+        //   const loadedFiles = Array.isArray(result?.files)
+        //     ? result.files
+        //     : Array.isArray(result?.animations)
+        //       ? result.animations
+        //       : [];
+        //   console.log('[enter_animation][files] preloaded', {
+        //     source: this.enterAnimationFilesLoadSource,
+        //     requestedAt: this.enterAnimationFilesLoadRequestedAt,
+        //     resolvedAt: this.enterAnimationFilesLoadResolvedAt,
+        //     fileCount: loadedFiles.length,
+        //     sampleIds: loadedFiles
+        //       .slice(0, 5)
+        //       .map((f) => f?.animationID || f?.animationId || f?.id || f?.name || null),
+        //   });
+        // }
+
+        return result;
+      } catch (e) {
+        this.enterAnimationFilesLoadState = 'failed';
+        this.enterAnimationFilesLoadResolvedAt = Date.now();
+        throw e;
+      } finally {
+        this.enterAnimationFilesPromise = null;
+      }
+    })();
+
+    return this.enterAnimationFilesPromise;
+  }
+
   async connect(config = {}) {
     try {
       let { roomID, userID } = config;
@@ -87,7 +181,7 @@ export class OneSevenLivePlatform extends BasePlatform {
       // Fetch room info and gifts
       this.roomInfo = await getRoomInfo();
       try {
-        this.enterAnimationFiles = await getEnterAnimationFiles();
+        await this.ensureEnterAnimationFilesLoaded('platform.connect');
       } catch (e) {
         console.warn('Failed to preload enter animation files:', e);
       }
@@ -190,6 +284,16 @@ export class OneSevenLivePlatform extends BasePlatform {
       const status = payload?.status;
       const connected = status === 'connected';
       this.isConnected = connected;
+      // if (connected && shouldLogAnim14Debug()) {
+      //   console.log('[enter_animation][files] ws connected state', {
+      //     loadState: this.enterAnimationFilesLoadState,
+      //     loadSource: this.enterAnimationFilesLoadSource,
+      //     requestedAt: this.enterAnimationFilesLoadRequestedAt || null,
+      //     resolvedAt: this.enterAnimationFilesLoadResolvedAt || null,
+      //     roomID: this.roomID || '',
+      //     userID: this.userID || '',
+      //   });
+      // }
       if (connected) {
         this.emit('connected', { platform: this.platformId, roomID: this.roomID });
       } else {
@@ -308,6 +412,15 @@ export class OneSevenLivePlatform extends BasePlatform {
       const animationId = Number(payload?.animation || 0);
       const notif = payload?.eventNotifMsg;
       const i18nMap = this.i18nConfig && typeof this.i18nConfig === 'object' ? this.i18nConfig : null;
+
+      if (animationId === 14) {
+        try {
+          await this.ensureEnterAnimationFilesLoaded('anim14.prepareIndexedChat');
+        } catch (e) {
+        // console.warn('[enter_animation][files] ensure failed before anim14 lookup', e);
+        }
+      }
+
       const filesList = this.enterAnimationFiles && typeof this.enterAnimationFiles === 'object'
         ? this.enterAnimationFiles
         : null;
@@ -439,6 +552,70 @@ export class OneSevenLivePlatform extends BasePlatform {
               eventAnimationID: notif.animationID,
             }
           : {};
+
+      if (animationId === 14 && shouldLogAnim14Debug()) {
+        const eventAnimationID = notif?.animationID ?? null;
+        const resolvedAssetSrc = assetSrc || null;
+        const files =
+          filesList && Array.isArray(filesList.files)
+            ? filesList.files
+            : filesList && Array.isArray(filesList.animations)
+              ? filesList.animations
+              : [];
+        const matchedFile = eventAnimationID
+          ? files.find((f) => {
+              if (!f || typeof f !== 'object') return false;
+              return (
+                f.animationID === eventAnimationID ||
+                f.animationId === eventAnimationID ||
+                f.id === eventAnimationID ||
+                f.name === eventAnimationID
+              );
+            }) || null
+          : null;
+        // console.log('[enter_animation][anim14] normalized', {
+        //   rawAnimation: payload?.animation ?? null,
+        //   animationId,
+        //   displayName: payload?.displayName ?? null,
+        //   userID: payload?.userID ?? null,
+        //   hasNotif: Boolean(notif),
+        //   notifAnimationID: eventAnimationID,
+        //   hasTemplateURL: Boolean(notif?.templateURL),
+        //   hasIconURL: Boolean(notif?.icouURL),
+        //   nameTokenKey: notif?.name?.key ?? null,
+        //   descTokenKey: notif?.descriptionToken?.key ?? null,
+        //   filesLoaded: Boolean(filesList),
+        //   filesLoadState: this.enterAnimationFilesLoadState,
+        //   filesLoadSource: this.enterAnimationFilesLoadSource,
+        //   filesRequestedAt: this.enterAnimationFilesLoadRequestedAt || null,
+        //   filesResolvedAt: this.enterAnimationFilesLoadResolvedAt || null,
+        //   filesCount: files.length,
+        //   matchedFileKey: matchedFile
+        //     ? matchedFile.animationID || matchedFile.animationId || matchedFile.id || matchedFile.name || null
+        //     : null,
+        //   matchedFileUrl: matchedFile
+        //     ? matchedFile.webpURL || matchedFile.webpUrl || matchedFile.webp || matchedFile.url || matchedFile.URL || null
+        //     : null,
+        //   resolvedAssetSrc,
+        //   fallbackTemplateURL: notif?.templateURL ?? null,
+        //   resolvedEventNameText: event14.eventNameText || null,
+        //   resolvedEventDescText: event14.eventDescText || null,
+        //   rawMessageBody: message || null,
+        //   rawEnterAnimationPayload: payload || null,
+        // });
+        // if (!filesList) {
+        //   console.warn('[enter_animation][files] lookup without loaded files', {
+        //     animationId,
+        //     notifAnimationID: eventAnimationID,
+        //     loadState: this.enterAnimationFilesLoadState,
+        //     loadSource: this.enterAnimationFilesLoadSource,
+        //     requestedAt: this.enterAnimationFilesLoadRequestedAt || null,
+        //     resolvedAt: this.enterAnimationFilesLoadResolvedAt || null,
+        //     roomID: this.roomID || '',
+        //     userID: this.userID || '',
+        //   });
+        // }
+      }
 
       return fromJS({
         ...userInfo,

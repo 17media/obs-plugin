@@ -181,7 +181,17 @@ class WebSocketManager extends EventEmitter {
       } else if (type === 'ably_chat_connected' || type === 'ably_chat_message') {
         const ensure = () => {
           const platform = messageAggregator.platforms?.get('17live');
-          if (!platform) return messageAggregator.addPlatform('17live', {}).then(() => messageAggregator.platforms.get('17live'));
+          if (!platform) {
+            // console.log('[enter_animation][files] ws ensure platform', {
+            //   platformId: '17live',
+            //   via: 'WebSocketManager',
+            //   hasConfig: false,
+            //   note: 'platform.connect is not called in this path',
+            // });
+            return messageAggregator
+              .addPlatform('17live', {})
+              .then(() => messageAggregator.platforms.get('17live'));
+          }
           return Promise.resolve(platform);
         };
         ensure()
