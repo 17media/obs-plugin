@@ -425,11 +425,16 @@ function formatI18nTemplate(tpl, params) {
   return out;
 }
 
-function resolveTokenText(i18nMap, token) {
+function resolveTokenText(i18nMap, token, options = {}) {
   if (!token || typeof token !== 'object') return '';
   const key = token.key;
   const tpl = resolveI18nString(i18nMap, key);
-  if (!tpl) return typeof key === 'string' ? key : '';
+  if (!tpl) {
+    if (typeof options.fallbackTemplate === 'string' && options.fallbackTemplate) {
+      return formatI18nTemplate(options.fallbackTemplate, token.params);
+    }
+    return typeof key === 'string' ? key : '';
+  }
   return formatI18nTemplate(tpl, token.params);
 }
 
@@ -522,7 +527,7 @@ function ScrollingText({
 
 function SlidingBadgeText({ children, maxWidthPx = 320, animationKey }) {
   return (
-    <BadgeSlideViewport style={{ maxWidth: `${maxWidthPx}px` }}>
+    <BadgeSlideViewport style={{ maxWidth: Number.isFinite(maxWidthPx) ? `${maxWidthPx}px` : 'none' }}>
       <BadgeSlideText key={animationKey}>
         {children}
       </BadgeSlideText>
@@ -823,8 +828,21 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
 
     const marqueeText = (() => {
       if (isEvent14) {
+        const descTokenKey = eventNotifMsg?.descriptionToken?.key || '';
         const resolved = resolveTokenText(i18nMap, eventNotifMsg?.descriptionToken);
-        return resolved || enterAnimation?.eventDescText || '';
+        if (resolved && resolved !== descTokenKey) return resolved;
+        if (enterAnimation?.eventDescText && enterAnimation.eventDescText !== descTokenKey) {
+          return enterAnimation.eventDescText;
+        }
+
+        const fallbackName =
+          eventNotifMsg?.descriptionToken?.params?.find((p) => p && typeof p.value !== 'undefined')?.value ||
+          name;
+        try {
+          return t('enter_is_here', { name: fallbackName || '' });
+        } catch {
+          return fallbackName ? `${fallbackName} is here!` : '';
+        }
       }
       const effectiveKey = marqueeKey || (animationId === 6 ? '' : 'enter_is_here');
       if (!effectiveKey) return '';
@@ -906,9 +924,9 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                 <AvatarBadgeGroup>
                   <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
                   {isEvent14 && safeBadgeLabel ? (
-                    <Marquee $bg={eventBadgeBg} $h="33px">
+                    <Marquee $bg={eventBadgeBg} $h="33px" style={{ maxWidth: 'none' }}>
                       {eventIconUrl ? <BadgeIcon $size="25px" src={eventIconUrl} alt="" /> : null}
-                      <SlidingBadgeText maxWidthPx={320} animationKey={`${current?.id || 'badge'}-left`}>
+                      <SlidingBadgeText maxWidthPx={Number.POSITIVE_INFINITY} animationKey={`${current?.id || 'badge'}-left`}>
                         <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor} $ml="3px">
                           {safeBadgeLabel}
                         </Text>

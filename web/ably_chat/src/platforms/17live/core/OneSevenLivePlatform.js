@@ -446,11 +446,16 @@ export class OneSevenLivePlatform extends BasePlatform {
         return out;
       };
 
-      const resolveTokenText = (token) => {
+      const resolveTokenText = (token, options = {}) => {
         if (!token || typeof token !== 'object') return '';
         const key = token.key;
         const tpl = resolveI18nString(key);
-        if (!tpl) return typeof key === 'string' ? key : '';
+        if (!tpl) {
+          if (typeof options.fallbackTemplate === 'string' && options.fallbackTemplate) {
+            return formatI18nTemplate(options.fallbackTemplate, token.params);
+          }
+          return typeof key === 'string' ? key : '';
+        }
         return formatI18nTemplate(tpl, token.params);
       };
 
@@ -542,7 +547,10 @@ export class OneSevenLivePlatform extends BasePlatform {
         animationId === 14 && notif
           ? {
               eventNameText: resolveTokenText(notif.name),
-              eventDescText: resolveTokenText(notif.descriptionToken),
+              eventDescText: (() => {
+                const resolved = resolveTokenText(notif.descriptionToken);
+                return resolved === notif?.descriptionToken?.key ? '' : resolved;
+              })(),
               eventGradientFrom: notif.gradientFrom,
               eventGradientTo: notif.gradientTo,
               eventTextSize: notif.textSize,
