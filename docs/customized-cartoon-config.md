@@ -293,7 +293,9 @@
 
 1. 開播後，service 會根據已啟用且已綁定媒體的規則建立 engagement
 2. `pollTimer_` 每 10 秒輪詢一次 engagement progress
-3. 當某條規則首次達標，或 round 增加時，對應素材 `mediaId` 會加入播放佇列
+3. 當某條規則對應的 progress 達到 `current >= target` 時，該輪對應素材 `mediaId`
+   會加入播放佇列；若輪詢剛好跨過達標點，會依已完成的輪次補發，不會在新一輪
+   `1/5` 時先觸發
 4. 若當前沒有其他素材播放，就立即開始 `startNextPlayback()`
 5. 播放前會依直播房間的直式 / 橫式狀態選用已保存的正式位置配置
 6. 影片播放完畢或圖片顯示秒數結束後，自動隱藏 overlay，並播放佇列中的下一個素材

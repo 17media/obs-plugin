@@ -109,6 +109,8 @@ std::string FormatSourceDebug(obs_source_t* source) {
            std::to_string(reinterpret_cast<uintptr_t>(source)) + "}";
 }
 
+const char* BoolText(bool value) { return value ? "true" : "false"; }
+
 bool CurrentOBSCanvasLandscape() {
     obs_video_info ovi{};
     if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
@@ -303,8 +305,9 @@ bool CustomizedCartoonService::saveConfig(const json& cfg, QString* outError) {
     const json previousCfg = getConfigSnapshot();
     LiveRuleSyncPlan liveRuleSyncPlan;
     QString liveRuleSyncError;
+    const auto nextRules = parseRules(cfg);
     if (shouldSyncLiveRules &&
-        !buildLiveRuleSyncPlan(parseRules(cfg), liveRuleSyncPlan, liveRuleSyncError)) {
+        !buildLiveRuleSyncPlan(nextRules, liveRuleSyncPlan, liveRuleSyncError)) {
         if (outError) {
             *outError = liveRuleSyncError;
         }
@@ -333,7 +336,7 @@ bool CustomizedCartoonService::saveConfig(const json& cfg, QString* outError) {
         cfg_ = cfg;
     }
     media_ = parseMedia(cfg);
-    rules_ = parseRules(cfg);
+    rules_ = nextRules;
     syncOverlaySceneItems();
     emit configChanged();
     return true;
@@ -649,13 +652,21 @@ void CustomizedCartoonService::onStreamStatusChanged(OneSevenLiveStreamingStatus
     if (!streamManager_) {
         return;
     }
+    // obs_log(LOG_INFO, "[CustomizedCartoon][RuleFlow] stream status changed status=%d",
+    //         (int)status);
     if (status == OneSevenLiveStreamingStatus::Streaming) {
         liveStreamID_ = QString::fromStdString(streamManager_->getCurrentLiveStreamID());
+        // obs_log(LOG_INFO,
+        //         "[CustomizedCartoon][RuleFlow] streaming active liveStreamID=%s rules=%zu",
+        //         liveStreamID_.toStdString().c_str(), rules_.size());
         startEngagementsIfNeeded();
         syncOverlaySceneItems();
         pollTimer_.start();
         onPollTimer();
     } else if (status == OneSevenLiveStreamingStatus::NotStarted) {
+        // obs_log(LOG_INFO,
+        //         "[CustomizedCartoon][RuleFlow] streaming stopped clear engagements mappedRules=%zu",
+        //         ruleToEngageID_.size());
         pollTimer_.stop();
         stopEngagements();
         stopPlayback();
@@ -677,6 +688,12 @@ void CustomizedCartoonService::startEngagementsIfNeeded() {
     creates.reserve(rules_.size());
 
     for (const auto& r : rules_) {
+        // obs_log(LOG_INFO,
+        //         "[CustomizedCartoon][RuleFlow] evaluate rule for create ruleId=%s type=%s "
+        //         "points=%d count=%d mediaId=%s repeatable=%s enabled=%s",
+        //         r.id.toStdString().c_str(), r.engageType.toStdString().c_str(), r.points,
+        //         r.count, r.mediaId.toStdString().c_str(), BoolText(r.repeatable),
+        //         BoolText(r.enabled));
         if (!r.enabled) {
             continue;
         }
@@ -692,11 +709,18 @@ void CustomizedCartoonService::startEngagementsIfNeeded() {
             c.payload = json{{"points", r.points}, {"count", r.count}};
         }
         c.isRepeatable = r.repeatable;
+        // obs_log(LOG_INFO,
+        //         "[CustomizedCartoon][RuleFlow] queue create engagement ruleId=%s engageType=%s "
+        //         "payload=%s repeatable=%s",
+        //         r.id.toStdString().c_str(), r.engageType.toStdString().c_str(),
+        //         c.payload.dump().c_str(), BoolText(r.repeatable));
         creates.push_back(std::move(c));
         ruleIds.push_back(r.id);
     }
 
     if (creates.empty()) {
+        // obs_log(LOG_INFO,
+        //         "[CustomizedCartoon][RuleFlow] no eligible rules to create engagements");
         return;
     }
 
@@ -716,15 +740,37 @@ void CustomizedCartoonService::startEngagementsIfNeeded() {
                     return;
                 }
                 if (!ok) {
+                    obs_log(LOG_WARNING,
+                            "[CustomizedCartoon][RuleFlow] create engagements failed liveStreamID=%s "
+                            "error=%s",
+                            self->liveStreamID_.toStdString().c_str(),
+                            self->apiWrapper_ ? self->apiWrapper_->getLastErrorMessage().toStdString().c_str()
+                                              : "<no-api>");
                     return;
                 }
+                // obs_log(LOG_INFO,
+                //         "[CustomizedCartoon][RuleFlow] create engagements success results=%zu",
+                //         results.size());
                 for (const auto& r : results) {
                     if (r.index < 0 || r.index >= static_cast<int>(ruleIds.size())) {
+                        obs_log(LOG_WARNING,
+                                "[CustomizedCartoon][RuleFlow] create result index out of range index=%d "
+                                "ruleCount=%zu engageID=%s",
+                                r.index, ruleIds.size(), r.engageID.toStdString().c_str());
                         continue;
                     }
                     if (r.engageID.isEmpty()) {
+                        obs_log(LOG_WARNING,
+                                "[CustomizedCartoon][RuleFlow] create result missing engageID index=%d "
+                                "ruleId=%s",
+                                r.index, ruleIds[r.index].toStdString().c_str());
                         continue;
                     }
+                    // obs_log(LOG_INFO,
+                    //         "[CustomizedCartoon][RuleFlow] map rule to engage ruleId=%s "
+                    //         "engageID=%s",
+                    //         ruleIds[r.index].toStdString().c_str(),
+                    //         r.engageID.toStdString().c_str());
                     self->ruleToEngageID_[ruleIds[r.index]] = r.engageID;
                 }
             },
@@ -794,6 +840,11 @@ bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& p
     if (!apiWrapper_ || liveStreamID_.isEmpty()) {
         return true;
     }
+    // obs_log(LOG_INFO,
+    //         "[CustomizedCartoon][RuleFlow] execute live rule sync delete=%zu create=%zu "
+    //         "liveStreamID=%s",
+    //         plan.ruleIdsToDelete.size(), plan.rulesToCreate.size(),
+    //         liveStreamID_.toStdString().c_str());
 
     if (!plan.ruleIdsToDelete.empty()) {
         std::vector<std::string> engageIDs;
@@ -811,6 +862,10 @@ bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& p
         }
 
         if (!engageIDs.empty()) {
+            // obs_log(LOG_INFO,
+            //         "[CustomizedCartoon][RuleFlow] delete engagements request count=%zu "
+            //         "firstRuleId=%s",
+            //         engageIDs.size(), deletedRuleIds.front().toStdString().c_str());
             struct DeleteResult {
                 bool ok{false};
                 QString error;
@@ -848,6 +903,9 @@ bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& p
                                : result.error;
                 return false;
             }
+            // obs_log(LOG_INFO,
+            //         "[CustomizedCartoon][RuleFlow] delete engagements success count=%zu",
+            //         deletedRuleIds.size());
 
             for (const auto& ruleId : deletedRuleIds) {
                 const auto engageIt = ruleToEngageID_.find(ruleId);
@@ -875,6 +933,11 @@ bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& p
                 create.payload = json{{"points", rule.points}, {"count", rule.count}};
             }
             create.isRepeatable = rule.repeatable;
+            // obs_log(LOG_INFO,
+            //         "[CustomizedCartoon][RuleFlow] sync create ruleId=%s type=%s payload=%s "
+            //         "repeatable=%s",
+            //         rule.id.toStdString().c_str(), rule.engageType.toStdString().c_str(),
+            //         create.payload.dump().c_str(), BoolText(rule.repeatable));
             creates.push_back(std::move(create));
             ruleIds.push_back(rule.id);
         }
@@ -917,11 +980,20 @@ bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& p
                            : result.error;
             return false;
         }
+        // obs_log(LOG_INFO, "[CustomizedCartoon][RuleFlow] sync create success results=%zu",
+        //         result.results.size());
 
         for (const auto& item : result.results) {
             if (item.index < 0 || item.index >= static_cast<int>(ruleIds.size()) || item.engageID.isEmpty()) {
+                obs_log(LOG_WARNING,
+                        "[CustomizedCartoon][RuleFlow] sync create invalid result index=%d ruleCount=%zu "
+                        "engageID=%s",
+                        item.index, ruleIds.size(), item.engageID.toStdString().c_str());
                 continue;
             }
+            // obs_log(LOG_INFO, "[CustomizedCartoon][RuleFlow] sync map ruleId=%s engageID=%s",
+            //         ruleIds[item.index].toStdString().c_str(),
+            //         item.engageID.toStdString().c_str());
             ruleToEngageID_[ruleIds[item.index]] = item.engageID;
         }
     }
@@ -944,8 +1016,12 @@ void CustomizedCartoonService::stopEngagements() {
     engageProgress_.clear();
 
     if (engageIDs.empty()) {
+        // obs_log(LOG_INFO,
+        //         "[CustomizedCartoon][RuleFlow] stop engagements skipped: no engageIDs");
         return;
     }
+    // obs_log(LOG_INFO, "[CustomizedCartoon][RuleFlow] stop engagements delete count=%zu",
+    //         engageIDs.size());
 
     const std::string lid = liveStreamID_.toStdString();
     QPointer<CustomizedCartoonService> self = this;
@@ -968,6 +1044,9 @@ void CustomizedCartoonService::pollProgressAsync() {
     if (ruleToEngageID_.empty()) {
         return;
     }
+    // obs_log(LOG_INFO,
+    //         "[CustomizedCartoon][RuleFlow] poll progress start mappedRules=%zu liveStreamID=%s",
+    //         ruleToEngageID_.size(), liveStreamID_.toStdString().c_str());
     const std::string lid = liveStreamID_.toStdString();
     QPointer<CustomizedCartoonService> self = this;
     std::map<QString, QString> ruleToEngage = ruleToEngageID_;
@@ -985,8 +1064,16 @@ void CustomizedCartoonService::pollProgressAsync() {
                     return;
                 }
                 if (!ok) {
+                    obs_log(LOG_WARNING,
+                            "[CustomizedCartoon][RuleFlow] poll progress failed liveStreamID=%s error=%s",
+                            self->liveStreamID_.toStdString().c_str(),
+                            self->apiWrapper_ ? self->apiWrapper_->getLastErrorMessage().toStdString().c_str()
+                                              : "<no-api>");
                     return;
                 }
+                // obs_log(LOG_INFO,
+                //         "[CustomizedCartoon][RuleFlow] poll progress success items=%zu",
+                //         progress.size());
 
                 std::map<QString, QString> engageToRule;
                 for (const auto& it : ruleToEngage) {
@@ -997,28 +1084,73 @@ void CustomizedCartoonService::pollProgressAsync() {
                     if (p.engageID.isEmpty()) {
                         continue;
                     }
+                    const auto mappingIt = engageToRule.find(p.engageID);
+                    const QString ruleId =
+                        mappingIt != engageToRule.end() ? mappingIt->second : QString();
+                    RuleItem* rule = !ruleId.isEmpty() ? self->findRuleById(ruleId) : nullptr;
                     auto& state = self->engageProgress_[p.engageID];
-                    const bool prevBelowTarget =
-                        state.target > 0 ? (state.current < state.target) : true;
                     const bool nowAtOrAboveTarget = p.target > 0 ? (p.current >= p.target) : false;
-                    const bool roundIncreased = p.round > state.round;
-                    const bool firstReached = prevBelowTarget && nowAtOrAboveTarget;
+                    const int currentCompletedRound =
+                        nowAtOrAboveTarget ? p.round : (p.round - 1);
+                    const int pendingTriggerCount =
+                        std::max(0, currentCompletedRound - state.lastTriggeredCompletionRound);
 
                     state.current = p.current;
                     state.target = p.target;
                     state.round = p.round;
 
-                    bool completedNow = roundIncreased || firstReached;
-                    if (completedNow && state.lastTriggeredRound != p.round) {
-                        state.lastTriggeredRound = p.round;
-                        const auto it = engageToRule.find(p.engageID);
-                        if (it != engageToRule.end()) {
-                            RuleItem* rule = self->findRuleById(it->second);
-                            if (rule && rule->enabled) {
-                                self->enqueuePlayMedia(rule->mediaId);
-                            }
-                        }
+                    const bool completedNow = pendingTriggerCount > 0;
+                    // obs_log(
+                    //     LOG_INFO,
+                    //     "[CustomizedCartoon][RuleFlow] progress engageID=%s ruleId=%s type=%s "
+                    //     "points=%d count=%d repeatable=%s mediaId=%s prev=(%d/%d,r%d) "
+                    //     "now=(%d/%d,r%d) firstReached=%s roundIncreased=%s "
+                    //     "prevCompletedRound=%d currentCompletedRound=%d "
+                    //     "pendingTriggerCount=%d completedNow=%s "
+                    //     "lastTriggeredCompletionRound=%d",
+                    //     p.engageID.toStdString().c_str(), ruleId.toStdString().c_str(),
+                    //     rule ? rule->engageType.toStdString().c_str() : "<missing-rule>",
+                    //     rule ? rule->points : -1, rule ? rule->count : -1,
+                    //     rule ? BoolText(rule->repeatable) : "false",
+                    //     rule ? rule->mediaId.toStdString().c_str() : "<missing-media>",
+                    //     state.current, state.target, state.round, p.current, p.target, p.round,
+                    //     BoolText((state.target > 0 ? (state.current < state.target) : true) &&
+                    //              nowAtOrAboveTarget),
+                    //     "false",
+                    //     -1, currentCompletedRound, pendingTriggerCount,
+                    //     BoolText(completedNow), state.lastTriggeredCompletionRound);
+                    if (!completedNow) {
+                        continue;
                     }
+
+                    if (mappingIt == engageToRule.end()) {
+                        obs_log(LOG_WARNING,
+                                "[CustomizedCartoon][RuleFlow] missing engage mapping engageID=%s",
+                                p.engageID.toStdString().c_str());
+                        state.lastTriggeredCompletionRound = currentCompletedRound;
+                        continue;
+                    }
+
+                    if (!rule || !rule->enabled) {
+                        obs_log(LOG_WARNING,
+                                "[CustomizedCartoon][RuleFlow] skip trigger because rule missing "
+                                "or disabled ruleId=%s engageID=%s pendingTriggerCount=%d",
+                                ruleId.toStdString().c_str(), p.engageID.toStdString().c_str(),
+                                pendingTriggerCount);
+                        state.lastTriggeredCompletionRound = currentCompletedRound;
+                        continue;
+                    }
+
+                    for (int completedRound = state.lastTriggeredCompletionRound + 1;
+                         completedRound <= currentCompletedRound; ++completedRound) {
+                        // obs_log(LOG_INFO,
+                        //         "[CustomizedCartoon][RuleFlow] trigger playback ruleId=%s "
+                        //         "engageID=%s mediaId=%s completedRound=%d currentRound=%d",
+                        //         ruleId.toStdString().c_str(), p.engageID.toStdString().c_str(),
+                        //         rule->mediaId.toStdString().c_str(), completedRound, p.round);
+                        self->enqueuePlayMedia(rule->mediaId);
+                    }
+                    state.lastTriggeredCompletionRound = currentCompletedRound;
                 }
 
                 emit self->progressUpdated();
@@ -1032,6 +1164,9 @@ void CustomizedCartoonService::enqueuePlayMedia(const QString& mediaId) {
         return;
     }
     playQueue_.push_back(mediaId);
+    // obs_log(LOG_INFO,
+    //         "[CustomizedCartoon][RuleFlow] enqueue media mediaId=%s queueSize=%zu playing=%s",
+    //         mediaId.toStdString().c_str(), playQueue_.size(), BoolText(playing_));
     if (!playing_) {
         startNextPlayback();
     }
@@ -1430,11 +1565,22 @@ void CustomizedCartoonService::startNextPlayback() {
     while (!playQueue_.empty()) {
         const QString mediaId = playQueue_.front();
         playQueue_.pop_front();
+        // obs_log(LOG_INFO,
+        //         "[CustomizedCartoon][RuleFlow] start next playback mediaId=%s "
+        //         "remainingQueue=%zu",
+        //         media.id.toStdString().c_str(), playQueue_.size());
         MediaItem media;
         if (!resolvePlaybackMedia(mediaId, media)) {
+            obs_log(LOG_WARNING,
+                    "[CustomizedCartoon][RuleFlow] skip playback because media config missing mediaId=%s",
+                    mediaId.toStdString().c_str());
             continue;
         }
         if (!QFile::exists(media.path)) {
+            obs_log(LOG_WARNING,
+                    "[CustomizedCartoon][RuleFlow] skip playback because media file missing mediaId=%s "
+                    "path=%s",
+                    mediaId.toStdString().c_str(), media.path.toStdString().c_str());
             continue;
         }
 

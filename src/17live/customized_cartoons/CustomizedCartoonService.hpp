@@ -100,7 +100,7 @@ class CustomizedCartoonService : public QObject {
         int current{0};
         int target{0};
         int round{0};
-        int lastTriggeredRound{-1};
+        int lastTriggeredCompletionRound{-1};
     };
 
     struct LiveRuleSyncPlan {

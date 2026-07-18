@@ -636,6 +636,9 @@ bool OneSevenLiveApiWrappers::GetLiveEngagementProgress(
         return false;
     }
 
+    // obs_log(LOG_INFO, "[17LIVE API][GetLiveEngagementProgress] liveStreamID=%s response=%s",
+    //         liveStreamID.c_str(), json_out.dump().c_str());
+
     if (json_out.contains("errorCode")) {
         setLastError(buildApiError(json_out, "GetLiveEngagementProgress failed"));
         return false;
@@ -666,6 +669,9 @@ bool OneSevenLiveApiWrappers::GetLiveEngagementProgress(
         }
         engagements.push_back(std::move(p));
     }
+
+    // obs_log(LOG_INFO, "[17LIVE API][GetLiveEngagementProgress] liveStreamID=%s parsed=%s",
+    //         liveStreamID.c_str(), Json(engagements).dump().c_str());
 
     return true;
 }
