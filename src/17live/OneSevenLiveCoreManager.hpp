@@ -204,6 +204,12 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
 
     bool isGiftsLoaded() const;
     bool isGiftsLoading() const;
+    bool isEnterAnimationFilesLoaded() const;
+    bool isEnterAnimationFilesLoading() const;
+    nlohmann::json getEnterAnimationFiles() const;
+    bool hasEnterAnimationFiles() const;
+    void loadEnterAnimationFiles();
+    bool refreshEnterAnimationFilesSync();
 
    signals:
     void giftsLoaded();
@@ -240,6 +246,7 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
 
    private:
     std::atomic<bool> giftsLoading_{false};
+    std::atomic<bool> enterAnimationFilesLoading_{false};
     std::atomic<bool> cancelFlag_{false};
     std::atomic<bool> shutdownCancelFlag_{false};
     std::atomic<bool> sessionCancelFlag_{false};
@@ -368,6 +375,8 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     void loadGifts();
     void loadGiftsFromConfig();
     void buildGiftsMapFromJson(const nlohmann::json& giftsJson);
+    void loadEnterAnimationFilesFromConfig();
+    void setEnterAnimationFilesCache(const nlohmann::json& filesJson);
 
     class OneSevenLiveUpdateManager* updateManager = nullptr;
 
@@ -383,6 +392,8 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
 
     // Gifts lookup map: giftID (string) -> gift json
     std::unordered_map<std::string, nlohmann::json> giftsMap;
+    mutable std::mutex enterAnimationFilesMutex_;
+    nlohmann::json enterAnimationFilesCache_;
 
     bool initLocalServers();
     bool initConfigAndApi();

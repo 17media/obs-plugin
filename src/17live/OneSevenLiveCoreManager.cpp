@@ -19,6 +19,7 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
+#include <QThread>
 #include <QTimer>
 #include <functional>
 #include <nlohmann/json.hpp>
@@ -259,6 +260,7 @@ void OneSevenLiveCoreManager::initAuthHandlers() {
 bool OneSevenLiveCoreManager::initMenuAndBaseUI() {
     // Load gifts from saved config into memory map for fast lookup
     loadGiftsFromConfig();
+    loadEnterAnimationFilesFromConfig();
 
     // Initialize menu manager
     menuManager = std::make_unique<OneSevenLiveMenuManager>(mainWindow);
@@ -961,8 +963,9 @@ void OneSevenLiveCoreManager::setConnection() {
                 }
                 streamCheckTimer->start(30000);  // 30 seconds
 
-                // trigger reload gifts when stream is live
+                // trigger reload gifts and enter animation files when stream is live
                 loadGifts();
+                loadEnterAnimationFiles();
             } else {
                 if (streamCheckTimer) {
                     streamCheckTimer->stop();
@@ -1125,6 +1128,115 @@ void OneSevenLiveCoreManager::loadGiftsFromConfig() {
     }
 }
 
+void OneSevenLiveCoreManager::loadEnterAnimationFiles() {
+    if (enterAnimationFilesLoading_.load()) {
+        obs_log(LOG_INFO, "Enter animation files are already loading, skipping request");
+        return;
+    }
+    enterAnimationFilesLoading_.store(true);
+
+    obs_log(LOG_INFO, "Starting to load enter animation files asynchronously");
+
+    QPointer<OneSevenLiveCoreManager> self = this;
+    ScheduleOBSTask([self]() {
+        if (!self)
+            return;
+        Json apiResult;
+        bool ok = false;
+        try {
+            if (self->apiWrapper) {
+                ok = self->apiWrapper->GetFilesList(apiResult);
+            }
+        } catch (...) {
+            ok = false;
+        }
+
+        if (self) {
+            QMetaObject::invokeMethod(
+                self,
+                [self, ok, apiResult]() {
+                    if (!self)
+                        return;
+                    self->enterAnimationFilesLoading_.store(false);
+                    if (!ok) {
+                        obs_log(LOG_WARNING, "Failed to load enter animation files from API");
+                        return;
+                    }
+                    if (self->configManager) {
+                        if (!self->configManager->saveEnterAnimationFiles(apiResult)) {
+                            const auto err = self->configManager->getLastError();
+                            obs_log(LOG_WARNING, "Failed to save enter animation files: %s %s",
+                                    err.code.c_str(), err.message.c_str());
+                        }
+                    }
+                    self->setEnterAnimationFilesCache(apiResult);
+                },
+                Qt::QueuedConnection);
+        }
+    });
+}
+
+bool OneSevenLiveCoreManager::refreshEnterAnimationFilesSync() {
+    bool expected = false;
+    if (!enterAnimationFilesLoading_.compare_exchange_strong(expected, true)) {
+        obs_log(LOG_INFO,
+                "Enter animation files are already loading, waiting for existing refresh");
+        QElapsedTimer timer;
+        timer.start();
+        while (enterAnimationFilesLoading_.load() && timer.elapsed() < 5000) {
+            QThread::msleep(50);
+        }
+        return hasEnterAnimationFiles();
+    }
+
+    Json apiResult;
+    bool ok = false;
+    try {
+        if (apiWrapper) {
+            ok = apiWrapper->GetFilesList(apiResult);
+        }
+    } catch (...) {
+        ok = false;
+    }
+
+    enterAnimationFilesLoading_.store(false);
+
+    if (!ok) {
+        obs_log(LOG_WARNING, "Failed to refresh enter animation files from API");
+        return false;
+    }
+
+    if (configManager) {
+        if (!configManager->saveEnterAnimationFiles(apiResult)) {
+            const auto err = configManager->getLastError();
+            obs_log(LOG_WARNING, "Failed to save enter animation files: %s %s", err.code.c_str(),
+                    err.message.c_str());
+        }
+    }
+
+    setEnterAnimationFilesCache(apiResult);
+    return true;
+}
+
+void OneSevenLiveCoreManager::loadEnterAnimationFilesFromConfig() {
+    if (!configManager)
+        return;
+    nlohmann::json filesJson;
+    if (configManager->loadEnterAnimationFiles(filesJson)) {
+        setEnterAnimationFilesCache(filesJson);
+        obs_log(LOG_INFO, "Loaded enter animation files from config");
+    } else {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to load enter animation files from config: %s %s",
+                err.code.c_str(), err.message.c_str());
+    }
+}
+
+void OneSevenLiveCoreManager::setEnterAnimationFilesCache(const nlohmann::json& filesJson) {
+    std::lock_guard<std::mutex> lock(enterAnimationFilesMutex_);
+    enterAnimationFilesCache_ = filesJson;
+}
+
 void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJson) {
     obs_log(LOG_INFO, "Building gifts map from json");
 
@@ -1152,6 +1264,25 @@ bool OneSevenLiveCoreManager::isGiftsLoaded() const {
 
 bool OneSevenLiveCoreManager::isGiftsLoading() const {
     return giftsLoading_.load();
+}
+
+bool OneSevenLiveCoreManager::isEnterAnimationFilesLoaded() const {
+    std::lock_guard<std::mutex> lock(enterAnimationFilesMutex_);
+    return !enterAnimationFilesCache_.empty();
+}
+
+bool OneSevenLiveCoreManager::isEnterAnimationFilesLoading() const {
+    return enterAnimationFilesLoading_.load();
+}
+
+nlohmann::json OneSevenLiveCoreManager::getEnterAnimationFiles() const {
+    std::lock_guard<std::mutex> lock(enterAnimationFilesMutex_);
+    return enterAnimationFilesCache_;
+}
+
+bool OneSevenLiveCoreManager::hasEnterAnimationFiles() const {
+    std::lock_guard<std::mutex> lock(enterAnimationFilesMutex_);
+    return !enterAnimationFilesCache_.empty();
 }
 
 std::optional<nlohmann::json> OneSevenLiveCoreManager::getGiftByID(

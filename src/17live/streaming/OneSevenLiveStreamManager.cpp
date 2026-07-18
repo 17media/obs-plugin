@@ -374,6 +374,21 @@ void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& r
 bool OneSevenLiveStreamManager::startStream() {
     obs_log(LOG_INFO, "Starting streaming");
 
+    auto* core = OneSevenLiveCoreManager::peekInstance();
+    if (core) {
+        const bool refreshed = core->refreshEnterAnimationFilesSync();
+        if (!refreshed) {
+            if (!core->hasEnterAnimationFiles()) {
+                const QString errorMsg = "Failed to refresh enter animation files";
+                obs_log(LOG_ERROR, "%s", errorMsg.toStdString().c_str());
+                emit errorOccurred(errorMsg, "startStream");
+                return false;
+            }
+            obs_log(LOG_WARNING,
+                    "Failed to refresh enter animation files before start; fallback to cached files");
+        }
+    }
+
     // Configure streaming service (RTMP or WHIP)
     configureStreamingService(currentStreamResponse);
 
@@ -416,15 +431,27 @@ void OneSevenLiveStreamManager::startStreamAsync() {
 
     auto* api = this->apiWrapper;
     QPointer<OneSevenLiveStreamManager> self = this;
+    QPointer<OneSevenLiveCoreManager> core = OneSevenLiveCoreManager::peekInstance();
 
-    ScheduleOBSTask([self, lid, uid, autoRecord, api]() {
+    ScheduleOBSTask([self, lid, uid, autoRecord, api, core]() {
         if (!self)
             return;
 
         bool success = false;
         QString errorMsg;
 
-        if (api) {
+        if (core) {
+            const bool refreshed = core->refreshEnterAnimationFilesSync();
+            if (!refreshed && !core->hasEnterAnimationFiles()) {
+                errorMsg = "Failed to refresh enter animation files";
+            } else if (!refreshed) {
+                obs_log(LOG_WARNING,
+                        "Failed to refresh enter animation files before async start; fallback "
+                        "to cached files");
+            }
+        }
+
+        if (errorMsg.isEmpty() && api) {
             success = api->StartStream(lid, uid);
             if (!success) {
                 errorMsg = api->getLastErrorMessage();
@@ -437,7 +464,7 @@ void OneSevenLiveStreamManager::startStreamAsync() {
                     errorMsg = archiveError;
                 }
             }
-        } else {
+        } else if (errorMsg.isEmpty()) {
             errorMsg = "API Wrapper not initialized";
         }
 

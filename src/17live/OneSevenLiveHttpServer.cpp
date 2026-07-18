@@ -651,8 +651,6 @@ bool OneSevenLiveHttpServer::start() {
                     }
 
                 } else if (action == ACTION_GETENTERANIMATIONFILES) {
-                    const bool loaded = configManager->loadEnterAnimationFiles(apiResult);
-                    const bool hasCached = !apiResult.empty();
                     const auto getFileCount = [](const nlohmann::json &jsonValue) -> size_t {
                         if (jsonValue.contains("files") && jsonValue["files"].is_array()) {
                             return jsonValue["files"].size();
@@ -662,21 +660,29 @@ bool OneSevenLiveHttpServer::start() {
                         }
                         return 0;
                     };
-                    // obs_log(LOG_INFO,
-                    //         "[%s] getEnterAnimationFiles requested: cacheLoaded=%d hasCached=%d "
-                    //         "cachedFileCount=%zu",
-                    //         name_.c_str(), loaded, hasCached, getFileCount(apiResult));
-                    if (!loaded || !hasCached) {
-                        success = apiWrapper->GetFilesList(apiResult);
-                        // obs_log(LOG_INFO,
-                        //         "[%s] getEnterAnimationFiles fetched from remote: success=%d "
-                        //         "fileCount=%zu",
-                        //         name_.c_str(), success, getFileCount(apiResult));
-                        if (success && !configManager->saveEnterAnimationFiles(apiResult)) {
-                            const auto err = configManager->getLastError();
-                            obs_log(LOG_WARNING,
-                                    "[%s] Failed to save enter animation files: %s %s",
-                                    name_.c_str(), err.code.c_str(), err.message.c_str());
+                    apiResult = coreManager.getEnterAnimationFiles();
+                    bool hasCached = getFileCount(apiResult) > 0;
+
+                    if (!hasCached) {
+                        const bool loaded = configManager->loadEnterAnimationFiles(apiResult);
+                        hasCached = loaded && getFileCount(apiResult) > 0;
+                    }
+
+                    if (!hasCached) {
+                        if (coreManager.isEnterAnimationFilesLoading()) {
+                            obs_log(LOG_INFO,
+                                    "[%s] Enter animation files loading in progress, returning "
+                                    "wait response",
+                                    name_.c_str());
+                            const nlohmann::json response = {{"success", false},
+                                                             {"error", "Enter animation files loading"}};
+                            res.set_content(response.dump(), "application/json");
+                            return;
+                        }
+
+                        success = coreManager.refreshEnterAnimationFilesSync();
+                        if (success) {
+                            apiResult = coreManager.getEnterAnimationFiles();
                         }
                     } else {
                         // obs_log(LOG_INFO,

@@ -145,8 +145,10 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
 
     QPointer<OneSevenLiveCoreManager> core = coreManager_;
     QTimer::singleShot(0, coreManager_, [core]() {
-        if (core)
+        if (core) {
             core->loadGifts();
+            core->loadEnterAnimationFiles();
+        }
     });
 
     // Update menu with user info
