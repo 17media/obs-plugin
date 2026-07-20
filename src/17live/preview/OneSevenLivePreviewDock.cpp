@@ -233,20 +233,10 @@ void OneSevenLivePreviewDock::onDisplayCreated(bool created) {
 
 void OneSevenLivePreviewDock::onTopLevelChanged(bool floating) {
     Q_UNUSED(floating);
-
-    updatePreviewGeometry();
-    if (previewWidget) {
-        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
-        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
-    }
+    QTimer::singleShot(16, this, [this]() { syncLayoutToObsCanvas(); });
 }
 
 void OneSevenLivePreviewDock::onDockLocationChanged(Qt::DockWidgetArea area) {
     Q_UNUSED(area);
-
-    updatePreviewGeometry();
-    if (previewWidget) {
-        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::syncDisplaySize);
-        QTimer::singleShot(0, previewWidget, &OneSevenLivePreviewWidget::forceRefresh);
-    }
+    QTimer::singleShot(16, this, [this]() { syncLayoutToObsCanvas(); });
 }

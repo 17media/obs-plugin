@@ -4,6 +4,7 @@
 #include <obs.h>
 
 #include <QLabel>
+#include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -13,6 +14,7 @@
 #include "OneSevenLivePreviewConfigLoader.hpp"
 
 class QEvent;
+class QScreen;
 class QWindow;
 
 class OneSevenLivePreviewWidget : public QWidget {
@@ -102,6 +104,8 @@ class OneSevenLivePreviewWidget : public QWidget {
     int display_height;
     WId boundWindowId_{0};
     QPointer<QWindow> trackedWindow_{nullptr};
+    QMetaObject::Connection trackedWindowVisibleConnection_;
+    QMetaObject::Connection trackedWindowScreenConnection_;
     QTimer* createDisplayTimer_{nullptr};
     QTimer* refreshDisplayTimer_{nullptr};
 
