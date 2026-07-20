@@ -109,8 +109,6 @@ std::string FormatSourceDebug(obs_source_t* source) {
            std::to_string(reinterpret_cast<uintptr_t>(source)) + "}";
 }
 
-const char* BoolText(bool value) { return value ? "true" : "false"; }
-
 bool CurrentOBSCanvasLandscape() {
     obs_video_info ovi{};
     if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
@@ -137,8 +135,26 @@ obs_sceneitem_t* FindSceneItem(obs_source_t* sceneSource, const char* sourceName
     return obs_scene_find_source(scene, sourceName);
 }
 
+obs_sceneitem_t* FindSceneItem(obs_source_t* sceneSource, obs_source_t* source) {
+    if (!source) {
+        return nullptr;
+    }
+    const char* sourceName = obs_source_get_name(source);
+    if (!sourceName || !*sourceName) {
+        return nullptr;
+    }
+    return FindSceneItem(sceneSource, sourceName);
+}
+
 void RemoveSceneItem(obs_source_t* sceneSource, const char* sourceName) {
     obs_sceneitem_t* item = FindSceneItem(sceneSource, sourceName);
+    if (item) {
+        obs_sceneitem_remove(item);
+    }
+}
+
+void RemoveSceneItem(obs_source_t* sceneSource, obs_source_t* source) {
+    obs_sceneitem_t* item = FindSceneItem(sceneSource, source);
     if (item) {
         obs_sceneitem_remove(item);
     }
@@ -1237,6 +1253,7 @@ void CustomizedCartoonService::exitPreviewMode(bool restoreObsSettings) {
         previewVideoSettingsBackup_.valid = false;
     }
     previewModeActive_ = false;
+    syncOverlaySceneItems();
 }
 
 bool CustomizedCartoonService::updatePreviewModeOrientation(bool landscape, QString& outError) {
@@ -1301,6 +1318,8 @@ bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool la
     applyOverlayTransform(mediaPreviewLandscape_, previewTransform);
 
     if (media->type == "video") {
+        ensureOverlaySources();
+        ensureOverlaySceneItems();
         if (!mediaSource_) {
             mediaPreviewing_ = false;
             previewMediaId_.clear();
@@ -1418,6 +1437,8 @@ bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool
     applyOverlayTransform(landscape, previewTransform);
 
     if (media->type == "video") {
+        ensureOverlaySources();
+        ensureOverlaySceneItems();
         if (!mediaSource_) {
             positionPreviewing_ = false;
             positionPreviewMediaId_.clear();
@@ -1634,7 +1655,8 @@ bool CustomizedCartoonService::hasActiveRules() const {
 }
 
 bool CustomizedCartoonService::shouldKeepOverlaySources() const {
-    return mediaPreviewing_ || positionPreviewing_ || playing_ || !playQueue_.empty();
+    return previewModeActive_ || mediaPreviewing_ || positionPreviewing_ || playing_ ||
+           !playQueue_.empty();
 }
 
 void CustomizedCartoonService::syncOverlaySceneItems() {
@@ -1652,6 +1674,8 @@ void CustomizedCartoonService::syncOverlaySceneItems() {
 void CustomizedCartoonService::removeOverlaySceneItems() {
     hideOverlaySources();
     for (auto& items : overlaySceneItems_) {
+        RemoveSceneItem(items.sceneSource, mediaSource_);
+        RemoveSceneItem(items.sceneSource, imageSource_);
         RemoveSceneItem(items.sceneSource, kCustomizedCartoonMediaSourceName);
         RemoveSceneItem(items.sceneSource, kCustomizedCartoonImageSourceName);
         if (items.sceneSource) {
@@ -1685,7 +1709,7 @@ void CustomizedCartoonService::ensureOverlaySources() {
             obs_data_t* settings = obs_data_create();
             obs_data_set_bool(settings, "looping", false);
             obs_data_set_bool(settings, "restart_on_activate", true);
-            obs_data_set_bool(settings, "close_when_inactive", true);
+            obs_data_set_bool(settings, "close_when_inactive", false);
             mediaSource_ = obs_source_create("ffmpeg_source", kCustomizedCartoonMediaSourceName,
                                              settings, nullptr);
             obs_data_release(settings);
@@ -1998,6 +2022,8 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
 
         // obs_log(LOG_INFO, "[CustomizedCartoon] remove stale overlay scene entry scene=%s",
         //         SafeSceneName(it->scene).c_str());
+        RemoveSceneItem(it->sceneSource, mediaSource_);
+        RemoveSceneItem(it->sceneSource, imageSource_);
         RemoveSceneItem(it->sceneSource, kCustomizedCartoonMediaSourceName);
         RemoveSceneItem(it->sceneSource, kCustomizedCartoonImageSourceName);
         if (it->sceneSource) {
@@ -2189,6 +2215,8 @@ void CustomizedCartoonService::setMediaLooping(bool looping) {
 }
 
 void CustomizedCartoonService::playVideo(const MediaItem& media) {
+    ensureOverlaySources();
+    ensureOverlaySceneItems();
     if (!mediaSource_) {
         playing_ = false;
         startNextPlayback();
