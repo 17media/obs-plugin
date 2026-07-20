@@ -691,10 +691,25 @@ bool OneSevenLiveHttpServer::start() {
                         success = true;
                     }
                 } else if (action == ACTION_GETI18NCONFIG) {
+                    OneSevenLiveLoginData loginData;
+                    configManager->getLoginData(loginData);
+                    std::string language = loginData.userInfo.region.toStdString();
+                    if (language.empty()) {
+                        configManager->getConfigValue("Region", language);
+                    }
+                    if (language.empty()) {
+                        language = GetCurrentLanguage();
+                    }
+
                     const bool loaded = configManager->loadI18nConfig(apiResult);
-                    const bool hasCached = !apiResult.empty();
+                    const std::string cachedLanguage =
+                        apiResult.value("__17live_language", std::string());
+                    const bool hasCached = !apiResult.empty() && cachedLanguage == language;
                     if (!loaded || !hasCached) {
-                        success = apiWrapper->GetI18nConfig(apiResult);
+                        success = apiWrapper->GetI18nConfig(language, apiResult);
+                        if (success) {
+                            apiResult["__17live_language"] = language;
+                        }
                         if (success && !configManager->saveI18nConfig(apiResult)) {
                             const auto err = configManager->getLastError();
                             obs_log(LOG_WARNING, "[%s] Failed to save i18n config: %s %s",

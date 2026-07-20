@@ -1468,15 +1468,18 @@ bool OneSevenLiveApiWrappers::GetFilesList(Json &json_out_resp) {
     return true;
 }
 
-bool OneSevenLiveApiWrappers::GetI18nConfig(Json &json_out_resp) {
-    obs_log(LOG_INFO, "GetI18nConfig");
+bool OneSevenLiveApiWrappers::GetI18nConfig(const std::string &language, Json &json_out_resp) {
+    obs_log(LOG_INFO, "GetI18nConfig: %s", language.c_str());
 
     clearLastError();
 
     QByteArray url = ONESEVENLIVE_GET_I18N_CONFIG_URL.c_str();
 
-    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0,
-                       true)) {
+    const std::string requestLanguage = language.empty() ? GetCurrentLanguage() : language;
+    std::vector<std::string> extraHeaders = {"Language: " + requestLanguage};
+
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
+                       extraHeaders)) {
         obs_log(LOG_ERROR, "GetI18nConfig error: %s", json_out_resp.dump().c_str());
         setLastError(buildApiError(json_out_resp, "GetI18nConfig failed"));
         return false;

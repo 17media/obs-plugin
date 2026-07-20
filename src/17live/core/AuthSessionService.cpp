@@ -147,6 +147,7 @@ void AuthSessionService::performLoginOperations(const OneSevenLiveLoginData& log
     QTimer::singleShot(0, coreManager_, [core]() {
         if (core) {
             core->loadGifts();
+            core->loadI18nConfig();
             core->loadEnterAnimationFiles();
         }
     });

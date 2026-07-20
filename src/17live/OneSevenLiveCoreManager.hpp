@@ -208,6 +208,7 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     bool isEnterAnimationFilesLoading() const;
     nlohmann::json getEnterAnimationFiles() const;
     bool hasEnterAnimationFiles() const;
+    void loadI18nConfig();
     void loadEnterAnimationFiles();
     bool refreshEnterAnimationFilesSync();
 
@@ -247,6 +248,7 @@ class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
    private:
     std::atomic<bool> giftsLoading_{false};
     std::atomic<bool> enterAnimationFilesLoading_{false};
+    std::atomic<bool> i18nConfigLoading_{false};
     std::atomic<bool> cancelFlag_{false};
     std::atomic<bool> shutdownCancelFlag_{false};
     std::atomic<bool> sessionCancelFlag_{false};

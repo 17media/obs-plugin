@@ -40,11 +40,9 @@ const Card = styled.div`
   align-items: center;
   gap: 10px;
   padding: 2px;
-  background: ${(p) => (p.$bgImg ? `url(${p.$bgImg})` : p.$bg || '#ffffff')};
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 100% 100%;
-  border-radius: 999px;
+  position: relative;
+  background: ${(p) => (p.$bgImg ? 'transparent' : p.$bg || '#ffffff')};
+  border-radius: 9999px;
   max-width: 100%;
   border: ${(p) =>
     p.$border === ''
@@ -52,6 +50,23 @@ const Card = styled.div`
       : `1px solid ${typeof p.$border === 'string' && p.$border ? p.$border : 'rgba(0, 0, 0, 0.18)'}`};
   overflow: hidden;
   color: ${(p) => p.$color || '#000000'};
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: ${(p) => (p.$bgImg ? '-4px' : '0')};
+    background-image: ${(p) => (p.$bgImg ? `url(${p.$bgImg})` : 'none')};
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    border-radius: inherit;
+    z-index: 0;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 `;
 
 const BadgeRow = styled.div`
@@ -114,6 +129,10 @@ const Marquee = styled.div`
   margin-left: ${(p) => (typeof p.$ml === 'string' ? p.$ml : '-5px')};
   position: relative;
   z-index: ${(p) => (typeof p.$z === 'number' ? p.$z : 2)};
+  border: ${(p) =>
+    p.$border === ''
+      ? 'none'
+      : `1px solid ${typeof p.$border === 'string' && p.$border ? p.$border : 'transparent'}`};
 `;
 
 const BadgeLabelWrap = styled.div`
@@ -691,14 +710,14 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const eventTemplateUrl =
       animId === 14
         ? normalizeRemoteEnterAnimationAsset(
-            next?.content?.getIn?.(['enterAnimation', 'eventNotifMsg', 'templateURL']) || ''
-          )
+          next?.content?.getIn?.(['enterAnimation', 'eventNotifMsg', 'templateURL']) || ''
+        )
         : '';
     const eventIconUrl =
       animId === 14
         ? normalizeRemoteEnterAnimationAsset(
-            next?.content?.getIn?.(['enterAnimation', 'eventNotifMsg', 'icouURL']) || ''
-          )
+          next?.content?.getIn?.(['enterAnimation', 'eventNotifMsg', 'icouURL']) || ''
+        )
         : '';
     currentMetaRef.current = { animationId: animId, src, eventTemplateUrl, eventIconUrl };
     // if (animId === 14 && shouldLogAnim14Debug()) {
@@ -834,15 +853,7 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
         if (enterAnimation?.eventDescText && enterAnimation.eventDescText !== descTokenKey) {
           return enterAnimation.eventDescText;
         }
-
-        const fallbackName =
-          eventNotifMsg?.descriptionToken?.params?.find((p) => p && typeof p.value !== 'undefined')?.value ||
-          name;
-        try {
-          return t('enter_is_here', { name: fallbackName || '' });
-        } catch {
-          return fallbackName ? `${fallbackName} is here!` : '';
-        }
+        return '';
       }
       const effectiveKey = marqueeKey || (animationId === 6 ? '' : 'enter_is_here');
       if (!effectiveKey) return '';
@@ -879,13 +890,8 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const baseCfg = getBadgeRenderConfig(animationId);
     const cfg = (() => {
       if (!isEvent14) return baseCfg;
-      const g = toCssLinearGradient(enterAnimation?.eventGradientFrom, enterAnimation?.eventGradientTo);
-      const border = enterAnimation?.eventStrokeColor ? enterAnimation.eventStrokeColor : '';
       return {
         ...baseCfg,
-        border,
-        bg: g || baseCfg.bg,
-        marqueeBg: g || baseCfg.marqueeBg,
       };
     })();
     const avatarUrl = picture ? `${CDN_URL}/${picture}` : '';
@@ -896,11 +902,16 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     if (!name) return null;
 
     const cardBgImg = animationId >= 11 && animationId <= 13 ? cfg.cardBgImg : '';
-    const cardBg = cardBgImg ? 'transparent' : cfg.bg;
-    const marqueeTextColor = animationId >= 11 && animationId <= 13 ? cfg.marqueeTextColor : '#ffffff';
     const eventTemplateUrl = isEvent14 ? normalizeRemoteEnterAnimationAsset(enterAnimation?.eventNotifMsg?.templateURL || '') : '';
     const eventIconUrl = isEvent14 ? normalizeRemoteEnterAnimationAsset(enterAnimation?.eventNotifMsg?.icouURL || '') : '';
-    const eventBadgeBg = eventTemplateUrl ? `url(${eventTemplateUrl})` : cfg.marqueeBg;
+    const eventNameBg = isEvent14
+      ? toCssLinearGradient(enterAnimation?.eventGradientFrom, enterAnimation?.eventGradientTo) || 'transparent'
+      : cfg.marqueeBg;
+    const eventNameBorder = isEvent14 && enterAnimation?.eventStrokeColor ? enterAnimation.eventStrokeColor : '';
+    const effectiveCardBgImg = eventTemplateUrl || cardBgImg;
+    const cardBg = effectiveCardBgImg ? 'transparent' : cfg.bg;
+    const cardBorder = isEvent14 && eventTemplateUrl ? '' : cfg.border;
+    const marqueeTextColor = animationId >= 11 && animationId <= 13 ? cfg.marqueeTextColor : '#ffffff';
 
     return (
       <Wrapper>
@@ -919,12 +930,12 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
                 />
               </AniLayer>
             ) : null}
-            <Card $bg={cardBg} $bgImg={cardBgImg} $border={cfg.border} $color={cfg.textColor}>
+            <Card $bg={cardBg} $bgImg={effectiveCardBgImg} $border={cardBorder} $color={cfg.textColor}>
               <BadgeRow>
                 <AvatarBadgeGroup>
                   <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
                   {isEvent14 && safeBadgeLabel ? (
-                    <Marquee $bg={eventBadgeBg} $h="33px" style={{ maxWidth: 'none' }}>
+                    <Marquee $bg={eventNameBg} $border={eventNameBorder} $h="33px" style={{ maxWidth: 'none' }}>
                       {eventIconUrl ? <BadgeIcon $size="25px" src={eventIconUrl} alt="" /> : null}
                       <SlidingBadgeText maxWidthPx={Number.POSITIVE_INFINITY} animationKey={`${current?.id || 'badge'}-left`}>
                         <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor} $ml="3px">

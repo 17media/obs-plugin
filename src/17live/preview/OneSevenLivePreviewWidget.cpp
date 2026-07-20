@@ -29,20 +29,9 @@
 #include "utility/Common.hpp"
 
 namespace {
-constexpr const char* kPreviewDisplayTraceTag = "[PreviewDisplayTrace]";
+void LogPreviewDisplayTrace(const char* /*message*/) {}
 
-void LogPreviewDisplayTrace(const char* message) {
-    obs_log(LOG_INFO, "%s %s", kPreviewDisplayTraceTag, message);
-}
-
-void LogPreviewDisplayTracef(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    char buffer[1024];
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-    obs_log(LOG_INFO, "%s %s", kPreviewDisplayTraceTag, buffer);
-}
+void LogPreviewDisplayTracef(const char* /*format*/, ...) {}
 }  // namespace
 
 OneSevenLivePreviewWidget::OneSevenLivePreviewWidget(QWidget* parent, const QString& overlayUrl,
@@ -176,11 +165,6 @@ bool OneSevenLivePreviewWidget::event(QEvent* event) {
                     static_cast<unsigned long long>(currentWindowId),
                     static_cast<unsigned long long>(boundWindowId_), display_created,
                     previewDisplay);
-                if (display_created && previewDisplay && boundWindowId_ != 0 &&
-                    currentWindowId != 0 && currentWindowId != boundWindowId_) {
-                    destroyDisplay();
-                }
-
                 updateTrackedWindow();
                 scheduleCreateDisplay(16);
                 scheduleRefresh(16);

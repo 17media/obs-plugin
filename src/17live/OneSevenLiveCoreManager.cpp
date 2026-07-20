@@ -1128,6 +1128,64 @@ void OneSevenLiveCoreManager::loadGiftsFromConfig() {
     }
 }
 
+void OneSevenLiveCoreManager::loadI18nConfig() {
+    if (i18nConfigLoading_.load()) {
+        obs_log(LOG_INFO, "I18n config is already loading, skipping request");
+        return;
+    }
+    i18nConfigLoading_.store(true);
+
+    obs_log(LOG_INFO, "Starting to load i18n config asynchronously");
+
+    OneSevenLiveLoginData loginData;
+    if (configManager) {
+        configManager->getLoginData(loginData);
+    }
+
+    std::string language = loginData.userInfo.region.toStdString();
+    if (language.empty()) {
+        language = GetCurrentLanguage();
+    }
+
+    QPointer<OneSevenLiveCoreManager> self = this;
+    ScheduleOBSTask([self, language]() {
+        if (!self)
+            return;
+        Json apiResult;
+        bool ok = false;
+        try {
+            if (self->apiWrapper) {
+                ok = self->apiWrapper->GetI18nConfig(language, apiResult);
+            }
+        } catch (...) {
+            ok = false;
+        }
+
+        if (self) {
+            QMetaObject::invokeMethod(
+                self,
+                [self, ok, apiResult, language]() {
+                    if (!self)
+                        return;
+                    self->i18nConfigLoading_.store(false);
+                    if (!ok) {
+                        obs_log(LOG_WARNING, "Failed to load i18n config from API");
+                        return;
+                    }
+
+                    Json cachedResult = apiResult;
+                    cachedResult["__17live_language"] = language;
+                    if (self->configManager && !self->configManager->saveI18nConfig(cachedResult)) {
+                        const auto err = self->configManager->getLastError();
+                        obs_log(LOG_WARNING, "Failed to save i18n config: %s %s", err.code.c_str(),
+                                err.message.c_str());
+                    }
+                },
+                Qt::QueuedConnection);
+        }
+    });
+}
+
 void OneSevenLiveCoreManager::loadEnterAnimationFiles() {
     if (enterAnimationFilesLoading_.load()) {
         obs_log(LOG_INFO, "Enter animation files are already loading, skipping request");

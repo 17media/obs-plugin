@@ -65,7 +65,7 @@ class OneSevenLiveApiWrappers : public QObject {
     bool GetGiftTabs(const std::string &roomID, const std::string language, Json &response);
     bool GetGifts(const std::string language, Json &response);
     bool GetFilesList(Json &response);
-    bool GetI18nConfig(Json &response);
+    bool GetI18nConfig(const std::string &language, Json &response);
     bool GetRockViewers(const std::string &roomID, Json &response);
     bool GetUserInfo(const std::string userID, const std::string region, const std::string language,
                      OneSevenLiveUserInfo &response);
