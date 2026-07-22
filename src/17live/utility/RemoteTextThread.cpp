@@ -27,6 +27,7 @@
 #include <QString>
 #include <QUrl>
 
+#include <cctype>
 #include <cstring>
 #include <functional>
 
@@ -207,6 +208,41 @@ static size_t header_write(char *ptr, size_t size, size_t nmemb, vector<string> 
     return total;
 }
 
+static std::string find_header_value(const vector<string> &headers, const char *header_name) {
+    if (!header_name) {
+        return {};
+    }
+
+    const std::string prefix = std::string(header_name) + ":";
+    for (const auto &header : headers) {
+        if (header.size() < prefix.size()) {
+            continue;
+        }
+
+        bool matches = true;
+        for (size_t i = 0; i < prefix.size(); ++i) {
+            if (std::tolower(static_cast<unsigned char>(header[i])) !=
+                std::tolower(static_cast<unsigned char>(prefix[i]))) {
+                matches = false;
+                break;
+            }
+        }
+
+        if (!matches) {
+            continue;
+        }
+
+        size_t value_pos = prefix.size();
+        while (value_pos < header.size() &&
+               std::isspace(static_cast<unsigned char>(header[value_pos]))) {
+            ++value_pos;
+        }
+        return header.substr(value_pos);
+    }
+
+    return {};
+}
+
 namespace {
 struct CurlRequest {
     const char *url = nullptr;
@@ -274,6 +310,8 @@ class CurlSingleThreadWorker : public QObject {
 
         curl_easy_reset(curl);
 
+        const bool isUserNoteEndpoint =
+            req.url && std::strstr(req.url, "/users/") && std::strstr(req.url, "/note");
         vector<string> header_in_list;
         char error_in[CURL_ERROR_SIZE];
         error_in[0] = 0;
@@ -298,7 +336,7 @@ class CurlSingleThreadWorker : public QObject {
             header = curl_slist_append(header, h.c_str());
 
         curl_easy_setopt(curl, CURLOPT_URL, req.url);
-        curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
+        curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, isUserNoteEndpoint ? "identity" : "");
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_in);
         if (req.failOnError)
@@ -307,7 +345,7 @@ class CurlSingleThreadWorker : public QObject {
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp.body);
         curl_obs_set_revoke_setting(curl);
 
-        if (req.signature) {
+        if (req.signature || isUserNoteEndpoint) {
             curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_write);
             curl_easy_setopt(curl, CURLOPT_HEADERDATA, &header_in_list);
         }
@@ -343,14 +381,15 @@ class CurlSingleThreadWorker : public QObject {
         resp.curlCode = curl_easy_perform(curl);
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &resp.httpCode);
 
-        const bool isUserNoteEndpoint =
-            req.url && std::strstr(req.url, "/users/") && std::strstr(req.url, "/note");
         if (isUserNoteEndpoint) {
             double dnsTimeSec = 0;
             double connectTimeSec = 0;
             double appConnectTimeSec = 0;
             double startTransferTimeSec = 0;
             double totalTimeSec = 0;
+            const char *method = req.requestType.empty() ? "GET" : req.requestType.c_str();
+            const std::string responseEncoding = find_header_value(header_in_list, "Content-Encoding");
+            const std::string responseType = find_header_value(header_in_list, "Content-Type");
 
             curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME, &dnsTimeSec);
             curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connectTimeSec);
@@ -358,14 +397,15 @@ class CurlSingleThreadWorker : public QObject {
             curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME, &startTransferTimeSec);
             curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &totalTimeSec);
 
-//            const char *method = req.requestType.empty() ? "GET" : req.requestType.c_str();
-
-            // obs_log(LOG_INFO,
-            //         "[UserMemo][HTTP] %s /note http=%ld curl=%d dns=%.0fms connect=%.0fms "
-            //         "tls=%.0fms ttfb=%.0fms total=%.0fms",
-            //         method, resp.httpCode, static_cast<int>(resp.curlCode), dnsTimeSec * 1000,
-            //         connectTimeSec * 1000, appConnectTimeSec * 1000, startTransferTimeSec * 1000,
-            //         totalTimeSec * 1000);
+            obs_log(LOG_INFO,
+                    "[UserMemo][HTTP] %s /note http=%ld curl=%d accept_encoding=identity "
+                    "response_encoding=%s content_type=%s dns=%.0fms connect=%.0fms "
+                    "tls=%.0fms ttfb=%.0fms total=%.0fms",
+                    method, resp.httpCode, static_cast<int>(resp.curlCode),
+                    responseEncoding.empty() ? "(none)" : responseEncoding.c_str(),
+                    responseType.empty() ? "(unknown)" : responseType.c_str(), dnsTimeSec * 1000,
+                    connectTimeSec * 1000, appConnectTimeSec * 1000, startTransferTimeSec * 1000,
+                    totalTimeSec * 1000);
         }
 
         if (resp.curlCode != CURLE_OK) {

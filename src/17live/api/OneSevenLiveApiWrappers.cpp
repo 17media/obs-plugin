@@ -62,6 +62,11 @@ namespace {
         return makeError("Network.Error", message.empty() ? "Request failed" : message, retryable,
                          detail);
     }
+
+    static const std::vector<std::string> &userMemoExtraHeaders() {
+        static const std::vector<std::string> headers = {"Accept-Encoding: identity"};
+        return headers;
+    }
 }  // namespace
 
 // Optimized URL constants - avoid repeated string concatenations
@@ -1334,7 +1339,8 @@ bool OneSevenLiveApiWrappers::GetUserNote(const std::string userID, OneSevenLive
     QByteArray url = urlStr.toUtf8();
 
     Json json_out_resp;
-    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true)) {
+    if (!InsertCommand(url.constData(), "application/json", "GET", nullptr, json_out_resp, 0, true,
+                       userMemoExtraHeaders())) {
         if (json_out_resp.contains("errorCode") && json_out_resp["errorCode"].is_number_integer() &&
             json_out_resp["errorCode"].get<int>() == 35000) {
             response = OneSevenLiveUserNote{};
@@ -1370,8 +1376,8 @@ bool OneSevenLiveApiWrappers::SetUserNote(const std::string userID, const QStrin
     const std::string postData = requestData.dump();
 
     Json json_out_resp;
-    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out_resp, 0,
-                       true)) {
+    if (!InsertCommand(url.constData(), "application/json", "POST", postData.c_str(), json_out_resp,
+                       0, true, userMemoExtraHeaders())) {
         obs_log(LOG_ERROR, "SetUserNote error: %s", json_out_resp.dump().c_str());
         setLastError(buildApiError(json_out_resp, "SetUserNote failed"));
         return false;
