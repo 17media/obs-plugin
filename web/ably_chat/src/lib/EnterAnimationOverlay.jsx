@@ -276,6 +276,16 @@ function normalizeRemoteEnterAnimationAsset(raw) {
   return raw;
 }
 
+function buildPlaybackSrc(raw, playKey) {
+  if (!raw || !playKey) return raw || '';
+
+  const hashIndex = raw.indexOf('#');
+  const base = hashIndex >= 0 ? raw.slice(0, hashIndex) : raw;
+  const hash = hashIndex >= 0 ? raw.slice(hashIndex) : '';
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}play=${encodeURIComponent(String(playKey))}${hash}`;
+}
+
 function normalizeAssetSrc(raw) {
   if (!raw) return '';
   if (raw.startsWith('/')) return raw;
@@ -913,17 +923,19 @@ export default function EnterAnimationOverlay({ events, onConsume }) {
     const cardBorder = isEvent14 && eventTemplateUrl ? '' : cfg.border;
     const marqueeTextColor = animationId >= 11 && animationId <= 13 ? cfg.marqueeTextColor : '#ffffff';
 
+    const playbackSrc = buildPlaybackSrc(src, current?.id || '');
+
     return (
       <Wrapper>
         <Animated $phase={phase}>
           <BadgeContainer>
-            {showAnim && src ? (
+            {showAnim && playbackSrc ? (
               <AniLayer>
                 {/* Force a remount per event so CEF does not silently reuse a stale cached image node. */}
                 <AniImage
-                  key={`${current?.id || 'ani'}-${src}`}
+                  key={`${current?.id || 'ani'}-${playbackSrc}`}
                   ref={aniImageRef}
-                  src={src}
+                  src={playbackSrc}
                   alt=""
                   onLoad={handleAniLoaded}
                   onError={handleAniLoadError}
