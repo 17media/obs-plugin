@@ -135,6 +135,8 @@ void RemoteTextThread::run() {
         curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error);
         curl_easy_setopt(curl.get(), CURLOPT_FAILONERROR, 0L);
+        curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl.get(), CURLOPT_MAXREDIRS, 5L);
 
         if (isImageRequest) {
             curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, binary_write);
@@ -164,6 +166,8 @@ void RemoteTextThread::run() {
         curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 0L);
 
         code = curl_easy_perform(curl.get());
+        long httpCode = 0;
+        curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &httpCode);
 
         if (m_isCancelled.load()) {
             // If cancelled, don't emit results
@@ -172,15 +176,34 @@ void RemoteTextThread::run() {
         }
 
         if (code != CURLE_OK) {
-            // obs_log(LOG_WARNING, "RemoteTextThread: HTTP request failed. %s [url: %s]",
-            //      strlen(error) ? error : curl_easy_strerror(code), url.c_str());
+            obs_log(LOG_WARNING, "RemoteTextThread request failed: %s [url: %s, http: %ld]",
+                    strlen(error) ? error : curl_easy_strerror(code), url.c_str(), httpCode);
             if (isImageRequest) {
                 emit ImageResult(QByteArray(), QString::fromUtf8(error));
             } else {
                 emit Result(QString(), QString::fromUtf8(error));
             }
         } else {
+            if (httpCode >= 400) {
+                const QString httpError = QString("HTTP %1").arg(httpCode);
+                obs_log(LOG_WARNING, "RemoteTextThread image request returned %ld [url: %s]",
+                        httpCode, url.c_str());
+                if (isImageRequest) {
+                    emit ImageResult(QByteArray(), httpError);
+                } else {
+                    emit Result(QString(), httpError);
+                }
+                curl_slist_free_all(header);
+                return;
+            }
             if (isImageRequest) {
+                if (binary_data.empty()) {
+                    obs_log(LOG_WARNING, "RemoteTextThread image request returned empty body [url: %s]",
+                            url.c_str());
+                    emit ImageResult(QByteArray(), QStringLiteral("Empty image response"));
+                    curl_slist_free_all(header);
+                    return;
+                }
                 QByteArray imageData(binary_data.data(), binary_data.size());
                 emit ImageResult(imageData, QString());
             } else {

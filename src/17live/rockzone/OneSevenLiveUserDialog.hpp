@@ -64,4 +64,5 @@ class OneSevenLiveUserDialog : public QDialog {
     // Dragging functionality
     bool dragging = false;
     QPoint dragStartPosition;
+    QString currentAvatarUrl;
 };
