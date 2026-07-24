@@ -884,6 +884,8 @@ void CrashUploadService::maybeStartAcceptedUpload() {
     } catch (...) {
     }
 
+    // Consume the accepted abnormal-exit upload once we have a concrete pending record to upload.
+    userAcceptedUpload_.store(false);
     startUploadAsync(loginData, *pending);
 }
 
