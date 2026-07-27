@@ -41,6 +41,28 @@ const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
   const icon = giftInfo.get('icon');
   const isEventPointEnabled = giftInfo.get('isEventPointEnabled') || giftInfo.get('isEventPointEnbled');
   const eventPoint = giftInfo.get('eventPoint');
+  const eventPointWithSign = (() => {
+    if (typeof eventPoint === 'number') {
+      return eventPoint > 0 ? `+${eventPoint}` : `${eventPoint}`;
+    }
+    if (typeof eventPoint === 'string') {
+      const s = eventPoint.trim();
+      const n = Number(s);
+      if (!Number.isNaN(n) && n > 0) {
+        return s.startsWith('+') ? s : `+${s}`;
+      }
+      return s;
+    }
+    if (eventPoint === null || typeof eventPoint === 'undefined') {
+      return '';
+    }
+    const s = String(eventPoint);
+    const n = Number(s);
+    if (!Number.isNaN(n) && n > 0) {
+      return s.startsWith('+') ? s : `+${s}`;
+    }
+    return s;
+  })();
 
   return (
     <GiftItemContainer>
@@ -54,7 +76,7 @@ const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
           {isEventPointEnabled && typeof eventPoint !== 'undefined' && eventPoint !== null ? (
             <GiftPoint>
               {' '}
-              {t('EVENT_POINTS_SUFFIX', { eventPoint })}
+              {t('EVENT_POINTS_SUFFIX', { eventPointWithSign })}
             </GiftPoint>
           ) : null}
           {' '}
@@ -69,7 +91,7 @@ const GiftItem = ({ messageType, giftInfo, giftPoint, luckyBagInfo }) => {
             {isEventPointEnabled && typeof eventPoint !== 'undefined' && eventPoint !== null ? (
               <GiftPoint>
                 {' '}
-                {t('EVENT_POINTS_SUFFIX', { eventPoint })}
+                {t('EVENT_POINTS_SUFFIX', { eventPointWithSign })}
               </GiftPoint>
             ) : null}
             {' '}

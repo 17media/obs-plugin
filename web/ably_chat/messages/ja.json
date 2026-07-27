@@ -4,7 +4,7 @@
     "GIVE_GIFT": "配信者にギフトを贈りました",
     "GIVE_LUCKYBAG_GIFT": "{luckyBagName} を開けて、{giftName}（{point}）を贈りました",
     "GIVE_GIFT_DEFAULT": "ギフトを贈りました ({point})",
-    "EVENT_POINTS_SUFFIX": "(+{eventPoint} イベントポイント)",
+    "EVENT_POINTS_SUFFIX": "({eventPointWithSign} イベントポイント)",
     "EMPTY_CHAT_MESSAGE": "リスナーのコメントはここに表示されます。",
     "FONT_SIZE_LABEL": "文字サイズ",
     "FONT_SIZE_LARGE": "大",
