@@ -26,6 +26,103 @@
 #include "utility/RemoteTextThread.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 
+namespace {
+
+    bool is_valid_remote_asset_url(const std::string& source_url, QUrl& url,
+                                   std::string& error_message) {
+        url = QUrl(QString::fromStdString(source_url));
+        if (!url.isValid() || url.host().isEmpty() ||
+            (url.scheme() != "https" && url.scheme() != "http")) {
+            error_message = "Invalid remote asset URL";
+            return false;
+        }
+
+        return true;
+    }
+
+    bool ensure_remote_asset_cache_dir_ready(const std::string& cache_dir,
+                                             std::string& error_message) {
+        QDir dir(QString::fromStdString(cache_dir));
+        if (!dir.exists() && !dir.mkpath(".")) {
+            error_message = "Failed to create asset cache directory";
+            return false;
+        }
+
+        return true;
+    }
+
+    std::filesystem::path build_cached_remote_asset_path(const std::string& source_url,
+                                                         const std::string& cache_dir,
+                                                         const QUrl& url) {
+        QDir dir(QString::fromStdString(cache_dir));
+        QString suffix = QFileInfo(url.path()).suffix().toLower();
+        if (suffix.isEmpty()) {
+            suffix = "bin";
+        }
+
+        const QByteArray hash =
+            QCryptographicHash::hash(QByteArray::fromStdString(source_url), QCryptographicHash::Md5)
+                .toHex();
+        const QString file_name = QString("%1.%2").arg(QString::fromLatin1(hash), suffix);
+        return std::filesystem::path(dir.filePath(file_name).toStdString());
+    }
+
+    bool download_remote_asset_content(const std::string& source_url, std::string& content,
+                                       std::string& error_message) {
+        std::string download_error;
+        long response_code = 0;
+        const bool success =
+            GetRemoteFile(source_url.c_str(), content, download_error, &response_code, nullptr,
+                          "GET", nullptr, {}, nullptr, 20, true);
+        if (success && response_code >= 200 && response_code < 300 && !content.empty()) {
+            return true;
+        }
+
+        std::ostringstream ss;
+        ss << "Failed to download remote asset";
+        if (response_code > 0) {
+            ss << " (HTTP " << response_code << ")";
+        }
+        if (!download_error.empty()) {
+            ss << ": " << download_error;
+        }
+        error_message = ss.str();
+        return false;
+    }
+
+    bool persist_cached_remote_asset(const std::filesystem::path& cached_file_path,
+                                     const std::string& content, std::string& error_message) {
+        const QString file_path = QString::fromStdString(cached_file_path.string());
+        const QString temp_file_path = file_path + ".part";
+        QFile::remove(temp_file_path);
+
+        QFile file(temp_file_path);
+        if (!file.open(QIODevice::WriteOnly)) {
+            error_message = "Failed to write cached asset";
+            return false;
+        }
+
+        if (file.write(content.data(), static_cast<qint64>(content.size())) !=
+            static_cast<qint64>(content.size())) {
+            file.close();
+            QFile::remove(temp_file_path);
+            error_message = "Failed to persist cached asset";
+            return false;
+        }
+        file.close();
+
+        QFile::remove(file_path);
+        if (!QFile::rename(temp_file_path, file_path)) {
+            QFile::remove(temp_file_path);
+            error_message = "Failed to finalize cached asset";
+            return false;
+        }
+
+        return true;
+    }
+
+}  // namespace
+
 std::string OneSevenLiveHttpServer::get_file_extension(const std::string& file_path) const {
     size_t dot_pos = file_path.rfind('.');
     if (dot_pos != std::string::npos) {
@@ -125,13 +222,12 @@ std::string OneSevenLiveHttpServer::get_remote_asset_cache_dir(const std::string
     return (std::filesystem::path(config_path) / cache_subdir).string();
 }
 
-bool OneSevenLiveHttpServer::ensure_cached_remote_asset(
-    const std::string& source_url, const std::string& cache_subdir,
-    std::filesystem::path& cached_file_path, std::string& error_message) {
-    const QUrl url(QString::fromStdString(source_url));
-    if (!url.isValid() || url.host().isEmpty() ||
-        (url.scheme() != "https" && url.scheme() != "http")) {
-        error_message = "Invalid remote asset URL";
+bool OneSevenLiveHttpServer::ensure_cached_remote_asset(const std::string& source_url,
+                                                        const std::string& cache_subdir,
+                                                        std::filesystem::path& cached_file_path,
+                                                        std::string& error_message) {
+    QUrl url;
+    if (!is_valid_remote_asset_url(source_url, url, error_message)) {
         return false;
     }
 
@@ -141,23 +237,12 @@ bool OneSevenLiveHttpServer::ensure_cached_remote_asset(
         return false;
     }
 
-    QDir dir(QString::fromStdString(cache_dir));
-    if (!dir.exists() && !dir.mkpath(".")) {
-        error_message = "Failed to create asset cache directory";
+    if (!ensure_remote_asset_cache_dir_ready(cache_dir, error_message)) {
         return false;
     }
 
-    QString suffix = QFileInfo(url.path()).suffix().toLower();
-    if (suffix.isEmpty()) {
-        suffix = "bin";
-    }
-
-    const QByteArray hash =
-        QCryptographicHash::hash(QByteArray::fromStdString(source_url), QCryptographicHash::Md5)
-            .toHex();
-    const QString file_name = QString("%1.%2").arg(QString::fromLatin1(hash), suffix);
-    const QString file_path = dir.filePath(file_name);
-    cached_file_path = std::filesystem::path(file_path.toStdString());
+    cached_file_path = build_cached_remote_asset_path(source_url, cache_dir, url);
+    const QString file_path = QString::fromStdString(cached_file_path.string());
 
     std::lock_guard<std::mutex> lock(asset_cache_mutex_);
 
@@ -167,45 +252,11 @@ bool OneSevenLiveHttpServer::ensure_cached_remote_asset(
     }
 
     std::string content;
-    std::string download_error;
-    long response_code = 0;
-    const bool success =
-        GetRemoteFile(source_url.c_str(), content, download_error, &response_code, nullptr, "GET",
-                      nullptr, {}, nullptr, 20, true);
-    if (!success || response_code < 200 || response_code >= 300 || content.empty()) {
-        std::ostringstream ss;
-        ss << "Failed to download remote asset";
-        if (response_code > 0) {
-            ss << " (HTTP " << response_code << ")";
-        }
-        if (!download_error.empty()) {
-            ss << ": " << download_error;
-        }
-        error_message = ss.str();
+    if (!download_remote_asset_content(source_url, content, error_message)) {
         return false;
     }
 
-    const QString temp_file_path = file_path + ".part";
-    QFile::remove(temp_file_path);
-
-    QFile file(temp_file_path);
-    if (!file.open(QIODevice::WriteOnly)) {
-        error_message = "Failed to write cached asset";
-        return false;
-    }
-    if (file.write(content.data(), static_cast<qint64>(content.size())) !=
-        static_cast<qint64>(content.size())) {
-        file.close();
-        QFile::remove(temp_file_path);
-        error_message = "Failed to persist cached asset";
-        return false;
-    }
-    file.close();
-
-    QFile::remove(file_path);
-    if (!QFile::rename(temp_file_path, file_path)) {
-        QFile::remove(temp_file_path);
-        error_message = "Failed to finalize cached asset";
+    if (!persist_cached_remote_asset(cached_file_path, content, error_message)) {
         return false;
     }
 
