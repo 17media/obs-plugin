@@ -1,15 +1,18 @@
 #pragma once
 
-#include <QDockWidget>
 #include <QCloseEvent>
+#include <QDockWidget>
 #include <QPointer>
 #include <nlohmann/json.hpp>
+#include <utility>
+#include <vector>
 
 class QListWidget;
 class QTableWidget;
 class QPushButton;
 class QCheckBox;
 class QLabel;
+class QIcon;
 class QComboBox;
 class QDoubleSpinBox;
 class QSpinBox;
@@ -50,6 +53,12 @@ class CustomizedCartoonDock : public QDockWidget {
     void onStartPositionPreview();
     void onStopPositionPreview();
     void setBroadcastState(bool streamingActive, bool recordingActive);
+    void onPreviewModeToggled(bool checked);
+    void onToastAnimationFinished();
+    void onToastTimerTimeout();
+    void onCancelButtonClicked();
+    void onConfirmButtonClicked();
+    void onMainTabChanged(int index);
 
    private:
     void setupUi();
@@ -72,6 +81,10 @@ class CustomizedCartoonDock : public QDockWidget {
     void syncPreviewDraftTransform();
     void updateMediaPreviewAvailability();
     void updateDraftUi();
+    void updateDraftActionButtons(bool dirty);
+    void updateDraftStatusIndicator(bool dirty);
+    void updateMainTabIndicators();
+    void updatePositionTabIndicators();
     bool isPreviewBlocked() const;
     QString previewBlockedTooltip() const;
     void scheduleInitialMediaListRefresh();
@@ -83,6 +96,16 @@ class CustomizedCartoonDock : public QDockWidget {
     bool isSettingsTabDirty() const;
     bool isRulesTabDirty() const;
     bool isPositionOrientationDirty(bool landscape) const;
+    bool updateMediaSettingsEntry(nlohmann::json& media);
+    void addMediaListItem(const nlohmann::json& mediaConfig, const QIcon& videoIcon,
+                          const QIcon& imageIcon, const QIcon& playIcon, const QIcon& stopIcon,
+                          const QIcon& settingsIcon, const QIcon& trashIcon, bool previewing,
+                          const QString& previewingId, int& mediaCount);
+    std::vector<std::pair<QString, QString>> buildRuleMediaOptions(const nlohmann::json& cfg) const;
+    void clearRulesListLayout();
+    QWidget* buildRuleCard(const nlohmann::json& ruleConfig,
+                           const std::vector<std::pair<QString, QString>>& mediaOptions);
+    void finalizeRulesListRefresh(int previousScrollValue, QWidget* latestCard);
 
     CustomizedCartoonService* service_{nullptr};
 

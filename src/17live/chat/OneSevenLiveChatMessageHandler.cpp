@@ -14,57 +14,63 @@
 #include "websocket/WsMessage.hpp"
 
 namespace {
-std::string buildEnterAnimationLogSummary(const nlohmann::json& decoded) {
-    const auto* payload =
-        decoded.contains("subscriberEnterMsg") && decoded["subscriberEnterMsg"].is_object()
-            ? &decoded["subscriberEnterMsg"]
-        : decoded.contains("enterAnimationMsg") && decoded["enterAnimationMsg"].is_object()
-            ? &decoded["enterAnimationMsg"]
-            : nullptr;
-    if (!payload) {
-        return "payload=missing";
+    const nlohmann::json* jsonObjectField(const nlohmann::json& value, const char* key) {
+        return value.contains(key) && value[key].is_object() ? &value[key] : nullptr;
     }
 
-    const int animation =
-        payload->contains("animation") && (*payload)["animation"].is_number_integer()
-            ? (*payload)["animation"].get<int>()
-            : -1;
-    const std::string userID =
-        payload->contains("userID") && (*payload)["userID"].is_string()
-            ? (*payload)["userID"].get<std::string>()
-            : "";
-    const std::string displayName =
-        payload->contains("displayName") && (*payload)["displayName"].is_string()
-            ? (*payload)["displayName"].get<std::string>()
-            : "";
+    int jsonIntField(const nlohmann::json& value, const char* key, int fallback = -1) {
+        return value.contains(key) && value[key].is_number_integer() ? value[key].get<int>()
+                                                                     : fallback;
+    }
 
-    std::string notifAnimationID;
-    bool hasTemplateURL = false;
-    bool hasIconURL = false;
-    bool hasNotif = false;
-    if (payload->contains("eventNotifMsg") && (*payload)["eventNotifMsg"].is_object()) {
-        const auto& notif = (*payload)["eventNotifMsg"];
-        hasNotif = true;
-        if (notif.contains("animationID") && notif["animationID"].is_string()) {
-            notifAnimationID = notif["animationID"].get<std::string>();
+    std::string jsonStringField(const nlohmann::json& value, const char* key) {
+        return value.contains(key) && value[key].is_string() ? value[key].get<std::string>() : "";
+    }
+
+    bool jsonHasNonEmptyString(const nlohmann::json& value, const char* key) {
+        const auto text = jsonStringField(value, key);
+        return !text.empty();
+    }
+
+    const nlohmann::json* findEnterAnimationPayload(const nlohmann::json& decoded) {
+        if (const auto* payload = jsonObjectField(decoded, "subscriberEnterMsg")) {
+            return payload;
         }
-        hasTemplateURL = notif.contains("templateURL") && notif["templateURL"].is_string() &&
-                         !notif["templateURL"].get<std::string>().empty();
-        hasIconURL = notif.contains("icouURL") && notif["icouURL"].is_string() &&
-                     !notif["icouURL"].get<std::string>().empty();
+        return jsonObjectField(decoded, "enterAnimationMsg");
     }
 
-    return QString("animation=%1 userID=%2 displayName=%3 hasNotif=%4 notifAnimationID=%5 "
+    std::string buildEnterAnimationLogSummary(const nlohmann::json& decoded) {
+        const auto* payload = findEnterAnimationPayload(decoded);
+        if (!payload) {
+            return "payload=missing";
+        }
+
+        const int animation = jsonIntField(*payload, "animation");
+        const std::string userID = jsonStringField(*payload, "userID");
+        const std::string displayName = jsonStringField(*payload, "displayName");
+        std::string notifAnimationID;
+        bool hasTemplateURL = false;
+        bool hasIconURL = false;
+        bool hasNotif = false;
+        if (const auto* notif = jsonObjectField(*payload, "eventNotifMsg")) {
+            hasNotif = true;
+            notifAnimationID = jsonStringField(*notif, "animationID");
+            hasTemplateURL = jsonHasNonEmptyString(*notif, "templateURL");
+            hasIconURL = jsonHasNonEmptyString(*notif, "icouURL");
+        }
+
+        return QString(
+                   "animation=%1 userID=%2 displayName=%3 hasNotif=%4 notifAnimationID=%5 "
                    "hasTemplateURL=%6 hasIconURL=%7")
-        .arg(animation)
-        .arg(QString::fromStdString(userID))
-        .arg(QString::fromStdString(displayName))
-        .arg(hasNotif ? 1 : 0)
-        .arg(QString::fromStdString(notifAnimationID))
-        .arg(hasTemplateURL ? 1 : 0)
-        .arg(hasIconURL ? 1 : 0)
-        .toStdString();
-}
+            .arg(animation)
+            .arg(QString::fromStdString(userID))
+            .arg(QString::fromStdString(displayName))
+            .arg(hasNotif ? 1 : 0)
+            .arg(QString::fromStdString(notifAnimationID))
+            .arg(hasTemplateURL ? 1 : 0)
+            .arg(hasIconURL ? 1 : 0)
+            .toStdString();
+    }
 }  // namespace
 
 bool OneSevenLiveChatMessageHandler::handleRaw(const std::string& msg) {

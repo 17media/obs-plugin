@@ -1,8 +1,8 @@
 #include "CustomizedCartoonDock.hpp"
 
+#include <graphics/vec2.h>
 #include <obs-frontend-api.h>
 #include <obs-module.h>
-#include <graphics/vec2.h>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -10,306 +10,330 @@
 #include <QDialogButtonBox>
 #include <QEvent>
 #include <QFile>
-#include <QFrame>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFontMetrics>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGraphicsOpacityEffect>
 #include <QGridLayout>
 #include <QGroupBox>
-#include <QHeaderView>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMessageBox>
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QFontMetrics>
+#include <QPropertyAnimation>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
-#include <QStyleFactory>
-#include <QStyle>
-#include <QSignalBlocker>
-#include <QPropertyAnimation>
-#include <QTabWidget>
-#include <QMessageBox>
-#include <QPushButton>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QSpinBox>
+#include <QStyle>
+#include <QStyleFactory>
+#include <QTabWidget>
 #include <QTableWidget>
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
 #include <QWheelEvent>
-
 #include <algorithm>
 #include <cmath>
 #include <functional>
 #include <unordered_map>
 
-#include "CustomizedCartoonService.hpp"
+#include "../../plugin-support.h"
 #include "../OneSevenLiveCoreManager.hpp"
 #include "../streaming/OneSevenLiveStreamManager.hpp"
-#include "../../plugin-support.h"
+#include "CustomizedCartoonService.hpp"
 
 using json = nlohmann::json;
 
 namespace {
 
-constexpr int kDockOuterMargin = 10;
-constexpr int kPanelInnerMargin = 5;
-constexpr int kPanelSpacing = 5;
-constexpr int kPositionCanvasMinWidth = 210;
-constexpr int kPositionSidePanelMinWidth = 220;
-constexpr int kPositionPanelMinWidth =
-    (kPanelInnerMargin * 2) + kPositionCanvasMinWidth + kPanelSpacing + kPositionSidePanelMinWidth;
-constexpr int kDockMinWidth = kPositionPanelMinWidth + 20;
-constexpr int kDockMinHeight = 300;
-constexpr int kRuleParamRowSpacing = 4;
-constexpr int kRuleParamGroupSpacing = 6;
-constexpr int kRuleGiftAmountSpinWidth = 84;
-constexpr int kRuleGiftCountSpinWidth = 56;
-constexpr int kRuleLuckyBagCountSpinWidth = 84;
-constexpr int kRuleTypeComboChars = 8;
-constexpr int kRuleMediaComboChars = 10;
-constexpr int kRulesPanelMinWidth = 360;
-constexpr int kRuleFieldLabelWidthNumerator = 2;
-constexpr int kRuleFieldLabelWidthDenominator = 3;
-constexpr int kMediaActionButtonSize = 24;
-constexpr int kMediaActionIconSize = 20;
+    constexpr int kDockOuterMargin = 10;
+    constexpr int kPanelInnerMargin = 5;
+    constexpr int kPanelSpacing = 5;
+    constexpr int kPositionCanvasMinWidth = 210;
+    constexpr int kPositionSidePanelMinWidth = 220;
+    constexpr int kPositionPanelMinWidth = (kPanelInnerMargin * 2) + kPositionCanvasMinWidth +
+                                           kPanelSpacing + kPositionSidePanelMinWidth;
+    constexpr int kDockMinWidth = kPositionPanelMinWidth + 20;
+    constexpr int kDockMinHeight = 300;
+    constexpr int kRuleParamRowSpacing = 4;
+    constexpr int kRuleParamGroupSpacing = 6;
+    constexpr int kRuleGiftAmountSpinWidth = 84;
+    constexpr int kRuleGiftCountSpinWidth = 56;
+    constexpr int kRuleLuckyBagCountSpinWidth = 84;
+    constexpr int kRuleTypeComboChars = 8;
+    constexpr int kRuleMediaComboChars = 10;
+    constexpr int kRulesPanelMinWidth = 360;
+    constexpr int kRuleFieldLabelWidthNumerator = 2;
+    constexpr int kRuleFieldLabelWidthDenominator = 3;
+    constexpr int kMediaActionButtonSize = 24;
+    constexpr int kMediaActionIconSize = 20;
 
-bool isSceneItemEligibleForFit(obs_sceneitem_t* item) {
-    if (!item) {
-        return false;
-    }
-    if (!obs_sceneitem_visible(item)) {
-        return false;
-    }
-    if (obs_sceneitem_locked(item)) {
-        return false;
-    }
-    return true;
-}
-
-int applyFitToAllSceneItemsToCurrentCanvas() {
-    obs_video_info ovi{};
-    if (!obs_get_video_info(&ovi) || ovi.base_width == 0 || ovi.base_height == 0) {
-        return 0;
+    bool isSceneItemEligibleForFit(obs_sceneitem_t* item) {
+        if (!item) {
+            return false;
+        }
+        if (!obs_sceneitem_visible(item)) {
+            return false;
+        }
+        if (obs_sceneitem_locked(item)) {
+            return false;
+        }
+        return true;
     }
 
-    obs_source_t* sceneSource = obs_frontend_get_current_scene();
-    if (!sceneSource) {
-        return 0;
-    }
+    int applyFitToAllSceneItemsToCurrentCanvas() {
+        obs_video_info ovi{};
+        if (!obs_get_video_info(&ovi) || ovi.base_width == 0 || ovi.base_height == 0) {
+            return 0;
+        }
 
-    obs_scene_t* scene = obs_scene_from_source(sceneSource);
-    if (!scene) {
-        obs_source_release(sceneSource);
-        return 0;
-    }
+        obs_source_t* sceneSource = obs_frontend_get_current_scene();
+        if (!sceneSource) {
+            return 0;
+        }
 
-    struct Ctx {
-        uint32_t canvasW = 0;
-        uint32_t canvasH = 0;
-        int applied = 0;
-    } ctx;
-    ctx.canvasW = ovi.base_width;
-    ctx.canvasH = ovi.base_height;
+        obs_scene_t* scene = obs_scene_from_source(sceneSource);
+        if (!scene) {
+            obs_source_release(sceneSource);
+            return 0;
+        }
 
-    obs_scene_enum_items(
-        scene,
-        [](obs_scene_t*, obs_sceneitem_t* item, void* param) -> bool {
-            auto* ctx = static_cast<Ctx*>(param);
-            auto applyOne = [ctx](obs_sceneitem_t* target) {
-                if (!isSceneItemEligibleForFit(target)) {
-                    return;
+        struct Ctx {
+            uint32_t canvasW = 0;
+            uint32_t canvasH = 0;
+            int applied = 0;
+        } ctx;
+
+        ctx.canvasW = ovi.base_width;
+        ctx.canvasH = ovi.base_height;
+
+        obs_scene_enum_items(
+            scene,
+            [](obs_scene_t*, obs_sceneitem_t* item, void* param) -> bool {
+                auto* ctx = static_cast<Ctx*>(param);
+                auto applyOne = [ctx](obs_sceneitem_t* target) {
+                    if (!isSceneItemEligibleForFit(target)) {
+                        return;
+                    }
+
+                    obs_transform_info itemInfo;
+                    vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+                    vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+                    itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+                    itemInfo.rot = 0.0f;
+                    vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
+                    itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+                    itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+                    itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(target);
+                    obs_sceneitem_set_info2(target, &itemInfo);
+                    ctx->applied++;
+                };
+
+                if (obs_sceneitem_is_group(item)) {
+                    obs_sceneitem_group_enum_items(
+                        item,
+                        [](obs_scene_t*, obs_sceneitem_t* child, void* groupParam) -> bool {
+                            auto* applyChild =
+                                static_cast<std::function<void(obs_sceneitem_t*)>*>(groupParam);
+                            (*applyChild)(child);
+                            return true;
+                        },
+                        &applyOne);
+                    return true;
                 }
 
-                obs_transform_info itemInfo;
-                vec2_set(&itemInfo.pos, 0.0f, 0.0f);
-                vec2_set(&itemInfo.scale, 1.0f, 1.0f);
-                itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
-                itemInfo.rot = 0.0f;
-                vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
-                itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
-                itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
-                itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(target);
-                obs_sceneitem_set_info2(target, &itemInfo);
-                ctx->applied++;
-            };
-
-            if (obs_sceneitem_is_group(item)) {
-                obs_sceneitem_group_enum_items(item, [](obs_scene_t*, obs_sceneitem_t* child,
-                                                        void* groupParam) -> bool {
-                    auto* applyChild =
-                        static_cast<std::function<void(obs_sceneitem_t*)>*>(groupParam);
-                    (*applyChild)(child);
-                    return true;
-                },
-                                             &applyOne);
+                applyOne(item);
                 return true;
+            },
+            &ctx);
+
+        obs_source_release(sceneSource);
+        return ctx.applied;
+    }
+
+    QString getRuleTypeLabel(const QString& engageType) {
+        if (engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
+            return obs_module_text("CustomizedCartoon.Rules.Type.LuckyBag");
+        }
+        return obs_module_text("CustomizedCartoon.Rules.Type.Gift");
+    }
+
+    QString buildRuleDeleteConfirmMessage(const json& rule) {
+        const QString ruleName =
+            rule.contains("name") && rule["name"].is_string()
+                ? QString::fromStdString(rule["name"].get<std::string>()).trimmed()
+                : QString();
+        if (!ruleName.isEmpty()) {
+            return QString(obs_module_text("CustomizedCartoon.Rules.DeleteConfirm.Named"))
+                .arg(QString::fromUtf8("【%1】").arg(ruleName));
+        }
+
+        const QString engageType =
+            rule.contains("engageType") && rule["engageType"].is_string()
+                ? QString::fromStdString(rule["engageType"].get<std::string>())
+                : QString();
+        return QString(obs_module_text("CustomizedCartoon.Rules.DeleteConfirm.Unnamed"))
+            .arg(QString::fromUtf8("【%1】").arg(getRuleTypeLabel(engageType)));
+    }
+
+    int computeRuleParamLabelWidth() {
+        QFont font;
+        font.setPixelSize(14);
+        QFontMetrics metrics(font);
+
+        const QStringList candidates = {
+            obs_module_text("CustomizedCartoon.Rules.Param.GiftX"),
+            obs_module_text("CustomizedCartoon.Rules.Param.GiftY"),
+            obs_module_text("CustomizedCartoon.Rules.Param.LuckyBagX"),
+        };
+
+        int width = 0;
+        for (const QString& text : candidates) {
+            width = std::max(width, metrics.horizontalAdvance(text));
+        }
+
+        return width + 8;
+    }
+
+    int computeRuleFieldLabelWidth() {
+        QFont font;
+        font.setPixelSize(14);
+        QFontMetrics metrics(font);
+
+        const QStringList candidates = {
+            obs_module_text("CustomizedCartoon.Rules.Field.ConditionName"),
+            obs_module_text("CustomizedCartoon.Rules.Field.Type"),
+            obs_module_text("CustomizedCartoon.Rules.Field.Rule"),
+            obs_module_text("CustomizedCartoon.Rules.Field.Media"),
+            obs_module_text("CustomizedCartoon.Rules.Field.Repeat"),
+        };
+
+        int width = 0;
+        for (const QString& text : candidates) {
+            width = std::max(width, metrics.horizontalAdvance(text));
+        }
+
+        const int reducedWidth =
+            (width * kRuleFieldLabelWidthNumerator) / kRuleFieldLabelWidthDenominator;
+        return std::max(56, reducedWidth);
+    }
+
+    QString jsonStringValue(const json& value, const char* key,
+                            const QString& fallback = QString()) {
+        return value.contains(key) && value[key].is_string()
+                   ? QString::fromStdString(value[key].get<std::string>())
+                   : fallback;
+    }
+
+    int jsonIntValue(const json& value, const char* key, int fallback = 0) {
+        return value.contains(key) && value[key].is_number_integer() ? value[key].get<int>()
+                                                                     : fallback;
+    }
+
+    bool jsonBoolValue(const json& value, const char* key, bool fallback) {
+        return value.contains(key) && value[key].is_boolean() ? value[key].get<bool>() : fallback;
+    }
+
+    static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event event,
+                                                           void* private_data) {
+        auto* dock = static_cast<CustomizedCartoonDock*>(private_data);
+        if (!dock) {
+            return;
+        }
+
+        if (event == OBS_FRONTEND_EVENT_STREAMING_STARTED ||
+            event == OBS_FRONTEND_EVENT_STREAMING_STOPPED ||
+            event == OBS_FRONTEND_EVENT_RECORDING_STARTED ||
+            event == OBS_FRONTEND_EVENT_RECORDING_STOPPED) {
+            const bool streamingActive = obs_frontend_streaming_active();
+            const bool recordingActive = obs_frontend_recording_active();
+            QMetaObject::invokeMethod(dock, "setBroadcastState", Qt::QueuedConnection,
+                                      Q_ARG(bool, streamingActive), Q_ARG(bool, recordingActive));
+        }
+    }
+
+    class PositionCanvasWidget final : public QWidget {
+       public:
+        explicit PositionCanvasWidget(QWidget* parent = nullptr) : QWidget(parent) {
+            setMouseTracking(true);
+        }
+
+        void setCanvasSize(int w, int h) {
+            canvasW_ = std::max(1, w);
+            canvasH_ = std::max(1, h);
+            clampRect();
+            update();
+        }
+
+        void setRect(const QRect& r) {
+            rect_ = r;
+            clampRect();
+            update();
+        }
+
+        QRect selectionRect() const {
+            return rect_;
+        }
+
+        void setOnRectChanged(std::function<void(const QRect&)> cb) {
+            onRectChanged_ = std::move(cb);
+        }
+
+       protected:
+        void paintEvent(QPaintEvent*) override {
+            QPainter p(this);
+            p.setRenderHint(QPainter::Antialiasing, true);
+
+            p.fillRect(QWidget::rect(), QColor(0x12, 0x15, 0x1B));
+
+            const QRectF area = contentRect();
+            drawGrid(p, area);
+            drawRulers(p, area);
+            drawSelection(p, area);
+        }
+
+        void mousePressEvent(QMouseEvent* e) override {
+            const auto hit = hitTest(e->position());
+            if (hit == Hit::None) {
+                active_ = Hit::None;
+                return;
+            }
+            active_ = hit;
+            lastPos_ = e->position();
+            startRect_ = rect_;
+            e->accept();
+        }
+
+        void mouseMoveEvent(QMouseEvent* e) override {
+            if (active_ == Hit::None) {
+                setCursor(cursorForHit(hitTest(e->position())));
+                return;
             }
 
-            applyOne(item);
-            return true;
-        },
-        &ctx);
+            const QRectF area = contentRect();
+            const double s = scale(area);
+            if (s <= 0.0) {
+                return;
+            }
+            const QPointF deltaPx = e->position() - lastPos_;
+            const QPoint deltaCanvas((int) std::round(deltaPx.x() / s),
+                                     (int) std::round(deltaPx.y() / s));
 
-    obs_source_release(sceneSource);
-    return ctx.applied;
-}
-
-QString getRuleTypeLabel(const QString& engageType) {
-    if (engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
-        return obs_module_text("CustomizedCartoon.Rules.Type.LuckyBag");
-    }
-    return obs_module_text("CustomizedCartoon.Rules.Type.Gift");
-}
-
-QString buildRuleDeleteConfirmMessage(const json& rule) {
-    const QString ruleName = rule.contains("name") && rule["name"].is_string()
-                                 ? QString::fromStdString(rule["name"].get<std::string>()).trimmed()
-                                 : QString();
-    if (!ruleName.isEmpty()) {
-        return QString(obs_module_text("CustomizedCartoon.Rules.DeleteConfirm.Named"))
-            .arg(QString::fromUtf8("【%1】").arg(ruleName));
-    }
-
-    const QString engageType = rule.contains("engageType") && rule["engageType"].is_string()
-                                   ? QString::fromStdString(rule["engageType"].get<std::string>())
-                                   : QString();
-    return QString(obs_module_text("CustomizedCartoon.Rules.DeleteConfirm.Unnamed"))
-        .arg(QString::fromUtf8("【%1】").arg(getRuleTypeLabel(engageType)));
-}
-
-int computeRuleParamLabelWidth() {
-    QFont font;
-    font.setPixelSize(14);
-    QFontMetrics metrics(font);
-
-    const QStringList candidates = {
-        obs_module_text("CustomizedCartoon.Rules.Param.GiftX"),
-        obs_module_text("CustomizedCartoon.Rules.Param.GiftY"),
-        obs_module_text("CustomizedCartoon.Rules.Param.LuckyBagX"),
-    };
-
-    int width = 0;
-    for (const QString& text : candidates) {
-        width = std::max(width, metrics.horizontalAdvance(text));
-    }
-
-    return width + 8;
-}
-
-int computeRuleFieldLabelWidth() {
-    QFont font;
-    font.setPixelSize(14);
-    QFontMetrics metrics(font);
-
-    const QStringList candidates = {
-        obs_module_text("CustomizedCartoon.Rules.Field.ConditionName"),
-        obs_module_text("CustomizedCartoon.Rules.Field.Type"),
-        obs_module_text("CustomizedCartoon.Rules.Field.Rule"),
-        obs_module_text("CustomizedCartoon.Rules.Field.Media"),
-        obs_module_text("CustomizedCartoon.Rules.Field.Repeat"),
-    };
-
-    int width = 0;
-    for (const QString& text : candidates) {
-        width = std::max(width, metrics.horizontalAdvance(text));
-    }
-
-    const int reducedWidth =
-        (width * kRuleFieldLabelWidthNumerator) / kRuleFieldLabelWidthDenominator;
-    return std::max(56, reducedWidth);
-}
-
-static void CustomizedCartoonDockFrontendEventCallback(enum obs_frontend_event event,
-                                                       void* private_data) {
-    auto* dock = static_cast<CustomizedCartoonDock*>(private_data);
-    if (!dock) {
-        return;
-    }
-
-    if (event == OBS_FRONTEND_EVENT_STREAMING_STARTED ||
-        event == OBS_FRONTEND_EVENT_STREAMING_STOPPED ||
-        event == OBS_FRONTEND_EVENT_RECORDING_STARTED ||
-        event == OBS_FRONTEND_EVENT_RECORDING_STOPPED) {
-        const bool streamingActive = obs_frontend_streaming_active();
-        const bool recordingActive = obs_frontend_recording_active();
-        QMetaObject::invokeMethod(dock, "setBroadcastState", Qt::QueuedConnection,
-                                  Q_ARG(bool, streamingActive), Q_ARG(bool, recordingActive));
-    }
-}
-
-class PositionCanvasWidget final : public QWidget {
-   public:
-    explicit PositionCanvasWidget(QWidget* parent = nullptr) : QWidget(parent) {
-        setMouseTracking(true);
-    }
-
-    void setCanvasSize(int w, int h) {
-        canvasW_ = std::max(1, w);
-        canvasH_ = std::max(1, h);
-        clampRect();
-        update();
-    }
-
-    void setRect(const QRect& r) {
-        rect_ = r;
-        clampRect();
-        update();
-    }
-
-    QRect selectionRect() const { return rect_; }
-
-    void setOnRectChanged(std::function<void(const QRect&)> cb) { onRectChanged_ = std::move(cb); }
-
-   protected:
-    void paintEvent(QPaintEvent*) override {
-        QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing, true);
-
-        p.fillRect(QWidget::rect(), QColor(0x12, 0x15, 0x1B));
-
-        const QRectF area = contentRect();
-        drawGrid(p, area);
-        drawRulers(p, area);
-        drawSelection(p, area);
-    }
-
-    void mousePressEvent(QMouseEvent* e) override {
-        const auto hit = hitTest(e->position());
-        if (hit == Hit::None) {
-            active_ = Hit::None;
-            return;
-        }
-        active_ = hit;
-        lastPos_ = e->position();
-        startRect_ = rect_;
-        e->accept();
-    }
-
-    void mouseMoveEvent(QMouseEvent* e) override {
-        if (active_ == Hit::None) {
-            setCursor(cursorForHit(hitTest(e->position())));
-            return;
-        }
-
-        const QRectF area = contentRect();
-        const double s = scale(area);
-        if (s <= 0.0) {
-            return;
-        }
-        const QPointF deltaPx = e->position() - lastPos_;
-        const QPoint deltaCanvas((int)std::round(deltaPx.x() / s), (int)std::round(deltaPx.y() / s));
-
-        QRect next = startRect_;
-        const int minSize = 20;
-        switch (active_) {
+            QRect next = startRect_;
+            const int minSize = 20;
+            switch (active_) {
             case Hit::Move:
                 next.translate(deltaCanvas);
                 break;
@@ -339,120 +363,129 @@ class PositionCanvasWidget final : public QWidget {
                 break;
             default:
                 break;
+            }
+
+            if (next.width() < minSize) {
+                next.setWidth(minSize);
+            }
+            if (next.height() < minSize) {
+                next.setHeight(minSize);
+            }
+
+            rect_ = next.normalized();
+            clampRect();
+            update();
+            if (onRectChanged_) {
+                onRectChanged_(rect_);
+            }
+            e->accept();
         }
 
-        if (next.width() < minSize) {
-            next.setWidth(minSize);
-        }
-        if (next.height() < minSize) {
-            next.setHeight(minSize);
+        void mouseReleaseEvent(QMouseEvent*) override {
+            active_ = Hit::None;
+            setCursor(Qt::ArrowCursor);
         }
 
-        rect_ = next.normalized();
-        clampRect();
-        update();
-        if (onRectChanged_) {
-            onRectChanged_(rect_);
+       private:
+        enum class Hit {
+            None,
+            Move,
+            TL,
+            TR,
+            BL,
+            BR,
+            L,
+            R,
+            T,
+            B,
+        };
+
+        QRectF contentRect() const {
+            QRectF area;
+            if (canvasH_ > canvasW_) {
+                // Portrait preview shifts slightly right/down while keeping bottom space for the
+                // ruler label.
+                area = QWidget::rect().adjusted(44, 22, -30, -17);
+            } else {
+                // Landscape preview moves upward and leaves room for the bottom ruler/label.
+                area = QWidget::rect().adjusted(56, 2, -56, -30);
+            }
+            if (area.width() < 10.0 || area.height() < 10.0) {
+                area = QRectF(0, 0, width(), height());
+            }
+            return area;
         }
-        e->accept();
-    }
 
-    void mouseReleaseEvent(QMouseEvent*) override {
-        active_ = Hit::None;
-        setCursor(Qt::ArrowCursor);
-    }
-
-   private:
-    enum class Hit {
-        None,
-        Move,
-        TL,
-        TR,
-        BL,
-        BR,
-        L,
-        R,
-        T,
-        B,
-    };
-
-    QRectF contentRect() const {
-        QRectF area;
-        if (canvasH_ > canvasW_) {
-            // Portrait preview shifts slightly right/down while keeping bottom space for the ruler label.
-            area = QWidget::rect().adjusted(44, 22, -30, -17);
-        } else {
-            // Landscape preview moves upward and leaves room for the bottom ruler/label.
-            area = QWidget::rect().adjusted(56, 2, -56, -30);
+        double scale(const QRectF& area) const {
+            const double sx = area.width() / (double) canvasW_;
+            const double sy = area.height() / (double) canvasH_;
+            return std::min(sx, sy);
         }
-        if (area.width() < 10.0 || area.height() < 10.0) {
-            area = QRectF(0, 0, width(), height());
+
+        QPointF canvasToWidget(const QPointF& ptCanvas, const QRectF& area) const {
+            const double s = scale(area);
+            const double w = canvasW_ * s;
+            const double h = canvasH_ * s;
+            const double ox = area.x() + (area.width() - w) / 2.0;
+            const double oy = area.y() + (area.height() - h) / 2.0;
+            return QPointF(ox + ptCanvas.x() * s, oy + ptCanvas.y() * s);
         }
-        return area;
-    }
 
-    double scale(const QRectF& area) const {
-        const double sx = area.width() / (double)canvasW_;
-        const double sy = area.height() / (double)canvasH_;
-        return std::min(sx, sy);
-    }
+        QRectF canvasToWidget(const QRect& rCanvas, const QRectF& area) const {
+            const QPointF tl = canvasToWidget(QPointF(rCanvas.x(), rCanvas.y()), area);
+            const QPointF br = canvasToWidget(
+                QPointF(rCanvas.x() + rCanvas.width(), rCanvas.y() + rCanvas.height()), area);
+            return QRectF(tl, br).normalized();
+        }
 
-    QPointF canvasToWidget(const QPointF& ptCanvas, const QRectF& area) const {
-        const double s = scale(area);
-        const double w = canvasW_ * s;
-        const double h = canvasH_ * s;
-        const double ox = area.x() + (area.width() - w) / 2.0;
-        const double oy = area.y() + (area.height() - h) / 2.0;
-        return QPointF(ox + ptCanvas.x() * s, oy + ptCanvas.y() * s);
-    }
+        QRectF canvasRectInWidget(const QRectF& area) const {
+            const double s = scale(area);
+            const double w = canvasW_ * s;
+            const double h = canvasH_ * s;
+            const double ox = area.x() + (area.width() - w) / 2.0;
+            const double oy = area.y() + (area.height() - h) / 2.0;
+            return QRectF(ox, oy, w, h);
+        }
 
-    QRectF canvasToWidget(const QRect& rCanvas, const QRectF& area) const {
-        const QPointF tl = canvasToWidget(QPointF(rCanvas.x(), rCanvas.y()), area);
-        const QPointF br =
-            canvasToWidget(QPointF(rCanvas.x() + rCanvas.width(), rCanvas.y() + rCanvas.height()),
-                           area);
-        return QRectF(tl, br).normalized();
-    }
+        Hit hitTest(const QPointF& pt) const {
+            const QRectF area = contentRect();
+            const QRectF r = canvasToWidget(rect_, area);
+            const double h = 8.0;
 
-    QRectF canvasRectInWidget(const QRectF& area) const {
-        const double s = scale(area);
-        const double w = canvasW_ * s;
-        const double h = canvasH_ * s;
-        const double ox = area.x() + (area.width() - w) / 2.0;
-        const double oy = area.y() + (area.height() - h) / 2.0;
-        return QRectF(ox, oy, w, h);
-    }
+            const QRectF tl(r.topLeft() - QPointF(h, h), QSizeF(h * 2, h * 2));
+            const QRectF tr(QPointF(r.right(), r.top()) - QPointF(h, h), QSizeF(h * 2, h * 2));
+            const QRectF bl(QPointF(r.left(), r.bottom()) - QPointF(h, h), QSizeF(h * 2, h * 2));
+            const QRectF br(QPointF(r.right(), r.bottom()) - QPointF(h, h), QSizeF(h * 2, h * 2));
 
-    Hit hitTest(const QPointF& pt) const {
-        const QRectF area = contentRect();
-        const QRectF r = canvasToWidget(rect_, area);
-        const double h = 8.0;
+            if (tl.contains(pt))
+                return Hit::TL;
+            if (tr.contains(pt))
+                return Hit::TR;
+            if (bl.contains(pt))
+                return Hit::BL;
+            if (br.contains(pt))
+                return Hit::BR;
 
-        const QRectF tl(r.topLeft() - QPointF(h, h), QSizeF(h * 2, h * 2));
-        const QRectF tr(QPointF(r.right(), r.top()) - QPointF(h, h), QSizeF(h * 2, h * 2));
-        const QRectF bl(QPointF(r.left(), r.bottom()) - QPointF(h, h), QSizeF(h * 2, h * 2));
-        const QRectF br(QPointF(r.right(), r.bottom()) - QPointF(h, h), QSizeF(h * 2, h * 2));
+            const QRectF l(QPointF(r.left() - h, r.center().y() - h), QSizeF(h * 2, h * 2));
+            const QRectF rr(QPointF(r.right() - h, r.center().y() - h), QSizeF(h * 2, h * 2));
+            const QRectF t(QPointF(r.center().x() - h, r.top() - h), QSizeF(h * 2, h * 2));
+            const QRectF b(QPointF(r.center().x() - h, r.bottom() - h), QSizeF(h * 2, h * 2));
+            if (l.contains(pt))
+                return Hit::L;
+            if (rr.contains(pt))
+                return Hit::R;
+            if (t.contains(pt))
+                return Hit::T;
+            if (b.contains(pt))
+                return Hit::B;
 
-        if (tl.contains(pt)) return Hit::TL;
-        if (tr.contains(pt)) return Hit::TR;
-        if (bl.contains(pt)) return Hit::BL;
-        if (br.contains(pt)) return Hit::BR;
+            if (r.contains(pt))
+                return Hit::Move;
+            return Hit::None;
+        }
 
-        const QRectF l(QPointF(r.left() - h, r.center().y() - h), QSizeF(h * 2, h * 2));
-        const QRectF rr(QPointF(r.right() - h, r.center().y() - h), QSizeF(h * 2, h * 2));
-        const QRectF t(QPointF(r.center().x() - h, r.top() - h), QSizeF(h * 2, h * 2));
-        const QRectF b(QPointF(r.center().x() - h, r.bottom() - h), QSizeF(h * 2, h * 2));
-        if (l.contains(pt)) return Hit::L;
-        if (rr.contains(pt)) return Hit::R;
-        if (t.contains(pt)) return Hit::T;
-        if (b.contains(pt)) return Hit::B;
-
-        if (r.contains(pt)) return Hit::Move;
-        return Hit::None;
-    }
-
-    QCursor cursorForHit(Hit h) const {
-        switch (h) {
+        QCursor cursorForHit(Hit h) const {
+            switch (h) {
             case Hit::Move:
                 return Qt::SizeAllCursor;
             case Hit::TL:
@@ -469,453 +502,464 @@ class PositionCanvasWidget final : public QWidget {
                 return Qt::SizeVerCursor;
             default:
                 return Qt::ArrowCursor;
-        }
-    }
-
-    void drawGrid(QPainter& p, const QRectF& area) {
-        p.setPen(QPen(QColor(0x2A, 0x2F, 0x38), 1.0));
-        p.setBrush(Qt::NoBrush);
-        p.drawRect(canvasRectInWidget(area));
-
-        p.setPen(Qt::NoPen);
-        p.setBrush(QColor(0x3A, 0x40, 0x4B));
-        const int step = 60;
-        for (int y = 0; y <= canvasH_; y += step) {
-            for (int x = 0; x <= canvasW_; x += step) {
-                const QPointF pt = canvasToWidget(QPointF(x, y), area);
-                p.drawRoundedRect(QRectF(pt.x() - 2.0, pt.y() - 2.0, 4.0, 4.0), 1.0, 1.0);
             }
         }
 
-    }
-
-    void drawRulers(QPainter& p, const QRectF& area) {
-        const QRectF canvasRect = canvasRectInWidget(area);
-        const QColor blue(0x00, 0x7A, 0xFF);
-        const QColor textColor(0xFF, 0xFF, 0xFF, 200);
-
-        const double leftX = canvasRect.left() - 14.0;
-        const double topY = canvasRect.top();
-        const double botY = canvasRect.bottom();
-        const double bottomY = canvasRect.bottom() + 10.0;
-        const double left2 = canvasRect.left();
-        const double right2 = canvasRect.right();
-
-        p.setPen(QPen(blue, 2.0));
-
-        p.drawLine(QPointF(leftX, topY + 6.0), QPointF(leftX, botY - 6.0));
-        p.drawLine(QPointF(left2 + 6.0, bottomY), QPointF(right2 - 6.0, bottomY));
-
-        auto drawArrow = [&p, &blue](const QPointF& tip, const QPointF& dir) {
-            const double size = 6.0;
-            const QPointF n(-dir.y(), dir.x());
-            const QPointF p1 = tip + (dir * size) + (n * size * 0.6);
-            const QPointF p2 = tip + (dir * size) - (n * size * 0.6);
-            QPolygonF tri;
-            tri << tip << p1 << p2;
-            p.setPen(Qt::NoPen);
-            p.setBrush(blue);
-            p.drawPolygon(tri);
-            p.setPen(QPen(blue, 2.0));
+        void drawGrid(QPainter& p, const QRectF& area) {
+            p.setPen(QPen(QColor(0x2A, 0x2F, 0x38), 1.0));
             p.setBrush(Qt::NoBrush);
-        };
+            p.drawRect(canvasRectInWidget(area));
 
-        drawArrow(QPointF(leftX, topY), QPointF(0.0, 1.0));
-        drawArrow(QPointF(leftX, botY), QPointF(0.0, -1.0));
-        drawArrow(QPointF(left2, bottomY), QPointF(1.0, 0.0));
-        drawArrow(QPointF(right2, bottomY), QPointF(-1.0, 0.0));
-
-        p.setPen(textColor);
-        p.setFont(QFont("Inter", 12, QFont::Light));
-
-        const QString vText = QString("%1 px").arg(canvasH_);
-        const QString hText = QString("%1 px").arg(canvasW_);
-
-        p.save();
-        p.translate(leftX - 8.0, (topY + botY) / 2.0);
-        p.rotate(-90.0);
-        p.drawText(QRectF(-100, -10, 200, 20), Qt::AlignCenter, vText);
-        p.restore();
-
-        p.drawText(QRectF(left2, bottomY + 1.0, canvasRect.width(), 20.0), Qt::AlignCenter, hText);
-    }
-
-    void drawSelection(QPainter& p, const QRectF& area) {
-        const QRectF r = canvasToWidget(rect_, area);
-        p.setPen(QPen(QColor(0x00, 0x7A, 0xFF), 2.0));
-        p.setBrush(QColor(0x2A, 0x6A, 0xFF, 77));
-        p.drawRect(r);
-
-        const double h = 4.0;
-        const QColor handleFill(0x00, 0x7A, 0xFF);
-        p.setPen(Qt::NoPen);
-        p.setBrush(handleFill);
-
-        const QPointF pts[] = {r.topLeft(),
-                               QPointF(r.center().x(), r.top()),
-                               r.topRight(),
-                               QPointF(r.left(), r.center().y()),
-                               QPointF(r.right(), r.center().y()),
-                               r.bottomLeft(),
-                               QPointF(r.center().x(), r.bottom()),
-                               r.bottomRight()};
-        for (const auto& pt : pts) {
-            p.drawRoundedRect(QRectF(pt.x() - h, pt.y() - h, h * 2, h * 2), 2.0, 2.0);
+            p.setPen(Qt::NoPen);
+            p.setBrush(QColor(0x3A, 0x40, 0x4B));
+            const int step = 60;
+            for (int y = 0; y <= canvasH_; y += step) {
+                for (int x = 0; x <= canvasW_; x += step) {
+                    const QPointF pt = canvasToWidget(QPointF(x, y), area);
+                    p.drawRoundedRect(QRectF(pt.x() - 2.0, pt.y() - 2.0, 4.0, 4.0), 1.0, 1.0);
+                }
+            }
         }
 
-        p.setPen(QColor(0xFF, 0xFF, 0xFF));
-        p.setFont(QFont("Inter", 14, QFont::Bold));
-        p.drawText(r, Qt::AlignCenter,
-                   QString(obs_module_text("CustomizedCartoon.Position.Canvas.Area")).arg(rect_.width()).arg(
-                       rect_.height()));
-    }
+        void drawRulers(QPainter& p, const QRectF& area) {
+            const QRectF canvasRect = canvasRectInWidget(area);
+            const QColor blue(0x00, 0x7A, 0xFF);
+            const QColor textColor(0xFF, 0xFF, 0xFF, 200);
 
-    void clampRect() {
-        rect_ = rect_.normalized();
-        const int minSize = 20;
-        const int clampedWidth = std::clamp(rect_.width(), minSize, canvasW_);
-        const int clampedHeight = std::clamp(rect_.height(), minSize, canvasH_);
+            const double leftX = canvasRect.left() - 14.0;
+            const double topY = canvasRect.top();
+            const double botY = canvasRect.bottom();
+            const double bottomY = canvasRect.bottom() + 10.0;
+            const double left2 = canvasRect.left();
+            const double right2 = canvasRect.right();
 
-        rect_.setWidth(clampedWidth);
-        rect_.setHeight(clampedHeight);
+            p.setPen(QPen(blue, 2.0));
 
-        const int maxX = std::max(0, canvasW_ - rect_.width());
-        const int maxY = std::max(0, canvasH_ - rect_.height());
-        const int clampedX = std::clamp(rect_.x(), 0, maxX);
-        const int clampedY = std::clamp(rect_.y(), 0, maxY);
-        rect_.moveTo(clampedX, clampedY);
-    }
+            p.drawLine(QPointF(leftX, topY + 6.0), QPointF(leftX, botY - 6.0));
+            p.drawLine(QPointF(left2 + 6.0, bottomY), QPointF(right2 - 6.0, bottomY));
 
-    int canvasW_{720};
-    int canvasH_{1280};
-    QRect rect_{200, 300, 500, 500};
-    QRect startRect_{rect_};
-    QPointF lastPos_{};
-    Hit active_{Hit::None};
-    std::function<void(const QRect&)> onRectChanged_{};
-};
+            auto drawArrow = [&p, &blue](const QPointF& tip, const QPointF& dir) {
+                const double size = 6.0;
+                const QPointF n(-dir.y(), dir.x());
+                const QPointF p1 = tip + (dir * size) + (n * size * 0.6);
+                const QPointF p2 = tip + (dir * size) - (n * size * 0.6);
+                QPolygonF tri;
+                tri << tip << p1 << p2;
+                p.setPen(Qt::NoPen);
+                p.setBrush(blue);
+                p.drawPolygon(tri);
+                p.setPen(QPen(blue, 2.0));
+                p.setBrush(Qt::NoBrush);
+            };
 
-class NoWheelSpinBox final : public QSpinBox {
-   public:
-    explicit NoWheelSpinBox(QWidget* parent = nullptr) : QSpinBox(parent) {}
+            drawArrow(QPointF(leftX, topY), QPointF(0.0, 1.0));
+            drawArrow(QPointF(leftX, botY), QPointF(0.0, -1.0));
+            drawArrow(QPointF(left2, bottomY), QPointF(1.0, 0.0));
+            drawArrow(QPointF(right2, bottomY), QPointF(-1.0, 0.0));
 
-   protected:
-    void wheelEvent(QWheelEvent* event) override {
-        event->ignore();
-    }
-};
+            p.setPen(textColor);
+            p.setFont(QFont("Inter", 12, QFont::Light));
+
+            const QString vText = QString("%1 px").arg(canvasH_);
+            const QString hText = QString("%1 px").arg(canvasW_);
+
+            p.save();
+            p.translate(leftX - 8.0, (topY + botY) / 2.0);
+            p.rotate(-90.0);
+            p.drawText(QRectF(-100, -10, 200, 20), Qt::AlignCenter, vText);
+            p.restore();
+
+            p.drawText(QRectF(left2, bottomY + 1.0, canvasRect.width(), 20.0), Qt::AlignCenter,
+                       hText);
+        }
+
+        void drawSelection(QPainter& p, const QRectF& area) {
+            const QRectF r = canvasToWidget(rect_, area);
+            p.setPen(QPen(QColor(0x00, 0x7A, 0xFF), 2.0));
+            p.setBrush(QColor(0x2A, 0x6A, 0xFF, 77));
+            p.drawRect(r);
+
+            const double h = 4.0;
+            const QColor handleFill(0x00, 0x7A, 0xFF);
+            p.setPen(Qt::NoPen);
+            p.setBrush(handleFill);
+
+            const QPointF pts[] = {r.topLeft(),
+                                   QPointF(r.center().x(), r.top()),
+                                   r.topRight(),
+                                   QPointF(r.left(), r.center().y()),
+                                   QPointF(r.right(), r.center().y()),
+                                   r.bottomLeft(),
+                                   QPointF(r.center().x(), r.bottom()),
+                                   r.bottomRight()};
+            for (const auto& pt : pts) {
+                p.drawRoundedRect(QRectF(pt.x() - h, pt.y() - h, h * 2, h * 2), 2.0, 2.0);
+            }
+
+            p.setPen(QColor(0xFF, 0xFF, 0xFF));
+            p.setFont(QFont("Inter", 14, QFont::Bold));
+            p.drawText(r, Qt::AlignCenter,
+                       QString(obs_module_text("CustomizedCartoon.Position.Canvas.Area"))
+                           .arg(rect_.width())
+                           .arg(rect_.height()));
+        }
+
+        void clampRect() {
+            rect_ = rect_.normalized();
+            const int minSize = 20;
+            const int clampedWidth = std::clamp(rect_.width(), minSize, canvasW_);
+            const int clampedHeight = std::clamp(rect_.height(), minSize, canvasH_);
+
+            rect_.setWidth(clampedWidth);
+            rect_.setHeight(clampedHeight);
+
+            const int maxX = std::max(0, canvasW_ - rect_.width());
+            const int maxY = std::max(0, canvasH_ - rect_.height());
+            const int clampedX = std::clamp(rect_.x(), 0, maxX);
+            const int clampedY = std::clamp(rect_.y(), 0, maxY);
+            rect_.moveTo(clampedX, clampedY);
+        }
+
+        int canvasW_{720};
+        int canvasH_{1280};
+        QRect rect_{200, 300, 500, 500};
+        QRect startRect_{rect_};
+        QPointF lastPos_{};
+        Hit active_{Hit::None};
+        std::function<void(const QRect&)> onRectChanged_{};
+    };
+
+    class NoWheelSpinBox final : public QSpinBox {
+       public:
+        explicit NoWheelSpinBox(QWidget* parent = nullptr) : QSpinBox(parent) {}
+
+       protected:
+        void wheelEvent(QWheelEvent* event) override {
+            event->ignore();
+        }
+    };
 
 }  // namespace
 
 namespace {
 
-struct PositionSizePanelWidgets {
-    QFrame* panel{nullptr};
-    QSpinBox* posX{nullptr};
-    QSpinBox* posY{nullptr};
-    QSpinBox* width{nullptr};
-    QSpinBox* height{nullptr};
-};
-
-QRect normalizePositionRect(const QRect& rect, int canvasW, int canvasH) {
-    const int minSize = 20;
-    const int normalizedWidth = std::clamp(rect.width(), minSize, canvasW);
-    const int normalizedHeight = std::clamp(rect.height(), minSize, canvasH);
-    const int maxX = std::max(0, canvasW - normalizedWidth);
-    const int maxY = std::max(0, canvasH - normalizedHeight);
-    const int normalizedX = std::clamp(rect.x(), 0, maxX);
-    const int normalizedY = std::clamp(rect.y(), 0, maxY);
-    return QRect(normalizedX, normalizedY, normalizedWidth, normalizedHeight);
-}
-
-json ensureObject(const json& value) {
-    return value.is_object() ? value : json::object();
-}
-
-json* findArrayItemById(json& array, const QString& id) {
-    if (!array.is_array()) {
-        return nullptr;
-    }
-    for (auto& item : array) {
-        if (!item.is_object() || !item.contains("id") || !item["id"].is_string()) {
-            continue;
-        }
-        if (QString::fromStdString(item["id"].get<std::string>()) == id) {
-            return &item;
-        }
-    }
-    return nullptr;
-}
-
-const json* findArrayItemById(const json& array, const QString& id) {
-    if (!array.is_array()) {
-        return nullptr;
-    }
-    for (const auto& item : array) {
-        if (!item.is_object() || !item.contains("id") || !item["id"].is_string()) {
-            continue;
-        }
-        if (QString::fromStdString(item["id"].get<std::string>()) == id) {
-            return &item;
-        }
-    }
-    return nullptr;
-}
-
-QString mediaPathForId(const json& cfg, const QString& id) {
-    if (!cfg.contains("media")) {
-        return {};
-    }
-    const json* item = findArrayItemById(cfg["media"], id);
-    if (!item || !item->contains("path") || !(*item)["path"].is_string()) {
-        return {};
-    }
-    return QString::fromStdString((*item)["path"].get<std::string>());
-}
-
-std::vector<QString> collectRemovedMediaPaths(const json& fromCfg, const json& toCfg) {
-    std::vector<QString> removedPaths;
-    if (!fromCfg.contains("media") || !fromCfg["media"].is_array()) {
-        return removedPaths;
-    }
-    for (const auto& media : fromCfg["media"]) {
-        if (!media.is_object() || !media.contains("id") || !media["id"].is_string()) {
-            continue;
-        }
-        const QString id = QString::fromStdString(media["id"].get<std::string>());
-        if (toCfg.contains("media") && findArrayItemById(toCfg["media"], id)) {
-            continue;
-        }
-        if (media.contains("path") && media["path"].is_string()) {
-            removedPaths.emplace_back(QString::fromStdString(media["path"].get<std::string>()));
-        }
-    }
-    return removedPaths;
-}
-
-void deleteMediaFiles(const std::vector<QString>& paths) {
-    for (const auto& path : paths) {
-        if (!path.isEmpty() && QFile::exists(path)) {
-            QFile::remove(path);
-        }
-    }
-}
-
-void applyPositionInputs(const PositionSizePanelWidgets& inputs, const QRect& rect, int canvasW, int canvasH) {
-    if (!inputs.posX || !inputs.posY || !inputs.width || !inputs.height) {
-        return;
-    }
-
-    const QRect normalized = normalizePositionRect(rect, canvasW, canvasH);
-    const int maxX = std::max(0, canvasW - normalized.width());
-    const int maxY = std::max(0, canvasH - normalized.height());
-
-    for (auto* spin : {inputs.posX, inputs.posY, inputs.width, inputs.height}) {
-        spin->blockSignals(true);
-    }
-
-    inputs.width->setRange(20, canvasW);
-    inputs.height->setRange(20, canvasH);
-    inputs.posX->setRange(0, maxX);
-    inputs.posY->setRange(0, maxY);
-
-    inputs.posX->setValue(normalized.x());
-    inputs.posY->setValue(normalized.y());
-    inputs.width->setValue(normalized.width());
-    inputs.height->setValue(normalized.height());
-
-    for (auto* spin : {inputs.posX, inputs.posY, inputs.width, inputs.height}) {
-        spin->blockSignals(false);
-    }
-}
-
-QRect applyPositionState(PositionCanvasWidget* canvas, const PositionSizePanelWidgets& inputs, const QRect& rect,
-                         int canvasW, int canvasH) {
-    const QRect normalized = normalizePositionRect(rect, canvasW, canvasH);
-    applyPositionInputs(inputs, normalized, canvasW, canvasH);
-    if (canvas) {
-        canvas->setRect(normalized);
-    }
-    return normalized;
-}
-
-PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
-    PositionSizePanelWidgets out;
-    out.panel = new QFrame(parent);
-    out.panel->setObjectName("subPanel");
-    out.panel->setMinimumWidth(kPositionSidePanelMinWidth);
-
-    auto* sizeLayout = new QVBoxLayout(out.panel);
-    sizeLayout->setContentsMargins(5, 5, 5, 5);
-    sizeLayout->setSpacing(5);
-    auto* sizeTitle =
-        new QLabel(obs_module_text("CustomizedCartoon.Position.Size.Title"), out.panel);
-    sizeTitle->setObjectName("sectionTitle");
-    sizeTitle->setStyleSheet("QLabel#sectionTitle { font-size: 16px; font-weight: 600; color: #FFFFFF; }");
-    sizeLayout->addWidget(sizeTitle);
-
-    auto* grid = new QGridLayout();
-    grid->setContentsMargins(0, 0, 0, 0);
-    grid->setHorizontalSpacing(5);
-    grid->setVerticalSpacing(5);
-
-    auto makePx = [p = out.panel]() {
-        auto* l = new QLabel("px", p);
-        l->setObjectName("positionUnitLabel");
-        l->setFixedHeight(21);
-        l->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        return l;
+    struct PositionSizePanelWidgets {
+        QFrame* panel{nullptr};
+        QSpinBox* posX{nullptr};
+        QSpinBox* posY{nullptr};
+        QSpinBox* width{nullptr};
+        QSpinBox* height{nullptr};
     };
 
-    out.posX = new NoWheelSpinBox(out.panel);
-    out.posX->setRange(-100000, 100000);
-    out.posX->setObjectName("posSpinBox");
-    out.posY = new NoWheelSpinBox(out.panel);
-    out.posY->setRange(-100000, 100000);
-    out.posY->setObjectName("posSpinBox");
-    out.width = new NoWheelSpinBox(out.panel);
-    out.width->setRange(20, 100000);
-    out.width->setObjectName("posSpinBox");
-    out.height = new NoWheelSpinBox(out.panel);
-    out.height->setRange(20, 100000);
-    out.height->setObjectName("posSpinBox");
-
-    for (auto* sb : {out.posX, out.posY, out.width, out.height}) {
-        sb->setFixedHeight(32);
-        sb->setMinimumWidth(110);
-        sb->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        sb->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
-        sb->setProperty("redirectWheelToSettingsScroll", true);
+    QRect normalizePositionRect(const QRect& rect, int canvasW, int canvasH) {
+        const int minSize = 20;
+        const int normalizedWidth = std::clamp(rect.width(), minSize, canvasW);
+        const int normalizedHeight = std::clamp(rect.height(), minSize, canvasH);
+        const int maxX = std::max(0, canvasW - normalizedWidth);
+        const int maxY = std::max(0, canvasH - normalizedHeight);
+        const int normalizedX = std::clamp(rect.x(), 0, maxX);
+        const int normalizedY = std::clamp(rect.y(), 0, maxY);
+        return QRect(normalizedX, normalizedY, normalizedWidth, normalizedHeight);
     }
 
-    auto* xLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.X"), out.panel);
-    auto* yLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Y"), out.panel);
-    auto* wLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Width"), out.panel);
-    auto* hLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Height"), out.panel);
-    for (auto* label : {xLabel, yLabel, wLabel, hLabel}) {
-        label->setObjectName("positionFieldLabel");
-        label->setFixedHeight(21);
-        label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    json ensureObject(const json& value) {
+        return value.is_object() ? value : json::object();
     }
 
-    grid->addWidget(xLabel, 0, 0);
-    grid->addWidget(out.posX, 0, 1);
-    grid->addWidget(makePx(), 0, 2);
-
-    grid->addWidget(yLabel, 1, 0);
-    grid->addWidget(out.posY, 1, 1);
-    grid->addWidget(makePx(), 1, 2);
-
-    grid->addWidget(wLabel, 2, 0);
-    grid->addWidget(out.width, 2, 1);
-    grid->addWidget(makePx(), 2, 2);
-
-    grid->addWidget(hLabel, 3, 0);
-    grid->addWidget(out.height, 3, 1);
-    grid->addWidget(makePx(), 3, 2);
-
-    sizeLayout->addLayout(grid);
-    return out;
-}
-
-QFrame* createPositionTipsPanel(QWidget* parent) {
-    auto* tipsPanel = new QFrame(parent);
-    tipsPanel->setObjectName("subPanel");
-    tipsPanel->setMinimumWidth(kPositionSidePanelMinWidth);
-    auto* tipsLayout = new QVBoxLayout(tipsPanel);
-    tipsLayout->setContentsMargins(5, 5, 5, 5);
-    tipsLayout->setSpacing(5);
-    auto* tipsLabel = new QLabel(tipsPanel);
-    tipsLabel->setText(QString("• %1<br/>• %2<br/>• %3<br/>• %4")
-                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.1"))
-                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.2"))
-                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.3"))
-                           .arg(obs_module_text("CustomizedCartoon.Position.Tips.4")));
-    tipsLabel->setTextFormat(Qt::RichText);
-    tipsLabel->setWordWrap(true);
-    tipsLabel->setStyleSheet("QLabel { font-size: 14px; font-weight: 400; color: #FFFFFF; }");
-    tipsLayout->addWidget(tipsLabel);
-    return tipsPanel;
-}
-
-bool editMediaSettingsDialog(QWidget* parent, const QString& mediaName, bool isVideo, int currentDisplaySec,
-                             bool currentMuted, bool currentPreserveAspectRatio, int& outDisplaySec,
-                             bool& outMuted, bool& outPreserveAspectRatio) {
-    QDialog dialog(parent);
-    dialog.setWindowTitle(obs_module_text("CustomizedCartoon.Media.Settings.Title"));
-    dialog.setModal(true);
-    dialog.setMinimumWidth(420);
-    dialog.setStyleSheet(
-        "QDialog { background-color: #272A33; color: #FFFFFF; }"
-        "QLabel { color: #FFFFFF; font-size: 14px; }"
-        "QSpinBox { background-color: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12); "
-        "border-radius: 2px; color: #FFFFFF; font-size: 14px; padding: 4px 8px; }"
-        "QCheckBox { color: #FFFFFF; font-size: 14px; spacing: 6px; }"
-        "QPushButton { min-width: 88px; min-height: 32px; padding: 0px 12px; }");
-
-    auto* layout = new QVBoxLayout(&dialog);
-    layout->setContentsMargins(16, 16, 16, 16);
-    layout->setSpacing(12);
-
-    auto* nameLabel = new QLabel(mediaName, &dialog);
-    nameLabel->setWordWrap(true);
-    nameLabel->setStyleSheet("QLabel { color: #FFFFFF; font-size: 16px; font-weight: 600; }");
-    layout->addWidget(nameLabel);
-
-    auto* formLayout = new QFormLayout();
-    formLayout->setContentsMargins(0, 0, 0, 0);
-    formLayout->setHorizontalSpacing(12);
-    formLayout->setVerticalSpacing(12);
-    formLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-
-    auto* durationSpin = new QSpinBox(&dialog);
-    durationSpin->setRange(1, 600);
-    durationSpin->setValue(std::max(1, currentDisplaySec));
-    durationSpin->setSuffix(" s");
-    formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.Duration"), durationSpin);
-
-    QCheckBox* muteCheck = nullptr;
-    if (isVideo) {
-        muteCheck = new QCheckBox(&dialog);
-        muteCheck->setChecked(currentMuted);
-        formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.Mute"), muteCheck);
+    json* findArrayItemById(json& array, const QString& id) {
+        if (!array.is_array()) {
+            return nullptr;
+        }
+        for (auto& item : array) {
+            if (!item.is_object() || !item.contains("id") || !item["id"].is_string()) {
+                continue;
+            }
+            if (QString::fromStdString(item["id"].get<std::string>()) == id) {
+                return &item;
+            }
+        }
+        return nullptr;
     }
 
-    auto* preserveAspectCheck = new QCheckBox(&dialog);
-    preserveAspectCheck->setChecked(currentPreserveAspectRatio);
-    formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.PreserveAspectRatio"),
-                       preserveAspectCheck);
-
-    layout->addLayout(formLayout);
-
-    auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-    if (auto* okButton = buttonBox->button(QDialogButtonBox::Ok)) {
-        okButton->setText(obs_module_text("CustomizedCartoon.Action.Confirm"));
-        okButton->setStyleSheet(
-            "QPushButton { background-color: #FF0001; color: #FFFFFF; border: none; border-radius: 2px; "
-            "font-size: 14px; font-weight: 700; }"
-            "QPushButton:hover { background-color: #FF3B30; }");
-    }
-    if (auto* cancelButton = buttonBox->button(QDialogButtonBox::Cancel)) {
-        cancelButton->setText(obs_module_text("CustomizedCartoon.Action.Cancel"));
-        cancelButton->setStyleSheet(
-            "QPushButton { background-color: #3C404D; color: #FFFFFF; border: 1px solid #757575; "
-            "border-radius: 2px; font-size: 14px; font-weight: 700; }"
-            "QPushButton:hover { background-color: #4A4F5E; }");
-    }
-    QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    layout->addWidget(buttonBox);
-
-    if (dialog.exec() != QDialog::Accepted) {
-        return false;
+    const json* findArrayItemById(const json& array, const QString& id) {
+        if (!array.is_array()) {
+            return nullptr;
+        }
+        for (const auto& item : array) {
+            if (!item.is_object() || !item.contains("id") || !item["id"].is_string()) {
+                continue;
+            }
+            if (QString::fromStdString(item["id"].get<std::string>()) == id) {
+                return &item;
+            }
+        }
+        return nullptr;
     }
 
-    outDisplaySec = durationSpin->value();
-    outMuted = muteCheck ? muteCheck->isChecked() : false;
-    outPreserveAspectRatio = preserveAspectCheck->isChecked();
-    return true;
-}
+    QString mediaPathForId(const json& cfg, const QString& id) {
+        if (!cfg.contains("media")) {
+            return {};
+        }
+        const json* item = findArrayItemById(cfg["media"], id);
+        if (!item || !item->contains("path") || !(*item)["path"].is_string()) {
+            return {};
+        }
+        return QString::fromStdString((*item)["path"].get<std::string>());
+    }
+
+    std::vector<QString> collectRemovedMediaPaths(const json& fromCfg, const json& toCfg) {
+        std::vector<QString> removedPaths;
+        if (!fromCfg.contains("media") || !fromCfg["media"].is_array()) {
+            return removedPaths;
+        }
+        for (const auto& media : fromCfg["media"]) {
+            if (!media.is_object() || !media.contains("id") || !media["id"].is_string()) {
+                continue;
+            }
+            const QString id = QString::fromStdString(media["id"].get<std::string>());
+            if (toCfg.contains("media") && findArrayItemById(toCfg["media"], id)) {
+                continue;
+            }
+            if (media.contains("path") && media["path"].is_string()) {
+                removedPaths.emplace_back(QString::fromStdString(media["path"].get<std::string>()));
+            }
+        }
+        return removedPaths;
+    }
+
+    void deleteMediaFiles(const std::vector<QString>& paths) {
+        for (const auto& path : paths) {
+            if (!path.isEmpty() && QFile::exists(path)) {
+                QFile::remove(path);
+            }
+        }
+    }
+
+    void applyPositionInputs(const PositionSizePanelWidgets& inputs, const QRect& rect, int canvasW,
+                             int canvasH) {
+        if (!inputs.posX || !inputs.posY || !inputs.width || !inputs.height) {
+            return;
+        }
+
+        const QRect normalized = normalizePositionRect(rect, canvasW, canvasH);
+        const int maxX = std::max(0, canvasW - normalized.width());
+        const int maxY = std::max(0, canvasH - normalized.height());
+
+        for (auto* spin : {inputs.posX, inputs.posY, inputs.width, inputs.height}) {
+            spin->blockSignals(true);
+        }
+
+        inputs.width->setRange(20, canvasW);
+        inputs.height->setRange(20, canvasH);
+        inputs.posX->setRange(0, maxX);
+        inputs.posY->setRange(0, maxY);
+
+        inputs.posX->setValue(normalized.x());
+        inputs.posY->setValue(normalized.y());
+        inputs.width->setValue(normalized.width());
+        inputs.height->setValue(normalized.height());
+
+        for (auto* spin : {inputs.posX, inputs.posY, inputs.width, inputs.height}) {
+            spin->blockSignals(false);
+        }
+    }
+
+    QRect applyPositionState(PositionCanvasWidget* canvas, const PositionSizePanelWidgets& inputs,
+                             const QRect& rect, int canvasW, int canvasH) {
+        const QRect normalized = normalizePositionRect(rect, canvasW, canvasH);
+        applyPositionInputs(inputs, normalized, canvasW, canvasH);
+        if (canvas) {
+            canvas->setRect(normalized);
+        }
+        return normalized;
+    }
+
+    PositionSizePanelWidgets createPositionSizePanel(QWidget* parent) {
+        PositionSizePanelWidgets out;
+        out.panel = new QFrame(parent);
+        out.panel->setObjectName("subPanel");
+        out.panel->setMinimumWidth(kPositionSidePanelMinWidth);
+
+        auto* sizeLayout = new QVBoxLayout(out.panel);
+        sizeLayout->setContentsMargins(5, 5, 5, 5);
+        sizeLayout->setSpacing(5);
+        auto* sizeTitle =
+            new QLabel(obs_module_text("CustomizedCartoon.Position.Size.Title"), out.panel);
+        sizeTitle->setObjectName("sectionTitle");
+        sizeTitle->setStyleSheet(
+            "QLabel#sectionTitle { font-size: 16px; font-weight: 600; color: #FFFFFF; }");
+        sizeLayout->addWidget(sizeTitle);
+
+        auto* grid = new QGridLayout();
+        grid->setContentsMargins(0, 0, 0, 0);
+        grid->setHorizontalSpacing(5);
+        grid->setVerticalSpacing(5);
+
+        auto makePx = [p = out.panel]() {
+            auto* l = new QLabel("px", p);
+            l->setObjectName("positionUnitLabel");
+            l->setFixedHeight(21);
+            l->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            return l;
+        };
+
+        out.posX = new NoWheelSpinBox(out.panel);
+        out.posX->setRange(-100000, 100000);
+        out.posX->setObjectName("posSpinBox");
+        out.posY = new NoWheelSpinBox(out.panel);
+        out.posY->setRange(-100000, 100000);
+        out.posY->setObjectName("posSpinBox");
+        out.width = new NoWheelSpinBox(out.panel);
+        out.width->setRange(20, 100000);
+        out.width->setObjectName("posSpinBox");
+        out.height = new NoWheelSpinBox(out.panel);
+        out.height->setRange(20, 100000);
+        out.height->setObjectName("posSpinBox");
+
+        for (auto* sb : {out.posX, out.posY, out.width, out.height}) {
+            sb->setFixedHeight(32);
+            sb->setMinimumWidth(110);
+            sb->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            sb->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+            sb->setProperty("redirectWheelToSettingsScroll", true);
+        }
+
+        auto* xLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.X"), out.panel);
+        auto* yLabel = new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Y"), out.panel);
+        auto* wLabel =
+            new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Width"), out.panel);
+        auto* hLabel =
+            new QLabel(obs_module_text("CustomizedCartoon.Position.Field.Height"), out.panel);
+        for (auto* label : {xLabel, yLabel, wLabel, hLabel}) {
+            label->setObjectName("positionFieldLabel");
+            label->setFixedHeight(21);
+            label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        }
+
+        grid->addWidget(xLabel, 0, 0);
+        grid->addWidget(out.posX, 0, 1);
+        grid->addWidget(makePx(), 0, 2);
+
+        grid->addWidget(yLabel, 1, 0);
+        grid->addWidget(out.posY, 1, 1);
+        grid->addWidget(makePx(), 1, 2);
+
+        grid->addWidget(wLabel, 2, 0);
+        grid->addWidget(out.width, 2, 1);
+        grid->addWidget(makePx(), 2, 2);
+
+        grid->addWidget(hLabel, 3, 0);
+        grid->addWidget(out.height, 3, 1);
+        grid->addWidget(makePx(), 3, 2);
+
+        sizeLayout->addLayout(grid);
+        return out;
+    }
+
+    QFrame* createPositionTipsPanel(QWidget* parent) {
+        auto* tipsPanel = new QFrame(parent);
+        tipsPanel->setObjectName("subPanel");
+        tipsPanel->setMinimumWidth(kPositionSidePanelMinWidth);
+        auto* tipsLayout = new QVBoxLayout(tipsPanel);
+        tipsLayout->setContentsMargins(5, 5, 5, 5);
+        tipsLayout->setSpacing(5);
+        auto* tipsLabel = new QLabel(tipsPanel);
+        tipsLabel->setText(QString("• %1<br/>• %2<br/>• %3<br/>• %4")
+                               .arg(obs_module_text("CustomizedCartoon.Position.Tips.1"))
+                               .arg(obs_module_text("CustomizedCartoon.Position.Tips.2"))
+                               .arg(obs_module_text("CustomizedCartoon.Position.Tips.3"))
+                               .arg(obs_module_text("CustomizedCartoon.Position.Tips.4")));
+        tipsLabel->setTextFormat(Qt::RichText);
+        tipsLabel->setWordWrap(true);
+        tipsLabel->setStyleSheet("QLabel { font-size: 14px; font-weight: 400; color: #FFFFFF; }");
+        tipsLayout->addWidget(tipsLabel);
+        return tipsPanel;
+    }
+
+    bool editMediaSettingsDialog(QWidget* parent, const QString& mediaName, bool isVideo,
+                                 int currentDisplaySec, bool currentMuted,
+                                 bool currentPreserveAspectRatio, int& outDisplaySec,
+                                 bool& outMuted, bool& outPreserveAspectRatio) {
+        QDialog dialog(parent);
+        dialog.setWindowTitle(obs_module_text("CustomizedCartoon.Media.Settings.Title"));
+        dialog.setModal(true);
+        dialog.setMinimumWidth(420);
+        dialog.setStyleSheet(
+            "QDialog { background-color: #272A33; color: #FFFFFF; }"
+            "QLabel { color: #FFFFFF; font-size: 14px; }"
+            "QSpinBox { background-color: rgba(0,0,0,0.25); border: 1px solid "
+            "rgba(255,255,255,0.12); "
+            "border-radius: 2px; color: #FFFFFF; font-size: 14px; padding: 4px 8px; }"
+            "QCheckBox { color: #FFFFFF; font-size: 14px; spacing: 6px; }"
+            "QPushButton { min-width: 88px; min-height: 32px; padding: 0px 12px; }");
+
+        auto* layout = new QVBoxLayout(&dialog);
+        layout->setContentsMargins(16, 16, 16, 16);
+        layout->setSpacing(12);
+
+        auto* nameLabel = new QLabel(mediaName, &dialog);
+        nameLabel->setWordWrap(true);
+        nameLabel->setStyleSheet("QLabel { color: #FFFFFF; font-size: 16px; font-weight: 600; }");
+        layout->addWidget(nameLabel);
+
+        auto* formLayout = new QFormLayout();
+        formLayout->setContentsMargins(0, 0, 0, 0);
+        formLayout->setHorizontalSpacing(12);
+        formLayout->setVerticalSpacing(12);
+        formLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+        auto* durationSpin = new QSpinBox(&dialog);
+        durationSpin->setRange(1, 600);
+        durationSpin->setValue(std::max(1, currentDisplaySec));
+        durationSpin->setSuffix(" s");
+        formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.Duration"),
+                           durationSpin);
+
+        QCheckBox* muteCheck = nullptr;
+        if (isVideo) {
+            muteCheck = new QCheckBox(&dialog);
+            muteCheck->setChecked(currentMuted);
+            formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.Mute"), muteCheck);
+        }
+
+        auto* preserveAspectCheck = new QCheckBox(&dialog);
+        preserveAspectCheck->setChecked(currentPreserveAspectRatio);
+        formLayout->addRow(obs_module_text("CustomizedCartoon.Media.Settings.PreserveAspectRatio"),
+                           preserveAspectCheck);
+
+        layout->addLayout(formLayout);
+
+        auto* buttonBox =
+            new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        if (auto* okButton = buttonBox->button(QDialogButtonBox::Ok)) {
+            okButton->setText(obs_module_text("CustomizedCartoon.Action.Confirm"));
+            okButton->setStyleSheet(
+                "QPushButton { background-color: #FF0001; color: #FFFFFF; border: none; "
+                "border-radius: 2px; "
+                "font-size: 14px; font-weight: 700; }"
+                "QPushButton:hover { background-color: #FF3B30; }");
+        }
+        if (auto* cancelButton = buttonBox->button(QDialogButtonBox::Cancel)) {
+            cancelButton->setText(obs_module_text("CustomizedCartoon.Action.Cancel"));
+            cancelButton->setStyleSheet(
+                "QPushButton { background-color: #3C404D; color: #FFFFFF; border: 1px solid "
+                "#757575; "
+                "border-radius: 2px; font-size: 14px; font-weight: 700; }"
+                "QPushButton:hover { background-color: #4A4F5E; }");
+        }
+        QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        layout->addWidget(buttonBox);
+
+        if (dialog.exec() != QDialog::Accepted) {
+            return false;
+        }
+
+        outDisplaySec = durationSpin->value();
+        outMuted = muteCheck ? muteCheck->isChecked() : false;
+        outPreserveAspectRatio = preserveAspectCheck->isChecked();
+        return true;
+    }
 
 }  // namespace
 
@@ -1012,9 +1056,10 @@ bool CustomizedCartoonDock::setPreviewModeEnabled(bool enabled, bool restoreObsS
     if (enabled) {
         if (isPreviewBlocked()) {
             if (showErrorDialog) {
-                QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                                         obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
-                                         QMessageBox::Ok);
+                QMessageBox::information(
+                    this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                    obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
+                    QMessageBox::Ok);
             }
             return false;
         }
@@ -1054,16 +1099,19 @@ void CustomizedCartoonDock::updatePreviewModeUi() {
     if (previewModeCheckBox_) {
         const QSignalBlocker blocker(previewModeCheckBox_);
         previewModeCheckBox_->setChecked(previewModeActive_);
-        previewModeCheckBox_->setToolTip(previewModeActive_
-                                             ? QString()
-                                             : (isPreviewBlocked() ? previewBlockedTooltip()
-                                                                   : QString::fromUtf8(obs_module_text(
-                                                                         "CustomizedCartoon.PreviewMode.Tooltip"))));
+        previewModeCheckBox_->setToolTip(
+            previewModeActive_
+                ? QString()
+                : (isPreviewBlocked() ? previewBlockedTooltip()
+                                      : QString::fromUtf8(obs_module_text(
+                                            "CustomizedCartoon.PreviewMode.Tooltip"))));
     }
     updateMediaPreviewAvailability();
 }
 
-bool CustomizedCartoonDock::isPreviewModeActive() const { return previewModeActive_; }
+bool CustomizedCartoonDock::isPreviewModeActive() const {
+    return previewModeActive_;
+}
 
 void CustomizedCartoonDock::updateMediaPreviewAvailability() {
     if (!mediaList_) {
@@ -1101,104 +1149,185 @@ QString CustomizedCartoonDock::previewBlockedTooltip() const {
 bool CustomizedCartoonDock::isPositionOrientationDirty(bool landscape) const {
     const char* key = landscape ? "landscape" : "portrait";
     const json savedPosition =
-        savedConfig_.contains("position") && savedConfig_["position"].is_object() ? savedConfig_["position"]
-                                                                                  : json::object();
+        savedConfig_.contains("position") && savedConfig_["position"].is_object()
+            ? savedConfig_["position"]
+            : json::object();
     const json draftPosition =
-        draftConfig_.contains("position") && draftConfig_["position"].is_object() ? draftConfig_["position"]
-                                                                                  : json::object();
-    const json savedValue =
-        savedPosition.contains(key) && savedPosition[key].is_object() ? savedPosition[key] : json::object();
-    const json draftValue =
-        draftPosition.contains(key) && draftPosition[key].is_object() ? draftPosition[key] : json::object();
+        draftConfig_.contains("position") && draftConfig_["position"].is_object()
+            ? draftConfig_["position"]
+            : json::object();
+    const json savedValue = savedPosition.contains(key) && savedPosition[key].is_object()
+                                ? savedPosition[key]
+                                : json::object();
+    const json draftValue = draftPosition.contains(key) && draftPosition[key].is_object()
+                                ? draftPosition[key]
+                                : json::object();
     return savedValue != draftValue;
 }
 
 bool CustomizedCartoonDock::isSettingsTabDirty() const {
-    const json savedMedia =
-        savedConfig_.contains("media") && savedConfig_["media"].is_array() ? savedConfig_["media"] : json::array();
-    const json draftMedia =
-        draftConfig_.contains("media") && draftConfig_["media"].is_array() ? draftConfig_["media"] : json::array();
-    return savedMedia != draftMedia || isPositionOrientationDirty(false) || isPositionOrientationDirty(true);
+    const json savedMedia = savedConfig_.contains("media") && savedConfig_["media"].is_array()
+                                ? savedConfig_["media"]
+                                : json::array();
+    const json draftMedia = draftConfig_.contains("media") && draftConfig_["media"].is_array()
+                                ? draftConfig_["media"]
+                                : json::array();
+    return savedMedia != draftMedia || isPositionOrientationDirty(false) ||
+           isPositionOrientationDirty(true);
 }
 
 bool CustomizedCartoonDock::isRulesTabDirty() const {
-    const json savedRules =
-        savedConfig_.contains("rules") && savedConfig_["rules"].is_array() ? savedConfig_["rules"] : json::array();
-    const json draftRules =
-        draftConfig_.contains("rules") && draftConfig_["rules"].is_array() ? draftConfig_["rules"] : json::array();
+    const json savedRules = savedConfig_.contains("rules") && savedConfig_["rules"].is_array()
+                                ? savedConfig_["rules"]
+                                : json::array();
+    const json draftRules = draftConfig_.contains("rules") && draftConfig_["rules"].is_array()
+                                ? draftConfig_["rules"]
+                                : json::array();
     return savedRules != draftRules;
 }
 
-void CustomizedCartoonDock::updateDraftUi() {
-    const bool dirty = isDraftDirty();
-
+void CustomizedCartoonDock::updateDraftActionButtons(bool dirty) {
     if (applyButton_) {
         applyButton_->setEnabled(dirty);
-        applyButton_->setToolTip(dirty ? QString()
-                                       : obs_module_text("CustomizedCartoon.Settings.NoPendingChanges"));
+        applyButton_->setToolTip(
+            dirty ? QString() : obs_module_text("CustomizedCartoon.Settings.NoPendingChanges"));
     }
     if (confirmButton_) {
         confirmButton_->setText(dirty ? obs_module_text("CustomizedCartoon.Action.Confirm")
                                       : obs_module_text("CustomizedCartoon.Dock.Close"));
-        confirmButton_->setToolTip(dirty ? obs_module_text("CustomizedCartoon.Settings.SaveAndClose")
-                                         : obs_module_text("CustomizedCartoon.Settings.CloseWithoutChanges"));
+        confirmButton_->setToolTip(
+            dirty ? obs_module_text("CustomizedCartoon.Settings.SaveAndClose")
+                  : obs_module_text("CustomizedCartoon.Settings.CloseWithoutChanges"));
     }
     if (cancelButton_) {
-        cancelButton_->setToolTip(dirty ? obs_module_text("CustomizedCartoon.Settings.DiscardAndClose")
-                                        : QString());
+        cancelButton_->setToolTip(
+            dirty ? obs_module_text("CustomizedCartoon.Settings.DiscardAndClose") : QString());
     }
-    if (draftStatusLabel_) {
-        if (dirty) {
-            draftStatusLabel_->setText(obs_module_text("CustomizedCartoon.Settings.PendingChanges"));
-            draftStatusLabel_->setVisible(true);
-        } else {
-            draftStatusLabel_->clear();
-            draftStatusLabel_->setVisible(false);
-        }
+}
+
+void CustomizedCartoonDock::updateDraftStatusIndicator(bool dirty) {
+    if (!draftStatusLabel_) {
+        return;
     }
-    if (mainTabWidget_) {
-        const QString settingsText =
-            QString::fromUtf8(obs_module_text("CustomizedCartoon.Tab.Settings")) +
-            (isSettingsTabDirty() ? " *" : "");
-        const QString rulesText =
-            QString::fromUtf8(obs_module_text("CustomizedCartoon.Rules.PanelTitle")) +
-            (isRulesTabDirty() ? " *" : "");
-        if (mainTabWidget_->count() > 0) {
-            mainTabWidget_->setTabText(0, settingsText);
-            mainTabWidget_->setTabToolTip(
-                0, isSettingsTabDirty() ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
-                                        : QString());
-        }
-        if (mainTabWidget_->count() > 1) {
-            mainTabWidget_->setTabText(1, rulesText);
-            mainTabWidget_->setTabToolTip(
-                1, isRulesTabDirty() ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
-                                     : QString());
-        }
+    if (dirty) {
+        draftStatusLabel_->setText(obs_module_text("CustomizedCartoon.Settings.PendingChanges"));
+        draftStatusLabel_->setVisible(true);
+        return;
     }
-    if (positionTabWidget_) {
-        const QString portraitText =
-            QString::fromUtf8(obs_module_text("CustomizedCartoon.Position.Tab.Portrait")) +
-            (isPositionOrientationDirty(false) ? " *" : "");
-        const QString landscapeText =
-            QString::fromUtf8(obs_module_text("CustomizedCartoon.Position.Tab.Landscape")) +
-            (isPositionOrientationDirty(true) ? " *" : "");
-        if (positionTabWidget_->count() > 0) {
-            positionTabWidget_->setTabText(0, portraitText);
-            positionTabWidget_->setTabToolTip(
-                0, isPositionOrientationDirty(false)
-                       ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
-                       : QString());
-        }
-        if (positionTabWidget_->count() > 1) {
-            positionTabWidget_->setTabText(1, landscapeText);
-            positionTabWidget_->setTabToolTip(
-                1, isPositionOrientationDirty(true)
-                       ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
-                       : QString());
-        }
+    draftStatusLabel_->clear();
+    draftStatusLabel_->setVisible(false);
+}
+
+void CustomizedCartoonDock::updateMainTabIndicators() {
+    if (!mainTabWidget_) {
+        return;
     }
+    const bool settingsDirty = isSettingsTabDirty();
+    const bool rulesDirty = isRulesTabDirty();
+    const QString settingsText =
+        QString::fromUtf8(obs_module_text("CustomizedCartoon.Tab.Settings")) +
+        (settingsDirty ? " *" : "");
+    const QString rulesText =
+        QString::fromUtf8(obs_module_text("CustomizedCartoon.Rules.PanelTitle")) +
+        (rulesDirty ? " *" : "");
+    if (mainTabWidget_->count() > 0) {
+        mainTabWidget_->setTabText(0, settingsText);
+        mainTabWidget_->setTabToolTip(
+            0, settingsDirty ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
+                             : QString());
+    }
+    if (mainTabWidget_->count() > 1) {
+        mainTabWidget_->setTabText(1, rulesText);
+        mainTabWidget_->setTabToolTip(
+            1, rulesDirty ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
+                          : QString());
+    }
+}
+
+void CustomizedCartoonDock::updatePositionTabIndicators() {
+    if (!positionTabWidget_) {
+        return;
+    }
+    const bool portraitDirty = isPositionOrientationDirty(false);
+    const bool landscapeDirty = isPositionOrientationDirty(true);
+    const QString portraitText =
+        QString::fromUtf8(obs_module_text("CustomizedCartoon.Position.Tab.Portrait")) +
+        (portraitDirty ? " *" : "");
+    const QString landscapeText =
+        QString::fromUtf8(obs_module_text("CustomizedCartoon.Position.Tab.Landscape")) +
+        (landscapeDirty ? " *" : "");
+    if (positionTabWidget_->count() > 0) {
+        positionTabWidget_->setTabText(0, portraitText);
+        positionTabWidget_->setTabToolTip(
+            0, portraitDirty ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
+                             : QString());
+    }
+    if (positionTabWidget_->count() > 1) {
+        positionTabWidget_->setTabText(1, landscapeText);
+        positionTabWidget_->setTabToolTip(
+            1, landscapeDirty ? obs_module_text("CustomizedCartoon.Settings.PendingTabChanges")
+                              : QString());
+    }
+}
+
+void CustomizedCartoonDock::updateDraftUi() {
+    const bool dirty = isDraftDirty();
+    updateDraftActionButtons(dirty);
+    updateDraftStatusIndicator(dirty);
+    updateMainTabIndicators();
+    updatePositionTabIndicators();
     updateMediaPreviewAvailability();
+}
+
+void CustomizedCartoonDock::onToastAnimationFinished() {
+    if (!toastWidget_ || !toastOpacity_) {
+        return;
+    }
+    if (toastOpacity_->opacity() <= 0.01) {
+        toastWidget_->setVisible(false);
+    }
+}
+
+void CustomizedCartoonDock::onToastTimerTimeout() {
+    if (!toastWidget_ || !toastOpacity_ || !toastAnim_) {
+        return;
+    }
+    toastAnim_->stop();
+    toastAnim_->setStartValue(toastOpacity_->opacity());
+    toastAnim_->setEndValue(0.0);
+    toastAnim_->start();
+}
+
+void CustomizedCartoonDock::onPreviewModeToggled(bool checked) {
+    if (checked == previewModeActive_) {
+        updatePreviewModeUi();
+        return;
+    }
+    if (!setPreviewModeEnabled(checked, true, true) && previewModeCheckBox_) {
+        const QSignalBlocker blocker(previewModeCheckBox_);
+        previewModeCheckBox_->setChecked(previewModeActive_);
+    }
+}
+
+void CustomizedCartoonDock::onCancelButtonClicked() {
+    if (confirmCloseWithUnsavedChanges()) {
+        closeDock();
+    }
+}
+
+void CustomizedCartoonDock::onConfirmButtonClicked() {
+    if (!isDraftDirty()) {
+        closeDock();
+        return;
+    }
+    if (saveAndApplyDraft()) {
+        closeDock();
+    }
+}
+
+void CustomizedCartoonDock::onMainTabChanged(int index) {
+    Q_UNUSED(index);
+    updateDraftUi();
 }
 
 void CustomizedCartoonDock::setupUi() {
@@ -1346,12 +1475,14 @@ void CustomizedCartoonDock::setupUi() {
         "  background-color: #5A5F6B; color: rgba(255,255,255,0.45);"
         "}"
         "QPushButton#ghostButton {"
-        "  background-color: rgba(255,255,255,0.08); color: white; border: none; border-radius: 2px;"
+        "  background-color: rgba(255,255,255,0.08); color: white; border: none; border-radius: "
+        "2px;"
         "  font-size: 14px; padding: 10px 18px;"
         "}"
         "QPushButton#ghostButton:hover { background-color: rgba(255,255,255,0.12); }"
         "QPushButton#cancelActionButton {"
-        "  background-color: #3C404D; color: #FFFFFF; border: 1px solid #757575; border-radius: 2px;"
+        "  background-color: #3C404D; color: #FFFFFF; border: 1px solid #757575; border-radius: "
+        "2px;"
         "  font-size: 14px; font-weight: 700; padding: 0px;"
         "}"
         "QPushButton#cancelActionButton:hover { background-color: #4A4F5E; }"
@@ -1394,7 +1525,8 @@ void CustomizedCartoonDock::setupUi() {
         "  border-top-left-radius: 2px; border-top-right-radius: 2px;"
         "  border-bottom-left-radius: 0px; border-bottom-right-radius: 0px;"
         "  font-size: 14px; font-weight: 400; min-width: 56px; min-height: 28px; max-height: 28px;"
-        "  padding: 3px 12px; margin-right: 4px; margin-top: 0px; margin-bottom: 0px; text-align: center;"
+        "  padding: 3px 12px; margin-right: 4px; margin-top: 0px; margin-bottom: 0px; text-align: "
+        "center;"
         "}"
         "QTabWidget#positionOrientationTabs QTabBar::tab:selected, "
         "QTabWidget#mainSectionTabs QTabBar::tab:selected {"
@@ -1490,25 +1622,11 @@ void CustomizedCartoonDock::setupUi() {
     toastWidget_->setGraphicsEffect(toastOpacity_);
     toastAnim_ = new QPropertyAnimation(toastOpacity_, "opacity", toastWidget_);
     toastAnim_->setDuration(220);
-    connect(toastAnim_, &QPropertyAnimation::finished, this, [this]() {
-        if (!toastWidget_ || !toastOpacity_) {
-            return;
-        }
-        if (toastOpacity_->opacity() <= 0.01) {
-            toastWidget_->setVisible(false);
-        }
-    });
+    connect(toastAnim_, &QPropertyAnimation::finished, this,
+            &CustomizedCartoonDock::onToastAnimationFinished);
     toastTimer_ = new QTimer(this);
     toastTimer_->setSingleShot(true);
-    connect(toastTimer_, &QTimer::timeout, this, [this]() {
-        if (!toastWidget_ || !toastOpacity_ || !toastAnim_) {
-            return;
-        }
-        toastAnim_->stop();
-        toastAnim_->setStartValue(toastOpacity_->opacity());
-        toastAnim_->setEndValue(0.0);
-        toastAnim_->start();
-    });
+    connect(toastTimer_, &QTimer::timeout, this, &CustomizedCartoonDock::onToastTimerTimeout);
 
     auto* rootLayout = new QVBoxLayout(root);
     rootLayout->setContentsMargins(kDockOuterMargin, kDockOuterMargin, kDockOuterMargin,
@@ -1544,16 +1662,8 @@ void CustomizedCartoonDock::setupUi() {
     connect(headerHelpButton, &QPushButton::clicked, this, &CustomizedCartoonDock::openHelpDialog);
     cornerLayout->addWidget(headerHelpButton);
     mainTabWidget_->setCornerWidget(cornerWidget, Qt::TopRightCorner);
-    connect(previewModeCheckBox_, &QCheckBox::toggled, this, [this](bool checked) {
-        if (checked == previewModeActive_) {
-            updatePreviewModeUi();
-            return;
-        }
-        if (!setPreviewModeEnabled(checked, true, true) && previewModeCheckBox_) {
-            const QSignalBlocker blocker(previewModeCheckBox_);
-            previewModeCheckBox_->setChecked(previewModeActive_);
-        }
-    });
+    connect(previewModeCheckBox_, &QCheckBox::toggled, this,
+            &CustomizedCartoonDock::onPreviewModeToggled);
     rootLayout->addWidget(mainTabWidget_, 1);
 
     auto* settingsPage = new QWidget(mainTabWidget_);
@@ -1659,8 +1769,9 @@ void CustomizedCartoonDock::setupUi() {
     positionTabWidget_->tabBar()->setStyle(QStyleFactory::create("Fusion"));
 #endif
 
-    auto bindCanvasAndInputs = [this](PositionCanvasWidget* canvas, const PositionSizePanelWidgets& inputs,
-                                      int canvasW, int canvasH) {
+    auto bindCanvasAndInputs = [this](PositionCanvasWidget* canvas,
+                                      const PositionSizePanelWidgets& inputs, int canvasW,
+                                      int canvasH) {
         canvas->setOnRectChanged([this, inputs, canvasW, canvasH](const QRect& r) {
             applyPositionInputs(inputs, r, canvasW, canvasH);
             updatePositionDraft(canvasW > canvasH, r);
@@ -1672,26 +1783,22 @@ void CustomizedCartoonDock::setupUi() {
                 return;
             }
             applyPositionState(canvas, inputs,
-                               QRect(inputs.posX->value(), inputs.posY->value(), inputs.width->value(),
-                                     inputs.height->value()),
+                               QRect(inputs.posX->value(), inputs.posY->value(),
+                                     inputs.width->value(), inputs.height->value()),
                                canvasW, canvasH);
             updatePositionDraft(canvasW > canvasH,
-                                QRect(inputs.posX->value(), inputs.posY->value(), inputs.width->value(),
-                                      inputs.height->value()));
+                                QRect(inputs.posX->value(), inputs.posY->value(),
+                                      inputs.width->value(), inputs.height->value()));
             syncPreviewDraftTransform();
         };
-        connect(inputs.posX, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
-            syncCanvasFromInputs();
-        });
-        connect(inputs.posY, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
-            syncCanvasFromInputs();
-        });
-        connect(inputs.width, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
-            syncCanvasFromInputs();
-        });
-        connect(inputs.height, &QSpinBox::valueChanged, this, [syncCanvasFromInputs](int) {
-            syncCanvasFromInputs();
-        });
+        connect(inputs.posX, &QSpinBox::valueChanged, this,
+                [syncCanvasFromInputs](int) { syncCanvasFromInputs(); });
+        connect(inputs.posY, &QSpinBox::valueChanged, this,
+                [syncCanvasFromInputs](int) { syncCanvasFromInputs(); });
+        connect(inputs.width, &QSpinBox::valueChanged, this,
+                [syncCanvasFromInputs](int) { syncCanvasFromInputs(); });
+        connect(inputs.height, &QSpinBox::valueChanged, this,
+                [syncCanvasFromInputs](int) { syncCanvasFromInputs(); });
     };
 
     auto* portraitPage = new QWidget(positionTabWidget_);
@@ -1777,10 +1884,9 @@ void CustomizedCartoonDock::setupUi() {
 
     bindCanvasAndInputs(portraitCanvas, portraitInputs, 720, 1280);
     bindCanvasAndInputs(landscapeCanvas, landscapeInputs, 1280, 720);
-    for (auto* sb :
-         {portraitInputs.posX, portraitInputs.posY, portraitInputs.width, portraitInputs.height,
-          landscapeInputs.posX, landscapeInputs.posY, landscapeInputs.width,
-          landscapeInputs.height}) {
+    for (auto* sb : {portraitInputs.posX, portraitInputs.posY, portraitInputs.width,
+                     portraitInputs.height, landscapeInputs.posX, landscapeInputs.posY,
+                     landscapeInputs.width, landscapeInputs.height}) {
         if (sb) {
             sb->installEventFilter(this);
         }
@@ -1792,24 +1898,24 @@ void CustomizedCartoonDock::setupUi() {
     connect(positionTabWidget_, &QTabWidget::currentChanged, this,
             [this, portraitCanvas, portraitInputs, portraitRangeLabel, landscapeCanvas,
              landscapeInputs, landscapeRangeLabel](int index) {
-        if (index == 0) {
-            canvasRangeLabel_ = portraitRangeLabel;
-            positionCanvas_ = portraitCanvas;
-            posXSpin_ = portraitInputs.posX;
-            posYSpin_ = portraitInputs.posY;
-            widthSpin_ = portraitInputs.width;
-            heightSpin_ = portraitInputs.height;
-            onOrientationChanged(0);
-        } else {
-            canvasRangeLabel_ = landscapeRangeLabel;
-            positionCanvas_ = landscapeCanvas;
-            posXSpin_ = landscapeInputs.posX;
-            posYSpin_ = landscapeInputs.posY;
-            widthSpin_ = landscapeInputs.width;
-            heightSpin_ = landscapeInputs.height;
-            onOrientationChanged(1);
-        }
-    });
+                if (index == 0) {
+                    canvasRangeLabel_ = portraitRangeLabel;
+                    positionCanvas_ = portraitCanvas;
+                    posXSpin_ = portraitInputs.posX;
+                    posYSpin_ = portraitInputs.posY;
+                    widthSpin_ = portraitInputs.width;
+                    heightSpin_ = portraitInputs.height;
+                    onOrientationChanged(0);
+                } else {
+                    canvasRangeLabel_ = landscapeRangeLabel;
+                    positionCanvas_ = landscapeCanvas;
+                    posXSpin_ = landscapeInputs.posX;
+                    posYSpin_ = landscapeInputs.posY;
+                    widthSpin_ = landscapeInputs.width;
+                    heightSpin_ = landscapeInputs.height;
+                    onOrientationChanged(1);
+                }
+            });
 
     left->addStretch(1);
     settingsScrollArea_->setWidget(leftContainer);
@@ -1844,7 +1950,8 @@ void CustomizedCartoonDock::setupUi() {
     right->setSpacing(4);
     right->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
-    auto* rulesTitle = new QLabel(obs_module_text("CustomizedCartoon.Rules.PanelTitle"), rightPanel);
+    auto* rulesTitle =
+        new QLabel(obs_module_text("CustomizedCartoon.Rules.PanelTitle"), rightPanel);
     rulesTitle->setObjectName("rulesPanelTitle");
     rulesTitle->setFixedHeight(24);
     right->addWidget(rulesTitle);
@@ -1857,7 +1964,8 @@ void CustomizedCartoonDock::setupUi() {
     rulesListLayout_->setSizeConstraint(QLayout::SetMinAndMaxSize);
     right->addWidget(rulesListContainer_);
 
-    addRuleButton_ = new QPushButton(obs_module_text("CustomizedCartoon.Rules.AddCondition"), rightPanel);
+    addRuleButton_ =
+        new QPushButton(obs_module_text("CustomizedCartoon.Rules.AddCondition"), rightPanel);
     addRuleButton_->setObjectName("ghostButton");
     addRuleButton_->setMinimumHeight(48);
     right->addWidget(addRuleButton_);
@@ -1889,22 +1997,13 @@ void CustomizedCartoonDock::setupUi() {
     bottomRow->addWidget(applyButton_);
     rootLayout->addLayout(bottomRow);
 
-    connect(cancelButton_, &QPushButton::clicked, this, [this]() {
-        if (confirmCloseWithUnsavedChanges()) {
-            closeDock();
-        }
-    });
-    connect(confirmButton_, &QPushButton::clicked, this, [this]() {
-        if (!isDraftDirty()) {
-            closeDock();
-            return;
-        }
-        if (saveAndApplyDraft()) {
-            closeDock();
-        }
-    });
+    connect(cancelButton_, &QPushButton::clicked, this,
+            &CustomizedCartoonDock::onCancelButtonClicked);
+    connect(confirmButton_, &QPushButton::clicked, this,
+            &CustomizedCartoonDock::onConfirmButtonClicked);
     connect(applyButton_, &QPushButton::clicked, this, &CustomizedCartoonDock::onApplyPosition);
-    connect(mainTabWidget_, &QTabWidget::currentChanged, this, [this](int) { updateDraftUi(); });
+    connect(mainTabWidget_, &QTabWidget::currentChanged, this,
+            &CustomizedCartoonDock::onMainTabChanged);
 
     setWidget(root);
     updateDraftUi();
@@ -1932,10 +2031,12 @@ bool CustomizedCartoonDock::eventFilter(QObject* obj, QEvent* event) {
 }
 
 void CustomizedCartoonDock::scheduleInitialMediaListRefresh() {
-    if (initialMediaListRefreshDone_ || initialMediaListRefreshScheduled_ || !rootWidget_ || !mediaList_) {
+    if (initialMediaListRefreshDone_ || initialMediaListRefreshScheduled_ || !rootWidget_ ||
+        !mediaList_) {
         return;
     }
-    if (!rootWidget_->isVisible() || rootWidget_->width() <= 0 || mediaList_->viewport()->width() <= 0) {
+    if (!rootWidget_->isVisible() || rootWidget_->width() <= 0 ||
+        mediaList_->viewport()->width() <= 0) {
         return;
     }
 
@@ -1945,7 +2046,8 @@ void CustomizedCartoonDock::scheduleInitialMediaListRefresh() {
         if (initialMediaListRefreshDone_ || !rootWidget_ || !mediaList_) {
             return;
         }
-        if (!rootWidget_->isVisible() || rootWidget_->width() <= 0 || mediaList_->viewport()->width() <= 0) {
+        if (!rootWidget_->isVisible() || rootWidget_->width() <= 0 ||
+            mediaList_->viewport()->width() <= 0) {
             return;
         }
         initialMediaListRefreshDone_ = true;
@@ -2054,9 +2156,9 @@ void CustomizedCartoonDock::refreshPositionUi() {
     if (!service_ || !positionTabWidget_) {
         return;
     }
-    const json cfg =
-        draftConfig_.contains("position") && draftConfig_["position"].is_object() ? draftConfig_["position"]
-                                                                                  : json::object();
+    const json cfg = draftConfig_.contains("position") && draftConfig_["position"].is_object()
+                         ? draftConfig_["position"]
+                         : json::object();
     const bool landscape = positionTabWidget_->currentIndex() == 1;
     const char* key = landscape ? "landscape" : "portrait";
     const int canvasW = landscape ? 1280 : 720;
@@ -2071,19 +2173,22 @@ void CustomizedCartoonDock::refreshPositionUi() {
                 .arg(canvasH));
     }
 
-    auto* currentCanvas = positionCanvas_ ? static_cast<PositionCanvasWidget*>(positionCanvas_) : nullptr;
+    auto* currentCanvas =
+        positionCanvas_ ? static_cast<PositionCanvasWidget*>(positionCanvas_) : nullptr;
     PositionSizePanelWidgets currentInputs{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_};
     if (!cfg.contains(key) || !cfg[key].is_object()) {
-        applyPositionState(currentCanvas, currentInputs, QRect(200, 300, 500, 500), canvasW, canvasH);
+        applyPositionState(currentCanvas, currentInputs, QRect(200, 300, 500, 500), canvasW,
+                           canvasH);
         return;
     }
 
     const auto& t = cfg[key];
-    applyPositionState(currentCanvas, currentInputs,
-                       QRect((int)std::round(t.value("x", 200.0)), (int)std::round(t.value("y", 300.0)),
-                             (int)std::round(t.value("boundsW", 500.0)),
-                             (int)std::round(t.value("boundsH", 500.0))),
-                       canvasW, canvasH);
+    applyPositionState(
+        currentCanvas, currentInputs,
+        QRect((int) std::round(t.value("x", 200.0)), (int) std::round(t.value("y", 300.0)),
+              (int) std::round(t.value("boundsW", 500.0)),
+              (int) std::round(t.value("boundsH", 500.0))),
+        canvasW, canvasH);
 }
 
 void CustomizedCartoonDock::loadFromConfig() {
@@ -2092,6 +2197,146 @@ void CustomizedCartoonDock::loadFromConfig() {
     }
     refreshMediaList();
     rebuildRulesUi();
+}
+
+void CustomizedCartoonDock::addMediaListItem(const json& mediaConfig, const QIcon& videoIcon,
+                                             const QIcon& imageIcon, const QIcon& playIcon,
+                                             const QIcon& stopIcon, const QIcon& settingsIcon,
+                                             const QIcon& trashIcon, bool previewing,
+                                             const QString& previewingId, int& mediaCount) {
+    if (!mediaList_ || !mediaConfig.is_object()) {
+        return;
+    }
+
+    const QString id = mediaConfig.contains("id") && mediaConfig["id"].is_string()
+                           ? QString::fromStdString(mediaConfig["id"].get<std::string>())
+                           : QString();
+    const QString name = mediaConfig.contains("name") && mediaConfig["name"].is_string()
+                             ? QString::fromStdString(mediaConfig["name"].get<std::string>())
+                             : QString();
+    const QString type = mediaConfig.contains("type") && mediaConfig["type"].is_string()
+                             ? QString::fromStdString(mediaConfig["type"].get<std::string>())
+                             : QString();
+    if (id.isEmpty()) {
+        return;
+    }
+    mediaCount++;
+
+    auto* item = new QListWidgetItem(mediaList_);
+    item->setData(Qt::UserRole, id);
+    item->setSizeHint(QSize(0, 43));
+
+    auto* row = new QFrame(mediaList_);
+    row->setObjectName("mediaRow");
+    row->setStyleSheet(
+        "QFrame#mediaRow { background-color: #272A33; border: none; border-radius: 0px; }"
+        "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; }"
+        "QPushButton { border: none; background: transparent; }");
+    row->setMinimumHeight(43);
+    row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    auto* rowLayout = new QHBoxLayout(row);
+    rowLayout->setContentsMargins(5, 5, 5, 5);
+    rowLayout->setSpacing(5);
+
+    auto* iconLabel = new QLabel(row);
+    iconLabel->setPixmap((type == "image" ? imageIcon : videoIcon).pixmap(30, 24));
+    iconLabel->setFixedSize(30, 24);
+
+    auto* nameLabel = new QLabel(name, row);
+    nameLabel->setFixedHeight(24);
+    nameLabel->setMinimumWidth(0);
+    nameLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    nameLabel->setTextInteractionFlags(Qt::NoTextInteraction);
+    nameLabel->setStyleSheet(
+        "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; background: transparent; }");
+
+    const bool previewingThis = previewing && previewingId == id;
+    const bool canPreview = previewModeActive_ && !isPreviewBlocked();
+    auto* settingsButton = new QPushButton(row);
+    settingsButton->setIcon(settingsIcon);
+    settingsButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
+    settingsButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
+    settingsButton->setCursor(Qt::PointingHandCursor);
+    settingsButton->setToolTip(obs_module_text("CustomizedCartoon.Media.Settings.Tooltip"));
+
+    auto* previewButton = new QPushButton(row);
+    previewButton->setObjectName("mediaPreviewButton");
+    previewButton->setIcon(previewingThis ? stopIcon : playIcon);
+    previewButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
+    previewButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
+    previewButton->setEnabled(canPreview);
+    previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
+    previewButton->setToolTip(
+        !previewModeActive_
+            ? QString::fromUtf8(obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"))
+            : (canPreview ? QString() : previewBlockedTooltip()));
+    previewButton->setVisible(previewModeActive_);
+
+    auto* delButton = new QPushButton(row);
+    delButton->setIcon(trashIcon);
+    delButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
+    delButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
+    delButton->setCursor(Qt::PointingHandCursor);
+
+    connect(delButton, &QPushButton::clicked, this, [this, id]() {
+        if (removeMediaFromDraft(id)) {
+            loadFromConfig();
+            syncPreviewDraftTransform();
+        }
+    });
+    connect(settingsButton, &QPushButton::clicked, this,
+            [this, id]() { openMediaSettingsDialog(id); });
+    connect(previewButton, &QPushButton::clicked, this, [this, item, id]() {
+        if (!service_) {
+            return;
+        }
+        if (!previewModeActive_) {
+            QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                     obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"),
+                                     QMessageBox::Ok);
+            return;
+        }
+        if (isPreviewBlocked() || obs_frontend_streaming_active() ||
+            obs_frontend_recording_active()) {
+            QMessageBox::information(
+                this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
+                QMessageBox::Ok);
+            return;
+        }
+        mediaList_->setCurrentItem(item);
+
+        const bool isPreviewing = service_->isMediaPreviewing();
+        const QString activePreviewId = service_->previewingMediaId();
+        if (isPreviewing && activePreviewId == id) {
+            service_->stopMediaPreview();
+            return;
+        }
+        if (isPreviewing && activePreviewId != id) {
+            QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                     obs_module_text("CustomizedCartoon.Media.PreviewBusy"),
+                                     QMessageBox::Ok);
+            return;
+        }
+
+        QString error;
+        const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
+        const auto draft = buildCurrentPositionDraft(landscape);
+        if (!service_->startMediaPreview(id, landscape, &draft, &draftConfig_, error)) {
+            QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
+                                 QMessageBox::Ok);
+        }
+    });
+
+    rowLayout->addWidget(iconLabel);
+    rowLayout->addWidget(nameLabel, 1);
+    rowLayout->addWidget(settingsButton);
+    rowLayout->addWidget(previewButton);
+    rowLayout->addWidget(delButton);
+
+    mediaList_->addItem(item);
+    mediaList_->setItemWidget(item, row);
 }
 
 void CustomizedCartoonDock::refreshMediaList() {
@@ -2111,147 +2356,9 @@ void CustomizedCartoonDock::refreshMediaList() {
     const bool previewing = service_->isMediaPreviewing();
     const QString previewingId = service_->previewingMediaId();
     if (cfg.contains("media") && cfg["media"].is_array()) {
-        for (const auto& it : cfg["media"]) {
-            if (!it.is_object())
-                continue;
-            const QString id =
-                it.contains("id") && it["id"].is_string()
-                    ? QString::fromStdString(it["id"].get<std::string>())
-                    : QString();
-            const QString name =
-                it.contains("name") && it["name"].is_string()
-                    ? QString::fromStdString(it["name"].get<std::string>())
-                    : QString();
-            const QString type =
-                it.contains("type") && it["type"].is_string()
-                    ? QString::fromStdString(it["type"].get<std::string>())
-                    : QString();
-            if (id.isEmpty()) {
-                continue;
-            }
-            mediaCount++;
-
-            auto* item = new QListWidgetItem(mediaList_);
-            item->setData(Qt::UserRole, id);
-            item->setSizeHint(QSize(0, 43));
-
-            auto* row = new QFrame(mediaList_);
-            row->setObjectName("mediaRow");
-            row->setStyleSheet(
-                "QFrame#mediaRow { background-color: #272A33; border: none; border-radius: 0px; }"
-                "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; }"
-                "QPushButton { border: none; background: transparent; }");
-            row->setMinimumHeight(43);
-            row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-
-            auto* rowLayout = new QHBoxLayout(row);
-            rowLayout->setContentsMargins(5, 5, 5, 5);
-            rowLayout->setSpacing(5);
-
-            auto* iconLabel = new QLabel(row);
-            const QIcon& mediaIcon = type == "image" ? imageIcon : videoIcon;
-            iconLabel->setPixmap(mediaIcon.pixmap(30, 24));
-            iconLabel->setFixedSize(30, 24);
-
-            auto* nameLabel = new QLabel(name, row);
-            nameLabel->setFixedHeight(24);
-            nameLabel->setMinimumWidth(0);
-            nameLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-            nameLabel->setTextInteractionFlags(Qt::NoTextInteraction);
-            nameLabel->setStyleSheet(
-                "QLabel { color: #A1A9B6; font-size: 14px; font-weight: 400; background: transparent; }");
-
-            const bool previewingThis = previewing && previewingId == id;
-            auto* settingsButton = new QPushButton(row);
-            settingsButton->setIcon(settingsIcon);
-            settingsButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
-            settingsButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
-            settingsButton->setCursor(Qt::PointingHandCursor);
-            settingsButton->setToolTip(obs_module_text("CustomizedCartoon.Media.Settings.Tooltip"));
-
-            auto* previewButton = new QPushButton(row);
-            previewButton->setObjectName("mediaPreviewButton");
-            previewButton->setIcon(previewingThis ? stopIcon : playIcon);
-            previewButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
-            previewButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
-            const bool canPreview = previewModeActive_ && !isPreviewBlocked();
-            previewButton->setEnabled(canPreview);
-            previewButton->setCursor(canPreview ? Qt::PointingHandCursor : Qt::ArrowCursor);
-            previewButton->setToolTip(!previewModeActive_
-                                          ? QString::fromUtf8(
-                                                obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"))
-                                          : (canPreview ? QString() : previewBlockedTooltip()));
-            previewButton->setVisible(previewModeActive_);
-
-            auto* delButton = new QPushButton(row);
-            delButton->setIcon(trashIcon);
-            delButton->setIconSize(QSize(kMediaActionIconSize, kMediaActionIconSize));
-            delButton->setFixedSize(kMediaActionButtonSize, kMediaActionButtonSize);
-            delButton->setCursor(Qt::PointingHandCursor);
-
-            connect(delButton, &QPushButton::clicked, this, [this, id]() {
-                if (removeMediaFromDraft(id)) {
-                    loadFromConfig();
-                    syncPreviewDraftTransform();
-                }
-            });
-
-            connect(settingsButton, &QPushButton::clicked, this, [this, id]() {
-                openMediaSettingsDialog(id);
-            });
-
-            connect(previewButton, &QPushButton::clicked, this, [this, item, id]() {
-                if (!service_) {
-                    return;
-                }
-                if (!previewModeActive_) {
-                    QMessageBox::information(
-                        this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                        obs_module_text("CustomizedCartoon.PreviewMode.EnableFirst"), QMessageBox::Ok);
-                    return;
-                }
-                if (isPreviewBlocked() || obs_frontend_streaming_active() ||
-                    obs_frontend_recording_active()) {
-                    QMessageBox::information(
-                        this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                        obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
-                        QMessageBox::Ok);
-                    return;
-                }
-                if (mediaList_) {
-                    mediaList_->setCurrentItem(item);
-                }
-
-                const bool previewing = service_->isMediaPreviewing();
-                const QString previewingId = service_->previewingMediaId();
-                if (previewing && previewingId == id) {
-                    service_->stopMediaPreview();
-                    return;
-                }
-                if (previewing && previewingId != id) {
-                    QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                                             obs_module_text("CustomizedCartoon.Media.PreviewBusy"),
-                                             QMessageBox::Ok);
-                    return;
-                }
-
-                QString error;
-                const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
-                const auto draft = buildCurrentPositionDraft(landscape);
-                if (!service_->startMediaPreview(id, landscape, &draft, &draftConfig_, error)) {
-                    QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"), error,
-                                         QMessageBox::Ok);
-                }
-            });
-
-            rowLayout->addWidget(iconLabel);
-            rowLayout->addWidget(nameLabel, 1);
-            rowLayout->addWidget(settingsButton);
-            rowLayout->addWidget(previewButton);
-            rowLayout->addWidget(delButton);
-
-            mediaList_->addItem(item);
-            mediaList_->setItemWidget(item, row);
+        for (const auto& media : cfg["media"]) {
+            addMediaListItem(media, videoIcon, imageIcon, playIcon, stopIcon, settingsIcon,
+                             trashIcon, previewing, previewingId, mediaCount);
         }
     }
 
@@ -2276,6 +2383,39 @@ void CustomizedCartoonDock::refreshMediaList() {
     }
 }
 
+bool CustomizedCartoonDock::updateMediaSettingsEntry(json& media) {
+    const QString name = media.contains("name") && media["name"].is_string()
+                             ? QString::fromStdString(media["name"].get<std::string>())
+                             : QString();
+    const QString type = media.contains("type") && media["type"].is_string()
+                             ? QString::fromStdString(media["type"].get<std::string>())
+                             : QString();
+    const bool isVideo = (type == "video");
+    const int displaySec = media.contains("displaySec") && media["displaySec"].is_number_integer()
+                               ? media["displaySec"].get<int>()
+                               : (isVideo ? 15 : 5);
+    const bool muted = media.contains("muted") && media["muted"].is_boolean()
+                           ? media["muted"].get<bool>()
+                           : isVideo;
+    const bool preserveAspectRatio =
+        media.contains("preserveAspectRatio") && media["preserveAspectRatio"].is_boolean()
+            ? media["preserveAspectRatio"].get<bool>()
+            : false;
+
+    int nextDisplaySec = displaySec;
+    bool nextMuted = muted;
+    bool nextPreserveAspectRatio = preserveAspectRatio;
+    if (!editMediaSettingsDialog(this, name, isVideo, displaySec, muted, preserveAspectRatio,
+                                 nextDisplaySec, nextMuted, nextPreserveAspectRatio)) {
+        return false;
+    }
+
+    media["displaySec"] = nextDisplaySec;
+    media["muted"] = isVideo ? nextMuted : false;
+    media["preserveAspectRatio"] = nextPreserveAspectRatio;
+    return true;
+}
+
 void CustomizedCartoonDock::openMediaSettingsDialog(const QString& mediaId) {
     if (!service_ || mediaId.isEmpty()) {
         return;
@@ -2293,39 +2433,9 @@ void CustomizedCartoonDock::openMediaSettingsDialog(const QString& mediaId) {
         if (QString::fromStdString(media["id"].get<std::string>()) != mediaId) {
             continue;
         }
-
-        const QString name =
-            media.contains("name") && media["name"].is_string()
-                ? QString::fromStdString(media["name"].get<std::string>())
-                : mediaId;
-        const QString type =
-            media.contains("type") && media["type"].is_string()
-                ? QString::fromStdString(media["type"].get<std::string>())
-                : QString();
-        int displaySec =
-            media.contains("displaySec") && media["displaySec"].is_number_integer()
-                ? media["displaySec"].get<int>()
-                : (type == "video" ? 15 : 5);
-        bool muted =
-            media.contains("muted") && media["muted"].is_boolean() ? media["muted"].get<bool>()
-                                                                   : (type == "video");
-        bool preserveAspectRatio =
-            media.contains("preserveAspectRatio") && media["preserveAspectRatio"].is_boolean()
-                ? media["preserveAspectRatio"].get<bool>()
-                : false;
-
-        int nextDisplaySec = displaySec;
-        bool nextMuted = muted;
-        bool nextPreserveAspectRatio = preserveAspectRatio;
-        if (!editMediaSettingsDialog(this, name, type == "video", displaySec, muted,
-                                     preserveAspectRatio, nextDisplaySec, nextMuted,
-                                     nextPreserveAspectRatio)) {
+        if (!updateMediaSettingsEntry(media)) {
             return;
         }
-
-        media["displaySec"] = nextDisplaySec;
-        media["muted"] = (type == "video") ? nextMuted : false;
-        media["preserveAspectRatio"] = nextPreserveAspectRatio;
         draftConfig_ = std::move(cfg);
         draftDirty_ = draftConfig_ != savedConfig_;
         updateDraftUi();
@@ -2345,7 +2455,8 @@ void CustomizedCartoonDock::openHelpDialog() {
         "QLabel#helpContent { color: #FFFFFF; font-size: 14px; line-height: 150%; }"
         "QLabel#helpContent a { color: #007AFF; text-decoration: none; }"
         "QPushButton { min-width: 88px; min-height: 32px; padding: 0px 12px; }"
-        "QPushButton { background-color: #007AFF; color: #FFFFFF; border: none; border-radius: 2px; "
+        "QPushButton { background-color: #007AFF; color: #FFFFFF; border: none; border-radius: "
+        "2px; "
         "font-size: 14px; font-weight: 600; }"
         "QPushButton:hover { background-color: #0A84FF; }");
 
@@ -2376,395 +2487,338 @@ void CustomizedCartoonDock::openHelpDialog() {
     dialog.exec();
 }
 
-void CustomizedCartoonDock::rebuildRulesUi() {
-    if (!service_ || !rulesListLayout_ || !rulesListContainer_) {
+std::vector<std::pair<QString, QString>> CustomizedCartoonDock::buildRuleMediaOptions(
+    const json& cfg) const {
+    std::vector<std::pair<QString, QString>> mediaOptions;
+    if (!cfg.contains("media") || !cfg["media"].is_array()) {
+        return mediaOptions;
+    }
+
+    for (const auto& media : cfg["media"]) {
+        if (!media.is_object()) {
+            continue;
+        }
+        const QString id = jsonStringValue(media, "id");
+        if (id.isEmpty()) {
+            continue;
+        }
+        mediaOptions.emplace_back(id, jsonStringValue(media, "name", id));
+    }
+    return mediaOptions;
+}
+
+void CustomizedCartoonDock::clearRulesListLayout() {
+    if (!rulesListLayout_) {
         return;
     }
-
-    const int previousScrollValue =
-        rulesScrollArea_ && rulesScrollArea_->verticalScrollBar()
-            ? rulesScrollArea_->verticalScrollBar()->value()
-            : 0;
-    if (rulesScrollArea_) {
-        rulesScrollArea_->setUpdatesEnabled(false);
-    }
-    rulesListContainer_->setUpdatesEnabled(false);
-
     while (QLayoutItem* item = rulesListLayout_->takeAt(0)) {
-        if (QWidget* w = item->widget()) {
-            w->deleteLater();
+        if (QWidget* widget = item->widget()) {
+            widget->deleteLater();
         }
         delete item;
     }
+}
 
-    const json cfg = draftConfig_;
-
-    std::vector<std::pair<QString, QString>> mediaOptions;
-    if (cfg.contains("media") && cfg["media"].is_array()) {
-        for (const auto& m : cfg["media"]) {
-            if (!m.is_object() || !m.contains("id") || !m["id"].is_string()) {
-                continue;
-            }
-            const QString id = QString::fromStdString(m["id"].get<std::string>());
-            const QString name = m.contains("name") && m["name"].is_string()
-                                     ? QString::fromStdString(m["name"].get<std::string>())
-                                     : id;
-            mediaOptions.emplace_back(id, name);
-        }
+QWidget* CustomizedCartoonDock::buildRuleCard(
+    const nlohmann::json& ruleConfig,
+    const std::vector<std::pair<QString, QString>>& mediaOptions) {
+    if (!rulesListContainer_ || !ruleConfig.is_object()) {
+        return nullptr;
     }
+
+    const QString id = jsonStringValue(ruleConfig, "id");
+    if (id.isEmpty()) {
+        return nullptr;
+    }
+
+    const QString engageType = jsonStringValue(ruleConfig, "engageType", "GIFT_AMOUNT_MILESTONE");
+    const int points = jsonIntValue(ruleConfig, "points");
+    const int count = jsonIntValue(ruleConfig, "count");
+    const QString mediaId = jsonStringValue(ruleConfig, "mediaId");
+    const bool repeatable = jsonBoolValue(ruleConfig, "repeatable", true);
+    const bool enabled = jsonBoolValue(ruleConfig, "enabled", true);
+    const QString ruleName = jsonStringValue(ruleConfig, "name");
+    const bool isExistingRule =
+        savedConfig_.contains("rules") && findArrayItemById(savedConfig_["rules"], id) != nullptr;
+    const bool lockRuleDefinition = streamingActive_ && isExistingRule;
+    const QString ruleLockedTooltip =
+        lockRuleDefinition ? obs_module_text("CustomizedCartoon.Error.RuleContentLockedStreaming")
+                           : QString();
+
+    auto* card = new QFrame(rulesListContainer_);
+    card->setObjectName("subPanel");
+    card->setToolTip(ruleLockedTooltip);
+    auto* cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(4, 4, 4, 4);
+    cardLayout->setSpacing(4);
 
     const QIcon trashIcon(":/resources/trash-red-line.svg");
-    int idx = 0;
-    QWidget* latestCard = nullptr;
-    if (cfg.contains("rules") && cfg["rules"].is_array()) {
-        for (const auto& it : cfg["rules"]) {
-            if (!it.is_object() || !it.contains("id") || !it["id"].is_string()) {
+    const int ruleFieldLabelWidth = computeRuleFieldLabelWidth();
+    const int ruleParamLabelWidth = computeRuleParamLabelWidth();
+
+    auto makeLabel = [card, ruleFieldLabelWidth](const char* key) {
+        auto* label = new QLabel(obs_module_text(key), card);
+        label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+        label->setWordWrap(true);
+        label->setFixedWidth(ruleFieldLabelWidth);
+        label->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
+        return label;
+    };
+
+    auto* nameEdit = new QLineEdit(card);
+    nameEdit->setObjectName("ruleNameEdit");
+    nameEdit->setPlaceholderText(
+        obs_module_text("CustomizedCartoon.Rules.ConditionName.Placeholder"));
+    nameEdit->setText(ruleName);
+    nameEdit->setFixedHeight(24);
+    nameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    nameEdit->setEnabled(!lockRuleDefinition);
+    nameEdit->setToolTip(ruleLockedTooltip);
+
+    auto* delButton = new QPushButton(card);
+    delButton->setIcon(trashIcon);
+    delButton->setIconSize(QSize(24, 24));
+    delButton->setFixedSize(32, 32);
+    delButton->setCursor(Qt::PointingHandCursor);
+    delButton->setStyleSheet("QPushButton { border: none; background: transparent; }");
+
+    auto* typeCombo = new QComboBox(card);
+    typeCombo->addItem(obs_module_text("CustomizedCartoon.Rules.Type.LuckyBag"),
+                       "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE");
+    typeCombo->addItem(obs_module_text("CustomizedCartoon.Rules.Type.Gift"),
+                       "GIFT_AMOUNT_MILESTONE");
+    typeCombo->setCurrentIndex(engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE" ? 0 : 1);
+    typeCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    typeCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    typeCombo->setMinimumContentsLength(kRuleTypeComboChars);
+    typeCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
+    typeCombo->setEnabled(!lockRuleDefinition);
+    typeCombo->setToolTip(ruleLockedTooltip);
+
+    auto* ruleLabel = new QLabel(card);
+    ruleLabel->setWordWrap(true);
+    ruleLabel->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
+
+    auto* pointsSpin = new NoWheelSpinBox(card);
+    pointsSpin->setRange(1, 100000000);
+    pointsSpin->setValue(std::max(1, points));
+    pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
+    pointsSpin->setStyleSheet(
+        "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
+    pointsSpin->setToolTip(ruleLockedTooltip);
+
+    auto* countSpin = new NoWheelSpinBox(card);
+    countSpin->setRange(1, 1000000);
+    countSpin->setValue(std::max(1, count));
+    countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
+    countSpin->setStyleSheet(
+        "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
+    countSpin->setEnabled(!lockRuleDefinition);
+    countSpin->setToolTip(ruleLockedTooltip);
+
+    auto* mediaCombo = new QComboBox(card);
+    for (const auto& media : mediaOptions) {
+        mediaCombo->addItem(media.second, media.first);
+    }
+    const int mediaIndex = mediaCombo->findData(mediaId);
+    if (mediaIndex >= 0) {
+        mediaCombo->setCurrentIndex(mediaIndex);
+    }
+    mediaCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    mediaCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    mediaCombo->setMinimumContentsLength(kRuleMediaComboChars);
+    mediaCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
+    mediaCombo->setEnabled(!lockRuleDefinition);
+    mediaCombo->setToolTip(ruleLockedTooltip);
+
+    auto* repeatCheck = new QCheckBox(card);
+    repeatCheck->setChecked(repeatable);
+    repeatCheck->setText(QString());
+    repeatCheck->setStyleSheet("QCheckBox { font-size: 14px; color: #FFFFFF; }");
+    repeatCheck->setEnabled(!lockRuleDefinition);
+    repeatCheck->setToolTip(ruleLockedTooltip);
+
+    auto* statusActive =
+        new QRadioButton(obs_module_text("CustomizedCartoon.Rules.Status.Active"), card);
+    auto* statusInactive =
+        new QRadioButton(obs_module_text("CustomizedCartoon.Rules.Status.Inactive"), card);
+    statusActive->setChecked(enabled);
+    statusInactive->setChecked(!enabled);
+
+    auto* paramXLabel = new QLabel(card);
+    auto* paramYLabel = new QLabel(card);
+    for (auto* label : {paramXLabel, paramYLabel}) {
+        label->setFixedWidth(ruleParamLabelWidth);
+        label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        label->setStyleSheet(
+            "QLabel { font-size: 14px; color: #FFFFFF; padding: 0px; margin: 0px; }");
+    }
+
+    auto updateRuleUi = [typeCombo, ruleLabel, paramXLabel, paramYLabel, pointsSpin, countSpin,
+                         ruleParamLabelWidth, lockRuleDefinition]() {
+        const bool luckyBag =
+            typeCombo->currentData().toString() == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
+        ruleLabel->setText(obs_module_text(luckyBag ? "CustomizedCartoon.Rules.Desc.LuckyBag"
+                                                    : "CustomizedCartoon.Rules.Desc.Gift"));
+        paramXLabel->setText(obs_module_text(luckyBag ? "CustomizedCartoon.Rules.Param.LuckyBagX"
+                                                      : "CustomizedCartoon.Rules.Param.GiftX"));
+        paramXLabel->setFixedWidth(ruleParamLabelWidth);
+        pointsSpin->setEnabled(!lockRuleDefinition && !luckyBag);
+        pointsSpin->setVisible(!luckyBag);
+        if (luckyBag) {
+            pointsSpin->setValue(0);
+            countSpin->setFixedWidth(kRuleLuckyBagCountSpinWidth);
+            paramYLabel->hide();
+        } else {
+            paramYLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.GiftY"));
+            paramYLabel->setFixedWidth(ruleParamLabelWidth);
+            paramYLabel->show();
+            pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
+            countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
+        }
+        countSpin->show();
+    };
+    updateRuleUi();
+
+    auto saveRule = [this, id, typeCombo, pointsSpin, countSpin, mediaCombo, repeatCheck,
+                     statusActive]() {
+        if (!draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
+            return;
+        }
+        auto* rule = findArrayItemById(draftConfig_["rules"], id);
+        if (!rule) {
+            return;
+        }
+        const QString currentType = typeCombo->currentData().toString();
+        const bool luckyBag = currentType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
+        (*rule)["engageType"] = currentType.toStdString();
+        (*rule)["points"] = luckyBag ? 0 : pointsSpin->value();
+        (*rule)["count"] = countSpin->value();
+        (*rule)["mediaId"] = mediaCombo->currentData().toString().toStdString();
+        (*rule)["repeatable"] = repeatCheck->isChecked();
+        (*rule)["enabled"] = statusActive->isChecked();
+        draftDirty_ = draftConfig_ != savedConfig_;
+        updateDraftUi();
+    };
+
+    connect(nameEdit, &QLineEdit::editingFinished, card, [this, id, nameEdit]() {
+        if (!nameEdit || !draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
+            return;
+        }
+        if (auto* rule = findArrayItemById(draftConfig_["rules"], id)) {
+            (*rule)["name"] = nameEdit->text().toStdString();
+            draftDirty_ = draftConfig_ != savedConfig_;
+            updateDraftUi();
+        }
+    });
+    connect(typeCombo, &QComboBox::currentIndexChanged, card, [updateRuleUi, saveRule](int) {
+        updateRuleUi();
+        saveRule();
+    });
+    connect(pointsSpin, &QSpinBox::valueChanged, card, [saveRule](int) { saveRule(); });
+    connect(countSpin, &QSpinBox::valueChanged, card, [saveRule](int) { saveRule(); });
+    connect(mediaCombo, &QComboBox::currentIndexChanged, card, [saveRule](int) { saveRule(); });
+    connect(repeatCheck, &QCheckBox::toggled, card, [saveRule](bool) { saveRule(); });
+    connect(statusActive, &QRadioButton::toggled, card, [saveRule](bool checked) {
+        if (checked) {
+            saveRule();
+        }
+    });
+    connect(statusInactive, &QRadioButton::toggled, card, [saveRule](bool checked) {
+        if (checked) {
+            saveRule();
+        }
+    });
+    connect(delButton, &QPushButton::clicked, card, [this, id]() {
+        if (!draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
+            return;
+        }
+        const json* targetRule = findArrayItemById(draftConfig_["rules"], id);
+        if (!targetRule) {
+            return;
+        }
+        const auto confirmed =
+            QMessageBox::question(this, obs_module_text("CustomizedCartoon.Dock.Title"),
+                                  buildRuleDeleteConfirmMessage(*targetRule),
+                                  QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (confirmed != QMessageBox::Yes) {
+            return;
+        }
+        json newRules = json::array();
+        for (const auto& rule : draftConfig_["rules"]) {
+            if (!rule.is_object() || jsonStringValue(rule, "id").isEmpty() ||
+                jsonStringValue(rule, "id") == id) {
                 continue;
             }
-            const QString id = QString::fromStdString(it["id"].get<std::string>());
-            const QString engageType =
-                it.contains("engageType") && it["engageType"].is_string()
-                    ? QString::fromStdString(it["engageType"].get<std::string>())
-                    : QString("GIFT_AMOUNT_MILESTONE");
-            const int points = it.contains("points") && it["points"].is_number_integer()
-                                   ? it["points"].get<int>()
-                                   : 0;
-            const int count = it.contains("count") && it["count"].is_number_integer() ? it["count"].get<int>()
-                                                                                      : 0;
-            const QString mediaId =
-                it.contains("mediaId") && it["mediaId"].is_string()
-                    ? QString::fromStdString(it["mediaId"].get<std::string>())
-                    : QString();
-            const bool repeatable =
-                it.contains("repeatable") && it["repeatable"].is_boolean() ? it["repeatable"].get<bool>()
-                                                                           : true;
-            const bool enabled =
-                it.contains("enabled") && it["enabled"].is_boolean() ? it["enabled"].get<bool>() : true;
-            const QString ruleName = it.contains("name") && it["name"].is_string()
-                                         ? QString::fromStdString(it["name"].get<std::string>())
-                                         : QString();
-            const bool isExistingRule =
-                savedConfig_.contains("rules") && findArrayItemById(savedConfig_["rules"], id) != nullptr;
-            const bool lockRuleDefinition = streamingActive_ && isExistingRule;
-            const QString ruleLockedTooltip = lockRuleDefinition
-                                                 ? obs_module_text("CustomizedCartoon.Error.RuleContentLockedStreaming")
-                                                 : QString();
-
-            auto* card = new QFrame(rulesListContainer_);
-            card->setObjectName("subPanel");
-            card->setToolTip(ruleLockedTooltip);
-            auto* cardLayout = new QVBoxLayout(card);
-            cardLayout->setContentsMargins(4, 4, 4, 4);
-            cardLayout->setSpacing(4);
-
-            auto* nameEdit = new QLineEdit(card);
-            nameEdit->setObjectName("ruleNameEdit");
-            nameEdit->setPlaceholderText(obs_module_text("CustomizedCartoon.Rules.ConditionName.Placeholder"));
-            nameEdit->setText(ruleName);
-            nameEdit->setFixedHeight(24);
-            nameEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-            nameEdit->setEnabled(!lockRuleDefinition);
-            nameEdit->setToolTip(ruleLockedTooltip);
-
-            auto* delButton = new QPushButton(card);
-            delButton->setIcon(trashIcon);
-            delButton->setIconSize(QSize(24, 24));
-            delButton->setFixedSize(32, 32);
-            delButton->setCursor(Qt::PointingHandCursor);
-            delButton->setStyleSheet("QPushButton { border: none; background: transparent; }");
-
-            auto* grid = new QGridLayout();
-            grid->setContentsMargins(0, 0, 0, 0);
-            grid->setHorizontalSpacing(4);
-            grid->setVerticalSpacing(4);
-            grid->setColumnStretch(1, 1);
-            const int ruleFieldLabelWidth = computeRuleFieldLabelWidth();
-            grid->setColumnMinimumWidth(0, ruleFieldLabelWidth);
-
-            auto makeLabel = [card, ruleFieldLabelWidth](const char* key) {
-                auto* l = new QLabel(obs_module_text(key), card);
-                l->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-                l->setWordWrap(true);
-                l->setFixedWidth(ruleFieldLabelWidth);
-                l->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
-                return l;
-            };
-
-            auto* typeCombo = new QComboBox(card);
-            typeCombo->addItem(obs_module_text("CustomizedCartoon.Rules.Type.LuckyBag"),
-                               "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE");
-            typeCombo->addItem(obs_module_text("CustomizedCartoon.Rules.Type.Gift"), "GIFT_AMOUNT_MILESTONE");
-            const int typeIndex =
-                engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE" ? 0 : 1;
-            typeCombo->setCurrentIndex(typeIndex);
-            typeCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-            typeCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-            typeCombo->setMinimumContentsLength(kRuleTypeComboChars);
-            typeCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
-            typeCombo->setEnabled(!lockRuleDefinition);
-            typeCombo->setToolTip(ruleLockedTooltip);
-
-            auto* ruleLabel = new QLabel(card);
-            ruleLabel->setWordWrap(true);
-            ruleLabel->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
-
-            auto* pointsSpin = new NoWheelSpinBox(card);
-            pointsSpin->setRange(1, 100000000);
-            pointsSpin->setValue(std::max(1, points));
-            pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
-            pointsSpin->setStyleSheet(
-                "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
-            pointsSpin->setToolTip(ruleLockedTooltip);
-            auto* countSpin = new NoWheelSpinBox(card);
-            countSpin->setRange(1, 1000000);
-            countSpin->setValue(std::max(1, count));
-            countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
-            countSpin->setStyleSheet(
-                "QSpinBox { font-size: 14px; color: #FFFFFF; padding: 4px 4px 4px 6px; }");
-            countSpin->setEnabled(!lockRuleDefinition);
-            countSpin->setToolTip(ruleLockedTooltip);
-
-            auto* mediaCombo = new QComboBox(card);
-            for (const auto& m : mediaOptions) {
-                mediaCombo->addItem(m.second, m.first);
-            }
-            const int mediaIndex = mediaCombo->findData(mediaId);
-            if (mediaIndex >= 0) {
-                mediaCombo->setCurrentIndex(mediaIndex);
-            }
-            mediaCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-            mediaCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-            mediaCombo->setMinimumContentsLength(kRuleMediaComboChars);
-            mediaCombo->setStyleSheet("QComboBox { font-size: 14px; color: #FFFFFF; }");
-            mediaCombo->setEnabled(!lockRuleDefinition);
-            mediaCombo->setToolTip(ruleLockedTooltip);
-
-            auto* repeatCheck = new QCheckBox(card);
-            repeatCheck->setChecked(repeatable);
-            repeatCheck->setText(obs_module_text("CustomizedCartoon.Rules.Field.Repeat"));
-            repeatCheck->setStyleSheet("QCheckBox { font-size: 14px; color: #FFFFFF; }");
-            repeatCheck->setEnabled(!lockRuleDefinition);
-            repeatCheck->setToolTip(ruleLockedTooltip);
-
-            auto* statusActive = new QRadioButton(obs_module_text("CustomizedCartoon.Rules.Status.Active"), card);
-            auto* statusInactive =
-                new QRadioButton(obs_module_text("CustomizedCartoon.Rules.Status.Inactive"), card);
-            statusActive->setChecked(enabled);
-            statusInactive->setChecked(!enabled);
-
-            auto* paramsRow = new QHBoxLayout();
-            paramsRow->setContentsMargins(0, 0, 0, 0);
-            paramsRow->setSpacing(kRuleParamRowSpacing);
-            paramsRow->addStretch(1);
-            const int ruleParamLabelWidth = computeRuleParamLabelWidth();
-            auto* paramXLabel = new QLabel(card);
-            paramXLabel->setFixedWidth(ruleParamLabelWidth);
-            paramXLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            paramXLabel->setStyleSheet(
-                "QLabel { font-size: 14px; color: #FFFFFF; padding: 0px; margin: 0px; }");
-            auto* paramYLabel = new QLabel(card);
-            paramYLabel->setFixedWidth(ruleParamLabelWidth);
-            paramYLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            paramYLabel->setStyleSheet(
-                "QLabel { font-size: 14px; color: #FFFFFF; padding: 0px; margin: 0px; }");
-            paramsRow->addWidget(paramXLabel);
-            paramsRow->addWidget(pointsSpin, 0);
-            paramsRow->addSpacing(kRuleParamGroupSpacing);
-            paramsRow->addWidget(paramYLabel);
-            paramsRow->addWidget(countSpin, 0);
-            auto* paramsWrap = new QWidget(card);
-            paramsWrap->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
-            paramsWrap->setLayout(paramsRow);
-
-            auto* statusLabel = new QLabel(obs_module_text("CustomizedCartoon.Rules.Field.Status"), card);
-            statusLabel->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
-
-            auto updateRuleUi = [ruleLabel, typeCombo, pointsSpin, countSpin, paramXLabel,
-                                 paramYLabel, ruleParamLabelWidth]() {
-                const QString t = typeCombo->currentData().toString();
-                if (t == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
-                    ruleLabel->setText(obs_module_text("CustomizedCartoon.Rules.Desc.LuckyBag"));
-                    paramXLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.LuckyBagX"));
-                    paramXLabel->setFixedWidth(ruleParamLabelWidth);
-                    countSpin->setFixedWidth(kRuleLuckyBagCountSpinWidth);
-                    pointsSpin->hide();
-                    paramYLabel->hide();
-                    countSpin->show();
-                } else {
-                    ruleLabel->setText(obs_module_text("CustomizedCartoon.Rules.Desc.Gift"));
-                    paramXLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.GiftX"));
-                    paramXLabel->setFixedWidth(ruleParamLabelWidth);
-                    pointsSpin->setFixedWidth(kRuleGiftAmountSpinWidth);
-                    pointsSpin->show();
-                    paramYLabel->setText(obs_module_text("CustomizedCartoon.Rules.Param.GiftY"));
-                    paramYLabel->setFixedWidth(ruleParamLabelWidth);
-                    paramYLabel->show();
-                    countSpin->setFixedWidth(kRuleGiftCountSpinWidth);
-                    countSpin->show();
-                }
-            };
-            updateRuleUi();
-
-            auto saveRule = [this, id, typeCombo, pointsSpin, countSpin, mediaCombo, repeatCheck,
-                             statusActive]() {
-                if (!draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
-                    return;
-                }
-                if (auto* rule = findArrayItemById(draftConfig_["rules"], id)) {
-                    const QString engageType = typeCombo->currentData().toString();
-                    const bool luckyBag = engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
-                    (*rule)["engageType"] = engageType.toStdString();
-                    (*rule)["points"] = luckyBag ? 0 : pointsSpin->value();
-                    (*rule)["count"] = countSpin->value();
-                    (*rule)["mediaId"] = mediaCombo->currentData().toString().toStdString();
-                    (*rule)["repeatable"] = repeatCheck->isChecked();
-                    (*rule)["enabled"] = statusActive->isChecked();
-                    draftDirty_ = draftConfig_ != savedConfig_;
-                    updateDraftUi();
-                }
-            };
-
-            auto saveRuleName = [this, id, nameEdit]() {
-                if (!nameEdit || !draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
-                    return;
-                }
-                if (auto* rule = findArrayItemById(draftConfig_["rules"], id)) {
-                    (*rule)["name"] = nameEdit->text().toStdString();
-                    draftDirty_ = draftConfig_ != savedConfig_;
-                    updateDraftUi();
-                }
-            };
-
-            connect(nameEdit, &QLineEdit::editingFinished, card, [saveRuleName]() { saveRuleName(); });
-
-            connect(typeCombo, &QComboBox::currentIndexChanged, card, [updateRuleUi, saveRule](int) {
-                updateRuleUi();
-                saveRule();
-            });
-            connect(pointsSpin, &QSpinBox::valueChanged, card, [saveRule](int) { saveRule(); });
-            connect(countSpin, &QSpinBox::valueChanged, card, [saveRule](int) { saveRule(); });
-            connect(mediaCombo, &QComboBox::currentIndexChanged, card, [saveRule](int) { saveRule(); });
-            connect(repeatCheck, &QCheckBox::toggled, card, [saveRule](bool) { saveRule(); });
-            connect(statusActive, &QRadioButton::toggled, card, [saveRule](bool checked) {
-                if (checked) {
-                    saveRule();
-                }
-            });
-            connect(statusInactive, &QRadioButton::toggled, card, [saveRule](bool checked) {
-                if (checked) {
-                    saveRule();
-                }
-            });
-
-            connect(delButton, &QPushButton::clicked, card, [this, id]() {
-                if (!draftConfig_.contains("rules") || !draftConfig_["rules"].is_array()) {
-                    return;
-                }
-                const json* targetRule = findArrayItemById(draftConfig_["rules"], id);
-                if (!targetRule) {
-                    return;
-                }
-                const auto confirmed = QMessageBox::question(
-                    this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                    buildRuleDeleteConfirmMessage(*targetRule), QMessageBox::Yes | QMessageBox::No,
-                    QMessageBox::No);
-                if (confirmed != QMessageBox::Yes) {
-                    return;
-                }
-                json newRules = json::array();
-                for (const auto& r : draftConfig_["rules"]) {
-                    if (!r.is_object() || !r.contains("id") || !r["id"].is_string()) {
-                        continue;
-                    }
-                    if (QString::fromStdString(r["id"].get<std::string>()) == id) {
-                        continue;
-                    }
-                    newRules.push_back(r);
-                }
-                draftConfig_["rules"] = std::move(newRules);
-                draftDirty_ = draftConfig_ != savedConfig_;
-                rebuildRulesUi();
-            });
-
-            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.ConditionName"), 0, 0);
-            auto* nameControls = new QHBoxLayout();
-            nameControls->setContentsMargins(0, 0, 0, 0);
-            nameControls->setSpacing(4);
-            nameControls->addWidget(nameEdit, 1);
-            nameControls->addWidget(delButton);
-            auto* nameWrap = new QWidget(card);
-            nameWrap->setLayout(nameControls);
-            grid->addWidget(nameWrap, 0, 1);
-
-            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Type"), 1, 0);
-            grid->addWidget(typeCombo, 1, 1);
-
-            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Rule"), 2, 0);
-            grid->addWidget(ruleLabel, 2, 1);
-
-            const bool isLuckyBag = typeCombo->currentData().toString() == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
-            pointsSpin->setEnabled(!lockRuleDefinition && !isLuckyBag);
-            if (isLuckyBag) pointsSpin->setValue(0);
-            connect(typeCombo, &QComboBox::currentIndexChanged, card,
-                    [pointsSpin, typeCombo, lockRuleDefinition](int) {
-                        const bool lb =
-                            typeCombo->currentData().toString() == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE";
-                        pointsSpin->setEnabled(!lockRuleDefinition && !lb);
-                        if (lb) pointsSpin->setValue(0);
-                    });
-
-            auto* paramSpacer = new QWidget(card);
-            paramSpacer->setFixedWidth(1);
-            grid->addWidget(paramSpacer, 3, 0);
-            grid->addWidget(paramsWrap, 3, 1, Qt::AlignLeft);
-
-            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Media"), 4, 0);
-            grid->addWidget(mediaCombo, 4, 1);
-
-            grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Repeat"), 5, 0);
-
-            auto* bottomControls = new QHBoxLayout();
-            bottomControls->setContentsMargins(0, 0, 0, 0);
-            bottomControls->setSpacing(6);
-            repeatCheck->setText(QString());
-            bottomControls->addWidget(repeatCheck);
-            bottomControls->addStretch(1);
-            bottomControls->addWidget(statusLabel);
-            bottomControls->addWidget(statusActive);
-            bottomControls->addWidget(statusInactive);
-            auto* bottomWrap = new QWidget(card);
-            bottomWrap->setLayout(bottomControls);
-            grid->addWidget(bottomWrap, 5, 1);
-
-            cardLayout->addLayout(grid);
-
-            rulesListLayout_->addWidget(card);
-            latestCard = card;
-            idx++;
+            newRules.push_back(rule);
         }
-    }
+        draftConfig_["rules"] = std::move(newRules);
+        draftDirty_ = draftConfig_ != savedConfig_;
+        rebuildRulesUi();
+    });
 
-    if (idx == 0) {
-        auto* emptyCard = new QFrame(rulesListContainer_);
-        emptyCard->setObjectName("subPanel");
-        auto* emptyLayout = new QVBoxLayout(emptyCard);
-        emptyLayout->setContentsMargins(16, 16, 16, 16);
-        emptyLayout->setSpacing(6);
+    auto* grid = new QGridLayout();
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setHorizontalSpacing(4);
+    grid->setVerticalSpacing(4);
+    grid->setColumnStretch(1, 1);
+    grid->setColumnMinimumWidth(0, ruleFieldLabelWidth);
 
-        auto* emptyTitle = new QLabel(obs_module_text("CustomizedCartoon.Rules.Empty.Title"), emptyCard);
-        emptyTitle->setObjectName("rulesEmptyTitle");
-        emptyTitle->setAlignment(Qt::AlignHCenter);
+    auto* nameControls = new QHBoxLayout();
+    nameControls->setContentsMargins(0, 0, 0, 0);
+    nameControls->setSpacing(4);
+    nameControls->addWidget(nameEdit, 1);
+    nameControls->addWidget(delButton);
+    auto* nameWrap = new QWidget(card);
+    nameWrap->setLayout(nameControls);
 
-        auto* emptyDesc = new QLabel(obs_module_text("CustomizedCartoon.Rules.Empty.Desc"), emptyCard);
-        emptyDesc->setObjectName("rulesEmptyDesc");
-        emptyDesc->setWordWrap(true);
-        emptyDesc->setAlignment(Qt::AlignHCenter);
+    auto* paramsRow = new QHBoxLayout();
+    paramsRow->setContentsMargins(0, 0, 0, 0);
+    paramsRow->setSpacing(kRuleParamRowSpacing);
+    paramsRow->addStretch(1);
+    paramsRow->addWidget(paramXLabel);
+    paramsRow->addWidget(pointsSpin, 0);
+    paramsRow->addSpacing(kRuleParamGroupSpacing);
+    paramsRow->addWidget(paramYLabel);
+    paramsRow->addWidget(countSpin, 0);
+    auto* paramsWrap = new QWidget(card);
+    paramsWrap->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    paramsWrap->setLayout(paramsRow);
 
-        emptyLayout->addWidget(emptyTitle);
-        emptyLayout->addWidget(emptyDesc);
+    auto* statusLabel = new QLabel(obs_module_text("CustomizedCartoon.Rules.Field.Status"), card);
+    statusLabel->setStyleSheet("QLabel { font-size: 12px; color: #FFFFFF; }");
 
-        rulesListLayout_->addWidget(emptyCard);
-    }
+    auto* bottomControls = new QHBoxLayout();
+    bottomControls->setContentsMargins(0, 0, 0, 0);
+    bottomControls->setSpacing(6);
+    bottomControls->addWidget(repeatCheck);
+    bottomControls->addStretch(1);
+    bottomControls->addWidget(statusLabel);
+    bottomControls->addWidget(statusActive);
+    bottomControls->addWidget(statusInactive);
+    auto* bottomWrap = new QWidget(card);
+    bottomWrap->setLayout(bottomControls);
+
+    auto* paramSpacer = new QWidget(card);
+    paramSpacer->setFixedWidth(1);
+    grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.ConditionName"), 0, 0);
+    grid->addWidget(nameWrap, 0, 1);
+    grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Type"), 1, 0);
+    grid->addWidget(typeCombo, 1, 1);
+    grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Rule"), 2, 0);
+    grid->addWidget(ruleLabel, 2, 1);
+    grid->addWidget(paramSpacer, 3, 0);
+    grid->addWidget(paramsWrap, 3, 1, Qt::AlignLeft);
+    grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Media"), 4, 0);
+    grid->addWidget(mediaCombo, 4, 1);
+    grid->addWidget(makeLabel("CustomizedCartoon.Rules.Field.Repeat"), 5, 0);
+    grid->addWidget(bottomWrap, 5, 1);
+
+    cardLayout->addLayout(grid);
+    return card;
+}
+
+void CustomizedCartoonDock::finalizeRulesListRefresh(int previousScrollValue, QWidget* latestCard) {
     rulesListContainer_->adjustSize();
     if (rulesListLayout_) {
         rulesListLayout_->activate();
@@ -2793,6 +2847,60 @@ void CustomizedCartoonDock::rebuildRulesUi() {
     }
     pendingScrollToLatestRule_ = false;
     updateDraftUi();
+}
+
+void CustomizedCartoonDock::rebuildRulesUi() {
+    if (!service_ || !rulesListLayout_ || !rulesListContainer_) {
+        return;
+    }
+
+    const int previousScrollValue = rulesScrollArea_ && rulesScrollArea_->verticalScrollBar()
+                                        ? rulesScrollArea_->verticalScrollBar()->value()
+                                        : 0;
+    if (rulesScrollArea_) {
+        rulesScrollArea_->setUpdatesEnabled(false);
+    }
+    rulesListContainer_->setUpdatesEnabled(false);
+    clearRulesListLayout();
+
+    const json cfg = draftConfig_;
+    const auto mediaOptions = buildRuleMediaOptions(cfg);
+    int ruleCount = 0;
+    QWidget* latestCard = nullptr;
+    if (cfg.contains("rules") && cfg["rules"].is_array()) {
+        for (const auto& rule : cfg["rules"]) {
+            if (QWidget* card = buildRuleCard(rule, mediaOptions)) {
+                rulesListLayout_->addWidget(card);
+                latestCard = card;
+                ruleCount++;
+            }
+        }
+    }
+
+    if (ruleCount == 0) {
+        auto* emptyCard = new QFrame(rulesListContainer_);
+        emptyCard->setObjectName("subPanel");
+        auto* emptyLayout = new QVBoxLayout(emptyCard);
+        emptyLayout->setContentsMargins(16, 16, 16, 16);
+        emptyLayout->setSpacing(6);
+
+        auto* emptyTitle =
+            new QLabel(obs_module_text("CustomizedCartoon.Rules.Empty.Title"), emptyCard);
+        emptyTitle->setObjectName("rulesEmptyTitle");
+        emptyTitle->setAlignment(Qt::AlignHCenter);
+
+        auto* emptyDesc =
+            new QLabel(obs_module_text("CustomizedCartoon.Rules.Empty.Desc"), emptyCard);
+        emptyDesc->setObjectName("rulesEmptyDesc");
+        emptyDesc->setWordWrap(true);
+        emptyDesc->setAlignment(Qt::AlignHCenter);
+
+        emptyLayout->addWidget(emptyTitle);
+        emptyLayout->addWidget(emptyDesc);
+
+        rulesListLayout_->addWidget(emptyCard);
+    }
+    finalizeRulesListRefresh(previousScrollValue, latestCard);
 }
 
 void CustomizedCartoonDock::refreshProgress() {
@@ -2833,16 +2941,14 @@ void CustomizedCartoonDock::onAddMedia() {
         toFilePatterns(CustomizedCartoonService::supportedVideoExtensions());
     const QStringList imagePatterns =
         toFilePatterns(CustomizedCartoonService::supportedImageExtensions());
-    const QString fileFilter =
-        QString("%1 (%2 %3);;%4 (%2);;%5 (%3)")
-            .arg(obs_module_text("CustomizedCartoon.Media.ChooseVideo"))
-            .arg(videoPatterns.join(' '))
-            .arg(imagePatterns.join(' '))
-            .arg("Video Files")
-            .arg("Image Files");
-    const QString path =
-        QFileDialog::getOpenFileName(this, obs_module_text("CustomizedCartoon.Media.ChooseVideo"),
-                                     QString(), fileFilter);
+    const QString fileFilter = QString("%1 (%2 %3);;%4 (%2);;%5 (%3)")
+                                   .arg(obs_module_text("CustomizedCartoon.Media.ChooseVideo"))
+                                   .arg(videoPatterns.join(' '))
+                                   .arg(imagePatterns.join(' '))
+                                   .arg("Video Files")
+                                   .arg("Image Files");
+    const QString path = QFileDialog::getOpenFileName(
+        this, obs_module_text("CustomizedCartoon.Media.ChooseVideo"), QString(), fileFilter);
     if (path.isEmpty()) {
         return;
     }
@@ -2924,7 +3030,8 @@ void CustomizedCartoonDock::onAddRule() {
     }
     if (defaultMediaId.isEmpty()) {
         QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                             obs_module_text("CustomizedCartoon.Rules.MissingMedia"), QMessageBox::Ok);
+                             obs_module_text("CustomizedCartoon.Rules.MissingMedia"),
+                             QMessageBox::Ok);
         return;
     }
 
@@ -2960,9 +3067,10 @@ void CustomizedCartoonDock::onPreview() {
         return;
     }
     if (isPreviewBlocked() || obs_frontend_streaming_active() || obs_frontend_recording_active()) {
-        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                                 obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
-                                 QMessageBox::Ok);
+        QMessageBox::information(
+            this, obs_module_text("CustomizedCartoon.Dock.Title"),
+            obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
+            QMessageBox::Ok);
         return;
     }
     service_->previewPlayAll(&draftConfig_);
@@ -2992,10 +3100,12 @@ void CustomizedCartoonDock::onOrientationChanged(int) {
 nlohmann::json CustomizedCartoonDock::buildCurrentPositionDraft(bool landscape) const {
     const char* key = landscape ? "landscape" : "portrait";
     const json positionCfg =
-        draftConfig_.contains("position") && draftConfig_["position"].is_object() ? draftConfig_["position"]
-                                                                                  : json::object();
-    nlohmann::json t = positionCfg.contains(key) && positionCfg[key].is_object() ? positionCfg[key]
-                                                                                  : nlohmann::json::object();
+        draftConfig_.contains("position") && draftConfig_["position"].is_object()
+            ? draftConfig_["position"]
+            : json::object();
+    nlohmann::json t = positionCfg.contains(key) && positionCfg[key].is_object()
+                           ? positionCfg[key]
+                           : nlohmann::json::object();
 
     const int canvasW = landscape ? 1280 : 720;
     const int canvasH = landscape ? 720 : 1280;
@@ -3004,22 +3114,26 @@ nlohmann::json CustomizedCartoonDock::buildCurrentPositionDraft(bool landscape) 
               widthSpin_ ? widthSpin_->value() : 500, heightSpin_ ? heightSpin_->value() : 500),
         canvasW, canvasH);
 
-    t["x"] = (double)normalized.x();
-    t["y"] = (double)normalized.y();
-    t["boundsType"] = (int)OBS_BOUNDS_STRETCH;
-    t["boundsAlignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    t["alignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    t["boundsW"] = (double)normalized.width();
-    t["boundsH"] = (double)normalized.height();
+    t["x"] = (double) normalized.x();
+    t["y"] = (double) normalized.y();
+    t["boundsType"] = (int) OBS_BOUNDS_STRETCH;
+    t["boundsAlignment"] = (uint32_t) (OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    t["alignment"] = (uint32_t) (OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    t["boundsW"] = (double) normalized.width();
+    t["boundsH"] = (double) normalized.height();
     t["cropToBounds"] = true;
-    if (!t.contains("scaleX")) t["scaleX"] = 1.0;
-    if (!t.contains("scaleY")) t["scaleY"] = 1.0;
-    if (!t.contains("rot")) t["rot"] = 0.0;
+    if (!t.contains("scaleX"))
+        t["scaleX"] = 1.0;
+    if (!t.contains("scaleY"))
+        t["scaleY"] = 1.0;
+    if (!t.contains("rot"))
+        t["rot"] = 0.0;
     return t;
 }
 
 void CustomizedCartoonDock::resetDraftFromService() {
-    savedConfig_ = service_ ? ensureObject(service_->getConfigSnapshot()) : nlohmann::json::object();
+    savedConfig_ =
+        service_ ? ensureObject(service_->getConfigSnapshot()) : nlohmann::json::object();
     draftConfig_ = savedConfig_;
     draftDirty_ = false;
     updateDraftUi();
@@ -3038,20 +3152,24 @@ void CustomizedCartoonDock::updatePositionDraft(bool landscape, const QRect& rec
         draftConfig_["position"] = nlohmann::json::object();
     }
 
-    nlohmann::json t = draftConfig_["position"].contains(key) && draftConfig_["position"][key].is_object()
-                           ? draftConfig_["position"][key]
-                           : nlohmann::json::object();
-    t["x"] = (double)normalized.x();
-    t["y"] = (double)normalized.y();
-    t["boundsType"] = (int)OBS_BOUNDS_STRETCH;
-    t["boundsAlignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    t["alignment"] = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    t["boundsW"] = (double)normalized.width();
-    t["boundsH"] = (double)normalized.height();
+    nlohmann::json t =
+        draftConfig_["position"].contains(key) && draftConfig_["position"][key].is_object()
+            ? draftConfig_["position"][key]
+            : nlohmann::json::object();
+    t["x"] = (double) normalized.x();
+    t["y"] = (double) normalized.y();
+    t["boundsType"] = (int) OBS_BOUNDS_STRETCH;
+    t["boundsAlignment"] = (uint32_t) (OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    t["alignment"] = (uint32_t) (OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+    t["boundsW"] = (double) normalized.width();
+    t["boundsH"] = (double) normalized.height();
     t["cropToBounds"] = true;
-    if (!t.contains("scaleX")) t["scaleX"] = 1.0;
-    if (!t.contains("scaleY")) t["scaleY"] = 1.0;
-    if (!t.contains("rot")) t["rot"] = 0.0;
+    if (!t.contains("scaleX"))
+        t["scaleX"] = 1.0;
+    if (!t.contains("scaleY"))
+        t["scaleY"] = 1.0;
+    if (!t.contains("rot"))
+        t["rot"] = 0.0;
 
     draftConfig_["position"][key] = std::move(t);
     draftDirty_ = draftConfig_ != savedConfig_;
@@ -3070,10 +3188,11 @@ bool CustomizedCartoonDock::saveDraft() {
     const QSignalBlocker blocker(service_);
     QString error;
     if (!service_->saveConfig(draftConfig_, &error)) {
-        QMessageBox::warning(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                             error.isEmpty() ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
-                                             : error,
-                             QMessageBox::Ok);
+        QMessageBox::warning(
+            this, obs_module_text("CustomizedCartoon.Dock.Title"),
+            error.isEmpty() ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
+                            : error,
+            QMessageBox::Ok);
         return false;
     }
 
@@ -3117,12 +3236,12 @@ bool CustomizedCartoonDock::confirmCloseWithUnsavedChanges() {
     confirmBox.setWindowTitle(obs_module_text("CustomizedCartoon.UnsavedChanges.Title"));
     confirmBox.setText(obs_module_text("CustomizedCartoon.UnsavedChanges.Message"));
 
-    auto* saveButton =
-        confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Save"), QMessageBox::AcceptRole);
-    auto* discardButton =
-        confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Discard"), QMessageBox::DestructiveRole);
-    auto* cancelButton =
-        confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Cancel"), QMessageBox::RejectRole);
+    auto* saveButton = confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Save"),
+                                            QMessageBox::AcceptRole);
+    auto* discardButton = confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Discard"),
+                                               QMessageBox::DestructiveRole);
+    auto* cancelButton = confirmBox.addButton(obs_module_text("CustomizedCartoon.Action.Cancel"),
+                                              QMessageBox::RejectRole);
     confirmBox.setDefaultButton(qobject_cast<QPushButton*>(saveButton));
     confirmBox.exec();
 
@@ -3154,7 +3273,8 @@ bool CustomizedCartoonDock::removeMediaFromDraft(const QString& mediaId) {
     }
 
     const QString draftOnlyPath =
-        findArrayItemById(savedConfig_.contains("media") ? savedConfig_["media"] : json::array(), mediaId)
+        findArrayItemById(savedConfig_.contains("media") ? savedConfig_["media"] : json::array(),
+                          mediaId)
             ? QString()
             : mediaPathForId(draftConfig_, mediaId);
 
@@ -3225,13 +3345,15 @@ void CustomizedCartoonDock::onReadPositionFromCanvas() {
     const bool landscape = positionTabWidget_ && positionTabWidget_->currentIndex() == 1;
     const int canvasW = landscape ? 1280 : 720;
     const int canvasH = landscape ? 720 : 1280;
-    const QRect rect((int)std::round(t.value("x", 200.0)), (int)std::round(t.value("y", 300.0)),
-                     (int)std::round(t.value("boundsW", 500.0)),
-                     (int)std::round(t.value("boundsH", 500.0)));
-    auto* currentCanvas = positionCanvas_ ? static_cast<PositionCanvasWidget*>(positionCanvas_) : nullptr;
-    applyPositionState(currentCanvas,
-                       PositionSizePanelWidgets{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_},
-                       rect, canvasW, canvasH);
+    const QRect rect((int) std::round(t.value("x", 200.0)), (int) std::round(t.value("y", 300.0)),
+                     (int) std::round(t.value("boundsW", 500.0)),
+                     (int) std::round(t.value("boundsH", 500.0)));
+    auto* currentCanvas =
+        positionCanvas_ ? static_cast<PositionCanvasWidget*>(positionCanvas_) : nullptr;
+    applyPositionState(
+        currentCanvas,
+        PositionSizePanelWidgets{nullptr, posXSpin_, posYSpin_, widthSpin_, heightSpin_}, rect,
+        canvasW, canvasH);
     updatePositionDraft(landscape, rect);
     syncPreviewDraftTransform();
 }
@@ -3247,9 +3369,10 @@ void CustomizedCartoonDock::onStartPositionPreview() {
         return;
     }
     if (isPreviewBlocked() || obs_frontend_streaming_active() || obs_frontend_recording_active()) {
-        QMessageBox::information(this, obs_module_text("CustomizedCartoon.Dock.Title"),
-                                 obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
-                                 QMessageBox::Ok);
+        QMessageBox::information(
+            this, obs_module_text("CustomizedCartoon.Dock.Title"),
+            obs_module_text("CustomizedCartoon.Media.PreviewDisabledBroadcasting"),
+            QMessageBox::Ok);
         return;
     }
     auto* item = mediaList_ ? mediaList_->currentItem() : nullptr;

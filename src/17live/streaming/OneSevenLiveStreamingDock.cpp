@@ -1,9 +1,9 @@
 #include "OneSevenLiveStreamingDock.hpp"
 
+#include <graphics/vec2.h>
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 #include <util/config-file.h>
-#include <graphics/vec2.h>
 
 #include <QAction>
 #include <QCoreApplication>
@@ -11,8 +11,8 @@
 #include <QEventLoop>
 #include <QFormLayout>
 #include <QGroupBox>
-#include <QIcon>
 #include <QHash>
+#include <QIcon>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPushButton>
@@ -48,25 +48,25 @@ namespace {
     constexpr uint32_t kLandscapeOutputWidth = 1280;
     constexpr uint32_t kLandscapeOutputHeight = 720;
     constexpr int kSuggestedVideoBitrateKbps = 2500;
-    constexpr const char* kConfigKeyAutoAdjustDontRemind = "ObsAutoAdjustDontRemind";
-    constexpr const char* kConfigKeyAutoAdjustSilentApply = "ObsAutoAdjustSilentApply";
+    constexpr const char *kConfigKeyAutoAdjustDontRemind = "ObsAutoAdjustDontRemind";
+    constexpr const char *kConfigKeyAutoAdjustSilentApply = "ObsAutoAdjustSilentApply";
 
     static void SyncPreviewDockLayoutToObsCanvas() {
         OneSevenLiveCoreManager::getInstance().syncPreviewDockLayoutToObsCanvas();
     }
 
-    static bool isAdvancedOutputMode(config_t* cfg) {
+    static bool isAdvancedOutputMode(config_t *cfg) {
         if (!cfg) {
             return false;
         }
-        const char* mode = config_get_string(cfg, "Output", "Mode");
+        const char *mode = config_get_string(cfg, "Output", "Mode");
         if (!mode) {
             return false;
         }
         return QString::fromUtf8(mode).compare("Advanced", Qt::CaseInsensitive) == 0;
     }
 
-    static int getCurrentVideoBitrateKbpsFromProfile(config_t* cfg) {
+    static int getCurrentVideoBitrateKbpsFromProfile(config_t *cfg) {
         if (!cfg) {
             return 0;
         }
@@ -80,7 +80,7 @@ namespace {
         return static_cast<int>(config_get_uint(cfg, "SimpleOutput", "VBitrate"));
     }
 
-    static bool isVideoOutputSource(obs_source_t* src) {
+    static bool isVideoOutputSource(obs_source_t *src) {
         if (!src) {
             return false;
         }
@@ -88,7 +88,7 @@ namespace {
         return (flags & OBS_SOURCE_VIDEO) != 0;
     }
 
-    static bool isSceneItemEligibleForAutoFit(obs_sceneitem_t* item) {
+    static bool isSceneItemEligibleForAutoFit(obs_sceneitem_t *item) {
         if (!item) {
             return false;
         }
@@ -116,12 +116,12 @@ namespace {
     }
 
     static int applyFitToAllSceneItemsToCanvas(uint32_t canvasW, uint32_t canvasH) {
-        obs_source_t* sceneSource = obs_frontend_get_current_scene();
+        obs_source_t *sceneSource = obs_frontend_get_current_scene();
         if (!sceneSource) {
             return 0;
         }
 
-        obs_scene_t* scene = obs_scene_from_source(sceneSource);
+        obs_scene_t *scene = obs_scene_from_source(sceneSource);
         if (!scene) {
             obs_source_release(sceneSource);
             return 0;
@@ -132,34 +132,38 @@ namespace {
             uint32_t canvasH = 0;
             int applied = 0;
         } ctx;
+
         ctx.canvasW = canvasW;
         ctx.canvasH = canvasH;
 
         obs_scene_enum_items(
             scene,
-            [](obs_scene_t*, obs_sceneitem_t* item, void* param) -> bool {
-                auto* ctx = static_cast<Ctx*>(param);
+            [](obs_scene_t *, obs_sceneitem_t *item, void *param) -> bool {
+                auto *ctx = static_cast<Ctx *>(param);
                 if (obs_sceneitem_is_group(item)) {
-                    obs_sceneitem_group_enum_items(item, [](obs_scene_t*, obs_sceneitem_t* child, void* p) -> bool {
-                        auto* ctx = static_cast<Ctx*>(p);
-                        if (!isSceneItemEligibleForAutoFit(child)) {
+                    obs_sceneitem_group_enum_items(
+                        item,
+                        [](obs_scene_t *, obs_sceneitem_t *child, void *p) -> bool {
+                            auto *ctx = static_cast<Ctx *>(p);
+                            if (!isSceneItemEligibleForAutoFit(child)) {
+                                return true;
+                            }
+
+                            obs_transform_info itemInfo;
+                            vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+                            vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+                            itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+                            itemInfo.rot = 0.0f;
+                            vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
+                            itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+                            itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+                            itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(child);
+                            obs_sceneitem_set_info2(child, &itemInfo);
+
+                            ctx->applied++;
                             return true;
-                        }
-
-                        obs_transform_info itemInfo;
-                        vec2_set(&itemInfo.pos, 0.0f, 0.0f);
-                        vec2_set(&itemInfo.scale, 1.0f, 1.0f);
-                        itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
-                        itemInfo.rot = 0.0f;
-                        vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
-                        itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
-                        itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
-                        itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(child);
-                        obs_sceneitem_set_info2(child, &itemInfo);
-
-                        ctx->applied++;
-                        return true;
-                    }, ctx);
+                        },
+                        ctx);
                     return true;
                 }
 
@@ -189,7 +193,7 @@ namespace {
 
     static bool applyObsProfileVideoSettings(uint32_t baseW, uint32_t baseH, uint32_t outW,
                                              uint32_t outH, int bitrateKbps) {
-        config_t* cfg = obs_frontend_get_profile_config();
+        config_t *cfg = obs_frontend_get_profile_config();
         if (!cfg) {
             return false;
         }
@@ -1653,6 +1657,46 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
     }
 }
 
+namespace {
+    struct ObsAutoAdjustTarget {
+        uint32_t baseW{0};
+        uint32_t baseH{0};
+        uint32_t outputW{0};
+        uint32_t outputH{0};
+    };
+
+    struct ObsAutoAdjustPreference {
+        bool dontRemind{false};
+        bool silentApply{false};
+    };
+
+    ObsAutoAdjustTarget buildObsAutoAdjustTarget(bool isLandscape) {
+        return isLandscape ? ObsAutoAdjustTarget{kLandscapeBaseWidth, kLandscapeBaseHeight,
+                                                 kLandscapeOutputWidth, kLandscapeOutputHeight}
+                           : ObsAutoAdjustTarget{kPortraitBaseWidth, kPortraitBaseHeight,
+                                                 kPortraitOutputWidth, kPortraitOutputHeight};
+    }
+
+    bool needsObsAutoAdjust(const obs_video_info &vinfo, bool isLandscape,
+                            const ObsAutoAdjustTarget &target) {
+        const bool currentBaseIsLandscape = vinfo.base_width > vinfo.base_height;
+        const bool currentBaseIsPortrait = vinfo.base_height > vinfo.base_width;
+        const bool outputMatches =
+            vinfo.output_width == target.outputW && vinfo.output_height == target.outputH;
+        const bool baseOrientationMatches =
+            isLandscape ? currentBaseIsLandscape : currentBaseIsPortrait;
+        return !(baseOrientationMatches && outputMatches);
+    }
+
+    ObsAutoAdjustPreference loadObsAutoAdjustPreference(OneSevenLiveConfigManager *configManager) {
+        if (!configManager) {
+            return {};
+        }
+        return {configManager->getBoolValue(kConfigKeyAutoAdjustDontRemind, false),
+                configManager->getBoolValue(kConfigKeyAutoAdjustSilentApply, false)};
+    }
+}  // namespace
+
 void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) {
     if (obsAutoAdjustPromptShown) {
         return;
@@ -1664,29 +1708,20 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
     }
 
     const bool isLandscape = landscapeStreamRadio->isChecked();
-    const uint32_t targetBaseW = isLandscape ? kLandscapeBaseWidth : kPortraitBaseWidth;
-    const uint32_t targetBaseH = isLandscape ? kLandscapeBaseHeight : kPortraitBaseHeight;
-    const uint32_t targetOutW = isLandscape ? kLandscapeOutputWidth : kPortraitOutputWidth;
-    const uint32_t targetOutH = isLandscape ? kLandscapeOutputHeight : kPortraitOutputHeight;
+    const auto target = buildObsAutoAdjustTarget(isLandscape);
 
     obs_video_info vinfo{};
     if (!obs_get_video_info(&vinfo)) {
         return;
     }
 
-    const bool currentBaseIsLandscape = vinfo.base_width > vinfo.base_height;
-    const bool currentBaseIsPortrait = vinfo.base_height > vinfo.base_width;
-    const bool outputMatches = vinfo.output_width == targetOutW && vinfo.output_height == targetOutH;
-    const bool baseOrientationMatches = isLandscape ? currentBaseIsLandscape : currentBaseIsPortrait;
-    const bool resolutionMismatch = !(baseOrientationMatches && outputMatches);
-    if (!resolutionMismatch) {
+    if (!needsObsAutoAdjust(vinfo, isLandscape, target)) {
         return;
     }
 
-    const auto applyCurrentSelection = [this, targetBaseW, targetBaseH, targetOutW,
-                                        targetOutH]() -> bool {
-        const bool ok = applyObsProfileVideoSettings(targetBaseW, targetBaseH, targetOutW,
-                                                     targetOutH, kSuggestedVideoBitrateKbps);
+    const auto applyCurrentSelection = [this, target]() -> bool {
+        const bool ok = applyObsProfileVideoSettings(target.baseW, target.baseH, target.outputW,
+                                                     target.outputH, kSuggestedVideoBitrateKbps);
         if (!ok) {
             OneSevenLiveObsAutoAdjustDialog::ShowError(
                 this, obs_module_text("Live.Settings.AutoAdjust.Error"));
@@ -1697,15 +1732,10 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
         return true;
     };
 
-    bool dontRemind = false;
-    bool silentApply = false;
-    if (configManager) {
-        dontRemind = configManager->getBoolValue(kConfigKeyAutoAdjustDontRemind, false);
-        silentApply = configManager->getBoolValue(kConfigKeyAutoAdjustSilentApply, false);
-    }
+    const auto preference = loadObsAutoAdjustPreference(configManager);
 
-    if (dontRemind) {
-        if (allowSilentApply && silentApply) {
+    if (preference.dontRemind) {
+        if (allowSilentApply && preference.silentApply) {
             applyCurrentSelection();
         }
         return;
@@ -1713,19 +1743,17 @@ void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) 
 
     const QString portraitName = obs_module_text("Live.Settings.Layout.Portrait");
     const QString landscapeName = obs_module_text("Live.Settings.Layout.Landscape");
-    const QString portraitRes =
-        QString("%1 x %2")
-            .arg(QString::number(kPortraitOutputWidth), QString::number(kPortraitOutputHeight));
-    const QString landscapeRes =
-        QString("%1 x %2")
-            .arg(QString::number(kLandscapeOutputWidth), QString::number(kLandscapeOutputHeight));
+    const QString portraitRes = QString("%1 x %2").arg(QString::number(kPortraitOutputWidth),
+                                                       QString::number(kPortraitOutputHeight));
+    const QString landscapeRes = QString("%1 x %2").arg(QString::number(kLandscapeOutputWidth),
+                                                        QString::number(kLandscapeOutputHeight));
     const QString confirmText = obs_module_text("Live.EventChange.Confirm.Confirm");
     const QString cancelText = obs_module_text("Live.EventChange.Confirm.Cancel");
 
-    const QString message = QString(obs_module_text("Live.Settings.AutoAdjust.Prompt"))
-                                .arg(portraitName, portraitRes, landscapeName, landscapeRes,
-                                     QString::number(kSuggestedVideoBitrateKbps), confirmText,
-                                     cancelText);
+    const QString message =
+        QString(obs_module_text("Live.Settings.AutoAdjust.Prompt"))
+            .arg(portraitName, portraitRes, landscapeName, landscapeRes,
+                 QString::number(kSuggestedVideoBitrateKbps), confirmText, cancelText);
 
     const auto result = OneSevenLiveObsAutoAdjustDialog::ShowPrompt(this, message, false);
     if (configManager) {
@@ -1858,10 +1886,10 @@ bool OneSevenLiveStreamingDock::ensureStreamingAudioEncoderForGroupCall() {
 
         QMessageBox msgBox(this);
         msgBox.setWindowTitle(obs_module_text("Live.Settings.AudioCodec.Title"));
-        msgBox.setText(QString(obs_module_text("Live.Settings.AudioCodec.GroupCall.Msg"))
-                           .arg(currentEncoderName.isEmpty() ? QStringLiteral("AAC")
-                                                            : currentEncoderName,
-                                QStringLiteral("FFmpeg Opus")));
+        msgBox.setText(
+            QString(obs_module_text("Live.Settings.AudioCodec.GroupCall.Msg"))
+                .arg(currentEncoderName.isEmpty() ? QStringLiteral("AAC") : currentEncoderName,
+                     QStringLiteral("FFmpeg Opus")));
         QPushButton *yesButton =
             msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
         msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
@@ -1888,10 +1916,10 @@ bool OneSevenLiveStreamingDock::ensureStreamingAudioEncoderForGroupCall() {
 
     QMessageBox msgBox(this);
     msgBox.setWindowTitle(obs_module_text("Live.Settings.AudioCodec.Title"));
-    msgBox.setText(QString(obs_module_text("Live.Settings.AudioCodec.NonGroupCall.Msg"))
-                       .arg(currentEncoderName.isEmpty() ? QStringLiteral("FFmpeg Opus")
-                                                        : currentEncoderName,
-                            QStringLiteral("AAC")));
+    msgBox.setText(
+        QString(obs_module_text("Live.Settings.AudioCodec.NonGroupCall.Msg"))
+            .arg(currentEncoderName.isEmpty() ? QStringLiteral("FFmpeg Opus") : currentEncoderName,
+                 QStringLiteral("AAC")));
     QPushButton *yesButton =
         msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
     msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);

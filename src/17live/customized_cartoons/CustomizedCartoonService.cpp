@@ -10,81 +10,82 @@
 #include <QMetaObject>
 #include <QPointer>
 #include <QUuid>
-
 #include <algorithm>
 #include <chrono>
 #include <future>
 
+#include "../../plugin-support.h"
 #include "../OneSevenLiveConfigManager.hpp"
 #include "../api/OneSevenLiveApiWrappers.hpp"
 #include "../streaming/OneSevenLiveStreamManager.hpp"
 #include "../utility/Common.hpp"
-#include "../../plugin-support.h"
 
 using json = nlohmann::json;
 
 namespace {
 
-constexpr const char* kCustomizedCartoonMediaSourceName = "17LiveCustomizedCartoonMedia";
-constexpr const char* kCustomizedCartoonImageSourceName = "17LiveCustomizedCartoonImage";
-constexpr uint32_t kPreviewLandscapeCanvasW = 1280;
-constexpr uint32_t kPreviewLandscapeCanvasH = 720;
-constexpr uint32_t kPreviewPortraitCanvasW = 720;
-constexpr uint32_t kPreviewPortraitCanvasH = 1280;
+    constexpr const char* kCustomizedCartoonMediaSourceName = "17LiveCustomizedCartoonMedia";
+    constexpr const char* kCustomizedCartoonImageSourceName = "17LiveCustomizedCartoonImage";
+    constexpr uint32_t kPreviewLandscapeCanvasW = 1280;
+    constexpr uint32_t kPreviewLandscapeCanvasH = 720;
+    constexpr uint32_t kPreviewPortraitCanvasW = 720;
+    constexpr uint32_t kPreviewPortraitCanvasH = 1280;
 
-static obs_transform_info DefaultOverlayTransform(bool landscape) {
-    const int canvasW = landscape ? (int)kPreviewLandscapeCanvasW : (int)kPreviewPortraitCanvasW;
-    const int canvasH = landscape ? (int)kPreviewLandscapeCanvasH : (int)kPreviewPortraitCanvasH;
-    const int minSize = 20;
-    const int normalizedWidth = std::clamp(500, minSize, canvasW);
-    const int normalizedHeight = std::clamp(500, minSize, canvasH);
-    const int maxX = std::max(0, canvasW - normalizedWidth);
-    const int maxY = std::max(0, canvasH - normalizedHeight);
-    const int normalizedX = std::clamp(200, 0, maxX);
-    const int normalizedY = std::clamp(300, 0, maxY);
+    static obs_transform_info DefaultOverlayTransform(bool landscape) {
+        const int canvasW =
+            landscape ? (int) kPreviewLandscapeCanvasW : (int) kPreviewPortraitCanvasW;
+        const int canvasH =
+            landscape ? (int) kPreviewLandscapeCanvasH : (int) kPreviewPortraitCanvasH;
+        const int minSize = 20;
+        const int normalizedWidth = std::clamp(500, minSize, canvasW);
+        const int normalizedHeight = std::clamp(500, minSize, canvasH);
+        const int maxX = std::max(0, canvasW - normalizedWidth);
+        const int maxY = std::max(0, canvasH - normalizedHeight);
+        const int normalizedX = std::clamp(200, 0, maxX);
+        const int normalizedY = std::clamp(300, 0, maxY);
 
-    obs_transform_info ti{};
-    ti.pos.x = (float)normalizedX;
-    ti.pos.y = (float)normalizedY;
-    ti.scale.x = 1.0f;
-    ti.scale.y = 1.0f;
-    ti.rot = 0.0f;
-    ti.alignment = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    ti.bounds_type = OBS_BOUNDS_STRETCH;
-    ti.bounds_alignment = (uint32_t)(OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
-    ti.bounds.x = (float)normalizedWidth;
-    ti.bounds.y = (float)normalizedHeight;
-    ti.crop_to_bounds = true;
-    return ti;
-}
-
-int defaultDisplaySecForType(const QString& type) {
-    return type == "video" ? 15 : 5;
-}
-
-std::string SafeSourceName(obs_source_t* source) {
-    if (!source) {
-        return "<null>";
+        obs_transform_info ti{};
+        ti.pos.x = (float) normalizedX;
+        ti.pos.y = (float) normalizedY;
+        ti.scale.x = 1.0f;
+        ti.scale.y = 1.0f;
+        ti.rot = 0.0f;
+        ti.alignment = (uint32_t) (OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+        ti.bounds_type = OBS_BOUNDS_STRETCH;
+        ti.bounds_alignment = (uint32_t) (OBS_ALIGN_LEFT | OBS_ALIGN_TOP);
+        ti.bounds.x = (float) normalizedWidth;
+        ti.bounds.y = (float) normalizedHeight;
+        ti.crop_to_bounds = true;
+        return ti;
     }
-    const char* name = obs_source_get_name(source);
-    if (!name || !*name) {
-        return "<unnamed>";
-    }
-    return name;
-}
 
-std::string SafeSceneName(obs_scene_t* scene) {
-    if (!scene) {
-        return "<null-scene>";
+    int defaultDisplaySecForType(const QString& type) {
+        return type == "video" ? 15 : 5;
     }
-    return SafeSourceName(obs_scene_get_source(scene));
-}
 
-const char* SourceTypeName(obs_source_t* source) {
-    if (!source) {
-        return "null";
+    std::string SafeSourceName(obs_source_t* source) {
+        if (!source) {
+            return "<null>";
+        }
+        const char* name = obs_source_get_name(source);
+        if (!name || !*name) {
+            return "<unnamed>";
+        }
+        return name;
     }
-    switch (obs_source_get_type(source)) {
+
+    std::string SafeSceneName(obs_scene_t* scene) {
+        if (!scene) {
+            return "<null-scene>";
+        }
+        return SafeSourceName(obs_scene_get_source(scene));
+    }
+
+    const char* SourceTypeName(obs_source_t* source) {
+        if (!source) {
+            return "null";
+        }
+        switch (obs_source_get_type(source)) {
         case OBS_SOURCE_TYPE_INPUT:
             return "input";
         case OBS_SOURCE_TYPE_FILTER:
@@ -95,70 +96,70 @@ const char* SourceTypeName(obs_source_t* source) {
             return "scene";
         default:
             return "unknown";
+        }
     }
-}
 
-std::string FormatSourceDebug(obs_source_t* source) {
-    if (!source) {
-        return "<null>";
+    std::string FormatSourceDebug(obs_source_t* source) {
+        if (!source) {
+            return "<null>";
+        }
+        const char* name = obs_source_get_name(source);
+        const char* id = obs_source_get_id(source);
+        return std::string(name ? name : "<unnamed>") + "{id=" + (id ? id : "<null>") +
+               ",type=" + SourceTypeName(source) +
+               ",ptr=" + std::to_string(reinterpret_cast<uintptr_t>(source)) + "}";
     }
-    const char* name = obs_source_get_name(source);
-    const char* id = obs_source_get_id(source);
-    return std::string(name ? name : "<unnamed>") + "{id=" + (id ? id : "<null>") +
-           ",type=" + SourceTypeName(source) + ",ptr=" +
-           std::to_string(reinterpret_cast<uintptr_t>(source)) + "}";
-}
 
-bool CurrentOBSCanvasLandscape() {
-    obs_video_info ovi{};
-    if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
-        return ovi.base_width >= ovi.base_height;
+    bool CurrentOBSCanvasLandscape() {
+        obs_video_info ovi{};
+        if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
+            return ovi.base_width >= ovi.base_height;
+        }
+        return true;
     }
-    return true;
-}
 
-obs_scene_t* ResolveTrackedScene(obs_source_t* sceneSource) {
-    if (!sceneSource || obs_source_get_type(sceneSource) != OBS_SOURCE_TYPE_SCENE) {
-        return nullptr;
+    obs_scene_t* ResolveTrackedScene(obs_source_t* sceneSource) {
+        if (!sceneSource || obs_source_get_type(sceneSource) != OBS_SOURCE_TYPE_SCENE) {
+            return nullptr;
+        }
+        return obs_scene_from_source(sceneSource);
     }
-    return obs_scene_from_source(sceneSource);
-}
 
-obs_sceneitem_t* FindSceneItem(obs_source_t* sceneSource, const char* sourceName) {
-    if (!sourceName || !*sourceName) {
-        return nullptr;
+    obs_sceneitem_t* FindSceneItem(obs_source_t* sceneSource, const char* sourceName) {
+        if (!sourceName || !*sourceName) {
+            return nullptr;
+        }
+        obs_scene_t* scene = ResolveTrackedScene(sceneSource);
+        if (!scene) {
+            return nullptr;
+        }
+        return obs_scene_find_source(scene, sourceName);
     }
-    obs_scene_t* scene = ResolveTrackedScene(sceneSource);
-    if (!scene) {
-        return nullptr;
-    }
-    return obs_scene_find_source(scene, sourceName);
-}
 
-obs_sceneitem_t* FindSceneItem(obs_source_t* sceneSource, obs_source_t* source) {
-    if (!source) {
-        return nullptr;
+    obs_sceneitem_t* FindSceneItem(obs_source_t* sceneSource, obs_source_t* source) {
+        if (!source) {
+            return nullptr;
+        }
+        const char* sourceName = obs_source_get_name(source);
+        if (!sourceName || !*sourceName) {
+            return nullptr;
+        }
+        return FindSceneItem(sceneSource, sourceName);
     }
-    const char* sourceName = obs_source_get_name(source);
-    if (!sourceName || !*sourceName) {
-        return nullptr;
-    }
-    return FindSceneItem(sceneSource, sourceName);
-}
 
-void RemoveSceneItem(obs_source_t* sceneSource, const char* sourceName) {
-    obs_sceneitem_t* item = FindSceneItem(sceneSource, sourceName);
-    if (item) {
-        obs_sceneitem_remove(item);
+    void RemoveSceneItem(obs_source_t* sceneSource, const char* sourceName) {
+        obs_sceneitem_t* item = FindSceneItem(sceneSource, sourceName);
+        if (item) {
+            obs_sceneitem_remove(item);
+        }
     }
-}
 
-void RemoveSceneItem(obs_source_t* sceneSource, obs_source_t* source) {
-    obs_sceneitem_t* item = FindSceneItem(sceneSource, source);
-    if (item) {
-        obs_sceneitem_remove(item);
+    void RemoveSceneItem(obs_source_t* sceneSource, obs_source_t* source) {
+        obs_sceneitem_t* item = FindSceneItem(sceneSource, source);
+        if (item) {
+            obs_sceneitem_remove(item);
+        }
     }
-}
 
 }  // namespace
 
@@ -170,7 +171,9 @@ QStringList CustomizedCartoonService::supportedImageExtensions() {
     return {"png", "jpg", "jpeg", "gif", "bmp"};
 }
 
-qint64 CustomizedCartoonService::maxMediaFileSizeBytes() { return 200LL * 1024LL * 1024LL; }
+qint64 CustomizedCartoonService::maxMediaFileSizeBytes() {
+    return 200LL * 1024LL * 1024LL;
+}
 
 CustomizedCartoonService::CustomizedCartoonService(QMainWindow* mainWindow,
                                                    OneSevenLiveApiWrappers* apiWrapper,
@@ -225,7 +228,8 @@ void CustomizedCartoonService::videoResetCallback(void* data, calldata_t*) {
     if (!self) {
         return;
     }
-    QMetaObject::invokeMethod(self, &CustomizedCartoonService::handleVideoReset, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(self, &CustomizedCartoonService::handleVideoReset,
+                              Qt::QueuedConnection);
 }
 
 void CustomizedCartoonService::frontendEventCallback(enum obs_frontend_event event, void* data) {
@@ -265,14 +269,14 @@ void CustomizedCartoonService::handleFrontendEvent(enum obs_frontend_event event
     const bool studioModeChanged = (event == OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED ||
                                     event == OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED);
     switch (event) {
-        case OBS_FRONTEND_EVENT_SCENE_CHANGED:
-        case OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
-        case OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED:
-        case OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED:
-        case OBS_FRONTEND_EVENT_TRANSITION_STOPPED:
-            break;
-        default:
-            return;
+    case OBS_FRONTEND_EVENT_SCENE_CHANGED:
+    case OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
+    case OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED:
+    case OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED:
+    case OBS_FRONTEND_EVENT_TRANSITION_STOPPED:
+        break;
+    default:
+        return;
     }
 
     if (!shouldKeepOverlaySources()) {
@@ -449,7 +453,8 @@ bool CustomizedCartoonService::prepareMediaDraftEntry(const QString& filePath, j
             obs_data_set_bool(settings.get(), "close_when_inactive", true);
             obs_data_set_string(settings.get(), "local_file", pathStd.c_str());
 
-            obs_source_t* probe = obs_source_create("ffmpeg_source", probeName.c_str(), settings.get(), nullptr);
+            obs_source_t* probe =
+                obs_source_create("ffmpeg_source", probeName.c_str(), settings.get(), nullptr);
             if (probe) {
                 obs_source_media_restart(probe);
                 for (int i = 0; i < 40; i++) {
@@ -547,10 +552,12 @@ bool CustomizedCartoonService::deleteMedia(const QString& mediaId, QString& outE
 
     cfg["media"] = std::move(newMedia);
     if (cfg.contains("rules") && cfg["rules"].is_array()) {
-        for (auto& r : cfg["rules"]) {
-            if (r.is_object() && r.contains("mediaId") && r["mediaId"].is_string() &&
-                QString::fromStdString(r["mediaId"].get<std::string>()) == mediaId) {
-                r["mediaId"] = "";
+        for (auto& rule : cfg["rules"]) {
+            if (!rule.is_object() || !rule.contains("mediaId") || !rule["mediaId"].is_string()) {
+                continue;
+            }
+            if (QString::fromStdString(rule["mediaId"].get<std::string>()) == mediaId) {
+                rule["mediaId"] = "";
             }
         }
     }
@@ -681,8 +688,8 @@ void CustomizedCartoonService::onStreamStatusChanged(OneSevenLiveStreamingStatus
         onPollTimer();
     } else if (status == OneSevenLiveStreamingStatus::NotStarted) {
         // obs_log(LOG_INFO,
-        //         "[CustomizedCartoon][RuleFlow] streaming stopped clear engagements mappedRules=%zu",
-        //         ruleToEngageID_.size());
+        //         "[CustomizedCartoon][RuleFlow] streaming stopped clear engagements
+        //         mappedRules=%zu", ruleToEngageID_.size());
         pollTimer_.stop();
         stopEngagements();
         stopPlayback();
@@ -756,12 +763,14 @@ void CustomizedCartoonService::startEngagementsIfNeeded() {
                     return;
                 }
                 if (!ok) {
-                    obs_log(LOG_WARNING,
-                            "[CustomizedCartoon][RuleFlow] create engagements failed liveStreamID=%s "
-                            "error=%s",
-                            self->liveStreamID_.toStdString().c_str(),
-                            self->apiWrapper_ ? self->apiWrapper_->getLastErrorMessage().toStdString().c_str()
-                                              : "<no-api>");
+                    obs_log(
+                        LOG_WARNING,
+                        "[CustomizedCartoon][RuleFlow] create engagements failed liveStreamID=%s "
+                        "error=%s",
+                        self->liveStreamID_.toStdString().c_str(),
+                        self->apiWrapper_
+                            ? self->apiWrapper_->getLastErrorMessage().toStdString().c_str()
+                            : "<no-api>");
                     return;
                 }
                 // obs_log(LOG_INFO,
@@ -770,16 +779,18 @@ void CustomizedCartoonService::startEngagementsIfNeeded() {
                 for (const auto& r : results) {
                     if (r.index < 0 || r.index >= static_cast<int>(ruleIds.size())) {
                         obs_log(LOG_WARNING,
-                                "[CustomizedCartoon][RuleFlow] create result index out of range index=%d "
+                                "[CustomizedCartoon][RuleFlow] create result index out of range "
+                                "index=%d "
                                 "ruleCount=%zu engageID=%s",
                                 r.index, ruleIds.size(), r.engageID.toStdString().c_str());
                         continue;
                     }
                     if (r.engageID.isEmpty()) {
-                        obs_log(LOG_WARNING,
-                                "[CustomizedCartoon][RuleFlow] create result missing engageID index=%d "
-                                "ruleId=%s",
-                                r.index, ruleIds[r.index].toStdString().c_str());
+                        obs_log(
+                            LOG_WARNING,
+                            "[CustomizedCartoon][RuleFlow] create result missing engageID index=%d "
+                            "ruleId=%s",
+                            r.index, ruleIds[r.index].toStdString().c_str());
                         continue;
                     }
                     // obs_log(LOG_INFO,
@@ -794,7 +805,8 @@ void CustomizedCartoonService::startEngagementsIfNeeded() {
     });
 }
 
-bool CustomizedCartoonService::isRuleDefinitionChanged(const RuleItem& current, const RuleItem& next) {
+bool CustomizedCartoonService::isRuleDefinitionChanged(const RuleItem& current,
+                                                       const RuleItem& next) {
     return current.name != next.name || current.mediaId != next.mediaId ||
            current.engageType != next.engageType || current.points != next.points ||
            current.count != next.count || current.repeatable != next.repeatable;
@@ -851,7 +863,8 @@ bool CustomizedCartoonService::buildLiveRuleSyncPlan(const std::vector<RuleItem>
     return true;
 }
 
-bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& plan, QString& outError) {
+bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& plan,
+                                                       QString& outError) {
     outError.clear();
     if (!apiWrapper_ || liveStreamID_.isEmpty()) {
         return true;
@@ -862,158 +875,156 @@ bool CustomizedCartoonService::executeLiveRuleSyncPlan(const LiveRuleSyncPlan& p
     //         plan.ruleIdsToDelete.size(), plan.rulesToCreate.size(),
     //         liveStreamID_.toStdString().c_str());
 
-    if (!plan.ruleIdsToDelete.empty()) {
-        std::vector<std::string> engageIDs;
-        std::vector<QString> deletedRuleIds;
-        engageIDs.reserve(plan.ruleIdsToDelete.size());
-        deletedRuleIds.reserve(plan.ruleIdsToDelete.size());
-
-        for (const auto& ruleId : plan.ruleIdsToDelete) {
-            const auto it = ruleToEngageID_.find(ruleId);
-            if (it == ruleToEngageID_.end() || it->second.isEmpty()) {
-                continue;
-            }
-            engageIDs.push_back(it->second.toStdString());
-            deletedRuleIds.push_back(ruleId);
-        }
-
-        if (!engageIDs.empty()) {
-            // obs_log(LOG_INFO,
-            //         "[CustomizedCartoon][RuleFlow] delete engagements request count=%zu "
-            //         "firstRuleId=%s",
-            //         engageIDs.size(), deletedRuleIds.front().toStdString().c_str());
-            struct DeleteResult {
-                bool ok{false};
-                QString error;
-            };
-
-            auto promise = std::make_shared<std::promise<DeleteResult>>();
-            auto future = promise->get_future();
-            const std::string liveStreamID = liveStreamID_.toStdString();
-            QPointer<CustomizedCartoonService> self = this;
-
-            ScheduleOBSTask([self, liveStreamID, engageIDs = std::move(engageIDs), promise]() mutable {
-                DeleteResult result;
-                if (!self || !self->apiWrapper_) {
-                    result.error = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
-                    promise->set_value(std::move(result));
-                    return;
-                }
-
-                result.ok = self->apiWrapper_->DeleteLiveEngagements(liveStreamID, engageIDs);
-                if (!result.ok) {
-                    result.error = self->apiWrapper_->getLastErrorMessage();
-                }
-                promise->set_value(std::move(result));
-            });
-
-            if (future.wait_for(std::chrono::seconds(15)) != std::future_status::ready) {
-                outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
-                return false;
-            }
-
-            const DeleteResult result = future.get();
-            if (!result.ok) {
-                outError = result.error.isEmpty()
-                               ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
-                               : result.error;
-                return false;
-            }
-            // obs_log(LOG_INFO,
-            //         "[CustomizedCartoon][RuleFlow] delete engagements success count=%zu",
-            //         deletedRuleIds.size());
-
-            for (const auto& ruleId : deletedRuleIds) {
-                const auto engageIt = ruleToEngageID_.find(ruleId);
-                if (engageIt != ruleToEngageID_.end()) {
-                    engageProgress_.erase(engageIt->second);
-                    ruleToEngageID_.erase(engageIt);
-                }
-            }
-        }
+    if (!plan.ruleIdsToDelete.empty() &&
+        !deleteLiveEngagementsForRules(plan.ruleIdsToDelete, outError)) {
+        return false;
     }
 
-    if (!plan.rulesToCreate.empty()) {
-        std::vector<OneSevenLiveEngagementCreate> creates;
-        std::vector<QString> ruleIds;
-        creates.reserve(plan.rulesToCreate.size());
-        ruleIds.reserve(plan.rulesToCreate.size());
+    if (!plan.rulesToCreate.empty() &&
+        !createLiveEngagementsForRules(plan.rulesToCreate, outError)) {
+        return false;
+    }
 
-        for (const auto& rule : plan.rulesToCreate) {
-            OneSevenLiveEngagementCreate create;
-            if (rule.engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
-                create.engageType = OneSevenLiveEngagementType::GiftLuckybagFirstPrizeMilestone;
-                create.payload = json{{"count", rule.count}};
-            } else {
-                create.engageType = OneSevenLiveEngagementType::GiftAmountMilestone;
-                create.payload = json{{"points", rule.points}, {"count", rule.count}};
-            }
-            create.isRepeatable = rule.repeatable;
-            // obs_log(LOG_INFO,
-            //         "[CustomizedCartoon][RuleFlow] sync create ruleId=%s type=%s payload=%s "
-            //         "repeatable=%s",
-            //         rule.id.toStdString().c_str(), rule.engageType.toStdString().c_str(),
-            //         create.payload.dump().c_str(), BoolText(rule.repeatable));
-            creates.push_back(std::move(create));
-            ruleIds.push_back(rule.id);
+    return true;
+}
+
+bool CustomizedCartoonService::deleteLiveEngagementsForRules(const std::vector<QString>& ruleIds,
+                                                             QString& outError) {
+    outError.clear();
+
+    std::vector<std::string> engageIDs;
+    std::vector<QString> deletedRuleIds;
+    engageIDs.reserve(ruleIds.size());
+    deletedRuleIds.reserve(ruleIds.size());
+    for (const auto& ruleId : ruleIds) {
+        const auto it = ruleToEngageID_.find(ruleId);
+        if (it == ruleToEngageID_.end() || it->second.isEmpty()) {
+            continue;
         }
+        engageIDs.push_back(it->second.toStdString());
+        deletedRuleIds.push_back(ruleId);
+    }
+    if (engageIDs.empty()) {
+        return true;
+    }
 
-        struct CreateResult {
-            bool ok{false};
-            QString error;
-            std::vector<OneSevenLiveEngagementCreateResult> results;
-        };
+    struct DeleteResult {
+        bool ok{false};
+        QString error;
+    };
 
-        auto promise = std::make_shared<std::promise<CreateResult>>();
-        auto future = promise->get_future();
-        const std::string liveStreamID = liveStreamID_.toStdString();
-        QPointer<CustomizedCartoonService> self = this;
-
-        ScheduleOBSTask([self, liveStreamID, creates = std::move(creates), promise]() mutable {
-            CreateResult result;
-            if (!self || !self->apiWrapper_) {
-                result.error = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
-                promise->set_value(std::move(result));
-                return;
-            }
-
-            result.ok = self->apiWrapper_->CreateLiveEngagements(liveStreamID, creates, result.results);
-            if (!result.ok) {
-                result.error = self->apiWrapper_->getLastErrorMessage();
-            }
+    auto promise = std::make_shared<std::promise<DeleteResult>>();
+    auto future = promise->get_future();
+    const std::string liveStreamID = liveStreamID_.toStdString();
+    QPointer<CustomizedCartoonService> self = this;
+    ScheduleOBSTask([self, liveStreamID, engageIDs = std::move(engageIDs), promise]() mutable {
+        DeleteResult result;
+        if (!self || !self->apiWrapper_) {
+            result.error = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
             promise->set_value(std::move(result));
-        });
-
-        if (future.wait_for(std::chrono::seconds(15)) != std::future_status::ready) {
-            outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
-            return false;
+            return;
         }
-
-        CreateResult result = future.get();
+        result.ok = self->apiWrapper_->DeleteLiveEngagements(liveStreamID, engageIDs);
         if (!result.ok) {
-            outError = result.error.isEmpty()
-                           ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
-                           : result.error;
-            return false;
+            result.error = self->apiWrapper_->getLastErrorMessage();
         }
-        // obs_log(LOG_INFO, "[CustomizedCartoon][RuleFlow] sync create success results=%zu",
-        //         result.results.size());
+        promise->set_value(std::move(result));
+    });
 
-        for (const auto& item : result.results) {
-            if (item.index < 0 || item.index >= static_cast<int>(ruleIds.size()) || item.engageID.isEmpty()) {
-                obs_log(LOG_WARNING,
-                        "[CustomizedCartoon][RuleFlow] sync create invalid result index=%d ruleCount=%zu "
-                        "engageID=%s",
-                        item.index, ruleIds.size(), item.engageID.toStdString().c_str());
-                continue;
-            }
-            // obs_log(LOG_INFO, "[CustomizedCartoon][RuleFlow] sync map ruleId=%s engageID=%s",
-            //         ruleIds[item.index].toStdString().c_str(),
-            //         item.engageID.toStdString().c_str());
-            ruleToEngageID_[ruleIds[item.index]] = item.engageID;
-        }
+    if (future.wait_for(std::chrono::seconds(15)) != std::future_status::ready) {
+        outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+        return false;
     }
 
+    const DeleteResult result = future.get();
+    if (!result.ok) {
+        outError = result.error.isEmpty()
+                       ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
+                       : result.error;
+        return false;
+    }
+
+    for (const auto& ruleId : deletedRuleIds) {
+        const auto engageIt = ruleToEngageID_.find(ruleId);
+        if (engageIt != ruleToEngageID_.end()) {
+            engageProgress_.erase(engageIt->second);
+            ruleToEngageID_.erase(engageIt);
+        }
+    }
+    return true;
+}
+
+bool CustomizedCartoonService::createLiveEngagementsForRules(const std::vector<RuleItem>& rules,
+                                                             QString& outError) {
+    outError.clear();
+
+    std::vector<OneSevenLiveEngagementCreate> creates;
+    std::vector<QString> ruleIds;
+    creates.reserve(rules.size());
+    ruleIds.reserve(rules.size());
+    for (const auto& rule : rules) {
+        OneSevenLiveEngagementCreate create;
+        if (rule.engageType == "GIFT_LUCKYBAG_FIRST_PRIZE_MILESTONE") {
+            create.engageType = OneSevenLiveEngagementType::GiftLuckybagFirstPrizeMilestone;
+            create.payload = json{{"count", rule.count}};
+        } else {
+            create.engageType = OneSevenLiveEngagementType::GiftAmountMilestone;
+            create.payload = json{{"points", rule.points}, {"count", rule.count}};
+        }
+        create.isRepeatable = rule.repeatable;
+        creates.push_back(std::move(create));
+        ruleIds.push_back(rule.id);
+    }
+
+    struct CreateResult {
+        bool ok{false};
+        QString error;
+        std::vector<OneSevenLiveEngagementCreateResult> results;
+    };
+
+    auto promise = std::make_shared<std::promise<CreateResult>>();
+    auto future = promise->get_future();
+    const std::string liveStreamID = liveStreamID_.toStdString();
+    QPointer<CustomizedCartoonService> self = this;
+    ScheduleOBSTask([self, liveStreamID, creates = std::move(creates), promise]() mutable {
+        CreateResult result;
+        if (!self || !self->apiWrapper_) {
+            result.error = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+            promise->set_value(std::move(result));
+            return;
+        }
+        result.ok = self->apiWrapper_->CreateLiveEngagements(liveStreamID, creates, result.results);
+        if (!result.ok) {
+            result.error = self->apiWrapper_->getLastErrorMessage();
+        }
+        promise->set_value(std::move(result));
+    });
+
+    if (future.wait_for(std::chrono::seconds(15)) != std::future_status::ready) {
+        outError = obs_module_text("CustomizedCartoon.Error.SaveConfigFailed");
+        return false;
+    }
+
+    CreateResult result = future.get();
+    if (!result.ok) {
+        outError = result.error.isEmpty()
+                       ? QString(obs_module_text("CustomizedCartoon.Error.SaveConfigFailed"))
+                       : result.error;
+        return false;
+    }
+
+    for (const auto& item : result.results) {
+        if (item.index < 0 || item.index >= static_cast<int>(ruleIds.size()) ||
+            item.engageID.isEmpty()) {
+            obs_log(
+                LOG_WARNING,
+                "[CustomizedCartoon][RuleFlow] sync create invalid result index=%d ruleCount=%zu "
+                "engageID=%s",
+                item.index, ruleIds.size(), item.engageID.toStdString().c_str());
+            continue;
+        }
+        ruleToEngageID_[ruleIds[item.index]] = item.engageID;
+    }
     return true;
 }
 
@@ -1081,98 +1092,70 @@ void CustomizedCartoonService::pollProgressAsync() {
                 }
                 if (!ok) {
                     obs_log(LOG_WARNING,
-                            "[CustomizedCartoon][RuleFlow] poll progress failed liveStreamID=%s error=%s",
+                            "[CustomizedCartoon][RuleFlow] poll progress failed liveStreamID=%s "
+                            "error=%s",
                             self->liveStreamID_.toStdString().c_str(),
-                            self->apiWrapper_ ? self->apiWrapper_->getLastErrorMessage().toStdString().c_str()
-                                              : "<no-api>");
+                            self->apiWrapper_
+                                ? self->apiWrapper_->getLastErrorMessage().toStdString().c_str()
+                                : "<no-api>");
                     return;
                 }
-                // obs_log(LOG_INFO,
-                //         "[CustomizedCartoon][RuleFlow] poll progress success items=%zu",
-                //         progress.size());
-
-                std::map<QString, QString> engageToRule;
-                for (const auto& it : ruleToEngage) {
-                    engageToRule[it.second] = it.first;
-                }
-
-                for (const auto& p : progress) {
-                    if (p.engageID.isEmpty()) {
-                        continue;
-                    }
-                    const auto mappingIt = engageToRule.find(p.engageID);
-                    const QString ruleId =
-                        mappingIt != engageToRule.end() ? mappingIt->second : QString();
-                    RuleItem* rule = !ruleId.isEmpty() ? self->findRuleById(ruleId) : nullptr;
-                    auto& state = self->engageProgress_[p.engageID];
-                    const bool nowAtOrAboveTarget = p.target > 0 ? (p.current >= p.target) : false;
-                    const int currentCompletedRound =
-                        nowAtOrAboveTarget ? p.round : (p.round - 1);
-                    const int pendingTriggerCount =
-                        std::max(0, currentCompletedRound - state.lastTriggeredCompletionRound);
-
-                    state.current = p.current;
-                    state.target = p.target;
-                    state.round = p.round;
-
-                    const bool completedNow = pendingTriggerCount > 0;
-                    // obs_log(
-                    //     LOG_INFO,
-                    //     "[CustomizedCartoon][RuleFlow] progress engageID=%s ruleId=%s type=%s "
-                    //     "points=%d count=%d repeatable=%s mediaId=%s prev=(%d/%d,r%d) "
-                    //     "now=(%d/%d,r%d) firstReached=%s roundIncreased=%s "
-                    //     "prevCompletedRound=%d currentCompletedRound=%d "
-                    //     "pendingTriggerCount=%d completedNow=%s "
-                    //     "lastTriggeredCompletionRound=%d",
-                    //     p.engageID.toStdString().c_str(), ruleId.toStdString().c_str(),
-                    //     rule ? rule->engageType.toStdString().c_str() : "<missing-rule>",
-                    //     rule ? rule->points : -1, rule ? rule->count : -1,
-                    //     rule ? BoolText(rule->repeatable) : "false",
-                    //     rule ? rule->mediaId.toStdString().c_str() : "<missing-media>",
-                    //     state.current, state.target, state.round, p.current, p.target, p.round,
-                    //     BoolText((state.target > 0 ? (state.current < state.target) : true) &&
-                    //              nowAtOrAboveTarget),
-                    //     "false",
-                    //     -1, currentCompletedRound, pendingTriggerCount,
-                    //     BoolText(completedNow), state.lastTriggeredCompletionRound);
-                    if (!completedNow) {
-                        continue;
-                    }
-
-                    if (mappingIt == engageToRule.end()) {
-                        obs_log(LOG_WARNING,
-                                "[CustomizedCartoon][RuleFlow] missing engage mapping engageID=%s",
-                                p.engageID.toStdString().c_str());
-                        state.lastTriggeredCompletionRound = currentCompletedRound;
-                        continue;
-                    }
-
-                    if (!rule || !rule->enabled) {
-                        obs_log(LOG_WARNING,
-                                "[CustomizedCartoon][RuleFlow] skip trigger because rule missing "
-                                "or disabled ruleId=%s engageID=%s pendingTriggerCount=%d",
-                                ruleId.toStdString().c_str(), p.engageID.toStdString().c_str(),
-                                pendingTriggerCount);
-                        state.lastTriggeredCompletionRound = currentCompletedRound;
-                        continue;
-                    }
-
-                    for (int completedRound = state.lastTriggeredCompletionRound + 1;
-                         completedRound <= currentCompletedRound; ++completedRound) {
-                        // obs_log(LOG_INFO,
-                        //         "[CustomizedCartoon][RuleFlow] trigger playback ruleId=%s "
-                        //         "engageID=%s mediaId=%s completedRound=%d currentRound=%d",
-                        //         ruleId.toStdString().c_str(), p.engageID.toStdString().c_str(),
-                        //         rule->mediaId.toStdString().c_str(), completedRound, p.round);
-                        self->enqueuePlayMedia(rule->mediaId);
-                    }
-                    state.lastTriggeredCompletionRound = currentCompletedRound;
-                }
-
-                emit self->progressUpdated();
+                self->applyProgressUpdate(std::move(progress), std::move(ruleToEngage));
             },
             Qt::QueuedConnection);
     });
+}
+
+void CustomizedCartoonService::applyProgressUpdate(
+    std::vector<OneSevenLiveEngagementProgress> progress, std::map<QString, QString> ruleToEngage) {
+    std::map<QString, QString> engageToRule;
+    for (const auto& it : ruleToEngage) {
+        engageToRule[it.second] = it.first;
+    }
+
+    for (const auto& p : progress) {
+        if (p.engageID.isEmpty()) {
+            continue;
+        }
+
+        const auto mappingIt = engageToRule.find(p.engageID);
+        const QString ruleId = mappingIt != engageToRule.end() ? mappingIt->second : QString();
+        RuleItem* rule = !ruleId.isEmpty() ? findRuleById(ruleId) : nullptr;
+        auto& state = engageProgress_[p.engageID];
+        const bool nowAtOrAboveTarget = p.target > 0 ? (p.current >= p.target) : false;
+        const int currentCompletedRound = nowAtOrAboveTarget ? p.round : (p.round - 1);
+
+        state.current = p.current;
+        state.target = p.target;
+        state.round = p.round;
+
+        if (currentCompletedRound <= state.lastTriggeredCompletionRound) {
+            continue;
+        }
+        if (mappingIt == engageToRule.end()) {
+            obs_log(LOG_WARNING, "[CustomizedCartoon][RuleFlow] missing engage mapping engageID=%s",
+                    p.engageID.toStdString().c_str());
+            state.lastTriggeredCompletionRound = currentCompletedRound;
+            continue;
+        }
+        if (!rule || !rule->enabled) {
+            obs_log(LOG_WARNING,
+                    "[CustomizedCartoon][RuleFlow] skip trigger because rule missing or disabled "
+                    "ruleId=%s engageID=%s",
+                    ruleId.toStdString().c_str(), p.engageID.toStdString().c_str());
+            state.lastTriggeredCompletionRound = currentCompletedRound;
+            continue;
+        }
+
+        for (int completedRound = state.lastTriggeredCompletionRound + 1;
+             completedRound <= currentCompletedRound; ++completedRound) {
+            Q_UNUSED(completedRound);
+            enqueuePlayMedia(rule->mediaId);
+        }
+        state.lastTriggeredCompletionRound = currentCompletedRound;
+    }
+
+    emit progressUpdated();
 }
 
 void CustomizedCartoonService::enqueuePlayMedia(const QString& mediaId) {
@@ -1188,7 +1171,8 @@ void CustomizedCartoonService::enqueuePlayMedia(const QString& mediaId) {
     }
 }
 
-bool CustomizedCartoonService::resolvePlaybackMedia(const QString& mediaId, MediaItem& outMedia) const {
+bool CustomizedCartoonService::resolvePlaybackMedia(const QString& mediaId,
+                                                    MediaItem& outMedia) const {
     if (mediaId.isEmpty()) {
         return false;
     }
@@ -1232,7 +1216,9 @@ void CustomizedCartoonService::previewPlayAll(const json* previewConfig) {
     }
 }
 
-void CustomizedCartoonService::stopPreviewPlayback() { stopPlayback(); }
+void CustomizedCartoonService::stopPreviewPlayback() {
+    stopPlayback();
+}
 
 bool CustomizedCartoonService::enterPreviewMode(bool landscape, QString& outError) {
     outError.clear();
@@ -1264,7 +1250,9 @@ bool CustomizedCartoonService::updatePreviewModeOrientation(bool landscape, QStr
     return applyPreviewCanvas(landscape, outError);
 }
 
-bool CustomizedCartoonService::isPreviewModeActive() const { return previewModeActive_; }
+bool CustomizedCartoonService::isPreviewModeActive() const {
+    return previewModeActive_;
+}
 
 bool CustomizedCartoonService::startMediaPreview(const QString& mediaId, bool landscape,
                                                  const json* previewTransform,
@@ -1381,11 +1369,17 @@ void CustomizedCartoonService::stopMediaPreview() {
     emit previewStateChanged();
 }
 
-bool CustomizedCartoonService::isMediaPreviewing() const { return mediaPreviewing_; }
+bool CustomizedCartoonService::isMediaPreviewing() const {
+    return mediaPreviewing_;
+}
 
-QString CustomizedCartoonService::previewingMediaId() const { return previewMediaId_; }
+QString CustomizedCartoonService::previewingMediaId() const {
+    return previewMediaId_;
+}
 
-bool CustomizedCartoonService::isPositionPreviewing() const { return positionPreviewing_; }
+bool CustomizedCartoonService::isPositionPreviewing() const {
+    return positionPreviewing_;
+}
 
 bool CustomizedCartoonService::startPositionPreview(const QString& mediaId, bool landscape,
                                                     const json* previewTransform,
@@ -1495,15 +1489,16 @@ void CustomizedCartoonService::stopPositionPreview() {
     syncOverlaySceneItems();
 }
 
-bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QString& outError) const {
+bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform,
+                                                          QString& outError) const {
     outError.clear();
     outTransform = json::object();
 
     obs_sceneitem_t* item = nullptr;
     for (const auto& items : overlaySceneItems_) {
         item = FindSceneItem(items.sceneSource, positionPreviewIsMedia_
-                                                  ? kCustomizedCartoonMediaSourceName
-                                                  : kCustomizedCartoonImageSourceName);
+                                                    ? kCustomizedCartoonMediaSourceName
+                                                    : kCustomizedCartoonImageSourceName);
         if (!item) {
             item = FindSceneItem(items.sceneSource, kCustomizedCartoonMediaSourceName);
         }
@@ -1544,7 +1539,7 @@ bool CustomizedCartoonService::getCurrentOverlayTransform(json& outTransform, QS
     outTransform["scaleY"] = ti.scale.y;
     outTransform["rot"] = ti.rot;
     outTransform["alignment"] = ti.alignment;
-    outTransform["boundsType"] = (int)ti.bounds_type;
+    outTransform["boundsType"] = (int) ti.bounds_type;
     outTransform["boundsAlignment"] = ti.bounds_alignment;
     outTransform["boundsW"] = uniformScale > 0.0 ? ti.bounds.x / uniformScale : ti.bounds.x;
     outTransform["boundsH"] = uniformScale > 0.0 ? ti.bounds.y / uniformScale : ti.bounds.y;
@@ -1593,15 +1588,17 @@ void CustomizedCartoonService::startNextPlayback() {
         MediaItem media;
         if (!resolvePlaybackMedia(mediaId, media)) {
             obs_log(LOG_WARNING,
-                    "[CustomizedCartoon][RuleFlow] skip playback because media config missing mediaId=%s",
+                    "[CustomizedCartoon][RuleFlow] skip playback because media config missing "
+                    "mediaId=%s",
                     mediaId.toStdString().c_str());
             continue;
         }
         if (!QFile::exists(media.path)) {
-            obs_log(LOG_WARNING,
-                    "[CustomizedCartoon][RuleFlow] skip playback because media file missing mediaId=%s "
-                    "path=%s",
-                    mediaId.toStdString().c_str(), media.path.toStdString().c_str());
+            obs_log(
+                LOG_WARNING,
+                "[CustomizedCartoon][RuleFlow] skip playback because media file missing mediaId=%s "
+                "path=%s",
+                mediaId.toStdString().c_str(), media.path.toStdString().c_str());
             continue;
         }
 
@@ -1661,7 +1658,8 @@ bool CustomizedCartoonService::shouldKeepOverlaySources() const {
 
 void CustomizedCartoonService::syncOverlaySceneItems() {
     if (!shouldKeepOverlaySources()) {
-        // obs_log(LOG_INFO, "[CustomizedCartoon] sync overlay items skipped: nothing should keep overlay");
+        // obs_log(LOG_INFO, "[CustomizedCartoon] sync overlay items skipped: nothing should keep
+        // overlay");
         removeOverlaySceneItems();
         return;
     }
@@ -1727,8 +1725,8 @@ void CustomizedCartoonService::ensureOverlaySources() {
     if (!imageSource_) {
         if (obs_source_get_display_name("image_source")) {
             obs_data_t* settings = obs_data_create();
-            imageSource_ =
-                obs_source_create("image_source", kCustomizedCartoonImageSourceName, settings, nullptr);
+            imageSource_ = obs_source_create("image_source", kCustomizedCartoonImageSourceName,
+                                             settings, nullptr);
             obs_data_release(settings);
             // obs_log(LOG_INFO, "[CustomizedCartoon] create image source success=%d",
             //         imageSource_ != nullptr);
@@ -1743,9 +1741,8 @@ std::vector<obs_source_t*> CustomizedCartoonService::getTargetSceneSources() con
             return false;
         }
         const bool alreadyAdded =
-            std::any_of(sources.begin(), sources.end(), [source](obs_source_t* existing) {
-                return existing == source;
-            });
+            std::any_of(sources.begin(), sources.end(),
+                        [source](obs_source_t* existing) { return existing == source; });
         if (alreadyAdded) {
             // obs_log(LOG_INFO,
             //         "[CustomizedCartoon] skip duplicate target label=%s source=%s",
@@ -1771,7 +1768,8 @@ std::vector<obs_source_t*> CustomizedCartoonService::getTargetSceneSources() con
         outputActiveSource = obs_transition_get_active_source(outputSource);
         outputSourceA = obs_transition_get_source(outputSource, OBS_TRANSITION_SOURCE_A);
         outputSourceB = obs_transition_get_source(outputSource, OBS_TRANSITION_SOURCE_B);
-        if (outputActiveSource && obs_source_get_type(outputActiveSource) == OBS_SOURCE_TYPE_SCENE) {
+        if (outputActiveSource &&
+            obs_source_get_type(outputActiveSource) == OBS_SOURCE_TYPE_SCENE) {
             outputActiveScene = obs_source_get_ref(outputActiveSource);
         }
     }
@@ -1781,16 +1779,18 @@ std::vector<obs_source_t*> CustomizedCartoonService::getTargetSceneSources() con
         programScene = obs_frontend_get_current_scene();
 
         // obs_log(LOG_INFO,
-        //         "[CustomizedCartoon] resolve target scenes studioMode=1 preview=%s(%p) program=%s(%p) same=%d",
-        //         SafeSourceName(previewScene).c_str(), static_cast<void*>(previewScene),
-        //         SafeSourceName(programScene).c_str(), static_cast<void*>(programScene),
-        //         previewScene && programScene && previewScene == programScene);
+        //         "[CustomizedCartoon] resolve target scenes studioMode=1 preview=%s(%p)
+        //         program=%s(%p) same=%d", SafeSourceName(previewScene).c_str(),
+        //         static_cast<void*>(previewScene), SafeSourceName(programScene).c_str(),
+        //         static_cast<void*>(programScene), previewScene && programScene && previewScene ==
+        //         programScene);
 
         appendUniqueSource(previewScene, "previewScene");
         appendUniqueSource(programScene, "programScene");
     } else {
         programScene = obs_frontend_get_current_scene();
-        // obs_log(LOG_INFO, "[CustomizedCartoon] resolve target scenes studioMode=0 current=%s(%p)",
+        // obs_log(LOG_INFO, "[CustomizedCartoon] resolve target scenes studioMode=0
+        // current=%s(%p)",
         //         SafeSourceName(programScene).c_str(), static_cast<void*>(programScene));
         appendUniqueSource(programScene, "currentScene");
     }
@@ -1798,12 +1798,14 @@ std::vector<obs_source_t*> CustomizedCartoonService::getTargetSceneSources() con
     appendUniqueSource(outputActiveScene, "outputActiveScene");
 
     // obs_log(LOG_INFO,
-    //         "[CustomizedCartoon] frontend state studioMode=%d previewScene=%s programScene=%s currentTransition=%s",
-    //         studioMode, FormatSourceDebug(previewScene).c_str(), FormatSourceDebug(programScene).c_str(),
+    //         "[CustomizedCartoon] frontend state studioMode=%d previewScene=%s programScene=%s
+    //         currentTransition=%s", studioMode, FormatSourceDebug(previewScene).c_str(),
+    //         FormatSourceDebug(programScene).c_str(),
     //         FormatSourceDebug(currentTransition).c_str());
     // obs_log(LOG_INFO,
     //         "[CustomizedCartoon] output state outputSource=%s active=%s sourceA=%s sourceB=%s",
-    //         FormatSourceDebug(outputSource).c_str(), FormatSourceDebug(outputActiveSource).c_str(),
+    //         FormatSourceDebug(outputSource).c_str(),
+    //         FormatSourceDebug(outputActiveSource).c_str(),
     //         FormatSourceDebug(outputSourceA).c_str(), FormatSourceDebug(outputSourceB).c_str());
 
     for (size_t i = 0; i < sources.size(); ++i) {
@@ -1866,8 +1868,10 @@ bool CustomizedCartoonService::applyPreviewCanvas(bool landscape, QString& outEr
     }
 
     if (!previewVideoSettingsBackup_.valid) {
-        previewVideoSettingsBackup_.baseW = static_cast<uint32_t>(config_get_uint(cfg, "Video", "BaseCX"));
-        previewVideoSettingsBackup_.baseH = static_cast<uint32_t>(config_get_uint(cfg, "Video", "BaseCY"));
+        previewVideoSettingsBackup_.baseW =
+            static_cast<uint32_t>(config_get_uint(cfg, "Video", "BaseCX"));
+        previewVideoSettingsBackup_.baseH =
+            static_cast<uint32_t>(config_get_uint(cfg, "Video", "BaseCY"));
         previewVideoSettingsBackup_.outputW =
             static_cast<uint32_t>(config_get_uint(cfg, "Video", "OutputCX"));
         previewVideoSettingsBackup_.outputH =
@@ -1881,8 +1885,9 @@ bool CustomizedCartoonService::applyPreviewCanvas(bool landscape, QString& outEr
     const uint32_t targetOutputH = targetBaseH;
 
     obs_video_info ovi{};
-    if (obs_get_video_info(&ovi) && ovi.base_width == targetBaseW && ovi.base_height == targetBaseH &&
-        ovi.output_width == targetOutputW && ovi.output_height == targetOutputH) {
+    if (obs_get_video_info(&ovi) && ovi.base_width == targetBaseW &&
+        ovi.base_height == targetBaseH && ovi.output_width == targetOutputW &&
+        ovi.output_height == targetOutputH) {
         return true;
     }
 
@@ -1898,8 +1903,9 @@ bool CustomizedCartoonService::applyPreviewCanvas(bool landscape, QString& outEr
 
     obs_frontend_reset_video();
 
-    if (!obs_get_video_info(&ovi) || ovi.base_width != targetBaseW || ovi.base_height != targetBaseH ||
-        ovi.output_width != targetOutputW || ovi.output_height != targetOutputH) {
+    if (!obs_get_video_info(&ovi) || ovi.base_width != targetBaseW ||
+        ovi.base_height != targetBaseH || ovi.output_width != targetOutputW ||
+        ovi.output_height != targetOutputH) {
         outError = obs_module_text("CustomizedCartoon.Error.PreviewCanvasApplyFailed");
         restorePreviewCanvas();
         return false;
@@ -1951,8 +1957,7 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
 
             OverlaySceneItems* items = findOverlaySceneItems(sceneSource);
             if (!items) {
-                overlaySceneItems_.push_back(
-                    OverlaySceneItems{obs_source_get_ref(sceneSource)});
+                overlaySceneItems_.push_back(OverlaySceneItems{obs_source_get_ref(sceneSource)});
                 items = &overlaySceneItems_.back();
                 // obs_log(LOG_INFO, "[CustomizedCartoon] create overlay scene entry scene=%s(%p)",
                 //         sceneName.c_str(), static_cast<void*>(sceneSource));
@@ -2003,8 +2008,7 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
                 }
             }
         } else {
-            obs_log(LOG_WARNING,
-                    "[CustomizedCartoon] target source is not a scene source=%s(%p)",
+            obs_log(LOG_WARNING, "[CustomizedCartoon] target source is not a scene source=%s(%p)",
                     sceneName.c_str(), static_cast<void*>(sceneSource));
         }
     }
@@ -2012,9 +2016,8 @@ void CustomizedCartoonService::ensureOverlaySceneItems() {
     auto it = overlaySceneItems_.begin();
     while (it != overlaySceneItems_.end()) {
         const bool stillTarget =
-            std::any_of(targetSceneSources.begin(), targetSceneSources.end(), [it](obs_source_t* sceneSource) {
-                return sceneSource == it->sceneSource;
-            });
+            std::any_of(targetSceneSources.begin(), targetSceneSources.end(),
+                        [it](obs_source_t* sceneSource) { return sceneSource == it->sceneSource; });
         if (stillTarget) {
             ++it;
             continue;
@@ -2076,10 +2079,10 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
     obs_transform_info ti{};
     if (!hasTransform) {
         ti = DefaultOverlayTransform(useLandscapeConfig);
-        ti.pos.x = ti.pos.x * (float)uniformScale;
-        ti.pos.y = ti.pos.y * (float)uniformScale;
-        ti.bounds.x = ti.bounds.x * (float)uniformScale;
-        ti.bounds.y = ti.bounds.y * (float)uniformScale;
+        ti.pos.x = ti.pos.x * (float) uniformScale;
+        ti.pos.y = ti.pos.y * (float) uniformScale;
+        ti.bounds.x = ti.bounds.x * (float) uniformScale;
+        ti.bounds.y = ti.bounds.y * (float) uniformScale;
     } else {
         ti.pos.x = static_cast<float>(transform.value("x", 0.0) * uniformScale);
         ti.pos.y = static_cast<float>(transform.value("y", 0.0) * uniformScale);
@@ -2088,7 +2091,7 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
         ti.rot = transform.value("rot", 0.0);
         ti.alignment = transform.value("alignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
         ti.bounds_type =
-            static_cast<obs_bounds_type>(transform.value("boundsType", (int)OBS_BOUNDS_NONE));
+            static_cast<obs_bounds_type>(transform.value("boundsType", (int) OBS_BOUNDS_NONE));
         ti.bounds_alignment =
             transform.value("boundsAlignment", static_cast<uint32_t>(OBS_ALIGN_CENTER));
         ti.bounds.x = static_cast<float>(transform.value("boundsW", 0.0) * uniformScale);
@@ -2103,7 +2106,8 @@ void CustomizedCartoonService::applyOverlayTransform(bool landscape, const json*
         activeMedia = hasPositionPreviewSnapshot_ ? &positionPreviewSnapshot_
                                                   : findMediaById(positionPreviewMediaId_);
     } else if (mediaPreviewing_ && !previewMediaId_.isEmpty()) {
-        activeMedia = hasMediaPreviewSnapshot_ ? &mediaPreviewSnapshot_ : findMediaById(previewMediaId_);
+        activeMedia =
+            hasMediaPreviewSnapshot_ ? &mediaPreviewSnapshot_ : findMediaById(previewMediaId_);
     } else if (playing_ && !playingMediaId_.isEmpty()) {
         if (hasPlaybackPreviewConfig_) {
             const auto previewMediaList = parseMedia(playbackPreviewConfig_);
@@ -2313,7 +2317,7 @@ void CustomizedCartoonService::checkVideoState() {
 }
 
 json CustomizedCartoonService::serialize(const std::vector<MediaItem>& media,
-                                        const std::vector<RuleItem>& rules) const {
+                                         const std::vector<RuleItem>& rules) const {
     json cfg = getConfigSnapshot();
     cfg["media"] = json::array();
     for (const auto& m : media) {

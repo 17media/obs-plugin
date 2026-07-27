@@ -1,9 +1,10 @@
 #pragma once
 
-#include <QObject>
 #include <QMainWindow>
+#include <QObject>
 #include <QPointer>
 #include <QProgressDialog>
+#include <QString>
 #include <atomic>
 #include <memory>
 #include <optional>
@@ -13,6 +14,8 @@
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
 struct OneSevenLiveLoginData;
+class QDialog;
+class QListWidget;
 
 class CrashUploadService : public QObject {
     Q_OBJECT
@@ -62,6 +65,10 @@ class CrashUploadService : public QObject {
     bool saveCrashRecord(const CrashRecord& record) const;
     bool updateCrashRecordUploadStatus(const std::string& recordId, bool uploaded,
                                        int64_t uploadedAtSec) const;
+    QString buildCrashRecordStatusText(const CrashRecord& record) const;
+    void deleteCrashRecordFiles(const CrashRecord& record) const;
+    void addCrashRecordRow(QListWidget* list, QDialog* dialog, const CrashRecord& record,
+                           bool isLoggedIn, const OneSevenLiveLoginData& loginData);
     void pruneCrashRecords() const;
     void maybePromptUploadForAbnormalExit();
     void promptUploadForAbnormalExit(const OneSevenLiveLoginData& loginData);
@@ -70,8 +77,15 @@ class CrashUploadService : public QObject {
     void onCrashRecordPackaged(const CrashRecord& record);
     void maybeStartAcceptedUpload();
 
-    void startUploadAsync(const OneSevenLiveLoginData& loginData,
-                          const CrashRecord& record);
+    void startUploadAsync(const OneSevenLiveLoginData& loginData, const CrashRecord& record);
+    void updateProgressDialog(const char* textKey, int value);
+    void closeProgressDialog();
+    void showUploadResultMessage(bool ok, bool cancelled);
+    void showUploadFailureMessage(const char* textKey);
+    bool reportCrashEvent(const CrashRecord& record,
+                          const std::shared_ptr<std::atomic<bool>>& cancelFlag);
+    bool uploadCrashArchive(const CrashRecord& record,
+                            const std::shared_ptr<std::atomic<bool>>& cancelFlag);
 
     static std::string crashLogsDirectory();
     static std::string crashArchivePath(const std::string& recordId);

@@ -1,63 +1,64 @@
 #include "ChatBridgeService.hpp"
 
-#include <algorithm>
 #include <obs-module.h>
+
 #include <QMainWindow>
 #include <QMetaObject>
-#include "plugin-support.h"
+#include <algorithm>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "../chat/OneSevenLiveChatMessageHandler.hpp"
 #include "../websocket/OneSevenLiveWebsocketServer.hpp"
+#include "plugin-support.h"
 #include "rockzone/OneSevenLiveUserDialog.hpp"
 
 namespace {
-bool isEnterAnimationPayload(const WsMessage& m) {
-    return m.type == ws::EventAblyChatMessage && m.payload.contains("type") &&
-           m.payload["type"].is_number_integer() && m.payload["type"].get<int>() == 27;
-}
-
-std::string buildEnterAnimationSummary(const nlohmann::json& payload) {
-    const auto* enter =
-        payload.contains("subscriberEnterMsg") && payload["subscriberEnterMsg"].is_object()
-            ? &payload["subscriberEnterMsg"]
-        : payload.contains("enterAnimationMsg") && payload["enterAnimationMsg"].is_object()
-            ? &payload["enterAnimationMsg"]
-            : nullptr;
-    if (!enter) {
-        return "payload=missing";
+    bool isEnterAnimationPayload(const WsMessage& m) {
+        return m.type == ws::EventAblyChatMessage && m.payload.contains("type") &&
+               m.payload["type"].is_number_integer() && m.payload["type"].get<int>() == 27;
     }
 
-    const int animation =
-        enter->contains("animation") && (*enter)["animation"].is_number_integer()
-            ? (*enter)["animation"].get<int>()
-            : -1;
-    const std::string userID =
-        enter->contains("userID") && (*enter)["userID"].is_string()
-            ? (*enter)["userID"].get<std::string>()
-            : "";
-    const std::string displayName =
-        enter->contains("displayName") && (*enter)["displayName"].is_string()
-            ? (*enter)["displayName"].get<std::string>()
-            : "";
-    std::string notifAnimationID;
-    if (enter->contains("eventNotifMsg") && (*enter)["eventNotifMsg"].is_object()) {
-        const auto& notif = (*enter)["eventNotifMsg"];
-        if (notif.contains("animationID") && notif["animationID"].is_string()) {
-            notifAnimationID = notif["animationID"].get<std::string>();
+    std::string buildEnterAnimationSummary(const nlohmann::json& payload) {
+        const auto* enter =
+            payload.contains("subscriberEnterMsg") && payload["subscriberEnterMsg"].is_object()
+                ? &payload["subscriberEnterMsg"]
+            : payload.contains("enterAnimationMsg") && payload["enterAnimationMsg"].is_object()
+                ? &payload["enterAnimationMsg"]
+                : nullptr;
+        if (!enter) {
+            return "payload=missing";
         }
-    }
 
-    return QString("animation=%1 userID=%2 displayName=%3 notifAnimationID=%4")
-        .arg(animation)
-        .arg(QString::fromStdString(userID))
-        .arg(QString::fromStdString(displayName))
-        .arg(QString::fromStdString(notifAnimationID))
-        .toStdString();
-}
+        const int animation =
+            enter->contains("animation") && (*enter)["animation"].is_number_integer()
+                ? (*enter)["animation"].get<int>()
+                : -1;
+        const std::string userID = enter->contains("userID") && (*enter)["userID"].is_string()
+                                       ? (*enter)["userID"].get<std::string>()
+                                       : "";
+        const std::string displayName =
+            enter->contains("displayName") && (*enter)["displayName"].is_string()
+                ? (*enter)["displayName"].get<std::string>()
+                : "";
+        std::string notifAnimationID;
+        if (enter->contains("eventNotifMsg") && (*enter)["eventNotifMsg"].is_object()) {
+            const auto& notif = (*enter)["eventNotifMsg"];
+            if (notif.contains("animationID") && notif["animationID"].is_string()) {
+                notifAnimationID = notif["animationID"].get<std::string>();
+            }
+        }
+
+        return QString("animation=%1 userID=%2 displayName=%3 notifAnimationID=%4")
+            .arg(animation)
+            .arg(QString::fromStdString(userID))
+            .arg(QString::fromStdString(displayName))
+            .arg(QString::fromStdString(notifAnimationID))
+            .toStdString();
+    }
 }  // namespace
 
-ChatBridgeService::ChatBridgeService(OneSevenLiveCoreManager* coreManager) : coreManager_(coreManager) {}
+ChatBridgeService::ChatBridgeService(OneSevenLiveCoreManager* coreManager)
+    : coreManager_(coreManager) {}
 
 bool ChatBridgeService::hasAnyConnectedTargetLocked(
     const std::unordered_set<std::string>& targets) const {
@@ -77,7 +78,8 @@ bool ChatBridgeService::hasAnyConnectedTargetLocked(
     return false;
 }
 
-const std::unordered_set<std::string>& ChatBridgeService::resolveTargetsLocked(const WsMessage& m) const {
+const std::unordered_set<std::string>& ChatBridgeService::resolveTargetsLocked(
+    const WsMessage& m) const {
     if (m.type == ws::EventAblyChatMessage && m.payload.contains("type") &&
         m.payload["type"].is_number_integer() && m.payload["type"].get<int>() == 27) {
         return enterAnimClientIds_;
@@ -108,7 +110,102 @@ void ChatBridgeService::sendToTargetsLocked(const WsMessage& m,
     // }
 }
 
-void ChatBridgeService::onWebsocketMessage(const std::string& clientId, const std::string& message) {
+bool ChatBridgeService::isRegisteredChatDockClient(const std::string& clientId) const {
+    std::lock_guard<std::mutex> lock(chatQueueMutex_);
+    return chatDockClientIds_.find(clientId) != chatDockClientIds_.end();
+}
+
+bool ChatBridgeService::handleRegisterAction(const std::string& clientId,
+                                             const std::string& actionType) {
+    std::unordered_set<std::string>* targets = nullptr;
+    if (actionType == ws::ActionRegisterChatDock) {
+        targets = &chatDockClientIds_;
+    } else if (actionType == ws::ActionRegisterEnterAnimationPage) {
+        targets = &enterAnimClientIds_;
+    }
+    if (!targets) {
+        return false;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(chatQueueMutex_);
+        targets->insert(clientId);
+    }
+    if (actionType == ws::ActionRegisterChatDock) {
+        obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
+    }
+    flushChatEventQueue();
+    return true;
+}
+
+void ChatBridgeService::handleUserDialogAction(const WsMessage& m) {
+    const std::string userID = m.payloadString("userID");
+    if (userID.empty()) {
+        return;
+    }
+
+    std::string displayName = m.payloadString("displayName");
+    const std::string picture = m.payloadString("picture");
+    int level = 0;
+    if (m.payload.contains("level") && m.payload["level"].is_number()) {
+        level = m.payload["level"].get<int>();
+    }
+
+    QMainWindow* mainWindow = coreManager_ ? coreManager_->getMainWindow() : nullptr;
+    OneSevenLiveApiWrappers* apiWrapper = coreManager_ ? coreManager_->getApiWrapper() : nullptr;
+    OneSevenLiveConfigManager* configManager =
+        coreManager_ ? coreManager_->getConfigManager() : nullptr;
+    if (!mainWindow || !apiWrapper || !configManager) {
+        return;
+    }
+
+    QMetaObject::invokeMethod(
+        mainWindow,
+        [mainWindow, apiWrapper, configManager, userID, displayName, picture, level]() {
+            OneSevenLiveRockZoneViewer viewer;
+            viewer.displayUser.userID = QString::fromStdString(userID);
+            viewer.displayUser.displayName =
+                QString::fromStdString(displayName.empty() ? userID : displayName);
+            viewer.displayUser.picture = QString::fromStdString(picture);
+            viewer.displayUser.level = level;
+
+            auto* dialog = new OneSevenLiveUserDialog(mainWindow, apiWrapper, configManager);
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            dialog->setUserInfo(viewer);
+            dialog->show();
+        },
+        Qt::QueuedConnection);
+}
+
+void ChatBridgeService::handleIncomingAblyMessage(const WsMessage& m) {
+    const std::string roomID = m.payloadString("roomID");
+    const std::string data = m.payloadString("data");
+    if (roomID.empty() || data.empty()) {
+        obs_log(LOG_WARNING, "[17Live WebSocket Server] Missing roomID or data in Ably message");
+        return;
+    }
+
+    nlohmann::json wrapper;
+    wrapper["messages"] = nlohmann::json::array({nlohmann::json{{"data", data}}});
+    OneSevenLiveChatMessageHandler handler;
+    handler.handleRaw(wrapper.dump());
+}
+
+void ChatBridgeService::handleActionMessage(const std::string& clientId, const WsMessage& m) {
+    const std::string actionType = m.payloadString("type");
+    if (handleRegisterAction(clientId, actionType)) {
+        return;
+    }
+    if (!isRegisteredChatDockClient(clientId)) {
+        return;
+    }
+    if (actionType == ws::ActionOpenUserDialog) {
+        handleUserDialogAction(m);
+    }
+}
+
+void ChatBridgeService::onWebsocketMessage(const std::string& clientId,
+                                           const std::string& message) {
     WsMessage m;
     if (!WsMessage::parse(message, m)) {
         obs_log(LOG_WARNING, "[17Live WebSocket Server] JSON parse error in message from %s",
@@ -123,85 +220,11 @@ void ChatBridgeService::onWebsocketMessage(const std::string& clientId, const st
     }
 
     if (m.is(ws::TypeAction)) {
-        const std::string actionType = m.payloadString("type");
-        if (actionType == ws::ActionRegisterChatDock) {
-            {
-                std::lock_guard<std::mutex> lock(chatQueueMutex_);
-                chatDockClientIds_.insert(clientId);
-            }
-            obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
-            flushChatEventQueue();
-            return;
-        }
-        if (actionType == ws::ActionRegisterEnterAnimationPage) {
-            {
-                std::lock_guard<std::mutex> lock(chatQueueMutex_);
-                enterAnimClientIds_.insert(clientId);
-            }
-            // obs_log(LOG_INFO, "[ChatQueue] EnterAnimation registered client=%s",
-            //         clientId.c_str());
-            flushChatEventQueue();
-            return;
-        }
-
-        {
-            std::lock_guard<std::mutex> lock(chatQueueMutex_);
-            if (chatDockClientIds_.find(clientId) == chatDockClientIds_.end()) {
-                return;
-            }
-        }
-
-        if (actionType == ws::ActionOpenUserDialog) {
-            const std::string userID = m.payloadString("userID");
-            if (userID.empty()) {
-                return;
-            }
-
-            std::string displayName = m.payloadString("displayName");
-            const std::string picture = m.payloadString("picture");
-            int level = 0;
-            if (m.payload.contains("level") && m.payload["level"].is_number()) {
-                level = m.payload["level"].get<int>();
-            }
-
-            QMainWindow* mainWindow = coreManager_ ? coreManager_->getMainWindow() : nullptr;
-            OneSevenLiveApiWrappers* apiWrapper = coreManager_ ? coreManager_->getApiWrapper() : nullptr;
-            OneSevenLiveConfigManager* configManager = coreManager_ ? coreManager_->getConfigManager() : nullptr;
-            if (!mainWindow || !apiWrapper || !configManager) {
-                return;
-            }
-
-            QMetaObject::invokeMethod(
-                mainWindow,
-                [mainWindow, apiWrapper, configManager, userID, displayName, picture, level]() {
-                    OneSevenLiveRockZoneViewer viewer;
-                    viewer.displayUser.userID = QString::fromStdString(userID);
-                    viewer.displayUser.displayName =
-                        QString::fromStdString(displayName.empty() ? userID : displayName);
-                    viewer.displayUser.picture = QString::fromStdString(picture);
-                    viewer.displayUser.level = level;
-
-                    auto* dialog = new OneSevenLiveUserDialog(mainWindow, apiWrapper, configManager);
-                    dialog->setAttribute(Qt::WA_DeleteOnClose);
-                    dialog->setUserInfo(viewer);
-                    dialog->show();
-                },
-                Qt::QueuedConnection);
-            return;
-        }
-    } else if (m.is(ws::EventAblyChatMessage)) {
-        const std::string roomID = m.payloadString("roomID");
-        const std::string data = m.payloadString("data");
-        if (roomID.empty() || data.empty()) {
-            obs_log(LOG_WARNING, "[17Live WebSocket Server] Missing roomID or data in Ably message");
-            return;
-        }
-        {
-            nlohmann::json wrapper;
-            wrapper["messages"] = nlohmann::json::array({nlohmann::json{{"data", data}}});
-            OneSevenLiveChatMessageHandler handler;
-            handler.handleRaw(wrapper.dump());
-        }
+        handleActionMessage(clientId, m);
+        return;
+    }
+    if (m.is(ws::EventAblyChatMessage)) {
+        handleIncomingAblyMessage(m);
     }
 }
 
@@ -217,12 +240,14 @@ void ChatBridgeService::onWebsocketConnectionChanged(const std::string& clientId
     }
 }
 
-void ChatBridgeService::enqueueOrBroadcastChatEvent(const QString& type, const nlohmann::json& payload) {
+void ChatBridgeService::enqueueOrBroadcastChatEvent(const QString& type,
+                                                    const nlohmann::json& payload) {
     std::lock_guard<std::mutex> lock(chatQueueMutex_);
     const WsMessage m{type.toStdString(), payload};
     const bool isEnterAnimation = isEnterAnimationPayload(m);
     if (m.type == ws::EventAblyChatConnected) {
-        if (hasAnyConnectedTargetLocked(chatDockClientIds_) || hasAnyConnectedTargetLocked(enterAnimClientIds_)) {
+        if (hasAnyConnectedTargetLocked(chatDockClientIds_) ||
+            hasAnyConnectedTargetLocked(enterAnimClientIds_)) {
             sendToTargetsLocked(m, chatDockClientIds_);
             sendToTargetsLocked(m, enterAnimClientIds_);
             return;
@@ -249,13 +274,15 @@ void ChatBridgeService::enqueueOrBroadcastChatEvent(const QString& type, const n
         //         chatEventQueue_.size(), enterAnimClientIds_.size(), chatDockClientIds_.size(),
         //         buildEnterAnimationSummary(payload).c_str());
     } else {
-        obs_log(LOG_DEBUG, "[ChatQueue] Enqueued chat event. queueSize=%zu", chatEventQueue_.size());
+        obs_log(LOG_DEBUG, "[ChatQueue] Enqueued chat event. queueSize=%zu",
+                chatEventQueue_.size());
     }
 }
 
 void ChatBridgeService::flushChatEventQueue() {
     std::lock_guard<std::mutex> lock(chatQueueMutex_);
-    if (!hasAnyConnectedTargetLocked(chatDockClientIds_) && !hasAnyConnectedTargetLocked(enterAnimClientIds_)) {
+    if (!hasAnyConnectedTargetLocked(chatDockClientIds_) &&
+        !hasAnyConnectedTargetLocked(enterAnimClientIds_)) {
         return;
     }
 

@@ -9,9 +9,9 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <string>
-#include <mutex>
 
 #include "../api/OneSevenLiveModels.hpp"
 
@@ -39,7 +39,8 @@ class CustomizedCartoonService : public QObject {
     nlohmann::json getConfigSnapshot() const;
     bool saveConfig(const nlohmann::json& cfg, QString* outError = nullptr);
 
-    bool prepareMediaDraftEntry(const QString& filePath, nlohmann::json& outMedia, QString& outError);
+    bool prepareMediaDraftEntry(const QString& filePath, nlohmann::json& outMedia,
+                                QString& outError);
     bool importMediaFile(const QString& filePath, QString& outMediaId, QString& outError);
     bool deleteMedia(const QString& mediaId, QString& outError);
 
@@ -49,12 +50,14 @@ class CustomizedCartoonService : public QObject {
     void exitPreviewMode(bool restoreObsSettings = true);
     bool updatePreviewModeOrientation(bool landscape, QString& outError);
     bool isPreviewModeActive() const;
-    bool startMediaPreview(const QString& mediaId, bool landscape, const nlohmann::json* previewTransform,
+    bool startMediaPreview(const QString& mediaId, bool landscape,
+                           const nlohmann::json* previewTransform,
                            const nlohmann::json* previewConfig, QString& outError);
     void stopMediaPreview();
     bool isMediaPreviewing() const;
     QString previewingMediaId() const;
-    bool startPositionPreview(const QString& mediaId, bool landscape, const nlohmann::json* previewTransform,
+    bool startPositionPreview(const QString& mediaId, bool landscape,
+                              const nlohmann::json* previewTransform,
                               const nlohmann::json* previewConfig, QString& outError);
     void stopPositionPreview();
     bool isPositionPreviewing() const;
@@ -130,8 +133,12 @@ class CustomizedCartoonService : public QObject {
     void pollProgressAsync();
     bool buildLiveRuleSyncPlan(const std::vector<RuleItem>& nextRules, LiveRuleSyncPlan& plan,
                                QString& outError) const;
+    bool deleteLiveEngagementsForRules(const std::vector<QString>& ruleIds, QString& outError);
+    bool createLiveEngagementsForRules(const std::vector<RuleItem>& rules, QString& outError);
     bool executeLiveRuleSyncPlan(const LiveRuleSyncPlan& plan, QString& outError);
     static bool isRuleDefinitionChanged(const RuleItem& current, const RuleItem& next);
+    void applyProgressUpdate(std::vector<OneSevenLiveEngagementProgress> progress,
+                             std::map<QString, QString> ruleToEngage);
 
     void enqueuePlayMedia(const QString& mediaId);
     void startNextPlayback();
@@ -148,8 +155,7 @@ class CustomizedCartoonService : public QObject {
     const OverlaySceneItems* findOverlaySceneItems(obs_source_t* sceneSource) const;
     bool applyPreviewCanvas(bool landscape, QString& outError);
     void restorePreviewCanvas();
-    void applyOverlayTransform(bool landscape,
-                               const nlohmann::json* previewTransform = nullptr,
+    void applyOverlayTransform(bool landscape, const nlohmann::json* previewTransform = nullptr,
                                const QString& previewMediaId = QString(),
                                const nlohmann::json* previewConfig = nullptr);
     void showOverlaySource(bool media);
