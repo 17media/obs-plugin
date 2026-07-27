@@ -36,6 +36,73 @@ function shouldLogAnim14Debug() {
   }
 }
 
+const ENTER_ANIMATION_ASSET_MAP = Object.freeze({
+  3: '/enter_animation/ani_lv_050.webp',
+  4: '/enter_animation/ani_lv_100.webp',
+  5: '/enter_animation/ani_lv_120.webp',
+  6: '/enter_animation/ani_17k_producer_2.webp',
+  7: '/enter_animation/ani_vip_army_sergeant.webp',
+  8: '/enter_animation/ani_vip_army_captain.webp',
+  9: '/enter_animation/ani_vip_army_colonel.webp',
+  10: '/enter_animation/ani_vip_army_general.webp',
+  12: '/enter_animation/vip_goin_m.webp',
+  13: '/enter_animation/vip_goin_l.webp',
+  16: '/enter_animation/ani_lv_160.webp',
+  17: '/enter_animation/ani_lv_200.webp',
+});
+
+const ENTER_ANIMATION_DURATION_MAP = Object.freeze({
+  1: 1500,
+  2: 1500,
+  6: 1800,
+  14: 2200,
+});
+
+const ENTER_ANIMATION_BADGE_KEY_MAP = Object.freeze({
+  1: 'guardian_entry_animation_message',
+  2: 'VIP',
+  6: 'producer_enterroom',
+  12: 'mlevel_entry_notice_subscription',
+  13: 'mlevel_entry_notice_subscription',
+  15: 'army_enter_notification',
+});
+
+function getEnterAnimationBadgeKey(animationId) {
+  if (Object.prototype.hasOwnProperty.call(ENTER_ANIMATION_BADGE_KEY_MAP, animationId)) {
+    return ENTER_ANIMATION_BADGE_KEY_MAP[animationId];
+  }
+
+  if (animationId >= 7 && animationId <= 10) return 'army_enter_notification';
+  if (animationId === 3 || animationId === 4 || animationId === 5 || animationId === 16 || animationId === 17) {
+    return 'LV%@';
+  }
+
+  return '';
+}
+
+function getEnterAnimationDurationMs(animationId, payloadDurationMs) {
+  if (typeof payloadDurationMs === 'number') return payloadDurationMs;
+  return ENTER_ANIMATION_DURATION_MAP[animationId] || 1300;
+}
+
+function getDefaultEnterAnimationAsset(animationId) {
+  return ENTER_ANIMATION_ASSET_MAP[animationId] || '';
+}
+
+function resolveEnterAnimationAssetSrc(animationId, notif, lookupEventAnimSrc) {
+  if (animationId === 1) {
+    const guardianAssetSrc = lookupEventAnimSrc('new_guardian_enter_ios');
+    if (guardianAssetSrc) return guardianAssetSrc;
+  }
+
+  if (animationId === 14 && notif?.animationID) {
+    const eventAssetSrc = lookupEventAnimSrc(notif.animationID);
+    if (eventAssetSrc) return eventAssetSrc;
+  }
+
+  return notif?.templateURL || getDefaultEnterAnimationAsset(animationId);
+}
+
 export class OneSevenLivePlatform extends BasePlatform {
   constructor() {
     super('17live', '17Live');
@@ -487,53 +554,13 @@ export class OneSevenLivePlatform extends BasePlatform {
         );
       };
 
-      const badgeKey = (() => {
-        if (animationId === 1) return 'guardian_entry_animation_message';
-        if (animationId === 2) return 'VIP';
-        if (animationId === 6) return 'producer_enterroom';
-        if ((animationId >= 7 && animationId <= 10) || animationId === 15) return 'army_enter_notification';
-        if (animationId === 12 || animationId === 13) return 'mlevel_entry_notice_subscription';
-        if (animationId === 3 || animationId === 4 || animationId === 5 || animationId === 16 || animationId === 17) return 'LV%@';
-        return '';
-      })();
+      const badgeKey = getEnterAnimationBadgeKey(animationId);
 
       const marqueeKey = animationId === 6 ? '' : 'enter_is_here';
 
-      const assetSrc = (() => {
-        if (animationId === 1) {
-          const fromFiles = lookupEventAnimSrc('new_guardian_enter_ios');
-          if (fromFiles) return fromFiles;
-        }
-        if (animationId === 14 && notif) {
-          const fromFiles = lookupEventAnimSrc(notif.animationID);
-          if (fromFiles) return fromFiles;
-          if (notif.templateURL) return notif.templateURL;
-        }
-        if (notif && notif.templateURL) return notif.templateURL;
+      const assetSrc = resolveEnterAnimationAssetSrc(animationId, notif, lookupEventAnimSrc);
 
-        if (animationId === 3) return '/enter_animation/ani_lv_050.webp';
-        if (animationId === 4) return '/enter_animation/ani_lv_100.webp';
-        if (animationId === 5) return '/enter_animation/ani_lv_120.webp';
-        if (animationId === 6) return '/enter_animation/ani_17k_producer_2.webp';
-        if (animationId === 7) return '/enter_animation/ani_vip_army_sergeant.webp';
-        if (animationId === 8) return '/enter_animation/ani_vip_army_captain.webp';
-        if (animationId === 9) return '/enter_animation/ani_vip_army_colonel.webp';
-        if (animationId === 10) return '/enter_animation/ani_vip_army_general.webp';
-        if (animationId === 12) return '/enter_animation/vip_goin_m.webp';
-        if (animationId === 13) return '/enter_animation/vip_goin_l.webp';
-        if (animationId === 16) return '/enter_animation/ani_lv_160.webp';
-        if (animationId === 17) return '/enter_animation/ani_lv_200.webp';
-        return '';
-      })();
-
-      const durationMs = (() => {
-        if (typeof payload?.durationMs === 'number') return payload.durationMs;
-        if (animationId === 14) return 2200;
-        if (animationId === 6) return 1800;
-        if (animationId === 2) return 1500;
-        if (animationId === 1) return 1500;
-        return 1300;
-      })();
+      const durationMs = getEnterAnimationDurationMs(animationId, payload?.durationMs);
 
       const userInfo = {
         displayName: payload?.displayName,
