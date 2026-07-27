@@ -48,8 +48,8 @@ jobs:
                 # Production tag (e.g., v1.0.0)
                 export BUILD_ENV="production"
                 export ONESEVENLIVE_API_URL="$PROD_ONESEVENLIVE_API_URL"
-              elif [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?-stage$ ]]; then
-                # Stage tag (e.g., v1.0.0-stage)
+              elif [[ "$CIRCLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(_[0-9]+)?-stage$ ]]; then
+                # Stage tag (e.g., v1.0.0-stage, v1.0.0_1-stage)
                 export BUILD_ENV="stage"
                 export ONESEVENLIVE_API_URL="$STAGE_ONESEVENLIVE_API_URL"
               else
@@ -157,8 +157,8 @@ jobs:
               version=${VERSION:-0.0.0}
             fi
             
-            # Remove -stage suffix from version number if present
-            version_number=$(echo "$version" | sed 's/-stage$//')
+            # Normalize pre-release stage version (e.g., 1.3.0_1-stage -> 1.3.0)
+            version_number=$(echo "$version" | sed -E 's/_[0-9]+-stage$//; s/-stage$//')
             
             # Set package name suffix
             if [ "$BUILD_ENV" = "production" ]; then
@@ -304,8 +304,8 @@ jobs:
                 # Production tag (e.g., v1.0.0)
                 $env:BUILD_ENV = "production"
                 $env:ONESEVENLIVE_API_URL = $env:PROD_ONESEVENLIVE_API_URL
-              } elseif ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+(\.\d+)?-stage$') {
-                # Stage tag (e.g., v1.0.0-stage)
+              } elseif ($env:CIRCLE_TAG -match '^v\d+\.\d+\.\d+(\.\d+)?(_\d+)?-stage$') {
+                # Stage tag (e.g., v1.0.0-stage, v1.0.0_1-stage)
                 $env:BUILD_ENV = "stage"
                 $env:ONESEVENLIVE_API_URL = $env:STAGE_ONESEVENLIVE_API_URL
               } else {
@@ -438,8 +438,8 @@ jobs:
               $version = if ($env:VERSION) { $env:VERSION } else { '0.0.0' }
             }
             
-            # Remove -stage suffix from version number if present
-            $versionNumber = $version -replace '-stage$', ''
+            # Normalize pre-release stage version (e.g., 1.3.0_1-stage -> 1.3.0)
+            $versionNumber = $version -replace '(_\d+)?-stage$', ''
             
             # Set package name suffix
             if ($env:BUILD_ENV -eq "production") {
@@ -589,7 +589,7 @@ workflows:
       #     cmake_arch: ""
       #     filters:
       #       tags:
-      #         only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
+      #         only: /^v\d+\.\d+\.\d+(\.\d+)?((_[0-9]+)?-stage)?$/
       #       branches:
       #         ignore: /.*/
       #     context:
@@ -600,7 +600,7 @@ workflows:
       #     cmake_arch: "x86_64"
       #     filters:
       #       tags:
-      #         only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
+      #         only: /^v\d+\.\d+\.\d+(\.\d+)?((_[0-9]+)?-stage)?$/
       #       branches:
       #         ignore: /.*/
       #     context:
@@ -611,7 +611,7 @@ workflows:
           # cmake_arch: "arm64;x86_64"
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
+              only: /^v\d+\.\d+\.\d+(\.\d+)?((_[0-9]+)?-stage)?$/
             branches:
               ignore: /.*/
           context:
@@ -619,7 +619,7 @@ workflows:
       - build-windows-x64:
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+(\.\d+)?(-stage)?$/
+              only: /^v\d+\.\d+\.\d+(\.\d+)?((_[0-9]+)?-stage)?$/
             branches:
               ignore: /.*/
           context:
