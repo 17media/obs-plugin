@@ -313,7 +313,7 @@ namespace seventeen {
                 } catch (...) {
                 }
 
-                double total = filesToCopy.size();
+                const double total = static_cast<double>(filesToCopy.size());
                 for (size_t i = 0; i < filesToCopy.size(); ++i) {
                     const auto& srcPath = filesToCopy[i];
                     std::filesystem::path rel = std::filesystem::relative(srcPath, pluginConfigDir);
@@ -321,7 +321,7 @@ namespace seventeen {
                         std::filesystem::path(tempDir) / "plugin_config" / rel;
 
                     reportSubProgress("Collecting config: " + srcPath.filename().string(),
-                                      (double) i / total);
+                                      static_cast<double>(i) / total);
 
                     if (copyFile(srcPath.string(), destPath.string())) {
                         configFiles.push_back(destPath.string());
