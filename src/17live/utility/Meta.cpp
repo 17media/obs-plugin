@@ -10,6 +10,8 @@
 #include <QVariantMap>
 #include <nlohmann/json.hpp>
 
+#include <mutex>
+
 #include "Common.hpp"
 #include "plugin-support.h"
 
@@ -20,9 +22,31 @@ using namespace std;
 // Global meta data, loaded at program startup
 OneSevenLiveMetaData metaData;
 
+namespace {
+    std::mutex s_metaErrorMutex;
+    ResultError s_lastMetaError;
+}
+
+ResultError GetLastMetaError() {
+    std::lock_guard<std::mutex> lock(s_metaErrorMutex);
+    return s_lastMetaError;
+}
+
+static void setLastMetaError(ResultError error) {
+    std::lock_guard<std::mutex> lock(s_metaErrorMutex);
+    s_lastMetaError = std::move(error);
+}
+
+static void clearLastMetaError() {
+    std::lock_guard<std::mutex> lock(s_metaErrorMutex);
+    s_lastMetaError = ResultError{};
+}
+
 bool JsonToOneSevenLiveMetaData(const Json& json, OneSevenLiveMetaData& metaData) {
     try {
         if (!json.is_object()) {
+            setLastMetaError(
+                ResultError{"Json.InvalidType", "Meta json is not an object", false, ""});
             return false;
         }
 
@@ -95,9 +119,13 @@ bool JsonToOneSevenLiveMetaData(const Json& json, OneSevenLiveMetaData& metaData
         return true;
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Exception in JsonToOneSevenLiveMetaData: %s", e.what());
+        setLastMetaError(ResultError{"State.Exception", "Exception in JsonToOneSevenLiveMetaData",
+                                     false, e.what()});
         return false;
     } catch (...) {
         obs_log(LOG_ERROR, "Unknown exception in JsonToOneSevenLiveMetaData");
+        setLastMetaError(ResultError{"State.Exception",
+                                     "Unknown exception in JsonToOneSevenLiveMetaData", false, ""});
         return false;
     }
 }
@@ -166,19 +194,26 @@ Json OneSevenLiveMetaDataToJson(const OneSevenLiveMetaData& metaData) {
         return json;
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Exception in OneSevenLiveMetaDataToJson: %s", e.what());
+        setLastMetaError(
+            ResultError{"State.Exception", "Exception in OneSevenLiveMetaDataToJson", false, e.what()});
         return Json();
     } catch (...) {
         obs_log(LOG_ERROR, "Unknown exception in OneSevenLiveMetaDataToJson");
+        setLastMetaError(
+            ResultError{"State.Exception", "Unknown exception in OneSevenLiveMetaDataToJson", false, ""});
         return Json();
     }
 }
 
 bool LoadMetaData() {
+    clearLastMetaError();
     string dataPath = obs_get_module_data_path(obs_current_module());
     string metaDataPath = dataPath + "/meta_" + GetCurrentLanguage() + ".json";
     QFile file(QString::fromStdString(metaDataPath));
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        setLastMetaError(
+            ResultError{"IO.OpenFailed", "Failed to open meta data file", false, metaDataPath});
         return false;
     }
 
@@ -190,20 +225,26 @@ bool LoadMetaData() {
         if (!JsonToOneSevenLiveMetaData(json, metaData)) {
             return false;
         }
+        clearLastMetaError();
         return true;
     } catch (const Json::parse_error& e) {
         obs_log(LOG_ERROR, "JSON parse error in LoadMetaData: %s", e.what());
+        setLastMetaError(
+            ResultError{"Json.ParseFailed", "JSON parse error in LoadMetaData", false, e.what()});
         return false;
     }
 }
 
 bool SaveMetaData() {
+    clearLastMetaError();
     string dataPath = obs_get_module_data_path(obs_current_module());
     string metaDataPath = dataPath + "/meta_" + GetCurrentLanguage() + ".json";
 
     QString metaFile = QString::fromStdString(metaDataPath);
     QFile file(metaFile);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        setLastMetaError(ResultError{"IO.OpenFailed", "Failed to open meta data file for writing",
+                                     false, metaDataPath});
         return false;
     }
 
@@ -211,6 +252,7 @@ bool SaveMetaData() {
     QTextStream out(&file);
     out << QString::fromStdString(jsonObj.dump());
     file.close();
+    clearLastMetaError();
     return true;
 }
 
@@ -218,8 +260,10 @@ bool getMetaValueLabelList(const QString& key, QList<OneSevenLiveMetaValueLabel>
     QVariant value = metaData.data[key];
     if (value.metaType().id() == QMetaType::QVariantList) {
         result = metaData.getMetaValueLabel(key);
+        clearLastMetaError();
         return true;
     }
 
+    setLastMetaError(ResultError{"Meta.KeyMissing", "Meta key not found", false, key.toStdString()});
     return false;
 }

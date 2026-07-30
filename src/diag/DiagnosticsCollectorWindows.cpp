@@ -2,11 +2,77 @@
 
 #include <windows.h>
 
+#include <algorithm>
+#include <array>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 
 namespace seventeen {
     namespace diag {
+
+        namespace {
+
+            std::string toLowerCopy(std::string value) {
+                std::transform(value.begin(), value.end(), value.begin(),
+                               [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+                return value;
+            }
+
+            bool isExcludedPluginConfigTopLevel(const std::filesystem::path& relativePath) {
+                if (relativePath.empty()) {
+                    return false;
+                }
+
+                const auto topName = toLowerCopy((*relativePath.begin()).u8string());
+                static const std::array<const char*, 7> kExcludedTopLevelDirs = {
+                    "customized_cartoons",
+                    "logs",
+                    "enter_animation_assets",
+                    "chat_assets",
+                    "obs_browser_storage_preview",
+                    "obs_browser_storage_enter_anim",
+                    ".sentinel",
+                };
+
+                return std::find(kExcludedTopLevelDirs.begin(), kExcludedTopLevelDirs.end(),
+                                 topName) != kExcludedTopLevelDirs.end();
+            }
+
+            bool isConfigurationSnapshotFile(const std::filesystem::path& path) {
+                if (!std::filesystem::is_regular_file(path)) {
+                    return false;
+                }
+
+                const auto extension = toLowerCopy(path.extension().u8string());
+                static const std::array<const char*, 4> kAllowedExtensions = {
+                    ".ini",
+                    ".json",
+                    ".cfg",
+                    ".conf",
+                };
+
+                return std::find(kAllowedExtensions.begin(), kAllowedExtensions.end(),
+                                 extension) != kAllowedExtensions.end();
+            }
+
+            bool isExcludedPluginConfigFile(const std::filesystem::path& relativePath) {
+                if (relativePath.empty()) {
+                    return false;
+                }
+
+                const auto fileName = toLowerCopy(relativePath.filename().u8string());
+                static const std::array<const char*, 3> kExcludedFiles = {
+                    "enter_animation_files.json",
+                    "gifts.json",
+                    "i18n_config.json",
+                };
+
+                return std::find(kExcludedFiles.begin(), kExcludedFiles.end(), fileName) !=
+                       kExcludedFiles.end();
+            }
+
+        }  // namespace
 
         DiagnosticsCollectorWindows::DiagnosticsCollectorWindows() {}
 
@@ -223,14 +289,42 @@ namespace seventeen {
             }
 
             if (std::filesystem::exists(pluginConfigDir)) {
-                auto pluginFiles = getFilesInDirectory(pluginConfigDir, ".json");
-                for (const auto& file : pluginFiles) {
-                    std::string fileName = std::filesystem::path(file).filename().string();
-                    std::string destPath =
-                        (std::filesystem::path(tempDir) / ("plugin_" + fileName)).string();
+                std::vector<std::filesystem::path> filesToCopy;
+                try {
+                    for (auto it = std::filesystem::recursive_directory_iterator(pluginConfigDir);
+                         it != std::filesystem::recursive_directory_iterator(); ++it) {
+                        const auto& entry = *it;
+                        const auto rel = std::filesystem::relative(entry.path(), pluginConfigDir);
+                        if (isExcludedPluginConfigTopLevel(rel)) {
+                            if (entry.is_directory()) {
+                                it.disable_recursion_pending();
+                            }
+                            continue;
+                        }
 
-                    if (copyFile(file, destPath)) {
-                        configFiles.push_back(destPath);
+                        if (isExcludedPluginConfigFile(rel)) {
+                            continue;
+                        }
+
+                        if (isConfigurationSnapshotFile(entry.path())) {
+                            filesToCopy.push_back(entry.path());
+                        }
+                    }
+                } catch (...) {
+                }
+
+                const double total = static_cast<double>(filesToCopy.size());
+                for (size_t i = 0; i < filesToCopy.size(); ++i) {
+                    const auto& srcPath = filesToCopy[i];
+                    std::filesystem::path rel = std::filesystem::relative(srcPath, pluginConfigDir);
+                    std::filesystem::path destPath =
+                        std::filesystem::path(tempDir) / "plugin_config" / rel;
+
+                    reportSubProgress("Collecting config: " + srcPath.filename().string(),
+                                      static_cast<double>(i) / total);
+
+                    if (copyFile(srcPath.string(), destPath.string())) {
+                        configFiles.push_back(destPath.string());
                     }
                 }
             }
@@ -285,6 +379,12 @@ namespace seventeen {
                 }
                 if (name.rfind("crash_", 0) == 0) {
                     return "crash_reports";
+                }
+                if (name == "obs_global.ini" || name == "obs_basic.ini") {
+                    return "Configuration snapshot";
+                }
+                if (path.find("plugin_config") != std::string::npos) {
+                    return "Configuration snapshot";
                 }
                 if (name == "systeminfo.txt") {
                     return "ROOT";

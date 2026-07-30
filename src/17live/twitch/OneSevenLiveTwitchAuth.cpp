@@ -367,7 +367,9 @@ bool OneSevenLiveTwitchAuth::handleAuthorizationCallbackUrl(const QString& callb
             const qint64 fetchedAt = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
             // Save token (no refresh token in implicit flow)
             if (!cfg->setTwitchTokens(accessToken, fetchedAt)) {
-                obs_log(LOG_ERROR, "Failed to save Twitch access token to config.ini");
+                const auto err = cfg->getLastError();
+                obs_log(LOG_ERROR, "Failed to save Twitch access token: %s %s", err.code.c_str(),
+                        err.message.c_str());
             }
         } else {
             obs_log(LOG_ERROR, "ConfigManager not initialized; cannot persist Twitch token");

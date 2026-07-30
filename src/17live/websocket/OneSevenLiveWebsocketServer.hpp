@@ -7,10 +7,12 @@
 #include <mutex>
 #include <random>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include <QPointer>
+#include <QThread>
 
 // Include ASIO first to ensure ASIO_STANDALONE is properly defined
 #include <asio.hpp>
@@ -69,7 +71,7 @@ class OneSevenLiveWebsocketServer {
     std::unique_ptr<websocketpp_server> server_;
     std::string host_;
     int port_ = 0;
-    std::unique_ptr<std::thread> server_thread_;
+    QPointer<QThread> server_thread_;
     std::atomic<bool> running_{false};
 
     // Client management

@@ -4,16 +4,30 @@
     "GIVE_GIFT": "Sent a gift to the streamer",
     "GIVE_LUCKYBAG_GIFT": "Opened {luckyBagName} and sent {giftName} ({point})",
     "GIVE_GIFT_DEFAULT": "Sent a gift ({point})",
+    "EVENT_POINTS_SUFFIX": "({eventPointWithSign} Event Points)",
     "EMPTY_CHAT_MESSAGE": "Audience comments will show up here. Have fun with your viewers!",
+    "FONT_SIZE_LABEL": "Font size",
+    "FONT_SIZE_LARGE": "Large",
+    "FONT_SIZE_MEDIUM": "Medium",
+    "FONT_SIZE_SMALL": "Small",
+    "SEND_SNACKS": "sent {value} snack",
+    "LIKE_STREAMER": "liked streamer",
     "POKE_ONE": "Streamer pokes {receiverName}",
     "POKE_BACK": "pokes back",
-    "POKE_ALL": "Streamer pokes All"
+    "POKE_ALL": "Streamer pokes All",
+    "enter_is_here": "{name} is here!",
+    "guardian_entry_animation_message": "Guardian",
+    "producer_enterroom": "China's Got Talent {name} is here",
+    "army_enter_notification": "Army",
+    "mlevel_entry_notice_subscription": "V Level",
+    "VIP": "Premium",
+    "LV%@": "LV{level}"
   },
   "PlatformSelector": {
     "label": "Platform Selection",
     "platforms": {
       "all": "All",
-      "17live": "17live",
+      "17live": "17LIVE",
       "youtube": "YouTube",
       "twitch": "Twitch"
     },

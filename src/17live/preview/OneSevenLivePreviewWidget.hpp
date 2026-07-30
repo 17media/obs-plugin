@@ -4,19 +4,26 @@
 #include <obs.h>
 
 #include <QLabel>
+#include <QMetaObject>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QTimer>
 #include <QWidget>
 
 #include "OneSevenLivePreviewConfigLoader.hpp"
 
+class QEvent;
+class QScreen;
+class QWindow;
+
 class OneSevenLivePreviewWidget : public QWidget {
     Q_OBJECT
 
    public:
     explicit OneSevenLivePreviewWidget(QWidget* parent = nullptr,
-                                       const QString& overlayUrl = QString());
+                                       const QString& overlayUrl = QString(),
+                                       const QString& enterAnimUrl = QString());
     ~OneSevenLivePreviewWidget();
 
     /**
@@ -30,6 +37,8 @@ class OneSevenLivePreviewWidget : public QWidget {
      */
     void forceRefresh();
     void syncDisplaySize();
+    void rebuildDisplay();
+    void rebuildDisplayAfterDelay(int delayMs);
 
     /**
      * @brief Set an override URL for the browser overlay.
@@ -38,6 +47,8 @@ class OneSevenLivePreviewWidget : public QWidget {
     void setOverlayUrl(const QString& url);
 
    protected:
+    bool event(QEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
@@ -51,13 +62,24 @@ class OneSevenLivePreviewWidget : public QWidget {
     void displayCreated(bool created);
 
    private:
+    void scheduleCreateDisplay(int delayMs = 0);
+    void scheduleRefresh(int delayMs = 0);
+    void updateTrackedWindow();
+    void clearTrackedWindow();
     void createDisplay();
     void destroyDisplay();
     void updateVideoInfo();
+    void createPreviewScene();
+    void destroyPreviewScene();
+    void setPreviewSceneVisible(bool visible);
     void loadBrowserSourceConfig();
     void createBrowserSource();
     void destroyBrowserSource();
     void updateBrowserSource();
+    void syncProgramSource();
+    void rebuildPreviewSceneItems();
+    void removeSceneItem(obs_sceneitem_t*& item);
+    void updateSceneLayout();
     obs_source_t* getCurrentProgramSource();
     static void drawCallback(void* data, uint32_t cx, uint32_t cy);
     void renderScene(uint32_t cx, uint32_t cy);
@@ -70,13 +92,26 @@ class OneSevenLivePreviewWidget : public QWidget {
     // Video source management
     obs_source_t* currentSource;
     QTimer* refreshTimer;
+    obs_scene_t* previewScene_{nullptr};
+    obs_source_t* previewSceneSource_{nullptr};
+    obs_sceneitem_t* programItem_{nullptr};
+    obs_sceneitem_t* browserItem_{nullptr};
+    obs_sceneitem_t* enterAnimItem_{nullptr};
+    bool previewSceneVisible_{false};
 
     // Display dimensions
     int display_width;
     int display_height;
+    WId boundWindowId_{0};
+    QPointer<QWindow> trackedWindow_{nullptr};
+    QMetaObject::Connection trackedWindowVisibleConnection_;
+    QMetaObject::Connection trackedWindowScreenConnection_;
+    QTimer* createDisplayTimer_{nullptr};
+    QTimer* refreshDisplayTimer_{nullptr};
 
     // Browser source overlay components
     obs_source_t* browserSource = nullptr;
+    obs_source_t* enterAnimSource = nullptr;
     OneSevenLivePreviewConfigLoader* configLoader = nullptr;
     OneSevenLivePreviewConfigLoader::PreviewConfig browserConfig;
     QTimer* browserRefreshTimer = nullptr;
@@ -86,4 +121,9 @@ class OneSevenLivePreviewWidget : public QWidget {
 
     // Optional overlay URL override
     QString overlayUrl_;
+    QString enterAnimUrl_;
+    QString lastOverlayUrl_;
+    QString lastEnterAnimUrl_;
+    int lastEnterAnimWidth_{0};
+    int lastEnterAnimHeight_{0};
 };

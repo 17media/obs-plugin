@@ -11,7 +11,8 @@
       "hidden": true,
       "cacheVariables": {
         "ENABLE_FRONTEND_API": true,
-        "ENABLE_QT": true
+        "ENABLE_QT": true,
+        "ENABLE_YOUTUBE": false
       }
     },
     {

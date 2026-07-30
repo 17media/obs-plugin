@@ -6,6 +6,8 @@
 #include <QVariantMap>
 #include <nlohmann/json.hpp>
 
+#include "Result.hpp"
+
 using Json = nlohmann::json;
 
 // Clip permission item structure
@@ -50,6 +52,7 @@ struct OneSevenLiveMetaData {
 
 bool LoadMetaData();
 bool SaveMetaData();
+ResultError GetLastMetaError();
 
 // Function declaration to parse JSON to OneSevenLiveMetaData structure
 bool JsonToOneSevenLiveMetaData(const Json &json, OneSevenLiveMetaData &metaData);

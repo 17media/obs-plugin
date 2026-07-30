@@ -11,6 +11,9 @@ import {
 const CommentFrame = styled.div`
   position: relative;
   display: inline-flex;
+  box-sizing: border-box;
+  min-width: 0;
+  width: fit-content;
   padding: ${({ borderWidth, borderOffset }) => borderWidth - borderOffset}px;
   max-width: 100%;
 `;

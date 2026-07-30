@@ -136,6 +136,7 @@ class OneSevenLiveMultiRtmpStreamItem : public QFrame {
     std::chrono::steady_clock::time_point m_lastStatsTime;
     uint64_t m_lastTotalBytes = 0;
     uint64_t m_lastTotalFrames = 0;
+    double m_smoothedFPS = 0.0;
 
     // Style classes for different states
     static const QString STATUS_IDLE_CLASS;

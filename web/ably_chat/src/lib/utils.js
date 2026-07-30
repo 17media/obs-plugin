@@ -125,29 +125,74 @@ export const getPicture = (picture, options = {}) => {
 
 const cacheStore = new Map();
 
+const CHAT_ASSET_CACHE_ROUTE_PREFIX = '/__17live_cache/chat_asset/';
+
+export const isRemoteHttpUrl = src =>
+    typeof src === 'string' && /^(https?:)?\/\//i.test(src.trim());
+
+export const getChatAssetProxyUrl = rawUrl => {
+    if (!isRemoteHttpUrl(rawUrl)) {
+        return rawUrl;
+    }
+
+    try {
+        const parsed = new URL(rawUrl);
+        const fileName = parsed.pathname.split('/').pop() || 'asset';
+        return `${CHAT_ASSET_CACHE_ROUTE_PREFIX}${encodeURIComponent(fileName)}?src=${encodeURIComponent(rawUrl)}`;
+    } catch (_error) {
+        return rawUrl;
+    }
+};
+
+export const isImageLoaded = image =>
+    !!image &&
+    image.getAttribute?.('error') !== 'true' &&
+    (image.naturalWidth ?? 0) > 0 &&
+    (image.naturalHeight ?? 0) > 0;
+
 export const imageOnLoad = (
         src,
     timeout = 5000
 ) => {
-    const handleOnLoad = (image) =>
+    const handleOnLoad = (image, imageSrc) =>
         new Promise(resolve => {
             // handle timeouts of request default to 5 seconds
             const timer = setTimeout(resolve, timeout);
+            let settled = false;
+
+            const finish = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                resolve(image);
+            };
 
             const onLoad = () => {
                 clearTimeout(timer);
                 cacheStore.set(image.src, image);
-                resolve(image);
+                finish();
             };
 
             const onError = () => {
                 clearTimeout(timer);
                 image.setAttribute('error', 'true');
-                resolve(image); // we don't want some error to block whole list
+                finish(); // we don't want some error to block whole list
             };
 
             image.onload = onLoad;
             image.onerror = onError;
+            image.decoding = 'async';
+            image.crossOrigin = 'anonymous';
+            image.src = imageSrc;
+
+            if (image.complete) {
+                if (isImageLoaded(image)) {
+                    onLoad();
+                } else {
+                    onError();
+                }
+            }
         });
 
     if (isArray(src) && src.length) {
@@ -158,9 +203,7 @@ export const imageOnLoad = (
             }
 
             const img = new Image();
-            img.src = src[i];
-
-            return handleOnLoad(img);
+            return handleOnLoad(img, src[i]);
         });
 
         // wait for all to be loaded
@@ -172,9 +215,7 @@ export const imageOnLoad = (
         }
 
         const image = new Image();
-        image.src = src;
-
-        return handleOnLoad(image);
+        return handleOnLoad(image, src);
     }
 
     // other type of src just return

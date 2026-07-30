@@ -4,16 +4,30 @@
     "GIVE_GIFT": "送給主播",
     "GIVE_LUCKYBAG_GIFT": "打開了 {luckyBagName}，送出 {giftName} ({point})",
     "GIVE_GIFT_DEFAULT": "送了一個禮物 ({point})",
+    "EVENT_POINTS_SUFFIX": "({eventPointWithSign} 活動點數)",
     "EMPTY_CHAT_MESSAGE": "觀眾留言會出現在這裡，和大家互動吧！",
+    "FONT_SIZE_LABEL": "字體大小",
+    "FONT_SIZE_LARGE": "大",
+    "FONT_SIZE_MEDIUM": "中",
+    "FONT_SIZE_SMALL": "小",
+    "SEND_SNACKS": "送了主播 {value} 個點心",
+    "LIKE_STREAMER": "喜歡了主播",
     "POKE_ONE": "主播戳了 {receiverName}",
     "POKE_BACK": "回戳了主播",
-    "POKE_ALL": "主播戳了 所有觀眾"
+    "POKE_ALL": "主播戳了 所有觀眾",
+    "enter_is_here": "{name} 來囉！",
+    "guardian_entry_animation_message": "守護騎士",
+    "producer_enterroom": "中國達人秀 {name} 駕到！",
+    "army_enter_notification": "主播戰隊",
+    "mlevel_entry_notice_subscription": "V等級",
+    "VIP": "尊榮寶寶",
+    "LV%@": "LV{level}"
   },
   "PlatformSelector": {
     "label": "平台選擇",
     "platforms": {
       "all": "全部",
-      "17live": "17live",
+      "17live": "17LIVE",
       "youtube": "YouTube",
       "twitch": "Twitch"
     },

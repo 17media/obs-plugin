@@ -37,14 +37,40 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "17live/OneSevenLiveCoreManager.hpp"
 #include "17live/utility/Common.hpp"
+#include "17live/utility/CrashSentinel.hpp"
 
 using namespace std;
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+static const char* obs_frontend_event_name(enum obs_frontend_event event) {
+    switch (event) {
+    case OBS_FRONTEND_EVENT_FINISHED_LOADING:
+        return "OBS_FRONTEND_EVENT_FINISHED_LOADING";
+    case OBS_FRONTEND_EVENT_EXIT:
+        return "OBS_FRONTEND_EVENT_EXIT";
+    case OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
+        return "OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN";
+    case OBS_FRONTEND_EVENT_STREAMING_STARTED:
+        return "OBS_FRONTEND_EVENT_STREAMING_STARTED";
+    case OBS_FRONTEND_EVENT_STREAMING_STOPPED:
+        return "OBS_FRONTEND_EVENT_STREAMING_STOPPED";
+    case OBS_FRONTEND_EVENT_PROFILE_CHANGED:
+        return "OBS_FRONTEND_EVENT_PROFILE_CHANGED";
+    case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED:
+        return "OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED";
+    case OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        return "OBS_FRONTEND_EVENT_SCENE_CHANGED";
+    default:
+        return "OBS_FRONTEND_EVENT_OTHER";
+    }
+}
+
 bool obs_module_load(void) {
     obs_log(LOG_INFO, "[%s] loading (version %s)", PLUGIN_NAME, PLUGIN_VERSION);
+
+    seventeen::utility::CrashSentinel::Initialize();
 
     InitThreadPool();
 
@@ -102,8 +128,9 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
     }
     case OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
     case OBS_FRONTEND_EVENT_EXIT: {
-        if (!isRunning)
+        if (!isRunning) {
             return;
+        }
 
         isRunning = false;
 
@@ -115,8 +142,9 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
         // Release OneSevenLiveCoreManager resources
         try {
             auto& manager = OneSevenLiveCoreManager::getInstance();
-            manager.setShuttingDown(true);
             manager.shutdown();
+
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
 
             // Wait for all background tasks to complete BEFORE destroying the manager
             // This ensures tasks don't access destroyed members (like apiWrapper or m_cancelFlag)
@@ -127,6 +155,7 @@ void handle_obs_frontend_event(enum obs_frontend_event event, [[maybe_unused]] v
             // Force process deferred deletions (like QDockWidget::deleteLater)
             // to ensure widgets are destroyed before the plugin library is unloaded
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
 
             obs_log(LOG_INFO, "OneSevenLiveCoreManager resources released");
         } catch (const std::exception& e) {
@@ -146,6 +175,7 @@ MODULE_EXPORT void obs_module_post_load(void) {
 }
 
 void obs_module_unload(void) {
+    seventeen::utility::CrashSentinel::Shutdown();
     // Ensure thread pool is destroyed on unload as well
     DestroyThreadPool();
     obs_log(LOG_INFO, "[obs-17live] plugin unloaded");

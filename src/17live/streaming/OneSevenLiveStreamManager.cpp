@@ -24,21 +24,26 @@
 #include "websocket/WsMessage.hpp"
 
 // Static callback for OBS frontend events to ensure safe registration/removal
-static void ObsFrontendEventCallback(enum obs_frontend_event event, void* private_data) {
-    OneSevenLiveStreamManager* manager = static_cast<OneSevenLiveStreamManager*>(private_data);
-    if (!manager)
+static void ObsFrontendEventCallback(enum obs_frontend_event event, [[maybe_unused]] void* private_data) {
+    if (event != OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
         return;
-
-    if (event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
-        obs_output_t* output = obs_frontend_get_streaming_output();
-        if (output) {
-            const char* err = obs_output_get_last_error(output);
-            manager->handleObsStreamStopped(0, err ? QString(err) : QString());
-            obs_output_release(output);
-        } else {
-            manager->handleObsStreamStopped(0, QString());
-        }
     }
+
+    QString lastError;
+    obs_output_t* output = obs_frontend_get_streaming_output();
+    if (output) {
+        const char* err = obs_output_get_last_error(output);
+        lastError = err ? QString(err) : QString();
+        obs_output_release(output);
+    }
+
+    auto* core = OneSevenLiveCoreManager::peekInstance();
+    if (!core || core->isShuttingDown()) {
+        obs_log(LOG_INFO, "Ignoring OBS stream stopped event because core manager is unavailable");
+        return;
+    }
+
+    core->notifyObsStreamStopped(0, lastError);
 }
 
 OneSevenLiveStreamManager::OneSevenLiveStreamManager(OneSevenLiveApiWrappers* apiWrapper,
@@ -142,8 +147,7 @@ bool OneSevenLiveStreamManager::startStreamWithWeb() {
             info.streamUuid = rtmpResponse.streamID;
             currentLiveStreamInfo = info;
 
-            wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                        nlohmann::json{{"status", "connected"}});
+            // Do not signal connected here; wait until live starts
 
         } else {
             obs_log(LOG_ERROR, "Failed to fetch rtmp url for provider %s",
@@ -245,8 +249,7 @@ void OneSevenLiveStreamManager::startStreamWithWebAsync() {
                         info.streamUuid = resp.streamID;
                         self->currentLiveStreamInfo = info;
 
-                        self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                                          nlohmann::json{{"status", "connected"}});
+                        // Do not signal connected here; wait until live starts
 
                         emit self->webStreamSettingsLoaded(true);
                     } else {
@@ -371,6 +374,21 @@ void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& r
 bool OneSevenLiveStreamManager::startStream() {
     obs_log(LOG_INFO, "Starting streaming");
 
+    auto* core = OneSevenLiveCoreManager::peekInstance();
+    if (core) {
+        const bool refreshed = core->refreshEnterAnimationFilesSync();
+        if (!refreshed) {
+            if (!core->hasEnterAnimationFiles()) {
+                const QString errorMsg = "Failed to refresh enter animation files";
+                obs_log(LOG_ERROR, "%s", errorMsg.toStdString().c_str());
+                emit errorOccurred(errorMsg, "startStream");
+                return false;
+            }
+            obs_log(LOG_WARNING,
+                    "Failed to refresh enter animation files before start; fallback to cached files");
+        }
+    }
+
     // Configure streaming service (RTMP or WHIP)
     configureStreamingService(currentStreamResponse);
 
@@ -413,15 +431,27 @@ void OneSevenLiveStreamManager::startStreamAsync() {
 
     auto* api = this->apiWrapper;
     QPointer<OneSevenLiveStreamManager> self = this;
+    QPointer<OneSevenLiveCoreManager> core = OneSevenLiveCoreManager::peekInstance();
 
-    ScheduleOBSTask([self, lid, uid, autoRecord, api]() {
+    ScheduleOBSTask([self, lid, uid, autoRecord, api, core]() {
         if (!self)
             return;
 
         bool success = false;
         QString errorMsg;
 
-        if (api) {
+        if (core) {
+            const bool refreshed = core->refreshEnterAnimationFilesSync();
+            if (!refreshed && !core->hasEnterAnimationFiles()) {
+                errorMsg = "Failed to refresh enter animation files";
+            } else if (!refreshed) {
+                obs_log(LOG_WARNING,
+                        "Failed to refresh enter animation files before async start; fallback "
+                        "to cached files");
+            }
+        }
+
+        if (errorMsg.isEmpty() && api) {
             success = api->StartStream(lid, uid);
             if (!success) {
                 errorMsg = api->getLastErrorMessage();
@@ -434,7 +464,7 @@ void OneSevenLiveStreamManager::startStreamAsync() {
                     errorMsg = archiveError;
                 }
             }
-        } else {
+        } else if (errorMsg.isEmpty()) {
             errorMsg = "API Wrapper not initialized";
         }
 
@@ -504,6 +534,12 @@ void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRe
 }
 
 bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
+    bool expected = false;
+    if (!stopStreamInProgress_.compare_exchange_strong(expected, true)) {
+        obs_log(LOG_INFO, "stopStream already in progress, skipping duplicate request");
+        return false;
+    }
+
     obs_log(LOG_INFO, "Stopping streaming");
 
     // Stop OBS streaming first
@@ -546,8 +582,13 @@ bool OneSevenLiveStreamManager::stopStream(bool isAutoClose) {
     currentStreamResponse = OneSevenLiveRtmpResponse{};
     currentLiveStreamInfo = OneSevenLiveStreamInfo{};
 
+    stopStreamInProgress_.store(false);
     obs_log(LOG_INFO, "Streaming stopped successfully");
     return true;
+}
+
+bool OneSevenLiveStreamManager::isStopStreamInProgress() const {
+    return stopStreamInProgress_.load();
 }
 
 void OneSevenLiveStreamManager::onStatusTimer() {
@@ -684,7 +725,9 @@ bool OneSevenLiveStreamManager::saveStreamConfiguration(const OneSevenLiveStream
     obs_log(LOG_INFO, "Saving stream configuration");
 
     if (!configManager->saveLiveConfig(streamInfo)) {
-        obs_log(LOG_ERROR, "Failed to save stream info");
+        const auto err = configManager->getLastError();
+        obs_log(LOG_ERROR, "Failed to save stream info: %s %s", err.code.c_str(),
+                err.message.c_str());
         emit errorOccurred("Failed to save stream configuration", "saveStreamConfiguration");
         return false;
     }
@@ -896,7 +939,12 @@ void OneSevenLiveStreamManager::configureStreamingSettings(
 }
 
 void OneSevenLiveStreamManager::handleObsStreamStopped(int code, const QString& lastError) {
-    // This is called from OBS callback thread, so we need to invoke on main thread
+    if (QThread::currentThread() == thread()) {
+        emit obsStreamStopped(code, lastError);
+        return;
+    }
+
+    // OBS frontend callbacks may arrive on a non-Qt thread.
     QMetaObject::invokeMethod(
         this, [this, code, lastError]() { emit obsStreamStopped(code, lastError); },
         Qt::QueuedConnection);

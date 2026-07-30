@@ -11,12 +11,117 @@
 #include <sstream>
 #include <vector>
 
+#include <QCryptographicHash>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QString>
+#include <QUrl>
+
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
 #include "utility/Common.hpp"
+#include "utility/RemoteTextThread.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
+
+namespace {
+
+    bool is_valid_remote_asset_url(const std::string& source_url, QUrl& url,
+                                   std::string& error_message) {
+        url = QUrl(QString::fromStdString(source_url));
+        if (!url.isValid() || url.host().isEmpty() ||
+            (url.scheme() != "https" && url.scheme() != "http")) {
+            error_message = "Invalid remote asset URL";
+            return false;
+        }
+
+        return true;
+    }
+
+    bool ensure_remote_asset_cache_dir_ready(const std::string& cache_dir,
+                                             std::string& error_message) {
+        QDir dir(QString::fromStdString(cache_dir));
+        if (!dir.exists() && !dir.mkpath(".")) {
+            error_message = "Failed to create asset cache directory";
+            return false;
+        }
+
+        return true;
+    }
+
+    std::filesystem::path build_cached_remote_asset_path(const std::string& source_url,
+                                                         const std::string& cache_dir,
+                                                         const QUrl& url) {
+        QDir dir(QString::fromStdString(cache_dir));
+        QString suffix = QFileInfo(url.path()).suffix().toLower();
+        if (suffix.isEmpty()) {
+            suffix = "bin";
+        }
+
+        const QByteArray hash =
+            QCryptographicHash::hash(QByteArray::fromStdString(source_url), QCryptographicHash::Md5)
+                .toHex();
+        const QString file_name = QString("%1.%2").arg(QString::fromLatin1(hash), suffix);
+        return std::filesystem::path(dir.filePath(file_name).toStdString());
+    }
+
+    bool download_remote_asset_content(const std::string& source_url, std::string& content,
+                                       std::string& error_message) {
+        std::string download_error;
+        long response_code = 0;
+        const bool success =
+            GetRemoteFile(source_url.c_str(), content, download_error, &response_code, nullptr,
+                          "GET", nullptr, {}, nullptr, 20, true);
+        if (success && response_code >= 200 && response_code < 300 && !content.empty()) {
+            return true;
+        }
+
+        std::ostringstream ss;
+        ss << "Failed to download remote asset";
+        if (response_code > 0) {
+            ss << " (HTTP " << response_code << ")";
+        }
+        if (!download_error.empty()) {
+            ss << ": " << download_error;
+        }
+        error_message = ss.str();
+        return false;
+    }
+
+    bool persist_cached_remote_asset(const std::filesystem::path& cached_file_path,
+                                     const std::string& content, std::string& error_message) {
+        const QString file_path = QString::fromStdString(cached_file_path.string());
+        const QString temp_file_path = file_path + ".part";
+        QFile::remove(temp_file_path);
+
+        QFile file(temp_file_path);
+        if (!file.open(QIODevice::WriteOnly)) {
+            error_message = "Failed to write cached asset";
+            return false;
+        }
+
+        if (file.write(content.data(), static_cast<qint64>(content.size())) !=
+            static_cast<qint64>(content.size())) {
+            file.close();
+            QFile::remove(temp_file_path);
+            error_message = "Failed to persist cached asset";
+            return false;
+        }
+        file.close();
+
+        QFile::remove(file_path);
+        if (!QFile::rename(temp_file_path, file_path)) {
+            QFile::remove(temp_file_path);
+            error_message = "Failed to finalize cached asset";
+            return false;
+        }
+
+        return true;
+    }
+
+}  // namespace
 
 std::string OneSevenLiveHttpServer::get_file_extension(const std::string& file_path) const {
     size_t dot_pos = file_path.rfind('.');
@@ -42,6 +147,8 @@ std::string OneSevenLiveHttpServer::get_mime_type(const std::string& file_path) 
         return "image/jpeg";
     if (ext == "gif")
         return "image/gif";
+    if (ext == "webp")
+        return "image/webp";
     if (ext == "svg")
         return "image/svg+xml";
     if (ext == "ico")
@@ -53,6 +160,168 @@ std::string OneSevenLiveHttpServer::get_mime_type(const std::string& file_path) 
     if (ext == "ttf")
         return "font/ttf";
     return "application/octet-stream";
+}
+
+void OneSevenLiveHttpServer::serve_file(const std::filesystem::path& file_path,
+                                        httplib::Response& res) const {
+    const std::string file_path_str = file_path.string();
+
+    try {
+        if (!std::filesystem::exists(file_path) || !std::filesystem::is_regular_file(file_path)) {
+            res.status = 404;
+            res.set_content("Not Found", "text/plain");
+            return;
+        }
+
+        std::ifstream ifs(file_path_str, std::ios::in | std::ios::binary);
+        if (!ifs.is_open() || !ifs.good()) {
+            obs_log(LOG_ERROR, "[%s] Failed to open file: %s", name_.c_str(), file_path_str.c_str());
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
+            return;
+        }
+
+        std::string content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+        if (ifs.bad()) {
+            obs_log(LOG_ERROR, "[%s] Error reading file: %s", name_.c_str(), file_path_str.c_str());
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
+            return;
+        }
+
+        res.set_content(content, get_mime_type(file_path_str).c_str());
+    } catch (const std::filesystem::filesystem_error& e) {
+        obs_log(LOG_ERROR, "[%s] Filesystem error for %s: %s", name_.c_str(), file_path_str.c_str(),
+                e.what());
+        res.status = 500;
+        res.set_content("Internal Server Error", "text/plain");
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "[%s] Exception serving file %s: %s", name_.c_str(), file_path_str.c_str(),
+                e.what());
+        res.status = 500;
+        res.set_content("Internal Server Error", "text/plain");
+    }
+}
+
+std::string OneSevenLiveHttpServer::get_remote_asset_cache_dir(const std::string& cache_subdir) const {
+    auto* coreManager = OneSevenLiveCoreManager::peekInstance();
+    if (!coreManager) {
+        return "";
+    }
+
+    auto* configManager = coreManager->getConfigManager();
+    if (!configManager) {
+        return "";
+    }
+
+    const std::string config_path = configManager->getConfigPath();
+    if (config_path.empty()) {
+        return "";
+    }
+
+    return (std::filesystem::path(config_path) / cache_subdir).string();
+}
+
+bool OneSevenLiveHttpServer::ensure_cached_remote_asset(const std::string& source_url,
+                                                        const std::string& cache_subdir,
+                                                        std::filesystem::path& cached_file_path,
+                                                        std::string& error_message) {
+    QUrl url;
+    if (!is_valid_remote_asset_url(source_url, url, error_message)) {
+        return false;
+    }
+
+    const std::string cache_dir = get_remote_asset_cache_dir(cache_subdir);
+    if (cache_dir.empty()) {
+        error_message = "Config cache directory unavailable";
+        return false;
+    }
+
+    if (!ensure_remote_asset_cache_dir_ready(cache_dir, error_message)) {
+        return false;
+    }
+
+    cached_file_path = build_cached_remote_asset_path(source_url, cache_dir, url);
+    const QString file_path = QString::fromStdString(cached_file_path.string());
+
+    std::lock_guard<std::mutex> lock(asset_cache_mutex_);
+
+    const QFileInfo cache_info(file_path);
+    if (cache_info.exists() && cache_info.isFile() && cache_info.size() > 0) {
+        return true;
+    }
+
+    std::string content;
+    if (!download_remote_asset_content(source_url, content, error_message)) {
+        return false;
+    }
+
+    if (!persist_cached_remote_asset(cached_file_path, content, error_message)) {
+        return false;
+    }
+
+    obs_log(LOG_INFO, "[%s] Cached remote asset (%s): %s -> %s", name_.c_str(),
+            cache_subdir.c_str(), source_url.c_str(), file_path.toStdString().c_str());
+    return true;
+}
+
+bool OneSevenLiveHttpServer::handle_enter_animation_cache_request(const httplib::Request& req,
+                                                                  httplib::Response& res) {
+    static const std::string kCacheRoutePrefix = "/__17live_cache/enter_animation/";
+    if (req.path.rfind(kCacheRoutePrefix, 0) != 0) {
+        return false;
+    }
+
+    if (!req.has_param("src")) {
+        res.status = 400;
+        res.set_content("Missing src parameter", "text/plain");
+        return true;
+    }
+
+    const std::string source_url = req.get_param_value("src");
+    std::filesystem::path cached_file_path;
+    std::string error_message;
+    if (!ensure_cached_remote_asset(source_url, "enter_animation_assets", cached_file_path,
+                                    error_message)) {
+        obs_log(LOG_WARNING, "[%s] Failed to cache enter animation asset %s: %s", name_.c_str(),
+                source_url.c_str(), error_message.c_str());
+        res.status = 502;
+        res.set_content(error_message, "text/plain");
+        return true;
+    }
+
+    res.set_header("Cache-Control", "public, max-age=31536000, immutable");
+    serve_file(cached_file_path, res);
+    return true;
+}
+
+bool OneSevenLiveHttpServer::handle_chat_asset_cache_request(const httplib::Request& req,
+                                                             httplib::Response& res) {
+    static const std::string kCacheRoutePrefix = "/__17live_cache/chat_asset/";
+    if (req.path.rfind(kCacheRoutePrefix, 0) != 0) {
+        return false;
+    }
+
+    if (!req.has_param("src")) {
+        res.status = 400;
+        res.set_content("Missing src parameter", "text/plain");
+        return true;
+    }
+
+    const std::string source_url = req.get_param_value("src");
+    std::filesystem::path cached_file_path;
+    std::string error_message;
+    if (!ensure_cached_remote_asset(source_url, "chat_assets", cached_file_path, error_message)) {
+        obs_log(LOG_WARNING, "[%s] Failed to cache chat asset %s: %s", name_.c_str(),
+                source_url.c_str(), error_message.c_str());
+        res.status = 502;
+        res.set_content(error_message, "text/plain");
+        return true;
+    }
+
+    res.set_header("Cache-Control", "public, max-age=31536000, immutable");
+    serve_file(cached_file_path, res);
+    return true;
 }
 
 OneSevenLiveHttpServer::OneSevenLiveHttpServer(const std::string& host, int port,
@@ -81,15 +350,6 @@ OneSevenLiveHttpServer::~OneSevenLiveHttpServer() {
 
     // Ensure server is completely stopped and thread properly terminated
     stop();
-
-    // Additional safety check: ensure thread has completely finished
-    if (server_thread_ && server_thread_->joinable()) {
-        obs_log(LOG_WARNING,
-                "[%s] Thread still joinable in destructor, forcing thread termination "
-                "wait",
-                name_.c_str());
-        server_thread_->join();
-    }
 
     obs_log(LOG_INFO, "[%s] HTTP server successfully destroyed", name_.c_str());
 }
@@ -141,6 +401,14 @@ bool OneSevenLiveHttpServer::start() {
             path = "/index.html";
         }
 
+        if (handle_enter_animation_cache_request(req, res)) {
+            return;
+        }
+
+        if (handle_chat_asset_cache_request(req, res)) {
+            return;
+        }
+
         // Security check: path validation
         if (!is_safe_path(path)) {
             res.status = 403;
@@ -150,43 +418,7 @@ bool OneSevenLiveHttpServer::start() {
 
         // Serve the file
         std::filesystem::path file_path = std::filesystem::path(base_dir_) / path.substr(1);
-        std::string file_path_str = file_path.string();
-
-        try {
-            if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path)) {
-                std::ifstream ifs(file_path_str, std::ios::in | std::ios::binary);
-                if (ifs.is_open() && ifs.good()) {
-                    std::string content((std::istreambuf_iterator<char>(ifs)),
-                                        (std::istreambuf_iterator<char>()));
-                    if (ifs.bad()) {
-                        obs_log(LOG_ERROR, "[%s] Error reading file: %s", name_.c_str(),
-                                file_path_str.c_str());
-                        res.status = 500;
-                        res.set_content("Internal Server Error", "text/plain");
-                    } else {
-                        res.set_content(content, get_mime_type(file_path_str).c_str());
-                    }
-                } else {
-                    obs_log(LOG_ERROR, "[%s] Failed to open file: %s", name_.c_str(),
-                            file_path_str.c_str());
-                    res.status = 500;
-                    res.set_content("Internal Server Error", "text/plain");
-                }
-            } else {
-                res.status = 404;
-                res.set_content("Not Found", "text/plain");
-            }
-        } catch (const std::filesystem::filesystem_error& e) {
-            obs_log(LOG_ERROR, "[%s] Filesystem error for %s: %s", name_.c_str(),
-                    file_path_str.c_str(), e.what());
-            res.status = 500;
-            res.set_content("Internal Server Error", "text/plain");
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "[%s] Exception serving file %s: %s", name_.c_str(),
-                    file_path_str.c_str(), e.what());
-            res.status = 500;
-            res.set_content("Internal Server Error", "text/plain");
-        }
+        serve_file(file_path, res);
     });
 
     // Provide index.html by default
@@ -414,7 +646,11 @@ bool OneSevenLiveHttpServer::start() {
                     configManager->getConfigValue("RoomID", roomID);
                     success = apiWrapper->GetAblyToken(roomID, apiResult);
                 } else if (action == ACTION_GETGIFTS) {
-                    if (!configManager->loadGifts(apiResult)) {
+                    const bool loaded = configManager->loadGifts(apiResult);
+                    const bool hasCached =
+                        apiResult.contains("gifts") && apiResult["gifts"].is_array() &&
+                        !apiResult["gifts"].empty();
+                    if (!loaded || !hasCached) {
                         if (coreManager.isGiftsLoading()) {
                             obs_log(LOG_INFO,
                                     "[%s] Gifts loading in progress, returning wait response",
@@ -428,7 +664,11 @@ bool OneSevenLiveHttpServer::start() {
                         std::string language;
                         configManager->getConfigValue("Region", language);
                         success = apiWrapper->GetGifts(language, apiResult);
-                        configManager->saveGifts(apiResult);
+                        if (!configManager->saveGifts(apiResult)) {
+                            const auto err = configManager->getLastError();
+                            obs_log(LOG_WARNING, "[%s] Failed to save gifts: %s %s", name_.c_str(),
+                                    err.code.c_str(), err.message.c_str());
+                        }
                     } else {
                         success = true;
                     }
@@ -461,6 +701,74 @@ bool OneSevenLiveHttpServer::start() {
                         return;
                     }
 
+                } else if (action == ACTION_GETENTERANIMATIONFILES) {
+                    const auto getFileCount = [](const nlohmann::json &jsonValue) -> size_t {
+                        if (jsonValue.contains("files") && jsonValue["files"].is_array()) {
+                            return jsonValue["files"].size();
+                        }
+                        if (jsonValue.contains("animations") && jsonValue["animations"].is_array()) {
+                            return jsonValue["animations"].size();
+                        }
+                        return 0;
+                    };
+                    apiResult = coreManager.getEnterAnimationFiles();
+                    bool hasCached = getFileCount(apiResult) > 0;
+
+                    if (!hasCached) {
+                        const bool loaded = configManager->loadEnterAnimationFiles(apiResult);
+                        hasCached = loaded && getFileCount(apiResult) > 0;
+                    }
+
+                    if (!hasCached) {
+                        if (coreManager.isEnterAnimationFilesLoading()) {
+                            obs_log(LOG_INFO,
+                                    "[%s] Enter animation files loading in progress, returning "
+                                    "wait response",
+                                    name_.c_str());
+                            const nlohmann::json response = {{"success", false},
+                                                             {"error", "Enter animation files loading"}};
+                            res.set_content(response.dump(), "application/json");
+                            return;
+                        }
+
+                        success = coreManager.refreshEnterAnimationFilesSync();
+                        if (success) {
+                            apiResult = coreManager.getEnterAnimationFiles();
+                        }
+                    } else {
+                        // obs_log(LOG_INFO,
+                        //         "[%s] getEnterAnimationFiles served from cache: fileCount=%zu",
+                        //         name_.c_str(), getFileCount(apiResult));
+                        success = true;
+                    }
+                } else if (action == ACTION_GETI18NCONFIG) {
+                    OneSevenLiveLoginData loginData;
+                    configManager->getLoginData(loginData);
+                    std::string language = loginData.userInfo.region.toStdString();
+                    if (language.empty()) {
+                        configManager->getConfigValue("Region", language);
+                    }
+                    if (language.empty()) {
+                        language = GetCurrentLanguage();
+                    }
+
+                    const bool loaded = configManager->loadI18nConfig(apiResult);
+                    const std::string cachedLanguage =
+                        apiResult.value("__17live_language", std::string());
+                    const bool hasCached = !apiResult.empty() && cachedLanguage == language;
+                    if (!loaded || !hasCached) {
+                        success = apiWrapper->GetI18nConfig(language, apiResult);
+                        if (success) {
+                            apiResult["__17live_language"] = language;
+                        }
+                        if (success && !configManager->saveI18nConfig(apiResult)) {
+                            const auto err = configManager->getLastError();
+                            obs_log(LOG_WARNING, "[%s] Failed to save i18n config: %s %s",
+                                    name_.c_str(), err.code.c_str(), err.message.c_str());
+                        }
+                    } else {
+                        success = true;
+                    }
                 } else if (action == ACTION_GETROOMINFO) {
                     OneSevenLiveLoginData loginData;
                     configManager->getLoginData(loginData);
@@ -528,8 +836,8 @@ bool OneSevenLiveHttpServer::start() {
         });
     }
 
-    // Start server in new thread to avoid blocking main thread
-    server_thread_ = std::make_unique<std::thread>([this]() {
+    // Start server in a Qt thread to align with OBS frontend (Qt) threading model
+    server_thread_ = QThread::create([this]() {
         try {
             if (port_ == 0) {
                 // Bind to any available port if port_ is 0
@@ -564,11 +872,9 @@ bool OneSevenLiveHttpServer::start() {
             running_ = false;
         }
     });
-
-    // Wait a bit to see if server can start successfully. This is not perfect, but can catch some
-    // immediate errors. A better approach would be to use condition variables or futures to wait
-    // for server to actually start listening.
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    server_thread_->setObjectName(QString("17live-http-%1").arg(QString::fromStdString(name_)));
+    QObject::connect(server_thread_, &QThread::finished, server_thread_, &QObject::deleteLater);
+    server_thread_->start();
 
     // listen failure will print logs within thread, but we assume it will start here
     // is_running() depends on svr_.is_running(), but listen is blocking, so svr_.is_running() may
@@ -608,36 +914,22 @@ void OneSevenLiveHttpServer::setEnableDefaultApi(bool enable) {
 }
 
 void OneSevenLiveHttpServer::stop() {
-    if (running_) {
-        obs_log(LOG_INFO, "[%s] Stopping server...", name_.c_str());
-        svr_.stop();  // Stop server listening
-        if (server_thread_ && server_thread_->joinable()) {
-            server_thread_->join();  // Wait for server thread to end
-        }
-        server_thread_.reset();
-        running_ = false;
-        obs_log(LOG_INFO, "[%s] Server stopped.", name_.c_str());
-    } else {
-        // obs_log(LOG_INFO, "[%s] Server not running or already stopped.", name_.c_str());
+    if (!running_ && !server_thread_) {
+        return;
     }
+
+    obs_log(LOG_INFO, "[%s] Stopping server...", name_.c_str());
+    svr_.stop();
+    if (server_thread_) {
+        server_thread_->wait(5000);
+        server_thread_ = nullptr;
+    }
+    running_ = false;
+    obs_log(LOG_INFO, "[%s] Server stopped.", name_.c_str());
 }
 
 void OneSevenLiveHttpServer::stopAsync() {
-    if (!running_ || stopping_.load()) {
-        return;
-    }
-    stopping_.store(true);
-    obs_log(LOG_INFO, "[%s] Stopping server...", name_.c_str());
-    svr_.stop();
-    std::thread([this]() {
-        if (server_thread_ && server_thread_->joinable()) {
-            server_thread_->join();
-        }
-        server_thread_.reset();
-        running_ = false;
-        stopping_.store(false);
-        obs_log(LOG_INFO, "[%s] Server stopped.", name_.c_str());
-    }).detach();
+    stop();
 }
 
 bool OneSevenLiveHttpServer::is_running() const {

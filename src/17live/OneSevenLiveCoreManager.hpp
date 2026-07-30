@@ -13,6 +13,8 @@
 #include <unordered_map>
 
 #include "api/OneSevenLiveModels.hpp"
+#include "chat/OneSevenLiveChatDock.hpp"
+#include "core/OneSevenLiveCoreContext.hpp"
 #include "utility/NetworkDiagnostics.hpp"
 #include "websocket/WsMessage.hpp"
 
@@ -27,6 +29,9 @@ class QDockWidget;
 class QProgressDialog;
 
 class BrowserApp;
+
+class LocalGatewayService;
+class ChatBridgeService;
 
 // Forward declaration of OneSevenLiveMenuManager class
 class OneSevenLiveMenuManager;
@@ -43,11 +48,10 @@ class OneSevenLiveStreamListDock;
 
 class OneSevenLiveRockZoneDock;
 
-class OneSevenLiveChatWidget;
-
 class OneSevenLiveMultiRtmpDock;
 
 class OneSevenLivePreviewDock;
+class CustomizedCartoonDock;
 
 class OneSevenLiveHttpServer;
 
@@ -60,6 +64,12 @@ class OneSevenLiveYouTubeChatClient;
 class OneSevenLiveTwitchChatClient;
 class OneSevenLiveYouTubeClient;
 class OneSevenLiveAblyChatClient;
+class CoreRuntime;
+class DockOrchestrator;
+
+class AuthSessionService;
+class CrashUploadService;
+class CustomizedCartoonService;
 
 /**
  * @brief OneSevenLiveCoreManager class is the core management class for the 17live plugin
@@ -68,7 +78,7 @@ class OneSevenLiveAblyChatClient;
  * Responsible for plugin initialization, configuration management, resource allocation and other
  * core functions.
  */
-class OneSevenLiveCoreManager : public QObject {
+class OneSevenLiveCoreManager : public QObject, public OneSevenLiveCoreContext {
     Q_OBJECT
 
    public:
@@ -79,6 +89,13 @@ class OneSevenLiveCoreManager : public QObject {
      * @return OneSevenLiveCoreManager& Reference to the singleton instance
      */
     static OneSevenLiveCoreManager& getInstance(QMainWindow* mainWindow = nullptr);
+
+    /**
+     * @brief Get the singleton instance if it already exists
+     *
+     * @return OneSevenLiveCoreManager* Existing instance or nullptr
+     */
+    static OneSevenLiveCoreManager* peekInstance();
 
     /**
      * @brief Destroy the singleton instance
@@ -97,49 +114,56 @@ class OneSevenLiveCoreManager : public QObject {
      */
     void shutdown();
 
+    void syncPreviewDockLayoutToObsCanvas();
+
     /**
      * @brief Get OBS main window
      *
      * @return QMainWindow* Pointer to OBS main window
      */
-    QMainWindow* getMainWindow() const;
+    QMainWindow* getMainWindow() const override;
 
     /**
      * @brief Get menu manager
      *
      * @return OneSevenLiveMenuManager* Pointer to menu manager
      */
-    OneSevenLiveMenuManager* getMenuManager() const;
+    OneSevenLiveMenuManager* getMenuManager() const override;
 
     /**
      * @brief Get API wrapper
      *
      * @return OneSevenLiveApiWrappers* Pointer to API wrapper
      */
-    OneSevenLiveApiWrappers* getApiWrapper() const;
+    OneSevenLiveApiWrappers* getApiWrapper() const override;
 
-    OneSevenLiveConfigManager* getConfigManager() const;
+    OneSevenLiveConfigManager* getConfigManager() const override;
 
     /**
      * @brief Get stream manager
      *
      * @return OneSevenLiveStreamManager* Pointer to stream manager
      */
-    OneSevenLiveStreamManager* getStreamManager() const;
+    OneSevenLiveStreamManager* getStreamManager() const override;
+
+    /**
+     * @brief Safely forward OBS frontend stream-stopped event to the current stream manager
+     */
+    void notifyObsStreamStopped(int code, const QString& lastError);
 
     /**
      * @brief Get WebSocket server
      *
      * @return OneSevenLiveWebsocketServer* Pointer to WebSocket server
      */
-    OneSevenLiveWebsocketServer* getWebsocketServer() const;
+    OneSevenLiveWebsocketServer* getWebsocketServer() const override;
 
     /**
      * @brief Get HTTP server
      *
      * @return OneSevenLiveHttpServer* Pointer to HTTP server
      */
-    OneSevenLiveHttpServer* getHttpServer() const;
+    OneSevenLiveHttpServer* getHttpServer() const override;
 
     // Auth handlers accessors
     OneSevenLiveTwitchAuth* getTwitchAuth() const;
@@ -150,6 +174,9 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveTwitchChatClient* getTwitchChatClient() const;
     OneSevenLiveAblyChatClient* getAblyChatClient() const;
     OneSevenLiveYouTubeClient* getYouTubeApiClient() const;
+
+    AuthSessionService* getAuthSessionService() const;
+    LocalGatewayService* getLocalGatewayService() const;
 
     // Chat clients lifecycle
     void createYouTubeChatClient();
@@ -171,15 +198,19 @@ class OneSevenLiveCoreManager : public QObject {
     void stopYouTubeChatPolling();
     void connectTwitchChatClient(const QString& channel = QString());
     void disconnectTwitchChatClient();
-    void orchestrateYouTubeBroadcast(const QString& title);
-
-    bool handleLoginClicked();
 
     void setShuttingDown(bool v);
     bool isShuttingDown() const;
 
     bool isGiftsLoaded() const;
     bool isGiftsLoading() const;
+    bool isEnterAnimationFilesLoaded() const;
+    bool isEnterAnimationFilesLoading() const;
+    nlohmann::json getEnterAnimationFiles() const;
+    bool hasEnterAnimationFiles() const;
+    void loadI18nConfig();
+    void loadEnterAnimationFiles();
+    bool refreshEnterAnimationFilesSync();
 
    signals:
     void giftsLoaded();
@@ -189,22 +220,61 @@ class OneSevenLiveCoreManager : public QObject {
     OneSevenLiveCoreManager(const OneSevenLiveCoreManager&) = delete;
     OneSevenLiveCoreManager& operator=(const OneSevenLiveCoreManager&) = delete;
 
+    friend class AuthSessionService;
+
     // Accessor for cancellation flag
     std::atomic<bool>* getCancelFlag() {
-        return &m_cancelFlag;
+        return &cancelFlag_;
+    }
+
+    std::atomic<bool>* getShutdownCancelFlag() {
+        return &shutdownCancelFlag_;
+    }
+
+    std::atomic<bool>* getSessionCancelFlag() {
+        return &sessionCancelFlag_;
+    }
+
+    void setShutdownCancel(bool v) {
+        shutdownCancelFlag_.store(v);
+        cancelFlag_.store(v || sessionCancelFlag_.load());
+    }
+
+    void setSessionCancel(bool v) {
+        sessionCancelFlag_.store(v);
+        cancelFlag_.store(v || shutdownCancelFlag_.load());
     }
 
    private:
     std::atomic<bool> giftsLoading_{false};
-    std::atomic<bool> m_cancelFlag{false};
-    std::atomic<bool> loggingOut{false};
-    std::atomic<bool> loggingIn{false};
-    std::atomic<bool> pendingLogout{false};
-
-   protected:
-    bool eventFilter(QObject* obj, QEvent* event) override;
+    std::atomic<bool> enterAnimationFilesLoading_{false};
+    std::atomic<bool> i18nConfigLoading_{false};
+    std::atomic<bool> cancelFlag_{false};
+    std::atomic<bool> shutdownCancelFlag_{false};
+    std::atomic<bool> sessionCancelFlag_{false};
 
    private:
+    QObject* getUiOwner() override;
+    OneSevenLiveStreamingStatus getStreamingStatus() const override;
+    bool getStartupRestore() const override;
+    void setStartupRestore(bool v) override;
+    void requestFlushChatEventQueue() override;
+    OneSevenLiveStreamingDock* getStreamingDock() const override;
+    void setStreamingDock(OneSevenLiveStreamingDock* dock) override;
+    OneSevenLiveChatDock* getChatDock() const override;
+    void setChatDock(OneSevenLiveChatDock* dock) override;
+    OneSevenLiveStreamListDock* getLiveListDock() const override;
+    void setLiveListDock(OneSevenLiveStreamListDock* dock) override;
+    OneSevenLiveRockZoneDock* getRockZoneDock() const override;
+    void setRockZoneDock(OneSevenLiveRockZoneDock* dock) override;
+    OneSevenLiveMultiRtmpDock* getMultiRtmpDock() const override;
+    void setMultiRtmpDock(OneSevenLiveMultiRtmpDock* dock) override;
+    OneSevenLivePreviewDock* getPreviewDock() const override;
+    void setPreviewDock(OneSevenLivePreviewDock* dock) override;
+    CustomizedCartoonDock* getCustomizedCartoonDock() const override;
+    void setCustomizedCartoonDock(CustomizedCartoonDock* dock) override;
+    CustomizedCartoonService* getCustomizedCartoonService() const override;
+
     // Private constructor, ensure instance can only be obtained through getInstance method
     explicit OneSevenLiveCoreManager(QMainWindow* mainWindow);
 
@@ -213,9 +283,6 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Singleton instance
     static OneSevenLiveCoreManager* instance;
-
-    // Once flag for thread-safe singleton creation using std::call_once
-    static std::once_flag instanceOnceFlag;
 
     // OBS main window
     QMainWindow* mainWindow = nullptr;
@@ -228,6 +295,7 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Flag to track if we are in startup dock restoration phase
     bool isStartupRestore = false;
+    bool closeAllDocksInProgress_ = false;
 
     std::unique_ptr<OneSevenLiveConfigManager> configManager;
 
@@ -239,29 +307,11 @@ class OneSevenLiveCoreManager : public QObject {
     // Menu manager
     std::unique_ptr<OneSevenLiveMenuManager> menuManager;
 
-    std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
+    // std::unique_ptr<OneSevenLiveHttpServer> httpServer_;
 
-    std::shared_ptr<OneSevenLiveWebsocketServer> websocketServer_;
+    // std::shared_ptr<OneSevenLiveWebsocketServer> websocketServer_;
 
-    /**
-     * @brief Slot function to handle successful login
-     *
-     * @param userData User data returned after successful login
-     */
-    void handleLoginSuccess(const OneSevenLiveLoginData& userData);
-
-    void handleLogoutClicked();
-
-    // New login state management methods
-    void handleLoginStateChanged(bool isLoggedIn,
-                                 const OneSevenLiveLoginData& loginData = OneSevenLiveLoginData());
-    void performLoginOperations(const OneSevenLiveLoginData& loginData);
-    void performLogoutOperations();
-    void restoreDockStatesOnLogin();
     void closeAllDocks();
-
-    // Function to check if login status is valid
-    bool checkLoginStatus();
 
     // Streaming Dock load status
     bool streamingDockFirstLoad = true;
@@ -269,7 +319,7 @@ class OneSevenLiveCoreManager : public QObject {
     void handleStreamingClicked();
     void createStreamingDock();
 
-    QPointer<QDockWidget> chatDock;
+    QPointer<OneSevenLiveChatDock> chatDock;
     void handleChatRoomClicked();
 
     bool liveListDockFirstLoad = true;
@@ -290,6 +340,11 @@ class OneSevenLiveCoreManager : public QObject {
     QPointer<OneSevenLivePreviewDock> previewDock;
     void handlePreviewDockClicked();
     void createPreviewDock();
+
+    bool customizedCartoonDockFirstLoad = true;
+    QPointer<CustomizedCartoonDock> customizedCartoonDock;
+    void handleCustomizedCartoonClicked();
+    void createCustomizedCartoonDock();
 
     void saveDockState();
 
@@ -316,10 +371,14 @@ class OneSevenLiveCoreManager : public QObject {
 
     // Diagnostics related methods
     void handleDiagnosticsClicked();
+    void handleCrashRecordsClicked();
+    void handleSettingsClicked();
 
     void loadGifts();
     void loadGiftsFromConfig();
     void buildGiftsMapFromJson(const nlohmann::json& giftsJson);
+    void loadEnterAnimationFilesFromConfig();
+    void setEnterAnimationFilesCache(const nlohmann::json& filesJson);
 
     class OneSevenLiveUpdateManager* updateManager = nullptr;
 
@@ -333,17 +392,33 @@ class OneSevenLiveCoreManager : public QObject {
     std::unique_ptr<OneSevenLiveYouTubeClient> youtubeApiClient;
     std::unique_ptr<OneSevenLiveAblyChatClient> ablyChatClient;
 
-    void handleWebsocketMessage(const std::string& clientId, const std::string& message);
-    void handleWebsocketConnectionChanged(const std::string& clientId, bool connected);
-
     // Gifts lookup map: giftID (string) -> gift json
     std::unordered_map<std::string, nlohmann::json> giftsMap;
+    mutable std::mutex enterAnimationFilesMutex_;
+    nlohmann::json enterAnimationFilesCache_;
 
-    bool chatDockVisible{false};
-    std::deque<WsMessage> chatEventQueue;
-    size_t chatQueueMaxSize{5000};
-    std::string chatDockClientId;
+    bool initLocalServers();
+    bool initConfigAndApi();
+    void initAuthHandlers();
+    bool initMenuAndBaseUI();
+    void restoreRuntimeStateIfNeeded();
+    void stopStreamingSafely();
+    void saveAndCloseUI();
+    void shutdownRtmpAndChat();
+    void shutdownLocalServers();
+    void cleanupTimersAndFlags();
 
+    std::unique_ptr<CoreRuntime> runtime_;
+    std::unique_ptr<DockOrchestrator> dockOrchestrator_;
+    std::unique_ptr<AuthSessionService> authSessionService_;
+    std::unique_ptr<CrashUploadService> crashUploadService_;
+    std::unique_ptr<CustomizedCartoonService> customizedCartoonService_;
+    std::unique_ptr<LocalGatewayService> localGatewayService_;
+    std::unique_ptr<ChatBridgeService> chatBridgeService_;
+    bool initIsLogin_{false};
+    OneSevenLiveLoginData initLoginData_;
+    bool previousRunClean_{true};
+
+    void syncMenuDockVisibility();
     void flushChatEventQueue();
-    bool isChatDockClientConnected() const;
 };

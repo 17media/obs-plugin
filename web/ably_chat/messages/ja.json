@@ -4,16 +4,30 @@
     "GIVE_GIFT": "配信者にギフトを贈りました",
     "GIVE_LUCKYBAG_GIFT": "{luckyBagName} を開けて、{giftName}（{point}）を贈りました",
     "GIVE_GIFT_DEFAULT": "ギフトを贈りました ({point})",
+    "EVENT_POINTS_SUFFIX": "({eventPointWithSign} イベントポイント)",
     "EMPTY_CHAT_MESSAGE": "リスナーのコメントはここに表示されます。",
+    "FONT_SIZE_LABEL": "文字サイズ",
+    "FONT_SIZE_LARGE": "大",
+    "FONT_SIZE_MEDIUM": "中",
+    "FONT_SIZE_SMALL": "小",
+    "SEND_SNACKS": "が {value} 応援スコア",
+    "LIKE_STREAMER": "ライバーにいいねしました",
     "POKE_ONE": "ライバーが {receiverName} にPokeしました",
     "POKE_BACK": "がPokeを返しました",
-    "POKE_ALL": "ライバーが 全て にPokeしました"
+    "POKE_ALL": "ライバーが全員にPokeしました",
+    "enter_is_here": "{name}さんが来たよ！",
+    "guardian_entry_animation_message": "ガーディアン",
+    "producer_enterroom": "{name} 参上！",
+    "army_enter_notification": "ライバーアーミー",
+    "mlevel_entry_notice_subscription": "メンバーズ",
+    "VIP": "プライムユーザー",
+    "LV%@": "LV{level}"
   },
   "PlatformSelector": {
     "label": "プラットフォーム選択",
     "platforms": {
       "all": "すべて",
-      "17live": "17live",
+      "17live": "17LIVE",
       "youtube": "YouTube",
       "twitch": "Twitch"
     },

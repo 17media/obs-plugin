@@ -9,6 +9,7 @@ const GiftIcon = ({ icon, size = 24 }) => {
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     display: 'inline-block',
+    verticalAlign: 'middle',
   };
 
   return <div style={style} />;
