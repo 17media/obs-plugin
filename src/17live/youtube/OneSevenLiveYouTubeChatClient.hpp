@@ -130,6 +130,9 @@ class OneSevenLiveYouTubeChatClient : public QObject {
     static const int MAX_QUICK_RETRIES;
     static const int LONG_RETRY_DELAY;
     static const int MAX_NO_MESSAGE_QUICK_POLLS;
+    static const int EMPTY_CHAT_BACKOFF_BASE_MS;
+    static const int EMPTY_CHAT_BACKOFF_INCREMENT_MS;
+    static const int EMPTY_CHAT_BACKOFF_MAX_MS;
 
     // State
     QString m_accessToken;
@@ -150,6 +153,9 @@ class OneSevenLiveYouTubeChatClient : public QObject {
     // Polling
     int m_currentPollingInterval = 0;
     int m_exponentialBackoffDelay = 0;
+    int m_emptyChatBackoffBaseMs = 0;
+    int m_emptyChatBackoffIncrementMs = 0;
+    int m_emptyChatBackoffMaxMs = 0;
 
     // Request context
     QString m_currentOperation;

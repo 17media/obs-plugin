@@ -2,9 +2,11 @@
 
 #include <QObject>
 #include <QString>
+#include <functional>
 #include <mutex>
 #include <nlohmann/json.hpp>
 
+#include "../utility/Result.hpp"
 #include "OneSevenLiveModels.hpp"
 
 // for local http server proxy request
@@ -22,6 +24,8 @@
 #define ACTION_GETGIFTS "getGifts"
 #define ACTION_GETGIFT "getGift"
 #define ACTION_GETROOMINFO "getRoomInfo"
+#define ACTION_GETENTERANIMATIONFILES "getEnterAnimationFiles"
+#define ACTION_GETI18NCONFIG "getI18nConfig"
 
 #define MAX_CONSECUTIVE_FAILURES 10  // Maximum consecutive failure count
 
@@ -42,6 +46,7 @@ class OneSevenLiveApiWrappers : public QObject {
    public:
     OneSevenLiveApiWrappers();
     OneSevenLiveApiWrappers(std::string token_);
+    ~OneSevenLiveApiWrappers();
 
     bool Login(const QString &username, const QString &password, OneSevenLiveLoginData &loginData);
 
@@ -59,9 +64,13 @@ class OneSevenLiveApiWrappers : public QObject {
     bool GetAblyToken(const std::string &liveStreamID, Json &response);
     bool GetGiftTabs(const std::string &roomID, const std::string language, Json &response);
     bool GetGifts(const std::string language, Json &response);
+    bool GetFilesList(Json &response);
+    bool GetI18nConfig(const std::string &language, Json &response);
     bool GetRockViewers(const std::string &roomID, Json &response);
     bool GetUserInfo(const std::string userID, const std::string region, const std::string language,
                      OneSevenLiveUserInfo &response);
+    bool GetUserNote(const std::string userID, OneSevenLiveUserNote &response);
+    bool SetUserNote(const std::string userID, const QString &content);
     bool GetConfig(const std::string region, const std::string language, Json &response);
     bool GetArmySubscriptionLevels(const std::string region, const std::string language,
                                    OneSevenLiveArmySubscriptionLevels &levels);
@@ -91,6 +100,20 @@ class OneSevenLiveApiWrappers : public QObject {
     // Change event for live stream
     bool ChangeEvent(const OneSevenLiveChangeEventRequest &request);
 
+    bool CreateLiveEngagements(const std::string &liveStreamID,
+                               const std::vector<OneSevenLiveEngagementCreate> &engagements,
+                               std::vector<OneSevenLiveEngagementCreateResult> &results);
+    bool DeleteLiveEngagements(const std::string &liveStreamID,
+                               const std::vector<std::string> &engageIDs);
+    bool GetLiveEngagementProgress(const std::string &liveStreamID,
+                                   std::vector<OneSevenLiveEngagementProgress> &engagements);
+
+    bool ReportObsCrashEvent(const std::string &liveStreamID, int64_t crashTimestampSec);
+    bool UploadObsLogsFile(const std::string &zipPath);
+    bool UploadObsLogsFile(const std::string &zipPath, std::function<void(double)> onProgress);
+    bool UploadObsLogsFile(const std::string &zipPath, std::function<void(double)> onProgress,
+                           std::atomic<bool> *cancelFlag);
+
     /**
      * @brief Perform MD5 encryption on string
      * @param str String to be encrypted
@@ -106,7 +129,12 @@ class OneSevenLiveApiWrappers : public QObject {
 
     QString getLastErrorMessage() const {
         std::lock_guard<std::mutex> lock(stateMutex);
-        return lastErrorMessage;
+        return QString::fromStdString(lastError_.message);
+    }
+
+    ResultError getLastError() const {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        return lastError_;
     }
 
     /**
@@ -135,6 +163,8 @@ class OneSevenLiveApiWrappers : public QObject {
         m_cancelFlag = flag;
     }
 
+    void shutdown();
+
    protected:
     std::string refresh_token;
     std::string token;
@@ -144,7 +174,7 @@ class OneSevenLiveApiWrappers : public QObject {
     std::atomic<bool> *m_cancelFlag = nullptr;
 
    private:
-    QString lastErrorMessage;
+    ResultError lastError_;
 
     std::string currentOS;
     std::string currentOSVersion;
@@ -153,8 +183,7 @@ class OneSevenLiveApiWrappers : public QObject {
     // Mutex for thread-safe access to shared state
     mutable std::mutex stateMutex;
 
-    // Thread-safe helper methods for error message management
-    void setLastErrorMessage(const QString &message);
-    void clearLastErrorMessage();
+    void setLastError(ResultError error);
+    void clearLastError();
     void initializeApiWrapper();
 };

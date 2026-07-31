@@ -2,7 +2,19 @@ import { EventEmitter } from 'events';
 import { fromJS } from 'immutable';
 import { OneSevenLivePlatform } from '../platforms/17live/core/OneSevenLivePlatform';
 import { TwitchPlatform } from '../platforms/twitch/core/TwitchPlatform';
+import { YouTubePlatform } from '../platforms/youtube/core/YouTubePlatform';
 import { sendWSMessage } from './WSSender';
+import { ENABLE_YOUTUBE } from '@/lib/features';
+import { MsgType_ENTER_ANIMATION } from '@/lib/constants';
+
+function getMessageType(message) {
+  const content = message?.content;
+  return content && typeof content.get === 'function' ? content.get('messageType') : undefined;
+}
+
+function shouldPersistMessage(message) {
+  return getMessageType(message) !== MsgType_ENTER_ANIMATION;
+}
 
 /**
  * Unified message aggregation manager
@@ -42,7 +54,8 @@ export class MessageAggregator extends EventEmitter {
     // Platform handler mapping
     this.platformHandlers = {
       '17live': OneSevenLivePlatform,
-      'twitch': TwitchPlatform
+      'twitch': TwitchPlatform,
+      ...(ENABLE_YOUTUBE ? { 'youtube': YouTubePlatform } : {}),
     };
     
     this.initialize();
@@ -334,6 +347,7 @@ export class MessageAggregator extends EventEmitter {
     if (messagesToProcess.length > 0) {
       // Append to history (dedup by id)
       for (const m of messagesToProcess) {
+        if (!shouldPersistMessage(m)) continue;
         const idx = this.history.findIndex((x) => x.id === m.id);
         if (idx === -1) {
           this.history.push(m);
@@ -392,6 +406,7 @@ export class MessageAggregator extends EventEmitter {
             content: content && typeof content === 'object' ? fromJS(content) : content,
             aggregatedAt: Date.now(),
           };
+          if (!shouldPersistMessage(unified)) continue;
           this.messageIds.add(id);
           restored.push(unified);
         }
@@ -414,6 +429,7 @@ export class MessageAggregator extends EventEmitter {
             content: fromJS(chat),
             aggregatedAt: Date.now(),
           };
+          if (!shouldPersistMessage(unified)) continue;
           this.messageIds.add(id);
           restored.push(unified);
         }

@@ -8,6 +8,7 @@
 #include <shared_mutex>
 
 #include "api/OneSevenLiveModels.hpp"
+#include "utility/Result.hpp"
 
 using json = nlohmann::json;
 
@@ -42,6 +43,16 @@ class OneSevenLiveConfigManager {
     void clearStreamingPullUrl();
 
     bool getConfigValue(const std::string &key, std::string &value);
+    bool setConfigValue(const std::string &key, const std::string &value);
+
+    bool getBoolValue(const std::string &key, bool defaultValue);
+    bool setBoolValue(const std::string &key, bool value);
+
+    std::vector<std::string> getCrashUploadHistory();
+    bool addCrashUploadHistory(const std::vector<std::string> &keys);
+
+    json getCustomizedCartoonsConfig();
+    bool setCustomizedCartoonsConfig(const json &cfg);
 
     // Get current room ID
     qint64 getRoomID();
@@ -64,6 +75,11 @@ class OneSevenLiveConfigManager {
 
     bool saveGifts(const json &gifts);
     bool loadGifts(json &gifts);
+    bool saveEnterAnimationFiles(const json &files);
+    bool loadEnterAnimationFiles(json &files);
+    bool saveI18nConfig(const json &i18nConfig);
+    bool loadI18nConfig(json &i18nConfig);
+    std::string getConfigPath() const;
 
     // Twitch token management
     bool setTwitchTokens(const QString &accessToken, qint64 fetchedAtEpochSec);
@@ -82,12 +98,18 @@ class OneSevenLiveConfigManager {
                                 qint64 &fetchedAtEpochSec);
     bool clearYouTubeRefreshToken();
 
+    bool setYouTubeBroadcastInfo(const QString &broadcastId, const QString &liveChatId);
+    bool getYouTubeBroadcastInfo(QString &broadcastId, QString &liveChatId);
+    bool clearYouTubeBroadcastInfo();
+
     // Twitch user information management
     bool setTwitchUserInfo(const QString &userId, const QString &login, const QString &displayName,
                            const QString &profileImageUrl, const QString &email, int viewCount);
     bool getTwitchUserInfo(QString &userId, QString &login, QString &displayName,
                            QString &profileImageUrl, QString &email, int &viewCount);
     bool clearTwitchUserInfo();
+
+    ResultError getLastError() const;
 
    private:
     bool initialized = false;
@@ -100,4 +122,10 @@ class OneSevenLiveConfigManager {
     mutable std::shared_mutex configMutex;
     // Current configuration
     OneSevenLiveConfig currentConfig;
+
+    mutable std::mutex errorMutex_;
+    ResultError lastError_;
+
+    void setLastError(ResultError error);
+    void clearLastError();
 };

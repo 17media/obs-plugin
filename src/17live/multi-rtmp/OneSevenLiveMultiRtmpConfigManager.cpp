@@ -5,6 +5,8 @@
 #include <util/config-file.h>
 
 #include <QDir>
+#include <QFile>
+#include <QTextStream>
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -315,15 +317,19 @@ bool OneSevenLiveMultiRtmpConfigManager::writeConfigToFile(
 
         obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] JSON content to write: %s", j.dump().c_str());
 
-        std::ofstream file(m_configFilePath);
-        if (!file.is_open()) {
+        QString qFilePath = QString::fromStdString(m_configFilePath);
+        QFile file(qFilePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             obs_log(LOG_ERROR,
                     "[MultiRTMP-ConfigManager] Failed to open config file for writing: %s",
                     m_configFilePath.c_str());
             return false;
         }
 
-        file << j.dump(4);  // Pretty print with 4 spaces
+        std::string jsonStr = j.dump(4);  // Pretty print with 4 spaces
+        QTextStream out(&file);
+        out.setEncoding(QStringConverter::Utf8);
+        out << QString::fromStdString(jsonStr);
         file.close();
 
         obs_log(LOG_INFO, "[MultiRTMP-ConfigManager] Successfully wrote config file: %s",

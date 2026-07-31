@@ -13,6 +13,66 @@
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WsMessage.hpp"
 
+namespace {
+    const nlohmann::json* jsonObjectField(const nlohmann::json& value, const char* key) {
+        return value.contains(key) && value[key].is_object() ? &value[key] : nullptr;
+    }
+
+    int jsonIntField(const nlohmann::json& value, const char* key, int fallback = -1) {
+        return value.contains(key) && value[key].is_number_integer() ? value[key].get<int>()
+                                                                     : fallback;
+    }
+
+    std::string jsonStringField(const nlohmann::json& value, const char* key) {
+        return value.contains(key) && value[key].is_string() ? value[key].get<std::string>() : "";
+    }
+
+    bool jsonHasNonEmptyString(const nlohmann::json& value, const char* key) {
+        const auto text = jsonStringField(value, key);
+        return !text.empty();
+    }
+
+    const nlohmann::json* findEnterAnimationPayload(const nlohmann::json& decoded) {
+        if (const auto* payload = jsonObjectField(decoded, "subscriberEnterMsg")) {
+            return payload;
+        }
+        return jsonObjectField(decoded, "enterAnimationMsg");
+    }
+
+    std::string buildEnterAnimationLogSummary(const nlohmann::json& decoded) {
+        const auto* payload = findEnterAnimationPayload(decoded);
+        if (!payload) {
+            return "payload=missing";
+        }
+
+        const int animation = jsonIntField(*payload, "animation");
+        const std::string userID = jsonStringField(*payload, "userID");
+        const std::string displayName = jsonStringField(*payload, "displayName");
+        std::string notifAnimationID;
+        bool hasTemplateURL = false;
+        bool hasIconURL = false;
+        bool hasNotif = false;
+        if (const auto* notif = jsonObjectField(*payload, "eventNotifMsg")) {
+            hasNotif = true;
+            notifAnimationID = jsonStringField(*notif, "animationID");
+            hasTemplateURL = jsonHasNonEmptyString(*notif, "templateURL");
+            hasIconURL = jsonHasNonEmptyString(*notif, "icouURL");
+        }
+
+        return QString(
+                   "animation=%1 userID=%2 displayName=%3 hasNotif=%4 notifAnimationID=%5 "
+                   "hasTemplateURL=%6 hasIconURL=%7")
+            .arg(animation)
+            .arg(QString::fromStdString(userID))
+            .arg(QString::fromStdString(displayName))
+            .arg(hasNotif ? 1 : 0)
+            .arg(QString::fromStdString(notifAnimationID))
+            .arg(hasTemplateURL ? 1 : 0)
+            .arg(hasIconURL ? 1 : 0)
+            .toStdString();
+    }
+}  // namespace
+
 bool OneSevenLiveChatMessageHandler::handleRaw(const std::string& msg) {
     try {
         nlohmann::json j = nlohmann::json::parse(msg);
@@ -21,16 +81,26 @@ bool OneSevenLiveChatMessageHandler::handleRaw(const std::string& msg) {
                 if (!m.contains("data") || !m["data"].is_string())
                     continue;
                 nlohmann::json decoded;
-                if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded))
+                if (!gunzipBase64ToJson(m["data"].get<std::string>(), decoded)) {
+                    obs_log(LOG_WARNING, "Failed to decode/gunzip message data");
                     continue;
+                }
                 int type = decoded.contains("type") && decoded["type"].is_number_integer()
                                ? decoded["type"].get<int>()
                                : -1;
+                // if (type == ably::MsgType_ENTER_ANIMATION) {
+                //     obs_log(LOG_INFO, "[EnterAnimation][AblyDecoded] type=%d %s", type,
+                //             buildEnterAnimationLogSummary(decoded).c_str());
+                // }
                 routeByType(type, decoded);
             }
         }
         return true;
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "OneSevenLiveChatMessageHandler::handleRaw exception: %s", e.what());
+        return false;
     } catch (...) {
+        obs_log(LOG_ERROR, "OneSevenLiveChatMessageHandler::handleRaw unknown exception");
         return false;
     }
 }
@@ -78,10 +148,18 @@ void OneSevenLiveChatMessageHandler::routeByType(int type, const nlohmann::json&
     case ably::MsgType_POKE:
     case ably::MsgType_AI_COHOST_MESSAGE:
     case ably::MsgType_COMMENT:
+    case ably::MsgType_REACT:
+    case ably::MsgType_LABOR_RECEIVE_REWARD:
         OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
             QString::fromUtf8(EventAblyChatMessage), decoded);
         if (type == ably::MsgType_NEW_LUCKYBAG || type == ably::MsgType_NEW_GIFT)
             handleGiftPlayback(decoded);
+        break;
+    case ably::MsgType_ENTER_ANIMATION:
+        // obs_log(LOG_INFO, "[EnterAnimation][Route] forwarding to chat bridge: %s",
+        //         buildEnterAnimationLogSummary(decoded).c_str());
+        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+            QString::fromUtf8(EventAblyChatMessage), decoded);
         break;
     case ably::MsgType_ROCKZONE:
         obs_log(LOG_DEBUG, "ROCKZONE");

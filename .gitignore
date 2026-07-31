@@ -9,6 +9,7 @@ CMakeScripts/
 cmake_install.cmake
 install_manifest.txt
 cmake/.CMakeBuildNumber
+CMakeUserPresets.json
 
 # IDE files
 .vscode/
@@ -68,6 +69,7 @@ ccache/
 .deps/
 
 dist/
+dist-install/
 data/html/
 
 # for web react app
@@ -104,6 +106,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+/.env
 
 # vercel
 .vercel
@@ -132,3 +135,6 @@ __pycache__/
 .obspluginrc.json
 
 output/
+web/ably_chat/messages/en.d.json.ts
+trash_rm_scripts/
+docs/ci-configuration.md

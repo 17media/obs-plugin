@@ -5,8 +5,9 @@ import { BD_WHITE } from './constants';
 
 const ChatWrapper = styled.div`
   margin-bottom: 4px;
-  font-size: 14px;
+  font-size: var(--chat-font-size, 16px);
   overflow-wrap: break-word;
+  max-width: 100%;
 
   color: ${({ color }) =>
     color || BD_WHITE};

@@ -23,7 +23,7 @@ export default async function RootLayout({ children, params }) {
 
   return (
     <html lang={locale} className="dark">
-      <body style={{backgroundColor: 'black'}}>
+      <body style={{backgroundColor: 'transparent'}}>
         <StyledComponentsProvider>
           <NextIntlClientProvider>
             {children}

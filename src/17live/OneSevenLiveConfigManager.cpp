@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QString>
 #include <fstream>
+#include <unordered_set>
 
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
@@ -18,7 +19,27 @@ const char *service = "OneSevenLive";
 
 OneSevenLiveConfigManager::OneSevenLiveConfigManager() : initialized(false) {}
 
+ResultError OneSevenLiveConfigManager::getLastError() const {
+    std::lock_guard<std::mutex> lock(errorMutex_);
+    return lastError_;
+}
+
+std::string OneSevenLiveConfigManager::getConfigPath() const {
+    return configPath;
+}
+
+void OneSevenLiveConfigManager::setLastError(ResultError error) {
+    std::lock_guard<std::mutex> lock(errorMutex_);
+    lastError_ = std::move(error);
+}
+
+void OneSevenLiveConfigManager::clearLastError() {
+    std::lock_guard<std::mutex> lock(errorMutex_);
+    lastError_ = ResultError{};
+}
+
 bool OneSevenLiveConfigManager::initialize() {
+    clearLastError();
     // Prevent duplicate initialization
     if (initialized) {
         return true;
@@ -32,6 +53,8 @@ bool OneSevenLiveConfigManager::initialize() {
     if (!dir.exists()) {
         if (!dir.mkpath(configDir)) {
             obs_log(LOG_ERROR, "Failed to create config directory");
+            setLastError(ResultError{"IO.CreateDirFailed", "Failed to create config directory",
+                                     false, configDir.toStdString()});
             return false;
         }
     }
@@ -44,6 +67,8 @@ bool OneSevenLiveConfigManager::initialize() {
     int ret = config_open(&config, configFilePath.toStdString().c_str(), CONFIG_OPEN_ALWAYS);
     if (ret != CONFIG_SUCCESS) {
         obs_log(LOG_ERROR, "Failed to open config file");
+        setLastError(ResultError{"IO.OpenFailed", "Failed to open config file", false,
+                                 configFilePath.toStdString()});
         return false;
     }
 
@@ -100,6 +125,8 @@ bool OneSevenLiveConfigManager::setDockVisibility(const std::string &dockName, b
 
 bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::string &value) {
     if (!initialized) {
+        setLastError(
+            ResultError{"State.NotInitialized", "Config manager not initialized", false, key});
         return false;
     }
 
@@ -107,14 +134,206 @@ bool OneSevenLiveConfigManager::getConfigValue(const std::string &key, std::stri
     std::shared_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false, key});
         return false;
     }
 
     const char *valueChar = config_get_string(config, service, key.c_str());
     if (!valueChar) {
+        setLastError(ResultError{"Config.KeyMissing", "Config key not found", false, key});
         return false;
     }
     value = valueChar;
+    clearLastError();
+    return true;
+}
+
+bool OneSevenLiveConfigManager::setConfigValue(const std::string &key, const std::string &value) {
+    if (!initialized) {
+        setLastError(
+            ResultError{"State.NotInitialized", "Config manager not initialized", false, key});
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false, key});
+        return false;
+    }
+
+    config_set_string(config, service, key.c_str(), value.c_str());
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save config value: %s", key.c_str());
+        setLastError(ResultError{"IO.SaveFailed", "Failed to save config value", false, key});
+        return false;
+    }
+
+    clearLastError();
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getBoolValue(const std::string &key, bool defaultValue) {
+    if (!initialized) {
+        return defaultValue;
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        return defaultValue;
+    }
+
+    const char *valueChar = config_get_string(config, service, key.c_str());
+    if (!valueChar) {
+        return defaultValue;
+    }
+
+    const std::string v = valueChar;
+    return v == "true" || v == "1" || v == "TRUE" || v == "True";
+}
+
+bool OneSevenLiveConfigManager::setBoolValue(const std::string &key, bool value) {
+    return setConfigValue(key, value ? "true" : "false");
+}
+
+std::vector<std::string> OneSevenLiveConfigManager::getCrashUploadHistory() {
+    if (!initialized) {
+        return {};
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        return {};
+    }
+
+    const char *valueChar = config_get_string(config, service, "CrashUploadHistory");
+    if (!valueChar) {
+        return {};
+    }
+
+    try {
+        json j = json::parse(valueChar);
+        if (!j.is_array()) {
+            return {};
+        }
+        std::vector<std::string> out;
+        out.reserve(j.size());
+        for (const auto &it : j) {
+            if (it.is_string()) {
+                out.push_back(it.get<std::string>());
+            }
+        }
+        return out;
+    } catch (...) {
+        return {};
+    }
+}
+
+bool OneSevenLiveConfigManager::addCrashUploadHistory(const std::vector<std::string> &keys) {
+    if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "addCrashUploadHistory"});
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "addCrashUploadHistory"});
+        return false;
+    }
+
+    std::unordered_set<std::string> uniq;
+    json arr = json::array();
+
+    const char *valueChar = config_get_string(config, service, "CrashUploadHistory");
+    if (valueChar) {
+        try {
+            json existing = json::parse(valueChar);
+            if (existing.is_array()) {
+                for (const auto &it : existing) {
+                    if (it.is_string()) {
+                        const std::string s = it.get<std::string>();
+                        if (uniq.insert(s).second) {
+                            arr.push_back(s);
+                        }
+                    }
+                }
+            }
+        } catch (...) {
+        }
+    }
+
+    for (const auto &k : keys) {
+        if (k.empty())
+            continue;
+        if (uniq.insert(k).second) {
+            arr.push_back(k);
+        }
+    }
+
+    const std::string jsonStr = arr.dump();
+    config_set_string(config, service, "CrashUploadHistory", jsonStr.c_str());
+    if (config_save(config) < 0) {
+        setLastError(
+            ResultError{"IO.SaveFailed", "Failed to save CrashUploadHistory", false, jsonStr});
+        return false;
+    }
+
+    clearLastError();
+    return true;
+}
+
+json OneSevenLiveConfigManager::getCustomizedCartoonsConfig() {
+    if (!initialized) {
+        return json::object();
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        return json::object();
+    }
+
+    const char *valueChar = config_get_string(config, service, "CustomizedCartoonsConfigV1");
+    if (!valueChar) {
+        return json::object();
+    }
+
+    try {
+        json j = json::parse(valueChar);
+        if (!j.is_object()) {
+            return json::object();
+        }
+        return j;
+    } catch (...) {
+        return json::object();
+    }
+}
+
+bool OneSevenLiveConfigManager::setCustomizedCartoonsConfig(const json &cfg) {
+    if (!initialized) {
+        setLastError(
+            ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                        "setCustomizedCartoonsConfig"});
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "setCustomizedCartoonsConfig"});
+        return false;
+    }
+
+    const std::string jsonStr = cfg.dump();
+    config_set_string(config, service, "CustomizedCartoonsConfigV1", jsonStr.c_str());
+    if (config_save(config) < 0) {
+        setLastError(ResultError{"IO.SaveFailed", "Failed to save CustomizedCartoonsConfigV1", false,
+                                 jsonStr});
+        return false;
+    }
+
+    clearLastError();
     return true;
 }
 
@@ -439,11 +658,15 @@ bool OneSevenLiveConfigManager::saveLiveConfig(const OneSevenLiveStreamInfo &str
     obs_log(LOG_INFO, "Saving live config to live_info.json");
 
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "saveLiveConfig"});
         return false;
     }
 
     std::vector<OneSevenLiveStreamInfo> streamInfoList;
-    loadAllLiveConfig(streamInfoList);
+    if (!loadAllLiveConfig(streamInfoList)) {
+        return false;
+    }
 
     bool found = false;
 
@@ -464,18 +687,25 @@ bool OneSevenLiveConfigManager::saveLiveConfig(const OneSevenLiveStreamInfo &str
     if (streamInfoList.size() > 10) {
         streamInfoList.erase(streamInfoList.begin());
     }
-    saveAllLiveConfig(streamInfoList);
-    return true;
+    return saveAllLiveConfig(streamInfoList);
 }
 
 bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStreamInfo> &streamInfo) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "loadAllLiveConfig"});
         return false;
     }
 
     QString liveListFile = QString::fromStdString(configPath) + "/" + "live_list.json";
     QFile file(liveListFile);
+    if (!file.exists()) {
+        clearLastError();
+        return true;
+    }
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        setLastError(ResultError{"IO.OpenFailed", "Failed to open live list file for reading",
+                                 false, liveListFile.toStdString()});
         return false;
     }
     QTextStream in(&file);
@@ -486,6 +716,8 @@ bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStream
 
         if (!jsonData.is_array()) {
             obs_log(LOG_ERROR, "live_list.json is not an array");
+            setLastError(ResultError{"Json.InvalidType", "live_list.json is not an array", false,
+                                     liveListFile.toStdString()});
             return false;
         }
 
@@ -495,9 +727,12 @@ bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStream
             streamInfo.push_back(info);
         }
 
+        clearLastError();
         return true;
     } catch (const json::parse_error &e) {
         obs_log(LOG_ERROR, "Failed to parse live_list.json: %s", e.what());
+        setLastError(
+            ResultError{"Json.ParseFailed", "Failed to parse live_list.json", false, e.what()});
         return false;
     }
 }
@@ -505,6 +740,8 @@ bool OneSevenLiveConfigManager::loadAllLiveConfig(std::vector<OneSevenLiveStream
 bool OneSevenLiveConfigManager::saveAllLiveConfig(
     const std::vector<OneSevenLiveStreamInfo> &streamInfoList) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "saveAllLiveConfig"});
         return false;
     }
 
@@ -518,20 +755,27 @@ bool OneSevenLiveConfigManager::saveAllLiveConfig(
     QString liveListFile = QString::fromStdString(configPath) + "/" + "live_list.json";
     QFile file(liveListFile);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        setLastError(ResultError{"IO.OpenFailed", "Failed to open live list file for writing",
+                                 false, liveListFile.toStdString()});
         return false;
     }
     QTextStream out(&file);
     out << QString::fromStdString(json_data.dump());
     file.close();
+    clearLastError();
     return true;
 }
 
 bool OneSevenLiveConfigManager::removeLiveConfig(const std::string &streamUuid) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "removeLiveConfig"});
         return false;
     }
     std::vector<OneSevenLiveStreamInfo> streamInfoList;
-    loadAllLiveConfig(streamInfoList);
+    if (!loadAllLiveConfig(streamInfoList)) {
+        return false;
+    }
     for (auto it = streamInfoList.begin(); it != streamInfoList.end(); ++it) {
         if (it->streamUuid.toStdString() == streamUuid) {
             streamInfoList.erase(it);
@@ -539,14 +783,14 @@ bool OneSevenLiveConfigManager::removeLiveConfig(const std::string &streamUuid) 
         }
     }
 
-    saveAllLiveConfig(streamInfoList);
-
-    return true;
+    return saveAllLiveConfig(streamInfoList);
 }
 
 bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
     try {
         if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "setConfig"});
             return false;
         }
 
@@ -555,45 +799,56 @@ bool OneSevenLiveConfigManager::setConfig(const Json &configData) {
 
         const std::string configJson = configData.dump();
 
-        // Save to configuration file
         const std::string configJsonPath = configPath + "/config_17live.json";
-        std::ofstream file(configJsonPath);
-        if (!file.is_open()) {
+        const QString configJsonPathQt = QString::fromStdString(configJsonPath);
+
+        QFile file(configJsonPathQt);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             obs_log(LOG_ERROR, "Failed to open config file for writing: %s",
                     configJsonPath.c_str());
+            setLastError(ResultError{"IO.OpenFailed", "Failed to open config file for writing",
+                                     false, configJsonPath});
             return false;
         }
 
-        file << configJson;
-
-        // Check if write operation was successful
-        if (file.fail()) {
+        QByteArray data = QByteArray::fromStdString(configJson);
+        qint64 written = file.write(data);
+        if (written != data.size()) {
             obs_log(LOG_ERROR, "Failed to write config data to file: %s", configJsonPath.c_str());
             file.close();
+            setLastError(ResultError{"IO.WriteFailed", "Failed to write config data to file", false,
+                                     configJsonPath});
             return false;
         }
 
         file.close();
 
-        // Verify file was closed successfully
-        if (file.fail()) {
-            obs_log(LOG_ERROR, "Failed to close config file: %s", configJsonPath.c_str());
-            return false;
+        OneSevenLiveConfig parsedConfig;
+        if (JsonToOneSevenLiveConfig(configData, parsedConfig)) {
+            currentConfig = parsedConfig;
+        } else {
+            setLastError(ResultError{"State.MappingFailed", "Failed to map config json to struct",
+                                     false, configJsonPath});
         }
 
         obs_log(LOG_INFO, "Config saved to %s", configJsonPath.c_str());
+        clearLastError();
         return true;
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: setConfig exception: %s", e.what());
+        setLastError(ResultError{"State.Exception", "setConfig exception", false, e.what()});
         return false;
     } catch (...) {
         obs_log(LOG_ERROR, "[obs-17live]: setConfig unknown exception");
+        setLastError(ResultError{"State.Exception", "setConfig unknown exception", false, ""});
         return false;
     }
 }
 
 bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
     if (!initialized) {
+        setLastError(
+            ResultError{"State.NotInitialized", "Config manager not initialized", false, "getConfig"});
         return false;
     }
 
@@ -608,11 +863,14 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
     if (!file.exists()) {
         // If file doesn't exist, return current configuration in memory
         config = currentConfig;
+        clearLastError();
         return true;
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
         obs_log(LOG_ERROR, "Failed to open config file for reading");
+        setLastError(ResultError{"IO.OpenFailed", "Failed to open config file for reading", false,
+                                 configJsonPath});
         return false;
     }
 
@@ -622,6 +880,7 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
     if (jsonData.isEmpty()) {
         // If file is empty, return current configuration in memory
         config = currentConfig;
+        clearLastError();
         return true;
     }
 
@@ -634,15 +893,20 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
         // Convert JSON to OneSevenLiveConfig structure
         if (!JsonToOneSevenLiveConfig(jsonObj, config)) {
             obs_log(LOG_ERROR, "Failed to convert JSON to config");
+            setLastError(ResultError{"State.MappingFailed", "Failed to convert JSON to config",
+                                     false, configJsonPath});
             return false;
         }
 
         // Update current configuration
         currentConfig = config;
 
+        clearLastError();
         return true;
     } catch (const json::parse_error &e) {
         obs_log(LOG_ERROR, "Failed to parse config JSON: %s", e.what());
+        setLastError(
+            ResultError{"Json.ParseFailed", "Failed to parse config JSON", false, e.what()});
         return false;
     }
 }
@@ -650,6 +914,8 @@ bool OneSevenLiveConfigManager::getConfig(OneSevenLiveConfig &config) {
 bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
     try {
         if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "saveGifts"});
             return false;
         }
 
@@ -657,17 +923,22 @@ bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
         QFile file(giftsFile);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             obs_log(LOG_ERROR, "Failed to open gifts.json for writing");
+            setLastError(ResultError{"IO.OpenFailed", "Failed to open gifts.json for writing",
+                                     false, giftsFile.toStdString()});
             return false;
         }
         QTextStream out(&file);
         out << QString::fromStdString(gifts.dump());
         file.close();
+        clearLastError();
         return true;
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: saveGifts exception: %s", e.what());
+        setLastError(ResultError{"State.Exception", "saveGifts exception", false, e.what()});
         return false;
     } catch (...) {
         obs_log(LOG_ERROR, "[obs-17live]: saveGifts unknown exception");
+        setLastError(ResultError{"State.Exception", "saveGifts unknown exception", false, ""});
         return false;
     }
 }
@@ -675,6 +946,8 @@ bool OneSevenLiveConfigManager::saveGifts(const Json &gifts) {
 bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
     try {
         if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "loadGifts"});
             return false;
         }
 
@@ -683,6 +956,7 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             // File doesn't exist, return empty object
             gifts = json::object();
+            clearLastError();
             return true;
         }
         QTextStream in(&file);
@@ -693,15 +967,172 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
             gifts = json::parse(jsonString.toStdString());
         } catch (const json::parse_error &e) {
             obs_log(LOG_ERROR, "Failed to parse gifts.json: %s", e.what());
+            setLastError(ResultError{"Json.ParseFailed", "Failed to parse gifts.json", false,
+                                     e.what()});
             return false;
         }
 
+        clearLastError();
         return true;
     } catch (const std::exception &e) {
         obs_log(LOG_ERROR, "[obs-17live]: loadGifts exception: %s", e.what());
+        setLastError(ResultError{"State.Exception", "loadGifts exception", false, e.what()});
         return false;
     } catch (...) {
         obs_log(LOG_ERROR, "[obs-17live]: loadGifts unknown exception");
+        setLastError(ResultError{"State.Exception", "loadGifts unknown exception", false, ""});
+        return false;
+    }
+}
+
+bool OneSevenLiveConfigManager::saveEnterAnimationFiles(const Json &files) {
+    try {
+        if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "saveEnterAnimationFiles"});
+            return false;
+        }
+
+        QString filePath = QString::fromStdString(configPath) + "/" + "enter_animation_files.json";
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            obs_log(LOG_ERROR, "Failed to open enter_animation_files.json for writing");
+            setLastError(ResultError{"IO.OpenFailed",
+                                     "Failed to open enter_animation_files.json for writing", false,
+                                     filePath.toStdString()});
+            return false;
+        }
+        QTextStream out(&file);
+        out << QString::fromStdString(files.dump());
+        file.close();
+        clearLastError();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveEnterAnimationFiles exception: %s", e.what());
+        setLastError(
+            ResultError{"State.Exception", "saveEnterAnimationFiles exception", false, e.what()});
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveEnterAnimationFiles unknown exception");
+        setLastError(ResultError{"State.Exception", "saveEnterAnimationFiles unknown exception",
+                                 false, ""});
+        return false;
+    }
+}
+
+bool OneSevenLiveConfigManager::loadEnterAnimationFiles(Json &files) {
+    try {
+        if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "loadEnterAnimationFiles"});
+            return false;
+        }
+
+        QString filePath = QString::fromStdString(configPath) + "/" + "enter_animation_files.json";
+        QFile file(filePath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            files = json::object();
+            clearLastError();
+            return true;
+        }
+        QTextStream in(&file);
+        QString jsonString = in.readAll();
+        file.close();
+
+        try {
+            files = json::parse(jsonString.toStdString());
+        } catch (const json::parse_error &e) {
+            obs_log(LOG_ERROR, "Failed to parse enter_animation_files.json: %s", e.what());
+            setLastError(ResultError{"Json.ParseFailed",
+                                     "Failed to parse enter_animation_files.json", false,
+                                     e.what()});
+            return false;
+        }
+
+        clearLastError();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadEnterAnimationFiles exception: %s", e.what());
+        setLastError(
+            ResultError{"State.Exception", "loadEnterAnimationFiles exception", false, e.what()});
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadEnterAnimationFiles unknown exception");
+        setLastError(ResultError{"State.Exception", "loadEnterAnimationFiles unknown exception",
+                                 false, ""});
+        return false;
+    }
+}
+
+bool OneSevenLiveConfigManager::saveI18nConfig(const Json &i18nConfig) {
+    try {
+        if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "saveI18nConfig"});
+            return false;
+        }
+
+        QString filePath = QString::fromStdString(configPath) + "/" + "i18n_config.json";
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            obs_log(LOG_ERROR, "Failed to open i18n_config.json for writing");
+            setLastError(ResultError{"IO.OpenFailed", "Failed to open i18n_config.json for writing",
+                                     false, filePath.toStdString()});
+            return false;
+        }
+        QTextStream out(&file);
+        out << QString::fromStdString(i18nConfig.dump());
+        file.close();
+        clearLastError();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveI18nConfig exception: %s", e.what());
+        setLastError(ResultError{"State.Exception", "saveI18nConfig exception", false, e.what()});
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: saveI18nConfig unknown exception");
+        setLastError(ResultError{"State.Exception", "saveI18nConfig unknown exception", false, ""});
+        return false;
+    }
+}
+
+bool OneSevenLiveConfigManager::loadI18nConfig(Json &i18nConfig) {
+    try {
+        if (!initialized) {
+            setLastError(ResultError{"State.NotInitialized", "Config manager not initialized",
+                                     false, "loadI18nConfig"});
+            return false;
+        }
+
+        QString filePath = QString::fromStdString(configPath) + "/" + "i18n_config.json";
+        QFile file(filePath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            i18nConfig = json::object();
+            clearLastError();
+            return true;
+        }
+        QTextStream in(&file);
+        QString jsonString = in.readAll();
+        file.close();
+
+        try {
+            i18nConfig = json::parse(jsonString.toStdString());
+        } catch (const json::parse_error &e) {
+            obs_log(LOG_ERROR, "Failed to parse i18n_config.json: %s", e.what());
+            setLastError(ResultError{"Json.ParseFailed", "Failed to parse i18n_config.json", false,
+                                     e.what()});
+            return false;
+        }
+
+        clearLastError();
+        return true;
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadI18nConfig exception: %s", e.what());
+        setLastError(ResultError{"State.Exception", "loadI18nConfig exception", false, e.what()});
+        return false;
+    } catch (...) {
+        obs_log(LOG_ERROR, "[obs-17live]: loadI18nConfig unknown exception");
+        setLastError(ResultError{"State.Exception", "loadI18nConfig unknown exception", false, ""});
         return false;
     }
 }
@@ -709,6 +1140,8 @@ bool OneSevenLiveConfigManager::loadGifts(Json &gifts) {
 bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken,
                                                 qint64 fetchedAtEpochSec) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "setTwitchTokens"});
         return false;
     }
 
@@ -716,6 +1149,8 @@ bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken,
     std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(
+            ResultError{"State.InvalidState", "Config handle not available", false, "setTwitchTokens"});
         return false;
     }
 
@@ -728,15 +1163,19 @@ bool OneSevenLiveConfigManager::setTwitchTokens(const QString &accessToken,
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save Twitch access token");
+        setLastError(ResultError{"IO.WriteFailed", "Failed to save Twitch access token", false, ""});
         return false;
     }
 
     obs_log(LOG_INFO, "Twitch access token saved successfully");
+    clearLastError();
     return true;
 }
 
 bool OneSevenLiveConfigManager::getTwitchTokens(QString &accessToken, qint64 &fetchedAtEpochSec) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "getTwitchTokens"});
         return false;
     }
 
@@ -744,6 +1183,8 @@ bool OneSevenLiveConfigManager::getTwitchTokens(QString &accessToken, qint64 &fe
     std::shared_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(
+            ResultError{"State.InvalidState", "Config handle not available", false, "getTwitchTokens"});
         return false;
     }
 
@@ -751,6 +1192,8 @@ bool OneSevenLiveConfigManager::getTwitchTokens(QString &accessToken, qint64 &fe
     const char *fetchedChar = config_get_string(config, service, "TwitchAccessTokenFetchedAt");
 
     if (!accessTokenChar) {
+        setLastError(
+            ResultError{"Config.KeyMissing", "Twitch token not found", false, "TwitchAccessToken"});
         return false;
     }
 
@@ -765,11 +1208,14 @@ bool OneSevenLiveConfigManager::getTwitchTokens(QString &accessToken, qint64 &fe
         fetchedAtEpochSec = 0;
     }
 
+    clearLastError();
     return true;
 }
 
 bool OneSevenLiveConfigManager::clearTwitchTokens() {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "clearTwitchTokens"});
         return false;
     }
 
@@ -777,6 +1223,8 @@ bool OneSevenLiveConfigManager::clearTwitchTokens() {
     std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "clearTwitchTokens"});
         return false;
     }
 
@@ -785,16 +1233,20 @@ bool OneSevenLiveConfigManager::clearTwitchTokens() {
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to clear Twitch tokens");
+        setLastError(ResultError{"IO.WriteFailed", "Failed to clear Twitch tokens", false, ""});
         return false;
     }
 
     obs_log(LOG_INFO, "Twitch access token cleared successfully");
+    clearLastError();
     return true;
 }
 
 bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken, int expiresInSec,
                                                       qint64 fetchedAtEpochSec) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "setYouTubeAccessToken"});
         return false;
     }
 
@@ -802,6 +1254,8 @@ bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken
     std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "setYouTubeAccessToken"});
         return false;
     }
 
@@ -815,6 +1269,7 @@ bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save YouTube access token");
+        setLastError(ResultError{"IO.WriteFailed", "Failed to save YouTube access token", false, ""});
         return false;
     }
 
@@ -824,12 +1279,15 @@ bool OneSevenLiveConfigManager::setYouTubeAccessToken(const QString &accessToken
         obs_log(LOG_INFO, "YouTube access token saved successfully at %s token(masked)=%s",
                 configPath.c_str(), masked.toUtf8().constData());
     }
+    clearLastError();
     return true;
 }
 
 bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken, int &expiresInSec,
                                                       qint64 &fetchedAtEpochSec) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "getYouTubeAccessToken"});
         return false;
     }
 
@@ -837,6 +1295,8 @@ bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken, int 
     std::shared_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "getYouTubeAccessToken"});
         return false;
     }
 
@@ -845,6 +1305,8 @@ bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken, int 
     const char *expiresChar = config_get_string(config, service, "YouTubeAccessTokenExpiresIn");
 
     if (!accessTokenChar) {
+        setLastError(ResultError{"Config.KeyMissing", "YouTube access token not found", false,
+                                 "YouTubeAccessToken"});
         return false;
     }
 
@@ -870,11 +1332,14 @@ bool OneSevenLiveConfigManager::getYouTubeAccessToken(QString &accessToken, int 
         expiresInSec = 0;
     }
 
+    clearLastError();
     return true;
 }
 
 bool OneSevenLiveConfigManager::clearYouTubeAccessToken() {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "clearYouTubeAccessToken"});
         return false;
     }
 
@@ -882,6 +1347,8 @@ bool OneSevenLiveConfigManager::clearYouTubeAccessToken() {
     std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "clearYouTubeAccessToken"});
         return false;
     }
 
@@ -891,16 +1358,20 @@ bool OneSevenLiveConfigManager::clearYouTubeAccessToken() {
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to clear YouTube access token");
+        setLastError(ResultError{"IO.WriteFailed", "Failed to clear YouTube access token", false, ""});
         return false;
     }
 
     obs_log(LOG_INFO, "YouTube access token cleared successfully");
+    clearLastError();
     return true;
 }
 
 bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken, int &expiresInSec,
                                                        qint64 &fetchedAtEpochSec) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "getYouTubeRefreshToken"});
         return false;
     }
 
@@ -908,6 +1379,8 @@ bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken, in
     std::shared_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "getYouTubeRefreshToken"});
         return false;
     }
 
@@ -915,6 +1388,8 @@ bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken, in
     const char *fetchedChar = config_get_string(config, service, "YouTubeRefreshTokenFetchedAt");
     const char *expiresChar = config_get_string(config, service, "YouTubeRefreshTokenExpiresIn");
     if (!refreshTokenChar) {
+        setLastError(ResultError{"Config.KeyMissing", "YouTube refresh token not found", false,
+                                 "YouTubeRefreshToken"});
         return false;
     }
 
@@ -939,11 +1414,14 @@ bool OneSevenLiveConfigManager::getYouTubeRefreshToken(QString &refreshToken, in
     } else {
         expiresInSec = 0;
     }
+    clearLastError();
     return true;
 }
 
 bool OneSevenLiveConfigManager::clearYouTubeRefreshToken() {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "clearYouTubeRefreshToken"});
         return false;
     }
 
@@ -951,6 +1429,8 @@ bool OneSevenLiveConfigManager::clearYouTubeRefreshToken() {
     std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "clearYouTubeRefreshToken"});
         return false;
     }
 
@@ -960,10 +1440,13 @@ bool OneSevenLiveConfigManager::clearYouTubeRefreshToken() {
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to clear YouTube refresh token");
+        setLastError(ResultError{"IO.WriteFailed", "Failed to clear YouTube refresh token", false,
+                                 ""});
         return false;
     }
 
     obs_log(LOG_INFO, "YouTube refresh token cleared successfully");
+    clearLastError();
     return true;
 }
 
@@ -1066,6 +1549,8 @@ bool OneSevenLiveConfigManager::clearTwitchUserInfo() {
 bool OneSevenLiveConfigManager::setYouTubeRefreshToken(const QString &refreshToken,
                                                        int expiresInSec, qint64 fetchedAtEpochSec) {
     if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "setYouTubeRefreshToken"});
         return false;
     }
 
@@ -1073,6 +1558,8 @@ bool OneSevenLiveConfigManager::setYouTubeRefreshToken(const QString &refreshTok
     std::unique_lock<std::shared_mutex> lock(configMutex);
 
     if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "setYouTubeRefreshToken"});
         return false;
     }
 
@@ -1086,9 +1573,106 @@ bool OneSevenLiveConfigManager::setYouTubeRefreshToken(const QString &refreshTok
 
     if (config_save(config) < 0) {
         obs_log(LOG_ERROR, "Failed to save YouTube refresh token");
+        setLastError(ResultError{"IO.WriteFailed", "Failed to save YouTube refresh token", false,
+                                 ""});
         return false;
     }
 
     obs_log(LOG_INFO, "YouTube refresh token saved successfully");
+    clearLastError();
+    return true;
+}
+
+bool OneSevenLiveConfigManager::setYouTubeBroadcastInfo(const QString &broadcastId,
+                                                        const QString &liveChatId) {
+    if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "setYouTubeBroadcastInfo"});
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "setYouTubeBroadcastInfo"});
+        return false;
+    }
+
+    std::string bid = broadcastId.toStdString();
+    std::string chatId = liveChatId.toStdString();
+
+    config_set_string(config, service, "YouTubeBroadcastId", bid.c_str());
+    config_set_string(config, service, "YouTubeLiveChatId", chatId.c_str());
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to save YouTube broadcast info");
+        setLastError(ResultError{"IO.WriteFailed", "Failed to save YouTube broadcast info", false,
+                                 ""});
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube broadcast info saved");
+    clearLastError();
+    return true;
+}
+
+bool OneSevenLiveConfigManager::getYouTubeBroadcastInfo(QString &broadcastId, QString &liveChatId) {
+    if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "getYouTubeBroadcastInfo"});
+        return false;
+    }
+
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "getYouTubeBroadcastInfo"});
+        return false;
+    }
+
+    const char *bid = config_get_string(config, service, "YouTubeBroadcastId");
+    const char *chatId = config_get_string(config, service, "YouTubeLiveChatId");
+
+    if (!bid || !chatId) {
+        setLastError(ResultError{"Config.KeyMissing", "YouTube broadcast info not found", false,
+                                 "YouTubeBroadcastId/YouTubeLiveChatId"});
+        return false;
+    }
+
+    broadcastId = QString::fromUtf8(bid);
+    liveChatId = QString::fromUtf8(chatId);
+    clearLastError();
+    return true;
+}
+
+bool OneSevenLiveConfigManager::clearYouTubeBroadcastInfo() {
+    if (!initialized) {
+        setLastError(ResultError{"State.NotInitialized", "Config manager not initialized", false,
+                                 "clearYouTubeBroadcastInfo"});
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+
+    if (!config) {
+        setLastError(ResultError{"State.InvalidState", "Config handle not available", false,
+                                 "clearYouTubeBroadcastInfo"});
+        return false;
+    }
+
+    config_set_string(config, service, "YouTubeBroadcastId", "");
+    config_set_string(config, service, "YouTubeLiveChatId", "");
+
+    if (config_save(config) < 0) {
+        obs_log(LOG_ERROR, "Failed to clear YouTube broadcast info");
+        setLastError(ResultError{"IO.WriteFailed", "Failed to clear YouTube broadcast info", false,
+                                 ""});
+        return false;
+    }
+
+    obs_log(LOG_INFO, "YouTube broadcast info cleared");
+    clearLastError();
     return true;
 }

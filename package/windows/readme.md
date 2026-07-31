@@ -49,12 +49,20 @@ cd package\windows
 ```
 
 ### Output
-The installer will be generated as `17liveOBSPlugin-windows-v{VERSION}.exe` in the `output` directory.
+The following files will be generated in the `output` directory:
+- `17liveOBSPlugin-windows-v{VERSION}.exe`
+- `17liveOBSPlugin-windows-v{VERSION}-non-installer.zip`
+
+The non-installer zip already uses OBS plugin layout:
+- `obs-17live/bin/64bit/obs-17live.dll`
+- `obs-17live/data/...`
+
+Users can extract and copy `obs-17live` directly into `%ProgramData%\obs-studio\plugins`.
 
 ### Installation Features
-- Automatic OBS Studio detection
-- Plugin files installation to correct OBS directories
-- Start menu shortcuts creation
+- Installs into the OBS global plugin directory (ProgramData), independent of the OBS installation path
+- Works with both the official OBS build and the Steam OBS build
+- Start menu shortcuts for website and uninstaller
 - Registry entries for proper uninstallation
 - Multi-language support (English, Japanese, Traditional Chinese)
 - Upgrade handling (removes previous versions automatically)

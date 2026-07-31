@@ -1,11 +1,12 @@
 #pragma once
 
 #include <QDialog>
+#include <QScopedPointer>
 #include <QString>
 
-class QCefView;
 struct QCef;
 class QCefWidget;
+struct QCefCookieManager;
 
 /**
  * Authorization dialog using embedded CEF view.
@@ -30,11 +31,11 @@ class OneSevenLiveAuthDialog : public QDialog {
     // Emitted when the embedded browser URL changes
     void urlChanged(const QString& url);
 
-   protected:
-    void resizeEvent(QResizeEvent* event) override;
-
    private:
     void setupUi();
-    QCef* cef_ = nullptr;
-    QCefWidget* cefWidget_ = nullptr;
+    void cleanupBrowser();
+
+    QCef* cef_{nullptr};
+    QScopedPointer<QCefWidget> cefWidget_{nullptr};
+    QCefCookieManager* cookieManager_{nullptr};
 };
