@@ -2,6 +2,10 @@
 
 #include "api/OneSevenLiveModels.hpp"
 
+#include <optional>
+
+#include "utility/Result.hpp"
+
 // Forward declarations
 class OneSevenLiveApiWrappers;
 class OneSevenLiveConfigManager;
@@ -15,6 +19,10 @@ struct OneSevenLiveLoadResult {
     bool userInfoSuccess = false;
     bool levelsSuccess = false;
     std::string errorMessage;
+    std::optional<ResultError> roomInfoError;
+    std::optional<ResultError> configStreamerError;
+    std::optional<ResultError> userInfoError;
+    std::optional<ResultError> levelsError;
 
     OneSevenLiveLoadResult() = default;
 

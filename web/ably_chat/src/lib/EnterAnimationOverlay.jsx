@@ -1,0 +1,1013 @@
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import styled, { css, keyframes } from 'styled-components';
+import { useTranslations } from 'next-intl';
+import { CDN_URL } from './constants';
+import { getWebpDurationMs } from './webpDuration';
+import { getI18nConfig } from '../platforms/17live/api/i18n';
+
+const ENTRY_MS = 1000;
+const EXIT_MS = 300;
+
+const Wrapper = styled.div`
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 48px;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+  z-index: 50;
+`;
+
+const Animated = styled.div`
+  will-change: transform, opacity;
+  ${(p) =>
+    p.$phase === 'enter'
+      ? css`
+          animation: ${entryKf} ${ENTRY_MS}ms linear both;
+        `
+      : p.$phase === 'exit'
+        ? css`
+            animation: ${exitKf} ${EXIT_MS}ms linear both;
+          `
+        : css`
+            animation: none;
+          `}
+`;
+
+const Card = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px;
+  position: relative;
+  background: ${(p) => (p.$bgImg ? 'transparent' : p.$bg || '#ffffff')};
+  border-radius: 9999px;
+  max-width: 100%;
+  border: ${(p) =>
+    p.$border === ''
+      ? 'none'
+      : `1px solid ${typeof p.$border === 'string' && p.$border ? p.$border : 'rgba(0, 0, 0, 0.18)'}`};
+  overflow: hidden;
+  color: ${(p) => p.$color || '#000000'};
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: ${(p) => (p.$bgImg ? '-4px' : '0')};
+    background-image: ${(p) => (p.$bgImg ? `url(${p.$bgImg})` : 'none')};
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    border-radius: inherit;
+    z-index: 0;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+`;
+
+const BadgeRow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+`;
+
+const Avatar = styled.div`
+  width: 33px;
+  height: 33px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  background-color: rgba(255, 255, 255, 0.2);
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+`;
+
+const BadgeIcon = styled.img`
+  width: ${(p) => p.$size || '33px'};
+  height: ${(p) => p.$size || '33px'};
+  object-fit: contain;
+  flex-shrink: 0;
+`;
+
+const Text = styled.div`
+  display: inline-flex;
+  align-items: center;
+  font-size: ${(p) => p.$fontSize || '18px'};
+  line-height: ${(p) => p.$lineHeight || '33px'};
+  color: ${(p) => p.$color || 'inherit'};
+  margin-left: ${(p) => p.$ml || '0'};
+  white-space: nowrap;
+  flex-shrink: 0;
+`;
+
+const AvatarBadgeGroup = styled.div`
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+`;
+
+const Marquee = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: ${(p) => p.$h || '33px'};
+  padding: 0 2px;
+  border-radius: 999px;
+  background: ${(p) => p.$bg || 'transparent'};
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  max-width: 320px;
+  overflow: hidden;
+  margin-left: ${(p) => (typeof p.$ml === 'string' ? p.$ml : '-5px')};
+  position: relative;
+  z-index: ${(p) => (typeof p.$z === 'number' ? p.$z : 2)};
+  border: ${(p) =>
+    p.$border === ''
+      ? 'none'
+      : `1px solid ${typeof p.$border === 'string' && p.$border ? p.$border : 'transparent'}`};
+`;
+
+const BadgeLabelWrap = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 320px;
+`;
+
+const MarqueePill = styled.div`
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: ${(p) => p.$bg || 'transparent'};
+  max-width: 320px;
+  overflow: hidden;
+`;
+
+const MarqueeViewport = styled.div`
+  min-width: 0;
+  overflow: hidden;
+`;
+
+const BadgeSlideViewport = styled.div`
+  display: inline-flex;
+  align-items: center;
+  max-width: 320px;
+  overflow: hidden;
+  min-width: 0;
+`;
+
+const marqueeKf = keyframes`
+  0% { transform: translateX(var(--marquee-start)); }
+  100% { transform: translateX(calc(-1 * var(--marquee-distance))); }
+`;
+
+const badgeSlideInKf = keyframes`
+  0% {
+    transform: translateX(100%);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+`;
+
+const entryKf = keyframes`
+  0% { transform: translateX(140%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+`;
+
+const exitKf = keyframes`
+  0% { transform: translateX(0); opacity: 1; }
+  20% { transform: translateX(30px); opacity: 1; }
+  100% { transform: translateX(-160%); opacity: 0; }
+`;
+
+const MarqueeTrack = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--marquee-gap, 12px);
+  will-change: transform;
+  animation: ${(p) => (p.$animate ? marqueeKf : 'none')} var(--marquee-duration, 0ms) linear infinite;
+`;
+
+const MarqueeSpacer = styled.span`
+  display: inline-block;
+  width: var(--marquee-gap, 12px);
+`;
+
+const Event14TextRow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+`;
+
+const MarqueeTextWrap = styled.div`
+  min-width: 0;
+  max-width: 320px;
+  overflow: hidden;
+`;
+
+const BadgeSlideText = styled.div`
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  will-change: transform;
+  animation: ${badgeSlideInKf} 1200ms ease-out both;
+`;
+
+const AniImage = styled.img`
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+`;
+
+const BadgeContainer = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+`;
+
+const AniLayer = styled.div`
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  transform: none;
+`;
+
+function toCachedEnterAnimationUrl(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  if (!raw.startsWith('http://') && !raw.startsWith('https://')) return raw;
+
+  try {
+    const parsed = new URL(raw);
+    let fileName = parsed.pathname.split('/').pop() || 'asset.bin';
+    if (!fileName.includes('.')) {
+      fileName = `${fileName}.bin`;
+    }
+    return `/__17live_cache/enter_animation/${encodeURIComponent(fileName)}?src=${encodeURIComponent(raw)}`;
+  } catch {
+    return raw;
+  }
+}
+
+function normalizeRemoteEnterAnimationAsset(raw) {
+  if (!raw) return '';
+  if (raw.startsWith('/')) return raw;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    return toCachedEnterAnimationUrl(raw);
+  }
+  return raw;
+}
+
+function buildPlaybackSrc(raw, playKey) {
+  if (!raw || !playKey) return raw || '';
+
+  const hashIndex = raw.indexOf('#');
+  const base = hashIndex >= 0 ? raw.slice(0, hashIndex) : raw;
+  const hash = hashIndex >= 0 ? raw.slice(hashIndex) : '';
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}play=${encodeURIComponent(String(playKey))}${hash}`;
+}
+
+function normalizeAssetSrc(raw) {
+  if (!raw) return '';
+  if (raw.startsWith('/')) return raw;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    return toCachedEnterAnimationUrl(raw);
+  }
+  return `/enter_animation/${raw}`;
+}
+
+function getBadgeRenderConfig(animationId) {
+  const defaultCfg = {
+    bg: '#ffffff',
+    border: 'rgba(0, 0, 0, 0.18)',
+    textColor: '#000000',
+    marqueeBg: '#ffffff',
+    marqueeTextColor: '#000000',
+    badgeIconSrc: '',
+    cardBgImg: '',
+    marqueeStripBg: '',
+  };
+
+  if (animationId === 1) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(88, 252, 255), rgb(196, 172, 255), rgb(255, 179, 244))',
+      border: '#ffffff',
+      textColor: '#ffffff',
+      marqueeBg: 'rgb(255, 138, 212)',
+      marqueeTextColor: '#ffffff',
+      badgeIconSrc: '/enter_animation/ic_fill_guardian.svg',
+    };
+  }
+  if (animationId === 2) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(240, 6, 197), rgb(245, 72, 125))',
+      border: '#ffffff',
+      textColor: 'rgb(240, 6, 197)',
+      marqueeTextColor: 'rgb(240, 6, 197)',
+      badgeIconSrc: '/enter_animation/diamond.png',
+    };
+  }
+  if (animationId === 3) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(246, 105, 108), rgb(246, 147, 85))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if (animationId === 4) {
+    return {
+      ...defaultCfg,
+      bg: 'rgb(255, 104, 249)',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if (animationId === 5) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(247, 80, 188), rgb(158, 123, 255))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if (animationId === 6) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 209, 0), rgb(246, 105, 108))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if ((animationId >= 7 && animationId <= 10) || animationId === 15) {
+    return {
+      ...defaultCfg,
+      bg: 'rgb(21, 144, 63)',
+      border: '#ffffff',
+      textColor: 'rgb(21, 144, 63)',
+      marqueeBg: '#ffffff',
+      marqueeTextColor: '#000000',
+      badgeIconSrc: '/enter_animation/tank.png',
+    };
+  }
+  if (animationId === 11) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(255, 181, 162))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: 'rgb(35, 11, 9)',
+      marqueeBg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(255, 181, 162))',
+      marqueeTextColor: 'rgb(255, 226, 224)',
+      badgeIconSrc: '/enter_animation/crown.png',
+      cardBgImg: '/enter_animation/igSettingMlevelLow@3x.png',
+    };
+  }
+  if (animationId === 12) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(176, 196, 209))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: 'rgb(26, 37, 65)',
+      marqueeTextColor: 'rgb(231, 231, 231)',
+      marqueeBg: 'linear-gradient(90deg, rgb(255, 255, 255), rgb(176, 196, 209))',
+      badgeIconSrc: '/enter_animation/crown.png',
+      cardBgImg: '/enter_animation/igMlevelSettingBallerMiddle@3x.png',
+    };
+  }
+  if (animationId === 13) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 248, 230), rgb(249, 199, 127))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: 'rgb(0, 0, 0)',
+      marqueeTextColor: 'rgb(254, 239, 201)',
+      marqueeBg: 'linear-gradient(90deg, rgb(255, 248, 230), rgb(249, 199, 127))',
+      badgeIconSrc: '/enter_animation/crown.png',
+      cardBgImg: '/enter_animation/igMlevelSettingBallerHigh@3x.png',
+    };
+  }
+  if (animationId === 16) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(51, 206, 176), rgb(51, 206, 176))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+  if (animationId === 17) {
+    return {
+      ...defaultCfg,
+      bg: 'linear-gradient(90deg, rgb(255, 242, 20), rgb(177, 131, 255))',
+      border: 'rgba(0, 0, 0, 0.12)',
+      textColor: '#ffffff',
+    };
+  }
+
+  return defaultCfg;
+}
+
+function toCssLinearGradient(from, to) {
+  if (!from && !to) return '';
+  if (from && to) return `linear-gradient(90deg, ${from}, ${to})`;
+  return from || to || '';
+}
+
+function resolveI18nString(i18nMap, key) {
+  if (!key) return '';
+  if (!i18nMap || typeof i18nMap !== 'object') return '';
+  const v = i18nMap[key];
+  return typeof v === 'string' ? v : '';
+}
+
+function formatI18nTemplate(tpl, params) {
+  if (typeof tpl !== 'string') return '';
+  const values = Array.isArray(params) ? params.map((p) => (p && p.value ? String(p.value) : '')) : [];
+  let out = tpl;
+  out = out.replace(/%(\d+)\$@/g, (_, n) => {
+    const idx = Number(n) - 1;
+    return idx >= 0 && idx < values.length ? values[idx] : '';
+  });
+  if (out.includes('%@')) {
+    out = out.replace(/%@/g, values[0] || '');
+  }
+  return out;
+}
+
+function resolveTokenText(i18nMap, token, options = {}) {
+  if (!token || typeof token !== 'object') return '';
+  const key = token.key;
+  const tpl = resolveI18nString(i18nMap, key);
+  if (!tpl) {
+    if (typeof options.fallbackTemplate === 'string' && options.fallbackTemplate) {
+      return formatI18nTemplate(options.fallbackTemplate, token.params);
+    }
+    return typeof key === 'string' ? key : '';
+  }
+  return formatI18nTemplate(tpl, token.params);
+}
+
+function shouldLogAnim14Debug() {
+  if (typeof window === 'undefined') return process.env.NODE_ENV === 'development';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get('logAnim14') || params.get('debugAnim14') || '';
+    return (
+      process.env.NODE_ENV === 'development' ||
+      v === '1' ||
+      v.toLowerCase() === 'true' ||
+      v.toLowerCase() === 'yes'
+    );
+  } catch {
+    return process.env.NODE_ENV === 'development';
+  }
+}
+
+function ScrollingText({
+  children,
+  gapPx = 12,
+  speedPxPerSec = 40,
+  always = false,
+  maxWidthPx = 320,
+  padPx = 20,
+}) {
+  const viewportRef = useRef(null);
+  const contentRef = useRef(null);
+  const [anim, setAnim] = useState({ enabled: false, viewportW: 0, start: 0, distance: 0, duration: 0 });
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
+
+    const measure = () => {
+      const contentW = content.scrollWidth || 0;
+      const targetViewportW = Math.max(0, Math.min(maxWidthPx, contentW + padPx));
+      const viewportW = targetViewportW;
+      if ((!always && contentW <= viewportW) || viewportW === 0) {
+        setAnim({ enabled: false, viewportW, start: 0, distance: 0, duration: 0 });
+        return;
+      }
+      const distance = contentW + gapPx;
+      const start = 0;
+      const travel = distance;
+      const duration = Math.max(1200, Math.round((travel / Math.max(1, speedPxPerSec)) * 1000));
+      setAnim({ enabled: true, viewportW, start, distance, duration });
+    };
+
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    if (ro) {
+      ro.observe(viewport);
+      ro.observe(content);
+    } else {
+      window.addEventListener('resize', measure);
+    }
+    return () => {
+      if (ro) ro.disconnect();
+      else window.removeEventListener('resize', measure);
+    };
+  }, [gapPx, speedPxPerSec, always, maxWidthPx, padPx, children]);
+
+  return (
+    <MarqueeViewport ref={viewportRef} style={anim.viewportW ? { width: `${anim.viewportW}px` } : undefined}>
+      <MarqueeTrack
+        $animate={anim.enabled}
+        style={{
+          '--marquee-start': `${anim.start}px`,
+          '--marquee-distance': `${anim.distance}px`,
+          '--marquee-duration': `${anim.duration}ms`,
+          '--marquee-gap': `${gapPx}px`,
+        }}
+      >
+        <span ref={contentRef} style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          {children}
+        </span>
+        {anim.enabled ? (
+          <>
+            <MarqueeSpacer />
+            <span style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{children}</span>
+          </>
+        ) : null}
+      </MarqueeTrack>
+    </MarqueeViewport>
+  );
+}
+
+function SlidingBadgeText({ children, maxWidthPx = 320, animationKey }) {
+  return (
+    <BadgeSlideViewport style={{ maxWidth: Number.isFinite(maxWidthPx) ? `${maxWidthPx}px` : 'none' }}>
+      <BadgeSlideText key={animationKey}>
+        {children}
+      </BadgeSlideText>
+    </BadgeSlideViewport>
+  );
+}
+
+export default function EnterAnimationOverlay({ events, onConsume }) {
+  const t = useTranslations('ChatPage');
+  const [current, setCurrent] = useState(null);
+  const [showAnim, setShowAnim] = useState(false);
+  const [phase, setPhase] = useState('idle');
+  const [i18nMap, setI18nMap] = useState(null);
+  const phaseRef = useRef('idle');
+  const showAnimRef = useRef(false);
+  const holdMsRef = useRef(1300);
+  const phaseTimersRef = useRef([]);
+  const currentKeyRef = useRef('');
+  const aniLoadedRef = useRef(false);
+  const aniImageRef = useRef(null);
+  const exitTimerRef = useRef(null);
+  const failSafeTimerRef = useRef(null);
+  const currentMetaRef = useRef({ animationId: 0, src: '', eventTemplateUrl: '', eventIconUrl: '' });
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    showAnimRef.current = showAnim;
+  }, [showAnim]);
+
+  useEffect(() => {
+    return () => {
+      if (phaseTimersRef.current.length) {
+        phaseTimersRef.current.forEach((id) => clearTimeout(id));
+        phaseTimersRef.current = [];
+      }
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+        exitTimerRef.current = null;
+      }
+      if (failSafeTimerRef.current) {
+        clearTimeout(failSafeTimerRef.current);
+        failSafeTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getI18nConfig()
+      .then((cfg) => {
+        if (cancelled) return;
+        if (cfg && typeof cfg === 'object') setI18nMap(cfg);
+      })
+      .catch(() => { });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const scheduleExitAfter = (ms) => {
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    exitTimerRef.current = setTimeout(() => {
+      setShowAnim(false);
+      setPhase('exit');
+    }, Math.max(0, Number(ms || 0)));
+  };
+
+  const handleAniLoaded = () => {
+    if (!showAnimRef.current) return;
+    if (phaseRef.current !== 'hold') return;
+    // Advance the lifecycle only after the upper animation image is ready.
+    aniLoadedRef.current = true;
+    const meta = currentMetaRef.current || {};
+    // if (meta.animationId === 14 && shouldLogAnim14Debug()) {
+    //   console.log('[enter_animation][anim14] asset loaded', {
+    //     src: meta.src || null,
+    //     eventTemplateUrl: meta.eventTemplateUrl || null,
+    //     eventIconUrl: meta.eventIconUrl || null,
+    //     naturalWidth: aniImageRef.current?.naturalWidth ?? null,
+    //     naturalHeight: aniImageRef.current?.naturalHeight ?? null,
+    //     holdMs: holdMsRef.current,
+    //   });
+    // }
+    if (failSafeTimerRef.current) {
+      clearTimeout(failSafeTimerRef.current);
+      failSafeTimerRef.current = null;
+    }
+    scheduleExitAfter(holdMsRef.current);
+  };
+
+  const handleAniLoadError = () => {
+    if (phaseRef.current !== 'hold') return;
+    const meta = currentMetaRef.current || {};
+    // if (meta.animationId === 14 && shouldLogAnim14Debug()) {
+    //   console.warn('[enter_animation][anim14] asset load failed', {
+    //     src: meta.src || null,
+    //     eventTemplateUrl: meta.eventTemplateUrl || null,
+    //     eventIconUrl: meta.eventIconUrl || null,
+    //     currentSrc: aniImageRef.current?.currentSrc || null,
+    //   });
+    // }
+    if (failSafeTimerRef.current) {
+      clearTimeout(failSafeTimerRef.current);
+      failSafeTimerRef.current = null;
+    }
+    setShowAnim(false);
+    scheduleExitAfter(holdMsRef.current);
+  };
+
+  useEffect(() => {
+    if (current || !events || events.length === 0) return;
+
+    const next = events[0];
+    currentKeyRef.current = String(next?.id || '');
+    setCurrent(next);
+    onConsume?.(next);
+    setShowAnim(false);
+    setPhase('enter');
+    aniLoadedRef.current = false;
+    if (phaseTimersRef.current.length) {
+      phaseTimersRef.current.forEach((id) => clearTimeout(id));
+      phaseTimersRef.current = [];
+    }
+    if (exitTimerRef.current) {
+      clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = null;
+    }
+    if (failSafeTimerRef.current) {
+      clearTimeout(failSafeTimerRef.current);
+      failSafeTimerRef.current = null;
+    }
+
+    const holdMs =
+      next?.content?.getIn?.(['enterAnimation', 'durationMs']) ||
+      next?.content?.getIn?.(['enterAnimation', 'duration']) ||
+      1300;
+    holdMsRef.current = Number(holdMs || 1300);
+
+    let src =
+      normalizeAssetSrc(
+        next?.content?.getIn?.(['enterAnimation', 'assetSrc']) ||
+        next?.content?.getIn?.(['enterAnimation', 'localSrc']) ||
+        next?.content?.getIn?.(['enterAnimation', 'src']) ||
+        next?.content?.getIn?.(['enterAnimation', 'asset']) ||
+        next?.content?.getIn?.(['enterAnimation', 'fileName']) ||
+        next?.content?.getIn?.(['enterAnimation', 'file'])
+      ) || '';
+    const animId = Number(
+      next?.content?.getIn?.(['enterAnimation', 'animationId']) ||
+      next?.content?.getIn?.(['enterAnimation', 'animation']) ||
+      0
+    );
+    if (!src) {
+      if (animId === 11) src = '/enter_animation/vip_goin_s.webp';
+      else if (animId === 12) src = '/enter_animation/vip_goin_m.webp';
+      else if (animId === 13) src = '/enter_animation/vip_goin_l.webp';
+    }
+    const eventTemplateUrl =
+      animId === 14
+        ? normalizeRemoteEnterAnimationAsset(
+          next?.content?.getIn?.(['enterAnimation', 'eventNotifMsg', 'templateURL']) || ''
+        )
+        : '';
+    const eventIconUrl =
+      animId === 14
+        ? normalizeRemoteEnterAnimationAsset(
+          next?.content?.getIn?.(['enterAnimation', 'eventNotifMsg', 'icouURL']) || ''
+        )
+        : '';
+    currentMetaRef.current = { animationId: animId, src, eventTemplateUrl, eventIconUrl };
+    // if (animId === 14 && shouldLogAnim14Debug()) {
+    //   const enterAnimation = next?.content?.get?.('enterAnimation');
+    //   const enterAnimationJs = enterAnimation?.toJS?.() || null;
+    //   const notif = enterAnimation?.get?.('eventNotifMsg');
+    //   const notifJs = notif?.toJS?.() || null;
+    //   console.log('[enter_animation][anim14] overlay queued', {
+    //     id: next?.id || null,
+    //     src: src || null,
+    //     durationMs: holdMsRef.current,
+    //     hasEventNotifMsg: Boolean(notifJs),
+    //     eventTemplateUrl: eventTemplateUrl || null,
+    //     eventIconUrl: eventIconUrl || null,
+    //     eventAnimationID:
+    //       enterAnimationJs?.eventAnimationID ?? enterAnimation?.get?.('eventAnimationID') ?? null,
+    //     eventNameText: enterAnimationJs?.eventNameText ?? enterAnimation?.get?.('eventNameText') ?? null,
+    //     eventDescText: enterAnimationJs?.eventDescText ?? enterAnimation?.get?.('eventDescText') ?? null,
+    //   });
+    //   if (!notifJs) {
+    //     console.warn('[enter_animation][anim14] overlay missing eventNotifMsg on normalized payload');
+    //   }
+    //   if (!src) {
+    //     console.warn('[enter_animation][anim14] overlay missing animation asset src');
+    //   }
+    // }
+
+    phaseTimersRef.current.push(
+      setTimeout(() => {
+        setPhase('hold');
+        setShowAnim(Boolean(src));
+        if (!src) {
+          scheduleExitAfter(holdMsRef.current);
+          return;
+        }
+
+        const keyAtStart = currentKeyRef.current;
+        getWebpDurationMs(src).then((ms) => {
+          if (!ms) return;
+          if (currentKeyRef.current !== keyAtStart) return;
+          holdMsRef.current = ms;
+          if (aniLoadedRef.current && phaseRef.current === 'hold') {
+            scheduleExitAfter(holdMsRef.current);
+          }
+        });
+
+        failSafeTimerRef.current = setTimeout(() => {
+          setShowAnim(false);
+          setPhase('exit');
+        }, Math.max(holdMsRef.current + 2000, 8000));
+      }, ENTRY_MS)
+    );
+  }, [current, events, onConsume]);
+
+  useEffect(() => {
+    if (phase !== 'exit') return;
+    phaseTimersRef.current.push(
+      setTimeout(() => {
+        setCurrent(null);
+        setPhase('idle');
+      }, EXIT_MS)
+    );
+  }, [phase]);
+
+  useEffect(() => {
+    if (!showAnim || phase !== 'hold' || !current) return;
+    const img = aniImageRef.current;
+    if (!img || !img.complete || img.naturalWidth <= 0) return;
+
+    // CEF may reuse a cached image without dispatching a fresh load event.
+    const timer = setTimeout(() => {
+      if (aniImageRef.current !== img) return;
+      handleAniLoaded();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [current, phase, showAnim]);
+
+  const view = useMemo(() => {
+    if (!current) return null;
+    const content = current.content;
+    const enterAnimation = content?.get ? content.get('enterAnimation')?.toJS?.() : null;
+    const displayName = content?.get ? content.get('displayName') : '';
+    const picture = content?.get ? content.get('picture') : '';
+    const animationId = Number(enterAnimation?.animationId || enterAnimation?.animation || 0);
+    const badgeKey = enterAnimation?.badgeKey || enterAnimation?.textKey || '';
+    const marqueeKey = enterAnimation?.marqueeKey || '';
+    const rawLevel = enterAnimation?.level ?? (content?.get ? content.get('level') : undefined);
+    const rawMLevel = enterAnimation?.mLevel ?? (content?.get ? content.get('mLevel') : undefined);
+    const level =
+      typeof rawLevel === 'number' ? rawLevel : typeof rawLevel === 'string' && rawLevel.trim() ? Number(rawLevel) : undefined;
+    const mLevel =
+      typeof rawMLevel === 'number' ? rawMLevel : typeof rawMLevel === 'string' && rawMLevel.trim() ? Number(rawMLevel) : undefined;
+    const name =
+      enterAnimation?.displayName ||
+      enterAnimation?.nickname ||
+      enterAnimation?.userName ||
+      displayName ||
+      '';
+
+    const isEvent14 = animationId === 14 && enterAnimation?.eventNotifMsg;
+    const eventNotifMsg = isEvent14 ? enterAnimation?.eventNotifMsg : null;
+
+    const effectiveBadgeKey = (() => {
+      if (badgeKey) return badgeKey;
+      if (animationId === 1) return 'guardian_entry_animation_message';
+      if (animationId === 2) return 'VIP';
+      if (animationId === 6) return 'producer_enterroom';
+      if ((animationId >= 7 && animationId <= 10) || animationId === 15) return 'army_enter_notification';
+      if (animationId === 11 || animationId === 12 || animationId === 13) return 'mlevel_entry_notice_subscription';
+      if (animationId === 3 || animationId === 4 || animationId === 5 || animationId === 16 || animationId === 17) return 'LV%@';
+      return '';
+    })();
+
+    const badgeLabel = (() => {
+      if (isEvent14) {
+        const resolved = resolveTokenText(i18nMap, eventNotifMsg?.name);
+        return resolved || enterAnimation?.eventNameText || '';
+      }
+      if (!effectiveBadgeKey) return '';
+      try {
+        return t(effectiveBadgeKey, { name, level, mLevel });
+      } catch {
+        return '';
+      }
+    })();
+
+    const marqueeText = (() => {
+      if (isEvent14) {
+        const descTokenKey = eventNotifMsg?.descriptionToken?.key || '';
+        const resolved = resolveTokenText(i18nMap, eventNotifMsg?.descriptionToken);
+        if (resolved && resolved !== descTokenKey) return resolved;
+        if (enterAnimation?.eventDescText && enterAnimation.eventDescText !== descTokenKey) {
+          return enterAnimation.eventDescText;
+        }
+        return '';
+      }
+      const effectiveKey = marqueeKey || (animationId === 6 ? '' : 'enter_is_here');
+      if (!effectiveKey) return '';
+      try {
+        return t(effectiveKey, { name });
+      } catch {
+        return '';
+      }
+    })();
+    const hasVisibleText = (s) =>
+      typeof s === 'string' && s.replace(/[\s\u200B\uFEFF]/g, '').length > 0;
+    const safeBadgeLabel = hasVisibleText(badgeLabel) ? badgeLabel.trim() : '';
+    const safeMarqueeText = hasVisibleText(marqueeText) ? marqueeText.trim() : '';
+
+    const src0 =
+      normalizeAssetSrc(
+        enterAnimation?.assetSrc ||
+        enterAnimation?.localSrc ||
+        enterAnimation?.src ||
+        enterAnimation?.asset ||
+        enterAnimation?.fileName ||
+        enterAnimation?.file
+      ) || '';
+    const src =
+      src0 ||
+      (animationId === 11
+        ? '/enter_animation/vip_goin_s.webp'
+        : animationId === 12
+          ? '/enter_animation/vip_goin_m.webp'
+          : animationId === 13
+            ? '/enter_animation/vip_goin_l.webp'
+            : '');
+
+    const baseCfg = getBadgeRenderConfig(animationId);
+    const cfg = (() => {
+      if (!isEvent14) return baseCfg;
+      return {
+        ...baseCfg,
+      };
+    })();
+    const avatarUrl = picture ? `${CDN_URL}/${picture}` : '';
+    const eventTextSize = Number(enterAnimation?.eventTextSize || 0);
+    const eventFontSize = isEvent14 && Number.isFinite(eventTextSize) && eventTextSize > 0 ? `${eventTextSize}px` : '12px';
+    const eventLineHeight = isEvent14 ? '22px' : '22px';
+
+    if (!name) return null;
+
+    const cardBgImg = animationId >= 11 && animationId <= 13 ? cfg.cardBgImg : '';
+    const eventTemplateUrl = isEvent14 ? normalizeRemoteEnterAnimationAsset(enterAnimation?.eventNotifMsg?.templateURL || '') : '';
+    const eventIconUrl = isEvent14 ? normalizeRemoteEnterAnimationAsset(enterAnimation?.eventNotifMsg?.icouURL || '') : '';
+    const eventNameBg = isEvent14
+      ? toCssLinearGradient(enterAnimation?.eventGradientFrom, enterAnimation?.eventGradientTo) || 'transparent'
+      : cfg.marqueeBg;
+    const eventNameBorder = isEvent14 && enterAnimation?.eventStrokeColor ? enterAnimation.eventStrokeColor : '';
+    const effectiveCardBgImg = eventTemplateUrl || cardBgImg;
+    const cardBg = effectiveCardBgImg ? 'transparent' : cfg.bg;
+    const cardBorder = isEvent14 && eventTemplateUrl ? '' : cfg.border;
+    const marqueeTextColor = animationId >= 11 && animationId <= 13 ? cfg.marqueeTextColor : '#ffffff';
+
+    const playbackSrc = buildPlaybackSrc(src, current?.id || '');
+
+    return (
+      <Wrapper>
+        <Animated $phase={phase}>
+          <BadgeContainer>
+            {showAnim && playbackSrc ? (
+              <AniLayer>
+                {/* Force a remount per event so CEF does not silently reuse a stale cached image node. */}
+                <AniImage
+                  key={`${current?.id || 'ani'}-${playbackSrc}`}
+                  ref={aniImageRef}
+                  src={playbackSrc}
+                  alt=""
+                  onLoad={handleAniLoaded}
+                  onError={handleAniLoadError}
+                />
+              </AniLayer>
+            ) : null}
+            <Card $bg={cardBg} $bgImg={effectiveCardBgImg} $border={cardBorder} $color={cfg.textColor}>
+              <BadgeRow>
+                <AvatarBadgeGroup>
+                  <Avatar style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined} />
+                  {isEvent14 && safeBadgeLabel ? (
+                    <Marquee $bg={eventNameBg} $border={eventNameBorder} $h="33px" style={{ maxWidth: 'none' }}>
+                      {eventIconUrl ? <BadgeIcon $size="25px" src={eventIconUrl} alt="" /> : null}
+                      <SlidingBadgeText maxWidthPx={Number.POSITIVE_INFINITY} animationKey={`${current?.id || 'badge'}-left`}>
+                        <Text $fontSize={eventFontSize} $lineHeight={eventLineHeight} $color={enterAnimation?.eventNameColor} $ml="3px">
+                          {safeBadgeLabel}
+                        </Text>
+                      </SlidingBadgeText>
+                    </Marquee>
+                  ) : safeBadgeLabel ? (
+                    <>
+                      {animationId >= 11 && animationId <= 13 ? (
+                        <Marquee $bg={cfg.marqueeBg} $h="22px">
+                          {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
+                          <SlidingBadgeText animationKey={`${current?.id || 'badge'}-left`}>
+                            <Text $fontSize="12px" $lineHeight="22px" $color={cfg.textColor} $ml="3px">
+                              {safeBadgeLabel}
+                            </Text>
+                          </SlidingBadgeText>
+                        </Marquee>
+                      ) : animationId === 1 || animationId === 2 || (animationId >= 7 && animationId <= 10) || animationId === 15 ? (
+                        <Marquee $bg={cfg.marqueeBg} $h="22px">
+                          {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
+                          <SlidingBadgeText animationKey={`${current?.id || 'badge'}-left`}>
+                            <Text $fontSize="12px" $lineHeight="22px" $ml="3px">
+                              {safeBadgeLabel}
+                            </Text>
+                          </SlidingBadgeText>
+                        </Marquee>
+                      ) : (
+                        <BadgeLabelWrap>
+                          {cfg.badgeIconSrc ? <BadgeIcon $size="22px" src={cfg.badgeIconSrc} alt="" /> : null}
+                          <SlidingBadgeText animationKey={`${current?.id || 'badge'}-left`}>
+                            <Text $fontSize="12px" $lineHeight="22px" $ml="3px">
+                              {safeBadgeLabel}
+                            </Text>
+                          </SlidingBadgeText>
+                        </BadgeLabelWrap>
+                      )}
+                    </>
+                  ) : null}
+                </AvatarBadgeGroup>
+                {safeMarqueeText ? (
+                  <MarqueeTextWrap>
+                    <ScrollingText gapPx={12} speedPxPerSec={40} always>
+                      <Text
+                        $fontSize={isEvent14 ? eventFontSize : '12px'}
+                        $lineHeight={isEvent14 ? eventLineHeight : '22px'}
+                        $color={isEvent14 ? enterAnimation?.eventTextColor : marqueeTextColor}
+                      >
+                        {safeMarqueeText}
+                      </Text>
+                    </ScrollingText>
+                  </MarqueeTextWrap>
+                ) : null}
+              </BadgeRow>
+            </Card>
+          </BadgeContainer>
+        </Animated>
+      </Wrapper>
+    );
+  }, [current, showAnim, phase, t, i18nMap]);
+
+  return view;
+}

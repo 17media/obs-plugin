@@ -5,6 +5,7 @@
  */
 import { EventEmitter } from 'events';
 import { messageAggregator } from './MessageAggregator';
+import { ENABLE_YOUTUBE } from '@/lib/features';
 
 class WebSocketManager extends EventEmitter {
   constructor() {
@@ -92,7 +93,12 @@ class WebSocketManager extends EventEmitter {
         }
       }
       try {
-        this.send({ type: 'action', payload: { type: 'register_chatdock' } });
+        const pathname = typeof window !== 'undefined' ? window.location?.pathname || '' : '';
+        const isEnterAnimationPage = pathname.includes('enter_animation');
+        this.send({
+          type: 'action',
+          payload: { type: isEnterAnimationPage ? 'register_enter_animation_page' : 'register_chatdock' },
+        });
       } catch {}
     };
 
@@ -109,6 +115,18 @@ class WebSocketManager extends EventEmitter {
       const type = msg?.type;
       const payload = msg?.payload;
       if (!type) return;
+
+      const pathname = typeof window !== 'undefined' ? window.location?.pathname || '' : '';
+      const isEnterAnimationPage = pathname.includes('enter_animation');
+      if (
+        isEnterAnimationPage &&
+        (type === 'twitch_chat_connected' ||
+          type === 'twitch_chat_message' ||
+          type === 'youtube_chat_connected' ||
+          type === 'youtube_chat_message')
+      ) {
+        return;
+      }
 
       // 路由到平台处理：twitch / youtube / 17live
       const routeTo = (platformId, transform) => {
@@ -163,7 +181,17 @@ class WebSocketManager extends EventEmitter {
       } else if (type === 'ably_chat_connected' || type === 'ably_chat_message') {
         const ensure = () => {
           const platform = messageAggregator.platforms?.get('17live');
-          if (!platform) return messageAggregator.addPlatform('17live', {}).then(() => messageAggregator.platforms.get('17live'));
+          if (!platform) {
+            // console.log('[enter_animation][files] ws ensure platform', {
+            //   platformId: '17live',
+            //   via: 'WebSocketManager',
+            //   hasConfig: false,
+            //   note: 'platform.connect is not called in this path',
+            // });
+            return messageAggregator
+              .addPlatform('17live', {})
+              .then(() => messageAggregator.platforms.get('17live'));
+          }
           return Promise.resolve(platform);
         };
         ensure()
@@ -171,6 +199,25 @@ class WebSocketManager extends EventEmitter {
             if (!platform) return;
             if (typeof platform.handleWsMessage === 'function') {
               platform.handleWsMessage({ type, payload });
+            }
+          })
+          .catch(() => {});
+      } else if (ENABLE_YOUTUBE &&
+        (type === 'youtube_chat_connected' || type === 'youtube_chat_message')) {
+        const ensure = () => {
+          const platform = messageAggregator.platforms?.get('youtube');
+          if (!platform) return messageAggregator.addPlatform('youtube', {}).then(() => messageAggregator.platforms.get('youtube'));
+          return Promise.resolve(platform);
+        };
+        ensure()
+          .then((platform) => {
+            if (!platform) return;
+            if (type === 'youtube_chat_connected') {
+              if (typeof platform.handleWsMessage === 'function') {
+                platform.handleWsMessage({ type, payload });
+              }
+            } else if (type === 'youtube_chat_message') {
+              routeTo('youtube', () => payload);
             }
           })
           .catch(() => {});

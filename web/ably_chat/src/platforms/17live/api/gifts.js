@@ -1,7 +1,10 @@
 // Used to store gift information
 let giftsMap = new Map();
+// Used to store pending requests for gift information to avoid duplicate requests
+let pendingRequests = new Map();
 
 async function loadMockGifts() {
+    if (typeof window === 'undefined') return;
     try {
         // In development environment, read gift information from local JSON file
         const response = await fetch('/mock/get_gifts_response.json');
@@ -13,6 +16,15 @@ async function loadMockGifts() {
             giftsData.gifts.forEach(gift => {
                 giftsMap.set(gift.giftID, gift);
             });
+            giftsMap.set('2502_tw_upgrade_a_lv0', {
+                ...(giftsMap.get('2502_tw_upgrade_a_lv0') || {}),
+                giftID: '2502_tw_upgrade_a_lv0',
+                name: (giftsMap.get('2502_tw_upgrade_a_lv0') || {}).name || '活動點數禮物',
+                point: (giftsMap.get('2502_tw_upgrade_a_lv0') || {}).point || 3,
+                icon: (giftsMap.get('2502_tw_upgrade_a_lv0') || {}).icon || 'go-sta/gift/2506_tw_uoe_1_17box/d17c1075-b335-4057-bd11-4447077b05dc.png',
+                isEventPointEnabled: true,
+                eventPoint: 450,
+            });
             // console.log('Gifts loaded from local JSON:', giftsMap.size);
         } else {
             console.error('Invalid gifts data structure in local JSON');
@@ -22,12 +34,13 @@ async function loadMockGifts() {
     }
 }
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     loadMockGifts();
 }
 
 export async function getGifts() {
     if (process.env.NODE_ENV === 'development') {
+        if (typeof window === 'undefined') return;
         await loadMockGifts();
     } else {
         const url = `/lapi`;
@@ -71,6 +84,11 @@ export async function getGiftByID(giftID) {
         // console.log('Gift already loaded:', giftID);
         return giftsMap.get(giftID);
     }
+
+    // Check if there is a pending request for this giftID
+    if (pendingRequests.has(giftID)) {
+        return pendingRequests.get(giftID);
+    }
     
     // If not development environment, try to fetch from server
     if (process.env.NODE_ENV !== 'development') {
@@ -79,33 +97,41 @@ export async function getGiftByID(giftID) {
             action: 'getGift',
             giftID: giftID
         }
-        try {
-            const res = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(data)
-            });
 
-            if (!res.ok) {
-                console.warn(`Failed to fetch gift ${giftID}: ${res.status}`);
-                return null;
-            }
+        const promise = (async () => {
+            try {
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                });
 
-            const giftData = await res.json();
-            if (giftData && giftData.giftID) {
-                giftsMap.set(giftData.giftID, giftData);
-                console.log('Gift loaded from server:', giftData.giftID);
-                return giftData;
-            } else {
-                console.warn('Invalid gift data structure from server:', giftData);
+                if (!res.ok) {
+                    console.warn(`Failed to fetch gift ${giftID}: ${res.status}`);
+                    return null;
+                }
+
+                const giftData = await res.json();
+                if (giftData && giftData.giftID) {
+                    giftsMap.set(giftData.giftID, giftData);
+                    console.log('Gift loaded from server:', giftData.giftID);
+                    return giftData;
+                } else {
+                    console.warn('Invalid gift data structure from server:', giftData);
+                    return null;
+                }
+            } catch (err) {
+                console.error('Error loading gift from server:', err);
                 return null;
+            } finally {
+                pendingRequests.delete(giftID);
             }
-        } catch (err) {
-            console.error('Error loading gift from server:', err);
-            return null;
-        }
+        })();
+
+        pendingRequests.set(giftID, promise);
+        return promise;
     }
     
     return null;

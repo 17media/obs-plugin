@@ -1,7 +1,9 @@
 #include "OneSevenLiveStreamingDock.hpp"
 
+#include <graphics/vec2.h>
 #include <obs-frontend-api.h>
 #include <obs-module.h>
+#include <util/config-file.h>
 
 #include <QAction>
 #include <QCoreApplication>
@@ -9,6 +11,7 @@
 #include <QEventLoop>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QHash>
 #include <QIcon>
 #include <QMainWindow>
 #include <QMessageBox>
@@ -19,19 +22,235 @@
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
+#include <cstring>
 
 #include "OneSevenLiveConfigManager.hpp"
 #include "OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveCustomEventDialog.hpp"
 #include "OneSevenLiveLoadRoomInfoWorker.hpp"
-#include "OneSevenLiveStreamingDock.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "moc_OneSevenLiveStreamingDock.cpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "plugin-support.h"
+#include "streaming/OneSevenLiveObsAutoAdjustDialog.hpp"
 #include "streaming/OneSevenLiveStreamManager.hpp"
 #include "utility/Common.hpp"
 #include "utility/Meta.hpp"
+
+namespace {
+    constexpr uint32_t kPortraitBaseWidth = 1080;
+    constexpr uint32_t kPortraitBaseHeight = 1920;
+    constexpr uint32_t kPortraitOutputWidth = 720;
+    constexpr uint32_t kPortraitOutputHeight = 1280;
+
+    constexpr uint32_t kLandscapeBaseWidth = 1920;
+    constexpr uint32_t kLandscapeBaseHeight = 1080;
+    constexpr uint32_t kLandscapeOutputWidth = 1280;
+    constexpr uint32_t kLandscapeOutputHeight = 720;
+    constexpr int kSuggestedVideoBitrateKbps = 2500;
+    constexpr const char *kConfigKeyAutoAdjustDontRemind = "ObsAutoAdjustDontRemind";
+    constexpr const char *kConfigKeyAutoAdjustSilentApply = "ObsAutoAdjustSilentApply";
+
+    static void SyncPreviewDockLayoutToObsCanvas() {
+        OneSevenLiveCoreManager::getInstance().syncPreviewDockLayoutToObsCanvas();
+    }
+
+    static bool isAdvancedOutputMode(config_t *cfg) {
+        if (!cfg) {
+            return false;
+        }
+        const char *mode = config_get_string(cfg, "Output", "Mode");
+        if (!mode) {
+            return false;
+        }
+        return QString::fromUtf8(mode).compare("Advanced", Qt::CaseInsensitive) == 0;
+    }
+
+    static int getCurrentVideoBitrateKbpsFromProfile(config_t *cfg) {
+        if (!cfg) {
+            return 0;
+        }
+        if (isAdvancedOutputMode(cfg)) {
+            const int bitrate = config_get_int(cfg, "AdvOut", "Bitrate");
+            if (bitrate > 0) {
+                return bitrate;
+            }
+            return config_get_int(cfg, "AdvOut", "FFVBitrate");
+        }
+        return static_cast<int>(config_get_uint(cfg, "SimpleOutput", "VBitrate"));
+    }
+
+    static bool isVideoOutputSource(obs_source_t *src) {
+        if (!src) {
+            return false;
+        }
+        const uint32_t flags = obs_source_get_output_flags(src);
+        return (flags & OBS_SOURCE_VIDEO) != 0;
+    }
+
+    static bool isSceneItemEligibleForAutoFit(obs_sceneitem_t *item) {
+        if (!item) {
+            return false;
+        }
+        if (!obs_sceneitem_visible(item)) {
+            return false;
+        }
+        if (obs_sceneitem_locked(item)) {
+            return false;
+        }
+        return true;
+    }
+
+    static int applyFitToAllSceneItemsToCanvas(uint32_t canvasW, uint32_t canvasH);
+
+    static bool fitPrimaryVisualItemToCurrentCanvas() {
+        obs_video_info ovi{};
+        if (!obs_get_video_info(&ovi)) {
+            return false;
+        }
+        if (ovi.base_width == 0 || ovi.base_height == 0) {
+            return false;
+        }
+        const int count = applyFitToAllSceneItemsToCanvas(ovi.base_width, ovi.base_height);
+        return count > 0;
+    }
+
+    static int applyFitToAllSceneItemsToCanvas(uint32_t canvasW, uint32_t canvasH) {
+        obs_source_t *sceneSource = obs_frontend_get_current_scene();
+        if (!sceneSource) {
+            return 0;
+        }
+
+        obs_scene_t *scene = obs_scene_from_source(sceneSource);
+        if (!scene) {
+            obs_source_release(sceneSource);
+            return 0;
+        }
+
+        struct Ctx {
+            uint32_t canvasW = 0;
+            uint32_t canvasH = 0;
+            int applied = 0;
+        } ctx;
+
+        ctx.canvasW = canvasW;
+        ctx.canvasH = canvasH;
+
+        obs_scene_enum_items(
+            scene,
+            [](obs_scene_t *, obs_sceneitem_t *item, void *param) -> bool {
+                auto *ctx = static_cast<Ctx *>(param);
+                if (obs_sceneitem_is_group(item)) {
+                    obs_sceneitem_group_enum_items(
+                        item,
+                        [](obs_scene_t *, obs_sceneitem_t *child, void *p) -> bool {
+                            auto *ctx = static_cast<Ctx *>(p);
+                            if (!isSceneItemEligibleForAutoFit(child)) {
+                                return true;
+                            }
+
+                            obs_transform_info itemInfo;
+                            vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+                            vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+                            itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+                            itemInfo.rot = 0.0f;
+                            vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
+                            itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+                            itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+                            itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(child);
+                            obs_sceneitem_set_info2(child, &itemInfo);
+
+                            ctx->applied++;
+                            return true;
+                        },
+                        ctx);
+                    return true;
+                }
+
+                if (!isSceneItemEligibleForAutoFit(item)) {
+                    return true;
+                }
+
+                obs_transform_info itemInfo;
+                vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+                vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+                itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+                itemInfo.rot = 0.0f;
+                vec2_set(&itemInfo.bounds, float(ctx->canvasW), float(ctx->canvasH));
+                itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+                itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+                itemInfo.crop_to_bounds = obs_sceneitem_get_bounds_crop(item);
+                obs_sceneitem_set_info2(item, &itemInfo);
+
+                ctx->applied++;
+                return true;
+            },
+            &ctx);
+
+        obs_source_release(sceneSource);
+        return ctx.applied;
+    }
+
+    static bool applyObsProfileVideoSettings(uint32_t baseW, uint32_t baseH, uint32_t outW,
+                                             uint32_t outH, int bitrateKbps) {
+        config_t *cfg = obs_frontend_get_profile_config();
+        if (!cfg) {
+            return false;
+        }
+
+        config_set_uint(cfg, "Video", "BaseCX", baseW);
+        config_set_uint(cfg, "Video", "BaseCY", baseH);
+        config_set_uint(cfg, "Video", "OutputCX", outW);
+        config_set_uint(cfg, "Video", "OutputCY", outH);
+
+        if (isAdvancedOutputMode(cfg)) {
+            config_set_int(cfg, "AdvOut", "Bitrate", bitrateKbps);
+            config_set_int(cfg, "AdvOut", "FFVBitrate", bitrateKbps);
+        } else {
+            config_set_uint(cfg, "SimpleOutput", "VBitrate", static_cast<uint32_t>(bitrateKbps));
+        }
+
+        if (config_save(cfg) < 0) {
+            return false;
+        }
+
+        obs_frontend_reset_video();
+
+        obs_video_info ovi{};
+        if (!obs_get_video_info(&ovi)) {
+            return false;
+        }
+
+        const bool ok = (ovi.base_width == baseW && ovi.base_height == baseH &&
+                         ovi.output_width == outW && ovi.output_height == outH);
+#if 0
+        obs_log(LOG_INFO,
+                "[obs-17live] Schedule FitToScreen retries: target base=%ux%u out=%ux%u bitrate=%d "
+                "applied base=%ux%u out=%ux%u",
+                baseW, baseH, outW, outH, bitrateKbps, ovi.base_width, ovi.base_height,
+                ovi.output_width, ovi.output_height);
+
+        auto schedule = [](int delayMs) {
+            QTimer::singleShot(delayMs, [delayMs]() {
+                obs_log(LOG_INFO, "[obs-17live] FitToScreen retry tick: %dms", delayMs);
+                fitPrimaryVisualItemToCurrentCanvas();
+            });
+        };
+
+        schedule(0);
+        schedule(150);
+        schedule(350);
+        schedule(700);
+        schedule(1200);
+        schedule(10000);
+#endif
+
+        if (ovi.base_width != 0 && ovi.base_height != 0) {
+            applyFitToAllSceneItemsToCanvas(ovi.base_width, ovi.base_height);
+        }
+        return ok;
+    }
+}  // namespace
 
 OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
                                                      OneSevenLiveStreamManager *streamManager_,
@@ -60,6 +279,15 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
 
     connect(streamManager, &OneSevenLiveStreamManager::obsStreamStopped, this,
             [this](int code, const QString &lastError) {
+                if (!streamManager) {
+                    return;
+                }
+
+                if (streamManager->isStopStreamInProgress()) {
+                    obs_log(LOG_INFO, "OBS stream stopped during managed stop flow");
+                    return;
+                }
+
                 obs_log(LOG_WARNING, "OBS stream stopped unexpectedly with code %d: %s", code,
                         lastError.toStdString().c_str());
                 // If this was an unexpected stop (network error etc), we might want to reflect that
@@ -106,7 +334,9 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
 
                     msgBox.exec();
                     if (msgBox.clickedButton() == yesButton) {
-                        streamManager->startOBSStreaming();
+                        if (ensureStreamingAudioEncoderForGroupCall()) {
+                            streamManager->startOBSStreaming();
+                        }
                     }
                 } else {
                     QString msg = error;
@@ -924,6 +1154,15 @@ void OneSevenLiveStreamingDock::createConnections() {
     connect(createLiveButton, &QPushButton::clicked, this,
             &OneSevenLiveStreamingDock::onCreateLiveClicked);
 
+    connect(portraitStreamRadio, &QRadioButton::clicked, this, [this]() {
+        obsAutoAdjustPromptShown = false;
+        maybePromptObsAutoAdjust(true);
+    });
+    connect(landscapeStreamRadio, &QRadioButton::clicked, this, [this]() {
+        obsAutoAdjustPromptShown = false;
+        maybePromptObsAutoAdjust(true);
+    });
+
     // Army-only viewing collapse/expand button
     connect(armyOnlyToggleButton, &QPushButton::clicked, this,
             &OneSevenLiveStreamingDock::onArmyOnlyToggleClicked);
@@ -977,29 +1216,30 @@ void OneSevenLiveStreamingDock::onArmyOnlyCheckChanged(int state) {
 
 void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
     if (customEventDialog) {
-        // Hide dialog and update button icon to arrow-down
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
 
-        customEventDialog->close();
-        customEventDialog->deleteLater();
+        OneSevenLiveCustomEventDialog *dialog = customEventDialog;
         customEventDialog = nullptr;
-    } else {
-        // Open dialog first; dialog will fetch custom event asynchronously
-        customEventDialog = new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
 
-        // Connect dialog close signal to reset button state
-        connect(customEventDialog, &QDialog::finished, this, [this]() {
+        if (dialog) {
+            dialog->close();
+            dialog->deleteLater();
+        }
+    } else {
+        OneSevenLiveCustomEventDialog *dialog =
+            new OneSevenLiveCustomEventDialog(this, apiWrapper, configManager);
+        customEventDialog = dialog;
+
+        connect(dialog, &QDialog::finished, this, [this]() {
             customEventToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
             customEventDialog = nullptr;
         });
 
-        // Update button icon to arrow-up when dialog is opened
         customEventToggleButton->setIcon(QIcon(":/resources/arrow-up.svg"));
 
-        // Show the dialog
-        customEventDialog->show();
-        customEventDialog->raise();
-        customEventDialog->activateWindow();
+        dialog->show();
+        dialog->raise();
+        dialog->activateWindow();
     }
 }
 
@@ -1138,6 +1378,7 @@ void OneSevenLiveStreamingDock::onSaveConfigClicked() {
 
 void OneSevenLiveStreamingDock::onCreateLiveClicked() {
     obs_log(LOG_INFO, "onCreateLiveClicked");
+    obsAutoAdjustPromptShown = false;
 
     // Create live stream
     OneSevenLiveRtmpRequest request;
@@ -1146,6 +1387,7 @@ void OneSevenLiveStreamingDock::onCreateLiveClicked() {
         return;
     }
 
+    maybePromptObsAutoAdjust(true);
     startCreateLiveSequence(request);
 }
 
@@ -1298,11 +1540,20 @@ void OneSevenLiveStreamingDock::handleCreateLiveChecks(const OneSevenLiveLoginDa
 
     // check current region changed?
     std::string currentRegion;
-    configManager->getConfigValue("Region", currentRegion);
+    if (!configManager->getConfigValue("Region", currentRegion)) {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to read Region config: %s %s", err.code.c_str(),
+                err.message.c_str());
+        currentRegion.clear();
+    }
 
     // Check feature 207 to control createLiveButton state
     OneSevenLiveConfig currentConfig;
-    configManager->getConfig(currentConfig);
+    if (!configManager->getConfig(currentConfig)) {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to read current config: %s %s", err.code.c_str(),
+                err.message.c_str());
+    }
     bool currentIsFeature207Enabled = (currentConfig.addOns.features["207"] == 1);
 
     if (loginData.userInfo.region != QString::fromStdString(currentRegion)) {
@@ -1310,10 +1561,20 @@ void OneSevenLiveStreamingDock::handleCreateLiveChecks(const OneSevenLiveLoginDa
 
         // Save configuration
         if (!configJson.empty()) {
-            configManager->setConfig(configJson);
-            obs_log(LOG_INFO, "Config loaded successfully");
+            if (!configManager->setConfig(configJson)) {
+                const auto err = configManager->getLastError();
+                obs_log(LOG_ERROR, "Failed to save config: %s %s", err.code.c_str(),
+                        err.message.c_str());
+                QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                                     obs_module_text("Live.Create.Failed"));
+                return;
+            }
+            obs_log(LOG_INFO, "Config saved successfully");
         } else {
             obs_log(LOG_ERROR, "Failed to load config from API (or it was empty)");
+            QMessageBox::warning(this, obs_module_text("Live.Create.Title"),
+                                 obs_module_text("Live.Create.Failed"));
+            return;
         }
 
         OneSevenLiveConfig newConfig;
@@ -1364,6 +1625,8 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
     if (!streamManager)
         return;
 
+    SyncPreviewDockLayoutToObsCanvas();
+
     if (startStream) {
         // Start streaming (server-side)
         createLiveButton->setEnabled(false);
@@ -1387,9 +1650,292 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
         msgBox.exec();
         if (msgBox.clickedButton() == yesButton) {
             // Start OBS streaming
-            streamManager->startOBSStreaming();
+            if (ensureStreamingAudioEncoderForGroupCall()) {
+                streamManager->startOBSStreaming();
+            }
         }
     }
+}
+
+namespace {
+    struct ObsAutoAdjustTarget {
+        uint32_t baseW{0};
+        uint32_t baseH{0};
+        uint32_t outputW{0};
+        uint32_t outputH{0};
+    };
+
+    struct ObsAutoAdjustPreference {
+        bool dontRemind{false};
+        bool silentApply{false};
+    };
+
+    ObsAutoAdjustTarget buildObsAutoAdjustTarget(bool isLandscape) {
+        return isLandscape ? ObsAutoAdjustTarget{kLandscapeBaseWidth, kLandscapeBaseHeight,
+                                                 kLandscapeOutputWidth, kLandscapeOutputHeight}
+                           : ObsAutoAdjustTarget{kPortraitBaseWidth, kPortraitBaseHeight,
+                                                 kPortraitOutputWidth, kPortraitOutputHeight};
+    }
+
+    bool needsObsAutoAdjust(const obs_video_info &vinfo, bool isLandscape,
+                            const ObsAutoAdjustTarget &target) {
+        const bool currentBaseIsLandscape = vinfo.base_width > vinfo.base_height;
+        const bool currentBaseIsPortrait = vinfo.base_height > vinfo.base_width;
+        const bool outputMatches =
+            vinfo.output_width == target.outputW && vinfo.output_height == target.outputH;
+        const bool baseOrientationMatches =
+            isLandscape ? currentBaseIsLandscape : currentBaseIsPortrait;
+        return !(baseOrientationMatches && outputMatches);
+    }
+
+    ObsAutoAdjustPreference loadObsAutoAdjustPreference(OneSevenLiveConfigManager *configManager) {
+        if (!configManager) {
+            return {};
+        }
+        return {configManager->getBoolValue(kConfigKeyAutoAdjustDontRemind, false),
+                configManager->getBoolValue(kConfigKeyAutoAdjustSilentApply, false)};
+    }
+}  // namespace
+
+void OneSevenLiveStreamingDock::maybePromptObsAutoAdjust(bool allowSilentApply) {
+    if (obsAutoAdjustPromptShown) {
+        return;
+    }
+    obsAutoAdjustPromptShown = true;
+
+    if (!portraitStreamRadio || !landscapeStreamRadio) {
+        return;
+    }
+
+    const bool isLandscape = landscapeStreamRadio->isChecked();
+    const auto target = buildObsAutoAdjustTarget(isLandscape);
+
+    obs_video_info vinfo{};
+    if (!obs_get_video_info(&vinfo)) {
+        return;
+    }
+
+    if (!needsObsAutoAdjust(vinfo, isLandscape, target)) {
+        return;
+    }
+
+    const auto applyCurrentSelection = [this, target]() -> bool {
+        const bool ok = applyObsProfileVideoSettings(target.baseW, target.baseH, target.outputW,
+                                                     target.outputH, kSuggestedVideoBitrateKbps);
+        if (!ok) {
+            OneSevenLiveObsAutoAdjustDialog::ShowError(
+                this, obs_module_text("Live.Settings.AutoAdjust.Error"));
+            return false;
+        }
+
+        SyncPreviewDockLayoutToObsCanvas();
+        return true;
+    };
+
+    const auto preference = loadObsAutoAdjustPreference(configManager);
+
+    if (preference.dontRemind) {
+        if (allowSilentApply && preference.silentApply) {
+            applyCurrentSelection();
+        }
+        return;
+    }
+
+    const QString portraitName = obs_module_text("Live.Settings.Layout.Portrait");
+    const QString landscapeName = obs_module_text("Live.Settings.Layout.Landscape");
+    const QString portraitRes = QString("%1 x %2").arg(QString::number(kPortraitOutputWidth),
+                                                       QString::number(kPortraitOutputHeight));
+    const QString landscapeRes = QString("%1 x %2").arg(QString::number(kLandscapeOutputWidth),
+                                                        QString::number(kLandscapeOutputHeight));
+    const QString confirmText = obs_module_text("Live.EventChange.Confirm.Confirm");
+    const QString cancelText = obs_module_text("Live.EventChange.Confirm.Cancel");
+
+    const QString message =
+        QString(obs_module_text("Live.Settings.AutoAdjust.Prompt"))
+            .arg(portraitName, portraitRes, landscapeName, landscapeRes,
+                 QString::number(kSuggestedVideoBitrateKbps), confirmText, cancelText);
+
+    const auto result = OneSevenLiveObsAutoAdjustDialog::ShowPrompt(this, message, false);
+    if (configManager) {
+        configManager->setBoolValue(kConfigKeyAutoAdjustDontRemind, result.dontRemind);
+        configManager->setBoolValue(kConfigKeyAutoAdjustSilentApply,
+                                    result.dontRemind && result.confirmed);
+    }
+
+    if (!result.confirmed) {
+        return;
+    }
+
+    applyCurrentSelection();
+}
+
+static bool EncoderTypeExists(const char *encoderId) {
+    if (!encoderId || !*encoderId) {
+        return false;
+    }
+    return obs_get_encoder_codec(encoderId) != nullptr;
+}
+
+static QString EncoderDisplayNameOrId(const char *encoderId) {
+    if (!encoderId || !*encoderId) {
+        return QString();
+    }
+    const char *name = obs_encoder_get_display_name(encoderId);
+    return QString::fromUtf8(name ? name : encoderId);
+}
+
+static std::string GetStreamingAudioCodecFromProfile(config_t *profile) {
+    if (!profile) {
+        return {};
+    }
+
+    const char *mode = config_get_string(profile, "Output", "Mode");
+    const bool advanced = mode && std::strcmp(mode, "Advanced") == 0;
+
+    if (!advanced) {
+        const char *codec = config_get_string(profile, "SimpleOutput", "StreamAudioEncoder");
+        return codec ? codec : "";
+    }
+
+    const char *enc = config_get_string(profile, "AdvOut", "AudioEncoder");
+    if (!enc || !*enc) {
+        return {};
+    }
+    const char *codec = obs_get_encoder_codec(enc);
+    return codec ? codec : "";
+}
+
+static QString GetStreamingAudioEncoderDisplayFromProfile(config_t *profile) {
+    if (!profile) {
+        return QString();
+    }
+
+    const char *mode = config_get_string(profile, "Output", "Mode");
+    const bool advanced = mode && std::strcmp(mode, "Advanced") == 0;
+
+    if (!advanced) {
+        const char *codec = config_get_string(profile, "SimpleOutput", "StreamAudioEncoder");
+        if (!codec || !*codec) {
+            return QString();
+        }
+        if (std::strcmp(codec, "opus") == 0) {
+            return QStringLiteral("Opus");
+        }
+        if (std::strcmp(codec, "aac") == 0) {
+            return QStringLiteral("AAC");
+        }
+        return QString::fromUtf8(codec);
+    }
+
+    const char *enc = config_get_string(profile, "AdvOut", "AudioEncoder");
+    return EncoderDisplayNameOrId(enc);
+}
+
+static bool SetStreamingAudioEncoderToCodec(config_t *profile, const char *targetCodec) {
+    if (!profile || !targetCodec || !*targetCodec) {
+        return false;
+    }
+
+    const char *mode = config_get_string(profile, "Output", "Mode");
+    const bool advanced = mode && std::strcmp(mode, "Advanced") == 0;
+
+    if (!advanced) {
+        config_set_string(profile, "SimpleOutput", "StreamAudioEncoder", targetCodec);
+        return true;
+    }
+
+    if (std::strcmp(targetCodec, "opus") == 0) {
+        if (!EncoderTypeExists("ffmpeg_opus")) {
+            return false;
+        }
+        config_set_string(profile, "AdvOut", "AudioEncoder", "ffmpeg_opus");
+        return true;
+    }
+
+    if (std::strcmp(targetCodec, "aac") == 0) {
+        const char *enc = "ffmpeg_aac";
+        if (EncoderTypeExists("CoreAudio_AAC")) {
+            enc = "CoreAudio_AAC";
+        } else if (EncoderTypeExists("libfdk_aac")) {
+            enc = "libfdk_aac";
+        } else if (!EncoderTypeExists(enc)) {
+            return false;
+        }
+        config_set_string(profile, "AdvOut", "AudioEncoder", enc);
+        return true;
+    }
+
+    return false;
+}
+
+bool OneSevenLiveStreamingDock::ensureStreamingAudioEncoderForGroupCall() {
+    const bool groupCallEnabled = GroupCallCheck && GroupCallCheck->isChecked();
+
+    config_t *profile = obs_frontend_get_profile_config();
+    if (!profile) {
+        return true;
+    }
+
+    const std::string currentCodec = GetStreamingAudioCodecFromProfile(profile);
+    const QString currentEncoderName = GetStreamingAudioEncoderDisplayFromProfile(profile);
+
+    if (groupCallEnabled) {
+        if (currentCodec == "opus") {
+            return true;
+        }
+
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle(obs_module_text("Live.Settings.AudioCodec.Title"));
+        msgBox.setText(
+            QString(obs_module_text("Live.Settings.AudioCodec.GroupCall.Msg"))
+                .arg(currentEncoderName.isEmpty() ? QStringLiteral("AAC") : currentEncoderName,
+                     QStringLiteral("FFmpeg Opus")));
+        QPushButton *yesButton =
+            msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
+        msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
+        msgBox.setDefaultButton(yesButton);
+
+        msgBox.exec();
+        if (msgBox.clickedButton() != yesButton) {
+            return false;
+        }
+
+        if (!SetStreamingAudioEncoderToCodec(profile, "opus")) {
+            QMessageBox::warning(this, obs_module_text("Live.Settings.Warning"),
+                                 obs_module_text("Live.Settings.AudioCodec.SwitchFailed"));
+            return false;
+        }
+
+        obs_frontend_save();
+        return true;
+    }
+
+    if (currentCodec != "opus") {
+        return true;
+    }
+
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle(obs_module_text("Live.Settings.AudioCodec.Title"));
+    msgBox.setText(
+        QString(obs_module_text("Live.Settings.AudioCodec.NonGroupCall.Msg"))
+            .arg(currentEncoderName.isEmpty() ? QStringLiteral("FFmpeg Opus") : currentEncoderName,
+                 QStringLiteral("AAC")));
+    QPushButton *yesButton =
+        msgBox.addButton(obs_module_text("Live.Settings.Yes"), QMessageBox::YesRole);
+    msgBox.addButton(obs_module_text("Live.Settings.No"), QMessageBox::NoRole);
+    msgBox.setDefaultButton(yesButton);
+
+    msgBox.exec();
+    if (msgBox.clickedButton() == yesButton) {
+        if (!SetStreamingAudioEncoderToCodec(profile, "aac")) {
+            QMessageBox::warning(this, obs_module_text("Live.Settings.Warning"),
+                                 obs_module_text("Live.Settings.AudioCodec.SwitchFailed"));
+        } else {
+            obs_frontend_save();
+        }
+    }
+
+    return true;
 }
 
 void OneSevenLiveStreamingDock::onDeleteLiveClicked() {
@@ -1551,6 +2097,7 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     updateLiveButton(status != OneSevenLiveStreamingStatus::NotStarted);
 
     if (status == OneSevenLiveStreamingStatus::NotStarted) {
+        obsAutoAdjustPromptShown = false;
         if (eventCooldownTimer && eventCooldownTimer->isActive()) {
             eventCooldownTimer->stop();
             eventCooldownRemaining = 0;

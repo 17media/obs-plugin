@@ -23,6 +23,11 @@
 #include "utility/Meta.hpp"
 #include "utility/RemoteTextThread.hpp"
 
+namespace {
+constexpr int kUpdateCheckTimeoutSec = 10;
+constexpr int kUpdateCheckConnectTimeoutSec = 5;
+}
+
 OneSevenLiveUpdateManager::OneSevenLiveUpdateManager(QObject* parent) : QObject(parent) {}
 
 void OneSevenLiveUpdateManager::checkForUpdates() {
@@ -31,7 +36,8 @@ void OneSevenLiveUpdateManager::checkForUpdates() {
     long responseCode = 0;
     bool success = GetRemoteFile("https://api.github.com/repos/17media/obs-plugin/releases",
                                  response, error, &responseCode, nullptr, "GET", nullptr,
-                                 {"User-Agent: 17Live-OBS-Plugin"}, nullptr, 10, true, 0);
+                                 {"User-Agent: 17Live-OBS-Plugin"}, nullptr, kUpdateCheckTimeoutSec,
+                                 true, 0, nullptr, kUpdateCheckConnectTimeoutSec);
 
     if (!success || responseCode != 200) {
         emit updateCheckFailed(QString::fromStdString(error));

@@ -60,6 +60,7 @@ class OneSevenLiveMultiRtmpDock : public QDockWidget {
     void updateStreamCount();
     void showConfigDialog(const OneSevenLiveMultiRtmpConfig& config = {});
     bool ensureManagerInitialized();
+    bool startYouTubeStream(const std::string& streamId);
 
     // UI components
     QWidget* m_centralWidget = nullptr;

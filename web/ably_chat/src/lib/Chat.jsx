@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React from 'react';
 
 import styled from 'styled-components';
 import { useTranslations } from 'next-intl';
@@ -15,6 +15,8 @@ import InnerWrapper from './InnerWrapper';
 import useComment from './hooks';
 import GiftItem from './GiftItem';
 import PokeItem from './PokeItem';
+import SnackItem from './SnackItem';
+import LikeItem from './LikeItem';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
@@ -23,13 +25,17 @@ import {
     DEFAULT_COMMENT_BG_COLOR,
     DEFAULT_GUARDIAN_COMMENT_BG_COLOR,
     DEFAULT_STREAMER_COMMENT_BG_COLOR,
+    BorderType,
+    COMMENT_BORDER_PADDING_CANDY_CANE,
     REACTION_TYPE,
     USER_GUARDIAN,
     USER_STREAMER,
     MsgType_COMMENT,
     MsgType_NEW_GIFT,
+    MsgType_REACT,
     MsgType_NEW_LUCKYBAG,
     MsgType_JOIN_ROOM,
+    MsgType_LABOR_RECEIVE_REWARD,
     MsgType_AI_COHOST_MESSAGE,
     MsgType_POKE,
 } from './constants';
@@ -38,6 +44,7 @@ import {
     mapCommentShadowColor,
     mapUserTypeToColor,
     mapUserTypeToIcon,
+    getChatAssetProxyUrl,
 } from './utils';
 import CheckingLevel from './CheckingLevel';
 
@@ -46,7 +53,30 @@ const MultilineDesktop = styled(Multiline)`
     color: ${({ color }) => color};
 `;
 
-const renderMessageContent = (messageType, content, gift = null, giftPoint = null, luckyBag = null, pokeInfo = null, streamerInfo = null) => {
+const getCommentFramePadding = border => {
+    if (!border) {
+        return 0;
+    }
+
+    const borderType = border.get('type');
+    if (borderType === BorderType.CANDY_CANE) {
+        return COMMENT_BORDER_PADDING_CANDY_CANE;
+    }
+
+    const borderWidth = Number(border.get('borderWidth'));
+    return Number.isFinite(borderWidth) && borderWidth > 0 ? borderWidth : 0;
+};
+
+const renderMessageContent = (
+    messageType,
+    content,
+    gift = null,
+    giftPoint = null,
+    luckyBag = null,
+    pokeInfo = null,
+    value = null,
+    streamerInfo = null
+) => {
     switch (messageType) {
         case MsgType_COMMENT:
         case MsgType_JOIN_ROOM:
@@ -55,6 +85,10 @@ const renderMessageContent = (messageType, content, gift = null, giftPoint = nul
         case MsgType_NEW_GIFT:
         case MsgType_NEW_LUCKYBAG:
             return <GiftItem messageType={messageType} giftInfo={gift} giftPoint={giftPoint} luckyBagInfo={luckyBag} />;
+        case MsgType_LABOR_RECEIVE_REWARD:
+            return <SnackItem value={value} />;
+        case MsgType_REACT:
+            return <LikeItem />;
         case MsgType_POKE:
             return <PokeItem pokeInfo={pokeInfo} streamerInfo={streamerInfo} />;
         default:
@@ -66,9 +100,11 @@ const renderMessageContent = (messageType, content, gift = null, giftPoint = nul
 const Chat = ({
     id,
     messageType,
+    platform,
     openID,
     displayName,
     userID,
+    picture,
     content,
     level,
     levelBadges: originalLevelBadges,
@@ -90,16 +126,19 @@ const Chat = ({
     middleBadge,
     topRightBadge,
     asideLiveWidth,
+    layoutVersion,
     gift,
     luckyBag,
     pokeInfo,
     giftPoint,
+    value,
 }) => {
     const t = useTranslations('ChatPage');
 
     const {
         commentRef,
         size,
+        availableWidth,
         levelBadges,
         prefixBadgeContents,
         skipAnimationFrame,
@@ -108,7 +147,14 @@ const Chat = ({
         levelBadges: originalLevelBadges,
         prefixBadges,
         asideLiveWidth,
+        layoutVersion,
     });
+
+    const commentFramePadding = getCommentFramePadding(border);
+    const innerMaxWidth =
+        availableWidth > 0
+            ? Math.max(0, availableWidth - commentFramePadding * 2)
+            : 0;
 
     const isDefaultBackgroundColor = [
         DEFAULT_COMMENT_BG_COLOR,
@@ -170,6 +216,7 @@ const Chat = ({
                     $textShadowColor={textShadowColor}
                     $borderRadius={border?.get('commentCornerRadius')}
                     $hasPaddingRight={hasTopRightBadge}
+                    $maxWidthPx={innerMaxWidth}
                 >
                     {levelBadges?.map(badge => (
                         <LevelBadge
@@ -210,13 +257,15 @@ const Chat = ({
                         openID={openID || ''}
                         displayName={isAiCohost ? t('AI_COHOST') : displayName || ''}
                         streamerInfo={streamerInfo}
+                        platform={platform}
                         userID={userID}
                         roomID={roomID}
+                        picture={picture}
                         nameColor={hasUserDecoration ? nameColor : ''}
                     />
 
                     {/* Suffix badges */}
-                    {middleBadge && <BadgeImage src={middleBadge} />}
+                    {middleBadge && <BadgeImage src={getChatAssetProxyUrl(middleBadge)} />}
 
                     {SVGSrc && (
                         <span
@@ -239,13 +288,13 @@ const Chat = ({
                     <MultilineDesktop
                         color={hasUserDecoration ? textColor : userTypeColor}
                     >
-                        {renderMessageContent(messageType, content, gift, giftPoint, luckyBag, pokeInfo, streamerInfo)}
+                        {renderMessageContent(messageType, content, gift, giftPoint, luckyBag, pokeInfo, value, streamerInfo)}
                     </MultilineDesktop>
 
                     {/* Top right badge */}
                     {hasTopRightBadge && (
                         <div style={{ position: 'absolute', top: '5px', right: '6px' }}>
-                            <BadgeImage src={topRightBadge} />
+                            <BadgeImage src={getChatAssetProxyUrl(topRightBadge)} />
                         </div>
                     )}
                 </InnerWrapper>
@@ -254,9 +303,4 @@ const Chat = ({
     );
 };
 
-// we don't need to update sent chat when streamerInfo update
-export default memo(
-    Chat,
-    (prevProps, nextProps) =>
-        prevProps.asideLiveWidth === nextProps.asideLiveWidth
-);
+export default Chat;

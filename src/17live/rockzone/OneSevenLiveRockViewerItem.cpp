@@ -134,10 +134,9 @@ void OneSevenLiveRockViewerItem::reloadAvatar() {
                                framePixmap->scaled(canvas.size(), Qt::IgnoreAspectRatio,
                                                    Qt::SmoothTransformation));
 
-            // Draw mLevel icon (12x12) at bottom-right, on top of frame
             if (*levelReady && !levelPixmap->isNull()) {
-                const int badgeW = 12;
-                const int badgeH = 12;
+                const int badgeW = 24;
+                const int badgeH = 24;
                 const int x = canvas.width() - badgeW;
                 const int y = canvas.height() - badgeH;
                 painter.drawPixmap(x, y,
@@ -150,8 +149,8 @@ void OneSevenLiveRockViewerItem::reloadAvatar() {
         if (!(*frameReady) && *levelReady && !levelPixmap->isNull()) {
             QPainter painter(&canvas);
             painter.setRenderHint(QPainter::Antialiasing);
-            const int badgeW = 12;
-            const int badgeH = 12;
+            const int badgeW = 24;
+            const int badgeH = 24;
             const int x = canvas.width() - badgeW;
             const int y = canvas.height() - badgeH;
             painter.drawPixmap(x, y,

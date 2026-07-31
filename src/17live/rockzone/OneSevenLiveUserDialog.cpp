@@ -3,9 +3,12 @@
 #include <obs-module.h>
 
 #include <QIcon>
+#include <QHash>
 #include <QMessageBox>
 #include <QMetaObject>
 #include <QMouseEvent>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QPainter>
 #include <QPixmap>
 #include <QPointer>
@@ -14,8 +17,48 @@
 #include "OneSevenLiveConfigManager.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "plugin-support.h"
+#include "rockzone/OneSevenLiveUserMemoDialog.hpp"
 #include "utility/Common.hpp"
 #include "utility/RemoteTextThread.hpp"
+
+namespace {
+constexpr int kAvatarSizePx = 120;
+constexpr int kAvatarRequestTimeoutSec = 8;
+constexpr int kAvatarConnectTimeoutSec = 3;
+
+QPixmap MakeRoundedAvatar(const QPixmap& source) {
+    if (source.isNull()) {
+        return QPixmap();
+    }
+
+    QPixmap scaled = source.scaled(kAvatarSizePx, kAvatarSizePx, Qt::KeepAspectRatioByExpanding,
+                                   Qt::SmoothTransformation);
+    QPixmap rounded(kAvatarSizePx, kAvatarSizePx);
+    rounded.fill(Qt::transparent);
+
+    QPainter painter(&rounded);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QBrush(scaled));
+    painter.drawEllipse(0, 0, kAvatarSizePx, kAvatarSizePx);
+    return rounded;
+}
+
+QPixmap DefaultAvatarPixmap() {
+    static QPixmap avatar = MakeRoundedAvatar(QPixmap(":/resources/avatar.png"));
+    return avatar;
+}
+
+QMutex& AvatarCacheMutex() {
+    static QMutex mutex;
+    return mutex;
+}
+
+QHash<QString, QPixmap>& AvatarPixmapCache() {
+    static QHash<QString, QPixmap> cache;
+    return cache;
+}
+}  // namespace
 
 OneSevenLiveUserDialog::OneSevenLiveUserDialog(QWidget* parent,
                                                OneSevenLiveApiWrappers* apiWrapper_,
@@ -69,12 +112,17 @@ void OneSevenLiveUserDialog::setupUi() {
     avatarLabel->setFixedSize(120, 120);
     avatarLabel->setAlignment(Qt::AlignCenter);
     avatarLabel->setStyleSheet("QLabel { background-color: transparent; border-radius: 60px; }");
+    avatarLabel->setPixmap(DefaultAvatarPixmap());
     bodyLayout->addWidget(avatarLabel, 0, Qt::AlignHCenter);
 
     // Ensure ~10px spacing between avatar and username
     bodyLayout->addSpacing(10);
 
-    // Username (10px below avatar by explicit spacing)
+    QHBoxLayout* nameLayout = new QHBoxLayout();
+    nameLayout->setContentsMargins(0, 0, 0, 0);
+    nameLayout->setSpacing(6);
+    nameLayout->setAlignment(Qt::AlignHCenter);
+
     usernameLabel = new QLabel();
     usernameLabel->setAlignment(Qt::AlignCenter);
     usernameLabel->setStyleSheet(
@@ -83,7 +131,21 @@ void OneSevenLiveUserDialog::setupUi() {
         "    font-weight: bold;"
         "    font-size: 18px;"
         "}");
-    bodyLayout->addWidget(usernameLabel, 0, Qt::AlignHCenter);
+    nameLayout->addWidget(usernameLabel);
+
+    userMemoButton = new QPushButton();
+    userMemoButton->setFlat(true);
+    userMemoButton->setIcon(QIcon(":/resources/memo-edit.svg"));
+    userMemoButton->setIconSize(QSize(20, 20));
+    userMemoButton->setFixedSize(24, 24);
+    userMemoButton->setCursor(Qt::PointingHandCursor);
+    userMemoButton->setToolTip(obs_module_text("RockZone.UserMemo.Tooltip"));
+    userMemoButton->setStyleSheet(
+        "QPushButton { background: transparent; border: none; }"
+        "QPushButton:hover { background: rgba(255,255,255,0.08); border-radius: 4px; }");
+    nameLayout->addWidget(userMemoButton);
+
+    bodyLayout->addLayout(nameLayout);
 
     // User stats area
     bodyLayout->addSpacing(15);
@@ -211,6 +273,7 @@ void OneSevenLiveUserDialog::setupUi() {
 void OneSevenLiveUserDialog::createConnections() {
     connect(pokeButton, &QPushButton::clicked, this, &OneSevenLiveUserDialog::onPokeUserClicked);
     connect(closeButton, &QPushButton::clicked, this, &OneSevenLiveUserDialog::onCloseClicked);
+    connect(userMemoButton, &QPushButton::clicked, this, &OneSevenLiveUserDialog::onUserMemoClicked);
 }
 
 void OneSevenLiveUserDialog::setUserInfo(const OneSevenLiveRockZoneViewer& user) {
@@ -225,31 +288,71 @@ void OneSevenLiveUserDialog::setUserInfo(const OneSevenLiveRockZoneViewer& user)
 }
 
 void OneSevenLiveUserDialog::updateUserAvatar() {
-    QString url = "https://cdn.17app.co/" + viewer.displayUser.picture;
-    RemoteTextThread* thread = new RemoteTextThread(url.toStdString(), "image/png", "", 0, true);
+    currentAvatarUrl.clear();
+    avatarLabel->setPixmap(DefaultAvatarPixmap());
+
+    const QString picturePath = viewer.displayUser.picture.trimmed();
+    if (picturePath.isEmpty()) {
+        return;
+    }
+
+    const QString url = "https://cdn.17app.co/" + picturePath;
+    currentAvatarUrl = url;
+
+    {
+        QMutexLocker locker(&AvatarCacheMutex());
+        const auto it = AvatarPixmapCache().constFind(url);
+        if (it != AvatarPixmapCache().constEnd()) {
+            avatarLabel->setPixmap(it.value());
+            return;
+        }
+    }
+
+    std::vector<std::string> headers;
+    headers.emplace_back("Accept: image/*");
+    RemoteTextThread* thread =
+        new RemoteTextThread(url.toStdString(), std::move(headers), "", "", kAvatarRequestTimeoutSec,
+                             true, kAvatarConnectTimeoutSec);
 
     QPointer<QLabel> safeAvatarLabel = avatarLabel;
+    QPointer<OneSevenLiveUserDialog> safeThis = this;
     connect(thread, &RemoteTextThread::ImageResult, this,
-            [this, safeAvatarLabel](const QByteArray& imageData, const QString& error) {
-                if (error.isEmpty() && !imageData.isEmpty()) {
-                    QPixmap avatar;
-                    avatar.loadFromData(imageData);
-                    avatar = avatar.scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-
-                    // Create rounded avatar
-                    QPixmap roundedAvatar(120, 120);
-                    roundedAvatar.fill(Qt::transparent);
-
-                    QPainter painter(&roundedAvatar);
-                    painter.setRenderHint(QPainter::Antialiasing);
-                    painter.setPen(Qt::NoPen);
-                    painter.setBrush(QBrush(avatar));
-                    painter.drawEllipse(0, 0, 120, 120);
-
-                    if (safeAvatarLabel) {
-                        safeAvatarLabel->setPixmap(roundedAvatar);
-                    }
+            [safeThis, safeAvatarLabel, url](const QByteArray& imageData, const QString& error) {
+                if (!safeThis || !safeAvatarLabel) {
+                    return;
                 }
+
+                if (safeThis->currentAvatarUrl != url) {
+                    return;
+                }
+
+                if (!error.isEmpty()) {
+                    obs_log(LOG_WARNING, "Failed to load avatar: %s [url: %s]",
+                            error.toStdString().c_str(), url.toStdString().c_str());
+                    safeAvatarLabel->setPixmap(DefaultAvatarPixmap());
+                    return;
+                }
+
+                QPixmap avatar;
+                if (!avatar.loadFromData(imageData)) {
+                    obs_log(LOG_WARNING, "Failed to decode avatar image data [url: %s]",
+                            url.toStdString().c_str());
+                    safeAvatarLabel->setPixmap(DefaultAvatarPixmap());
+                    return;
+                }
+
+                const QPixmap roundedAvatar = MakeRoundedAvatar(avatar);
+                if (roundedAvatar.isNull()) {
+                    safeAvatarLabel->setPixmap(DefaultAvatarPixmap());
+                    return;
+                }
+
+                {
+                    QMutexLocker locker(&AvatarCacheMutex());
+                    AvatarPixmapCache().insert(url, roundedAvatar);
+                }
+
+                safeAvatarLabel->setPixmap(roundedAvatar);
             });
 
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
@@ -282,6 +385,15 @@ void OneSevenLiveUserDialog::onPokeUserClicked() {
 
 void OneSevenLiveUserDialog::onCloseClicked() {
     close();
+}
+
+void OneSevenLiveUserDialog::onUserMemoClicked() {
+    if (!apiWrapper || viewer.displayUser.userID.isEmpty()) {
+        return;
+    }
+
+    OneSevenLiveUserMemoDialog dialog(this, apiWrapper, viewer.displayUser.userID);
+    dialog.exec();
 }
 
 void OneSevenLiveUserDialog::mousePressEvent(QMouseEvent* event) {

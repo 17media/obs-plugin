@@ -1,6 +1,7 @@
 #include "OneSevenLiveWebsocketClient.hpp"
 
 #include <QPointer>
+#include <QThread>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -144,13 +145,33 @@ bool OneSevenLiveWebsocketClient::isConnected() const {
 
 void OneSevenLiveWebsocketClient::startThread(const QString& host, const QString& port,
                                               const QString& path) {
-    // Ensure previous thread is joined and resources are cleaned up
     stopThread();
 
     if (running.load())
         return;
     running.store(true);
-    th = std::thread(&OneSevenLiveWebsocketClient::threadFunc, this, host, port, path);
+
+    thread_ = new QThread();
+    runner_ = new QObject();
+    runner_->moveToThread(thread_);
+    QObject::connect(thread_, &QThread::finished, runner_, &QObject::deleteLater);
+    QObject::connect(thread_, &QThread::finished, thread_, &QObject::deleteLater);
+    QObject::connect(thread_, &QThread::finished, this, [this]() {
+        runner_ = nullptr;
+        thread_ = nullptr;
+    });
+    thread_->start();
+
+    QPointer<OneSevenLiveWebsocketClient> self(this);
+    QMetaObject::invokeMethod(
+        runner_,
+        [self, host, port, path]() {
+            if (self) {
+                self->threadFunc(host, port, path);
+            }
+            QThread::currentThread()->quit();
+        },
+        Qt::QueuedConnection);
 }
 
 void OneSevenLiveWebsocketClient::stopThread() {
@@ -166,12 +187,9 @@ void OneSevenLiveWebsocketClient::stopThread() {
         mbedtls_net_free(&tls->server_fd);
 #endif
     }
-    try {
-        if (th.joinable()) {
-            th.join();
-        }
-    } catch (...) {
-        // Swallow thread join errors to avoid terminate during shutdown
+    if (thread_) {
+        thread_->quit();
+        thread_->wait(5000);
     }
     cleanupTLS();
     if (connected.load()) {
@@ -211,7 +229,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         if (onError)
             QMetaObject::invokeMethod(
                 this, [this]() { onError("winhttp_open"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     std::wstring whost = host.toStdWString();
@@ -221,7 +240,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         if (onError)
             QMetaObject::invokeMethod(
                 this, [this]() { onError("winhttp_connect"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     std::wstring wpath = path.toStdWString();
@@ -235,7 +255,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 this,
                 [this, ec]() { onError(std::string("winhttp_openreq ") + std::to_string(ec)); },
                 Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     if (!WinHttpSetOption(tls->hRequest, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, nullptr, 0)) {
@@ -247,7 +268,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                     onError(std::string("winhttp_setopt_upgrade ") + std::to_string(ec));
                 },
                 Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
 #if defined(WINHTTP_OPTION_SECURE_PROTOCOLS) && defined(WINHTTP_PROTOCOL_FLAG_TLS1_2)
@@ -266,7 +288,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 this,
                 [this, ec]() { onError(std::string("winhttp_addhdr ") + std::to_string(ec)); },
                 Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     if (!WinHttpSendRequest(tls->hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
@@ -276,7 +299,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             QMetaObject::invokeMethod(
                 this, [this, ec]() { onError(std::string("winhttp_send ") + std::to_string(ec)); },
                 Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     if (!WinHttpReceiveResponse(tls->hRequest, nullptr)) {
@@ -285,7 +309,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             QMetaObject::invokeMethod(
                 this, [this, ec]() { onError(std::string("winhttp_resp ") + std::to_string(ec)); },
                 Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     DWORD status = 0;
@@ -296,13 +321,15 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         if (onError)
             QMetaObject::invokeMethod(
                 this, [this]() { onError("winhttp_status"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     if (status != 101) {
         if (onError)
             QMetaObject::invokeMethod(this, [this]() { onError("ws_101"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     tls->hWebSocket = WinHttpWebSocketCompleteUpgrade(tls->hRequest, 0);
@@ -310,7 +337,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
         if (onError)
             QMetaObject::invokeMethod(
                 this, [this]() { onError("ws_complete"); }, Qt::QueuedConnection);
-        stopThread();
+        running.store(false);
+        cleanupTLS();
         return;
     }
     connected.store(true);
@@ -342,7 +370,13 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             break;
         }
     }
-    stopThread();
+    if (connected.load()) {
+        if (onClose)
+            QMetaObject::invokeMethod(this, [this]() { onClose(); }, Qt::QueuedConnection);
+        connected.store(false);
+    }
+    running.store(false);
+    cleanupTLS();
 }
 #else
 #include <sys/select.h>

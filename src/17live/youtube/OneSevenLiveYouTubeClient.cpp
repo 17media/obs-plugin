@@ -2,13 +2,68 @@
 
 #include <obs-module.h>
 
+#include <QDateTime>
 #include <QRegularExpression>
+#include <QTimer>
 #include <QUrlQuery>
 #include <nlohmann/json.hpp>
 
 #include "OneSevenLiveCoreManager.hpp"
 #include "plugin-support.h"
 #include "utility/RemoteTextThread.hpp"
+#include "youtube/OneSevenLiveYouTubeAuth.hpp"
+
+static nlohmann::json prepareResetBody(const nlohmann::json& broadcast) {
+    nlohmann::json data;
+    data["id"] = broadcast["id"];
+
+    if (broadcast.contains("snippet")) {
+        auto snippet = broadcast["snippet"];
+        nlohmann::json newSnippet;
+        newSnippet["title"] = snippet["title"];
+        newSnippet["description"] = snippet.value("description", "");
+        newSnippet["scheduledStartTime"] = snippet["scheduledStartTime"];
+        if (snippet.contains("scheduledEndTime"))
+            newSnippet["scheduledEndTime"] = snippet["scheduledEndTime"];
+        data["snippet"] = newSnippet;
+    }
+
+    if (broadcast.contains("status")) {
+        auto status = broadcast["status"];
+        nlohmann::json newStatus;
+        newStatus["privacyStatus"] = status["privacyStatus"];
+        if (status.contains("madeForKids"))
+            newStatus["madeForKids"] = status["madeForKids"];
+        if (status.contains("selfDeclaredMadeForKids"))
+            newStatus["selfDeclaredMadeForKids"] = status["selfDeclaredMadeForKids"];
+        data["status"] = newStatus;
+    }
+
+    if (broadcast.contains("contentDetails")) {
+        auto cd = broadcast["contentDetails"];
+        nlohmann::json newCd;
+
+        nlohmann::json mon;
+        mon["enableMonitorStream"] = false;
+        if (cd.contains("monitorStream") &&
+            cd["monitorStream"].contains("broadcastStreamDelayMs")) {
+            mon["broadcastStreamDelayMs"] = cd["monitorStream"]["broadcastStreamDelayMs"];
+        }
+        newCd["monitorStream"] = mon;
+
+        const char* copyFields[] = {
+            "enableAutoStart",         "enableAutoStop", "enableClosedCaptions", "enableDvr",
+            "enableContentEncryption", "enableEmbed",    "recordFromStart",      "startWithSlate"};
+
+        for (const char* field : copyFields) {
+            if (cd.contains(field))
+                newCd[field] = cd[field];
+        }
+        data["contentDetails"] = newCd;
+    }
+
+    return data;
+}
 
 const QString OneSevenLiveYouTubeClient::YOUTUBE_API_BASE_URL =
     "https://www.googleapis.com/youtube/v3";
@@ -45,6 +100,7 @@ void OneSevenLiveYouTubeClient::getMyLiveStreams() {
     params["part"] = "snippet,cdn,status,contentDetails";
 
     QString endpoint = buildApiUrl("liveStreams", params);
+    m_currentOperation = "getLiveStreams";
     makeApiRequest(endpoint);
 }
 
@@ -64,6 +120,7 @@ void OneSevenLiveYouTubeClient::getLiveStreamById(const QString& streamId) {
     params["part"] = "snippet,cdn,status,contentDetails";
 
     QString endpoint = buildApiUrl("liveStreams", params);
+    m_currentOperation = "getLiveStreams";
     makeApiRequest(endpoint);
 }
 
@@ -85,13 +142,22 @@ void OneSevenLiveYouTubeClient::createLiveStream(const QString& title, const QSt
         snippet["description"] = description.toStdString();
     }
     requestBody["snippet"] = snippet;
+    nlohmann::json cdn;
+    cdn["ingestionType"] = "rtmp";
+    cdn["resolution"] = "variable";
+    cdn["frameRate"] = "variable";
+    requestBody["cdn"] = cdn;
+    nlohmann::json contentDetails;
+    contentDetails["isReusable"] = false;
+    requestBody["contentDetails"] = contentDetails;
 
     QString body = QString::fromStdString(requestBody.dump());
 
     QMap<QString, QString> params;
-    params["part"] = "snippet,cdn,status";
+    params["part"] = "snippet,cdn,status,contentDetails";
 
     QString endpoint = buildApiUrl("liveStreams", params);
+    m_currentOperation = "createLiveStream";
     makeApiRequest(endpoint, "POST", body);
 }
 
@@ -110,26 +176,37 @@ void OneSevenLiveYouTubeClient::deleteLiveStream(const QString& streamId) {
     params["id"] = streamId;
 
     QString endpoint = buildApiUrl("liveStreams", params);
+    m_currentOperation = "deleteLiveStream";
     makeApiRequest(endpoint, "DELETE");
 }
 
-void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStatus) {
+void OneSevenLiveYouTubeClient::getMyLiveBroadcasts(const QString& broadcastStatus,
+                                                    const QString& pageToken) {
     if (!m_hasValidAuth) {
         emit errorOccurred("No valid authentication token", "getMyLiveBroadcasts");
         return;
     }
 
     QMap<QString, QString> params;
-    params["mine"] = "true";
-    params["part"] = "snippet";
-    if (!broadcastStatus.isEmpty()) {
+    params["part"] = "snippet,contentDetails,status";
+    params["broadcastType"] = "all";
+    params["maxResults"] = "50";
+
+    if (broadcastStatus.isEmpty()) {
+        params["mine"] = "true";
+    } else {
         params["broadcastStatus"] = broadcastStatus;
     }
-    if (m_hasValidAuth && !m_accessToken.isEmpty()) {
-        params["access_token"] = m_accessToken;
+
+    if (!pageToken.isEmpty()) {
+        params["pageToken"] = pageToken;
     }
 
     QString endpoint = buildApiUrl("liveBroadcasts", params);
+    obs_log(LOG_INFO, "YouTube getMyLiveBroadcasts request_url=%s status=%s page=%s",
+            endpoint.toUtf8().constData(),
+            (broadcastStatus.isEmpty() ? "all(default)" : broadcastStatus.toUtf8().constData()),
+            pageToken.toUtf8().constData());
     m_currentOperation = "getMyLiveBroadcasts";
     makeApiRequest(endpoint);
 }
@@ -158,11 +235,13 @@ void OneSevenLiveYouTubeClient::setApiKey(const QString& apiKey) {
 
 void OneSevenLiveYouTubeClient::setTimeout(int timeoutMs) {
     m_timeoutMs = timeoutMs;
-    obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
+    // obs_log(LOG_INFO, "API timeout set to %d ms", timeoutMs);
 }
 
 void OneSevenLiveYouTubeClient::createLiveBroadcast(const QString& title,
-                                                    const QString& privacyStatus) {
+                                                    const QString& privacyStatus,
+                                                    const QString& latency, bool autoStart,
+                                                    bool autoStop, bool dvr, bool scheduleLater) {
     if (!m_hasValidAuth) {
         emit errorOccurred("No valid authentication token", "createLiveBroadcast");
         return;
@@ -170,11 +249,25 @@ void OneSevenLiveYouTubeClient::createLiveBroadcast(const QString& title,
     nlohmann::json req;
     nlohmann::json sn;
     sn["title"] = title.toStdString();
+    {
+        QDateTime startUtc = QDateTime::currentDateTimeUtc();
+        if (scheduleLater) {
+            startUtc = startUtc.addSecs(3600);
+        } else {
+            startUtc = startUtc.addSecs(60);
+        }
+        QString scheduled = startUtc.toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+        sn["scheduledStartTime"] = scheduled.toStdString();
+    }
     req["snippet"] = sn;
     nlohmann::json cd;
     nlohmann::json mon;
-    mon["enableMonitorStream"] = true;
+    mon["enableMonitorStream"] = false;
     cd["monitorStream"] = mon;
+    cd["enableAutoStart"] = autoStart;
+    cd["enableAutoStop"] = autoStop;
+    cd["enableDvr"] = dvr;
+    cd["latencyPreference"] = latency.toStdString();
     req["contentDetails"] = cd;
     nlohmann::json st;
     st["privacyStatus"] = privacyStatus.toStdString();
@@ -191,6 +284,10 @@ void OneSevenLiveYouTubeClient::bindLiveBroadcast(const QString& broadcastId,
                                                   const QString& streamId) {
     if (!m_hasValidAuth) {
         emit errorOccurred("No valid authentication token", "bindLiveBroadcast");
+        return;
+    }
+    if (broadcastId.isEmpty() || streamId.isEmpty()) {
+        emit errorOccurred("Broadcast ID or stream ID cannot be empty", "bindLiveBroadcast");
         return;
     }
     m_lastBroadcastId = broadcastId;
@@ -254,10 +351,22 @@ void OneSevenLiveYouTubeClient::makeApiRequest(const QString& endpoint, const QS
     }
 
     std::atomic<bool>* cancelFlag = OneSevenLiveCoreManager::getInstance().getCancelFlag();
-    RemoteTextThread* thread = new RemoteTextThread(
-        endpoint.toStdString(), std::move(headers), "application/json",
-        method == "POST" || method == "PUT" ? body.toStdString() : std::string(),
-        m_timeoutMs / 1000, false, cancelFlag);
+    // For critical operations like transitioning broadcast state (stop),
+    // we don't want the shutdown cancel flag to abort the request.
+    if (m_currentOperation == "transitionLiveBroadcast") {
+        cancelFlag = nullptr;
+    }
+
+    std::string requestBody = body.toStdString();
+    // RemoteTextThread defaults to GET if postData is empty.
+    // We must provide an empty JSON object to force POST/PUT for empty bodies.
+    if (requestBody.empty() && (method == "POST" || method == "PUT")) {
+        requestBody = "{}";
+    }
+
+    RemoteTextThread* thread =
+        new RemoteTextThread(endpoint.toStdString(), std::move(headers), "application/json",
+                             requestBody, m_timeoutMs / 1000, false, cancelFlag);
 
     if (m_currentOperation.isEmpty()) {
         if (m_currentOperation.isEmpty()) {
@@ -333,6 +442,22 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
 
     // Assume success when error is empty
     {
+        if (m_currentOperation == "bindLiveBroadcast") {
+            obs_log(LOG_INFO, "YouTube bindLiveBroadcast success: endpoint=%s response_len=%d",
+                    m_lastEndpoint.toUtf8().constData(), response.size());
+            if (!response.isEmpty()) {
+                obs_log(LOG_INFO, "YouTube bindLiveBroadcast response: %s",
+                        response.toUtf8().constData());
+            } else {
+                obs_log(LOG_INFO, "YouTube bindLiveBroadcast response is empty");
+            }
+            emit liveBroadcastBound(m_lastBroadcastId, m_lastStreamId);
+            QMetaObject::invokeMethod(
+                this, [this]() { emit requestCompleted(QString("bindLiveBroadcast")); },
+                Qt::QueuedConnection);
+            return;
+        }
+
         nlohmann::json json;
         try {
             json = nlohmann::json::parse(response.toStdString());
@@ -343,17 +468,58 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
         }
 
         // Determine the operation based on URL
-        if (m_currentOperation == "getLiveStreams") {
+        if (m_currentOperation == "getLiveStreams" || m_currentOperation == "createLiveStream") {
             if (json.contains("items")) {
                 // This is a GET request for stream(s)
                 YouTubeLiveStreamListResponse streamList = parseLiveStreamListResponse(json);
                 emit myLiveStreamsReceived(streamList);
+                if (m_waitingStreamActiveForStart) {
+                    bool active = false;
+                    for (const auto& s : streamList.items) {
+                        if (s.id == m_boundStreamIdForStart) {
+                            active =
+                                (s.status.streamStatus.compare("active", Qt::CaseInsensitive) == 0);
+                            break;
+                        }
+                    }
+                    if (active) {
+                        m_waitingStreamActiveForStart = false;
+                        if (m_streamActivePollTimer && m_streamActivePollTimer->isActive())
+                            m_streamActivePollTimer->stop();
+                        transitionLiveBroadcast(m_pendingStartBroadcastId, "live");
+                        return;
+                    } else {
+                        m_streamActivePollAttempts++;
+                        if (m_streamActivePollAttempts >= 30) {
+                            m_waitingStreamActiveForStart = false;
+                            if (m_streamActivePollTimer && m_streamActivePollTimer->isActive())
+                                m_streamActivePollTimer->stop();
+                            transitionLiveBroadcast(m_pendingStartBroadcastId, "live");
+                            return;
+                        }
+                        if (!m_streamActivePollTimer) {
+                            m_streamActivePollTimer = new QTimer(this);
+                            m_streamActivePollTimer->setSingleShot(true);
+                            connect(m_streamActivePollTimer, &QTimer::timeout, this, [this]() {
+                                if (!m_boundStreamIdForStart.isEmpty())
+                                    getLiveStreamById(m_boundStreamIdForStart);
+                            });
+                        }
+                        m_streamActivePollTimer->start(1000);
+                    }
+                }
                 QMetaObject::invokeMethod(
                     this, [this]() { emit requestCompleted(QString("getLiveStreams")); },
                     Qt::QueuedConnection);
             } else {
                 // This might be a POST request (create)
                 YouTubeLiveStream stream = parseLiveStream(json);
+                if (stream.id.isEmpty()) {
+                    obs_log(LOG_WARNING,
+                            "YouTube createLiveStream returned stream with empty id. Raw response: "
+                            "%s",
+                            response.toUtf8().constData());
+                }
                 emit liveStreamCreated(stream);
                 QMetaObject::invokeMethod(
                     this, [this]() { emit requestCompleted(QString("createLiveStream")); },
@@ -386,20 +552,122 @@ void OneSevenLiveYouTubeClient::onApiRequestFinished(const QString& response,
                 }
             } catch (...) {
             }
+            if (id.isEmpty()) {
+                obs_log(LOG_WARNING, "YouTube createLiveBroadcast returned no id. Raw response: %s",
+                        response.toUtf8().constData());
+            }
             emit liveBroadcastCreated(id);
             QMetaObject::invokeMethod(
                 this, [this]() { emit requestCompleted(QString("createLiveBroadcast")); },
-                Qt::QueuedConnection);
-        } else if (m_currentOperation == "bindLiveBroadcast") {
-            emit liveBroadcastBound(m_lastBroadcastId, m_lastStreamId);
-            QMetaObject::invokeMethod(
-                this, [this]() { emit requestCompleted(QString("bindLiveBroadcast")); },
                 Qt::QueuedConnection);
         } else if (m_currentOperation == "transitionLiveBroadcast") {
             emit liveBroadcastTransitioned(m_lastBroadcastId, m_lastTransitionStatus);
             QMetaObject::invokeMethod(
                 this, [this]() { emit requestCompleted(QString("transitionLiveBroadcast")); },
                 Qt::QueuedConnection);
+        } else if (m_currentOperation == "startBroadcast" ||
+                   m_currentOperation == "resetBroadcast") {
+            try {
+                if (json.contains("items") && json["items"].is_array() && !json["items"].empty()) {
+                    auto broadcast = json["items"][0];
+                    QString id = QString::fromStdString(broadcast["id"].get<std::string>());
+                    QString boundStreamId;
+                    try {
+                        if (broadcast.contains("contentDetails") &&
+                            broadcast["contentDetails"].contains("boundStreamId") &&
+                            broadcast["contentDetails"]["boundStreamId"].is_string()) {
+                            boundStreamId = QString::fromStdString(
+                                broadcast["contentDetails"]["boundStreamId"].get<std::string>());
+                        }
+                    } catch (...) {
+                    }
+
+                    if (m_currentOperation == "startBroadcast") {
+                        std::string status =
+                            broadcast["status"]["lifeCycleStatus"].get<std::string>();
+                        if (status == "live" || status == "liveStarting") {
+                            emit requestCompleted("startBroadcast");
+                            return;
+                        } else if (status == "testStarting") {
+                            emit errorOccurred("Broadcast is starting testing, please wait.",
+                                               "startBroadcast");
+                            return;
+                        }
+
+                        bool monitorEnabled = false;
+                        if (broadcast.contains("contentDetails") &&
+                            broadcast["contentDetails"].contains("monitorStream") &&
+                            broadcast["contentDetails"]["monitorStream"].contains(
+                                "enableMonitorStream")) {
+                            monitorEnabled =
+                                broadcast["contentDetails"]["monitorStream"]["enableMonitorStream"]
+                                    .get<bool>();
+                        }
+
+                        if (status != "testing" && monitorEnabled) {
+                            m_tempBroadcastJson = broadcast;
+                            m_lastBroadcastId = id;
+                            nlohmann::json resetData = prepareResetBody(broadcast);
+                            QString body = QString::fromStdString(resetData.dump());
+                            QMap<QString, QString> params;
+                            params["part"] = "id,snippet,contentDetails,status";
+                            QString endpoint = buildApiUrl("liveBroadcasts", params);
+                            m_currentOperation = "resetBroadcastForStart";
+                            makeApiRequest(endpoint, "PUT", body);
+                            return;
+                        }
+                        {
+                            QString effectiveStreamId = !m_boundStreamIdForStart.isEmpty()
+                                                            ? m_boundStreamIdForStart
+                                                            : boundStreamId;
+                            if (!effectiveStreamId.isEmpty()) {
+                                beginWaitStreamActiveAndTransition(id, effectiveStreamId);
+                                return;
+                            }
+                        }
+                        transitionLiveBroadcast(id, "live");
+                        return;
+                    } else if (m_currentOperation == "resetBroadcast") {
+                        m_tempBroadcastJson = broadcast;
+                        m_lastBroadcastId = id;
+                        nlohmann::json resetData = prepareResetBody(broadcast);
+                        QString body = QString::fromStdString(resetData.dump());
+                        QMap<QString, QString> params;
+                        params["part"] = "id,snippet,contentDetails,status";
+                        QString endpoint = buildApiUrl("liveBroadcasts", params);
+                        m_currentOperation = "resetBroadcastExec";
+                        makeApiRequest(endpoint, "PUT", body);
+                        return;
+                    }
+                }
+            } catch (...) {
+                emit errorOccurred("Failed to parse broadcast details", m_currentOperation);
+            }
+        } else if (m_currentOperation == "resetBroadcastForStart") {
+            try {
+                QString boundStreamId;
+                if (m_tempBroadcastJson.contains("contentDetails") &&
+                    m_tempBroadcastJson["contentDetails"].contains("boundStreamId") &&
+                    m_tempBroadcastJson["contentDetails"]["boundStreamId"].is_string()) {
+                    boundStreamId = QString::fromStdString(
+                        m_tempBroadcastJson["contentDetails"]["boundStreamId"].get<std::string>());
+                }
+                {
+                    QString effectiveStreamId = !m_boundStreamIdForStart.isEmpty()
+                                                    ? m_boundStreamIdForStart
+                                                    : boundStreamId;
+                    if (!effectiveStreamId.isEmpty()) {
+                        beginWaitStreamActiveAndTransition(m_lastBroadcastId, effectiveStreamId);
+                        return;
+                    }
+                }
+            } catch (...) {
+            }
+            transitionLiveBroadcast(m_lastBroadcastId, "live");
+            return;
+        } else if (m_currentOperation == "resetBroadcastExec") {
+            emit requestCompleted("resetBroadcast");
+            return;
         }
     }
 }
@@ -418,6 +686,10 @@ void OneSevenLiveYouTubeClient::handleApiError(const QString& error, const QStri
     case 401:
         detailedError = "Authentication failed - invalid or expired token";
         m_hasValidAuth = false;
+        if (auto* auth = OneSevenLiveCoreManager::getInstance().getYouTubeAuth()) {
+            QTimer::singleShot(0, auth, &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
+        }
+        m_retryPending = true;
         break;
     case 403:
         detailedError = "Access forbidden - insufficient permissions";
@@ -434,6 +706,24 @@ void OneSevenLiveYouTubeClient::handleApiError(const QString& error, const QStri
     }
 
     emit errorOccurred(detailedError, operation);
+}
+
+void OneSevenLiveYouTubeClient::beginWaitStreamActiveAndTransition(const QString& broadcastId,
+                                                                   const QString& streamId) {
+    m_pendingStartBroadcastId = broadcastId;
+    m_boundStreamIdForStart = streamId;
+    m_waitingStreamActiveForStart = true;
+    m_streamActivePollAttempts = 0;
+    getLiveStreamById(streamId);
+}
+
+void OneSevenLiveYouTubeClient::retryLastRequest() {
+    if (!m_retryPending)
+        return;
+    if (!m_hasValidAuth || m_lastEndpoint.isEmpty() || m_lastMethod.isEmpty())
+        return;
+    m_retryPending = false;
+    makeApiRequest(m_lastEndpoint, m_lastMethod, m_lastBody);
 }
 
 YouTubeLiveStream OneSevenLiveYouTubeClient::parseLiveStream(const nlohmann::json& json) const {
@@ -564,6 +854,9 @@ YouTubeLiveBroadcastSnippet OneSevenLiveYouTubeClient::parseLiveBroadcastSnippet
     snippet.channelId = QString::fromStdString(json.value("channelId", ""));
     snippet.scheduledStartTime = QString::fromStdString(json.value("scheduledStartTime", ""));
     snippet.actualStartTime = QString::fromStdString(json.value("actualStartTime", ""));
+    if (json.contains("actualEndTime") && json["actualEndTime"].is_string()) {
+        snippet.actualEndTime = QString::fromStdString(json["actualEndTime"].get<std::string>());
+    }
     snippet.liveChatId = QString::fromStdString(json.value("liveChatId", ""));
     return snippet;
 }
@@ -573,6 +866,24 @@ YouTubeLiveBroadcastStatus OneSevenLiveYouTubeClient::parseLiveBroadcastStatus(
     YouTubeLiveBroadcastStatus status;
     status.lifeCycleStatus = QString::fromStdString(json.value("lifeCycleStatus", ""));
     return status;
+}
+
+YouTubeLiveBroadcastContentDetails OneSevenLiveYouTubeClient::parseLiveBroadcastContentDetails(
+    const nlohmann::json& json) const {
+    YouTubeLiveBroadcastContentDetails cd;
+    try {
+        if (json.contains("boundStreamId") && json["boundStreamId"].is_string()) {
+            cd.boundStreamId = QString::fromStdString(json["boundStreamId"].get<std::string>());
+        }
+        if (json.contains("monitorStream") && json["monitorStream"].is_object()) {
+            const auto& mon = json["monitorStream"];
+            if (mon.contains("enableMonitorStream") && mon["enableMonitorStream"].is_boolean()) {
+                cd.enableMonitorStream = mon["enableMonitorStream"].get<bool>();
+            }
+        }
+    } catch (...) {
+    }
+    return cd;
 }
 
 YouTubeLiveBroadcast OneSevenLiveYouTubeClient::parseLiveBroadcast(
@@ -587,6 +898,9 @@ YouTubeLiveBroadcast OneSevenLiveYouTubeClient::parseLiveBroadcast(
     if (json.contains("status") && json["status"].is_object()) {
         b.status = parseLiveBroadcastStatus(json["status"]);
     }
+    if (json.contains("contentDetails") && json["contentDetails"].is_object()) {
+        b.contentDetails = parseLiveBroadcastContentDetails(json["contentDetails"]);
+    }
     return b;
 }
 
@@ -595,6 +909,7 @@ YouTubeLiveBroadcastListResponse OneSevenLiveYouTubeClient::parseLiveBroadcastLi
     YouTubeLiveBroadcastListResponse resp;
     resp.kind = QString::fromStdString(json.value("kind", ""));
     resp.etag = QString::fromStdString(json.value("etag", ""));
+    resp.nextPageToken = QString::fromStdString(json.value("nextPageToken", ""));
     if (json.contains("items") && json["items"].is_array()) {
         for (const auto& item : json["items"]) {
             if (item.is_object()) {
@@ -603,4 +918,49 @@ YouTubeLiveBroadcastListResponse OneSevenLiveYouTubeClient::parseLiveBroadcastLi
         }
     }
     return resp;
+}
+
+void OneSevenLiveYouTubeClient::startBroadcast(const QString& broadcastId) {
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "startBroadcast");
+        return;
+    }
+    m_lastBroadcastId = broadcastId;
+    m_currentOperation = "startBroadcast";
+    QMap<QString, QString> params;
+    params["id"] = broadcastId;
+    params["part"] = "id,snippet,contentDetails,status";
+    QString endpoint = buildApiUrl("liveBroadcasts", params);
+    makeApiRequest(endpoint);
+}
+
+void OneSevenLiveYouTubeClient::startBroadcast(const QString& broadcastId,
+                                               const QString& boundStreamId) {
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "startBroadcast");
+        return;
+    }
+    m_boundStreamIdForStart = boundStreamId;
+    startBroadcast(broadcastId);
+}
+
+void OneSevenLiveYouTubeClient::stopBroadcast(const QString& broadcastId) {
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "stopBroadcast");
+        return;
+    }
+    transitionLiveBroadcast(broadcastId, "complete");
+}
+
+void OneSevenLiveYouTubeClient::resetBroadcast(const QString& broadcastId) {
+    if (!m_hasValidAuth) {
+        emit errorOccurred("No valid authentication token", "resetBroadcast");
+        return;
+    }
+    m_currentOperation = "resetBroadcast";
+    QMap<QString, QString> params;
+    params["id"] = broadcastId;
+    params["part"] = "id,snippet,contentDetails,status";
+    QString endpoint = buildApiUrl("liveBroadcasts", params);
+    makeApiRequest(endpoint);
 }

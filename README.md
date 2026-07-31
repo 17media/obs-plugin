@@ -10,10 +10,23 @@ A plugin for OBS Studio that enables seamless integration with 17LIVE streaming 
 - Built-in chat browser source for 17LIVE chat integration
 - Secure credential management
 
+## Build
+
+- Build instructions: [docs/build.md](file:///Users/zhuyu/workspace/mk/17live/dev/obs-17live/docs/build.md)
+- `ENABLE_YOUTUBE` defaults to `false`
+- Set `ENABLE_YOUTUBE=true` for `web/ably_chat` builds only when YouTube channel support should be visible
+- Set `-DENABLE_YOUTUBE=ON` for CMake configure only when the OBS plugin should expose YouTube multi-RTMP support
+
 ## Installation
 
+The Steam version of OBS is also OBS Studio; this plugin is compatible with both the official and Steam editions by installing into OBS's plugin directory.
 1. Download the latest release of the plugin
-2. Extract the contents to your OBS plugins directory
+2. Install:
+   - macOS: run the `.pkg` (installs to `~/Library/Application Support/obs-studio/plugins`)
+   - Windows: run the `.exe` (installs to `%ProgramData%\obs-studio\plugins`)
+   - non-installer zip:
+     - macOS: unzip and copy `obs-17live.plugin` to `~/Library/Application Support/obs-studio/plugins`
+     - Windows: unzip and copy `obs-17live` to `%ProgramData%\obs-studio\plugins`
 3. Restart OBS Studio
 4. The plugin will appear under Tools menu as "17LIVE Settings"
 
