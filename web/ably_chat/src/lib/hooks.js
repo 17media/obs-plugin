@@ -1,6 +1,5 @@
 import React, {
     useCallback,
-    useEffect,
     useLayoutEffect,
     useMemo,
     useRef,
@@ -10,6 +9,7 @@ import React, {
 // Immutable v3 does not provide isImmutable; use generic toJS detection instead
 
 import BadgeImage from './BadgeImage';
+import { getChatAssetProxyUrl } from './utils';
 
 
 const transformImmutable = item => {
@@ -19,54 +19,66 @@ const transformImmutable = item => {
     return item;
 };
 
+const getCommentSize = node => ({
+    width: Math.ceil(node?.getBoundingClientRect?.().width ?? node?.clientWidth ?? 0),
+    height: Math.ceil(node?.getBoundingClientRect?.().height ?? node?.clientHeight ?? 0),
+});
+
+const getAvailableWidth = node => {
+    const container = node?.closest?.('[data-chat-message-content="true"]');
+    return Math.max(0, Math.floor(container?.getBoundingClientRect?.().width ?? container?.clientWidth ?? 0));
+};
+
 const useComment = ({
                         levelBadges: originalLevelBadges,
                         prefixBadges,
                         asideLiveWidth,
+                        layoutVersion,
                     }) => {
-    const [isInView, setIsInView] = useState(false);
     const commentRef = useRef(null);
     const [size, setSize] = useState({ width: 0, height: 0 });
+    const [availableWidth, setAvailableWidth] = useState(0);
     const [skipAnimationFrame, setSkipAnimationFrame] = useState(false);
+    const updateSize = useCallback(() => {
+        const nextSize = getCommentSize(commentRef.current);
+        setSize(prevSize =>
+            prevSize.width === nextSize.width && prevSize.height === nextSize.height
+                ? prevSize
+                : nextSize
+        );
+    }, []);
+    const updateAvailableWidth = useCallback(() => {
+        const nextWidth = getAvailableWidth(commentRef.current);
+        setAvailableWidth(prevWidth => (prevWidth === nextWidth ? prevWidth : nextWidth));
+    }, []);
 
     useLayoutEffect(() => {
-        if (commentRef?.current) {
-            setSize({
-                width: commentRef.current.clientWidth ?? 0,
-                height: commentRef.current.clientHeight ?? 0,
-            });
-        }
-    }, []);
+        updateAvailableWidth();
+        updateSize();
 
-    useEffect(() => {
-        const observer = new window.IntersectionObserver(([entry]) => {
-            setIsInView(entry.isIntersecting);
+        if (typeof window === 'undefined' || typeof ResizeObserver !== 'function' || !commentRef.current) {
+            return undefined;
+        }
+
+        const commentNode = commentRef.current;
+        const containerNode = commentNode.closest?.('[data-chat-message-content="true"]');
+        const observer = new ResizeObserver(() => {
+            updateAvailableWidth();
+            updateSize();
         });
 
-        if (commentRef.current) {
-            observer.observe(commentRef.current);
+        observer.observe(commentNode);
+        if (containerNode) {
+            observer.observe(containerNode);
         }
 
-        return () => {
-            if (commentRef.current) {
-                observer.unobserve(commentRef.current);
-            }
-        };
-    }, []);
+        return () => observer.disconnect();
+    }, [updateAvailableWidth, updateSize]);
 
-    useEffect(() => {
-        // Redraw comment box size based on asideLiveWidth for visible chat width
-        if (!isInView) {
-            return;
-        }
-
-        if (commentRef.current) {
-            setSize({
-                width: commentRef.current.clientWidth ?? 0,
-                height: commentRef.current.clientHeight ?? 0,
-            });
-        }
-    }, [isInView, asideLiveWidth, commentRef.current]);
+    useLayoutEffect(() => {
+        updateAvailableWidth();
+        updateSize();
+    }, [asideLiveWidth, layoutVersion, updateAvailableWidth, updateSize]);
 
     const levelBadges = useMemo(() => transformImmutable(originalLevelBadges), [
         originalLevelBadges,
@@ -75,7 +87,7 @@ const useComment = ({
     const prefixBadgeContents = useMemo(
         () =>
             transformImmutable(prefixBadges)?.map(({ URL: prefixBadge }, index) => (
-                <BadgeImage key={index} src={prefixBadge} />
+                <BadgeImage key={index} src={getChatAssetProxyUrl(prefixBadge)} />
             )),
         [prefixBadges]
     );
@@ -89,6 +101,7 @@ const useComment = ({
     return {
         commentRef,
         size,
+        availableWidth,
         levelBadges,
         prefixBadgeContents,
         skipAnimationFrame,

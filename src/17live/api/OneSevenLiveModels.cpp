@@ -2331,6 +2331,37 @@ bool JsonToOneSevenLiveUserInfo(const nlohmann::json &json, OneSevenLiveUserInfo
     return true;
 }
 
+bool JsonToOneSevenLiveUserNote(const nlohmann::json &json, OneSevenLiveUserNote &userNote) {
+    if (!json.is_object()) {
+        return false;
+    }
+
+    try {
+        if (json.contains("content") && json["content"].is_string()) {
+            userNote.content = QString::fromStdString(json["content"].get<std::string>());
+        } else {
+            userNote.content.clear();
+        }
+
+        if (json.contains("createAt") && json["createAt"].is_number()) {
+            userNote.createAt = static_cast<qint64>(json["createAt"].get<double>());
+        } else {
+            userNote.createAt = 0;
+        }
+
+        if (json.contains("updateAt") && json["updateAt"].is_number()) {
+            userNote.updateAt = static_cast<qint64>(json["updateAt"].get<double>());
+        } else {
+            userNote.updateAt = 0;
+        }
+    } catch (const std::exception &e) {
+        obs_log(LOG_ERROR, "Error parsing JSON: %s", e.what());
+        return false;
+    }
+
+    return true;
+}
+
 bool JsonToOneSevenLiveConfig(const nlohmann::json &json, OneSevenLiveConfig &config) {
     if (!json.is_object()) {
         return false;

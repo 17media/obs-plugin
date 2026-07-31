@@ -6,6 +6,8 @@
 #include <QResizeEvent>
 #include <QString>
 
+class QTimer;
+
 #include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLivePreviewWidget.hpp"
 
@@ -14,10 +16,12 @@ class OneSevenLivePreviewDock : public QDockWidget {
 
    public:
     explicit OneSevenLivePreviewDock(QWidget* parent = nullptr,
-                                     const QString& overlayUrl = QString());
+                                     const QString& overlayUrl = QString(),
+                                     const QString& enterAnimUrl = QString());
     ~OneSevenLivePreviewDock();
 
     void initializePreview();
+    void syncLayoutToObsCanvas();
 
    protected:
     void showEvent(QShowEvent* event) override;
@@ -41,8 +45,11 @@ class OneSevenLivePreviewDock : public QDockWidget {
 
     bool initialized = false;
     QString overlayUrl_;
+    QString enterAnimUrl_;
 
    private slots:
     void onGiftsLoaded();
     void onDisplayCreated(bool created);
+    void onTopLevelChanged(bool floating);
+    void onDockLocationChanged(Qt::DockWidgetArea area);
 };

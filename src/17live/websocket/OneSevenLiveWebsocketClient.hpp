@@ -1,11 +1,12 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
+#include <QThread>
 #include <atomic>
 #include <functional>
 #include <memory>
-#include <thread>
 
 struct TLSHandles;
 
@@ -36,7 +37,8 @@ class OneSevenLiveWebsocketClient : public QObject {
 
     std::atomic<bool> connected{false};
     std::atomic<bool> running{false};
-    std::thread th;
+    QPointer<QThread> thread_;
+    QPointer<QObject> runner_;
 
     std::unique_ptr<TLSHandles> tls;
 

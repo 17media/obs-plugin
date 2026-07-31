@@ -12,6 +12,10 @@ const ChatUserNameWithNameCard = ({
                                       displayName,
                                       streamerInfo,
                                       isStreamer,
+                                      platform,
+                                      userID,
+                                      roomID,
+                                      picture,
                                   }) => {
 
     const superfanLevelBadge = useMemo(
@@ -39,7 +43,11 @@ const ChatUserNameWithNameCard = ({
                     displayName={displayName}
                     superfanLevel={superfanLevelBadge?.level}
                     level={userLevelBadge?.level || level}
-                    picture={streamerInfo?.get('picture')}
+                    platform={platform}
+                    userID={userID}
+                    roomID={roomID}
+                    picture={picture}
+                    streamerPicture={streamerInfo?.get('picture')}
                     isStreamer={isStreamer}
                 />
             ) : (
@@ -49,7 +57,11 @@ const ChatUserNameWithNameCard = ({
                     displayName={displayName}
                     superfanLevel={superfanLevelBadge?.level}
                     level={userLevelBadge?.level || level}
-                    picture={streamerInfo?.get('picture')}
+                    platform={platform}
+                    userID={userID}
+                    roomID={roomID}
+                    picture={picture}
+                    streamerPicture={streamerInfo?.get('picture')}
                     isStreamer={isStreamer}
                 />
             )}

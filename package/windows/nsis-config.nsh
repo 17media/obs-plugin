@@ -64,11 +64,11 @@
 
 ; Plugin Installation Paths (relative to OBS installation)
 !ifndef PLUGIN_DLL_PATH
-  !define PLUGIN_DLL_PATH "obs-plugins\64bit"
+  !define PLUGIN_DLL_PATH "obs-17live\bin\64bit"
 !endif
 
 !ifndef PLUGIN_DATA_PATH
-  !define PLUGIN_DATA_PATH "data\obs-plugins"
+  !define PLUGIN_DATA_PATH "obs-17live\data"
 !endif
 
 ; Installer Configuration
@@ -101,21 +101,15 @@
 
 ; Macros for common operations
 !macro CheckOBSInstallation
-  ReadRegStr $0 HKLM "Software\OBS Studio" "InstallPath"
-  StrCmp $0 "" 0 +3
-  ReadRegStr $0 HKLM "Software\Wow6432Node\OBS Studio" "InstallPath"
-  StrCmp $0 "" obs_not_found obs_found
 !macroend
 
 !macro CreatePluginShortcuts
   CreateDirectory "$SMPROGRAMS\17Live OBS Plugin"
-  CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\17Live OBS Plugin.lnk" "$INSTDIR\bin\64bit\obs64.exe"
-  CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "${PRODUCT_WEB_SITE}"
+  CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\Website.lnk" "$INSTDIR\17live.url"
   CreateShortCut "$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk" "$INSTDIR\uninst.exe"
 !macroend
 
 !macro RemovePluginShortcuts
-  Delete "$SMPROGRAMS\17Live OBS Plugin\17Live OBS Plugin.lnk"
   Delete "$SMPROGRAMS\17Live OBS Plugin\Website.lnk"
   Delete "$SMPROGRAMS\17Live OBS Plugin\Uninstall.lnk"
   RMDir "$SMPROGRAMS\17Live OBS Plugin"

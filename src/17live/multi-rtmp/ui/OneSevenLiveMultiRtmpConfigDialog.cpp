@@ -26,6 +26,17 @@
 #include "utility/Common.hpp"
 #include "youtube/OneSevenLiveYouTubeAuth.hpp"
 
+namespace {
+constexpr bool IsYouTubeEnabled()
+{
+#if ENABLE_YOUTUBE
+    return true;
+#else
+    return false;
+#endif
+}
+}  // namespace
+
 OneSevenLiveMultiRtmpConfigDialog::OneSevenLiveMultiRtmpConfigDialog(
     QWidget* parent, std::shared_ptr<OneSevenLiveMultiRtmpConfig> config, bool isEditMode)
     : QDialog(parent),
@@ -226,8 +237,8 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
         m_streamNameCombo->addItem(QString::fromStdString(m_config->streamName));
         m_streamNameCombo->setEnabled(false);
     } else {
-        // if (!hasYouTube)
-        //     m_streamNameCombo->addItem("YouTube");
+        if (IsYouTubeEnabled() && !hasYouTube)
+            m_streamNameCombo->addItem("YouTube");
         if (!hasTwitch)
             m_streamNameCombo->addItem("Twitch");
     }
@@ -250,8 +261,16 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
             if (isAuthorized && m_youtubeAuth) {
                 m_youtubeAuth->clearToken();
                 if (auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager()) {
-                    cm->clearYouTubeAccessToken();
-                    cm->clearYouTubeRefreshToken();
+                    if (!cm->clearYouTubeAccessToken()) {
+                        const auto err = cm->getLastError();
+                        obs_log(LOG_WARNING, "Failed to clear YouTube access token: %s %s",
+                                err.code.c_str(), err.message.c_str());
+                    }
+                    if (!cm->clearYouTubeRefreshToken()) {
+                        const auto err = cm->getLastError();
+                        obs_log(LOG_WARNING, "Failed to clear YouTube refresh token: %s %s",
+                                err.code.c_str(), err.message.c_str());
+                    }
                 }
             } else if (!isAuthorized) {
                 onAuthorizeClicked();
@@ -261,8 +280,16 @@ void OneSevenLiveMultiRtmpConfigDialog::setupBasicInfoSection() {
             if (isAuthorized && m_twitchAuth) {
                 m_twitchAuth->clearTokens();
                 if (auto* cm = OneSevenLiveCoreManager::getInstance().getConfigManager()) {
-                    cm->clearTwitchTokens();
-                    cm->clearTwitchUserInfo();
+                    if (!cm->clearTwitchTokens()) {
+                        const auto err = cm->getLastError();
+                        obs_log(LOG_WARNING, "Failed to clear Twitch tokens: %s %s",
+                                err.code.c_str(), err.message.c_str());
+                    }
+                    if (!cm->clearTwitchUserInfo()) {
+                        const auto err = cm->getLastError();
+                        obs_log(LOG_WARNING, "Failed to clear Twitch user info: %s %s",
+                                err.code.c_str(), err.message.c_str());
+                    }
                 }
             } else if (!isAuthorized) {
                 onAuthorizeClicked();
@@ -991,6 +1018,13 @@ void OneSevenLiveMultiRtmpConfigDialog::updateAuthorizeButtonState() {
     }
 
     const QString channel = m_streamNameCombo ? m_streamNameCombo->currentText() : QString();
+    if (channel.isEmpty()) {
+        m_authorizeButton->setText(obs_module_text("MultiRtmp.Config.Authorize"));
+        m_authorizeButton->setEnabled(false);
+        if (m_serviceWidget)
+            m_serviceWidget->setVisible(true);
+        return;
+    }
 
     bool isAuthorized = false;
     if (channel == "YouTube") {
@@ -1038,6 +1072,11 @@ OneSevenLiveMultiRtmpConfig OneSevenLiveMultiRtmpConfigDialog::SaveConfig() cons
                 throw std::runtime_error("Stream name combo widget is null");
             }
             config.streamName = m_streamNameCombo->currentText().toStdString();
+            if (config.streamName.empty()) {
+                obs_log(LOG_ERROR,
+                        "[MultiRTMP-ConfigDialog] Cannot save config because stream name is empty");
+                throw std::runtime_error("No available stream platform");
+            }
         }
         obs_log(LOG_INFO, "[MultiRTMP-ConfigDialog] RTMP channel (stream name): '%s'",
                 config.streamName.c_str());

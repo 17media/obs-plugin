@@ -6,14 +6,15 @@
 #include <QDateTime>
 #include <QMetaObject>
 #include <QPointer>
+#include <QThread>
 #include <QTimer>
 #include <QUrl>
 #include <optional>
-#include <thread>
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
 #include "plugin-support.h"
+#include "streaming/OneSevenLiveStreamManager.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WebsocketUtils.hpp"
 #include "websocket/WsMessage.hpp"
@@ -63,9 +64,17 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                         }
                     } catch (...) {
                     }
-                    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-                        QString::fromUtf8(ws::EventAblyChatConnected),
-                        nlohmann::json{{"status", "connected"}});
+                    auto* sm = OneSevenLiveCoreManager::getInstance().getStreamManager();
+                    bool isLive = false;
+                    if (sm) {
+                        auto st = sm->getCurrentStreamingStatus();
+                        isLive = (st != OneSevenLiveStreamingStatus::NotStarted);
+                    }
+                    if (isLive) {
+                        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+                            QString::fromUtf8(ws::EventAblyChatConnected),
+                            nlohmann::json{{"status", "connected"}});
+                    }
                     QTimer::singleShot(100, this, [this]() { attachChannel(); });
                 } else if (action == 11) {
                     m_attached = true;
@@ -91,6 +100,9 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                         scheduleReconnect();
                     }
                 } else if (action == 14) {
+                } else if (action == 15) {
+                    // obs_log(LOG_INFO, "[Ably] message action received: channel=%s messageCount=%zu",
+                    //         channel.c_str(), messageCount);
                 } else if (action == 16) {
                 } else if (action == 12) {
                     if (j.contains("channel") && j["channel"].is_string()) {
@@ -115,7 +127,10 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                     }
                 }
             }
+        } catch (const std::exception& e) {
+            obs_log(LOG_WARNING, "[Ably] JSON parse error: %s", e.what());
         } catch (...) {
+            obs_log(LOG_WARNING, "[Ably] Unknown JSON parse error");
         }
 
         OneSevenLiveChatMessageHandler handler;
@@ -446,7 +461,7 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
     // Use QPointer to track object validity
     QPointer<OneSevenLiveAblyChatClient> self(this);
 
-    std::thread([self, rid, callback, authCb, api]() {
+    QThread* t = QThread::create([self, rid, callback, authCb, api]() {
         nlohmann::json resp;
         bool success = false;
 
@@ -495,5 +510,7 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
                     callback(false);
             },
             Qt::QueuedConnection);
-    }).detach();
+    });
+    QObject::connect(t, &QThread::finished, t, &QObject::deleteLater);
+    t->start();
 }

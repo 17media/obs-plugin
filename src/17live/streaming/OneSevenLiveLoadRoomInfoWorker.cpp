@@ -76,18 +76,10 @@ OneSevenLiveLoadRoomInfoWorker::LoadResult OneSevenLiveLoadRoomInfoWorker::loadR
             region.c_str(), language.c_str(), userID.c_str());
 
         // Step 2: Load room information
-        try {
-            result.roomInfoSuccess = m_apiWrapper->GetRoomInfo(roomID, *m_roomInfo);
-            if (!result.roomInfoSuccess) {
-                obs_log(LOG_WARNING, "OneSevenLiveLoadRoomInfoWorker: Failed to get room info");
-            }
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "OneSevenLiveLoadRoomInfoWorker: Exception in GetRoomInfo: %s",
-                    e.what());
-            result.roomInfoSuccess = false;
-        } catch (...) {
-            obs_log(LOG_ERROR, "OneSevenLiveLoadRoomInfoWorker: Unknown exception in GetRoomInfo");
-            result.roomInfoSuccess = false;
+        result.roomInfoSuccess = m_apiWrapper->GetRoomInfo(roomID, *m_roomInfo);
+        if (!result.roomInfoSuccess) {
+            result.roomInfoError = m_apiWrapper->getLastError();
+            obs_log(LOG_WARNING, "OneSevenLiveLoadRoomInfoWorker: Failed to get room info");
         }
 
         // if room info failed, set default values
@@ -108,60 +100,29 @@ OneSevenLiveLoadRoomInfoWorker::LoadResult OneSevenLiveLoadRoomInfoWorker::loadR
             m_roomInfo->archiveConfig.clipPermission = 0;
             m_roomInfo->status = 0;
             result.roomInfoSuccess = true;
+            result.roomInfoError.reset();
         }
 
         // Step 3: Load config streamer information
-        try {
-            result.configStreamerSuccess =
-                m_apiWrapper->GetConfigStreamer(region, language, *m_configStreamer);
-            if (!result.configStreamerSuccess) {
-                obs_log(LOG_WARNING,
-                        "OneSevenLiveLoadRoomInfoWorker: Failed to get config streamer");
-            }
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "OneSevenLiveLoadRoomInfoWorker: Exception in GetConfigStreamer: %s",
-                    e.what());
-            result.configStreamerSuccess = false;
-        } catch (...) {
-            obs_log(LOG_ERROR,
-                    "OneSevenLiveLoadRoomInfoWorker: Unknown exception in GetConfigStreamer");
-            result.configStreamerSuccess = false;
+        result.configStreamerSuccess = m_apiWrapper->GetConfigStreamer(region, language, *m_configStreamer);
+        if (!result.configStreamerSuccess) {
+            result.configStreamerError = m_apiWrapper->getLastError();
+            obs_log(LOG_WARNING, "OneSevenLiveLoadRoomInfoWorker: Failed to get config streamer");
         }
 
         // Step 4: Load user information
-        try {
-            result.userInfoSuccess =
-                m_apiWrapper->GetUserInfo(userID, region, language, *m_userInfo);
-            if (!result.userInfoSuccess) {
-                obs_log(LOG_WARNING, "OneSevenLiveLoadRoomInfoWorker: Failed to get user info");
-            }
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "OneSevenLiveLoadRoomInfoWorker: Exception in GetUserInfo: %s",
-                    e.what());
-            result.userInfoSuccess = false;
-        } catch (...) {
-            obs_log(LOG_ERROR, "OneSevenLiveLoadRoomInfoWorker: Unknown exception in GetUserInfo");
-            result.userInfoSuccess = false;
+        result.userInfoSuccess = m_apiWrapper->GetUserInfo(userID, region, language, *m_userInfo);
+        if (!result.userInfoSuccess) {
+            result.userInfoError = m_apiWrapper->getLastError();
+            obs_log(LOG_WARNING, "OneSevenLiveLoadRoomInfoWorker: Failed to get user info");
         }
 
         // Step 5: Load army subscription levels
-        try {
-            result.levelsSuccess =
-                m_apiWrapper->GetArmySubscriptionLevels(region, language, *m_levels);
-            if (!result.levelsSuccess) {
-                obs_log(LOG_WARNING,
-                        "OneSevenLiveLoadRoomInfoWorker: Failed to get army subscription levels");
-            }
-        } catch (const std::exception& e) {
-            obs_log(LOG_ERROR,
-                    "OneSevenLiveLoadRoomInfoWorker: Exception in GetArmySubscriptionLevels: %s",
-                    e.what());
-            result.levelsSuccess = false;
-        } catch (...) {
-            obs_log(
-                LOG_ERROR,
-                "OneSevenLiveLoadRoomInfoWorker: Unknown exception in GetArmySubscriptionLevels");
-            result.levelsSuccess = false;
+        result.levelsSuccess = m_apiWrapper->GetArmySubscriptionLevels(region, language, *m_levels);
+        if (!result.levelsSuccess) {
+            result.levelsError = m_apiWrapper->getLastError();
+            obs_log(LOG_WARNING,
+                    "OneSevenLiveLoadRoomInfoWorker: Failed to get army subscription levels");
         }
 
         // Step 6: Validate loaded data
@@ -295,13 +256,23 @@ std::string OneSevenLiveLoadRoomInfoWorker::generateErrorMessage(const LoadResul
         baseMessage += failedOperations[i];
     }
 
-    // Add API error message if available
-    if (m_apiWrapper) {
-        std::string apiError = m_apiWrapper->getLastErrorMessage().toStdString();
-        if (!apiError.empty()) {
-            baseMessage += "\nAPI Error: " + apiError;
+    auto appendError = [&baseMessage](const std::optional<ResultError>& err) {
+        if (!err.has_value())
+            return;
+        if (!err->code.empty() || !err->message.empty()) {
+            baseMessage += "\n";
+            baseMessage += err->code.empty() ? "Error" : err->code;
+            if (!err->message.empty()) {
+                baseMessage += ": ";
+                baseMessage += err->message;
+            }
         }
-    }
+    };
+
+    appendError(result.roomInfoError);
+    appendError(result.configStreamerError);
+    appendError(result.userInfoError);
+    appendError(result.levelsError);
 
     return baseMessage;
 }

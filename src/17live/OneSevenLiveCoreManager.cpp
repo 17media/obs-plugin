@@ -3,6 +3,7 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
+#include <QAction>
 #include <QApplication>
 #include <QDesktopServices>
 #include <QDockWidget>
@@ -18,8 +19,11 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
+#include <QThread>
 #include <QTimer>
+#include <functional>
 #include <nlohmann/json.hpp>
+#include <mutex>
 #include <thread>
 
 #include "../diag/ui/DiagnosticsDialog.hpp"
@@ -28,9 +32,18 @@
 #include "OneSevenLiveLoginDialog.hpp"
 #include "OneSevenLiveMenuManager.hpp"
 #include "OneSevenLiveUpdateManager.hpp"
+#include "ui/OneSevenLiveSettingsDialog.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "chat/OneSevenLiveChatMessageHandler.hpp"
-#include "chat/OneSevenLiveChatWidget.hpp"
+#include "chat/OneSevenLiveChatDock.hpp"
+#include "customized_cartoons/CustomizedCartoonDock.hpp"
+#include "customized_cartoons/CustomizedCartoonService.hpp"
+#include "core/DockOrchestrator.hpp"
+#include "core/CoreRuntime.hpp"
+#include "core/AuthSessionService.hpp"
+#include "core/CrashUploadService.hpp"
+#include "core/ChatBridgeService.hpp"
+#include "core/LocalGatewayService.hpp"
 #include "multi-rtmp/OneSevenLiveMultiRtmpManager.hpp"
 #include "multi-rtmp/ui/OneSevenLiveMultiRtmpDock.hpp"
 #include "plugin-support.h"
@@ -41,6 +54,7 @@
 #include "streamlist/OneSevenLiveStreamListDock.hpp"
 #include "twitch/OneSevenLiveTwitchAuth.hpp"
 #include "utility/Common.hpp"
+#include "utility/CrashSentinel.hpp"
 #include "utility/Meta.hpp"
 #include "websocket/OneSevenLiveWebsocketServer.hpp"
 #include "websocket/WsMessage.hpp"
@@ -58,29 +72,55 @@ using namespace std;
 
 // Initialize static member variables
 OneSevenLiveCoreManager* OneSevenLiveCoreManager::instance = nullptr;
-std::once_flag OneSevenLiveCoreManager::instanceOnceFlag;
+static std::mutex oneSevenLiveCoreManagerInstanceMutex;
 
 OneSevenLiveCoreManager& OneSevenLiveCoreManager::getInstance(QMainWindow* mainWindow) {
-    // Use std::call_once for thread-safe singleton creation
-    std::call_once(instanceOnceFlag, [mainWindow]() {
+    std::lock_guard<std::mutex> lock(oneSevenLiveCoreManagerInstanceMutex);
+    if (!instance) {
         if (mainWindow == nullptr) {
-            throw std::runtime_error(
-                "mainWindow parameter must be provided on first call to getInstance");
+            mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+        }
+        if (mainWindow == nullptr) {
+            throw std::runtime_error("mainWindow parameter must be provided on first call to getInstance");
         }
         instance = new OneSevenLiveCoreManager(mainWindow);
-    });
+    }
     return *instance;
 }
 
+OneSevenLiveCoreManager* OneSevenLiveCoreManager::peekInstance() {
+    std::lock_guard<std::mutex> lock(oneSevenLiveCoreManagerInstanceMutex);
+    return instance;
+}
+
 void OneSevenLiveCoreManager::destroyInstance() {
-    if (instance) {
-        delete instance;
-        instance = nullptr;
-    }
+    std::lock_guard<std::mutex> lock(oneSevenLiveCoreManagerInstanceMutex);
+    delete instance;
+    instance = nullptr;
 }
 
 OneSevenLiveCoreManager::OneSevenLiveCoreManager(QMainWindow* mainWindow_)
-    : mainWindow(mainWindow_), initialized(false), multiRtmpDockFirstLoad(true) {}
+    : mainWindow(mainWindow_), initialized(false), multiRtmpDockFirstLoad(true) {
+    dockOrchestrator_ = std::make_unique<DockOrchestrator>(this);
+    authSessionService_ = std::make_unique<AuthSessionService>(this);
+    localGatewayService_ = std::make_unique<LocalGatewayService>(this);
+    chatBridgeService_ = std::make_unique<ChatBridgeService>(this);
+
+    CoreRuntime::State state{&initialized, &shuttingDown,
+                             [this](bool v) { this->setShutdownCancel(v); }};
+    CoreRuntime::Hooks hooks;
+    hooks.initLocalServers = [this]() { return this->initLocalServers(); };
+    hooks.initConfigAndApi = [this]() { return this->initConfigAndApi(); };
+    hooks.initAuthHandlers = [this]() { this->initAuthHandlers(); };
+    hooks.initMenuAndBaseUI = [this]() { return this->initMenuAndBaseUI(); };
+    hooks.restoreRuntimeStateIfNeeded = [this]() { this->restoreRuntimeStateIfNeeded(); };
+    hooks.stopStreamingSafely = [this]() { this->stopStreamingSafely(); };
+    hooks.saveAndCloseUI = [this]() { this->saveAndCloseUI(); };
+    hooks.shutdownRtmpAndChat = [this]() { this->shutdownRtmpAndChat(); };
+    hooks.shutdownLocalServers = [this]() { this->shutdownLocalServers(); };
+    hooks.cleanupTimersAndFlags = [this]() { this->cleanupTimersAndFlags(); };
+    runtime_ = std::make_unique<CoreRuntime>(state, std::move(hooks));
+}
 
 OneSevenLiveCoreManager::~OneSevenLiveCoreManager() {
     // Ensure shutdown is called before destruction
@@ -89,61 +129,30 @@ OneSevenLiveCoreManager::~OneSevenLiveCoreManager() {
     }
 }
 
-bool OneSevenLiveCoreManager::initialize() {
-    // Prevent duplicate initialization
-    if (initialized) {
-        return true;
-    }
-
-    obs_log(LOG_INFO, "[17Live Core] Initializing OneSevenLiveCoreManager...");
-
-    m_cancelFlag.store(false);
-
-    // Run network diagnostics to check API connectivity
-    obs_log(LOG_INFO, "[17Live Core] Running startup network diagnostics...");
-    NetworkDiagnostics::runStartupDiagnostics(ONESEVENLIVE_API_URL);
-
-    // Initialize and start HTTP server
-    // "html" is the path relative to obs_get_module_data_path()
-    httpServer_ =
-        std::make_unique<OneSevenLiveHttpServer>("localhost", 0, "html/chat", "17Live HTTP Server");
-    if (!httpServer_) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to create HTTP server instance");
+bool OneSevenLiveCoreManager::initLocalServers() {
+    if (!localGatewayService_->initLocalServers()) {
         return false;
     }
 
-    if (!httpServer_->start()) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to start HTTP server");
-        // Decide whether to interrupt the entire initialization due to HTTP server startup
-        // failure based on requirements return false;
-    } else {
-        obs_log(LOG_INFO, "[17Live Core] HTTP server started successfully");
+    auto ws = localGatewayService_->getWebsocketServer();
+    if (ws) {
+        ws->setMessageCallback(
+            [this](const std::string& clientId, const std::string& message) {
+                if (chatBridgeService_) {
+                    chatBridgeService_->onWebsocketMessage(clientId, message);
+                }
+            });
+
+        ws->setConnectionCallback([this](const std::string& clientId, bool connected) {
+            if (chatBridgeService_) {
+                chatBridgeService_->onWebsocketConnectionChanged(clientId, connected);
+            }
+        });
     }
+    return true;
+}
 
-    // Initialize and start WebSocket server
-    websocketServer_ = std::make_shared<OneSevenLiveWebsocketServer>("localhost", 0);
-    if (!websocketServer_) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to create WebSocket server instance");
-        return false;
-    }
-
-    if (!websocketServer_->start()) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to start WebSocket server");
-        // Continue initialization even if WebSocket server fails
-    } else {
-        obs_log(LOG_INFO, "[17Live Core] WebSocket server started successfully on port %d",
-                websocketServer_->getPort());
-    }
-
-    // Set up WebSocket server callbacks
-    websocketServer_->setMessageCallback(std::bind(&OneSevenLiveCoreManager::handleWebsocketMessage,
-                                                   this, std::placeholders::_1,
-                                                   std::placeholders::_2));
-
-    websocketServer_->setConnectionCallback(
-        std::bind(&OneSevenLiveCoreManager::handleWebsocketConnectionChanged, this,
-                  std::placeholders::_1, std::placeholders::_2));
-
+bool OneSevenLiveCoreManager::initConfigAndApi() {
     // Initialize configuration manager
     configManager = std::make_unique<OneSevenLiveConfigManager>();
     if (!configManager) {
@@ -156,29 +165,48 @@ bool OneSevenLiveCoreManager::initialize() {
         return false;
     }
 
+    previousRunClean_ = seventeen::utility::CrashSentinel::PreviousRunClean();
+
     // Initialize API wrapper before creating stream manager
-    OneSevenLiveLoginData loginData;
-    configManager->getLoginData(loginData);
+    configManager->getLoginData(initLoginData_);
+    initIsLogin_ = false;
 
-    bool isLogin = false;
-
-    if (!loginData.jwtAccessToken.isEmpty()) {
+    if (!initLoginData_.jwtAccessToken.isEmpty()) {
         apiWrapper =
-            std::make_unique<OneSevenLiveApiWrappers>(loginData.jwtAccessToken.toStdString());
-        apiWrapper->setCancelFlag(&m_cancelFlag);
+            std::make_unique<OneSevenLiveApiWrappers>(initLoginData_.jwtAccessToken.toStdString());
+        apiWrapper->setCancelFlag(getCancelFlag());
 
-        isLogin = checkLoginStatus();
+        initIsLogin_ = authSessionService_->checkLoginStatus();
     }
 
     // if not login, initialize apiWrapper without token
-    if (!isLogin) {
+    if (!initIsLogin_) {
         apiWrapper = std::make_unique<OneSevenLiveApiWrappers>();
-        apiWrapper->setCancelFlag(&m_cancelFlag);
+        apiWrapper->setCancelFlag(getCancelFlag());
     }
 
+    crashUploadService_ = std::make_unique<CrashUploadService>(mainWindow, apiWrapper.get(),
+                                                              configManager.get(), this);
+    return true;
+}
+
+void OneSevenLiveCoreManager::initAuthHandlers() {
     // Instantiate auth handlers
     twitchAuth = std::make_unique<OneSevenLiveTwitchAuth>(this);
-    // youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
+    youtubeAuth = std::make_unique<OneSevenLiveYouTubeAuth>(this);
+    connect(youtubeAuth.get(), &OneSevenLiveYouTubeAuth::authorizationCompleted, this,
+            [this](const QString& token) {
+                if (!token.isEmpty()) {
+                    if (youtubeApiClient) {
+                        youtubeApiClient->setAccessToken(token);
+                        youtubeApiClient->retryLastRequest();
+                    }
+                    if (youtubeChatClient) {
+                        youtubeChatClient->setAccessToken(token);
+                        youtubeChatClient->startDiscovery();
+                    }
+                }
+            });
 
     // Load tokens from config and schedule checks/refreshes
     {
@@ -193,51 +221,46 @@ bool OneSevenLiveCoreManager::initialize() {
         }
     }
 
-    // {
-    //     // YouTube: load access and refresh tokens
-    //     QString ytAccess;
-    //     int ytExpiresIn{0};
-    //     qint64 ytFetchedAt{0};
-    //     const bool hasAccess =
-    //         configManager->getYouTubeAccessToken(ytAccess, ytExpiresIn, ytFetchedAt) &&
-    //         !ytAccess.isEmpty();
-    //
-    //     QString ytRefresh;
-    //     int ytRefreshExpiresIn{0};
-    //     qint64 ytRefreshFetchedAt{0};
-    //     const bool hasRefresh = configManager->getYouTubeRefreshToken(ytRefresh,
-    //     ytRefreshExpiresIn,
-    //                                                                   ytRefreshFetchedAt) &&
-    //                             !ytRefresh.isEmpty();
-    //
-    //     const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
-    //
-    //     if (hasAccess) {
-    //         youtubeAuth->setAccessToken(ytAccess);
-    //         // Schedule auto refresh; if access already expired, this will attempt immediate
-    //         refresh youtubeAuth->scheduleAutoRefresh(ytExpiresIn, ytFetchedAt,
-    //         ytRefreshExpiresIn,
-    //                                          ytRefreshFetchedAt);
-    //     } else if (hasRefresh) {
-    //         const bool hasExpiry = ytRefreshExpiresIn > 0;
-    //         const bool notExpired =
-    //             hasExpiry ? (nowEpoch < ytRefreshFetchedAt + ytRefreshExpiresIn) : true;
-    //         if (notExpired) {
-    //             obs_log(LOG_INFO,
-    //                     "[17Live Core] No YouTube access token; refreshing using refresh token");
-    //             QTimer::singleShot(0, youtubeAuth.get(),
-    //                                &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
-    //         } else {
-    //             obs_log(LOG_INFO,
-    //                     "[17Live Core] YouTube refresh token expired; clearing stored tokens");
-    //             configManager->clearYouTubeAccessToken();
-    //             configManager->clearYouTubeRefreshToken();
-    //         }
-    //     }
-    // }
+    {
+        QString ytAccess;
+        int ytExpiresIn{0};
+        qint64 ytFetchedAt{0};
+        const bool hasAccess =
+            configManager->getYouTubeAccessToken(ytAccess, ytExpiresIn, ytFetchedAt) &&
+            !ytAccess.isEmpty();
 
+        QString ytRefresh;
+        int ytRefreshExpiresIn{0};
+        qint64 ytRefreshFetchedAt{0};
+        const bool hasRefresh = configManager->getYouTubeRefreshToken(ytRefresh, ytRefreshExpiresIn,
+                                                                      ytRefreshFetchedAt) &&
+                                !ytRefresh.isEmpty();
+
+        const qint64 nowEpoch = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
+
+        if (hasAccess) {
+            youtubeAuth->setAccessToken(ytAccess);
+            youtubeAuth->scheduleAutoRefresh(ytExpiresIn, ytFetchedAt, ytRefreshExpiresIn,
+                                             ytRefreshFetchedAt);
+        } else if (hasRefresh) {
+            const bool hasExpiry = ytRefreshExpiresIn > 0;
+            const bool notExpired =
+                hasExpiry ? (nowEpoch < ytRefreshFetchedAt + ytRefreshExpiresIn) : true;
+            if (notExpired) {
+                QTimer::singleShot(0, youtubeAuth.get(),
+                                   &OneSevenLiveYouTubeAuth::refreshAccessTokenAsync);
+            } else {
+                configManager->clearYouTubeAccessToken();
+                configManager->clearYouTubeRefreshToken();
+            }
+        }
+    }
+}
+
+bool OneSevenLiveCoreManager::initMenuAndBaseUI() {
     // Load gifts from saved config into memory map for fast lookup
     loadGiftsFromConfig();
+    loadEnterAnimationFilesFromConfig();
 
     // Initialize menu manager
     menuManager = std::make_unique<OneSevenLiveMenuManager>(mainWindow);
@@ -246,11 +269,11 @@ bool OneSevenLiveCoreManager::initialize() {
         return false;
     }
     // connect menuManager's loginClicked signal to handleLoginClicked slot
-    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::loginClicked, this,
-                     &OneSevenLiveCoreManager::handleLoginClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::loginClicked, authSessionService_.get(),
+                     &AuthSessionService::handleLoginClicked);
 
-    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::logoutClicked, this,
-                     &OneSevenLiveCoreManager::handleLogoutClicked);
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::logoutClicked, authSessionService_.get(),
+                     &AuthSessionService::handleLogoutClicked);
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::streamingClicked, this,
                      &OneSevenLiveCoreManager::handleStreamingClicked);
@@ -270,11 +293,26 @@ bool OneSevenLiveCoreManager::initialize() {
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::previewDockClicked, this,
                      &OneSevenLiveCoreManager::handlePreviewDockClicked);
 
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::customizedCartoonClicked, this,
+                     &OneSevenLiveCoreManager::handleCustomizedCartoonClicked);
+
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::checkUpdateClicked, this,
                      &OneSevenLiveCoreManager::handleCheckUpdateClicked);
 
     QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::diagnosticsClicked, this,
                      &OneSevenLiveCoreManager::handleDiagnosticsClicked);
+
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::crashRecordsClicked, this,
+                     &OneSevenLiveCoreManager::handleCrashRecordsClicked);
+
+    QObject::connect(menuManager.get(), &OneSevenLiveMenuManager::settingsClicked, this,
+                     &OneSevenLiveCoreManager::handleSettingsClicked);
+
+    QTimer::singleShot(0, this, [this]() {
+        if (crashUploadService_) {
+            crashUploadService_->processPreviousRun(previousRunClean_);
+        }
+    });
 
     // Initialize update manager
     updateManager = new OneSevenLiveUpdateManager(this);
@@ -314,25 +352,37 @@ bool OneSevenLiveCoreManager::initialize() {
 
     // Load meta data
     if (!LoadMetaData()) {
-        obs_log(LOG_ERROR, "Failed to load meta data");
+        const auto err = GetLastMetaError();
+        if (!err.code.empty() || !err.message.empty()) {
+            obs_log(LOG_ERROR, "Failed to load meta data: %s %s", err.code.c_str(),
+                    err.message.c_str());
+        } else {
+            obs_log(LOG_ERROR, "Failed to load meta data");
+        }
         return false;
     }
 
     QTimer::singleShot(0, updateManager, &OneSevenLiveUpdateManager::checkForUpdates);
+    return true;
+}
 
+void OneSevenLiveCoreManager::restoreRuntimeStateIfNeeded() {
     isStartupRestore = true;
 
     // Handle login state during initialization
-    if (isLogin) {
-        configManager->getLoginData(loginData);
+    if (initIsLogin_) {
+        configManager->getLoginData(initLoginData_);
 
         // Use the new centralized login state handler for logged in users
-        handleLoginStateChanged(true, loginData);
+        authSessionService_->handleLoginStateChanged(true, initLoginData_);
+    } else {
+        authSessionService_->handleLoginStateChanged(false);
     }
+}
 
-    initialized = true;
-
-    return true;
+bool OneSevenLiveCoreManager::initialize() {
+    obs_log(LOG_INFO, "[17Live Core] Initializing OneSevenLiveCoreManager...");
+    return runtime_ ? runtime_->initialize() : false;
 }
 
 void OneSevenLiveCoreManager::handleCheckUpdateClicked() {
@@ -347,58 +397,15 @@ void OneSevenLiveCoreManager::handleDiagnosticsClicked() {
     dialog.exec();
 }
 
-void OneSevenLiveCoreManager::handleWebsocketMessage(const std::string& clientId,
-                                                     const std::string& message) {
-    WsMessage m;
-    if (!WsMessage::parse(message, m)) {
-        obs_log(LOG_WARNING, "[17Live WebSocket Server] JSON parse error in message from %s",
-                clientId.c_str());
-        return;
-    }
-    // output m for debug
-    // obs_log(LOG_INFO, "[17Live WebSocket Server] Message from %s: %s", clientId.c_str(),
-    //         m.dump().c_str());
-    const bool hasServer = (this->websocketServer_ && this->websocketServer_->is_running());
-    if (m.type.empty() || !hasServer) {
-        return;
-    }
-    if (m.is(ws::TypeAction)) {
-        const std::string actionType = m.payloadString("type");
-        if (actionType == ws::ActionRegisterChatDock) {
-            chatDockClientId = clientId;
-            obs_log(LOG_INFO, "[ChatQueue] ChatDock registered client=%s", clientId.c_str());
-            flushChatEventQueue();
-            return;
-        }
-    } else if (m.is(ws::EventAblyChatMessage)) {
-        const std::string roomID = m.payloadString("roomID");
-        const std::string data = m.payloadString("data");
-        if (roomID.empty() || data.empty()) {
-            obs_log(LOG_WARNING,
-                    "[17Live WebSocket Server] Missing roomID or data in Ably message");
-            return;
-        }
-        // Process Ably chat message via unified handler
-        {
-            nlohmann::json wrapper;
-            wrapper["messages"] = nlohmann::json::array({nlohmann::json{{"data", data}}});
-            OneSevenLiveChatMessageHandler handler;
-            handler.handleRaw(wrapper.dump());
-        }
+void OneSevenLiveCoreManager::handleCrashRecordsClicked() {
+    if (crashUploadService_) {
+        crashUploadService_->showCrashRecordsDialog();
     }
 }
 
-void OneSevenLiveCoreManager::handleWebsocketConnectionChanged(const std::string& clientId,
-                                                               bool connected) {
-    if (connected) {
-        obs_log(LOG_INFO, "[17Live WebSocket] Client %s connected", clientId.c_str());
-        flushChatEventQueue();
-    } else {
-        obs_log(LOG_INFO, "[17Live WebSocket] Client %s disconnected", clientId.c_str());
-        if (!chatDockClientId.empty() && chatDockClientId == clientId) {
-            chatDockClientId.clear();
-        }
-    }
+void OneSevenLiveCoreManager::handleSettingsClicked() {
+    OneSevenLiveSettingsDialog dialog(mainWindow, configManager.get());
+    dialog.exec();
 }
 
 void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& loginData) {
@@ -413,17 +420,41 @@ void OneSevenLiveCoreManager::load17LiveConfig(const OneSevenLiveLoginData& logi
     Json configJson;
     if (apiWrapper->GetConfig(region, language, configJson)) {
         // Save configuration
-        configManager->setConfig(configJson);
-        obs_log(LOG_INFO, "Config loaded successfully");
+        if (!configManager->setConfig(configJson)) {
+            const auto err = configManager->getLastError();
+            obs_log(LOG_ERROR, "Failed to save config: %s %s", err.code.c_str(),
+                    err.message.c_str());
+            return;
+        }
+        obs_log(LOG_INFO, "Config saved successfully");
     } else {
-        obs_log(LOG_ERROR, "Failed to load config from API");
+        const auto err = apiWrapper->getLastError();
+        obs_log(LOG_ERROR, "Failed to load config from API: %s %s", err.code.c_str(),
+                err.message.c_str());
     }
 }
 
-void OneSevenLiveCoreManager::shutdown() {
-    m_cancelFlag.store(true);
-    if (!initialized) {
-        return;
+void OneSevenLiveCoreManager::stopStreamingSafely() {
+    // Stop YouTube streams in MultiRTMP Manager first to ensure "complete" transition
+    {
+        auto* multiMgr = OneSevenLiveMultiRtmpManager::peekInstance();
+        if (multiMgr && multiMgr->isInitialized()) {
+            bool stoppedYouTube = false;
+            auto activeStreams = multiMgr->getActiveStreamIds();
+            for (const auto& streamId : activeStreams) {
+                auto cfg = multiMgr->getStreamConfig(streamId);
+                if (cfg.streamName == "YouTube") {
+                    multiMgr->stopStream(streamId);
+                    stoppedYouTube = true;
+                }
+            }
+
+            if (stoppedYouTube) {
+                QEventLoop loop;
+                QTimer::singleShot(1000, &loop, &QEventLoop::quit);
+                loop.exec();
+            }
+        }
     }
 
     if (obs_frontend_streaming_active()) {
@@ -434,18 +465,30 @@ void OneSevenLiveCoreManager::shutdown() {
             // Don't sleep on main thread
             // std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
-        QElapsedTimer t;
-        t.start();
-        while (obs_frontend_streaming_active() && t.elapsed() < 5000) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-        }
-    }
 
+        QEventLoop loop;
+        QTimer poll;
+        poll.setInterval(50);
+        QObject::connect(&poll, &QTimer::timeout, &loop, [&loop]() {
+            if (!obs_frontend_streaming_active()) {
+                loop.quit();
+            }
+        });
+        poll.start();
+
+        QTimer::singleShot(5000, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+}
+
+void OneSevenLiveCoreManager::saveAndCloseUI() {
     // Save dock state before closing any docks
     saveDockState();
 
     closeAllDocks();
+}
 
+void OneSevenLiveCoreManager::shutdownRtmpAndChat() {
     // After docks are closed and UI timers stopped, shutdown MultiRTMP manager
     {
         auto* multiMgr = OneSevenLiveMultiRtmpManager::peekInstance();
@@ -456,20 +499,15 @@ void OneSevenLiveCoreManager::shutdown() {
             // std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
     }
+}
 
-    // Stop WebSocket server
-    if (websocketServer_) {
-        websocketServer_->stop();
-        obs_log(LOG_INFO, "[17Live Core] WebSocket server stopped");
+void OneSevenLiveCoreManager::shutdownLocalServers() {
+    if (localGatewayService_) {
+        localGatewayService_->shutdownLocalServers();
     }
+}
 
-    // Stop HTTP server
-    if (httpServer_) {
-        // Stop synchronous to ensure clean shutdown before destroying other resources
-        httpServer_->stop();
-        obs_log(LOG_INFO, "[17Live Core] HTTP server stopped");
-    }
-
+void OneSevenLiveCoreManager::cleanupTimersAndFlags() {
     // Clean up menu manager resources
     if (menuManager) {
         menuManager->cleanup();
@@ -480,8 +518,12 @@ void OneSevenLiveCoreManager::shutdown() {
         ytChatDiscoverTimer->deleteLater();
         ytChatDiscoverTimer = nullptr;
     }
+}
 
-    initialized = false;
+void OneSevenLiveCoreManager::shutdown() {
+    if (runtime_) {
+        runtime_->shutdown();
+    }
 }
 
 QMainWindow* OneSevenLiveCoreManager::getMainWindow() const {
@@ -504,12 +546,130 @@ OneSevenLiveStreamManager* OneSevenLiveCoreManager::getStreamManager() const {
     return streamManager.get();
 }
 
+void OneSevenLiveCoreManager::notifyObsStreamStopped(int code, const QString& lastError) {
+    if (QThread::currentThread() != thread()) {
+        QPointer<OneSevenLiveCoreManager> self = this;
+        QMetaObject::invokeMethod(
+            this,
+            [self, code, lastError]() {
+                if (self) {
+                    self->notifyObsStreamStopped(code, lastError);
+                }
+            },
+            Qt::QueuedConnection);
+        return;
+    }
+
+    if (shuttingDown || !streamManager) {
+        obs_log(LOG_INFO, "Ignoring OBS stream stopped event during teardown");
+        return;
+    }
+
+    streamManager->handleObsStreamStopped(code, lastError);
+}
+
 OneSevenLiveWebsocketServer* OneSevenLiveCoreManager::getWebsocketServer() const {
-    return websocketServer_.get();
+    return localGatewayService_ ? localGatewayService_->getWebsocketServer() : nullptr;
 }
 
 OneSevenLiveHttpServer* OneSevenLiveCoreManager::getHttpServer() const {
-    return httpServer_.get();
+    return localGatewayService_ ? localGatewayService_->getHttpServer() : nullptr;
+}
+
+QObject* OneSevenLiveCoreManager::getUiOwner() {
+    return this;
+}
+
+OneSevenLiveStreamingStatus OneSevenLiveCoreManager::getStreamingStatus() const {
+    return status;
+}
+
+bool OneSevenLiveCoreManager::getStartupRestore() const {
+    return isStartupRestore;
+}
+
+void OneSevenLiveCoreManager::setStartupRestore(bool v) {
+    isStartupRestore = v;
+}
+
+void OneSevenLiveCoreManager::requestFlushChatEventQueue() {
+    if (chatBridgeService_) {
+        chatBridgeService_->flushChatEventQueue();
+    }
+}
+
+OneSevenLiveStreamingDock* OneSevenLiveCoreManager::getStreamingDock() const {
+    return streamingDock.data();
+}
+
+void OneSevenLiveCoreManager::setStreamingDock(OneSevenLiveStreamingDock* dock) {
+    streamingDock = dock;
+}
+
+OneSevenLiveChatDock* OneSevenLiveCoreManager::getChatDock() const {
+    return chatDock.data();
+}
+
+void OneSevenLiveCoreManager::setChatDock(OneSevenLiveChatDock* dock) {
+    chatDock = dock;
+}
+
+OneSevenLiveStreamListDock* OneSevenLiveCoreManager::getLiveListDock() const {
+    return liveListDock.data();
+}
+
+void OneSevenLiveCoreManager::setLiveListDock(OneSevenLiveStreamListDock* dock) {
+    liveListDock = dock;
+}
+
+OneSevenLiveRockZoneDock* OneSevenLiveCoreManager::getRockZoneDock() const {
+    return rockZoneDock.data();
+}
+
+void OneSevenLiveCoreManager::setRockZoneDock(OneSevenLiveRockZoneDock* dock) {
+    rockZoneDock = dock;
+}
+
+OneSevenLiveMultiRtmpDock* OneSevenLiveCoreManager::getMultiRtmpDock() const {
+    return multiRtmpDock.data();
+}
+
+void OneSevenLiveCoreManager::setMultiRtmpDock(OneSevenLiveMultiRtmpDock* dock) {
+    multiRtmpDock = dock;
+}
+
+OneSevenLivePreviewDock* OneSevenLiveCoreManager::getPreviewDock() const {
+    return previewDock.data();
+}
+
+void OneSevenLiveCoreManager::setPreviewDock(OneSevenLivePreviewDock* dock) {
+    previewDock = dock;
+}
+
+void OneSevenLiveCoreManager::syncPreviewDockLayoutToObsCanvas() {
+    if (auto* dock = previewDock.data()) {
+        dock->syncLayoutToObsCanvas();
+    }
+}
+
+CustomizedCartoonDock* OneSevenLiveCoreManager::getCustomizedCartoonDock() const {
+    return customizedCartoonDock.data();
+}
+
+void OneSevenLiveCoreManager::setCustomizedCartoonDock(CustomizedCartoonDock* dock) {
+    customizedCartoonDock = dock;
+}
+
+CustomizedCartoonService* OneSevenLiveCoreManager::getCustomizedCartoonService() const {
+    return customizedCartoonService_.get();
+}
+
+AuthSessionService* OneSevenLiveCoreManager::getAuthSessionService() const {
+    return authSessionService_.get();
+}
+
+LocalGatewayService* OneSevenLiveCoreManager::getLocalGatewayService() const {
+    return localGatewayService_.get();
 }
 
 OneSevenLiveTwitchAuth* OneSevenLiveCoreManager::getTwitchAuth() const {
@@ -537,7 +697,26 @@ OneSevenLiveAblyChatClient* OneSevenLiveCoreManager::getAblyChatClient() const {
 }
 
 void OneSevenLiveCoreManager::createYouTubeChatClient() {
-    return;
+    if (youtubeApiClient && youtubeChatClient) {
+        return;
+    }
+    if (!youtubeApiClient) {
+        youtubeApiClient = std::make_unique<OneSevenLiveYouTubeClient>(nullptr);
+        if (youtubeAuth && youtubeAuth->hasValidToken()) {
+            youtubeApiClient->setAccessToken(youtubeAuth->getAccessToken());
+        }
+        youtubeApiClient->setTimeout(12000);
+    }
+    if (!youtubeChatClient) {
+        youtubeChatClient = std::make_unique<OneSevenLiveYouTubeChatClient>(nullptr);
+        youtubeChatClient->setTimeout(12000);
+        youtubeChatClient->setMaxRetries(3);
+        youtubeChatClient->setRetryDelay(1000);
+        if (youtubeAuth && youtubeAuth->hasValidToken()) {
+            youtubeChatClient->setAccessToken(youtubeAuth->getAccessToken());
+        }
+        youtubeChatClient->setApiClient(youtubeApiClient.get());
+    }
 }
 
 void OneSevenLiveCoreManager::createTwitchChatClient() {
@@ -611,54 +790,25 @@ void OneSevenLiveCoreManager::refreshRockZoneUserList() {
 
 void OneSevenLiveCoreManager::enqueueOrBroadcastChatEvent(const QString& type,
                                                           const nlohmann::json& payload) {
-    obs_log(LOG_DEBUG, "Enqueueing chat event: %s payload: %s", type.toStdString().c_str(),
-            payload.dump().c_str());
-
-    auto* ws = getWebsocketServer();
-    if (ws && ws->is_running() && !chatDockClientId.empty()) {
-        obs_log(LOG_DEBUG, "Sending chat event to chat dock client %s", chatDockClientId.c_str());
-        auto ids = ws->getConnectedClientIds();
-        if (std::find(ids.begin(), ids.end(), chatDockClientId) != ids.end()) {
-            ws->sendMessageToClient(chatDockClientId,
-                                    WsMessage{type.toStdString(), payload}.dump());
-            return;
-        }
+    if (chatBridgeService_) {
+        chatBridgeService_->enqueueOrBroadcastChatEvent(type, payload);
     }
-    chatEventQueue.push_back(WsMessage{type.toStdString(), payload});
-    if (chatEventQueue.size() > chatQueueMaxSize) {
-        chatEventQueue.pop_front();
-    }
-    obs_log(LOG_DEBUG, "[ChatQueue] Enqueued type=%s size=%zu", type.toUtf8().constData(),
-            chatEventQueue.size());
 }
 
 void OneSevenLiveCoreManager::flushChatEventQueue() {
-    auto* ws = getWebsocketServer();
-    if (!ws || !ws->is_running())
-        return;
-    if (chatDockClientId.empty())
-        return;
-    auto ids = ws->getConnectedClientIds();
-    if (std::find(ids.begin(), ids.end(), chatDockClientId) == ids.end())
-        return;
-    obs_log(LOG_DEBUG, "[ChatQueue] Flushing %zu events to ChatDock client %s",
-            chatEventQueue.size(), chatDockClientId.c_str());
-    while (!chatEventQueue.empty()) {
-        const auto& m = chatEventQueue.front();
-        // std::string payloadStr = m.payload.dump();
-        // if (payloadStr.size() > 512) {
-        //     payloadStr = payloadStr.substr(0, 512) + "...";
-        // }
-        // obs_log(LOG_INFO, "[ChatQueue] Flush item type=%s payload=%s", m.type.c_str(),
-        //         payloadStr.c_str());
-        ws->sendMessageToClient(chatDockClientId, m.dump());
-        chatEventQueue.pop_front();
+    if (chatBridgeService_) {
+        chatBridgeService_->flushChatEventQueue();
     }
-    obs_log(LOG_DEBUG, "[ChatQueue] Flush complete");
 }
 
 void OneSevenLiveCoreManager::destroyYouTubeChatClient() {
-    return;
+    if (youtubeChatClient) {
+        youtubeChatClient->stopChatPolling();
+        youtubeChatClient.reset();
+    }
+    if (youtubeApiClient) {
+        youtubeApiClient.reset();
+    }
 }
 
 void OneSevenLiveCoreManager::destroyTwitchChatClient() {
@@ -670,208 +820,20 @@ void OneSevenLiveCoreManager::destroyTwitchChatClient() {
 }
 
 void OneSevenLiveCoreManager::startYouTubeChatPolling(const QString& liveChatId) {
-    UNUSED_PARAMETER(liveChatId);
-    return;
+    createYouTubeChatClient();
+    if (!youtubeChatClient) {
+        return;
+    }
+    if (youtubeAuth && youtubeAuth->hasValidToken()) {
+        youtubeChatClient->setAccessToken(youtubeAuth->getAccessToken());
+    }
+    youtubeChatClient->startChatPolling(liveChatId);
 }
 
 void OneSevenLiveCoreManager::stopYouTubeChatPolling() {
-    return;
-}
-
-void OneSevenLiveCoreManager::orchestrateYouTubeBroadcast(const QString& title) {
-    UNUSED_PARAMETER(title);
-    return;
-#if 0
-    if (!youtubeApiClient) {
-        createYouTubeChatClient();
+    if (youtubeChatClient) {
+        youtubeChatClient->stopChatPolling();
     }
-    if (!youtubeApiClient || !youtubeApiClient->hasValidAuth()) {
-        return;
-    }
-    youtubeApiClient->setTimeout(12000);
-    auto selectedStreamIdPtr = std::make_shared<QString>();
-    auto connStreams = std::make_shared<QMetaObject::Connection>();
-    QTimer* tStreams = new QTimer(this);
-    tStreams->setSingleShot(true);
-    tStreams->setInterval(12000);
-    connect(tStreams, &QTimer::timeout, this, [this]() {
-        obs_log(LOG_WARNING, "YouTube orchestration timeout: getMyLiveStreams");
-    });
-    tStreams->start();
-    *connStreams = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::myLiveStreamsReceived, this,
-                           [this, title, connStreams, selectedStreamIdPtr, tStreams](const YouTubeLiveStreamListResponse& resp) {
-                               QObject::disconnect(*connStreams);
-                               if (tStreams) { tStreams->stop(); tStreams->deleteLater(); }
-                               QString chosen;
-                               for (const auto& s : resp.items) {
-                                   if (!s.id.isEmpty()) {
-                                       if (s.snippet.isDefaultStream || s.status.streamStatus.compare("active", Qt::CaseInsensitive) == 0) {
-                                           chosen = s.id;
-                                           break;
-                                       }
-                                       if (chosen.isEmpty()) {
-                                           chosen = s.id;
-                                       }
-                                   }
-                               }
-                               if (chosen.isEmpty()) {
-                                   auto connStreamCreated = std::make_shared<QMetaObject::Connection>();
-                                   QTimer* tStreamCreate = new QTimer(this);
-                                   tStreamCreate->setSingleShot(true);
-                                   tStreamCreate->setInterval(12000);
-                                   connect(tStreamCreate, &QTimer::timeout, this, [this]() {
-                                       obs_log(LOG_WARNING, "YouTube orchestration timeout: createLiveStream");
-                                   });
-                                   *connStreamCreated = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveStreamCreated, this,
-                                                                [this, connStreamCreated, selectedStreamIdPtr, tStreamCreate, title](const YouTubeLiveStream& stream) {
-                                                                    QObject::disconnect(*connStreamCreated);
-                                                                    if (tStreamCreate) { tStreamCreate->stop(); tStreamCreate->deleteLater(); }
-                                                                    if (!stream.id.isEmpty()) {
-                                                                        *selectedStreamIdPtr = stream.id;
-                                                                        auto connCreated = std::make_shared<QMetaObject::Connection>();
-                                                                        QTimer* tCreate = new QTimer(this);
-                                                                        tCreate->setSingleShot(true);
-                                                                        tCreate->setInterval(12000);
-                                                                        connect(tCreate, &QTimer::timeout, this, [this]() {
-                                                                            obs_log(LOG_WARNING, "YouTube orchestration timeout: createLiveBroadcast");
-                                                                        });
-                                                                        tCreate->start();
-                                                                        *connCreated = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastCreated, this,
-                                                                                               [this, connCreated, selectedStreamIdPtr, tCreate](const QString& bid) {
-                                                                                                   QObject::disconnect(*connCreated);
-                                                                                                   if (tCreate) { tCreate->stop(); tCreate->deleteLater(); }
-                                                                                                   if (!bid.isEmpty() && !selectedStreamIdPtr->isEmpty()) {
-                                                                                                       auto connBoundLocal = std::make_shared<QMetaObject::Connection>();
-                                                                                                       QTimer* tBindLocal = new QTimer(this);
-                                                                                                       tBindLocal->setSingleShot(true);
-                                                                                                       tBindLocal->setInterval(12000);
-                                                                                                       connect(tBindLocal, &QTimer::timeout, this, [this]() {
-                                                                                                           obs_log(LOG_WARNING, "YouTube orchestration timeout: bindLiveBroadcast");
-                                                                                                       });
-                                                                                                       *connBoundLocal = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastBound, this,
-                                                                                                                                [this, connBoundLocal, tBindLocal](const QString& bid) {
-                                                                                                                                    QObject::disconnect(*connBoundLocal);
-                                                                                                                                    if (tBindLocal) { tBindLocal->stop(); tBindLocal->deleteLater(); }
-                                                                                                                                    auto connPre = std::make_shared<QMetaObject::Connection>();
-                                                                                                                                    QTimer* tPre = new QTimer(this);
-                                                                                                                                    tPre->setSingleShot(true);
-                                                                                                                                    tPre->setInterval(12000);
-                                                                                                                                    connect(tPre, &QTimer::timeout, this, [this]() {
-                                                                                                                                        obs_log(LOG_WARNING, "YouTube orchestration timeout: getLiveBroadcastById");
-                                                                                                                                    });
-                                                                                                                                    tPre->start();
-                                                                                                                                    *connPre = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastReceived, this,
-                                                                                                                                                   [this, connPre, tPre](const YouTubeLiveBroadcast& b) {
-                                                                                                                                                       QObject::disconnect(*connPre);
-                                                                                                                                                       if (tPre) { tPre->stop(); tPre->deleteLater(); }
-                                                                                                                                                       QString s = b.status.lifeCycleStatus;
-                                                                                                                                                       if (!s.isEmpty() && s.compare("complete", Qt::CaseInsensitive) != 0) {
-                                                                                                                                                           auto connTransitionedLocal = std::make_shared<QMetaObject::Connection>();
-                                                                                                                                                           QTimer* tTransLocal = new QTimer(this);
-                                                                                                                                                           tTransLocal->setSingleShot(true);
-                                                                                                                                                           tTransLocal->setInterval(12000);
-                                                                                                                                                           connect(tTransLocal, &QTimer::timeout, this, [this]() {
-                                                                                                                                                               obs_log(LOG_WARNING, "YouTube orchestration timeout: transitionLiveBroadcast");
-                                                                                                                                                           });
-                                                                                                                                                           *connTransitionedLocal = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastTransitioned, this,
-                                                                                                                                                                                            [this, connTransitionedLocal, tTransLocal]() {
-                                                                                                                                                                                                QObject::disconnect(*connTransitionedLocal);
-                                                                                                                                                                                                if (tTransLocal) { tTransLocal->stop(); tTransLocal->deleteLater(); }
-                                                                                                                                                                                                if (youtubeChatClient) {
-                                                                                                                                                                                                    youtubeChatClient->startDiscovery();
-                                                                                                                                                                                                }
-                                                                                                                                                                                            });
-                                                                                                                                                           tTransLocal->start();
-                                                                                                                                                           youtubeApiClient->transitionLiveBroadcast(b.id, QString("live"));
-                                                                                                                                                       } else {
-                                                                                                                                                           obs_log(LOG_WARNING, "YouTube broadcast not transitionable: id=%s status=%s",
-                                                                                                                                                                   b.id.toUtf8().constData(), s.toUtf8().constData());
-                                                                                                                                                       }
-                                                                                                                                                   });
-                                                                                                                                    youtubeApiClient->getLiveBroadcastById(bid);
-                                                                                                                                });
-                                                                                                       tBindLocal->start();
-                                                                                                       youtubeApiClient->bindLiveBroadcast(bid, *selectedStreamIdPtr);
-                                                                                                   }
-                                                                                               });
-                                                                        youtubeApiClient->createLiveBroadcast(title);
-                                                                    }
-                                                                });
-                                   tStreamCreate->start();
-                                   youtubeApiClient->createLiveStream(title);
-                                   return;
-                               }
-                               *selectedStreamIdPtr = chosen;
-                               auto connCreated = std::make_shared<QMetaObject::Connection>();
-                               QTimer* tCreate = new QTimer(this);
-                               tCreate->setSingleShot(true);
-                               tCreate->setInterval(12000);
-                               connect(tCreate, &QTimer::timeout, this, [this]() {
-                                   obs_log(LOG_WARNING, "YouTube orchestration timeout: createLiveBroadcast");
-                               });
-                               tCreate->start();
-                               *connCreated = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastCreated, this,
-                                                      [this, connCreated, selectedStreamIdPtr, tCreate](const QString& bid) {
-                                                          QObject::disconnect(*connCreated);
-                                                          if (tCreate) { tCreate->stop(); tCreate->deleteLater(); }
-                                                          if (!bid.isEmpty() && !selectedStreamIdPtr->isEmpty()) {
-                                                              auto connBoundLocal = std::make_shared<QMetaObject::Connection>();
-                                                              QTimer* tBindLocal = new QTimer(this);
-                                                              tBindLocal->setSingleShot(true);
-                                                              tBindLocal->setInterval(12000);
-                                                              connect(tBindLocal, &QTimer::timeout, this, [this]() {
-                                                                  obs_log(LOG_WARNING, "YouTube orchestration timeout: bindLiveBroadcast");
-                                                              });
-                                                              *connBoundLocal = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastBound, this,
-                                                                                       [this, connBoundLocal, tBindLocal](const QString& bid) {
-                                                                                           QObject::disconnect(*connBoundLocal);
-                                                                                           if (tBindLocal) { tBindLocal->stop(); tBindLocal->deleteLater(); }
-                                                                                           auto connPre = std::make_shared<QMetaObject::Connection>();
-                                                                                           QTimer* tPre = new QTimer(this);
-                                                                                           tPre->setSingleShot(true);
-                                                                                           tPre->setInterval(12000);
-                                                                                           connect(tPre, &QTimer::timeout, this, [this]() {
-                                                                                               obs_log(LOG_WARNING, "YouTube orchestration timeout: getLiveBroadcastById");
-                                                                                           });
-                                                                                           tPre->start();
-                                                                                           *connPre = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastReceived, this,
-                                                                                                              [this, connPre, tPre](const YouTubeLiveBroadcast& b) {
-                                                                                                                  QObject::disconnect(*connPre);
-                                                                                                                  if (tPre) { tPre->stop(); tPre->deleteLater(); }
-                                                                                                                  QString s = b.status.lifeCycleStatus;
-                                                                                                                  if (!s.isEmpty() && s.compare("complete", Qt::CaseInsensitive) != 0) {
-                                                                                                                      auto connTransitionedLocal = std::make_shared<QMetaObject::Connection>();
-                                                                                                                      QTimer* tTransLocal = new QTimer(this);
-                                                                                                                      tTransLocal->setSingleShot(true);
-                                                                                                                      tTransLocal->setInterval(12000);
-                                                                                                                      connect(tTransLocal, &QTimer::timeout, this, [this]() {
-                                                                                                                          obs_log(LOG_WARNING, "YouTube orchestration timeout: transitionLiveBroadcast");
-                                                                                                                      });
-                                                                                                                      *connTransitionedLocal = connect(youtubeApiClient.get(), &OneSevenLiveYouTubeClient::liveBroadcastTransitioned, this,
-                                                                                                                                                       [this, connTransitionedLocal, tTransLocal]() {
-                                                                                                                                                           QObject::disconnect(*connTransitionedLocal);
-                                                                                                                                                           if (tTransLocal) { tTransLocal->stop(); tTransLocal->deleteLater(); }
-                                                                                                                                                           if (youtubeChatClient) {
-                                                                                                                                                               youtubeChatClient->startDiscovery();
-                                                                                                                                                           }
-                                                                                                                                                       });
-                                                                                                                      tTransLocal->start();
-                                                                                                                      youtubeApiClient->transitionLiveBroadcast(b.id, QString("live"));
-                                                                                                                  } else {
-                                                                                                                      obs_log(LOG_WARNING, "YouTube broadcast not transitionable: id=%s status=%s",
-                                                                                                                              b.id.toUtf8().constData(), s.toUtf8().constData());
-                                                                                                                  }
-                                                                                                              });
-                                                                                           youtubeApiClient->getLiveBroadcastById(bid);
-                                                                                       });
-                                                              tBindLocal->start();
-                                                              youtubeApiClient->bindLiveBroadcast(bid, *selectedStreamIdPtr);
-                                                          }
-                                                      });
-                               youtubeApiClient->createLiveBroadcast(title);
-                           });
-    youtubeApiClient->getMyLiveStreams();
-#endif
 }
 
 void OneSevenLiveCoreManager::connectTwitchChatClient(const QString& channel) {
@@ -910,127 +872,6 @@ void OneSevenLiveCoreManager::disconnectTwitchChatClient() {
         twitchChatClient->leaveAllChannels();
         twitchChatClient->disconnectFromChat();
     }
-}
-
-bool OneSevenLiveCoreManager::handleLoginClicked() {
-    m_cancelFlag.store(false);
-    OneSevenLiveLoginDialog dialog(mainWindow, getApiWrapper());
-
-    // Connect login success signal to main window slot function
-    QObject::connect(&dialog, &OneSevenLiveLoginDialog::loginSuccess, this,
-                     &OneSevenLiveCoreManager::handleLoginSuccess);
-
-    return dialog.exec() == QDialog::Accepted;
-}
-
-void OneSevenLiveCoreManager::handleLoginSuccess(const OneSevenLiveLoginData& loginData) {
-    obs_log(LOG_INFO, "handleLoginSuccess");
-
-    if (!configManager->setLoginData(loginData)) {
-        obs_log(LOG_ERROR, "Failed to save login data");
-        return;
-    }
-
-    QPointer<OneSevenLiveCoreManager> self = this;
-    QMetaObject::invokeMethod(
-        this,
-        [self, loginData]() {
-            if (self)
-                self->handleLoginStateChanged(true, loginData);
-        },
-        Qt::QueuedConnection);
-}
-
-void OneSevenLiveCoreManager::handleLoginStateChanged(bool isLoggedIn,
-                                                      const OneSevenLiveLoginData& loginData) {
-    obs_log(LOG_INFO, "handleLoginStateChanged: %s", isLoggedIn ? "logged in" : "logged out");
-
-    if (isLoggedIn) {
-        performLoginOperations(loginData);
-    } else {
-        performLogoutOperations();
-    }
-}
-
-void OneSevenLiveCoreManager::performLoginOperations(const OneSevenLiveLoginData& loginData) {
-    obs_log(LOG_INFO, "performLoginOperations");
-    loggingIn.store(true);
-    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-
-    // if apiWrappers token is empty or not equal to loginData.accessToken.toStdString(), update it
-    if (apiWrapper->getToken().empty() ||
-        apiWrapper->getToken() != loginData.jwtAccessToken.toStdString()) {
-        apiWrapper->setToken(loginData.jwtAccessToken.toStdString());
-    }
-
-    // Initialize stream manager (after apiWrapper is ready)
-    streamManager =
-        std::make_unique<OneSevenLiveStreamManager>(apiWrapper.get(), configManager.get(), this);
-    if (!streamManager) {
-        obs_log(LOG_ERROR, "[17Live Core] Failed to create stream manager instance");
-        loggingIn.store(false);
-        return;
-    }
-
-    QPointer<OneSevenLiveCoreManager> self = this;
-    QTimer::singleShot(0, this, [self]() {
-        if (self)
-            self->loadGifts();
-    });
-
-    // if apiWrappers token is empty or not equal to loginData.accessToken.toStdString(), update it
-    if (apiWrapper->getToken().empty() ||
-        apiWrapper->getToken() != loginData.jwtAccessToken.toStdString()) {
-        apiWrapper->setToken(loginData.jwtAccessToken.toStdString());
-    }
-
-    loadGifts();
-
-    // Update menu with user info
-    QString username = loginData.userInfo.displayName;
-    if (username.isEmpty()) {
-        username = loginData.userInfo.openID;
-    }
-    menuManager->updateLoginStatus(true, username);
-
-    QTimer::singleShot(0, this, [self, loginData]() {
-        if (self)
-            self->load17LiveConfig(loginData);
-    });
-
-    // Restore dock states if this is during startup and there are saved states
-    if (isStartupRestore) {
-        QTimer::singleShot(0, this, [self]() {
-            if (self) {
-                self->restoreDockStatesOnLogin();
-                self->isStartupRestore = false;
-            }
-        });
-    }
-
-    QTimer::singleShot(0, this, [self]() {
-        if (!self)
-            return;
-        // self->createYouTubeChatClient();
-        self->createTwitchChatClient();
-        self->setConnection();
-    });
-
-    QTimer::singleShot(0, this, [self]() {
-        if (!self)
-            return;
-        if (self->streamManager && self->apiWrapper) {
-            const qint64 rid = self->streamManager->getRoomID();
-            if (rid > 0) {
-                self->m_cancelFlag.store(false);
-                self->connectAblyChat(QString::number(rid), QString());
-            }
-        }
-    });
-
-    // discovery is managed by YouTubeChatClient
-    loggingIn.store(false);
 }
 
 void OneSevenLiveCoreManager::setConnection() {
@@ -1122,8 +963,9 @@ void OneSevenLiveCoreManager::setConnection() {
                 }
                 streamCheckTimer->start(30000);  // 30 seconds
 
-                // trigger reload gifts when stream is live
+                // trigger reload gifts and enter animation files when stream is live
                 loadGifts();
+                loadEnterAnimationFiles();
             } else {
                 if (streamCheckTimer) {
                     streamCheckTimer->stop();
@@ -1131,14 +973,14 @@ void OneSevenLiveCoreManager::setConnection() {
                     streamCheckTimer = nullptr;
                     streamCheckInFlight.store(false);
                 }
-                if (pendingLogout.load()) {
-                    pendingLogout.store(false);
-                    QPointer<OneSevenLiveCoreManager> self = this;
+                if (authSessionService_->isPendingLogout()) {
+                    authSessionService_->setPendingLogout(false);
+                    QPointer<AuthSessionService> auth = authSessionService_.get();
                     QMetaObject::invokeMethod(
                         this,
-                        [self]() {
-                            if (self)
-                                self->handleLoginStateChanged(false);
+                        [auth]() {
+                            if (auth)
+                                auth->handleLoginStateChanged(false);
                         },
                         Qt::QueuedConnection);
                 }
@@ -1146,271 +988,17 @@ void OneSevenLiveCoreManager::setConnection() {
         });
 }
 
-void OneSevenLiveCoreManager::performLogoutOperations() {
-    obs_log(LOG_INFO, "performLogoutOperations");
-    loggingOut.store(true);
-    m_cancelFlag.store(true);
-
-    {
-        auto* ws = getWebsocketServer();
-        if (ws && ws->is_running()) {
-            ws->closeAllClients();
-        }
-    }
-
-    // destroyYouTubeChatClient();
-    destroyTwitchChatClient();
-    destroyAblyChatClient();
-
-    if (streamCheckTimer) {
-        streamCheckTimer->stop();
-        streamCheckTimer->deleteLater();
-        streamCheckTimer = nullptr;
-        streamCheckInFlight.store(false);
-    }
-
-    closeAllDocks();
-
-    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-
-    streamManager.reset();
-
-    // Reset login status in menu
-    menuManager->updateLoginStatus(false, "");
-
-    // Clear login data
-    configManager->clearLoginData();
-
-    // Clear third-party platform authorization data
-    configManager->clearTwitchTokens();
-    configManager->clearTwitchUserInfo();
-    // configManager->clearYouTubeAccessToken();
-    // configManager->clearYouTubeRefreshToken();
-
-    // Clear streaming configuration
-    configManager->clearStreamingInfo();
-    configManager->clearWhipStreamingInfo();
-    configManager->clearStreamingPullUrl();
-
-    // Clear in-memory auth states
-    if (twitchAuth) {
-        twitchAuth->clearTokens();
-    }
-    // if (youtubeAuth) {
-    //     youtubeAuth->clearToken();
-    //     youtubeAuth->stopAutoRefresh();
-    // }
-
-    if (ytChatDiscoverTimer) {
-        ytChatDiscoverTimer->stop();
-        ytChatDiscoverTimer->deleteLater();
-        ytChatDiscoverTimer = nullptr;
-    }
-
-    chatDockClientId.clear();
-    chatEventQueue.clear();
-    if (apiWrapper) {
-        apiWrapper->setToken(std::string());
-    }
-
-    // Destroy chat clients on logout
-    loggingOut.store(false);
-}
-
-void OneSevenLiveCoreManager::restoreDockStatesOnLogin() {
-    obs_log(LOG_INFO, "restoreDockStatesOnLogin");
-
-    // Check if there are saved dock states and restore them
-    QByteArray dockState = configManager->getDockState();
-    if (!dockState.isEmpty() && mainWindow && mainWindow->isVisible()) {
-        // Restore streaming dock if it was previously shown
-        if (configManager->getDockVisibility("streaming")) {
-            createStreamingDock();
-        }
-
-        // Restore live list dock if it was previously shown
-        if (configManager->getDockVisibility("liveList")) {
-            handleLiveListClicked();
-        }
-
-        // Restore chat room dock if it was previously shown
-        if (configManager->getDockVisibility("chatRoom")) {
-            handleChatRoomClicked();
-        }
-
-        // Restore rock zone dock if it was previously shown
-        if (configManager->getDockVisibility("rockZone")) {
-            handleRockZoneClicked();
-        }
-
-        // Restore multi-RTMP dock if it was previously shown
-        if (configManager->getDockVisibility("multiRtmp")) {
-            handleMultiRtmpClicked();
-        }
-
-        // Restore preview dock if it was previously shown
-        if (configManager->getDockVisibility("previewDock")) {
-            handlePreviewDockClicked();
-        }
-
-        // Apply the saved dock layout
-        mainWindow->restoreState(dockState);
-
-        QTimer::singleShot(0, this, [this]() {
-            QList<QDockWidget*> docks;
-            QList<int> sizes;
-            if (streamingDock) {
-                docks << streamingDock;
-                sizes << 600;
-            }
-            if (liveListDock) {
-                docks << liveListDock;
-                sizes << 400;
-            }
-            if (multiRtmpDock) {
-                docks << multiRtmpDock;
-                sizes << 400;
-            }
-            if (previewDock) {
-                docks << previewDock;
-                sizes << 480;
-            }
-            if (!docks.isEmpty() && mainWindow) {
-                mainWindow->resizeDocks(docks, sizes, Qt::Vertical);
-            }
-        });
-
-        // Update menu visibility status after restoration
-        if (menuManager) {
-            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                              streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
-        }
-    }
-}
-
 void OneSevenLiveCoreManager::closeAllDocks() {
-    obs_log(LOG_INFO, "closeAllDocks");
-
-    bool streamingVisible = false;
-    if (streamingDock) {
-        streamingVisible = streamingDock->isVisible();
-        streamingDock->disconnect(this);
-        streamingDock->close();
-        delete streamingDock;
-        streamingDock = nullptr;
-    }
-    configManager->setDockVisibility("streaming", streamingVisible);
-
-    bool liveListVisible = false;
-    if (liveListDock) {
-        liveListVisible = liveListDock->isVisible();
-        liveListDock->disconnect(this);
-        liveListDock->close();
-        delete liveListDock;
-        liveListDock = nullptr;
-    }
-    configManager->setDockVisibility("liveList", liveListVisible);
-
-    bool rockZoneVisible = false;
-    if (rockZoneDock) {
-        rockZoneVisible = rockZoneDock->isVisible();
-        rockZoneDock->disconnect(this);
-        rockZoneDock->close();
-        delete rockZoneDock;
-        rockZoneDock = nullptr;
-    }
-    configManager->setDockVisibility("rockZone", rockZoneVisible);
-
-    bool chatRoomVisible = false;
-    if (chatDock) {
-        chatRoomVisible = chatDock->isVisible();
-        chatDock->disconnect(this);
-        OneSevenLiveChatWidget* widget = qobject_cast<OneSevenLiveChatWidget*>(chatDock->widget());
-        if (widget) {
-            obs_log(LOG_INFO, "Shutting down chat widget in closeAllDocks");
-            widget->shutdown();
-        }
-        chatDock->close();
-        delete chatDock;
-        chatDock = nullptr;
-    }
-    configManager->setDockVisibility("chatRoom", chatRoomVisible);
-
-    bool multiRtmpVisible = false;
-    if (multiRtmpDock) {
-        multiRtmpVisible = multiRtmpDock->isVisible();
-        multiRtmpDock->disconnect(this);
-        multiRtmpDock->close();
-        delete multiRtmpDock;
-        multiRtmpDock = nullptr;
-    }
-    configManager->setDockVisibility("multiRtmp", multiRtmpVisible);
-
-    bool previewDockVisible = false;
-    if (previewDock) {
-        previewDockVisible = previewDock->isVisible();
-        previewDock->disconnect(this);
-        previewDock->close();
-        delete previewDock;
-        previewDock = nullptr;
-    }
-    configManager->setDockVisibility("previewDock", previewDockVisible);
-
-    // Update menu visibility status after closing all docks
-    if (menuManager) {
-        menuManager->updateDockVisibility(false, false, false, false, false, false);
-    }
-}
-
-void OneSevenLiveCoreManager::handleLogoutClicked() {
-    obs_log(LOG_INFO, "handleLogoutClicked");
-
-    if (status == OneSevenLiveStreamingStatus::Streaming) {
-        auto* msgBox = new QMessageBox(mainWindow);
-        msgBox->setWindowTitle(obs_module_text("Logout.Warning.Title"));
-        msgBox->setText(obs_module_text("Logout.Warning.Message"));
-        QPushButton* confirmButton =
-            msgBox->addButton(obs_module_text("Logout.Warning.Button.Yes"), QMessageBox::YesRole);
-        QPushButton* cancelButton =
-            msgBox->addButton(obs_module_text("Logout.Warning.Button.No"), QMessageBox::NoRole);
-        msgBox->setDefaultButton(cancelButton);
-
-        QPointer<OneSevenLiveCoreManager> self = this;
-        connect(msgBox, &QMessageBox::finished, this, [self, msgBox, confirmButton](int) {
-            if (msgBox->clickedButton() != confirmButton) {
-                msgBox->deleteLater();
-                return;
-            }
-            if (self) {
-                QMetaObject::invokeMethod(
-                    self,
-                    [self]() {
-                        if (self) {
-                            self->pendingLogout.store(true);
-                            self->closeLive(false);
-                        }
-                    },
-                    Qt::QueuedConnection);
-            }
-            msgBox->deleteLater();
-        });
-        msgBox->open();
+    if (closeAllDocksInProgress_) {
+        obs_log(LOG_INFO, "closeAllDocks skipped: already in progress");
         return;
     }
 
-    QPointer<OneSevenLiveCoreManager> self = this;
-    QMetaObject::invokeMethod(
-        this,
-        [self]() {
-            if (self)
-                self->handleLoginStateChanged(false);
-        },
-        Qt::QueuedConnection);
+    closeAllDocksInProgress_ = true;
+    if (dockOrchestrator_) {
+        dockOrchestrator_->closeAllDocks();
+    }
+    closeAllDocksInProgress_ = false;
 }
 
 void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
@@ -1436,400 +1024,45 @@ void OneSevenLiveCoreManager::closeLive(bool isAutoClose) {
 }
 
 void OneSevenLiveCoreManager::handleStreamingClicked() {
-    obs_log(LOG_INFO, "handleStreamingClicked");
-
-    if (!streamingDock) {
-        createStreamingDock();
-    } else {
-        streamingDock->setVisible(!streamingDock->isVisible());
-    }
-
-    // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+    if (dockOrchestrator_) {
+        dockOrchestrator_->handleStreamingClicked();
     }
 }
 
 void OneSevenLiveCoreManager::createStreamingDock() {
-    if (streamingDock) {
-        return;
-    }
-
-    OneSevenLiveLoginData loginData;
-    if (!configManager->getLoginData(loginData)) {
-        obs_log(LOG_ERROR, "Failed to get login data");
-        return;
-    }
-
-    // Create and show streaming window
-    streamingDock = new OneSevenLiveStreamingDock(mainWindow, streamManager.get(), apiWrapper.get(),
-                                                  configManager.get());
-    streamingDock->setObjectName("OneSevenLiveStreamingDock");
-
-    streamingDock->setMaximumWidth(600);
-    streamingDock->resize(450, 600);
-    streamingDock->setMinimumHeight(400);
-
-    streamingDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    mainWindow->addDockWidget(Qt::RightDockWidgetArea, streamingDock);
-
-    // Only restore state during startup, otherwise set floating and center
-    if (isStartupRestore) {
-    } else {
-        // First time creation or manual creation - set floating and center
-        streamingDock->setFloating(true);
-        streamingDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - streamingDock->width()) / 2;
-        int y =
-            mainWindowGeometry.y() + (mainWindowGeometry.height() - streamingDock->height()) / 2;
-        streamingDock->move(x, y);
-    }
-
-    if (streamingDockFirstLoad) {
-        connect(streamingDock, &OneSevenLiveStreamingDock::streamInfoSaved, this, [this]() {
-            if (liveListDock) {
-                liveListDock->refreshStreamList();
-            }
-        });
-
-        connect(streamingDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(), visible,
-                                              liveListDock && liveListDock->isVisible(),
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
-        });
-
-        streamingDockFirstLoad = false;
+    if (dockOrchestrator_) {
+        dockOrchestrator_->createStreamingDock();
     }
 }
 
 void OneSevenLiveCoreManager::handleRockZoneClicked() {
-    obs_log(LOG_INFO, "handleRockZoneClicked");
-
-    if (!rockZoneDock) {
-        createRockZoneDock();
-    } else {
-        rockZoneDock->setVisible(!rockZoneDock->isVisible());
-    }
-
-    // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+    if (dockOrchestrator_) {
+        dockOrchestrator_->handleRockZoneClicked();
     }
 }
 
 void OneSevenLiveCoreManager::createRockZoneDock() {
-    if (rockZoneDock) {
-        return;
-    }
-
-    OneSevenLiveLoginData loginData;
-    if (!configManager->getLoginData(loginData)) {
-        obs_log(LOG_ERROR, "Failed to get login data");
-        return;
-    }
-
-    // Create and show rock zone window
-    rockZoneDock = new OneSevenLiveRockZoneDock(mainWindow, apiWrapper.get(), configManager.get());
-    rockZoneDock->setObjectName("OneSevenLiveRockZoneDock");
-
-    rockZoneDock->setMinimumWidth(300);
-    rockZoneDock->setMinimumHeight(400);
-
-    rockZoneDock->resize(370, 500);
-
-    rockZoneDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    mainWindow->addDockWidget(Qt::RightDockWidgetArea, rockZoneDock);
-
-    // Only restore state during startup, otherwise set floating and center
-    if (isStartupRestore) {
-        // During startup restoration, the state will be restored by initialize() method
-        rockZoneDock->setVisible(true);
-    } else {
-        // First time creation or manual creation - set floating and center
-        rockZoneDock->setFloating(true);
-        rockZoneDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - rockZoneDock->width()) / 2;
-        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - rockZoneDock->height()) / 2;
-        rockZoneDock->move(x, y);
-    }
-
-    if (streamManager) {
-        connect(streamManager.get(), &OneSevenLiveStreamManager::streamStatusChanged, this,
-                [this](OneSevenLiveStreamingStatus status) {
-                    if (status == OneSevenLiveStreamingStatus::NotStarted && rockZoneDock) {
-                        rockZoneDock->clearUserList();
-                    }
-                });
-        connect(streamManager.get(), &OneSevenLiveStreamManager::obsStreamStopped, this,
-                [this](int, const QString&) {
-                    if (rockZoneDock) {
-                        rockZoneDock->clearUserList();
-                    }
-                });
-    }
-
-    if (rockZoneDockFirstLoad) {
-        // When dock is closed, uncheck menu item status
-        connect(rockZoneDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                              streamingDock && streamingDock->isVisible(),
-                                              liveListDock && liveListDock->isVisible(), visible,
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
-        });
-
-        rockZoneDockFirstLoad = false;
+    if (dockOrchestrator_) {
+        dockOrchestrator_->createRockZoneDock();
     }
 }
 
 void OneSevenLiveCoreManager::handleLiveListClicked() {
-    obs_log(LOG_INFO, "handleLiveListClicked");
-
-    if (!liveListDock) {
-        liveListDock = new OneSevenLiveStreamListDock(mainWindow, configManager.get(), status);
-        liveListDock->setObjectName("OneSevenLiveStreamListDock");
-        liveListDock->setMinimumWidth(300);
-        liveListDock->setMinimumHeight(400);
-
-        liveListDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        mainWindow->addDockWidget(Qt::RightDockWidgetArea, liveListDock);
-
-        // Only restore state during startup, otherwise set floating and center
-        if (isStartupRestore) {
-        } else {
-            // First time creation or manual creation - set floating and center
-            liveListDock->setFloating(true);
-            liveListDock->setVisible(true);
-
-            // Center the dock on the main window
-            QRect mainWindowGeometry = mainWindow->geometry();
-            int x =
-                mainWindowGeometry.x() + (mainWindowGeometry.width() - liveListDock->width()) / 2;
-            int y =
-                mainWindowGeometry.y() + (mainWindowGeometry.height() - liveListDock->height()) / 2;
-            liveListDock->move(x, y);
-        }
-
-        connect(liveListDock, &OneSevenLiveStreamListDock::startLiveClicked, this,
-                [this](const OneSevenLiveRtmpRequest& request) {
-                    // if streamingDock is not visible, show it
-                    // in order to edit the live info item
-                    if (!streamingDock) {
-                        createStreamingDock();
-                    }
-
-                    // Show streamingDock in center of desktop
-                    streamingDock->setFloating(true);
-                    streamingDock->setVisible(true);
-                    streamingDock->raise();
-                    streamingDock->activateWindow();
-
-                    // Move to center of main window
-                    QRect mainWindowGeometry = mainWindow->geometry();
-                    int x = mainWindowGeometry.x() +
-                            (mainWindowGeometry.width() - streamingDock->width()) / 2;
-                    int y = mainWindowGeometry.y() +
-                            (mainWindowGeometry.height() - streamingDock->height()) / 2;
-                    streamingDock->move(x, y);
-
-                    streamingDock->createLiveWithRequest(request);
-                });
-
-        connect(liveListDock, &OneSevenLiveStreamListDock::editLiveClicked, this,
-                [this](const OneSevenLiveStreamInfo& info) {
-                    // Create streamingDock if it doesn't exist
-                    if (!streamingDock) {
-                        createStreamingDock();
-                    }
-
-                    // Edit live with info
-                    streamingDock->editLiveWithInfo(info);
-
-                    // Show streamingDock in center of desktop
-                    streamingDock->setFloating(true);
-                    streamingDock->setVisible(true);
-                    streamingDock->raise();
-                    streamingDock->activateWindow();
-
-                    // Move to center of main window
-                    QRect mainWindowGeometry = mainWindow->geometry();
-                    int x = mainWindowGeometry.x() +
-                            (mainWindowGeometry.width() - streamingDock->width()) / 2;
-                    int y = mainWindowGeometry.y() +
-                            (mainWindowGeometry.height() - streamingDock->height()) / 2;
-                    streamingDock->move(x, y);
-
-                    // Scroll to title edit box and focus on it
-                    QTimer::singleShot(100, [this]() {
-                        if (streamingDock) {
-                            QScrollArea* scrollArea = streamingDock->findChild<QScrollArea*>();
-                            QLineEdit* titleEdit =
-                                streamingDock->findChild<QLineEdit*>("titleEdit");
-                            if (scrollArea && titleEdit) {
-                                scrollArea->ensureWidgetVisible(titleEdit);
-                                titleEdit->setFocus();
-                                titleEdit->selectAll();
-                            }
-                        }
-                    });
-                });
-
-        // When dock is closed, uncheck menu item status
-        connect(liveListDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                              streamingDock && streamingDock->isVisible(), visible,
-                                              rockZoneDock && rockZoneDock->isVisible(),
-                                              multiRtmpDock && multiRtmpDock->isVisible(),
-                                              previewDock && previewDock->isVisible());
-        });
-    } else {
-        liveListDock->setVisible(!liveListDock->isVisible());
+    if (dockOrchestrator_) {
+        dockOrchestrator_->handleLiveListClicked();
     }
-
-    // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
-    }
-}
-
-bool OneSevenLiveCoreManager::checkLoginStatus() {
-    // call apiWrapper->GetSelfInfo()
-    OneSevenLiveLoginData loginData;
-    if (!apiWrapper->GetSelfInfo(loginData)) {
-        configManager->clearLoginData();
-        return false;
-    }
-
-    // TODO: update loginData: displayName
-
-    return true;
 }
 
 void OneSevenLiveCoreManager::saveDockState() {
-    if (!initialized || !mainWindow || !configManager) {
-        return;
+    if (dockOrchestrator_) {
+        dockOrchestrator_->saveDockState();
     }
-
-    QByteArray state = mainWindow->saveState();
-    configManager->setDockState(state);
-
-    obs_log(LOG_INFO, "Dock state saved successfully");
 }
 
 void OneSevenLiveCoreManager::handleChatRoomClicked() {
-    obs_log(LOG_INFO, "handleChatRoomClicked");
-
-    OneSevenLiveLoginData loginData;
-    if (!configManager->getLoginData(loginData)) {
-        obs_log(LOG_ERROR, "Failed to get login data");
-        return;
+    if (dockOrchestrator_) {
+        dockOrchestrator_->handleChatRoomClicked();
     }
-
-    std::string locale = GetCurrentLocale();
-    QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
-    QString chatUrl =
-        QString("http://localhost:%1/%2.html?roomID=%3&userID=%4&ws=%5")
-            .arg(QString::number(httpServer_->getPort()), QString::fromStdString(locale),
-                 QString::number(loginData.userInfo.roomID), loginData.userInfo.userID, wsUrl);
-
-    obs_log(LOG_INFO, "Chat URL: %s", chatUrl.toStdString().c_str());
-
-    if (!chatDock) {
-        obs_log(LOG_INFO, "Creating new chatDock instance");
-        chatDock = new QDockWidget(obs_module_text("ChatRoom.Title"), mainWindow);
-        chatDock->setObjectName("OneSevenLiveChatDock");
-        chatDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-        chatDock->setAttribute(Qt::WA_DeleteOnClose, false);
-        chatDock->installEventFilter(this);
-        chatDock->setMinimumSize(300, 400);
-
-        // Create the chat widget and set it as the dock's widget
-        OneSevenLiveChatWidget* chatWidget = new OneSevenLiveChatWidget(chatDock, chatUrl);
-        chatDock->setWidget(chatWidget);
-
-        mainWindow->addDockWidget(Qt::RightDockWidgetArea, chatDock);
-
-        if (isStartupRestore) {
-            chatDock->setVisible(true);
-        } else {
-            obs_log(LOG_INFO, "Setting chatDock to floating mode");
-            chatDock->setFloating(true);
-            bool hadChatStored =
-                configManager ? configManager->getDockVisibility("chatRoom") : false;
-            if (!hadChatStored) {
-                chatDock->resize(400, 600);
-            }
-            chatDock->setVisible(true);
-
-            // Center the dock
-            QRect mainWindowGeometry = mainWindow->geometry();
-            int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - chatDock->width()) / 2;
-            int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - chatDock->height()) / 2;
-            chatDock->move(x, y);
-        }
-
-        connect(chatDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            obs_log(LOG_INFO, "chatDock visibility changed: %s, isFloating: %s",
-                    visible ? "true" : "false",
-                    (chatDock && chatDock->isFloating()) ? "true" : "false");
-
-            if (menuManager) {
-                menuManager->updateDockVisibility(visible,
-                                                  streamingDock && streamingDock->isVisible(),
-                                                  liveListDock && liveListDock->isVisible(),
-                                                  rockZoneDock && rockZoneDock->isVisible(),
-                                                  multiRtmpDock && multiRtmpDock->isVisible(),
-                                                  previewDock && previewDock->isVisible());
-            }
-            chatDockVisible = visible;
-            if (visible)
-                flushChatEventQueue();
-        });
-    } else {
-        obs_log(LOG_INFO, "Toggling existing chatDock visibility. Current: %s",
-                chatDock->isVisible() ? "visible" : "hidden");
-        chatDock->setVisible(!chatDock->isVisible());
-        if (chatDock->isVisible()) {
-            chatDock->raise();
-            chatDock->activateWindow();
-        }
-    }
-
-    // Update visibility status for menu
-    if (menuManager) {
-        menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
-    }
-}
-
-bool OneSevenLiveCoreManager::eventFilter(QObject* obj, QEvent* event) {
-    if (obj == chatDock) {
-        if (event->type() == QEvent::Close) {
-            event->ignore();
-            chatDock->hide();
-            return true;
-        }
-    }
-    return QObject::eventFilter(obj, event);
 }
 
 void OneSevenLiveCoreManager::loadGifts() {
@@ -1868,7 +1101,11 @@ void OneSevenLiveCoreManager::loadGifts() {
                         return;
                     }
                     if (self->configManager) {
-                        self->configManager->saveGifts(apiResult);
+                        if (!self->configManager->saveGifts(apiResult)) {
+                            const auto err = self->configManager->getLastError();
+                            obs_log(LOG_WARNING, "Failed to save gifts: %s %s", err.code.c_str(),
+                                    err.message.c_str());
+                        }
                     }
                     self->buildGiftsMapFromJson(apiResult);
                 },
@@ -1884,7 +1121,178 @@ void OneSevenLiveCoreManager::loadGiftsFromConfig() {
     if (configManager->loadGifts(gifts)) {
         buildGiftsMapFromJson(gifts);
         obs_log(LOG_INFO, "Loaded gifts into memory map from config");
+    } else {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to load gifts from config: %s %s", err.code.c_str(),
+                err.message.c_str());
     }
+}
+
+void OneSevenLiveCoreManager::loadI18nConfig() {
+    if (i18nConfigLoading_.load()) {
+        obs_log(LOG_INFO, "I18n config is already loading, skipping request");
+        return;
+    }
+    i18nConfigLoading_.store(true);
+
+    obs_log(LOG_INFO, "Starting to load i18n config asynchronously");
+
+    OneSevenLiveLoginData loginData;
+    if (configManager) {
+        configManager->getLoginData(loginData);
+    }
+
+    std::string language = loginData.userInfo.region.toStdString();
+    if (language.empty()) {
+        language = GetCurrentLanguage();
+    }
+
+    QPointer<OneSevenLiveCoreManager> self = this;
+    ScheduleOBSTask([self, language]() {
+        if (!self)
+            return;
+        Json apiResult;
+        bool ok = false;
+        try {
+            if (self->apiWrapper) {
+                ok = self->apiWrapper->GetI18nConfig(language, apiResult);
+            }
+        } catch (...) {
+            ok = false;
+        }
+
+        if (self) {
+            QMetaObject::invokeMethod(
+                self,
+                [self, ok, apiResult, language]() {
+                    if (!self)
+                        return;
+                    self->i18nConfigLoading_.store(false);
+                    if (!ok) {
+                        obs_log(LOG_WARNING, "Failed to load i18n config from API");
+                        return;
+                    }
+
+                    Json cachedResult = apiResult;
+                    cachedResult["__17live_language"] = language;
+                    if (self->configManager && !self->configManager->saveI18nConfig(cachedResult)) {
+                        const auto err = self->configManager->getLastError();
+                        obs_log(LOG_WARNING, "Failed to save i18n config: %s %s", err.code.c_str(),
+                                err.message.c_str());
+                    }
+                },
+                Qt::QueuedConnection);
+        }
+    });
+}
+
+void OneSevenLiveCoreManager::loadEnterAnimationFiles() {
+    if (enterAnimationFilesLoading_.load()) {
+        obs_log(LOG_INFO, "Enter animation files are already loading, skipping request");
+        return;
+    }
+    enterAnimationFilesLoading_.store(true);
+
+    obs_log(LOG_INFO, "Starting to load enter animation files asynchronously");
+
+    QPointer<OneSevenLiveCoreManager> self = this;
+    ScheduleOBSTask([self]() {
+        if (!self)
+            return;
+        Json apiResult;
+        bool ok = false;
+        try {
+            if (self->apiWrapper) {
+                ok = self->apiWrapper->GetFilesList(apiResult);
+            }
+        } catch (...) {
+            ok = false;
+        }
+
+        if (self) {
+            QMetaObject::invokeMethod(
+                self,
+                [self, ok, apiResult]() {
+                    if (!self)
+                        return;
+                    self->enterAnimationFilesLoading_.store(false);
+                    if (!ok) {
+                        obs_log(LOG_WARNING, "Failed to load enter animation files from API");
+                        return;
+                    }
+                    if (self->configManager) {
+                        if (!self->configManager->saveEnterAnimationFiles(apiResult)) {
+                            const auto err = self->configManager->getLastError();
+                            obs_log(LOG_WARNING, "Failed to save enter animation files: %s %s",
+                                    err.code.c_str(), err.message.c_str());
+                        }
+                    }
+                    self->setEnterAnimationFilesCache(apiResult);
+                },
+                Qt::QueuedConnection);
+        }
+    });
+}
+
+bool OneSevenLiveCoreManager::refreshEnterAnimationFilesSync() {
+    bool expected = false;
+    if (!enterAnimationFilesLoading_.compare_exchange_strong(expected, true)) {
+        obs_log(LOG_INFO,
+                "Enter animation files are already loading, waiting for existing refresh");
+        QElapsedTimer timer;
+        timer.start();
+        while (enterAnimationFilesLoading_.load() && timer.elapsed() < 5000) {
+            QThread::msleep(50);
+        }
+        return hasEnterAnimationFiles();
+    }
+
+    Json apiResult;
+    bool ok = false;
+    try {
+        if (apiWrapper) {
+            ok = apiWrapper->GetFilesList(apiResult);
+        }
+    } catch (...) {
+        ok = false;
+    }
+
+    enterAnimationFilesLoading_.store(false);
+
+    if (!ok) {
+        obs_log(LOG_WARNING, "Failed to refresh enter animation files from API");
+        return false;
+    }
+
+    if (configManager) {
+        if (!configManager->saveEnterAnimationFiles(apiResult)) {
+            const auto err = configManager->getLastError();
+            obs_log(LOG_WARNING, "Failed to save enter animation files: %s %s", err.code.c_str(),
+                    err.message.c_str());
+        }
+    }
+
+    setEnterAnimationFilesCache(apiResult);
+    return true;
+}
+
+void OneSevenLiveCoreManager::loadEnterAnimationFilesFromConfig() {
+    if (!configManager)
+        return;
+    nlohmann::json filesJson;
+    if (configManager->loadEnterAnimationFiles(filesJson)) {
+        setEnterAnimationFilesCache(filesJson);
+        obs_log(LOG_INFO, "Loaded enter animation files from config");
+    } else {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to load enter animation files from config: %s %s",
+                err.code.c_str(), err.message.c_str());
+    }
+}
+
+void OneSevenLiveCoreManager::setEnterAnimationFilesCache(const nlohmann::json& filesJson) {
+    std::lock_guard<std::mutex> lock(enterAnimationFilesMutex_);
+    enterAnimationFilesCache_ = filesJson;
 }
 
 void OneSevenLiveCoreManager::buildGiftsMapFromJson(const nlohmann::json& giftsJson) {
@@ -1914,6 +1322,25 @@ bool OneSevenLiveCoreManager::isGiftsLoaded() const {
 
 bool OneSevenLiveCoreManager::isGiftsLoading() const {
     return giftsLoading_.load();
+}
+
+bool OneSevenLiveCoreManager::isEnterAnimationFilesLoaded() const {
+    std::lock_guard<std::mutex> lock(enterAnimationFilesMutex_);
+    return !enterAnimationFilesCache_.empty();
+}
+
+bool OneSevenLiveCoreManager::isEnterAnimationFilesLoading() const {
+    return enterAnimationFilesLoading_.load();
+}
+
+nlohmann::json OneSevenLiveCoreManager::getEnterAnimationFiles() const {
+    std::lock_guard<std::mutex> lock(enterAnimationFilesMutex_);
+    return enterAnimationFilesCache_;
+}
+
+bool OneSevenLiveCoreManager::hasEnterAnimationFiles() const {
+    std::lock_guard<std::mutex> lock(enterAnimationFilesMutex_);
+    return !enterAnimationFilesCache_.empty();
 }
 
 std::optional<nlohmann::json> OneSevenLiveCoreManager::getGiftByID(
@@ -1966,140 +1393,38 @@ bool OneSevenLiveCoreManager::showAutoCloseConfirmation(const QString& message) 
 }
 
 void OneSevenLiveCoreManager::handleMultiRtmpClicked() {
-    obs_log(LOG_INFO, "handleMultiRtmpClicked");
-
-    if (!multiRtmpDock) {
-        createMultiRtmpDock();
-    } else {
-        multiRtmpDock->setVisible(!multiRtmpDock->isVisible());
-    }
-
-    // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+    if (dockOrchestrator_) {
+        dockOrchestrator_->handleMultiRtmpClicked();
     }
 }
 
 void OneSevenLiveCoreManager::createMultiRtmpDock() {
-    if (multiRtmpDock) {
-        return;
-    }
-
-    OneSevenLiveLoginData loginData;
-    if (!configManager->getLoginData(loginData)) {
-        obs_log(LOG_ERROR, "Failed to get login data");
-        return;
-    }
-
-    // Create multi-RTMP dock
-    multiRtmpDock = new OneSevenLiveMultiRtmpDock(mainWindow);
-    multiRtmpDock->setObjectName("OneSevenLiveMultiRtmpDock");
-
-    multiRtmpDock->setMaximumWidth(600);
-    multiRtmpDock->resize(450, 600);
-
-    multiRtmpDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    mainWindow->addDockWidget(Qt::RightDockWidgetArea, multiRtmpDock);
-
-    // Only restore state during startup, otherwise set floating and center
-    if (isStartupRestore) {
-    } else {
-        // First time creation or manual creation - set floating and center
-        multiRtmpDock->setFloating(true);
-        multiRtmpDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - multiRtmpDock->width()) / 2;
-        int y =
-            mainWindowGeometry.y() + (mainWindowGeometry.height() - multiRtmpDock->height()) / 2;
-        multiRtmpDock->move(x, y);
-    }
-
-    if (multiRtmpDockFirstLoad) {
-        // Connect visibility change signal to update menu status
-        connect(multiRtmpDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            if (menuManager) {
-                menuManager->updateDockVisibility(chatDock && chatDock->isVisible(),
-                                                  streamingDock && streamingDock->isVisible(),
-                                                  liveListDock && liveListDock->isVisible(),
-                                                  rockZoneDock && rockZoneDock->isVisible(),
-                                                  visible, previewDock && previewDock->isVisible());
-            }
-        });
-
-        multiRtmpDockFirstLoad = false;
+    if (dockOrchestrator_) {
+        dockOrchestrator_->createMultiRtmpDock();
     }
 }
 
 void OneSevenLiveCoreManager::handlePreviewDockClicked() {
-    obs_log(LOG_INFO, "handlePreviewDockClicked");
-
-    if (!previewDock) {
-        createPreviewDock();
-    } else {
-        previewDock->setVisible(!previewDock->isVisible());
-    }
-
-    // Update menu item checked status
-    if (menuManager) {
-        menuManager->updateDockVisibility(
-            chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-            liveListDock && liveListDock->isVisible(), rockZoneDock && rockZoneDock->isVisible(),
-            multiRtmpDock && multiRtmpDock->isVisible(), previewDock && previewDock->isVisible());
+    if (dockOrchestrator_) {
+        dockOrchestrator_->handlePreviewDockClicked();
     }
 }
 
 void OneSevenLiveCoreManager::createPreviewDock() {
-    if (previewDock) {
-        return;
+    if (dockOrchestrator_) {
+        dockOrchestrator_->createPreviewDock();
     }
+}
 
-    QString wsUrl = QString::fromStdString("ws://127.0.0.1:%1").arg(websocketServer_->getPort());
-
-    QString cartoonUrl = QString("http://localhost:%1/vff/?ws=%2")
-                             .arg(QString::number(httpServer_->getPort()), wsUrl);
-    obs_log(LOG_INFO, "cartoonUrl: %s", cartoonUrl.toStdString().c_str());
-    // Create preview dock
-    previewDock = new OneSevenLivePreviewDock(mainWindow, cartoonUrl);
-    previewDock->setObjectName("OneSevenLivePreviewDock");
-
-    previewDock->setMaximumWidth(800);
-    previewDock->resize(640, 480);
-
-    previewDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    mainWindow->addDockWidget(Qt::RightDockWidgetArea, previewDock);
-
-    // Only restore state during startup, otherwise set floating and center
-    if (isStartupRestore) {
-    } else {
-        // First time creation or manual creation - set floating and center
-        previewDock->setFloating(true);
-        previewDock->setVisible(true);
-
-        // Center the dock on the main window
-        QRect mainWindowGeometry = mainWindow->geometry();
-        int x = mainWindowGeometry.x() + (mainWindowGeometry.width() - previewDock->width()) / 2;
-        int y = mainWindowGeometry.y() + (mainWindowGeometry.height() - previewDock->height()) / 2;
-        previewDock->move(x, y);
+void OneSevenLiveCoreManager::handleCustomizedCartoonClicked() {
+    if (dockOrchestrator_) {
+        dockOrchestrator_->handleCustomizedCartoonClicked();
     }
+}
 
-    if (previewDockFirstLoad) {
-        // Connect visibility change signal to update menu status
-        connect(previewDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-            if (menuManager) {
-                menuManager->updateDockVisibility(
-                    chatDock && chatDock->isVisible(), streamingDock && streamingDock->isVisible(),
-                    liveListDock && liveListDock->isVisible(),
-                    rockZoneDock && rockZoneDock->isVisible(),
-                    multiRtmpDock && multiRtmpDock->isVisible(), visible);
-            }
-        });
-
-        previewDockFirstLoad = false;
+void OneSevenLiveCoreManager::createCustomizedCartoonDock() {
+    if (dockOrchestrator_) {
+        dockOrchestrator_->createCustomizedCartoonDock();
     }
 }
 
@@ -2109,4 +1434,10 @@ void OneSevenLiveCoreManager::setShuttingDown(bool v) {
 
 bool OneSevenLiveCoreManager::isShuttingDown() const {
     return shuttingDown;
+}
+
+void OneSevenLiveCoreManager::syncMenuDockVisibility() {
+    if (dockOrchestrator_) {
+        dockOrchestrator_->syncMenuDockVisibility();
+    }
 }

@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl';
 import styled from 'styled-components';
 import SVG from './SVG';
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/';
 
 const PokeContainer = styled.div`
   display: inline-flex;
@@ -26,7 +26,7 @@ const PokeItem = ({ pokeInfo, streamerInfo }) => {
     return (
       <PokeContainer>
         {t('POKE_ALL')}
-        <SVG src={`${basePath}/images/ic-poke.svg`} width={24} height={18} />
+        <SVG src={`${basePath}images/ic-poke.svg`} width={24} height={18} />
       </PokeContainer>
     );
   }
@@ -36,7 +36,7 @@ const PokeItem = ({ pokeInfo, streamerInfo }) => {
     return (
       <PokeContainer>
         {t('POKE_ONE', { receiverName: pokeInfo.get("receiver").get("displayName") })}
-        <SVG src={`${basePath}/images/ic-poke.svg`} width={24} height={18} />
+        <SVG src={`${basePath}images/ic-poke.svg`} width={24} height={18} />
       </PokeContainer>
     );
   }
@@ -46,7 +46,7 @@ const PokeItem = ({ pokeInfo, streamerInfo }) => {
     return (
       <PokeContainer>
         {t('POKE_BACK')}
-        <SVG src={`${basePath}/images/ic-poke.svg`} width={24} height={18} />
+        <SVG src={`${basePath}images/ic-poke.svg`} width={24} height={18} />
       </PokeContainer>
     );
   }

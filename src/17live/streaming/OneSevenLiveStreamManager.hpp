@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QTimer>
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -72,6 +73,7 @@ class OneSevenLiveStreamManager : public QObject {
      * @return bool True if stream was stopped successfully
      */
     bool stopStream(bool isAutoClose = false);
+    bool isStopStreamInProgress() const;
 
     /**
      * @brief Start live stream with the given response
@@ -285,6 +287,7 @@ class OneSevenLiveStreamManager : public QObject {
     void onStatusTimer();
     void logCurrentObsOutputInfo();
     QTimer* m_streamLogTimer{nullptr};
+    std::atomic<bool> stopStreamInProgress_{false};
 
     void wsBroadcast(const QString& type, const nlohmann::json& payload);
 };

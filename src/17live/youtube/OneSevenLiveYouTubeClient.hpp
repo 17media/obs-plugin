@@ -9,6 +9,7 @@
 
 // Forward declarations
 class RemoteTextThread;
+class QTimer;
 
 struct YouTubeLiveStreamSnippet {
     QString publishedAt;
@@ -87,6 +88,7 @@ struct YouTubeLiveBroadcastSnippet {
     QString channelId;
     QString scheduledStartTime;
     QString actualStartTime;
+    QString actualEndTime;
 
     YouTubeLiveBroadcastSnippet() {}
 };
@@ -97,12 +99,18 @@ struct YouTubeLiveBroadcastStatus {
     YouTubeLiveBroadcastStatus() {}
 };
 
+struct YouTubeLiveBroadcastContentDetails {
+    QString boundStreamId;
+    bool enableMonitorStream = false;
+};
+
 struct YouTubeLiveBroadcast {
     QString kind;
     QString etag;
     QString id;
     YouTubeLiveBroadcastSnippet snippet;
     YouTubeLiveBroadcastStatus status;
+    YouTubeLiveBroadcastContentDetails contentDetails;
 
     YouTubeLiveBroadcast() : kind("youtube#liveBroadcast") {}
 };
@@ -110,6 +118,7 @@ struct YouTubeLiveBroadcast {
 struct YouTubeLiveBroadcastListResponse {
     QString kind;
     QString etag;
+    QString nextPageToken;
     QVector<YouTubeLiveBroadcast> items;
 
     YouTubeLiveBroadcastListResponse() : kind("youtube#liveBroadcastListResponse") {}
@@ -131,15 +140,23 @@ class OneSevenLiveYouTubeClient : public QObject {
     void getLiveStreamById(const QString& streamId);
     void createLiveStream(const QString& title, const QString& description = QString());
     void deleteLiveStream(const QString& streamId);
-    void getMyLiveBroadcasts(const QString& broadcastStatus = QString());
+    void getMyLiveBroadcasts(const QString& broadcastStatus = QString(),
+                             const QString& pageToken = QString());
     void getLiveBroadcastById(const QString& broadcastId);
-    void createLiveBroadcast(const QString& title, const QString& privacyStatus = "public");
+    void createLiveBroadcast(const QString& title, const QString& privacyStatus = "public",
+                             const QString& latency = "normal", bool autoStart = false,
+                             bool autoStop = false, bool dvr = true, bool scheduleLater = false);
     void bindLiveBroadcast(const QString& broadcastId, const QString& streamId);
     void transitionLiveBroadcast(const QString& broadcastId, const QString& status);
+    void startBroadcast(const QString& broadcastId);
+    void startBroadcast(const QString& broadcastId, const QString& boundStreamId);
+    void stopBroadcast(const QString& broadcastId);
+    void resetBroadcast(const QString& broadcastId);
 
     // Configuration
     void setApiKey(const QString& apiKey);
     void setTimeout(int timeoutMs);
+    void retryLastRequest();
 
    signals:
     void myLiveStreamsReceived(const YouTubeLiveStreamListResponse& response);
@@ -159,11 +176,18 @@ class OneSevenLiveYouTubeClient : public QObject {
     void onApiRequestError(const QString& response, const QString& error);
 
    private:
+    void beginWaitStreamActiveAndTransition(const QString& broadcastId, const QString& streamId);
     void makeApiRequest(const QString& endpoint, const QString& method = "GET",
                         const QString& body = QString());
     QString m_lastBroadcastId;
     QString m_lastStreamId;
     QString m_lastTransitionStatus;
+    QTimer* m_streamActivePollTimer{nullptr};
+    bool m_waitingStreamActiveForStart{false};
+    QString m_pendingStartBroadcastId;
+    QString m_boundStreamIdForStart;
+    int m_streamActivePollAttempts{0};
+    QString m_boundStreamIdOverrideForStart;
     QString buildApiUrl(const QString& endpoint, const QMap<QString, QString>& params) const;
 
     // JSON parsing
@@ -177,6 +201,8 @@ class OneSevenLiveYouTubeClient : public QObject {
     YouTubeLiveStreamListResponse parseLiveStreamListResponse(const nlohmann::json& json) const;
     YouTubeLiveBroadcastSnippet parseLiveBroadcastSnippet(const nlohmann::json& json) const;
     YouTubeLiveBroadcastStatus parseLiveBroadcastStatus(const nlohmann::json& json) const;
+    YouTubeLiveBroadcastContentDetails parseLiveBroadcastContentDetails(
+        const nlohmann::json& json) const;
     YouTubeLiveBroadcast parseLiveBroadcast(const nlohmann::json& json) const;
     YouTubeLiveBroadcastListResponse parseLiveBroadcastListResponse(
         const nlohmann::json& json) const;
@@ -193,10 +219,12 @@ class OneSevenLiveYouTubeClient : public QObject {
     QString m_apiKey;
     int m_timeoutMs = 30000;  // Default timeout
     bool m_hasValidAuth = false;
+    bool m_retryPending = false;
 
     // Request context
     QString m_currentOperation;
     QString m_lastEndpoint;
     QString m_lastMethod;
     QString m_lastBody;
+    nlohmann::json m_tempBroadcastJson;
 };

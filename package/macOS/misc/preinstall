@@ -1,0 +1,184 @@
+#!/bin/bash
+
+set -u
+
+TITLE="17LIVE OBS Plugin"
+LEGACY_APP_PLUGIN="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin"
+LEGACY_APP_PLUGIN_DSYM="/Applications/OBS.app/Contents/PlugIns/obs-17live.plugin.dSYM"
+LEGACY_UNINSTALL_LOG="/tmp/obs-17live-legacy-uninstall.log"
+TEMP_ADMIN_SCRIPT=""
+CONSOLE_UID=""
+
+detect_console_user() {
+  local console_user
+  console_user="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null || true)"
+
+  if [ -n "$console_user" ] && [ "$console_user" != "root" ]; then
+    CONSOLE_UID="$(/usr/bin/id -u "$console_user" 2>/dev/null || true)"
+  else
+    CONSOLE_UID=""
+  fi
+}
+
+run_osascript_for_console_user() {
+  local script="$1"
+  if [ -n "$CONSOLE_UID" ]; then
+    /bin/launchctl asuser "$CONSOLE_UID" /usr/bin/osascript -e "$script"
+    return $?
+  fi
+
+  /usr/bin/osascript -e "$script"
+}
+
+get_preferred_language() {
+  local locale=""
+
+  if [ -n "$CONSOLE_UID" ]; then
+    locale="$(/bin/launchctl asuser "$CONSOLE_UID" /usr/bin/defaults read -g AppleLocale 2>/dev/null || true)"
+    if [ -z "$locale" ]; then
+      locale="$(/bin/launchctl asuser "$CONSOLE_UID" /usr/bin/defaults read -g AppleLanguages 2>/dev/null | /usr/bin/awk -F'"' 'NR==2 {print $2}' || true)"
+    fi
+  fi
+
+  if [ -z "$locale" ]; then
+    locale="${LANG:-en_US}"
+  fi
+
+  case "$locale" in
+    zh*|ZH*)
+      echo "zh-TW"
+      ;;
+    ja*|JA*)
+      echo "ja-JP"
+      ;;
+    *)
+      echo "en-US"
+      ;;
+  esac
+}
+
+get_button_label() {
+  local key="$1"
+  local lang="$2"
+
+  case "$lang:$key" in
+    zh-TW:ok) echo "好" ;;
+    zh-TW:continue) echo "繼續" ;;
+    zh-TW:cancel) echo "取消" ;;
+    ja-JP:ok) echo "OK" ;;
+    ja-JP:continue) echo "続ける" ;;
+    ja-JP:cancel) echo "キャンセル" ;;
+    en-US:ok) echo "OK" ;;
+    en-US:continue) echo "Continue" ;;
+    en-US:cancel) echo "Cancel" ;;
+    *) echo "OK" ;;
+  esac
+}
+
+get_message() {
+  local key="$1"
+  local lang="$2"
+
+  case "$lang:$key" in
+    zh-TW:legacy_detected)
+      echo "偵測到舊版 17LIVE OBS Plugin 安裝於 /Applications/OBS.app 內。\\n\\n安裝程式將先以管理員權限移除舊版檔案，之後再繼續安裝新版本。"
+      ;;
+    ja-JP:legacy_detected)
+      echo "旧バージョンの 17LIVE OBS Plugin が /Applications/OBS.app 内に見つかりました。\\n\\nインストーラーは管理者権限で古いファイルを削除してから、新しいバージョンのインストールを続行します。"
+      ;;
+    en-US:legacy_detected)
+      echo "A legacy version of the 17LIVE OBS plugin was found inside /Applications/OBS.app.\\n\\nThe installer will remove the old plugin files with administrator privileges, then continue installing the new version."
+      ;;
+    zh-TW:cleanup_failed)
+      echo "無法移除 /Applications/OBS.app 內的舊版插件檔案。為避免重複載入插件，安裝已停止。\\n\\n詳細資訊請查看 /tmp/obs-17live-legacy-uninstall.log。"
+      ;;
+    ja-JP:cleanup_failed)
+      echo "/Applications/OBS.app 内の旧バージョンプラグインファイルを削除できませんでした。重複読み込みを防ぐため、インストールを中止しました。\\n\\n詳細は /tmp/obs-17live-legacy-uninstall.log を確認してください。"
+      ;;
+    en-US:cleanup_failed)
+      echo "Failed to remove the legacy plugin files inside /Applications/OBS.app. Installation has been stopped to avoid duplicate plugin loading.\\n\\nSee /tmp/obs-17live-legacy-uninstall.log for details."
+      ;;
+    zh-TW:cleanup_still_exists)
+      echo "清理完成後，/Applications/OBS.app 內仍然存在舊版插件檔案。為避免重複載入插件，安裝已停止。\\n\\n詳細資訊請查看 /tmp/obs-17live-legacy-uninstall.log。"
+      ;;
+    ja-JP:cleanup_still_exists)
+      echo "クリーンアップ後も /Applications/OBS.app 内に旧バージョンのプラグインファイルが残っています。重複読み込みを防ぐため、インストールを中止しました。\\n\\n詳細は /tmp/obs-17live-legacy-uninstall.log を確認してください。"
+      ;;
+    en-US:cleanup_still_exists)
+      echo "The legacy plugin files still exist inside /Applications/OBS.app after cleanup. Installation has been stopped to avoid duplicate plugin loading.\\n\\nSee /tmp/obs-17live-legacy-uninstall.log for details."
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+show_dialog() {
+  local message="$1"
+  local button1="${2:-OK}"
+  local button2="${3:-}"
+  local default_button="${4:-1}"
+  local script
+
+  if [ -n "$button2" ]; then
+    script="display dialog \"$message\" with title \"$TITLE\" buttons {\"$button2\", \"$button1\"} default button \"$button1\""
+  else
+    script="display dialog \"$message\" with title \"$TITLE\" buttons {\"$button1\"} default button $default_button"
+  fi
+  run_osascript_for_console_user "$script"
+}
+
+cleanup_temp_admin_script() {
+  if [ -n "$TEMP_ADMIN_SCRIPT" ] && [ -f "$TEMP_ADMIN_SCRIPT" ]; then
+    /bin/rm -f "$TEMP_ADMIN_SCRIPT"
+  fi
+}
+
+cleanup() {
+  cleanup_temp_admin_script
+}
+
+detect_console_user
+PREFERRED_LANGUAGE="$(get_preferred_language)"
+OK_LABEL="$(get_button_label ok "$PREFERRED_LANGUAGE")"
+CONTINUE_LABEL="$(get_button_label continue "$PREFERRED_LANGUAGE")"
+CANCEL_LABEL="$(get_button_label cancel "$PREFERRED_LANGUAGE")"
+
+if [ ! -d "$LEGACY_APP_PLUGIN" ] && [ ! -d "$LEGACY_APP_PLUGIN_DSYM" ]; then
+  exit 0
+fi
+
+if ! show_dialog "$(get_message legacy_detected "$PREFERRED_LANGUAGE")" "$CONTINUE_LABEL" "$CANCEL_LABEL"; then
+  exit 1
+fi
+
+trap cleanup EXIT
+
+TEMP_ADMIN_SCRIPT="$(/usr/bin/mktemp /tmp/obs-17live-legacy-uninstall.XXXXXX.sh)"
+
+cat > "$TEMP_ADMIN_SCRIPT" <<EOF
+#!/bin/bash
+{
+  if [ -d "$LEGACY_APP_PLUGIN" ]; then
+    /bin/rm -rf "$LEGACY_APP_PLUGIN"
+    echo "Removed: $LEGACY_APP_PLUGIN"
+  fi
+  if [ -d "$LEGACY_APP_PLUGIN_DSYM" ]; then
+    /bin/rm -rf "$LEGACY_APP_PLUGIN_DSYM"
+    echo "Removed: $LEGACY_APP_PLUGIN_DSYM"
+  fi
+} >"$LEGACY_UNINSTALL_LOG" 2>&1
+EOF
+/bin/chmod 700 "$TEMP_ADMIN_SCRIPT"
+
+if ! run_osascript_for_console_user "do shell script \"/bin/sh '$TEMP_ADMIN_SCRIPT'\" with administrator privileges"; then
+  show_dialog "$(get_message cleanup_failed "$PREFERRED_LANGUAGE")" "$OK_LABEL"
+  exit 1
+fi
+
+if [ -d "$LEGACY_APP_PLUGIN" ] || [ -d "$LEGACY_APP_PLUGIN_DSYM" ]; then
+  show_dialog "$(get_message cleanup_still_exists "$PREFERRED_LANGUAGE")" "$OK_LABEL"
+  exit 1
+fi
+
+exit 0

@@ -28,6 +28,8 @@
                 my.result.type = 'Fatal';
                 return false;
             }
+
+            return true;
         }
     </script>
 </installer-gui-script>

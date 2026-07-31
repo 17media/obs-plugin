@@ -9,6 +9,9 @@ const CommentFrame = styled.div`
   max-width: 100%;
   position: relative;
   display: inline-flex;
+  box-sizing: border-box;
+  min-width: 0;
+  width: fit-content;
   padding: ${({ borderWidth }) => borderWidth}px;
 `;
 

@@ -51,7 +51,8 @@ OneSevenLiveMultiRtmpStreamItem::OneSevenLiveMultiRtmpStreamItem(
       m_statsTimer(nullptr),
       m_manager(nullptr),
       m_lastTotalBytes(0),
-      m_lastTotalFrames(0) {
+      m_lastTotalFrames(0),
+      m_smoothedFPS(0.0) {
     setFrameStyle(QFrame::StyledPanel | QFrame::Raised);
     setLineWidth(1);
     setMidLineWidth(0);
@@ -239,6 +240,8 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatus(
         m_lastStatsTime = m_startTime;
         m_lastTotalBytes = 0;
         m_lastTotalFrames = 0;
+        m_smoothedFPS = 0.0;
+        m_stats.duration = std::chrono::milliseconds(0);
     }
 
     m_status = status;
@@ -249,6 +252,7 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatus(
 
 void OneSevenLiveMultiRtmpStreamItem::updateStats(const OneSevenLiveMultiRtmpStreamStats& stats) {
     m_stats = stats;
+    m_lastStatsTime = std::chrono::steady_clock::now();
     updateStatsDisplay();
     updateErrorHint();
 }
@@ -360,9 +364,6 @@ void OneSevenLiveMultiRtmpStreamItem::onDeleteAction() {
 }
 
 void OneSevenLiveMultiRtmpStreamItem::onStatsUpdateTimer() {
-    if (isActive()) {
-        collectRealTimeStats();
-    }
     updateStatsDisplay();
 }
 
@@ -401,7 +402,8 @@ void OneSevenLiveMultiRtmpStreamItem::updateStatsDisplay() {
     bool showStats = isConnected || isConnPhase || hasRecentStats;
 
     if (showStats) {
-        QString duration = formatDuration(static_cast<uint64_t>(m_stats.duration.count()));
+        const uint64_t durationSeconds = static_cast<uint64_t>(m_stats.duration.count());
+        QString duration = formatDuration(durationSeconds);
         QString bitrate = formatBitrate(static_cast<uint64_t>(m_stats.currentBitrate * 1000));
         QString fps = formatFrameRate(m_stats.currentFPS);
 
@@ -608,113 +610,7 @@ QString OneSevenLiveMultiRtmpStreamItem::formatBitrate(uint64_t bytes) const {
 }
 
 void OneSevenLiveMultiRtmpStreamItem::collectRealTimeStats() {
-    if (!m_manager || !isActive()) {
-        // Reset stats when not active to prevent stale data
-        m_stats.currentBitrate = 0.0;
-        m_stats.currentFPS = 0;
-        return;
-    }
-
-    // Get obs_output_t* from manager
-    obs_output_t* output = m_manager->getStreamOutput(m_config.id);
-    if (!output) {
-        // Reset stats when output is not available
-        m_stats.currentBitrate = 0.0;
-        m_stats.currentFPS = 0;
-        return;
-    }
-
-    using namespace std::chrono;
-
-    auto now = steady_clock::now();
-    auto newBytes = obs_output_get_total_bytes(output);
-    auto newFrames = obs_output_get_total_frames(output);
-
-    // Validate OBS data - ensure we have valid values
-    if (newBytes == 0 && newFrames == 0) {
-        // OBS might not have started collecting stats yet, keep previous values
-        return;
-    }
-
-    // Calculate time interval with minimum threshold to avoid division by very small numbers
-    auto interval = duration_cast<duration<double>>(now - m_lastStatsTime).count();
-    const double MIN_INTERVAL = 0.1;  // Minimum 100ms interval
-
-    if (interval >= MIN_INTERVAL && m_lastStatsTime != m_startTime) {
-        // Calculate duration since start
-        m_stats.duration = duration_cast<std::chrono::milliseconds>(now - m_startTime);
-
-        // Calculate bitrate with validation
-        if (newBytes >= m_lastTotalBytes) {  // Use >= to handle equal case
-            auto byteDiff = newBytes - m_lastTotalBytes;
-            if (byteDiff > 0) {
-                double newBitrate = (byteDiff * 8.0) / (interval * 1000.0);  // Convert to Kbps
-
-                // Apply reasonable bounds (0 to 100 Mbps)
-                if (newBitrate >= 0.0 && newBitrate <= 100000.0) {
-                    // Apply simple smoothing to reduce flickering
-                    const double SMOOTHING_FACTOR = 0.3;
-                    if (m_stats.currentBitrate > 0.0) {
-                        m_stats.currentBitrate = m_stats.currentBitrate * (1.0 - SMOOTHING_FACTOR) +
-                                                 newBitrate * SMOOTHING_FACTOR;
-                    } else {
-                        m_stats.currentBitrate = newBitrate;
-                    }
-                }
-            }
-        } else {
-            // Handle case where bytes decreased (shouldn't happen normally)
-            // This might indicate a stream restart, reset tracking
-            m_lastTotalBytes = newBytes;
-            m_lastTotalFrames = newFrames;
-            m_lastStatsTime = now;
-            return;
-        }
-
-        // Calculate frame rate with validation
-        if (newFrames >= static_cast<int>(m_lastTotalFrames)) {  // Use >= to handle equal case
-            auto frameDiff = newFrames - m_lastTotalFrames;
-            if (frameDiff > 0) {
-                double newFPS = static_cast<double>(frameDiff) / interval;
-
-                // Apply reasonable bounds (0 to 120 FPS)
-                if (newFPS >= 0.0 && newFPS <= 120.0) {
-                    // Apply simple smoothing to reduce flickering
-                    const double SMOOTHING_FACTOR = 0.3;
-                    if (m_stats.currentFPS > 0) {
-                        double smoothedFPS = m_stats.currentFPS * (1.0 - SMOOTHING_FACTOR) +
-                                             newFPS * SMOOTHING_FACTOR;
-                        m_stats.currentFPS = static_cast<int>(std::round(smoothedFPS));
-                    } else {
-                        m_stats.currentFPS = static_cast<int>(std::round(newFPS));
-                    }
-                }
-            }
-        } else {
-            // Handle case where frames decreased (shouldn't happen normally)
-            // This might indicate a stream restart, reset tracking
-            m_lastTotalBytes = newBytes;
-            m_lastTotalFrames = newFrames;
-            m_lastStatsTime = now;
-            return;
-        }
-
-        // Update total stats with validation
-        m_stats.totalFrames = newFrames;
-
-        // Get dropped frames with validation
-        uint32_t droppedFrames = obs_output_get_frames_dropped(output);
-        if (droppedFrames <= static_cast<uint32_t>(newFrames)) {  // Sanity check
-            m_stats.droppedFrames = droppedFrames;
-        }
-    }
-
-    // Update tracking variables only if we have valid data
-    if (newBytes >= m_lastTotalBytes && newFrames >= static_cast<int>(m_lastTotalFrames)) {
-        m_lastTotalBytes = newBytes;
-        m_lastTotalFrames = newFrames;
-        m_lastStatsTime = now;
-    }
+    Q_UNUSED(this);
 }
 
 #include "moc_OneSevenLiveMultiRtmpStreamItem.cpp"
