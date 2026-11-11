@@ -28,105 +28,16 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
     };
 
     m_wsClient->setOpenCallback([this]() {
+        stopIdleWatchdog();
+        obs_log(LOG_INFO, "[AblyDiag] websocket_open host_index=%d", m_hostIndex);
         if (m_onOpen)
             QMetaObject::invokeMethod(this, [this]() { m_onOpen(); }, Qt::QueuedConnection);
-        m_reconnectAttempts = 0;
     });
     m_wsClient->setMessageCallback([this](const std::string& msg) {
-        // Parse Ably protocol message and attach after CONNECTED
+        m_diagLastMessageMs = QDateTime::currentMSecsSinceEpoch();
+        noteInboundActivity();
         try {
-            nlohmann::json j = nlohmann::json::parse(msg);
-            obs_log(LOG_DEBUG, "[Ably] recv %s", j.dump().c_str());
-            if (j.contains("action")) {
-                int action = -1;
-                if (j["action"].is_number_integer())
-                    action = j["action"].get<int>();
-                else if (j["action"].is_string()) {
-                    // Fallback: map common strings
-                    std::string a = j["action"].get<std::string>();
-                    if (a == "connected")
-                        action = 4;
-                    else if (a == "message")
-                        action = 15;
-                    else if (a == "error")
-                        action = 9;
-                    else if (a == "disconnected")
-                        action = 6;
-                }
-                if (action == 4) {
-                    try {
-                        if (j.contains("connectionKey") && j["connectionKey"].is_string()) {
-                            m_connectionKey =
-                                QString::fromStdString(j["connectionKey"].get<std::string>());
-                        } else if (j.contains("connectionId") && j["connectionId"].is_string()) {
-                            m_connectionKey =
-                                QString::fromStdString(j["connectionId"].get<std::string>());
-                        }
-                    } catch (...) {
-                    }
-                    auto* sm = OneSevenLiveCoreManager::getInstance().getStreamManager();
-                    bool isLive = false;
-                    if (sm) {
-                        auto st = sm->getCurrentStreamingStatus();
-                        isLive = (st != OneSevenLiveStreamingStatus::NotStarted);
-                    }
-                    if (isLive) {
-                        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-                            QString::fromUtf8(ws::EventAblyChatConnected),
-                            nlohmann::json{{"status", "connected"}});
-                    }
-                    QTimer::singleShot(100, this, [this]() { attachChannel(); });
-                } else if (action == 11) {
-                    m_attached = true;
-                } else if (action == 6 || action == 9) {
-                    bool needRefresh = false;
-                    if (j.contains("error") && j["error"].is_object()) {
-                        try {
-                            const auto& e = j["error"];
-                            if (e.contains("code") && e["code"].is_number_integer()) {
-                                int code = e["code"].get<int>();
-                                if (code >= 40140 && code <= 40149)
-                                    needRefresh = true;
-                            }
-                        } catch (...) {
-                        }
-                    }
-                    if (needRefresh) {
-                        refreshToken([this](bool success) {
-                            (void) success;
-                            scheduleReconnect();
-                        });
-                    } else {
-                        scheduleReconnect();
-                    }
-                } else if (action == 14) {
-                } else if (action == 15) {
-                    // obs_log(LOG_INFO, "[Ably] message action received: channel=%s messageCount=%zu",
-                    //         channel.c_str(), messageCount);
-                } else if (action == 16) {
-                } else if (action == 12) {
-                    if (j.contains("channel") && j["channel"].is_string()) {
-                        m_attachedChannels.remove(
-                            QString::fromStdString(j["channel"].get<std::string>()));
-                    }
-                } else if (action == 1 || action == 2) {
-                    int msgSerial = j.contains("msgSerial") && j["msgSerial"].is_number_integer()
-                                        ? j["msgSerial"].get<int>()
-                                        : -1;
-                    std::string reason;
-                    if (j.contains("error") && j["error"].is_object()) {
-                        reason = j["error"].dump();
-                    }
-                    obs_log(LOG_INFO, "[Ably] %s msgSerial=%d reason=%s",
-                            action == 1 ? "ack" : "nack", msgSerial, reason.c_str());
-                }
-                if (j.contains("connectionSerial") && j["connectionSerial"].is_number_integer()) {
-                    try {
-                        m_lastConnectionSerial = j["connectionSerial"].get<long long>();
-                    } catch (...) {
-                    }
-                }
-            }
+            handleProtocolMessage(nlohmann::json::parse(msg));
         } catch (const std::exception& e) {
             obs_log(LOG_WARNING, "[Ably] JSON parse error: %s", e.what());
         } catch (...) {
@@ -140,26 +51,35 @@ OneSevenLiveAblyChatClient::OneSevenLiveAblyChatClient(QObject* parent)
                 this, [this, msg]() { m_onMessage(msg); }, Qt::QueuedConnection);
     });
     m_wsClient->setCloseCallback([this]() {
+        stopIdleWatchdog();
+        obs_log(LOG_INFO, "[AblyDiag] websocket_close attached=%d closing=%d channel_failed=%d",
+                m_attached, m_closing, m_channelFailed);
+        m_attached = false;
         if (m_onClose)
             QMetaObject::invokeMethod(this, [this]() { m_onClose(); }, Qt::QueuedConnection);
-        if (!m_closing)
+        if (!m_closing && !m_channelFailed)
             scheduleReconnect();
-        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-            QString::fromUtf8(ws::EventAblyChatConnected), nlohmann::json{{"status", "break"}});
+        broadcastStatus(false);
     });
     m_wsClient->setErrorCallback([this](const std::string& err) {
+        stopIdleWatchdog();
+        const auto category = err.substr(0, err.find(' '));
+        obs_log(LOG_WARNING,
+                "[AblyDiag] websocket_error category=%s host_index=%d attached=%d closing=%d",
+                category.c_str(), m_hostIndex, m_attached, m_closing);
+        m_attached = false;
         if (m_onError)
             QMetaObject::invokeMethod(
                 this, [this, err]() { m_onError(err); }, Qt::QueuedConnection);
+        if (m_closing || m_channelFailed)
+            return;
         if (m_hostIndex + 1 < (int) m_hosts.size()) {
             m_hostIndex++;
             tryConnectWithFallbackHosts();
         } else {
             scheduleReconnect();
         }
-        OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
-            QString::fromUtf8(ws::EventAblyChatConnected),
-            nlohmann::json{{"status", "break"}, {"error", err}});
+        broadcastStatus(false);
     });
 }
 
@@ -167,7 +87,106 @@ OneSevenLiveAblyChatClient::~OneSevenLiveAblyChatClient() {
     disconnect();
 }
 
+void OneSevenLiveAblyChatClient::broadcastStatus(bool connected, int errorCode) {
+    auto* sm = OneSevenLiveCoreManager::getInstance().getStreamManager();
+    connected = connected && sm &&
+                sm->getCurrentStreamingStatus() != OneSevenLiveStreamingStatus::NotStarted;
+    nlohmann::json payload{{"status", connected ? "connected" : "break"}};
+    if (!connected && !errorCode)
+        errorCode = m_lastErrorCode;
+    if (errorCode)
+        payload["errorCode"] = errorCode;
+    OneSevenLiveCoreManager::getInstance().enqueueOrBroadcastChatEvent(
+        QString::fromUtf8(ws::EventAblyChatConnected), payload);
+}
+
+void OneSevenLiveAblyChatClient::handleProtocolMessage(const nlohmann::json& message) {
+    if (!message.is_object() || !message.contains("action") ||
+        !message["action"].is_number_integer())
+        return;
+    const int action = message["action"].get<int>();
+    const bool roomChannel = message.value("channel", std::string()) == m_roomId.toStdString();
+    if (roomChannel && action == 15)
+        ++m_diagMessageFrames;
+    if (action == 4) {
+        const auto details = message.find("connectionDetails");
+        if (details != message.end() && details->is_object()) {
+            configureIdleWatchdog(*details);
+            const auto key = details->find("connectionKey");
+            if (key != details->end() && key->is_string())
+                m_connectionKey = QString::fromStdString(key->get<std::string>());
+        }
+        const QString connectionId =
+            QString::fromStdString(message.value("connectionId", std::string()));
+        const bool authUpdate = ably::isAuthUpdate(
+            m_attached, m_connectionId.toStdString(), connectionId.toStdString());
+        obs_log(LOG_INFO,
+                "[AblyDiag] protocol_connected auth_update=%d connection_id_changed=%d has_key=%d",
+                authUpdate,
+                !m_connectionId.isEmpty() && !connectionId.isEmpty() &&
+                    connectionId != m_connectionId,
+                !m_connectionKey.isEmpty());
+        if (!m_connectionId.isEmpty() && !connectionId.isEmpty() && connectionId != m_connectionId)
+            obs_log(LOG_WARNING, "[Ably] Connection ID changed; checking channel continuity");
+        if (!connectionId.isEmpty())
+            m_connectionId = connectionId;
+        if (!authUpdate)
+            attachChannel();
+    } else if (roomChannel && action == 11) {
+        const bool continuityLost = m_channelRecovery.attached(message);
+        const int flags = message.value("flags", 0);
+        obs_log(LOG_INFO, "[AblyDiag] channel_attached flags=%d resumed=%d continuity_lost=%d",
+                flags, (flags & (1 << 2)) != 0, continuityLost);
+        m_attached = true;
+        m_lastErrorCode = 0;
+        m_reconnectAttempts = 0;
+        cancelReconnect();
+        if (continuityLost)
+            obs_log(LOG_WARNING, "[Ably] Channel attached without message continuity");
+        broadcastStatus(true);
+    } else if (action == 6 || action == 9 || (roomChannel && action == 13)) {
+        obs_log(LOG_WARNING, "[AblyDiag] protocol_error action=%d room_channel=%d", action,
+                roomChannel);
+        handleProtocolError(message);
+    } else if (roomChannel && (action == 14 || action == 15 || action == 19 || action == 21)) {
+        m_channelRecovery.updateSerial(message);
+    }
+}
+
+void OneSevenLiveAblyChatClient::handleProtocolError(const nlohmann::json& message) {
+    int code = 0;
+    int statusCode = 0;
+    const auto error = message.find("error");
+    if (error != message.end() && error->is_object()) {
+        code = error->value("code", 0);
+        statusCode = error->value("statusCode", 0);
+    }
+    m_attached = false;
+    m_lastErrorCode = code;
+    broadcastStatus(false, code);
+    if (ably::classifyError(code, statusCode) == ably::ErrorKind::Permission) {
+        m_channelFailed = true;
+        cancelReconnect();
+        obs_log(LOG_ERROR, "[Ably] Channel permission denied (code %d, status %d)", code,
+                statusCode);
+        return;
+    }
+    if (ably::classifyError(code, statusCode) == ably::ErrorKind::Token)
+        m_token.clear();
+    obs_log(LOG_WARNING, "[Ably] Protocol error (code %d, status %d); scheduling retry", code,
+            statusCode);
+    scheduleReconnect();
+}
+
 void OneSevenLiveAblyChatClient::setRoomId(const QString& roomId) {
+    if (m_roomId != roomId) {
+        if (!m_roomId.isEmpty())
+            disconnect();
+        m_token.clear();
+        m_connectionKey.clear();
+        m_connectionId.clear();
+        m_channelRecovery.reset();
+    }
     m_roomId = roomId;
 }
 
@@ -200,24 +219,29 @@ bool OneSevenLiveAblyChatClient::connect() {
     if (m_roomId.isEmpty())
         return false;
 
+    m_diagLastMessageMs = 0;
+    m_diagMessageFrames = 0;
+    obs_log(LOG_INFO, "[AblyDiag] connect_requested has_token=%d", !m_token.isEmpty());
+    m_closing = false;
+    m_channelFailed = false;
+    m_lastErrorCode = 0;
+    m_hostIndex = 0;
+    m_reconnectAttempts = 0;
+    cancelReconnect();
     if (m_token.isEmpty()) {
         fetchTokenAsync([this](bool success) {
+            if (m_closing)
+                return;
             if (success) {
-                m_hostIndex = 0;
-                m_closing = false;
-                m_reconnectAttempts = 0;
-                cancelReconnect();
                 tryConnectWithFallbackHosts();
             } else {
-                obs_log(LOG_ERROR, "Failed to fetch Ably token during connect");
+                obs_log(LOG_WARNING,
+                        "Failed to fetch Ably token during connect, scheduling retry");
+                scheduleReconnect();
             }
         });
     } else {
         scheduleTokenRefresh(0, 0, 0);
-        m_hostIndex = 0;
-        m_closing = false;
-        m_reconnectAttempts = 0;
-        cancelReconnect();
         tryConnectWithFallbackHosts();
     }
 
@@ -225,7 +249,12 @@ bool OneSevenLiveAblyChatClient::connect() {
 }
 
 void OneSevenLiveAblyChatClient::disconnect() {
+    obs_log(LOG_INFO, "[AblyDiag] disconnect_requested attached=%d", m_attached);
     m_closing = true;
+    stopIdleWatchdog();
+    ++m_generation;
+    m_tokenFetchInProgress = false;
+    m_attached = false;
     cancelReconnect();
     cancelTokenRefresh();
     if (m_wsClient)
@@ -233,117 +262,110 @@ void OneSevenLiveAblyChatClient::disconnect() {
 }
 
 bool OneSevenLiveAblyChatClient::isConnected() const {
-    return m_wsClient && m_wsClient->isConnected();
+    return m_attached && m_wsClient && m_wsClient->isConnected();
+}
+
+int OneSevenLiveAblyChatClient::lastErrorCode() const {
+    return m_lastErrorCode;
+}
+
+void OneSevenLiveAblyChatClient::configureIdleWatchdog(const nlohmann::json& details) {
+    const int timeout = ably::idleTimeoutMs(details);
+    if (!timeout) {
+        obs_log(LOG_INFO, "[AblyDiag] idle_watchdog_no_valid_interval");
+        return;
+    }
+    if (!m_idleTimer) {
+        m_idleTimer = new QTimer(this);
+        m_idleTimer->setSingleShot(true);
+        m_idleTimer->setTimerType(Qt::PreciseTimer);
+        QObject::connect(m_idleTimer, &QTimer::timeout, this, [this]() {
+            if (m_closing || m_channelFailed || !m_idleTimeoutMs ||
+                !m_lastInboundActivity.isValid())
+                return;
+            const auto elapsed = m_lastInboundActivity.elapsed();
+            if (elapsed < m_idleTimeoutMs) {
+                m_idleTimer->start(static_cast<int>(m_idleTimeoutMs - elapsed));
+                return;
+            }
+            obs_log(LOG_WARNING, "[AblyDiag] idle_timeout elapsed_ms=%lld timeout_ms=%d",
+                    static_cast<long long>(elapsed), m_idleTimeoutMs);
+            stopIdleWatchdog();
+            m_attached = false;
+            broadcastStatus(false);
+            if (m_wsClient)
+                m_wsClient->abortAsync();
+            scheduleReconnect();
+        });
+    }
+    m_idleTimeoutMs = timeout;
+    noteInboundActivity();
+    obs_log(LOG_INFO, "[AblyDiag] idle_watchdog_started timeout_ms=%d", timeout);
+}
+
+void OneSevenLiveAblyChatClient::noteInboundActivity() {
+    if (!m_idleTimer || !m_idleTimeoutMs)
+        return;
+    m_lastInboundActivity.start();
+    m_idleTimer->start(m_idleTimeoutMs);
+}
+
+void OneSevenLiveAblyChatClient::stopIdleWatchdog() {
+    if (m_idleTimer)
+        m_idleTimer->stop();
+    m_idleTimeoutMs = 0;
+    m_lastInboundActivity.invalidate();
+}
+
+void OneSevenLiveAblyChatClient::logDiagnostics() const {
+    const auto lastMessageAgeMs =
+        m_diagLastMessageMs > 0 ? QDateTime::currentMSecsSinceEpoch() - m_diagLastMessageMs : -1;
+    obs_log(LOG_INFO,
+            "[AblyDiag] state socket_connected=%d attached=%d closing=%d channel_failed=%d "
+            "retry_active=%d token_fetch_active=%d last_frame_age_ms=%lld message_frames=%llu",
+            m_wsClient && m_wsClient->isConnected(), m_attached, m_closing, m_channelFailed,
+            m_reconnectTimer && m_reconnectTimer->isActive(), m_tokenFetchInProgress,
+            static_cast<long long>(lastMessageAgeMs),
+            static_cast<unsigned long long>(m_diagMessageFrames));
 }
 
 void OneSevenLiveAblyChatClient::tryConnectWithFallbackHosts() {
     if (m_hostIndex < 0 || m_hostIndex >= (int) m_hosts.size())
         return;
+    obs_log(LOG_INFO, "[AblyDiag] websocket_connect host_index=%d resume_requested=%d",
+            m_hostIndex, !m_connectionKey.isEmpty());
     const QString host = m_hosts[m_hostIndex];
     // Build Ably websocket URL with token auth (JSON protocol, echo off)
-    QString query = QString("protocol=json&echo=false&access_token=%1&v=1.2").arg(m_token);
-    if (!m_connectionKey.isEmpty() && m_lastConnectionSerial >= 0) {
-        query += QString("&resume=%1&connection_serial=%2")
-                     .arg(m_connectionKey, QString::number(m_lastConnectionSerial));
+    // Ably protocol v2: resume is driven by connectionKey only, connection_serial is gone
+    QString query = QString("protocol=json&echo=false&access_token=%1&v=2").arg(m_token);
+    if (!m_connectionKey.isEmpty()) {
+        query += QString("&resume=%1").arg(m_connectionKey);
     }
     QUrl url(QString("%1?%2").arg(host, query));
     m_wsClient->connectUrl(url.toString());
 }
 
 void OneSevenLiveAblyChatClient::attachChannel() {
-    if (!isConnected())
+    if (!m_wsClient || !m_wsClient->isConnected() || m_roomId.isEmpty() || m_channelFailed)
         return;
     m_attached = false;
-    // Attach/subscribe to channel per Ably protocol (JSON protocol message)
-    // Send ATTACH (numeric action per Ably protocol)
-    nlohmann::json attachMsg;
-    attachMsg["action"] = 10;  // ATTACH
-    attachMsg["channel"] = m_roomId.toStdString();
-
-    // Only log error if send fails or logic fails; success is noisy
-    // obs_log(LOG_INFO, "[Ably] send %s", attachMsg.dump().c_str());
+    const auto attachMsg = m_channelRecovery.attach(m_roomId.toStdString());
+    obs_log(LOG_INFO, "[AblyDiag] channel_attach resume_requested=%d has_serial=%d",
+            attachMsg.contains("flags"), attachMsg.contains("channelSerial"));
     m_wsClient->sendText(QString::fromStdString(attachMsg.dump()));
-}
-
-void OneSevenLiveAblyChatClient::attachChannel(const QString& channel) {
-    if (!isConnected() || channel.isEmpty())
-        return;
-    nlohmann::json attachMsg;
-    attachMsg["action"] = 10;
-    attachMsg["channel"] = channel.toStdString();
-    // obs_log(LOG_INFO, "[Ably] send %s", attachMsg.dump().c_str());
-    m_wsClient->sendText(QString::fromStdString(attachMsg.dump()));
-}
-
-void OneSevenLiveAblyChatClient::detachChannel(const QString& channel) {
-    if (!isConnected() || channel.isEmpty())
-        return;
-    nlohmann::json detachMsg;
-    detachMsg["action"] = 12;
-    detachMsg["channel"] = channel.toStdString();
-    obs_log(LOG_INFO, "[Ably] send %s", detachMsg.dump().c_str());
-    m_wsClient->sendText(QString::fromStdString(detachMsg.dump()));
-}
-
-void OneSevenLiveAblyChatClient::publishMessage(const QString& channel,
-                                                const nlohmann::json& payload) {
-    if (!isConnected() || channel.isEmpty())
-        return;
-    nlohmann::json pm;
-    pm["action"] = 15;
-    pm["channel"] = channel.toStdString();
-    pm["msgSerial"] = m_msgSerialCounter++;
-    nlohmann::json m;
-    m["data"] = payload;
-    pm["messages"] = nlohmann::json::array({m});
-    obs_log(LOG_INFO, "[Ably] send %s", pm.dump().c_str());
-    m_wsClient->sendText(QString::fromStdString(pm.dump()));
-}
-
-void OneSevenLiveAblyChatClient::enterPresence(const QString& channel, const nlohmann::json& data) {
-    if (!isConnected() || channel.isEmpty())
-        return;
-    nlohmann::json pm;
-    pm["action"] = 14;
-    pm["channel"] = channel.toStdString();
-    nlohmann::json p;
-    p["action"] = "enter";
-    p["data"] = data;
-    pm["presence"] = nlohmann::json::array({p});
-    obs_log(LOG_INFO, "[Ably] send %s", pm.dump().c_str());
-    m_wsClient->sendText(QString::fromStdString(pm.dump()));
-}
-
-void OneSevenLiveAblyChatClient::updatePresence(const QString& channel,
-                                                const nlohmann::json& data) {
-    if (!isConnected() || channel.isEmpty())
-        return;
-    nlohmann::json pm;
-    pm["action"] = 14;
-    pm["channel"] = channel.toStdString();
-    nlohmann::json p;
-    p["action"] = "update";
-    p["data"] = data;
-    pm["presence"] = nlohmann::json::array({p});
-    obs_log(LOG_INFO, "[Ably] send %s", pm.dump().c_str());
-    m_wsClient->sendText(QString::fromStdString(pm.dump()));
-}
-
-void OneSevenLiveAblyChatClient::leavePresence(const QString& channel) {
-    if (!isConnected() || channel.isEmpty())
-        return;
-    nlohmann::json pm;
-    pm["action"] = 14;
-    pm["channel"] = channel.toStdString();
-    nlohmann::json p;
-    p["action"] = "leave";
-    pm["presence"] = nlohmann::json::array({p});
-    obs_log(LOG_INFO, "[Ably] send %s", pm.dump().c_str());
-    m_wsClient->sendText(QString::fromStdString(pm.dump()));
+    const auto generation = m_generation;
+    const auto attempt = ++m_attachAttempt;
+    QTimer::singleShot(10000, this, [this, generation, attempt]() {
+        if (generation == m_generation && attempt == m_attachAttempt && !m_closing && !m_attached &&
+            !m_channelFailed) {
+            obs_log(LOG_WARNING, "[AblyDiag] channel_attach_timeout");
+            scheduleReconnect();
+        }
+    });
 }
 
 void OneSevenLiveAblyChatClient::scheduleReconnect() {
-    if (m_closing)
+    if (m_closing || m_channelFailed)
         return;
     if (!m_reconnectTimer) {
         m_reconnectTimer = new QTimer(this);
@@ -351,15 +373,28 @@ void OneSevenLiveAblyChatClient::scheduleReconnect() {
         QObject::connect(m_reconnectTimer, &QTimer::timeout, this, [this]() {
             if (m_closing)
                 return;
+            obs_log(LOG_INFO, "[AblyDiag] retry_started attempt=%d", m_reconnectAttempts);
             refreshToken([this](bool success) {
-                (void) success;
-                if (m_closing)
+                if (m_closing || m_channelFailed)
                     return;
+                obs_log(LOG_INFO, "[AblyDiag] retry_token_result success=%d connected=%d", success,
+                        isConnected());
+                if (!success) {
+                    scheduleReconnect();
+                    return;
+                }
+                if (isConnected()) {
+                    m_reconnectAttempts = 0;
+                    sendAuth();
+                    return;
+                }
                 m_hostIndex = 0;
                 tryConnectWithFallbackHosts();
             });
         });
     }
+    if (m_reconnectTimer->isActive())
+        return;
     if (m_reconnectAttempts >= m_maxReconnectAttempts)
         m_reconnectAttempts = m_maxReconnectAttempts;
     int delay = m_baseReconnectDelayMs;
@@ -367,6 +402,8 @@ void OneSevenLiveAblyChatClient::scheduleReconnect() {
         delay = std::min(delay * 2, 15000);
     }
     m_reconnectAttempts = std::min(m_reconnectAttempts + 1, m_maxReconnectAttempts);
+    obs_log(LOG_INFO, "[AblyDiag] retry_scheduled attempt=%d delay_ms=%d", m_reconnectAttempts,
+            delay);
     m_reconnectTimer->start(delay);
 }
 
@@ -397,11 +434,13 @@ void OneSevenLiveAblyChatClient::scheduleTokenRefresh(qint64 expiresEpochMs, qin
                 if (m_closing)
                     return;
                 if (success) {
-                    if (isConnected()) {
+                    if (m_wsClient && m_wsClient->isConnected()) {
                         sendAuth();
                     } else {
                         scheduleReconnect();
                     }
+                } else {
+                    scheduleReconnect();
                 }
             });
         });
@@ -417,7 +456,7 @@ void OneSevenLiveAblyChatClient::scheduleTokenRefresh(qint64 expiresEpochMs, qin
     else
         expiry = now + m_tokenDefaultTtlMs;
     m_tokenExpiresMs = expiry;
-    qint64 msUntilRefresh = std::max<qint64>(0, expiry - now - m_tokenRefreshAdvanceMs);
+    qint64 msUntilRefresh = std::max<qint64>(1000, expiry - now - m_tokenRefreshAdvanceMs);
     m_tokenRefreshTimer->start((int) msUntilRefresh);
 }
 
@@ -427,7 +466,7 @@ void OneSevenLiveAblyChatClient::cancelTokenRefresh() {
 }
 
 void OneSevenLiveAblyChatClient::sendAuth() {
-    if (!isConnected())
+    if (!m_wsClient || !m_wsClient->isConnected())
         return;
     nlohmann::json authMsg;
     authMsg["action"] = 17;
@@ -437,19 +476,16 @@ void OneSevenLiveAblyChatClient::sendAuth() {
     m_wsClient->sendText(QString::fromStdString(authMsg.dump()));
 }
 
-void OneSevenLiveAblyChatClient::sendConnect() {
-    if (!isConnected())
-        return;
-    nlohmann::json conn;
-    conn["action"] = 2;  // CONNECT
-    if (!m_connectionKey.isEmpty()) {
-        conn["connectionKey"] = m_connectionKey.toStdString();
-    }
-    conn["protocol"] = "json";
-    m_wsClient->sendText(QString::fromStdString(conn.dump()));
-}
-
 void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callback) {
+    if (m_tokenFetchInProgress) {
+        obs_log(LOG_INFO, "[AblyDiag] token_fetch_skipped already_in_progress=1");
+        if (callback)
+            callback(false);
+        return;
+    }
+    obs_log(LOG_INFO, "[AblyDiag] token_fetch_started");
+    m_tokenFetchInProgress = true;
+    const auto generation = m_generation;
     QString rid = m_roomId;
     // Capture required resources by value to ensure thread safety if 'this' is destroyed
     // Note: apiWrapper is still a pointer, but capturing it avoids accessing 'this->' inside the
@@ -461,7 +497,7 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
     // Use QPointer to track object validity
     QPointer<OneSevenLiveAblyChatClient> self(this);
 
-    QThread* t = QThread::create([self, rid, callback, authCb, api]() {
+    QThread* t = QThread::create([self, rid, callback, authCb, api, generation]() {
         nlohmann::json resp;
         bool success = false;
 
@@ -477,19 +513,15 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
 
         QMetaObject::invokeMethod(
             self,
-            [self, success, resp, callback]() {
-                if (!self)
+            [self, success, resp, callback, generation]() {
+                if (!self || self->m_generation != generation || self->m_closing)
                     return;
-
-                if (success) {
-                    if (resp.contains("token") && resp["token"].is_string()) {
-                        self->m_token = QString::fromStdString(resp["token"].get<std::string>());
-                    } else {
-                        obs_log(LOG_ERROR, "Got Ably token response error: %s",
-                                resp.dump().c_str());
-                    }
-
-                    if (!self->m_token.isEmpty()) {
+                self->m_tokenFetchInProgress = false;
+                if (success && resp.contains("token") && resp["token"].is_string()) {
+                    const auto token = QString::fromStdString(resp["token"].get<std::string>());
+                    if (!token.isEmpty()) {
+                        obs_log(LOG_INFO, "[AblyDiag] token_fetch_finished success=1");
+                        self->m_token = token;
                         qint64 expiresMs = 0, issuedMs = 0, ttlMs = 0;
                         if (resp.contains("expires") && resp["expires"].is_number_integer())
                             expiresMs = resp["expires"].get<long long>();
@@ -506,6 +538,7 @@ void OneSevenLiveAblyChatClient::fetchTokenAsync(std::function<void(bool)> callb
                         return;
                     }
                 }
+                obs_log(LOG_WARNING, "[AblyDiag] token_fetch_finished success=0");
                 if (callback)
                     callback(false);
             },

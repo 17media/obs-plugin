@@ -287,22 +287,22 @@ void ChatBridgeService::flushChatEventQueue() {
     }
 
     obs_log(LOG_INFO, "[ChatQueue] Flushing %zu events", chatEventQueue_.size());
-    while (!chatEventQueue_.empty()) {
-        const auto m = chatEventQueue_.front();
-        if (m.type == ws::EventAblyChatConnected) {
-            sendToTargetsLocked(m, chatDockClientIds_);
-            sendToTargetsLocked(m, enterAnimClientIds_);
-        } else {
-            const auto& targets = resolveTargetsLocked(m);
-            // if (isEnterAnimationPayload(m)) {
-            //     obs_log(LOG_INFO,
-            //             "[ChatQueue][EnterAnimation] flushing queued event to targets=%zu: %s",
-            //             targets.size(), buildEnterAnimationSummary(m.payload).c_str());
-            // }
-            sendToTargetsLocked(m, targets);
-        }
-        chatEventQueue_.popFront();
-    }
+    chatEventQueue_.drainIf(
+        [this](const WsMessage& m) {
+            if (m.type == ws::EventAblyChatConnected) {
+                return hasAnyConnectedTargetLocked(chatDockClientIds_) ||
+                       hasAnyConnectedTargetLocked(enterAnimClientIds_);
+            }
+            return hasAnyConnectedTargetLocked(resolveTargetsLocked(m));
+        },
+        [this](const WsMessage& m) {
+            if (m.type == ws::EventAblyChatConnected) {
+                sendToTargetsLocked(m, chatDockClientIds_);
+                sendToTargetsLocked(m, enterAnimClientIds_);
+            } else {
+                sendToTargetsLocked(m, resolveTargetsLocked(m));
+            }
+        });
 }
 
 void ChatBridgeService::clear() {

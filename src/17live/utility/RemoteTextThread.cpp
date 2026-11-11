@@ -131,6 +131,9 @@ void RemoteTextThread::run() {
             header = curl_slist_append(header, h.c_str());
 
         curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
+        // Keep "" so libcurl only requests encodings it can actually decode. Do NOT pin "gzip":
+        // the Windows libcurl (obs-deps, no zlib) then fails every request with
+        // CURLE_BAD_CONTENT_ENCODING (61), breaking login and all other API calls.
         curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING, "");
         curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error);
@@ -359,6 +362,9 @@ class CurlSingleThreadWorker : public QObject {
             header = curl_slist_append(header, h.c_str());
 
         curl_easy_setopt(curl, CURLOPT_URL, req.url);
+        // Keep "" so libcurl only requests encodings it can actually decode. Do NOT pin "gzip":
+        // the Windows libcurl (obs-deps, no zlib) then fails every request with
+        // CURLE_BAD_CONTENT_ENCODING (61), breaking login and all other API calls.
         curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, isUserNoteEndpoint ? "identity" : "");
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_in);
@@ -561,6 +567,9 @@ bool UploadMultipartFile(const char *url, const char *fieldName, const std::stri
             header = curl_slist_append(header, h.c_str());
 
         curl_easy_setopt(curl.get(), CURLOPT_URL, url);
+        // Keep "" so libcurl only requests encodings it can actually decode. Do NOT pin "gzip":
+        // the Windows libcurl (obs-deps, no zlib) then fails every request with
+        // CURLE_BAD_CONTENT_ENCODING (61), breaking login and all other API calls.
         curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING, "");
         curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error_in);
@@ -625,6 +634,9 @@ bool UploadMultipartFileWithProgress(const char *url, const char *fieldName,
             header = curl_slist_append(header, h.c_str());
 
         curl_easy_setopt(curl.get(), CURLOPT_URL, url);
+        // Keep "" so libcurl only requests encodings it can actually decode. Do NOT pin "gzip":
+        // the Windows libcurl (obs-deps, no zlib) then fails every request with
+        // CURLE_BAD_CONTENT_ENCODING (61), breaking login and all other API calls.
         curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING, "");
         curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
         curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error_in);

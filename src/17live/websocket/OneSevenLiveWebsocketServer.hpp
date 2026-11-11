@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <chrono>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -52,7 +51,6 @@ class OneSevenLiveWebsocketServer {
 
    private:
     // Security-related methods
-    bool check_rate_limit(const std::string& client_ip);
     bool validate_message_size(const std::string& message) const;
     std::string generate_client_id();
     std::string get_client_ip(websocketpp::connection_hdl hdl);
@@ -77,17 +75,10 @@ class OneSevenLiveWebsocketServer {
     // Client management
     mutable std::mutex clients_mutex_;
     std::unordered_map<std::string, websocketpp::connection_hdl> clients_;
-    std::unordered_map<std::string, std::string> client_ips_;
     std::unordered_map<std::string, std::string> hdl_to_client_id_;
 
     // Security-related member variables
     static constexpr size_t MAX_MESSAGE_SIZE = 64 * 1024;  // 64KB
-    static constexpr int RATE_LIMIT_MESSAGES = 50;         // Maximum messages per minute
-    static constexpr int RATE_LIMIT_WINDOW_SECONDS = 60;
-
-    mutable std::mutex rate_limit_mutex_;
-    std::unordered_map<std::string, std::vector<std::chrono::steady_clock::time_point>>
-        rate_limit_map_;
 
     // Callbacks
     MessageCallback message_callback_;

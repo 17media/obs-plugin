@@ -44,6 +44,20 @@ class WsMessageQueue {
         q_.pop_front();
     }
 
+    template <typename Predicate, typename Consumer>
+    void drainIf(Predicate canDeliver, Consumer deliver) {
+        const size_t count = q_.size();
+        for (size_t i = 0; i < count; ++i) {
+            if (canDeliver(q_.front())) {
+                deliver(q_.front());
+                q_.pop_front();
+            } else {
+                q_.push_back(std::move(q_.front()));
+                q_.pop_front();
+            }
+        }
+    }
+
    private:
     void trim() {
         while (q_.size() > maxSize_) {
@@ -54,4 +68,3 @@ class WsMessageQueue {
     std::deque<WsMessage> q_;
     size_t maxSize_ = 0;
 };
-

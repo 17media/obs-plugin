@@ -45,6 +45,8 @@ class OneSevenLiveStreamingDock : public QDockWidget {
     void createConnections();
     void updateUIWithRoomInfo();
     void updateRequiredArmyRankSelections();
+    void updateArmyOnlyState();
+    void updateArmyOnlyOptionStates();
     void updateUIValues();
     void handleLoadingCompleted(const OneSevenLiveLoadRoomInfoWorker::LoadResult &result);
     void maybePromptObsAutoAdjust(bool allowSilentApply);
@@ -95,6 +97,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
 
     // Live mode - army-only viewing
     QLabel *broadcastModeLabel = nullptr;
+    QLabel *broadcastModeDescription = nullptr;
     QWidget *armyOnlyHeader = nullptr;
     QHBoxLayout *armyOnlyHeaderLayout = nullptr;
     QLabel *armyOnlyLabel = nullptr;
@@ -169,6 +172,7 @@ class OneSevenLiveStreamingDock : public QDockWidget {
 
     void createLive(const OneSevenLiveRtmpRequest &request);
     void startLive(bool startStream = true);
+    void onStreamArchiveFailed(const QString &error);
     void startCreateLiveSequence(const OneSevenLiveRtmpRequest &request);
     void handleCreateLiveChecks(const OneSevenLiveLoginData &loginData,
                                 const nlohmann::json &configJson, bool success,
