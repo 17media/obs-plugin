@@ -19,6 +19,8 @@
 #include <QMetaObject>
 #include <QUrl>
 
+#include "../utility/Constants.hpp"
+#include "OneSevenLiveWebsocketMessageAssembler.hpp"
 #include "WebsocketUtils.hpp"
 #include "plugin-support.h"
 
@@ -137,6 +139,15 @@ void OneSevenLiveWebsocketClient::disconnectAsync() {
 #endif
     }
     // Do not join here to avoid blocking UI; thread will exit and self-clean
+}
+
+void OneSevenLiveWebsocketClient::abortAsync() {
+#ifdef _WIN32
+    disconnectAsync();
+#else
+    // The nonblocking reader checks this flag; do not access its TLS context concurrently.
+    running.store(false);
+#endif
 }
 
 bool OneSevenLiveWebsocketClient::isConnected() const {
@@ -345,25 +356,47 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     if (onOpen)
         QMetaObject::invokeMethod(this, [this]() { onOpen(); }, Qt::QueuedConnection);
     std::vector<char> buf(65536);
+    OneSevenLiveWebsocketMessageAssembler assembler(limits::kMaxWebSocketMessageBytes);
     while (running.load()) {
         DWORD rd = 0;
         WINHTTP_WEB_SOCKET_BUFFER_TYPE tp = WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE;
         DWORD r =
             WinHttpWebSocketReceive(tls->hWebSocket, buf.data(), (DWORD) buf.size(), &rd, &tp);
         if (r == ERROR_SUCCESS) {
-            if (tp == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE) {
-                std::string payload(buf.data(), buf.data() + rd);
-                if (onMessage)
+            if (tp == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE ||
+                tp == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE) {
+                // WinHTTP's MESSAGE buffer can be only the last part of a fragmented message.
+                std::string payload;
+                const auto result = assembler.append(
+                    std::string_view(buf.data(), rd),
+                    tp == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE, payload);
+                if (result == OneSevenLiveWebsocketMessageAssembler::Result::TooLarge) {
+                    obs_log(LOG_WARNING, "[Websocket Client] Text message exceeds size limit");
+                    if (onError)
+                        QMetaObject::invokeMethod(
+                            this, [this]() { onError("ws_message_too_large"); },
+                            Qt::QueuedConnection);
+                    break;
+                }
+                if (result == OneSevenLiveWebsocketMessageAssembler::Result::Complete && onMessage)
                     QMetaObject::invokeMethod(
                         this, [this, payload]() { onMessage(payload); }, Qt::QueuedConnection);
             } else if (tp == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE ||
-                       tp == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE ||
                        tp == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) {
-                // Ignore non-text frames or fragments for now
+                if (assembler.hasIncompleteMessage()) {
+                    obs_log(LOG_WARNING, "[Websocket Client] Unexpected binary message fragment");
+                    if (onError)
+                        QMetaObject::invokeMethod(
+                            this, [this]() { onError("ws_unexpected_binary"); },
+                            Qt::QueuedConnection);
+                    break;
+                }
             } else if (tp == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) {
                 break;
             }
         } else {
+            obs_log(LOG_WARNING, "[Websocket Client] receive_error platform=windows code=%lu",
+                    static_cast<unsigned long>(r));
             if (onError)
                 QMetaObject::invokeMethod(
                     this, [this]() { onError("ws_recv"); }, Qt::QueuedConnection);
@@ -480,7 +513,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
     char buf[1024];
     int tr = 0;
     int maxR = 4096;
-    while (tr < maxR) {
+    while (running.load() && tr < maxR) {
         int r = mbedtls_ssl_read(&tls->ssl, (unsigned char*) buf, sizeof(buf) - 1);
         if (r > 0) {
             buf[r] = '\0';
@@ -511,6 +544,8 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             return;
         }
     }
+    if (!running.load())
+        return;
     if (resp.find("101 Switching Protocols") == std::string::npos) {
         if (onError)
             QMetaObject::invokeMethod(this, [this]() { onError("ws_101"); }, Qt::QueuedConnection);
@@ -530,7 +565,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 unsigned char ext[2];
                 // Loop to ensure we read 2 bytes
                 size_t read_bytes = 0;
-                while (read_bytes < 2) {
+                while (running.load() && read_bytes < 2) {
                     r = mbedtls_ssl_read(&tls->ssl, ext + read_bytes, 2 - read_bytes);
                     if (r > 0)
                         read_bytes += r;
@@ -556,7 +591,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             } else if (len == 127) {
                 unsigned char ext[8];
                 size_t read_bytes = 0;
-                while (read_bytes < 8) {
+                while (running.load() && read_bytes < 8) {
                     r = mbedtls_ssl_read(&tls->ssl, ext + read_bytes, 8 - read_bytes);
                     if (r > 0)
                         read_bytes += r;
@@ -586,7 +621,7 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
                 std::string payload;
                 payload.resize(len);
                 size_t br = 0;
-                while (br < len) {
+                while (running.load() && br < len) {
                     r = mbedtls_ssl_read(&tls->ssl, (unsigned char*) payload.data() + br, len - br);
                     if (r > 0)
                         br += r;
@@ -671,11 +706,13 @@ void OneSevenLiveWebsocketClient::threadFunc(const QString& host, const QString&
             }
             continue;
         } else if (r < 0) {
+            obs_log(LOG_WARNING, "[Websocket Client] receive_error platform=macos code=%d", r);
             if (onError)
                 QMetaObject::invokeMethod(
                     this, [this]() { onError("tls_read"); }, Qt::QueuedConnection);
             break;
         } else {
+            obs_log(LOG_INFO, "[Websocket Client] receive_eof platform=macos");
             break;
         }
     }

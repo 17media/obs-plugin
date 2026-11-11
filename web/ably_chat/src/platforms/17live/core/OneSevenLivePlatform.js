@@ -258,9 +258,6 @@ export class OneSevenLivePlatform extends BasePlatform {
         console.warn('Failed to preload i18n config:', e);
       }
 
-      this.isConnected = true;
-      this.emit('connected', { platform: this.platformId, roomID });
-
       if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         const { loadDevEnterAnimationMessages, loadDevMockMessages } = await import('./OneSevenLivePlatform.devMocks');
 
@@ -364,7 +361,7 @@ export class OneSevenLivePlatform extends BasePlatform {
       if (connected) {
         this.emit('connected', { platform: this.platformId, roomID: this.roomID });
       } else {
-        this.emit('disconnected', { platform: this.platformId });
+        this.emit('disconnected', { platform: this.platformId, errorCode: payload?.errorCode });
       }
       return;
     }

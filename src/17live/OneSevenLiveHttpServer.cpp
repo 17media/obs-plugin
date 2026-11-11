@@ -2,7 +2,6 @@
 
 #include <obs-module.h>
 
-#include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -380,22 +379,6 @@ bool OneSevenLiveHttpServer::start() {
 
     // Override the default handler for static files
     svr_.Get("/.*", [this](const httplib::Request& req, httplib::Response& res) {
-        // Security check: get client IP
-        std::string client_ip = req.get_header_value("X-Forwarded-For");
-        if (client_ip.empty()) {
-            client_ip = req.get_header_value("X-Real-IP");
-        }
-        if (client_ip.empty()) {
-            client_ip = "127.0.0.1";  // fallback
-        }
-
-        // Security check: rate limiting
-        if (!check_rate_limit(client_ip)) {
-            res.status = 429;
-            res.set_content("Too Many Requests", "text/plain");
-            return;
-        }
-
         std::string path = req.path;
         if (path == "/") {
             path = "/index.html";
@@ -423,19 +406,12 @@ bool OneSevenLiveHttpServer::start() {
 
     // Provide index.html by default
     svr_.Get("/", [this](const httplib::Request& req, httplib::Response& res) {
-        // Security check: rate limiting
         std::string client_ip = req.get_header_value("X-Forwarded-For");
         if (client_ip.empty()) {
             client_ip = req.get_header_value("X-Real-IP");
         }
         if (client_ip.empty()) {
             client_ip = "127.0.0.1";  // local request
-        }
-
-        if (!check_rate_limit(client_ip)) {
-            res.status = 429;  // Too Many Requests
-            res.set_content("Rate limit exceeded", "text/plain");
-            return;
         }
 
         obs_log(LOG_INFO, "[%s] Handling request for %s from %s", name_.c_str(), req.path.c_str(),
@@ -492,60 +468,16 @@ bool OneSevenLiveHttpServer::start() {
     for (const auto& p : extra_get_) {
         svr_.Get(p.first.c_str(),
                  [this, handler = p.second](const httplib::Request& req, httplib::Response& res) {
-                     std::string client_ip = req.get_header_value("X-Forwarded-For");
-                     if (client_ip.empty())
-                         client_ip = req.get_header_value("X-Real-IP");
-                     if (client_ip.empty())
-                         client_ip = "127.0.0.1";
-                     if (!check_rate_limit(client_ip)) {
-                         res.status = 429;
-                         res.set_content("Too Many Requests", "text/plain");
-                         return;
-                     }
                      handler(req, res);
                  });
     }
 
-    svr_.Get("/ping", [this](const httplib::Request& req, httplib::Response& res) {
-        // Security check: rate limiting
-        std::string client_ip = req.get_header_value("X-Forwarded-For");
-        if (client_ip.empty()) {
-            client_ip = req.get_header_value("X-Real-IP");
-        }
-        if (client_ip.empty()) {
-            client_ip = "127.0.0.1";
-        }
-
-        if (!check_rate_limit(client_ip)) {
-            res.status = 429;
-            res.set_content("Rate limit exceeded", "text/plain");
-            return;
-        }
-
+    svr_.Get("/ping", [this](const httplib::Request&, httplib::Response& res) {
         res.set_content("PONG", "text/plain");
     });
 
     // Add CSRF token endpoint
-    svr_.Get("/csrf-token", [this](const httplib::Request& req, httplib::Response& res) {
-        // Security check: rate limiting
-        std::string client_ip = req.get_header_value("X-Forwarded-For");
-        if (client_ip.empty()) {
-            client_ip = req.get_header_value("X-Real-IP");
-        }
-        if (client_ip.empty()) {
-            client_ip = "127.0.0.1";
-        }
-
-        if (!check_rate_limit(client_ip)) {
-            res.status = 429;
-            res.set_header("Content-Type", "application/json");
-            const nlohmann::json errorResponse = {{"success", false},
-                                                  {"error", "Rate limit exceeded"}};
-            const std::string responseStr = errorResponse.dump();
-            res.set_content(responseStr, "application/json");
-            return;
-        }
-
+    svr_.Get("/csrf-token", [this](const httplib::Request&, httplib::Response& res) {
         res.set_header("Content-Type", "application/json");
         const nlohmann::json response = {{"success", true}, {"csrf_token", csrf_token_}};
         const std::string responseStr = response.dump();
@@ -554,26 +486,6 @@ bool OneSevenLiveHttpServer::start() {
 
     if (enable_default_api_) {
         svr_.Post("/lapi", [this](const httplib::Request& req, httplib::Response& res) {
-            // Security check: get client IP
-            std::string client_ip = req.get_header_value("X-Forwarded-For");
-            if (client_ip.empty()) {
-                client_ip = req.get_header_value("X-Real-IP");
-            }
-            if (client_ip.empty()) {
-                client_ip = "127.0.0.1";  // local request
-            }
-
-            // Security check: rate limiting
-            if (!check_rate_limit(client_ip)) {
-                res.status = 429;
-                res.set_header("Content-Type", "application/json");
-                const nlohmann::json errorResponse = {{"success", false},
-                                                      {"error", "Rate limit exceeded"}};
-                const std::string responseStr = errorResponse.dump();
-                res.set_content(responseStr, "application/json");
-                return;
-            }
-
             // Security check: request size validation
             if (!validate_request_size(req)) {
                 res.status = 413;  // Payload Too Large
@@ -584,9 +496,6 @@ bool OneSevenLiveHttpServer::start() {
                 res.set_content(responseStr, "application/json");
                 return;
             }
-
-            // obs_log(LOG_INFO, "[17Live HTTP Server] Handling API request to /lapi from %s",
-            // client_ip.c_str());
 
             // Set response headers
             res.set_header("Content-Type", "application/json");
@@ -813,18 +722,6 @@ bool OneSevenLiveHttpServer::start() {
     for (const auto& p : extra_post_) {
         svr_.Post(p.first.c_str(), [this, handler = p.second](const httplib::Request& req,
                                                               httplib::Response& res) {
-            std::string client_ip = req.get_header_value("X-Forwarded-For");
-            if (client_ip.empty())
-                client_ip = req.get_header_value("X-Real-IP");
-            if (client_ip.empty())
-                client_ip = "127.0.0.1";
-            if (!check_rate_limit(client_ip)) {
-                res.status = 429;
-                res.set_header("Content-Type", "application/json");
-                const nlohmann::json err = {{"success", false}, {"error", "Rate limit exceeded"}};
-                res.set_content(err.dump(), "application/json");
-                return;
-            }
             if (!validate_request_size(req)) {
                 res.status = 413;
                 res.set_header("Content-Type", "application/json");
@@ -972,34 +869,6 @@ bool OneSevenLiveHttpServer::is_safe_path(const std::string& path) const {
         }
     }
 
-    return true;
-}
-
-bool OneSevenLiveHttpServer::check_rate_limit(const std::string& client_ip) {
-    std::lock_guard<std::mutex> lock(rate_limit_mutex_);
-
-    const auto now = std::chrono::steady_clock::now();
-    auto& requests = rate_limit_map_[client_ip];
-
-    // Pre-calculate the cutoff time to avoid repeated calculations in lambda
-    const auto cutoff_time = now - std::chrono::seconds(RATE_LIMIT_WINDOW_SECONDS);
-
-    // Clean up expired request records - use cached cutoff time
-    requests.erase(std::remove_if(requests.begin(), requests.end(),
-                                  [cutoff_time](const std::chrono::steady_clock::time_point& time) {
-                                      return time < cutoff_time;
-                                  }),
-                   requests.end());
-
-    // Check if rate limit is exceeded
-    if (requests.size() >= RATE_LIMIT_REQUESTS) {
-        obs_log(LOG_WARNING, "[%s] Rate limit exceeded for IP: %s", name_.c_str(),
-                client_ip.c_str());
-        return false;
-    }
-
-    // Record current request
-    requests.push_back(now);
     return true;
 }
 
