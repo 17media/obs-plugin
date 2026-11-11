@@ -20,6 +20,7 @@ class OneSevenLiveWebsocketClient : public QObject {
     void connectUrl(const QString& url);
     void disconnect();
     void disconnectAsync();
+    void abortAsync();
     bool isConnected() const;
     void sendText(const QString& text);
 

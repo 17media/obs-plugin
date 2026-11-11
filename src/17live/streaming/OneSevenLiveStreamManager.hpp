@@ -62,6 +62,18 @@ class OneSevenLiveStreamManager : public QObject {
     void startStreamAsync();
 
     /**
+     * @brief Continue the live stream start after the user was warned that enabling archive
+     *        failed and chose to stream without archive
+     */
+    void continueStartStreamWithoutArchive();
+
+    /**
+     * @brief Abort the live stream start after the user chose to end it because enabling
+     *        archive failed: close the 17LIVE room and return to the initial state
+     */
+    void abortStartStreamWithoutArchive();
+
+    /**
      * @brief Change the current event asynchronously
      * @param request Change event request
      */
@@ -242,6 +254,14 @@ class OneSevenLiveStreamManager : public QObject {
 
     void createRtmpFinished(bool success, const QString& error);
     void startStreamFinished(bool success, const QString& error);
+
+    /**
+     * @brief Emitted when enabling stream archive failed while starting the live stream.
+     *        The caller must decide between continuing without archive and aborting.
+     * @param error Archive failure detail
+     */
+    void streamArchiveFailed(const QString& error);
+
     void changeEventFinished(bool success, const QString& error);
     void webStreamSettingsLoaded(bool success);
 
@@ -261,6 +281,12 @@ class OneSevenLiveStreamManager : public QObject {
      * @return bool True if archive was enabled successfully
      */
     bool enableStreamArchive(const std::string& liveStreamID, bool enable);
+
+    /**
+     * @brief Advance the internal status to Streaming and notify listeners that the live
+     *        stream start completed successfully
+     */
+    void notifyStreamStarted();
 
     // Member variables
     OneSevenLiveApiWrappers* apiWrapper = nullptr;

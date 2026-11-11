@@ -1,13 +1,15 @@
 #pragma once
 
 #include <QObject>
-#include <QSet>
+#include <QElapsedTimer>
 #include <QString>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <vector>
 
 #include "../websocket/OneSevenLiveWebsocketClient.hpp"
+#include "OneSevenLiveAblyProtocol.hpp"
 #include "OneSevenLiveApiWrappers.hpp"
 
 class QTimer;
@@ -31,23 +33,24 @@ class OneSevenLiveAblyChatClient : public QObject {
     bool connect();
     void disconnect();
     bool isConnected() const;
+    int lastErrorCode() const;
+    void logDiagnostics() const;
 
    private:
     void tryConnectWithFallbackHosts();
     void attachChannel();
-    void attachChannel(const QString& channel);
-    void detachChannel(const QString& channel);
-    void publishMessage(const QString& channel, const nlohmann::json& payload);
-    void enterPresence(const QString& channel, const nlohmann::json& data);
-    void updatePresence(const QString& channel, const nlohmann::json& data);
-    void leavePresence(const QString& channel);
+    void handleProtocolMessage(const nlohmann::json& message);
+    void handleProtocolError(const nlohmann::json& message);
+    void broadcastStatus(bool connected, int errorCode = 0);
     void scheduleReconnect();
     void cancelReconnect();
     void refreshToken(std::function<void(bool)> callback = nullptr);
     void scheduleTokenRefresh(qint64 expiresEpochMs, qint64 issuedEpochMs, qint64 ttlMs);
     void cancelTokenRefresh();
     void sendAuth();
-    void sendConnect();
+    void configureIdleWatchdog(const nlohmann::json& details);
+    void noteInboundActivity();
+    void stopIdleWatchdog();
 
     void fetchTokenAsync(std::function<void(bool)> callback);
 
@@ -62,14 +65,23 @@ class OneSevenLiveAblyChatClient : public QObject {
     int m_baseReconnectDelayMs{1000};
     bool m_closing{false};
     QTimer* m_tokenRefreshTimer{nullptr};
+    QTimer* m_idleTimer{nullptr};
+    QElapsedTimer m_lastInboundActivity;
+    int m_idleTimeoutMs{0};
     qint64 m_tokenExpiresMs{0};
     int m_tokenRefreshAdvanceMs{60000};
     int m_tokenDefaultTtlMs{3000000};
     QString m_connectionKey;
-    long long m_lastConnectionSerial{-1};
+    QString m_connectionId;
     bool m_attached{false};
-    QSet<QString> m_attachedChannels;
-    long long m_msgSerialCounter{0};
+    bool m_channelFailed{false};
+    bool m_tokenFetchInProgress{false};
+    std::uint64_t m_generation{0};
+    std::uint64_t m_attachAttempt{0};
+    qint64 m_diagLastMessageMs{0};
+    std::uint64_t m_diagMessageFrames{0};
+    int m_lastErrorCode{0};
+    ably::ChannelRecovery m_channelRecovery;
 
     std::function<void()> m_onOpen;
     std::function<void(const std::string&)> m_onMessage;

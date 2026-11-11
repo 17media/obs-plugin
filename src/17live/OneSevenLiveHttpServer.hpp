@@ -1,13 +1,11 @@
 #ifndef ONESEVENLIVEHTTPSERVER_HPP
 #define ONESEVENLIVEHTTPSERVER_HPP
 
-#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include <QPointer>
@@ -48,7 +46,6 @@ class OneSevenLiveHttpServer {
 
     // Security-related methods
     bool is_safe_path(const std::string& path) const;
-    bool check_rate_limit(const std::string& client_ip);
     bool validate_request_size(const httplib::Request& req) const;
     std::string generate_csrf_token();
     bool validate_csrf_token(const std::string& token) const;
@@ -71,13 +68,8 @@ class OneSevenLiveHttpServer {
 
     // Security-related member variables
     static constexpr size_t MAX_REQUEST_SIZE = 1024 * 1024;  // 1MB
-    static constexpr int RATE_LIMIT_REQUESTS = 100;          // Maximum requests per minute
-    static constexpr int RATE_LIMIT_WINDOW_SECONDS = 60;
 
-    mutable std::mutex rate_limit_mutex_;
     mutable std::mutex asset_cache_mutex_;
-    std::unordered_map<std::string, std::vector<std::chrono::steady_clock::time_point>>
-        rate_limit_map_;
     std::string csrf_token_;
     std::string name_;
 };

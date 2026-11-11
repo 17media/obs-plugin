@@ -2,7 +2,6 @@
 
 #include <obs-module.h>
 
-#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -147,7 +146,6 @@ void OneSevenLiveWebsocketServer::stop() {
             }
         }
         clients_.clear();
-        client_ips_.clear();
         hdl_to_client_id_.clear();
     }
 
@@ -189,7 +187,6 @@ void OneSevenLiveWebsocketServer::broadcastMessage(const std::string& message) {
             // Remove failed client
             std::string hdl_str = hdl_to_string(it->second);
             hdl_to_client_id_.erase(hdl_str);
-            client_ips_.erase(it->first);
             it = clients_.erase(it);
         }
     }
@@ -217,7 +214,6 @@ void OneSevenLiveWebsocketServer::sendMessageToClient(const std::string& clientI
             // Remove failed client
             std::string hdl_str = hdl_to_string(it->second);
             hdl_to_client_id_.erase(hdl_str);
-            client_ips_.erase(it->first);
             clients_.erase(it);
         }
     } else {
@@ -251,32 +247,6 @@ void OneSevenLiveWebsocketServer::setMessageCallback(const MessageCallback& call
 void OneSevenLiveWebsocketServer::setConnectionCallback(const ConnectionCallback& callback) {
     std::lock_guard<std::mutex> lock(callback_mutex_);
     connection_callback_ = callback;
-}
-
-bool OneSevenLiveWebsocketServer::check_rate_limit(const std::string& client_ip) {
-    std::lock_guard<std::mutex> lock(rate_limit_mutex_);
-
-    auto now = std::chrono::steady_clock::now();
-    auto& timestamps = rate_limit_map_[client_ip];
-
-    // Remove old timestamps
-    timestamps.erase(
-        std::remove_if(
-            timestamps.begin(), timestamps.end(),
-            [now](const std::chrono::steady_clock::time_point& timestamp) {
-                return std::chrono::duration_cast<std::chrono::seconds>(now - timestamp).count() >
-                       RATE_LIMIT_WINDOW_SECONDS;
-            }),
-        timestamps.end());
-
-    // Check if rate limit exceeded
-    if (timestamps.size() >= RATE_LIMIT_MESSAGES) {
-        return false;
-    }
-
-    // Add current timestamp
-    timestamps.push_back(now);
-    return true;
 }
 
 bool OneSevenLiveWebsocketServer::validate_message_size(const std::string& message) const {
@@ -416,7 +386,6 @@ void OneSevenLiveWebsocketServer::onConnection(websocketpp::connection_hdl hdl) 
     {
         std::lock_guard<std::mutex> lock(clients_mutex_);
         clients_[clientId] = hdl;
-        client_ips_[clientId] = clientIp;
         std::string hdl_str = hdl_to_string(hdl);
         hdl_to_client_id_[hdl_str] = clientId;
     }
@@ -476,7 +445,6 @@ void OneSevenLiveWebsocketServer::onClose(websocketpp::connection_hdl hdl) {
 
             // Remove client from connections
             clients_.erase(clientId);
-            client_ips_.erase(clientId);
             hdl_to_client_id_.erase(it);
         }
     }
@@ -498,36 +466,17 @@ void OneSevenLiveWebsocketServer::onMessage(websocketpp::connection_hdl hdl,
 
     // Find client ID for this connection
     std::string clientId;
-    std::string clientIp;
     {
         std::lock_guard<std::mutex> lock(clients_mutex_);
         std::string hdl_str = hdl_to_string(hdl);
         auto it = hdl_to_client_id_.find(hdl_str);
         if (it != hdl_to_client_id_.end()) {
             clientId = it->second;
-            auto ip_it = client_ips_.find(clientId);
-            if (ip_it != client_ips_.end()) {
-                clientIp = ip_it->second;
-            }
         }
     }
 
     if (clientId.empty()) {
         obs_log(LOG_WARNING, "[17Live WebSocket Server] Received message from unknown client");
-        return;
-    }
-
-    // Rate limiting check
-    if (!check_rate_limit(clientIp)) {
-        obs_log(LOG_WARNING, "[17Live WebSocket Server] Rate limit exceeded for client %s",
-                clientId.c_str());
-
-        try {
-            server_->close(hdl, websocketpp::close::status::policy_violation,
-                           "Rate limit exceeded");
-        } catch (...) {
-            // Ignore errors during forced close
-        }
         return;
     }
 
@@ -564,7 +513,6 @@ void OneSevenLiveWebsocketServer::onFail(websocketpp::connection_hdl hdl) {
 
             // Remove client from connections
             clients_.erase(clientId);
-            client_ips_.erase(clientId);
             hdl_to_client_id_.erase(it);
         }
     }

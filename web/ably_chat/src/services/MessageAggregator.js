@@ -172,7 +172,7 @@ export class MessageAggregator extends EventEmitter {
       }
 
       await platform.connect(config);
-      this.activePlatforms.add(platformId);
+      if (platform.isConnected) this.activePlatforms.add(platformId);
       
       console.log(`Platform ${platformId} connected`);
       
@@ -274,6 +274,7 @@ export class MessageAggregator extends EventEmitter {
    */
   handlePlatformConnected({ platformId, data }) {
     console.log(`Platform ${platformId} connected successfully:`, data);
+    this.activePlatforms.add(platformId);
     this.emit('status_change', { 
       platformId, 
       status: 'connected',
@@ -290,6 +291,7 @@ export class MessageAggregator extends EventEmitter {
     this.emit('status_change', { 
       platformId, 
       status: 'disconnected',
+      errorCode: data?.errorCode,
       timestamp: Date.now()
     });
   }

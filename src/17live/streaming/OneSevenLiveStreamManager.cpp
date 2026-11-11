@@ -14,6 +14,7 @@
 
 #include "../OneSevenLiveCoreManager.hpp"
 #include "OneSevenLiveConfigManager.hpp"
+#include "api/OneSevenLiveAblyChatClient.hpp"
 #include "api/OneSevenLiveApiWrappers.hpp"
 #include "api/OneSevenLiveModels.hpp"
 #include "moc_OneSevenLiveStreamManager.cpp"
@@ -296,9 +297,7 @@ bool OneSevenLiveStreamManager::createRtmp(const OneSevenLiveRtmpRequest& reques
     // Update status
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
 
-    // Broadcast Ably chat connected when live is created
-    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                nlohmann::json{{"status", "connected"}});
+    onStatusTimer();
 
     obs_log(LOG_INFO, "Live stream created successfully. LiveStreamID: %s",
             currentLiveStreamID.c_str());
@@ -351,8 +350,7 @@ void OneSevenLiveStreamManager::createRtmpAsync(const OneSevenLiveRtmpRequest& r
 
                         self->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Live);
 
-                        self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                                          nlohmann::json{{"status", "connected"}});
+                        self->onStatusTimer();
 
                         obs_log(LOG_INFO,
                                 "Live stream created successfully (Async). LiveStreamID: %s",
@@ -412,9 +410,7 @@ bool OneSevenLiveStreamManager::startStream() {
     // Update status
     setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
 
-    // Broadcast Ably chat connected when streaming starts
-    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                nlohmann::json{{"status", "connected"}});
+    onStatusTimer();
 
     obs_log(LOG_INFO, "Streaming started successfully");
     return true;
@@ -438,7 +434,9 @@ void OneSevenLiveStreamManager::startStreamAsync() {
             return;
 
         bool success = false;
+        bool archiveFailed = false;
         QString errorMsg;
+        QString archiveError;
 
         if (core) {
             const bool refreshed = core->refreshEnterAnimationFilesSync();
@@ -456,12 +454,13 @@ void OneSevenLiveStreamManager::startStreamAsync() {
             if (!success) {
                 errorMsg = api->getLastErrorMessage();
             } else if (autoRecord) {
+                // Archive is a degradable feature: a failure here must not fail the whole stream
+                // start. The user is asked whether to continue without archive or to abort.
                 if (!api->EnableStreamArchive(lid, 1)) {
-                    QString archiveError = api->getLastErrorMessage();
-                    obs_log(LOG_ERROR, "Failed to enable archive (Async). Error: %s",
+                    archiveFailed = true;
+                    archiveError = api->getLastErrorMessage();
+                    obs_log(LOG_WARNING, "Failed to enable archive (Async). Error: %s",
                             archiveError.toStdString().c_str());
-                    success = false;
-                    errorMsg = archiveError;
                 }
             }
         } else if (errorMsg.isEmpty()) {
@@ -471,25 +470,49 @@ void OneSevenLiveStreamManager::startStreamAsync() {
         if (self) {
             QMetaObject::invokeMethod(
                 self,
-                [self, success, errorMsg]() {
-                    if (success) {
-                        self->setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
-
-                        self->wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected),
-                                          nlohmann::json{{"status", "connected"}});
-
-                        obs_log(LOG_INFO, "Streaming started successfully (Async)");
-                        emit self->startStreamFinished(true, QString());
-                    } else {
+                [self, success, errorMsg, archiveFailed, archiveError]() {
+                    if (!success) {
                         obs_log(LOG_ERROR, "Failed to start stream (Async). Error: %s",
                                 errorMsg.toStdString().c_str());
                         emit self->errorOccurred(errorMsg, "startStream");
                         emit self->startStreamFinished(false, errorMsg);
+                    } else if (archiveFailed) {
+                        emit self->streamArchiveFailed(archiveError);
+                    } else {
+                        self->notifyStreamStarted();
                     }
                 },
                 Qt::QueuedConnection);
         }
     });
+}
+
+void OneSevenLiveStreamManager::notifyStreamStarted() {
+    setCurrentStreamingStatus(OneSevenLiveStreamingStatus::Streaming);
+
+    onStatusTimer();
+
+    obs_log(LOG_INFO, "Streaming started successfully (Async)");
+    emit startStreamFinished(true, QString());
+}
+
+void OneSevenLiveStreamManager::continueStartStreamWithoutArchive() {
+    obs_log(LOG_WARNING,
+            "User chose to continue starting the live stream without archive; this session will "
+            "not be recorded. LiveStreamID: %s",
+            currentLiveStreamID.c_str());
+
+    notifyStreamStarted();
+}
+
+void OneSevenLiveStreamManager::abortStartStreamWithoutArchive() {
+    obs_log(LOG_WARNING,
+            "User chose to abort the live stream start because archive could not be enabled; "
+            "closing the 17LIVE room. LiveStreamID: %s",
+            currentLiveStreamID.c_str());
+
+    // Close the 17LIVE room and reset the internal status back to NotStarted
+    stopStream(false);
 }
 
 void OneSevenLiveStreamManager::changeEventAsync(const OneSevenLiveChangeEventRequest& request) {
@@ -592,11 +615,15 @@ bool OneSevenLiveStreamManager::isStopStreamInProgress() const {
 }
 
 void OneSevenLiveStreamManager::onStatusTimer() {
-    wsBroadcast(
-        QString::fromUtf8(ws::EventAblyChatConnected),
-        nlohmann::json{{"status", currentStreamingStatus == OneSevenLiveStreamingStatus::NotStarted
-                                      ? "break"
-                                      : "connected"}});
+    auto* client = OneSevenLiveCoreManager::getInstance().getAblyChatClient();
+    if (client && currentStreamingStatus != OneSevenLiveStreamingStatus::NotStarted)
+        client->logDiagnostics();
+    const bool connected = currentStreamingStatus != OneSevenLiveStreamingStatus::NotStarted &&
+                           client && client->isConnected();
+    nlohmann::json payload{{"status", connected ? "connected" : "break"}};
+    if (!connected && client && client->lastErrorCode())
+        payload["errorCode"] = client->lastErrorCode();
+    wsBroadcast(QString::fromUtf8(ws::EventAblyChatConnected), payload);
 }
 
 void OneSevenLiveStreamManager::startOBSStreaming() {

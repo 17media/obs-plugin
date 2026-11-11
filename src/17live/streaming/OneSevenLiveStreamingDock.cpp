@@ -288,18 +288,14 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
                     return;
                 }
 
-                obs_log(LOG_WARNING, "OBS stream stopped unexpectedly with code %d: %s", code,
+                // The 17LIVE live status is independent of OBS streaming: Streaming means the
+                // 17LIVE live is in progress, not that OBS is streaming. Stopping the OBS stream
+                // must therefore keep the room open and leave the live status untouched, so the
+                // streamer can restart OBS streaming. The room is only closed when the user
+                // explicitly ends the 17LIVE live from the dock.
+                obs_log(LOG_INFO,
+                        "OBS stream stopped unexpectedly (code %d): %s; keeping 17LIVE live", code,
                         lastError.toStdString().c_str());
-                // If this was an unexpected stop (network error etc), we might want to reflect that
-                // in UI For now, just ensure our internal status is updated if it wasn't already
-                if (streamManager->getCurrentStreamingStatus() ==
-                    OneSevenLiveStreamingStatus::Streaming) {
-                    // If we were streaming, but OBS stopped, we should probably consider it as
-                    // stopped or trying to reconnect? OBS has its own reconnection logic. If OBS
-                    // completely gives up (e.g. after max retries), it stops. We should sync our
-                    // status to NotStarted in that case.
-                    streamManager->stopStream(false);
-                }
             });
 
     connect(streamManager, &OneSevenLiveStreamManager::createRtmpFinished, this,
@@ -345,6 +341,9 @@ OneSevenLiveStreamingDock::OneSevenLiveStreamingDock(QWidget *parent,
                     QMessageBox::warning(this, obs_module_text("Live.Settings.Error"), msg);
                 }
             });
+
+    connect(streamManager, &OneSevenLiveStreamManager::streamArchiveFailed, this,
+            &OneSevenLiveStreamingDock::onStreamArchiveFailed);
 
     connect(streamManager, &OneSevenLiveStreamManager::changeEventFinished, this,
             [this](bool success, const QString &error) {
@@ -569,7 +568,7 @@ void OneSevenLiveStreamingDock::setupUi() {
     armyOnlyHeaderLayout = new QHBoxLayout(armyOnlyHeader);
     armyOnlyHeaderLayout->setContentsMargins(0, 10, 0, 10);
 
-    armyOnlyLabel = new QLabel(obs_module_text("Live.Settings.ArmyOnly"));
+    armyOnlyLabel = new QLabel(obs_module_text("Live.Settings.BroadcastMode.Description"));
     armyOnlyToggleButton = new QPushButton();
     armyOnlyToggleButton->setIcon(QIcon(":/resources/arrow-down.svg"));
     armyOnlyToggleButton->setStyleSheet(
@@ -876,16 +875,12 @@ void OneSevenLiveStreamingDock::updateUIWithRoomInfo() {
     }
 
     // Army settings
-
-    armyOnlyHeader->setEnabled(configStreamer.armyOnly == 2 &&
-                               userInfo.onliveInfo.premiumType != 1);
-
+    // Feature 158 is required to decide the text scheme of the user condition options,
+    // so refresh the combo before applying the visibility rules below.
     if (configStreamer.armyOnly == 2 && userInfo.onliveInfo.premiumType != 1) {
         updateRequiredArmyRankSelections();
-        armyOnlyHeader->setToolTip("");
-    } else {
-        armyOnlyHeader->setToolTip(obs_module_text("Live.Settings.ArmyOnly.Tip"));
     }
+    updateArmyOnlyState();
 
     // Set archive configuration
     archiveStreamCheck->setChecked(configStreamer.archiveConfig.autoRecording);
@@ -1069,7 +1064,16 @@ void OneSevenLiveStreamingDock::handleLoadingCompleted(
 void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections() {
     // obs_log(LOG_INFO, "updateRequiredArmyRankSelections");
 
+    // Feature 158 selects the wording of the user condition options
+    // (0: named army ranks, 1: numeric ranks). It must be read from the saved
+    // config; a default constructed config has no features and always falls back to 0.
     OneSevenLiveConfig config;
+    if (configManager && !configManager->getConfig(config)) {
+        const auto err = configManager->getLastError();
+        obs_log(LOG_WARNING, "Failed to read config for feature 158: %s %s", err.code.c_str(),
+                err.message.c_str());
+    }
+    const int rankScheme = config.addOns.features.value("158", 0);
 
     // Initialize Combo Items
     requiredArmyRankCombo->clear();
@@ -1078,12 +1082,12 @@ void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections() {
     for (const auto &level : levels.subscriptionLevels) {
         QString rankValueTemplate = obs_module_text(
             QString("Live.Settings.Rank%1.%2")
-                .arg(QString::number(config.addOns.features["158"]), level.i18nToken.key)
+                .arg(QString::number(rankScheme), level.i18nToken.key)
                 .toStdString()
                 .c_str());
 
         if (level.i18nToken.key != "army_only_stream_level_setting_all_level") {
-            if (config.addOns.features["158"] == 0) {
+            if (rankScheme == 0) {
                 QString name = obs_module_text(QString("Live.Settings.Rank0.army_rank_name_%1")
                                                    .arg(level.rank)
                                                    .toStdString()
@@ -1091,7 +1095,7 @@ void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections() {
 
                 // string replace {name} in rankValueTemplate with rankTemplateValueName
                 rankValueTemplate = rankValueTemplate.replace("{name}", name);
-            } else if (config.addOns.features["158"] == 1) {
+            } else if (rankScheme == 1) {
                 // string replace {value} in rankValueTemplate with
                 rankValueTemplate =
                     rankValueTemplate.replace("{value}", level.i18nToken.params[0].value);
@@ -1104,6 +1108,46 @@ void OneSevenLiveStreamingDock::updateRequiredArmyRankSelections() {
 
         requiredArmyRankCombo->addItem(rankValueTemplate, level.rank);
     }
+}
+
+void OneSevenLiveStreamingDock::updateArmyOnlyState() {
+    // armyOnly: 0 hidden, 1 not eligible, 2 available, 3 hidden (no army members).
+    // Streamers with a paid membership (premiumType == 1) must not see the option.
+    const bool premiumLocked = (userInfo.onliveInfo.premiumType == 1);
+    const bool visible = !premiumLocked && (configStreamer.armyOnly == 1 ||
+                                            configStreamer.armyOnly == 2);
+    const bool eligible = !premiumLocked && configStreamer.armyOnly == 2;
+    const bool editable = eligible && currentLiveStatus == OneSevenLiveStreamingStatus::NotStarted;
+
+    armyOnlyHeader->setVisible(visible);
+    armyOnlyContainer->setVisible(visible && eligible && armyOnlyExpanded);
+
+    if (!eligible && armyOnlyCheck->isChecked()) {
+        // The feature cannot be used, never submit a stale enabled flag.
+        armyOnlyCheck->setChecked(false);
+    }
+
+    armyOnlyHeader->setEnabled(editable);
+    armyOnlyToggleButton->setEnabled(editable);
+    armyOnlyCheck->setEnabled(editable);
+
+    // Explain why the section is disabled instead of leaving it as a dead end.
+    const QString tip = eligible ? QString()
+                                 : QString(obs_module_text("Live.Settings.ArmyOnly.Tip"));
+    armyOnlyHeader->setToolTip(tip);
+    armyOnlyLabel->setToolTip(tip);
+    armyOnlyToggleButton->setToolTip(tip);
+    armyOnlyCheck->setToolTip(tip);
+
+    updateArmyOnlyOptionStates();
+}
+
+void OneSevenLiveStreamingDock::updateArmyOnlyOptionStates() {
+    // The user condition and the two toggles only apply when army-only streaming is on.
+    const bool editable = armyOnlyCheck->isEnabled() && armyOnlyCheck->isChecked();
+    requiredArmyRankCombo->setEnabled(editable);
+    showInHotPageCheck->setEnabled(editable);
+    liveNotificationCheck->setEnabled(editable);
 }
 
 void OneSevenLiveStreamingDock::updateUIValues() {
@@ -1209,9 +1253,24 @@ void OneSevenLiveStreamingDock::onArmyOnlyCheckChanged(int state) {
             clipIdentityCombo->findData(roomInfo.archiveConfig.clipPermission));
     }
 
-    archiveStreamCheck->setEnabled(state != Qt::Checked);
-    autoPreviewCheck->setEnabled(state != Qt::Checked);
-    clipIdentityCombo->setEnabled(state != Qt::Checked);
+    // Archive / preview / clip are forced off while army-only streaming is enabled,
+    // but streaming itself locks them regardless of the army-only state.
+    const bool editable = (currentLiveStatus == OneSevenLiveStreamingStatus::NotStarted);
+    archiveStreamCheck->setEnabled(editable && state != Qt::Checked);
+    autoPreviewCheck->setEnabled(editable && state != Qt::Checked);
+    clipIdentityCombo->setEnabled(editable && state != Qt::Checked);
+
+    // Explain the archive restriction on hover, otherwise the greyed out switch is a dead end.
+    const QString archiveTip =
+        (state == Qt::Checked)
+            ? QString(obs_module_text("Live.Settings.Archive.ArmyOnly.Tip"))
+            : QString();
+    archiveStreamCheck->setToolTip(archiveTip);
+    autoPreviewCheck->setToolTip(archiveTip);
+    clipIdentityCombo->setToolTip(archiveTip);
+
+    // The user condition applies to army-only streaming only.
+    updateArmyOnlyOptionStates();
 }
 
 void OneSevenLiveStreamingDock::onCustomEventToggleClicked() {
@@ -1657,6 +1716,35 @@ void OneSevenLiveStreamingDock::startLive(bool startStream) {
     }
 }
 
+void OneSevenLiveStreamingDock::onStreamArchiveFailed(const QString &error) {
+    obs_log(LOG_WARNING, "Failed to enable archive: %s", error.toStdString().c_str());
+
+    constexpr bool kSkipArchiveFailureDialog = true;
+    if (kSkipArchiveFailureDialog) {
+        streamManager->continueStartStreamWithoutArchive();
+        return;
+    }
+
+    // Let the user decide whether to keep streaming without archive or to end the live stream
+    QMessageBox msgBox(this);
+    msgBox.setIcon(QMessageBox::Warning);
+    msgBox.setWindowTitle(obs_module_text("Live.Settings.Archive.Failed.Title"));
+    msgBox.setText(obs_module_text("Live.Settings.Archive.Failed.Message"));
+
+    QPushButton *continueButton = msgBox.addButton(
+        obs_module_text("Live.Settings.Archive.Failed.Continue"), QMessageBox::YesRole);
+    QPushButton *abortButton = msgBox.addButton(
+        obs_module_text("Live.Settings.Archive.Failed.Abort"), QMessageBox::DestructiveRole);
+    msgBox.setDefaultButton(continueButton);
+    msgBox.exec();
+
+    if (msgBox.clickedButton() == abortButton) {
+        streamManager->abortStartStreamWithoutArchive();
+    } else {
+        streamManager->continueStartStreamWithoutArchive();
+    }
+}
+
 namespace {
     struct ObsAutoAdjustTarget {
         uint32_t baseW{0};
@@ -2021,13 +2109,19 @@ void OneSevenLiveStreamingDock::populateRtmpRequest(const OneSevenLiveRtmpReques
 
     showInHotPageCheck->setChecked(request.armyOnly.showOnHotPage);
     liveNotificationCheck->setChecked(request.armyOnly.armyOnlyPN);
+    updateArmyOnlyOptionStates();
 
     GroupCallCheck->setChecked(request.enableOBSGroupCall);
 
-    archiveStreamCheck->setChecked(request.archiveConfig.autoRecording);
-    autoPreviewCheck->setChecked(request.archiveConfig.autoPublish);
+    // Army-only streaming forces archive, auto publish and clip identity off.
+    // Apply the same rule here, otherwise a restored request would leave them
+    // checked while disabled, and saving would send the forbidden values back.
+    const bool armyOnlyEnabled = request.armyOnly.enable;
+    archiveStreamCheck->setChecked(armyOnlyEnabled ? false : request.archiveConfig.autoRecording);
+    autoPreviewCheck->setChecked(armyOnlyEnabled ? false : request.archiveConfig.autoPublish);
 
-    int clipIndex = clipIdentityCombo->findData(QVariant(request.archiveConfig.clipPermission));
+    int clipIndex = clipIdentityCombo->findData(
+        QVariant(armyOnlyEnabled ? 0 : request.archiveConfig.clipPermission));
     if (clipIndex >= 0) {
         clipIdentityCombo->setCurrentIndex(clipIndex);
     }
@@ -2145,13 +2239,9 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     setEnabledSafe(landscapeStreamRadio, enable);
 
     // Army-only section
-    setEnabledSafe(armyOnlyHeader, enable);
-    setEnabledSafe(armyOnlyContainer, enable);
-    setEnabledSafe(armyOnlyToggleButton, enable);
-    setEnabledSafe(armyOnlyCheck, enable);
-    setEnabledSafe(requiredArmyRankCombo, enable);
-    setEnabledSafe(showInHotPageCheck, enable);
-    setEnabledSafe(liveNotificationCheck, enable);
+    // Re-apply the eligibility and streaming rules on every status change, otherwise
+    // ending a live would wrongly re-enable options the streamer is not allowed to use.
+    updateArmyOnlyState();
 
     // Party Live (Group Call)
     setEnabledSafe(GroupCallContainer, enable);
@@ -2159,9 +2249,11 @@ void OneSevenLiveStreamingDock::updateLiveStatus(OneSevenLiveStreamingStatus sta
     setEnabledSafe(GroupCallCheck, enable);
 
     // Archive / Preview / Clip / Virtual Liver
-    setEnabledSafe(archiveStreamCheck, enable);
-    setEnabledSafe(autoPreviewCheck, enable);
-    setEnabledSafe(clipIdentityCombo, enable);
+    // Army-only streaming keeps archive/preview/clip disabled, so preserve that rule here.
+    const bool archiveEnable = enable && !armyOnlyCheck->isChecked();
+    setEnabledSafe(archiveStreamCheck, archiveEnable);
+    setEnabledSafe(autoPreviewCheck, archiveEnable);
+    setEnabledSafe(clipIdentityCombo, archiveEnable);
     setEnabledSafe(virtualStreamerCheck, enable);
 
     // Keep bottom buttons enabled regardless of streaming status

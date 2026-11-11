@@ -1022,8 +1022,9 @@ bool OneSevenLiveApiWrappers::EnableStreamArchive(const std::string &liveStreamI
                                                   int enableArchive) {
     obs_log(LOG_INFO, "EnableStreamArchive start");
     clearLastError();
-    QString urlStr =
-        QString::fromStdString(ONESEVENLIVE_ARCHIVE_URL).arg(liveStreamID.c_str(), enableArchive);
+    QString urlStr = QString::fromStdString(ONESEVENLIVE_ARCHIVE_URL)
+                         .arg(QString::fromStdString(liveStreamID))
+                         .arg(enableArchive);
     QByteArray url = urlStr.toUtf8();
 
     std::string error;
